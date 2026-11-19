@@ -1,6 +1,5 @@
 # Data — Network Manager
 
-## Purpose Of This Document
 
 This document defines Network Manager's data ownership, storage expectations, retention, deletion, import/export, and privacy-relevant behavior.
 

@@ -45,3 +45,27 @@ func TestGateDefaultsToOneTurnGrant(t *testing.T) {
 		t.Fatalf("grant result = %+v, err=%v", got, err)
 	}
 }
+
+func TestGateStatusOwnsTerminalTransitions(t *testing.T) {
+	for _, tc := range []struct {
+		from, to Status
+		wantErr  bool
+	}{
+		{Pending, Granted, false},
+		{Pending, Denied, false},
+		{Pending, Expired, false},
+		{Granted, Denied, true},
+		{Expired, Granted, true},
+		{Status("unknown"), Granted, true},
+		{Pending, Status("unknown"), true},
+	} {
+		gate := Gate{Status: tc.from}
+		err := gate.TransitionTo(tc.to)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("transition %q -> %q error = %v, wantErr %v", tc.from, tc.to, err, tc.wantErr)
+		}
+		if tc.wantErr && gate.Status != tc.from {
+			t.Errorf("invalid transition mutated status to %q", gate.Status)
+		}
+	}
+}

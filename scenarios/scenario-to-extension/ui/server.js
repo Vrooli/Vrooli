@@ -10,5 +10,4 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'scenario-to-extension-ui',
   version: '2.0.0',
-  corsOrigins: '*',
 })

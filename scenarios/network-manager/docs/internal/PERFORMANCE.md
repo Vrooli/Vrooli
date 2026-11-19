@@ -1,6 +1,5 @@
 # Performance — Network Manager
 
-## Purpose Of This Document
 
 Define performance budgets and measurement constraints for network diagnostics and UI responsiveness.
 

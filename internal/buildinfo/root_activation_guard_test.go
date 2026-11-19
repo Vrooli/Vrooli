@@ -54,13 +54,13 @@ func TestInterruptedRebaselineReportsExactRecoveryModeAndPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(state, "root-rebaseline", "progress.json")
-	for _, mode := range []string{"prepared", "hub"} {
-		p := rebaselineprogress.Progress{Version: 1, Candidate: strings.Repeat("a", 64), Watchdog: strings.Repeat("b", 64), Bundle: strings.Repeat("c", 64), Mode: mode}
+	{
+		p := rebaselineprogress.Progress{Version: 1, Candidate: strings.Repeat("a", 64), Watchdog: strings.Repeat("b", 64), Bundle: strings.Repeat("c", 64)}
 		if err := rebaselineprogress.Write(path, p); err != nil {
 			t.Fatal(err)
 		}
 		err := GuardRebaselineCompletion(home)
-		if err == nil || !strings.Contains(err.Error(), "owner'\\''s home") || !strings.Contains(err.Error(), "--"+mode) || !strings.Contains(err.Error(), strings.Repeat("c", 64)) {
+		if err == nil || !strings.Contains(err.Error(), "owner'\\''s home") || !strings.Contains(err.Error(), strings.Repeat("c", 64)) {
 			t.Fatalf("unsafe or incomplete recovery guidance: %v", err)
 		}
 	}

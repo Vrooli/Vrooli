@@ -1,6 +1,5 @@
 # Experience Design
 
-## Purpose Of This Document
 
 Define the product's user experience: what it is trying to make a person feel
 and understand, the information architecture that carries that, the visual and

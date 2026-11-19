@@ -10,10 +10,6 @@
 package capabilities
 
 import (
-	"context"
-	"encoding/json"
-	"os/exec"
-	"strings"
 	"time"
 
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
@@ -85,35 +81,6 @@ var Known = []Def{
 	},
 }
 
-// ScenarioChecker probes one scenario dependency through the control plane.
-// The zero value probes nothing and reports unavailable, which is the honest
-// answer for a checker that was never given a slug.
-type ScenarioChecker struct {
-	Slug string
-}
-
-func (c ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	if c.Slug == "" {
-		return capabilityregistry.StatusUnavailable, "no scenario slug was configured for this checker"
-	}
-	output, err := exec.Command("vrooli", "scenario", "status", c.Slug, "--json").Output()
-	if err != nil {
-		return capabilityregistry.StatusUnavailable, c.Slug + " is unavailable; start it with the operator action"
-	}
-	var payload struct {
-		Scenario struct {
-			Status string `json:"status"`
-		} `json:"scenario"`
-	}
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return capabilityregistry.StatusUnavailable, c.Slug + " status was not valid JSON"
-	}
-	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, c.Slug + " is healthy"
-	}
-	return capabilityregistry.StatusUnavailable, c.Slug + " is not running; start it with the operator action"
-}
-
 // NewRegistry pairs every declared scenario capability with a checker. A
 // declaration with no checker reports nothing, which reads as healthy rather
 // than as unknown, so the map is derived from Known instead of hand-listed.
@@ -123,7 +90,7 @@ func NewRegistry() *Registry {
 		if def.DependencyKind != capabilityregistry.DependencyScenario || def.DependencySlug == "" {
 			continue
 		}
-		checkers[def.ID] = ScenarioChecker{Slug: def.DependencySlug}
+		checkers[def.ID] = capabilityregistry.ScenarioStatusChecker{Scenario: def.DependencySlug}
 	}
 	return capabilityregistry.New(Known, checkers, 5*time.Second)
 }

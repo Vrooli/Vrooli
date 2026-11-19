@@ -39,6 +39,12 @@ scenario-to-cloud deployment health "$DEPLOYMENT_ID"
 scenario-to-cloud operation list "$DEPLOYMENT_ID"
 ```
 
+`scenario deps <id> --impact` resolves Scenario Dependency Analyzer through the
+shared peer resolver. Set `SCENARIO_DEPENDENCY_ANALYZER_API_BASE_URL` when the
+analyzer uses a configured deployment address; the value may include a base
+path prefix. Without it, the CLI resolves the analyzer scenario's local
+`API_PORT`.
+
 ## Docs
 
 - PRD: `scenarios/scenario-to-cloud/PRD.md`

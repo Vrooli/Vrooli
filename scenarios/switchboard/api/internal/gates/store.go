@@ -49,6 +49,9 @@ func (s *Store) Get(ctx context.Context, id string) (Gate, bool, error) {
 	if err != nil {
 		return Gate{}, false, fmt.Errorf("read gate: %w", err)
 	}
+	if !g.Status.valid() {
+		return Gate{}, false, fmt.Errorf("invalid persisted gate status %q", g.Status)
+	}
 	var parseErr error
 	g.CreatedAt, parseErr = time.Parse(time.RFC3339Nano, created)
 	if parseErr != nil {
@@ -59,11 +62,19 @@ func (s *Store) Get(ctx context.Context, id string) (Gate, bool, error) {
 		return Gate{}, false, fmt.Errorf("parse gate expires_at: %w", parseErr)
 	}
 	if g.Status == Pending && !s.now().Before(g.ExpiresAt) {
-		_, err = s.db.ExecContext(ctx, `UPDATE switchboard_capability_gates SET status=? WHERE id=? AND status=?`, Expired, id, Pending)
+		if err := g.TransitionTo(Expired); err != nil {
+			return Gate{}, false, err
+		}
+		var result sql.Result
+		result, err = s.db.ExecContext(ctx, `UPDATE switchboard_capability_gates SET status=? WHERE id=? AND status=?`, g.Status, id, Pending)
 		if err != nil {
 			return Gate{}, false, fmt.Errorf("expire gate: %w", err)
 		}
-		g.Status = Expired
+		if n, rowsErr := result.RowsAffected(); rowsErr != nil {
+			return Gate{}, false, rowsErr
+		} else if n == 0 {
+			return s.Get(ctx, id)
+		}
 	}
 	return g, true, nil
 }
@@ -86,6 +97,9 @@ func (s *Store) Answer(ctx context.Context, id, actorID string, grant bool) (Gat
 	if grant {
 		status = Granted
 	}
+	if err := g.TransitionTo(status); err != nil {
+		return Gate{}, err
+	}
 	result, err := s.db.ExecContext(ctx, `UPDATE switchboard_capability_gates SET status=? WHERE id=? AND status=?`, status, id, Pending)
 	if err != nil {
 		return Gate{}, fmt.Errorf("answer gate: %w", err)
@@ -93,6 +107,5 @@ func (s *Store) Answer(ctx context.Context, id, actorID string, grant bool) (Gat
 	if n, _ := result.RowsAffected(); n != 1 {
 		return Gate{}, ErrNotPending
 	}
-	g.Status = status
 	return g, nil
 }

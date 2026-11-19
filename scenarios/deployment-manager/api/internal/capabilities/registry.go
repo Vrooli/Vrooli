@@ -4,12 +4,6 @@
 // process allowed to start or inspect another scenario.
 package capabilities
 
-import (
-	"context"
-	"os/exec"
-	"strings"
-)
-
 type PlatformVerdict struct {
 	Support string `json:"support,omitempty"`
 	Reason  string `json:"reason,omitempty"`
@@ -51,53 +45,4 @@ func ResolveDeliveryFormats(capabilities []string) []string {
 		}
 	}
 	return nil
-}
-
-type Status string
-
-const (
-	StatusAvailable   Status = "available"
-	StatusUnavailable Status = "unavailable"
-)
-
-// Checker is the narrow reachability seam used by dependency-health and by
-// future capability endpoints. It deliberately invokes the control plane's
-// public CLI rather than importing another scenario's implementation.
-type Checker interface {
-	Check(context.Context) (Status, string)
-}
-
-type scenarioStatusRunner interface {
-	Status(context.Context, string) ([]byte, error)
-}
-
-type controlPlaneStatusRunner struct{}
-
-func (controlPlaneStatusRunner) Status(ctx context.Context, slug string) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json").Output()
-}
-
-type ScenarioChecker struct {
-	Slug   string
-	runner scenarioStatusRunner
-}
-
-func (c ScenarioChecker) Check(ctx context.Context) (Status, string) {
-	slug := strings.TrimSpace(c.Slug)
-	if slug == "" {
-		return StatusUnavailable, "scenario slug is not configured"
-	}
-	runner := c.runner
-	if runner == nil {
-		runner = controlPlaneStatusRunner{}
-	}
-	out, err := runner.Status(ctx, slug)
-	if err != nil {
-		return StatusUnavailable, "scenario status unavailable; use the operator start action"
-	}
-	body := strings.ToLower(string(out))
-	if strings.Contains(body, "healthy") || strings.Contains(body, "running") {
-		return StatusAvailable, "scenario is healthy"
-	}
-	return StatusUnavailable, "scenario is installed but stopped"
 }

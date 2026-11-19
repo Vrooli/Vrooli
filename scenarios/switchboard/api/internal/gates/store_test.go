@@ -30,3 +30,21 @@ func TestStorePersistsOwnerOnlyGateAndExpiresAcrossReads(t *testing.T) {
 		t.Fatalf("non-owner error = %v", err)
 	}
 }
+
+func TestStoreRejectsUnknownPersistedGateStatus(t *testing.T) {
+	db := dbtest.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatal(err)
+	}
+	s := NewStore(db, time.Now)
+	gate, err := s.Raise(context.Background(), "thread-unknown", "owner", "files.write", "file", "approval", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.ExecContext(context.Background(), `UPDATE switchboard_capability_gates SET status=? WHERE id=?`, "corrupt", gate.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := s.Get(context.Background(), gate.ID); err == nil || ok {
+		t.Fatalf("unknown persisted status was accepted: ok=%v err=%v", ok, err)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/hostwatchdog"
 	"io"
 	"net/http"
 	"os"
@@ -48,10 +49,6 @@ type hostWatchdogReport struct {
 	UsedPercent    float64 `json:"used_percent"`
 	BelowFloor     bool    `json:"below_floor"`
 	Sustained      bool    `json:"sustained"`
-}
-
-type hostWatchdogState struct {
-	FirstBelow time.Time `json:"first_below"`
 }
 
 func runHostWatchdog(ctx context.Context, commandCtx hostWatchdogCommandContext, args []string) error {
@@ -231,7 +228,7 @@ func tickHostWatchdog(ctx context.Context, cfg hostWatchdogConfig) (hostWatchdog
 		return hostWatchdogReport{}, err
 	}
 	report := hostWatchdogReport{Mount: cfg.Mount, AvailableBytes: available, UsedPercent: used, BelowFloor: available < cfg.FloorBytes}
-	var state hostWatchdogState
+	var state hostwatchdog.State
 	if cfg.StatePath != "" {
 		if raw, readErr := os.ReadFile(cfg.StatePath); readErr == nil {
 			_ = json.Unmarshal(raw, &state)

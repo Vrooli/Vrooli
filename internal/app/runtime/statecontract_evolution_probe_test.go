@@ -152,6 +152,7 @@ var unauditedWriters = map[string]string{
 	"github.com/vrooli/vrooli/internal/tools/blender-renderer":        "writes quarantine audit receipts; no runtime reader consumes them",
 	"github.com/vrooli/vrooli/internal/cli/vroolicli":                 "host_watchdog.go is covered by the host-watchdog-state whole-source owner",
 	"github.com/vrooli/vrooli/internal/shell/shelltest":               "test fixture script writer, no production runtime state",
+	"github.com/vrooli/vrooli/internal/setupprivilege":                "bounded temporary apt-key checks, package staging and onboarding sudoers files; durable broker, package and onboarding state are owned by those owners",
 	"github.com/vrooli/platform-go/rlimitexec":                        "syscall.Exec replaces the current process; it writes no durable state",
 	"github.com/vrooli/vrooli/internal/cli/metrics":                   "append-only CLI usage metrics and README, no control-plane reader consumes them",
 	"github.com/vrooli/vrooli/internal/volumeremediation":             "append-only remediation receipts for audit, not reloaded to execute remediation",

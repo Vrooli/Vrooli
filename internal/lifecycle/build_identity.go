@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	buildIdentityEnv                = "VROOLI_BUILD_IDENTITY"
-	runtimeReleaseIDEnv             = "VROOLI_RUNTIME_RELEASE_ID"
-	runtimeReleaseOperationIDEnv    = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
-	startOperationIDEnv             = "VROOLI_START_OPERATION_ID"
+	buildIdentityEnv             = "VROOLI_BUILD_IDENTITY"
+	runtimeReleaseIDEnv          = "VROOLI_RUNTIME_RELEASE_ID"
+	runtimeReleaseOperationIDEnv = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+	startOperationIDEnv          = "VROOLI_START_OPERATION_ID"
 )
 
 var buildIdentityIgnoredDirectories = map[string]struct{}{
@@ -75,7 +75,12 @@ func scenarioBuildIdentity(item scenario.Scenario) (string, error) {
 			return walkErr
 		}
 		if path != root && entry.IsDir() {
-			if _, ignored := buildIdentityIgnoredDirectories[entry.Name()]; ignored {
+			// artifact_replace.go parks the previous generated output beside its
+			// target as ".vrooli-displaced-<name>". It is never authored source,
+			// and a privileged run can leave it unreadable; hashing it made the
+			// build identity fail with "permission denied".
+			if _, ignored := buildIdentityIgnoredDirectories[entry.Name()]; ignored ||
+				strings.HasPrefix(entry.Name(), ".vrooli-displaced-") {
 				return filepath.SkipDir
 			}
 			relative, relativeErr := filepath.Rel(root, path)

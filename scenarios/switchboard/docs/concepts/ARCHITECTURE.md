@@ -1,6 +1,5 @@
 # Architecture — Switchboard
 
-## Purpose Of This Document
 
 This document is the canonical description of this scenario's shape: which
 surfaces exist, where the boundaries are, how data crosses them, and what may

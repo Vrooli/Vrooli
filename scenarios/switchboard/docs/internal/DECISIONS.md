@@ -1,6 +1,5 @@
 # Decisions — Switchboard
 
-## Purpose Of This Document
 
 The durable record of *why* this scenario is shaped the way it is. Each row
 states the decision, what was rejected, the cost accepted, and what would make

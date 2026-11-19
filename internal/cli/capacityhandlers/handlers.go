@@ -77,6 +77,15 @@ func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			capacitycli.RenderClaim,
 		),
+		capacitycli.CommandAdmit: rootcli.BindService(deps.Stdout, deps.OutputFormat, serviceFactory,
+			func(ctx C, args []string) (capacityapp.AdmitRequest, error) {
+				return capacitycli.ParseAdmitRequest(args)
+			},
+			func(service capacityapp.Service, req capacityapp.AdmitRequest) (capacityapp.AdmitOutput, error) {
+				return service.Admit(context.Background(), req)
+			},
+			capacitycli.RenderAdmit,
+		),
 		capacitycli.CommandHeartbeat: refHandler(deps, capacitycli.CommandHeartbeat, "vrooli capacity heartbeat",
 			func(s capacityapp.Service, ref capacityapp.Ref) (capacityapp.ClaimView, error) {
 				return s.Heartbeat(context.Background(), ref)

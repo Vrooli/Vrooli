@@ -65,7 +65,6 @@ func installPreparedBundleWithSource(sourceDir, binDir, manifestSHA, sourceRoot 
 		return err
 	}
 	return finishOrdinaryBundle(home, binDir, manifest)
-
 }
 
 // InstallPreparedBundleSameContract requalifies under the bundle workflow
@@ -308,7 +307,7 @@ func qualifyOrdinaryBundle(home, source, bin, manifestSHA string, requireIdentit
 	}
 	defer os.RemoveAll(private)
 	candidatePath := filepath.Join(private, "vrooli")
-	if _, err := copyRootCLIImage(filepath.Join(source, "vrooli"), candidatePath, manifest["vrooli"], 0700); err != nil {
+	if _, err := copyRootCLIImage(filepath.Join(source, "vrooli"), candidatePath, manifest["vrooli"], 0o700); err != nil {
 		return "", err
 	}
 	candidate, err := probeRootCLIIdentity(context.Background(), candidatePath)
@@ -362,7 +361,7 @@ func beginOrdinaryBundleWithSource(home, source, bin, manifestSHA string, sameCo
 	}
 	if existing != nil {
 		if existing.Manifest != manifestSHA || existing.SameContract != sameContract || existing.SourceRoot != sourceRoot {
-			return "", fmt.Errorf("an ordinary bundle install is incomplete; resume with %q --resume-bundle %q (manifest %s)", filepath.Join(retained, "vrooli-atomic-install"), bin, existing.Manifest)
+			return "", fmt.Errorf("an ordinary bundle install is incomplete; resume it with %q --resume-bundle %q (manifest %s), or, when the installed images still match the recorded prior state, discard it with %q --abort-bundle %q", filepath.Join(retained, "vrooli-atomic-install"), bin, existing.Manifest, filepath.Join(retained, "vrooli-atomic-install"), bin)
 		}
 		if err := VerifyPreparedBundle(retained, existing.Manifest); err != nil {
 			return "", fmt.Errorf("retained bundle recovery failed: %w", err)
@@ -391,7 +390,7 @@ func beginOrdinaryBundleWithSource(home, source, bin, manifestSHA string, sameCo
 	if err := os.RemoveAll(retained); err != nil {
 		return "", err
 	}
-	if _, err := config.EnsureOwnedDirMode(retained, 0700); err != nil {
+	if _, err := config.EnsureOwnedDirMode(retained, 0o700); err != nil {
 		return "", err
 	}
 	// Persist the newly created recovery-directory entry as well as the files
@@ -414,7 +413,7 @@ func beginOrdinaryBundleWithSource(home, source, bin, manifestSHA string, sameCo
 		if err != nil {
 			return "", err
 		}
-		if err := config.WriteOwnedFileDurable(filepath.Join(retained, name), data, 0700); err != nil {
+		if err := config.WriteOwnedFileDurable(filepath.Join(retained, name), data, 0o700); err != nil {
 			return "", err
 		}
 	}
@@ -458,7 +457,7 @@ func finishOrdinaryBundle(home, bin string, expected map[string]string) error {
 		return fmt.Errorf("ordinary bundle intent disappeared before completion")
 	}
 	if intent.SourceRoot != "" {
-		if err := config.WriteOwnedFileDurable(repocontract.SourceRootPointerPath(home), []byte(intent.SourceRoot+"\n"), 0600); err != nil {
+		if err := config.WriteOwnedFileDurable(repocontract.SourceRootPointerPath(home), []byte(intent.SourceRoot+"\n"), 0o600); err != nil {
 			return err
 		}
 	}

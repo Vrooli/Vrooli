@@ -1,9 +1,6 @@
 # Progress Log
 
-These are dated development milestones, not a current readiness verdict.
-Detailed pre-cleanup entries are preserved beneath the protected runtime home:
-`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/stream-of-consciousness-analyzer/docs/PROGRESS.md`.
-Use that original for command transcripts, measurements, and full qualifications.
+Pre-cleanup archive: `plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/stream-of-consciousness-analyzer/docs/PROGRESS.md`. See the [runtime-home retention contract](../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for custody and readiness semantics; it retains transcripts, measurements, and qualifications.
 Hashes and recovery instructions are in the project documentation cleanup record
 (`docs/internal/PROGRESS.md`, "Documentation cleanup completion — 2026-09-07").
 Current unresolved issues belong in this scenario's problem ledger; the historical

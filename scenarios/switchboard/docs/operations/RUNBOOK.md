@@ -1,6 +1,5 @@
 # Runbook — Switchboard
 
-## Purpose Of This Document
 
 The operational procedures for running this scenario: starting and stopping it,
 diagnosing the incidents it is actually likely to have, backing it up, and

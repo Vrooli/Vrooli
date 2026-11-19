@@ -1,7 +1,6 @@
 package buildinfo
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -32,7 +31,7 @@ func TestRootUpdateHandlerDoesNotAccessPreparedRecoveryState(t *testing.T) {
 	imports := map[string]string{}
 	allowedImports := map[string]bool{}
 	for _, importPath := range []string{
-		"bufio", "context", "encoding/json", "errors", "fmt", "io", "os", "os/signal", "path/filepath", "strings", "syscall", "time",
+		"bufio", "context", "encoding/base64", "encoding/json", "errors", "fmt", "io", "os", "os/signal", "path/filepath", "strings", "syscall", "time",
 		"github.com/vrooli/cli-core/cliutil", "github.com/vrooli/repo-contract-go",
 		"github.com/vrooli/vrooli/internal/agentscope", "github.com/vrooli/vrooli/internal/app/runtime",
 		"github.com/vrooli/vrooli/internal/buildinfo", "github.com/vrooli/vrooli/internal/cliinstall",
@@ -181,229 +180,6 @@ func TestRootUpdateHandlerDoesNotAccessPreparedRecoveryState(t *testing.T) {
 	}
 }
 
-func TestRootDecisionLocatorAccessStaysInPreparedOwner(t *testing.T) {
-	root, err := repocontract.ResolveRepoRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
-	owner := filepath.Join(root, "internal/cli/runtimehandlers/root_update_recovery.go")
-	violations, loads, saves, err := rootDecisionLocatorAccessAudit(root, owner)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, violation := range violations {
-		t.Error(violation)
-	}
-	if loads != 1 || saves != 1 {
-		t.Errorf("prepared recovery owner should be the sole Load/Save route, got Load=%d Save=%d", loads, saves)
-	}
-
-	hubPath := filepath.Join(root, "internal/cli/runtimehandlers/root_rebaseline_hub.go")
-	hub, err := parser.ParseFile(token.NewFileSet(), hubPath, nil, parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var confirm *ast.FuncDecl
-	for _, decl := range hub.Decls {
-		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "confirmRootViaHub" {
-			confirm = fn
-			break
-		}
-	}
-	if confirm == nil {
-		t.Fatal("confirmRootViaHub missing")
-	}
-	loadAt, saveAt, publishAt := token.NoPos, token.NoPos, token.NoPos
-	ast.Inspect(confirm.Body, func(node ast.Node) bool {
-		call, ok := node.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		if ident, ok := call.Fun.(*ast.Ident); ok {
-			switch ident.Name {
-			case "loadPreparedHubDecisionLocator":
-				loadAt = call.Pos()
-			case "savePreparedHubDecisionLocator":
-				saveAt = call.Pos()
-			}
-		}
-		if selector, ok := call.Fun.(*ast.SelectorExpr); ok && selector.Sel.Name == "post" && len(call.Args) >= 2 {
-			if basic, ok := call.Args[1].(*ast.BasicLit); ok && basic.Kind == token.STRING {
-				if value, err := strconv.Unquote(basic.Value); err == nil && value == "/api/v1/internal/root-rebaseline/publish" {
-					publishAt = call.Pos()
-				}
-			}
-		}
-		return true
-	})
-	if !loadAt.IsValid() || !saveAt.IsValid() || !publishAt.IsValid() || !(loadAt < saveAt && saveAt < publishAt) {
-		t.Errorf("Hub locator flow must read, persist its exact locator, then publish; got load=%v save=%v publish=%v", loadAt, saveAt, publishAt)
-	}
-}
-
-func rootDecisionLocatorAccessAudit(root, owner string) ([]string, int, int, error) {
-	rootModule, err := goModulePath(filepath.Join(root, "go.mod"))
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	var violations []string
-	var loads, saves int
-	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			relative, err := filepath.Rel(root, path)
-			if err != nil {
-				return err
-			}
-			topLevelNonSource := relative == "docs" || relative == "evidence"
-			if path != root && (strings.HasPrefix(entry.Name(), ".") || entry.Name() == "vendor" || entry.Name() == "node_modules") || topLevelNonSource {
-				return filepath.SkipDir
-			}
-			if path != root {
-				nestedModule, err := goModulePath(filepath.Join(path, "go.mod"))
-				if err == nil && nestedModule != rootModule {
-					return filepath.SkipDir
-				}
-				if err != nil && !os.IsNotExist(err) {
-					return err
-				}
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
-		if err != nil {
-			// Go snippets with template actions are not compiled package sources.
-			// Valid Go files under templates are still scanned; only malformed
-			// .go templates are skipped.
-			if strings.Contains(filepath.ToSlash(path), "/templates/") {
-				return nil
-			}
-			return err
-		}
-		imports, dotImport := rootDecisionImportAliases(file)
-		if dotImport {
-			violations = append(violations, fmt.Sprintf("dot import in %s bypasses the prepared locator access inventory", path))
-		}
-		ast.Inspect(file, func(node ast.Node) bool {
-			selector, ok := node.(*ast.SelectorExpr)
-			if !ok || selector.Sel.Name != "Load" && selector.Sel.Name != "Save" {
-				return true
-			}
-			base, ok := selector.X.(*ast.Ident)
-			if !ok || imports[base.Name] != "github.com/vrooli/vrooli/internal/rootdecision" {
-				return true
-			}
-			if filepath.Clean(path) != filepath.Clean(owner) {
-				violations = append(violations, fmt.Sprintf("rootdecision.%s appears outside prepared recovery owner in %s", selector.Sel.Name, path))
-			} else {
-				if selector.Sel.Name == "Load" {
-					loads++
-				} else {
-					saves++
-				}
-			}
-			return true
-		})
-		return nil
-	})
-	if err != nil {
-		return violations, loads, saves, err
-	}
-	return violations, loads, saves, nil
-}
-
-func rootDecisionImportAliases(file *ast.File) (map[string]string, bool) {
-	const rootDecisionImport = "github.com/vrooli/vrooli/internal/rootdecision"
-	imports := map[string]string{}
-	dotImport := false
-	for _, spec := range file.Imports {
-		importPath, err := strconv.Unquote(spec.Path.Value)
-		if err != nil {
-			continue
-		}
-		name := filepath.Base(importPath)
-		if spec.Name != nil {
-			name = spec.Name.Name
-		}
-		if name == "." && importPath == rootDecisionImport {
-			dotImport = true
-		}
-		if importPath == rootDecisionImport && name != "." && name != "_" {
-			imports[name] = importPath
-		}
-	}
-	return imports, dotImport
-}
-
-func TestRootDecisionAccessGuardRejectsDotImport(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "fixture.go", `package fixture
-import . "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = Load(path) }
-func write(path string) { _ = Save(path, nil) }
-`, parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
-	}
-	aliases, dotImport := rootDecisionImportAliases(file)
-	if !dotImport {
-		t.Fatal("dot-import fixture was not rejected")
-	}
-	if len(aliases) != 0 {
-		t.Fatalf("dot import unexpectedly produced explicit aliases: %#v", aliases)
-	}
-}
-
-func TestRootDecisionAccessAuditScansRootModuleScenariosAndTemplates(t *testing.T) {
-	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/root\n\ngo 1.26\n")
-	owner := filepath.Join(root, "internal/cli/runtimehandlers/root_update_recovery.go")
-	writeTestFile(t, root, "internal/cli/runtimehandlers/root_update_recovery.go", `package runtimehandlers
-import "github.com/vrooli/vrooli/internal/rootdecision"
-func load(path string) { _, _ = rootdecision.Load(path) }
-func save(path string) { _ = rootdecision.Save(path, nil) }
-`)
-	writeTestFile(t, root, "scenarios/example/handler.go", `package example
-import rd "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = rd.Load(path) }
-`)
-	writeTestFile(t, root, "templates/example/handler.go", `package example
-import . "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = Load(path) }
-`)
-	writeTestFile(t, root, "internal/example/docs/handler.go", `package docs
-import rd "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = rd.Load(path) }
-`)
-	writeTestFile(t, root, "docs/handler.go", `package docs
-import rd "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = rd.Load(path) }
-`)
-	writeTestFile(t, root, "evidence/handler.go", `package evidence
-import rd "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = rd.Load(path) }
-`)
-	writeTestFile(t, root, "scenarios/external/go.mod", "module example.com/external\n")
-	writeTestFile(t, root, "scenarios/external/handler.go", `package external
-import rd "github.com/vrooli/vrooli/internal/rootdecision"
-func read(path string) { _, _ = rd.Load(path) }
-`)
-	violations, loads, saves, err := rootDecisionLocatorAccessAudit(root, owner)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if loads != 1 || saves != 1 {
-		t.Fatalf("owner locator calls = %d/%d, want one Load and Save", loads, saves)
-	}
-	if len(violations) != 3 {
-		t.Fatalf("visible scenarios/templates/nested-docs violations = %v, want findings in root-module sources; external nested module must be pruned", violations)
-	}
-}
-
 func TestRootUpdateHandlerSamePackageCallGraphIsAudited(t *testing.T) {
 	root, err := repocontract.ResolveRepoRoot()
 	if err != nil {
@@ -454,25 +230,27 @@ func TestRootUpdateHandlerSamePackageCallGraphIsAudited(t *testing.T) {
 		t.Fatal("root_updates.go missing from production package")
 	}
 	allowed := map[string]string{
-		"confirmRootViaHub":                   "root_rebaseline_hub.go",
 		"callerCgroupFn":                      "root_updates.go",
 		"callerKindFn":                        "root_updates.go",
 		"installPreparedSameContractBundleFn": "root_updates.go",
 		"installSameContractBundle":           "root_updates.go",
-		"newRootDecisionClient":               "root_rebaseline_hub.go",
 		"newPreparedRootRecovery":             "root_update_recovery.go",
 		"pinnedRebaselineSource":              "root_update_admission.go",
 		"pinnedRuntimeSnapshotSource":         "root_update_admission.go",
 		"readPreparedRootBundle":              "root_update_recovery.go",
 		"readRootUpdateStatus":                "root_update_status.go",
 		"rebaselineRootFn":                    "root_updates.go",
-		"retireSnapshotDecision":              "root_rebaseline_retire.go",
 		"refuseAgentSession":                  "root_updates.go",
 		"retainedRebaselineSource":            "root_update_recovery.go",
-		"rootDecisionClientFactory":           "root_updates.go",
 		"rootUpdateCommand":                   "root_updates.go",
 		"rootUpdateHelpRequested":             "root_updates.go",
 		"runRootRebaseline":                   "root_updates.go",
+		"runRootResume":                       "root_updates.go",
+		"resumePreparedCandidate":             "root_update_recovery.go",
+		"operatorAuthorityFn":                 "root_updates.go",
+		"interactiveTerminal":                 "root_updates.go",
+		"agentRunIdentity":                    "root_updates.go",
+		"preparedBundleCandidate":             "root_update_recovery.go",
 		"runRootUpdateWorker":                 "root_update_worker.go",
 		"writeRebaselinePlan":                 "root_updates.go",
 		// Forced transitions: the seams are declared here so tests can pin the
@@ -890,7 +668,7 @@ func TestPreparedRecoveryDurabilityOrdering(t *testing.T) {
 			at = found
 		}
 	}
-	ordered("preparePreparedRebaselineRecovery", "retainBundle", "PrepareRecovery", "retainRebaselineFile", "Write")
+	ordered("preparePreparedRebaselineRecovery", "retainBundle", "retainRebaselineFile", "Write")
 	ordered("completePreparedRebaselineRecovery", "Write", "removeBundle")
 }
 
@@ -919,7 +697,6 @@ func TestPreparedRootRecoveryPersistenceSitesRemainInOwner(t *testing.T) {
 		"internal/cliinstall/ordinary_bundle_transaction.go",
 		"internal/cliinstall/rebaseline_bundle.go",
 		"internal/app/runtime/prepared_rebaseline.go",
-		"internal/rootdecision/pending.go",
 		path,
 		"internal/buildinfo/prepared_bundle_guard.go",
 		"internal/buildinfo/root_activation_guard.go",
@@ -944,15 +721,6 @@ func TestPreparedRootRecoveryPersistenceSitesRemainInOwner(t *testing.T) {
 		{"bundle manifest name", `"SHA256SUMS"`, `"bundle-manifest"`},
 		{"Hub progress reader", `progress, err := rebaselineprogress.Read`, `progress, err := rebaselineprogress.ReadV2`},
 		{"retained progress reader", `p, err := rebaselineprogress.Read`, `p, err := rebaselineprogress.ReadV2`},
-		{"pending decision reader", `loadPreparedHubDecisionLocator(workflow.pendingPath)`, `loadPreparedHubDecisionLocatorV2(workflow.pendingPath)`},
-		{"pending locator bytes reader", `os.ReadFile(r.pendingPath)`, `os.ReadFile(r.candidate)`},
-		{"pending locator codec read", `return rootdecision.Load(path)`, `return rootdecision.LoadV2(path)`},
-		{"pending locator codec write", `return rootdecision.Save(path, terms)`, `return rootdecision.SaveV2(path, terms)`},
-		{"pending decision locator", `rootdecision.PendingFilename`, `"pending-v2.json"`},
-		{"snapshot locator path", `filepath.Join(snapshot, rootdecision.PendingFilename)`, `filepath.Join(snapshot, "locator-v2.json")`},
-		{"snapshot manifest path", `filepath.Join(snapshot, "SHA256SUMS")`, `filepath.Join(snapshot, "bundle-manifest")`},
-		{"recovery locator write mode", `retainedPending, data, 0600`, `retainedPending, data, 0640`},
-		{"watchdog recovery path", `"watchdog-pending"`, `"watchdog-recovery"`},
 		{"companion publication", `InstallPreparedCompanionsLocked`, `InstallPreparedCompanionsAfterRecovery`},
 		{"bundle source publication", `PublishPreparedBundleSourceLocked`, `PublishPreparedBundleSourceAfterRecovery`},
 	} {
@@ -985,11 +753,9 @@ func TestPreparedRootRecoveryPersistenceSitesRemainInOwner(t *testing.T) {
 		{"watchdog path", `"watchdog-pending"`, `"watchdog-recovery"`},
 		{"pending watchdog reader", `os.Stat(pending)`, `os.Stat(snapshot)`},
 		{"progress candidate binding", `progress.Candidate != candidateSHA`, `progress.Candidate == candidateSHA`},
-		{"progress authority mode binding", `progress.Mode == "hub"`, `progress.Mode != "hub"`},
 		{"progress watchdog binding", `progress.Watchdog == watchdogSHA`, `progress.Watchdog != watchdogSHA`},
 		{"prepared watchdog manifest reader", `cliinstall.PreparedBundleWatchdogSHA(bundleDir, manifest)`, `cliinstall.PreparedBundleWatchdogSHA(manifest, bundleDir)`},
 		{"bundle retained before recovery authority", `e.retainBundle(home, filepath.Dir(originalCandidate), bundleSHA)`, `e.retainBundle(home, filepath.Dir(originalCandidate), "other-bundle")`},
-		{"recovery authority binding", `request.PrepareRecovery(ctx, RebaselineRecovery{Admission: admission, BundleDir: prepared.BundleDir})`, `request.PrepareRecovery(ctx, RebaselineRecovery{Admission: admission, BundleDir: originalCandidate})`},
 		{"pending watchdog restoration", `retainRebaselineFile(pending, staged)`, `retainRebaselineFile(snapshot, staged)`},
 		{"intent progress write", `rebaselineprogress.Write(progressPath, record)`, `rebaselineprogress.Write(record, progressPath)`},
 		{"completion state", `record.Complete = true`, `record.Complete = false`},
@@ -1007,40 +773,5 @@ func TestPreparedRootRecoveryPersistenceSitesRemainInOwner(t *testing.T) {
 			}
 			writeTestFile(t, fixture, lifecyclePath, string(lifecycleData))
 		})
-	}
-
-	const locatorCodecPath = "internal/rootdecision/pending.go"
-	locatorCodec, err := os.ReadFile(filepath.Join(root, locatorCodecPath))
-	if err != nil {
-		t.Fatal(err)
-	}
-	decisionDigest := func() string {
-		t.Helper()
-		got, err := wholeSourceDigest(fixture, statecontract.WholeSources["root-rebaseline-hub-decision"])
-		if err != nil {
-			t.Fatal(err)
-		}
-		return got
-	}
-	decisionBaseline := decisionDigest()
-	for _, tc := range []struct{ name, old, replacement string }{
-		{"missing locator compatibility", `if os.IsNotExist(err)`, `if err == nil`},
-		{"durable locator mode", `config.WriteOwnedFileDurable(path, data, 0600)`, `config.WriteOwnedFileDurable(path, data, 0640)`},
-	} {
-		t.Run("locator codec/"+tc.name, func(t *testing.T) {
-			changed := strings.Replace(string(locatorCodec), tc.old, tc.replacement, 1)
-			if changed == string(locatorCodec) {
-				t.Fatalf("mutation anchor %q missing", tc.old)
-			}
-			writeTestFile(t, fixture, locatorCodecPath, changed)
-			if decisionDigest() == decisionBaseline {
-				t.Fatalf("%s mutation escaped root decision owner", tc.name)
-			}
-			writeTestFile(t, fixture, locatorCodecPath, string(locatorCodec))
-		})
-	}
-	writeTestFile(t, fixture, "internal/rootdecision/new_reader.go", "package rootdecision\nfunc newReader() {}\n")
-	if decisionDigest() == decisionBaseline {
-		t.Fatal("new rootdecision production source escaped whole-source owner")
 	}
 }

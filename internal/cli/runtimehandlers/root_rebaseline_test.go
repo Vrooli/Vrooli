@@ -3,8 +3,6 @@ package runtimehandlers
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -172,79 +170,6 @@ func TestSameContractPreparedBundleUsesNormalInstaller(t *testing.T) {
 	}
 }
 
-func TestHubSameContractBundleDoesNotNeedNotificationHub(t *testing.T) {
-	home, checkout := t.TempDir(), t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("SUDO_USER", "")
-	oldRepoRoot, oldDecisionFactory := repoRootFromWorkingDirectory, rootDecisionClientFactory
-	oldRebaselineRoot, oldInstaller := rebaselineRootFn, installPreparedSameContractBundleFn
-	t.Cleanup(func() {
-		repoRootFromWorkingDirectory = oldRepoRoot
-		rootDecisionClientFactory = oldDecisionFactory
-		rebaselineRootFn = oldRebaselineRoot
-		installPreparedSameContractBundleFn = oldInstaller
-	})
-	repoRootFromWorkingDirectory = func() (string, error) { return checkout, nil }
-	var clientCalls, installCalls int
-	var capturedRequest runtimeapp.RebaselineRequest
-	rootDecisionClientFactory = func(context.Context) (*rootDecisionClient, error) {
-		clientCalls++
-		return nil, errors.New("Notification Hub unavailable")
-	}
-	rebaselineRootFn = func(_ context.Context, _ string, request runtimeapp.RebaselineRequest) (runtimeapp.RebaselineResult, error) {
-		capturedRequest = request
-		return runtimeapp.RebaselineResult{}, runtimeapp.ErrRebaselineNotRequired
-	}
-	bundle := filepath.Join(checkout, "bundle")
-	source := filepath.Join(checkout, "source")
-	if err := os.MkdirAll(source, 0700); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"vrooli", "vrooli-atomic-install", "vrooli-api", "vrooli-agent-launcher", "vrooli-policy-runner", "vrooli-gocacheprog", "vrooli-watchdog"} {
-		if err := os.WriteFile(filepath.Join(source, name), []byte("fixture "+name), 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := cliinstall.PrepareBundle(source, bundle); err != nil {
-		t.Fatal(err)
-	}
-	manifestBytes, err := os.ReadFile(filepath.Join(bundle, "SHA256SUMS"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifestDigest := sha256.Sum256(manifestBytes)
-	manifest := hex.EncodeToString(manifestDigest[:])
-	installPreparedSameContractBundleFn = func(gotBundle, bin, gotManifest, gotSource string, check func() error) error {
-		installCalls++
-		if gotBundle != bundle || gotManifest != manifest || gotSource != checkout || bin != filepath.Join(home, ".vrooli", "bin") || check != nil {
-			t.Fatalf("wrong prepared installation: bundle=%q bin=%q manifest=%q source=%q check=%v", gotBundle, bin, gotManifest, gotSource, check != nil)
-		}
-		return nil
-	}
-	stdin, err := os.Open(os.DevNull)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer stdin.Close()
-	var stdout, stderr bytes.Buffer
-	code := runRootRebaseline(context.Background(), []string{"runtime", "update", "rebaseline", filepath.Join(bundle, "vrooli"), "--hub"}, stdin, &stdout, &stderr, func() (string, error) { return checkout, nil })
-	if code != 0 || clientCalls != 0 || installCalls != 1 || !strings.Contains(stdout.String(), "no rebaseline was needed") {
-		t.Fatalf("same-contract Hub route: code=%d client_calls=%d installs=%d stdout=%q stderr=%q", code, clientCalls, installCalls, stdout.String(), stderr.String())
-	}
-	prepared, err := readPreparedRootBundle(filepath.Join(bundle, "vrooli"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if capturedRequest.Candidate != filepath.Join(bundle, "vrooli") || capturedRequest.Source != checkout || !capturedRequest.HubDecision || capturedRequest.BundleSHA != manifest || capturedRequest.ExpectedCandidateSHA != prepared.rootSHA {
-		t.Fatalf("prepared Hub request identity bindings: %+v", capturedRequest)
-	}
-	if capturedRequest.BeforeEffects == nil || capturedRequest.PrepareRecovery == nil || capturedRequest.AfterActivation == nil || capturedRequest.Confirm == nil {
-		t.Fatalf("prepared Hub request omitted required authority/recovery callbacks: %+v", capturedRequest)
-	}
-}
-
-// Uses actual prepared images and an isolated home. The caller seam models an
-// operator pane; the character device is never read when the contract matches.
 func TestSameContractRebaselineHandlerWithPreparedImages(t *testing.T) {
 	image := os.Getenv("VROOLI_SAME_CONTRACT_TEST_IMAGE")
 	if image == "" {
@@ -285,7 +210,7 @@ func TestSameContractRebaselineHandlerWithPreparedImages(t *testing.T) {
 	}
 	defer input.Close()
 	var out, stderr bytes.Buffer
-	code := runRootRebaseline(context.Background(), []string{"runtime", "update", "rebaseline", filepath.Join(bundle, "vrooli"), "--prepared"}, input, &out, &stderr, func() (string, error) { return checkout, nil })
+	code := runRootRebaseline(context.Background(), []string{"runtime", "update", "rebaseline", filepath.Join(bundle, "vrooli")}, input, &out, &stderr, func() (string, error) { return checkout, nil })
 	if code != 0 || !strings.Contains(out.String(), "no rebaseline was needed") {
 		t.Fatalf("same-contract handler: code=%d stdout=%s stderr=%s", code, &out, &stderr)
 	}
@@ -333,18 +258,75 @@ func TestPreparedRuntimeSnapshotHandlerBindsCheckout(t *testing.T) {
 	}
 	defer stdin.Close()
 	var out, errout bytes.Buffer
-	code := runRootRebaseline(context.Background(), []string{"vrooli", "runtime", "rebaseline", candidate, "--prepared"}, stdin, &out, &errout, func() (string, error) { return checkout, nil })
+	code := runRootRebaseline(context.Background(), []string{"vrooli", "runtime", "rebaseline", candidate}, stdin, &out, &errout, func() (string, error) { return checkout, nil })
 	if code == 0 || !strings.Contains(errout.String(), "manifest") {
 		t.Fatalf("handler did not reach manifest verification: code=%d stderr=%s", code, errout.String())
 	}
-	_, check, err := pinnedRuntimeSnapshotSource(home, candidate, func() (string, error) { return checkout, nil })
+	var notes []string
+	_, check, err := pinnedRuntimeSnapshotSource(home, candidate, func() (string, error) { return checkout, nil }, func(message string) { notes = append(notes, message) })
 	if err != nil || check == nil {
 		t.Fatalf("source binding: %v", err)
 	}
+	// An edit after the bundle was built is drift, not a refusal: the bundle is
+	// an immutable snapshot and provenance is the snapshot path, which the edit
+	// does not move. The check reports the drift so an operator can see it.
 	if err := os.WriteFile(source, []byte("package main\nvar changed=true\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	if err := check(); err != nil {
+		t.Fatalf("a later edit to the checkout must not refuse a coherent bundle: %v", err)
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0], "checkout changed since this bundle was built") {
+		t.Fatalf("drift was not reported: %v", notes)
+	}
+	// A snapshot outside this checkout was already refused above by path, and a
+	// bundle that reports no qualified identity is refused by the check.
+	unqualified := filepath.Join(snapshot, "vrooli")
+	if err := os.WriteFile(unqualified, []byte("#!/bin/sh\nprintf '%s\\n' '{}'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := check(); err == nil {
-		t.Fatal("changed checkout accepted")
+		t.Fatal("a bundle with no build identity was accepted")
+	}
+}
+
+// The resume command's only job is to find the bundle a paused transition
+// points at. It must not guess, and it must not serve a Hub record through the
+// prepared path.
+func TestResumePreparedCandidateResolvesOnlyAPreparedRecord(t *testing.T) {
+	home := t.TempDir()
+	state := filepath.Join(home, ".vrooli", "state", "root-rebaseline")
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if candidate, pending, err := resumePreparedCandidate(home); err != nil || pending || candidate != "" {
+		t.Fatalf("a fresh home reported pending work: %q %t %v", candidate, pending, err)
+	}
+	bundle := strings.Repeat("c", 64)
+	record := rebaselineprogress.Progress{Version: 1, Candidate: strings.Repeat("a", 64), Watchdog: strings.Repeat("b", 64), Bundle: bundle, Complete: false}
+	if err := rebaselineprogress.Write(filepath.Join(state, "progress.json"), record); err != nil {
+		t.Fatal(err)
+	}
+	// The record exists but its bundle does not: refuse, do not pretend.
+	if _, pending, err := resumePreparedCandidate(home); err == nil || pending {
+		t.Fatalf("a missing bundle was reported as resumable: pending=%t err=%v", pending, err)
+	}
+	candidate := filepath.Join(state, "prepared-bundles", bundle, "vrooli")
+	if err := os.MkdirAll(filepath.Dir(candidate), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(candidate, []byte("candidate"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, pending, err := resumePreparedCandidate(home); err != nil || !pending || got != candidate {
+		t.Fatalf("prepared record = %q %t %v, want %q", got, pending, err, candidate)
+	}
+	done := record
+	done.Complete = true
+	if err := rebaselineprogress.Write(filepath.Join(state, "progress.json"), done); err != nil {
+		t.Fatal(err)
+	}
+	if _, pending, err := resumePreparedCandidate(home); err != nil || pending {
+		t.Fatalf("a completed record reported pending work: %v", err)
 	}
 }

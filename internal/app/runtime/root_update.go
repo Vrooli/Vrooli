@@ -118,7 +118,7 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 		if err != nil {
 			return err
 		}
-		workerIdentity, err := coreactivation.ProbeWorkerIdentity(ctx, worker, priorIdentity)
+		workerIdentity, err := coreactivation.ProbeWorkerIdentity(ctx, worker, priorIdentity, layout.Executable)
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 		if err != nil {
 			return err
 		}
-		if _, err := coreactivation.ProbeWorkerIdentity(ctx, frozenWorker, priorIdentity); err != nil {
+		if _, err := coreactivation.ProbeWorkerIdentity(ctx, frozenWorker, priorIdentity, layout.Executable); err != nil {
 			return err
 		}
 		if err := watchdog.QualifyRootRecovery(ctx, home, digests.Worker, workerIdentity.BuildIdentity); err != nil {
@@ -299,7 +299,7 @@ func configureRootUpdates(ctx context.Context, home string, enabled, paused bool
 			if err != nil {
 				return fail(err)
 			}
-			identity, err := coreactivation.ProbeWorkerIdentity(ctx, worker, prior)
+			identity, err := coreactivation.ProbeWorkerIdentity(ctx, worker, prior, layout.Executable)
 			if err != nil {
 				return fail(err)
 			}

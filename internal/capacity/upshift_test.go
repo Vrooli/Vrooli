@@ -283,6 +283,47 @@ func TestActuateUpshiftDebounced(t *testing.T) {
 	}
 }
 
+// A parked claim is heartbeated every poll. Heartbeats must not keep resetting
+// the resize debounce, or an idle degraded claim can never upshift, no matter
+// how much headroom returns.
+func TestHeartbeatDoesNotResetTheUpshiftDebounce(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
+	created, _ := store.CreateClaim(ctx, CapacityClaim{
+		OwnerKind: OwnerKindResource, OwnerID: "whisper", ResourceKind: ResourceKindVRAM,
+		GPUIndex: gpu(0), AmountBytes: 8 * gib, PreferredBytes: 8 * gib, FloorBytes: 2 * gib,
+		Priority: PriorityInteractive, Status: StatusGranted, ActivityState: ActivityIdle,
+		DegradeProfile: ladderProfile(),
+	}, time.Hour)
+	degraded, _ := store.DegradeClaim(ctx, created.ClaimID, created.Generation, "small", 2*gib)
+	clk.Advance(2 * DefaultDegradeDebounce)
+	beat, err := store.HeartbeatClaim(ctx, degraded.ClaimID, degraded.Generation, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !beat.UpdatedAt.Equal(degraded.UpdatedAt) {
+		t.Fatalf("heartbeat moved updated_at from %s to %s; the debounce must key on the last resize", degraded.UpdatedAt, beat.UpdatedAt)
+	}
+	if beat.LastHeartbeatAt == nil || !beat.LastHeartbeatAt.After(*degraded.LastHeartbeatAt) {
+		t.Fatalf("heartbeat did not advance last_heartbeat_at: %+v", beat.LastHeartbeatAt)
+	}
+
+	exec := newFakeExecutor()
+	plan := EscalationPlan{Actions: []EscalationAction{{
+		ClaimID: beat.ClaimID, Generation: beat.Generation, OwnerID: "whisper", Action: ActionRequestUpshift, ToStep: "large-v3",
+	}}}
+	res, err := Actuate(ctx, plan, store, exec, DefaultPolicy(), clk.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exec.calls) != 1 || len(res.Outcomes) != 1 || !res.Outcomes[0].Applied {
+		t.Fatalf("a heartbeated claim was not upshifted: calls=%v outcomes=%+v", exec.calls, res.Outcomes)
+	}
+}
+
 // RunUpshift actuates ONLY under enforce=on; advisory returns the plan without
 // touching the executor.
 func TestRunUpshiftGatedByEnforce(t *testing.T) {

@@ -106,25 +106,23 @@ func (e rebaselineEffects) qualifyAndRetain(ctx context.Context, home string, la
 		return "", fmt.Errorf("serving root CLI identity: %w", err)
 	}
 	qualification := coreactivation.QualifyRollbackImages(ctx, serving, candidate, layout.Executable, request.Candidate)
-	if qualification == nil && continuing {
-		if request.AllowContinuationDecision {
-			ok, err := request.Confirm(RebaselinePlan{Continuation: true, ServingSHA: servingSHA, CandidateSHA: candidateSHA, WatchdogSHA: watchdogSHA, ServingBuild: serving.GetBuildIdentity(), ServingContract: serving.GetPersistentStateContractSha256(), CandidateBuild: candidate.GetBuildIdentity(), CandidateContract: candidate.GetPersistentStateContractSha256(), Changes: []string{"Continue the interrupted rebaseline with this rebuilt root; its persistent-state contract is unchanged."}})
-			if err != nil {
-				return "", err
-			}
-			if !ok {
-				return "", fmt.Errorf("root rebaseline continuation cancelled; nothing was changed")
-			}
-		}
-		return "", nil
-	}
 	if qualification == nil {
-		if enrollment, exists, err := e.enrollment(home); err == nil && exists && enrollment.Enabled {
-			return "", fmt.Errorf("%w; activate it with `make install`, which keeps automatic rollback", ErrRebaselineNotRequired)
+		// The versioned formats are compatible, but the ordinary installer
+		// hands admission to the installed coordinator, which still requires
+		// the recorded whole-source identities to match. When they differ, the
+		// forced path is the only one that can install the change: it replaces
+		// the coordinator as part of the transition. Offer the ordinary
+		// shortcut only when the coordinator will actually accept the record.
+		if serving.GetPersistentStateContractSha256() == candidate.GetPersistentStateContractSha256() {
+			if continuing {
+				return "", nil
+			}
+			if enrollment, exists, err := e.enrollment(home); err == nil && exists && enrollment.Enabled {
+				return "", fmt.Errorf("%w; activate it with `make install`, which keeps automatic rollback", ErrRebaselineNotRequired)
+			}
+			return "", fmt.Errorf("%w; `make install` installs it directly because automatic root updates are not enrolled", ErrRebaselineNotRequired)
 		}
-		return "", fmt.Errorf("%w; `make install` installs it directly because automatic root updates are not enrolled", ErrRebaselineNotRequired)
-	}
-	if !errors.Is(qualification, coreactivation.ErrStateContractChanged) {
+	} else if !errors.Is(qualification, coreactivation.ErrStateContractChanged) {
 		return "", fmt.Errorf("root rebaseline only crosses persistent-state contract changes: %w", coreactivation.ExplainRollbackRefusal(ctx, qualification, layout.Executable, request.Candidate))
 	}
 	attempt.identities(serving.GetPersistentStateContractSha256(), candidate.GetPersistentStateContractSha256())
@@ -273,18 +271,12 @@ func readPreparedRebaselineProgress(path string) (*rebaselineprogress.Progress, 
 	return rebaselineprogress.Read(path)
 }
 
-func validatePreparedRebaselineProgress(progress *rebaselineprogress.Progress, candidateSHA, bundleSHA, source string, hasRecoveryCallback, hubDecision bool) error {
+func validatePreparedRebaselineProgress(progress *rebaselineprogress.Progress, candidateSHA, bundleSHA, source string, hasRecoveryCallback bool) error {
 	if progress == nil || progress.Complete {
 		return nil
 	}
 	if progress.Candidate != candidateSHA || progress.Bundle != bundleSHA || (progress.SourceRoot != "" && progress.SourceRoot != source) || (progress.Bundle != "" && !hasRecoveryCallback) {
 		return fmt.Errorf("an unfinished rebaseline belongs to another candidate or bundle; resume the original prepared bundle before starting another transition")
-	}
-	if (progress.Mode == "hub" && !hubDecision) || (progress.Mode == "prepared" && hubDecision) {
-		return fmt.Errorf("unfinished rebaseline must resume with its original authority mode")
-	}
-	if progress.Bundle != "" && progress.Mode == "" && !hubDecision {
-		return fmt.Errorf("legacy rebaseline has no authority-mode evidence; resume the original prepared candidate with --hub for a verified human decision")
 	}
 	return nil
 }
@@ -301,10 +293,6 @@ func preparedProgressContinuesCandidate(progress *rebaselineprogress.Progress, c
 	return preparedProgressIncomplete(progress) && progress.Candidate == candidateSHA
 }
 
-func preparedProgressNeedsFreshDecision(progress *rebaselineprogress.Progress, hubDecision bool) bool {
-	return hubDecision && preparedProgressIncomplete(progress) && progress.Mode == ""
-}
-
 func preparedProgressMatchesWatchdog(progress *rebaselineprogress.Progress, watchdogSHA string) bool {
 	return !preparedProgressIncomplete(progress) || progress.Watchdog == watchdogSHA
 }
@@ -316,15 +304,8 @@ func preparedProgressWatchdog(progress *rebaselineprogress.Progress) string {
 	return progress.Watchdog
 }
 
-func newPreparedRebaselineProgress(candidateSHA, watchdogSHA, bundleSHA, source string, hubDecision bool) rebaselineprogress.Progress {
-	mode := ""
-	if bundleSHA != "" {
-		mode = "prepared"
-		if hubDecision {
-			mode = "hub"
-		}
-	}
-	return rebaselineprogress.Progress{Version: 1, Candidate: candidateSHA, Watchdog: watchdogSHA, Bundle: bundleSHA, SourceRoot: source, Mode: mode}
+func newPreparedRebaselineProgress(candidateSHA, watchdogSHA, bundleSHA, source string) rebaselineprogress.Progress {
+	return rebaselineprogress.Progress{Version: rebaselineprogress.Version, Candidate: candidateSHA, Watchdog: watchdogSHA, Bundle: bundleSHA, SourceRoot: source}
 }
 
 func restorePreparedRebaselineWatchdog(
@@ -402,7 +383,6 @@ func selectPreparedRebaselineWatchdog(bundleDir, manifest string, progress *reba
 // the recovery point, so it is written last.
 type preparedRebaselineRecoveryPreparation struct {
 	BundleDir               string
-	HubLocatorBound         bool
 	RecoveryProgressWritten bool
 }
 
@@ -416,20 +396,12 @@ func preparePreparedRebaselineRecovery(
 	watchdogSHA string,
 	record rebaselineprogress.Progress,
 ) (preparedRebaselineRecoveryPreparation, error) {
-	prepared := preparedRebaselineRecoveryPreparation{HubLocatorBound: !request.HubDecision}
+	prepared := preparedRebaselineRecoveryPreparation{}
 	var err error
 	if bundleSHA != "" {
 		prepared.BundleDir, err = e.retainBundle(home, filepath.Dir(originalCandidate), bundleSHA)
 		if err != nil {
 			return prepared, fmt.Errorf("retain prepared recovery bundle: %w", err)
-		}
-		if request.PrepareRecovery != nil {
-			if err := request.PrepareRecovery(ctx, RebaselineRecovery{Admission: admission, BundleDir: prepared.BundleDir}); err != nil {
-				return prepared, fmt.Errorf("bind recovery authority: %w", err)
-			}
-			if request.HubDecision {
-				prepared.HubLocatorBound = true
-			}
 		}
 	}
 	retainedWatchdogSHA, err := retainRebaselineFile(stagedWatchdog, pendingWatchdog)
@@ -471,7 +443,7 @@ type preparedRebaselineTransaction struct {
 	stepMessage    func(string)
 	retirementWarn func(error)
 	refuse         func(error) error
-	fail           func(step string, cause error, recoveryBundle, retained string, hubLocatorBound, recoveryProgressWritten bool) error
+	fail           func(step string, cause error, recoveryBundle, retained string, recoveryProgressWritten bool) error
 }
 
 type preparedRebaselinePlan struct {
@@ -528,7 +500,7 @@ func preparePreparedRebaselinePlan(input preparedRebaselineRunInput) (preparedRe
 	if request.BundleSHA != "" && request.AfterActivation == nil {
 		return plan, refuse(fmt.Errorf("prepared rebaseline requires its companion publication; resume the prepared bundle"))
 	}
-	if err := validatePreparedRebaselineProgress(progressState, candidateSHA, request.BundleSHA, request.Source, request.AfterActivation != nil, request.HubDecision); err != nil {
+	if err := validatePreparedRebaselineProgress(progressState, candidateSHA, request.BundleSHA, request.Source, request.AfterActivation != nil); err != nil {
 		return plan, refuse(err)
 	}
 	if !paused && !e.legacyPauseMatches(home, pausePath) && preparedProgressAllowsRollbackQualification(progressState) {
@@ -536,7 +508,11 @@ func preparePreparedRebaselinePlan(input preparedRebaselineRunInput) (preparedRe
 		if probeErr != nil {
 			return plan, refuse(fmt.Errorf("serving root CLI identity: %w", probeErr))
 		}
-		if coreactivation.QualifyRollbackImages(ctx, serving, candidate, layout.Executable, originalCandidate) == nil {
+		// Same rule as the forced path: a compatible format change whose
+		// recorded identities differ cannot be accepted by the installed
+		// coordinator, so it is not an ordinary install.
+		if coreactivation.QualifyRollbackImages(ctx, serving, candidate, layout.Executable, originalCandidate) == nil &&
+			serving.GetPersistentStateContractSha256() == candidate.GetPersistentStateContractSha256() {
 			if exists && enrollment.Enabled {
 				return plan, refuse(fmt.Errorf("%w; activate it with `make install`, which keeps automatic rollback", ErrRebaselineNotRequired))
 			}
@@ -569,7 +545,7 @@ func preparePreparedRebaselinePlan(input preparedRebaselineRunInput) (preparedRe
 	if !preparedProgressMatchesWatchdog(progressState, watchdogSHA) {
 		return plan, refuse(fmt.Errorf("watchdog differs from the unfinished rebaseline; restore the original qualified watchdog before resuming"))
 	}
-	if err := e.probeWorker(ctx, plan.stagedWatchdog, candidate); err != nil {
+	if err := e.probeWorker(ctx, plan.stagedWatchdog, candidate, originalCandidate); err != nil {
 		return plan, refuse(fmt.Errorf("the watchdog built from %s does not match the candidate's contract (rebuild the candidate from the same checkout): %w", request.Source, err))
 	}
 	if actual, err := e.imageDigest(ctx, plan.stagedWatchdog); err != nil || actual != watchdogSHA {
@@ -581,15 +557,6 @@ func preparePreparedRebaselinePlan(input preparedRebaselineRunInput) (preparedRe
 	case plan.finishing:
 		attemptEvent("recovery", "resumed")
 		progressMessage("The candidate already serves; finishing its rebaseline.")
-		if request.RequireFreshFinishingDecision && preparedProgressNeedsFreshDecision(progressState, request.HubDecision) {
-			ok, err := request.Confirm(RebaselinePlan{Continuation: true, ServingSHA: servingSHA, CandidateSHA: candidateSHA, WatchdogSHA: watchdogSHA, ServingBuild: candidate.GetBuildIdentity(), CandidateBuild: candidate.GetBuildIdentity(), ServingContract: candidate.GetPersistentStateContractSha256(), CandidateContract: candidate.GetPersistentStateContractSha256(), Changes: []string{"Complete the interrupted rebaseline for the already-serving root and its retained bundle."}})
-			if err != nil {
-				return plan, refuse(err)
-			}
-			if !ok {
-				return plan, refuse(fmt.Errorf("legacy rebaseline continuation cancelled; nothing was changed"))
-			}
-		}
 	case e.pauseInEffect(home) || preparedProgressContinuesCandidate(progressState, candidateSHA):
 		retained, err = e.qualifyAndRetain(ctx, home, layout, transitions, request, servingSHA, candidateSHA, watchdogSHA, candidate, true, attempt)
 	default:
@@ -623,7 +590,7 @@ type preparedRebaselineRunInput struct {
 	progress     io.Writer
 	telemetry    preparedRebaselineTelemetry
 	refuse       func(error) error
-	fail         func(step string, cause error, recoveryBundle, retained string, hubLocatorBound, recoveryProgressWritten bool) error
+	fail         func(step string, cause error, recoveryBundle, retained string, recoveryProgressWritten bool) error
 }
 
 type preparedRebaselinePaths struct {
@@ -654,16 +621,16 @@ func runPreparedRebaseline(input preparedRebaselineRunInput) (RebaselineResult, 
 
 func (tx preparedRebaselineTransaction) run() (RebaselineResult, error) {
 	e, request, ctx := tx.e, tx.request, tx.ctx
-	record := newPreparedRebaselineProgress(tx.candidateSHA, tx.watchdogSHA, request.BundleSHA, request.Source, request.HubDecision)
+	record := newPreparedRebaselineProgress(tx.candidateSHA, tx.watchdogSHA, request.BundleSHA, request.Source)
 	if request.BeforeEffects != nil {
 		if err := request.BeforeEffects(ctx, tx.admission); err != nil {
 			return RebaselineResult{}, tx.refuse(fmt.Errorf("rebaseline authority for qualified images: %w", err))
 		}
 	}
 	prepared, err := preparePreparedRebaselineRecovery(ctx, e, request, tx.home, tx.admission, tx.originalCandidate, request.BundleSHA, tx.stagedWatchdog, tx.pendingWatchdog, tx.progressPath, tx.watchdogSHA, record)
-	recoveryBundle, hubLocatorBound, recoveryProgressWritten := prepared.BundleDir, prepared.HubLocatorBound, prepared.RecoveryProgressWritten
+	recoveryBundle, recoveryProgressWritten := prepared.BundleDir, prepared.RecoveryProgressWritten
 	if err != nil {
-		return RebaselineResult{}, tx.fail("record rebaseline intent", err, recoveryBundle, tx.retained, hubLocatorBound, recoveryProgressWritten)
+		return RebaselineResult{}, tx.fail("record rebaseline intent", err, recoveryBundle, tx.retained, recoveryProgressWritten)
 	}
 	var releaseRoot, releaseWatchdog func()
 	defer func() {
@@ -768,21 +735,21 @@ func (tx preparedRebaselineTransaction) run() (RebaselineResult, error) {
 		tx.stepMessage(step.name)
 		if err := ctx.Err(); err != nil {
 			tx.attemptEvent(step.stage, "failed")
-			return RebaselineResult{}, tx.fail(step.name, err, recoveryBundle, tx.retained, hubLocatorBound, recoveryProgressWritten)
+			return RebaselineResult{}, tx.fail(step.name, err, recoveryBundle, tx.retained, recoveryProgressWritten)
 		}
 		if err := step.run(); err != nil {
 			tx.attemptEvent(step.stage, "failed")
-			return RebaselineResult{}, tx.fail(step.name, err, recoveryBundle, tx.retained, hubLocatorBound, recoveryProgressWritten)
+			return RebaselineResult{}, tx.fail(step.name, err, recoveryBundle, tx.retained, recoveryProgressWritten)
 		}
 		tx.attemptEvent(step.stage, "completed")
 	}
 	enrollment, exists, err := e.enrollment(tx.home)
 	if err != nil {
-		return RebaselineResult{}, tx.fail("read final enrollment", err, recoveryBundle, tx.retained, hubLocatorBound, recoveryProgressWritten)
+		return RebaselineResult{}, tx.fail("read final enrollment", err, recoveryBundle, tx.retained, recoveryProgressWritten)
 	}
 	completed, err := completePreparedRebaselineRecovery(e, tx.home, request.BundleSHA, tx.progressPath, record)
 	if err != nil && !completed {
-		return RebaselineResult{}, tx.fail("record completed transition", err, recoveryBundle, tx.retained, hubLocatorBound, recoveryProgressWritten)
+		return RebaselineResult{}, tx.fail("record completed transition", err, recoveryBundle, tx.retained, recoveryProgressWritten)
 	}
 	if err != nil {
 		tx.retirementWarn(err)

@@ -27,7 +27,6 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'switchboard',
   wsPathPrefix: '/api/v1/channels/socket',
-  corsOrigins: '*',
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

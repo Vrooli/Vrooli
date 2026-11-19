@@ -79,8 +79,8 @@ func ValidScenarioName(value string) bool {
 
 // External chooses a compatible full peer before an embedded candidate.
 func External(bundle *runtimemanifest.Manifest, home, scenario, portName string) (int, error) {
-	if !ValidScenarioName(scenario) {
-		return 0, errors.New("invalid scenario name")
+	if !validPeerTarget(scenario) {
+		return 0, errors.New("invalid scenario target")
 	}
 	if portName != "API_PORT" && portName != "UI_PORT" {
 		return 0, fmt.Errorf("unsupported port name: %s", portName)
@@ -100,7 +100,19 @@ func External(bundle *runtimemanifest.Manifest, home, scenario, portName string)
 	if record.Provides != nil && !slices.Contains(record.Provides, key) {
 		return 0, errors.New("peer does not provide requested surface")
 	}
-	return record.Ports[key], nil
+	port := record.Ports[key]
+	if port <= 0 || port > 65535 {
+		return 0, errors.New("peer has no valid published port")
+	}
+	return port, nil
+}
+
+func validPeerTarget(target string) bool {
+	parts := strings.Split(target, "@")
+	if len(parts) > 2 || !ValidScenarioName(parts[0]) {
+		return false
+	}
+	return len(parts) == 1 || ValidScenarioName(parts[1])
 }
 func HasEmbedded(bundle *runtimemanifest.Manifest, scenario string) bool {
 	if bundle == nil {

@@ -2,7 +2,6 @@
 
 This document maps Network Manager's bounded contexts and product ownership.
 
-## Purpose Of This Document
 
 Use this document to decide which domain owns each concept, table, proto operation, endpoint, CLI command, UI surface, and test seam. System-level architecture belongs in [`ARCHITECTURE.md`](ARCHITECTURE.md). Workflows belong in [`FLOWS.md`](FLOWS.md). Storage details belong in [`DATA.md`](DATA.md).
 

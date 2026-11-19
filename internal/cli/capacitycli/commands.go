@@ -20,6 +20,7 @@ type CommandID string
 
 const (
 	CommandClaim            CommandID = "claim"
+	CommandAdmit            CommandID = "admit"
 	CommandHeartbeat        CommandID = "heartbeat"
 	CommandActivity         CommandID = "activity"
 	CommandRelease          CommandID = "release"
@@ -88,6 +89,24 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				},
 			},
 			Handler: CommandClaim,
+		},
+		{
+			Name:    string(CommandAdmit),
+			Summary: "Ask the broker whether a request would be granted without recording a claim",
+			Group:   groupObserve,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{
+					{Name: "--owner-kind", ValueName: "kind", Description: "resource|scenario|op (default resource)"},
+					{Name: "--owner-id", ValueName: "id", Description: "Stable owner identity; its own claims are excluded from the decision"},
+					{Name: "--resource-kind", ValueName: "kind", Description: "vram|ram|cpu (default vram)"},
+					{Name: "--gpu-index", ValueName: "n", Description: "GPU index for vram (default 0)"},
+					{Name: "--preferred", ValueName: "amount", Description: "Requested amount: bytes/7GiB for memory; millicores for cpu"},
+					{Name: "--floor", ValueName: "amount", Description: "Minimum acceptable amount (set equal to preferred for a yes/no check)"},
+					{Name: "--priority", ValueName: "tier", Description: "interactive|service|batch (default batch)"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandAdmit,
 		},
 		{
 			Name:    string(CommandHeartbeat),
@@ -365,6 +384,38 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 		IdleGrace:      idleGrace,
 		ProfileJSON:    parsed.FlagValue("--profile"),
 		TTL:            ttl,
+	}, nil
+}
+
+// ParseAdmitRequest parses a read-only `vrooli capacity admit` question.
+func ParseAdmitRequest(args []string) (capacityapp.AdmitRequest, error) {
+	parsed, err := parse(CommandAdmit, "vrooli capacity admit", args)
+	if err != nil {
+		return capacityapp.AdmitRequest{}, err
+	}
+	if strings.TrimSpace(parsed.FlagValue("--owner-id")) == "" {
+		return capacityapp.AdmitRequest{}, clipolicy.UsageErrorf("capacity admit", "--owner-id is required (for example --owner-kind resource --owner-id ollaya)")
+	}
+	preferred, err := parseBytes(parsed.FlagValue("--preferred"))
+	if err != nil {
+		return capacityapp.AdmitRequest{}, err
+	}
+	floor, err := parseBytes(parsed.FlagValue("--floor"))
+	if err != nil {
+		return capacityapp.AdmitRequest{}, err
+	}
+	gpuIndex, err := parseOptionalInt(parsed.FlagValue("--gpu-index"))
+	if err != nil {
+		return capacityapp.AdmitRequest{}, err
+	}
+	return capacityapp.AdmitRequest{
+		OwnerKind:      parsed.FlagValue("--owner-kind"),
+		OwnerID:        parsed.FlagValue("--owner-id"),
+		ResourceKind:   parsed.FlagValue("--resource-kind"),
+		GPUIndex:       gpuIndex,
+		PreferredBytes: preferred,
+		FloorBytes:     floor,
+		PriorityTier:   parsed.FlagValue("--priority"),
 	}, nil
 }
 

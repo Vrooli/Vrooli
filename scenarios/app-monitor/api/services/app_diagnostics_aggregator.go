@@ -13,6 +13,8 @@ import (
 
 	"app-monitor-api/logger"
 	"app-monitor-api/repository"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // =============================================================================
@@ -737,7 +739,11 @@ func (s *AppService) fetchScenarioAuditorSummary(ctx context.Context, scenarioNa
 	values := url.Values{}
 	values.Set("scenario", scenarioName)
 	values.Set("limit", "20")
-	requestURL := fmt.Sprintf("%s/api/v1/standards/violations/summary?%s", baseURL, values.Encode())
+	endpoint, err := url.JoinPath(baseURL, "api/v1/standards/violations/summary")
+	if err != nil {
+		return nil, fmt.Errorf("build scenario-auditor summary endpoint: %w", err)
+	}
+	requestURL := endpoint + "?" + values.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -766,12 +772,6 @@ func (s *AppService) fetchScenarioAuditorSummary(ctx context.Context, scenarioNa
 }
 
 func (s *AppService) scenarioAuditorBaseURL(ctx context.Context) (string, error) {
-	if override := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_API_BASE_URL")); override != "" {
-		return override, nil
-	}
-	port, err := s.locateScenarioAuditorAPIPort(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("http://localhost:%d", port), nil
+	resolver := discovery.NewResolverWithOptionalStaticOverride(os.Getenv("SCENARIO_AUDITOR_API_BASE_URL"))
+	return resolver.ResolveScenarioURLDefault(ctx, "scenario-auditor")
 }

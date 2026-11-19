@@ -29,7 +29,6 @@ import (
 	"github.com/vrooli/vrooli/internal/recovery"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/rootdecision"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	watchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -61,7 +60,6 @@ func nativePersistenceOwners() []statecontract.Owner {
 	return append(rootCLIStateOwners(), []statecontract.Owner{
 		{Name: "root-rebaseline-progress", WholeSource: true, Roots: []reflect.Type{reflect.TypeFor[rebaselineprogress.Progress]()}, Facts: map[string]any{"Version": 1}},
 		{Name: "scenario-cli-install", WholeSource: true, Roots: sharedscenariocli.PersistentTypes()},
-		rootdecision.PersistentState(),
 		setup.PersistentState(),
 		projectstate.PersistentState(),
 		peerrecord.PersistentState(),

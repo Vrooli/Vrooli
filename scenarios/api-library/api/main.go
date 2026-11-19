@@ -2269,10 +2269,7 @@ type scenarioURLResolver interface {
 const researchAssistantAPIBaseURLEnv = "RESEARCH_ASSISTANT_API_BASE_URL"
 
 func configuredResearchAssistantResolver() scenarioURLResolver {
-	if staticURL := strings.TrimSpace(os.Getenv(researchAssistantAPIBaseURLEnv)); staticURL != "" {
-		return discovery.NewStaticResolver(staticURL)
-	}
-	return discovery.DefaultResolver()
+	return discovery.NewResolverWithOptionalStaticOverride(os.Getenv(researchAssistantAPIBaseURLEnv))
 }
 
 func resolveResearchAssistantURL(ctx context.Context, resolver scenarioURLResolver) (string, error) {

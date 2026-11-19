@@ -69,13 +69,10 @@ func GuardRebaselineCompletion(home string) error {
 		return err
 	}
 	if progress != nil && !progress.Complete {
-		if digest, err := hex.DecodeString(progress.Bundle); err == nil && len(digest) == 32 && hex.EncodeToString(digest) == progress.Bundle && (progress.Mode == "hub" || progress.Mode == "prepared") {
+		if digest, err := hex.DecodeString(progress.Bundle); err == nil && len(digest) == 32 && hex.EncodeToString(digest) == progress.Bundle {
 			candidate := filepath.Join(state, "root-rebaseline", "prepared-bundles", progress.Bundle, "vrooli")
 			quoted := "'" + strings.ReplaceAll(candidate, "'", "'\\''") + "'"
-			return fmt.Errorf("a rebaseline is incomplete; resume it before changing the root image: %s runtime update rebaseline %s --%s", quoted, quoted, progress.Mode)
-		}
-		if progress.Bundle != "" && progress.Mode == "" {
-			return fmt.Errorf("a legacy rebaseline is incomplete with no authority-mode evidence; locate its original prepared snapshot and run its vrooli runtime update rebaseline <snapshot>/vrooli --hub for verified-human recovery")
+			return fmt.Errorf("a rebaseline is incomplete; resume it before changing the root image: %s runtime update rebaseline %s", quoted, quoted)
 		}
 		return fmt.Errorf("a rebaseline is incomplete; resume it before changing the root image")
 	}

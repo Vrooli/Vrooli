@@ -1,6 +1,5 @@
 # Go To Market — Switchboard
 
-## Purpose Of This Document
 
 Who this is for, what it claims, where those people are, and how the claim is
 tested. Positioning only — pricing and bundle membership are canon under

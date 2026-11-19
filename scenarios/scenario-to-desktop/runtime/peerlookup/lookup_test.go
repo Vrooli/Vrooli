@@ -1,6 +1,7 @@
 package peerlookup
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -49,6 +50,63 @@ func TestFeatureExternalRequiresExplicitCompatibleOwner(t *testing.T) {
 			}
 			if !tc.want && (err == nil || port != 0) {
 				t.Fatalf("ineligible feature resolved port=%d error=%v", port, err)
+			}
+		})
+	}
+}
+
+func TestExternalMatchesPeerRecordPortContract(t *testing.T) {
+	for _, tc := range []struct {
+		name, target, portName string
+		provides               []string
+		ports                  map[string]int
+		want                   int
+	}{
+		{name: "api alias", target: "audio-tools", portName: "API_PORT", provides: []string{"api"}, ports: map[string]int{"api": 24567}, want: 24567},
+		{name: "ui alias", target: "audio-tools", portName: "UI_PORT", provides: []string{"ui"}, ports: map[string]int{"ui": 34567}, want: 34567},
+		{name: "variant", target: "audio-tools@shadow", portName: "API_PORT", provides: []string{"api"}, ports: map[string]int{"api": 24568}, want: 24568},
+		{name: "explicitly empty capabilities", target: "audio-tools", portName: "API_PORT", provides: []string{}, ports: map[string]int{"api": 24567}},
+		{name: "missing port", target: "audio-tools", portName: "API_PORT", provides: []string{"api"}},
+		{name: "zero port", target: "audio-tools", portName: "API_PORT", provides: []string{"api"}, ports: map[string]int{"api": 0}},
+		{name: "out of range port", target: "audio-tools", portName: "API_PORT", provides: []string{"api"}, ports: map[string]int{"api": 65536}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			record := peerrecord.Record{Scenario: "audio-tools", Instance: "shadow", OwnerPID: os.Getpid(), Provides: tc.provides, Ports: tc.ports}
+			if tc.target == "audio-tools" {
+				record.Instance = "live"
+			}
+			if err := peerrecord.Write(home, record); err != nil {
+				t.Fatal(err)
+			}
+			if tc.name == "explicitly empty capabilities" {
+				path := peerrecord.Path(home, tc.target)
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var payload map[string]any
+				if err := json.Unmarshal(data, &payload); err != nil {
+					t.Fatal(err)
+				}
+				payload["provides"] = []string{}
+				data, err = fsx.MarshalJSON(payload)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := External(&runtimemanifest.Manifest{App: runtimemanifest.App{Scenario: "web-console"}}, home, tc.target, tc.portName)
+			if tc.want > 0 {
+				if err != nil || got != tc.want {
+					t.Fatalf("External() = %d, %v; want %d", got, err, tc.want)
+				}
+				return
+			}
+			if err == nil || got != 0 {
+				t.Fatalf("External() = %d, %v; want rejected peer port", got, err)
 			}
 		})
 	}

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Get ports from environment variables
 // The default lives here rather than in the npm script: package scripts run
@@ -36,7 +37,7 @@ const healthPlugin = {
 };
 
 export default defineConfig({
-  plugins: [react(), healthPlugin],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react(), healthPlugin],
   preview: {
     port: UI_PORT,
     host: true,

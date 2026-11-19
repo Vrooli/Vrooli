@@ -1,6 +1,5 @@
 # Performance — Switchboard
 
-## Purpose Of This Document
 
 The performance contract: what must be fast, what is allowed to be slow, what
 has actually been measured, and how a regression is caught. Use it to avoid

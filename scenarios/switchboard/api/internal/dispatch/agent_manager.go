@@ -1,19 +1,19 @@
 package dispatch
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scopecatalog"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"switchboard/internal/channels"
 	"switchboard/internal/threads"
 )
@@ -59,6 +59,47 @@ type AgentManagerRunner struct {
 	Threads  *threads.Store
 	Send     Reply
 	Wait     time.Duration
+}
+
+var ErrAuthorizationApprovalPending = errors.New("agent-manager authorization approval pending")
+
+func (r AgentManagerRunner) connectClient() (apiconnect.AgentManagerServiceClient, error) {
+	base := strings.TrimRight(strings.TrimSpace(r.BaseURL), "/")
+	if base == "" {
+		return nil, fmt.Errorf("agent-manager URL is unavailable")
+	}
+	client := r.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	connectClient := *client
+	connectClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return apiconnect.NewAgentManagerServiceClient(&connectClient, base), nil
+}
+
+func authorizedRequest[T any](ctx context.Context, message *T) *connect.Request[T] {
+	request := connect.NewRequest(message)
+	if value := authorization(ctx); value != "" {
+		request.Header().Set("Authorization", value)
+	}
+	return request
+}
+
+func approvalPendingError(err error) error {
+	var rpcErr *connect.Error
+	if !errors.As(err, &rpcErr) || rpcErr.Code() != connect.CodeFailedPrecondition {
+		return nil
+	}
+	for _, detail := range rpcErr.Details() {
+		if detail.Type() != "agent_manager.v1.AuthorizationApprovalPending" {
+			continue
+		}
+		if _, decodeErr := detail.Value(); decodeErr != nil {
+			return fmt.Errorf("%w: approval detail could not be decoded", ErrAuthorizationApprovalPending)
+		}
+		return fmt.Errorf("%w: operator approval is required; the operation was not started. Retry after approval", ErrAuthorizationApprovalPending)
+	}
+	return nil
 }
 
 func (r AgentManagerRunner) Run(ctx context.Context, agentID string, scopes []string, message string) (string, error) {
@@ -142,8 +183,8 @@ func (r AgentManagerRunner) currentSequence(ctx context.Context, runID string) i
 	}
 	var latest int64
 	for _, event := range events {
-		if sequence, ok := event["sequence"].(float64); ok && int64(sequence) > latest {
-			latest = int64(sequence)
+		if event.GetSequence() > latest {
+			latest = event.GetSequence()
 		}
 	}
 	return latest
@@ -155,11 +196,11 @@ func (r AgentManagerRunner) assistantReply(ctx context.Context, runID string, af
 		return "", false
 	}
 	for index := len(events) - 1; index >= 0; index-- {
-		data, ok := events[index]["message"].(map[string]any)
-		if !ok || data["role"] != "assistant" {
+		message := events[index].GetMessage()
+		if message == nil || message.GetRole() != "assistant" {
 			continue
 		}
-		content, _ := data["content"].(string)
+		content := message.GetContent()
 		if strings.TrimSpace(content) != "" {
 			return content, true
 		}
@@ -167,33 +208,17 @@ func (r AgentManagerRunner) assistantReply(ctx context.Context, runID string, af
 	return "", false
 }
 
-func (r AgentManagerRunner) events(ctx context.Context, runID string, afterSequence int64) ([]map[string]any, error) {
-	base := strings.TrimRight(strings.TrimSpace(r.BaseURL), "/")
-	client := r.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	query := url.Values{}
-	query.Set("after_sequence", strconv.FormatInt(afterSequence, 10))
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/runs/"+url.PathEscape(runID)+"/events?"+query.Encode(), nil)
+func (r AgentManagerRunner) events(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
+	client, err := r.connectClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.Do(req)
+	after := afterSequence
+	response, err := client.GetRunEvents(ctx, authorizedRequest(ctx, &apipb.GetRunEventsRequest{RunId: runID, AfterSequence: &after}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get agent events: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get agent events returned %s", resp.Status)
-	}
-	var payload struct {
-		Events []map[string]any `json:"events"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&payload); err != nil {
-		return nil, err
-	}
-	return payload.Events, nil
+	return response.Msg.GetEvents(), nil
 }
 
 func (r AgentManagerRunner) start(ctx context.Context, agentID string, scopes []string, message string) (string, string, error) {
@@ -218,42 +243,36 @@ func (r AgentManagerRunner) start(ctx context.Context, agentID string, scopes []
 		return "", "", fmt.Errorf("Switchboard CreateRun owner proof is invalid, expired or lacks agent-manager:write")
 	}
 
-	base := strings.TrimRight(strings.TrimSpace(r.BaseURL), "/")
-	if base == "" {
-		return "", "", fmt.Errorf("agent-manager URL is unavailable")
-	}
-	client := r.Client
-	if client == nil {
-		client = http.DefaultClient
+	client, err := r.connectClient()
+	if err != nil {
+		return "", "", err
 	}
 	// Even same-origin redirects must not move the caller's credential to a
 	// different operation. This copy changes no continuation/ingest contract.
-	creationClient := *client
-	creationClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	client = &creationClient
-	task, err := r.post(ctx, client, base+"/api/v1/tasks", map[string]any{
-		"task": map[string]string{"title": "Switchboard conversation", "description": message, "scope_path": "."},
-	})
+	task, err := client.CreateTask(ctx, authorizedRequest(ctx, &apipb.CreateTaskRequest{Task: &domainpb.Task{Title: "Switchboard conversation", Description: message, ScopePath: "."}}))
 	if err != nil {
+		if pending := approvalPendingError(err); pending != nil {
+			return "", "", pending
+		}
 		return "", "", fmt.Errorf("create agent task: %w", err)
 	}
-	taskID := nestedID(task, "task")
+	taskID := task.Msg.GetTask().GetId()
 	if taskID == "" {
 		return "", "", fmt.Errorf("agent-manager task response has no id")
 	}
-	run, err := r.post(ctx, client, base+"/api/v1/runs", map[string]any{
-		"task_id":     taskID,
-		"profile_ref": map[string]string{"profile_key": agentID},
-		"prompt":      message,
-		"inline_config": map[string]any{
-			"allowed_tools":       scopes,
-			"clear_allowed_tools": true,
-		},
-	})
+	run, err := client.CreateRun(ctx, authorizedRequest(ctx, &apipb.CreateRunRequest{
+		TaskId:       taskID,
+		ProfileRef:   &apipb.ProfileRef{ProfileKey: agentID},
+		Prompt:       &message,
+		InlineConfig: &domainpb.RunConfigOverrides{AllowedTools: scopes, ClearAllowedTools: true},
+	}))
 	if err != nil {
+		if pending := approvalPendingError(err); pending != nil {
+			return "", "", pending
+		}
 		return "", "", fmt.Errorf("create agent run: %w", err)
 	}
-	runID := nestedID(run, "run")
+	runID := run.Msg.GetRun().GetId()
 	if runID == "" {
 		return "", "", fmt.Errorf("agent-manager run response has no id")
 	}
@@ -261,62 +280,13 @@ func (r AgentManagerRunner) start(ctx context.Context, agentID string, scopes []
 }
 
 func (r AgentManagerRunner) continueRun(ctx context.Context, runID, message string) error {
-	base := strings.TrimRight(strings.TrimSpace(r.BaseURL), "/")
-	if base == "" {
-		return fmt.Errorf("agent-manager URL is unavailable")
+	client, err := r.connectClient()
+	if err != nil {
+		return err
 	}
-	client := r.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	_, err := r.post(ctx, client, base+"/api/v1/runs/"+runID+"/continue", map[string]string{"run_id": runID, "message": message})
+	_, err = client.ContinueRun(ctx, authorizedRequest(ctx, &domainpb.ContinueRunRequest{RunId: runID, Message: message}))
 	if err != nil {
 		return fmt.Errorf("continue agent run: %w", err)
 	}
 	return nil
-}
-
-func (r AgentManagerRunner) post(ctx context.Context, client *http.Client, url string, body any) (map[string]any, error) {
-	encoded, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(encoded))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if value := authorization(ctx); value != "" {
-		req.Header.Set("Authorization", value)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		message := strings.TrimSpace(string(data))
-		if parts := strings.Fields(authorization(ctx)); len(parts) == 2 {
-			message = strings.ReplaceAll(message, parts[1], "[redacted]")
-		}
-		return nil, fmt.Errorf("agent-manager returned %s: %s", resp.Status, message)
-	}
-	var out map[string]any
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func nestedID(value map[string]any, key string) string {
-	if nested, ok := value[key].(map[string]any); ok {
-		if id, ok := nested["id"].(string); ok {
-			return id
-		}
-	}
-	if id, ok := value["id"].(string); ok {
-		return id
-	}
-	return ""
 }

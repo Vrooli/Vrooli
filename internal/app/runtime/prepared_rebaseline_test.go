@@ -40,19 +40,15 @@ func TestPreparePreparedRebaselineRecoveryPreservesRetainedPathOnFailure(t *test
 		name            string
 		retainedPath    string
 		retainErr       error
-		prepareErr      error
-		prepareSuccess  bool
 		missingWatchdog bool
 		badProgress     bool
 		wantPath        bool
-		wantLocator     bool
 		wantProgress    bool
 	}{
 		{name: "retain failed before path known", retainErr: wantErr},
 		{name: "retain path survives sync uncertainty", retainedPath: "retained-bundle", retainErr: wantErr, wantPath: true},
-		{name: "authority binding failed after retention", retainedPath: "retained-bundle", prepareErr: wantErr, wantPath: true},
-		{name: "watchdog retain failed after locator binding", retainedPath: "retained-bundle", prepareSuccess: true, missingWatchdog: true, wantPath: true, wantLocator: true},
-		{name: "progress write failed after locator binding", retainedPath: "retained-bundle", prepareSuccess: true, badProgress: true, wantPath: true, wantLocator: true},
+		{name: "watchdog retain failed after retention", retainedPath: "retained-bundle", missingWatchdog: true, wantPath: true},
+		{name: "progress write failed after retention", retainedPath: "retained-bundle", badProgress: true, wantPath: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -78,14 +74,11 @@ func TestPreparePreparedRebaselineRecoveryPreservesRetainedPathOnFailure(t *test
 					return tc.retainedPath, tc.retainErr
 				},
 			}
-			request := RebaselineRequest{BundleSHA: "bundle-sha", HubDecision: true}
-			if tc.prepareErr != nil || tc.prepareSuccess {
-				request.PrepareRecovery = func(context.Context, RebaselineRecovery) error { return tc.prepareErr }
-			}
+			request := RebaselineRequest{BundleSHA: "bundle-sha"}
 			prepared, err := preparePreparedRebaselineRecovery(context.Background(), e, request, dir,
 				RebaselineAdmission{CandidateSHA: "candidate", WatchdogSHA: watchdogSHA}, filepath.Join(dir, "candidate"),
 				request.BundleSHA, stagedWatchdog, filepath.Join(dir, "watchdog-pending"), progressPath, watchdogSHA,
-				newPreparedRebaselineProgress("candidate", watchdogSHA, request.BundleSHA, "source", false))
+				newPreparedRebaselineProgress("candidate", watchdogSHA, request.BundleSHA, "source"))
 			if err == nil {
 				t.Fatal("injected failure unexpectedly succeeded")
 			}
@@ -94,9 +87,6 @@ func TestPreparePreparedRebaselineRecoveryPreservesRetainedPathOnFailure(t *test
 			}
 			if !tc.wantPath && prepared.BundleDir != "" {
 				t.Fatalf("claimed unknown retained recovery path %q after pre-retention failure", prepared.BundleDir)
-			}
-			if prepared.HubLocatorBound != tc.wantLocator {
-				t.Fatalf("Hub locator bound = %t, want %t", prepared.HubLocatorBound, tc.wantLocator)
 			}
 			if prepared.RecoveryProgressWritten != tc.wantProgress {
 				t.Fatalf("recovery progress written = %t, want %t", prepared.RecoveryProgressWritten, tc.wantProgress)
@@ -113,16 +103,16 @@ func TestPreparePreparedRebaselineRecoveryMarksProgressAfterDurableWrite(t *test
 		t.Fatal(err)
 	}
 	const bundleSHA = "bundle-sha"
-	request := RebaselineRequest{BundleSHA: bundleSHA, HubDecision: true, PrepareRecovery: func(context.Context, RebaselineRecovery) error { return nil }}
+	request := RebaselineRequest{BundleSHA: bundleSHA}
 	prepared, err := preparePreparedRebaselineRecovery(context.Background(), rebaselineEffects{
 		retainBundle: func(string, string, string) (string, error) { return "retained", nil },
 	}, request, dir, RebaselineAdmission{}, filepath.Join(dir, "candidate"), bundleSHA,
 		watchdog, filepath.Join(dir, "pending-watchdog"), filepath.Join(dir, "progress.json"), fmtHash(data),
-		newPreparedRebaselineProgress("candidate", fmtHash(data), bundleSHA, "source", true))
+		newPreparedRebaselineProgress("candidate", fmtHash(data), bundleSHA, "source"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if prepared.BundleDir != "retained" || !prepared.HubLocatorBound || !prepared.RecoveryProgressWritten {
+	if prepared.BundleDir != "retained" || !prepared.RecoveryProgressWritten {
 		t.Fatalf("successful recovery preparation = %+v", prepared)
 	}
 }

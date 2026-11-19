@@ -14,7 +14,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
-	scenariocmd "scenario-to-cloud/cli/scenario"
 )
 
 // testManifestJSON returns a valid CloudManifest JSON for testing.
@@ -269,7 +268,7 @@ func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
-		if !strings.HasPrefix(r.URL.Path, "/api/v1/scenarios/landing-page-business-suite/deployment") {
+		if !strings.HasPrefix(r.URL.Path, "/v2/api/v1/scenarios/landing-page-business-suite/deployment") {
 			t.Fatalf("unexpected analyzer path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -305,14 +304,7 @@ func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	}))
 	defer analyzerServer.Close()
 
-	origResolve := scenariocmd.ResolveAnalyzerBaseURLForTest()
-	scenariocmd.SetResolveAnalyzerBaseURLForTest(func(ctx context.Context) (string, error) {
-		_ = ctx
-		return analyzerServer.URL, nil
-	})
-	t.Cleanup(func() {
-		scenariocmd.SetResolveAnalyzerBaseURLForTest(origResolve)
-	})
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_BASE_URL", analyzerServer.URL+"/v2/")
 
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", apiServer.URL)
 

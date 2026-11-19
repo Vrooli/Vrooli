@@ -121,11 +121,14 @@ func TestNewRegistryCoversEveryDeclaredCapability(t *testing.T) {
 	if registry == nil {
 		t.Fatal("NewRegistry returned nil")
 	}
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("NewRegistry checker wiring is invalid: %v", err)
+	}
 	for _, def := range Known {
 		if def.DependencyKind != capabilityregistry.DependencyScenario {
 			continue
 		}
-		var checker capabilityregistry.Checker = ScenarioChecker{}
+		var checker capabilityregistry.Checker = capabilityregistry.ScenarioStatusChecker{Scenario: "audio-tools"}
 		if def.ID == "ai-gateway" || def.ID == "workspace-sandbox" {
 			checker = LoopbackScenarioChecker{Slug: def.DependencySlug}
 		}

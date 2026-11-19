@@ -1,6 +1,5 @@
 # Flows — Switchboard
 
-## Purpose Of This Document
 
 This document is the canonical description of this scenario's temporal behavior:
 what happens in what order, what state a thing moves through, and where a flow

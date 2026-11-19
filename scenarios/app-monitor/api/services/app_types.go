@@ -155,9 +155,6 @@ type TimeProvider func() time.Time
 // ScenarioURLResolver resolves another scenario's API base URL.
 type ScenarioURLResolver func(ctx context.Context, scenarioSlug string) (string, error)
 
-// ScenarioPortResolver resolves an allocated port for another scenario.
-type ScenarioPortResolver func(ctx context.Context, scenarioName, portName string) (int, error)
-
 // =============================================================================
 // Cache Types
 // =============================================================================
@@ -219,7 +216,6 @@ type AppService struct {
 	issueCacheTTL     time.Duration
 	repoRoot          string
 	scenarioURL       ScenarioURLResolver
-	scenarioPort      ScenarioPortResolver
 	enrichmentMu      sync.RWMutex
 	enrichmentCache   map[string]*enrichmentCacheEntry // key: lowercase scenario name
 	uiServerPort      string

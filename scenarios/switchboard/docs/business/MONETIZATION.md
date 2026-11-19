@@ -1,6 +1,5 @@
 # Monetization — Switchboard
 
-## Purpose Of This Document
 
 How this scenario earns its keep: which capabilities are free, which meter, which
 gate, and how each is wired. This document **routes to canon and picks the

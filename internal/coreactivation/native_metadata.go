@@ -14,6 +14,7 @@ import (
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/stateformat"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
@@ -97,20 +98,60 @@ func ProbeRootDefinition(ctx context.Context, image string, l Layout, sourceRoot
 	return []byte(artifact.Files[0].Content), nil
 }
 
-func ProbeWorkerIdentity(ctx context.Context, image string, prior *cliv1.CliVersion) (WorkerIdentity, error) {
+func ProbeWorkerIdentity(ctx context.Context, image string, prior *cliv1.CliVersion, priorImage string) (WorkerIdentity, error) {
 	var identity WorkerIdentity
 	if err := validateExecutableRole(image, "github.com/vrooli/vrooli/cmd/vrooli-watchdog"); err != nil {
 		return identity, err
 	}
-	data, err := probeNativeMetadata(ctx, image, []string{"--core-update-capability"}, 8192)
+	data, err := probeNativeMetadata(ctx, image, []string{"--core-update-capability"}, workerIdentityLimit)
 	if err != nil {
 		return identity, err
 	}
 	if err := canonicalMetadata(data, &identity); err != nil {
 		return identity, err
 	}
-	if prior == nil || identity.Protocol != 1 || !strings.HasPrefix(identity.BuildIdentity, "managed:") || !digestPattern.MatchString(strings.TrimPrefix(identity.BuildIdentity, "managed:")) || identity.RuntimeHomeContractSHA256 != prior.GetRuntimeHomeContractSha256() || identity.PersistentStateContractSHA256 != prior.GetPersistentStateContractSha256() {
+	if prior == nil || identity.Protocol != 1 || !strings.HasPrefix(identity.BuildIdentity, "managed:") || !digestPattern.MatchString(strings.TrimPrefix(identity.BuildIdentity, "managed:")) || identity.RuntimeHomeContractSHA256 != prior.GetRuntimeHomeContractSha256() {
+		return identity, fmt.Errorf("retained watchdog and prior root persistence/bootstrap capabilities do not agree")
+	}
+	// The versioned manifests decide when both images report one. A watchdog
+	// built before the last compatible install can carry a different legacy
+	// whole-source identity while speaking the same state formats; refusing it
+	// would make the next ordinary install impossible until the watchdog
+	// self-updated. Compatibility is directional, so compare the manifests and
+	// fall back to the identity rule only for an image that cannot report one.
+	agrees, err := workerStateFormatAgrees(ctx, priorImage, identity.StateFormat)
+	if err != nil {
+		return identity, err
+	}
+	if !agrees && identity.PersistentStateContractSHA256 != prior.GetPersistentStateContractSha256() {
 		return identity, fmt.Errorf("retained watchdog and prior root persistence/bootstrap capabilities do not agree")
 	}
 	return identity, nil
+}
+
+// workerStateFormatAgrees compares the prior root's state format with the one
+// the watchdog reports. It reports (false, nil) when either predates the
+// versioned manifest, leaving the caller to use the identity rule.
+func workerStateFormatAgrees(ctx context.Context, priorImage string, workerFormat *stateformat.Manifest) (bool, error) {
+	if priorImage == "" || workerFormat == nil {
+		return false, nil
+	}
+	priorFormat, priorErr := ProbeStateFormat(ctx, priorImage)
+	if priorErr != nil {
+		return false, nil
+	}
+	return workerFormatAgreement(priorFormat, *workerFormat, true)
+}
+
+// workerFormatAgreement is the decision behind workerStateFormatAgrees, split
+// out so the direction can be tested without building two executables.
+func workerFormatAgreement(priorFormat, workerFormat stateformat.Manifest, haveBoth bool) (bool, error) {
+	if !haveBoth {
+		return false, nil
+	}
+	assessment := stateformat.Check(priorFormat, workerFormat)
+	if assessment.AllowsAutomaticRollback() {
+		return true, nil
+	}
+	return false, fmt.Errorf("retained watchdog cannot share the serving root's state format: %s", strings.Join(formatChanges(assessment), "; "))
 }

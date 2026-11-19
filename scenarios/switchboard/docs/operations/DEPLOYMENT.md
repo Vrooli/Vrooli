@@ -1,6 +1,5 @@
 # Deployment — Switchboard
 
-## Purpose Of This Document
 
 How this scenario is packaged, where it can run, and what must be true of the
 host before it starts. Use it to answer: which tiers are supported, what the

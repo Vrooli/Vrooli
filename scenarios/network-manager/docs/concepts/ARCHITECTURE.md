@@ -2,7 +2,6 @@
 
 Network Manager is a local-first control plane for diagnosing, filtering, and safely improving home and small-office networks. It uses the generated React/Vite scenario shape but replaces the starter product domain with network-specific domains and adapter contracts.
 
-## Purpose Of This Document
 
 This document explains the scenario shape, product boundaries, contract flow, shared infrastructure, extension rules, maturity, intentional deviations, and documentation architecture.
 

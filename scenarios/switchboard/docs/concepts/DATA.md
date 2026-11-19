@@ -1,6 +1,5 @@
 # Data — Switchboard
 
-## Purpose Of This Document
 
 This document is the canonical description of what this scenario stores, which
 domain owns each piece, how long it is kept, and what happens on deletion. Use

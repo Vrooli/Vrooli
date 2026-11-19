@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -524,6 +525,79 @@ type ClaimOutput struct {
 	Verdict engine.Verdict `json:"verdict"`
 	Claim   ClaimView      `json:"claim"`
 	Enforce string         `json:"enforce"`
+}
+
+// AdmitRequest asks the broker whether a request would be granted, without
+// recording anything. PreferredBytes and FloorBytes are the exact need for a
+// pre-flight check (set them equal so "granted" means the whole amount fits).
+type AdmitRequest struct {
+	OwnerKind      string
+	OwnerID        string
+	ResourceKind   string
+	GPUIndex       *int
+	PreferredBytes int64
+	FloorBytes     int64
+	PriorityTier   string
+}
+
+// AdmitOutput is the read-only admission verdict.
+type AdmitOutput struct {
+	Admitted bool           `json:"admitted"`
+	Verdict  engine.Verdict `json:"verdict"`
+}
+
+// Admit evaluates admission without mutating the ledger. It is the oracle a
+// resource uses before loading a footprint that its steady-state claim does not
+// represent (for example a model larger than the resource's preferred rung).
+// The decision is engine.Decide — the broker's own policy — and the requester's
+// own claims are excluded so a resource is not counted against itself. No sweep,
+// no reclaim callback, no recorded row: the caller is asking a question, not
+// claiming capacity.
+func (s Service) Admit(ctx context.Context, req AdmitRequest) (AdmitOutput, error) {
+	if strings.TrimSpace(req.OwnerID) == "" {
+		return AdmitOutput{}, fmt.Errorf("--owner-id is required")
+	}
+	if req.ResourceKind == "" {
+		req.ResourceKind = engine.ResourceKindVRAM
+	}
+	engReq := engine.CapacityRequest{
+		OwnerKind:      req.OwnerKind,
+		OwnerID:        req.OwnerID,
+		ResourceKind:   req.ResourceKind,
+		GPUIndex:       req.GPUIndex,
+		PreferredBytes: req.PreferredBytes,
+		FloorBytes:     req.FloorBytes,
+		Priority:       engine.ParsePriorityTier(req.PriorityTier),
+		NoReclaim:      true,
+	}
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return AdmitOutput{}, err
+	}
+	defer store.Close()
+	policy, err := store.GetPolicy(ctx)
+	if err != nil {
+		return AdmitOutput{}, err
+	}
+	snapshot, err := s.source().Snapshot(ctx)
+	if err != nil {
+		return AdmitOutput{}, fmt.Errorf("capacity sensing unavailable: %w", err)
+	}
+	ledger, err := store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: engReq.ResourceKind, Statuses: engine.ActiveClaimStatuses()})
+	if err != nil {
+		return AdmitOutput{}, err
+	}
+	ledger = slices.DeleteFunc(ledger, func(c engine.CapacityClaim) bool {
+		return c.OwnerKind == engReq.OwnerKind && c.OwnerID == engReq.OwnerID
+	})
+	if engReq.ResourceKind == engine.ResourceKindRAM {
+		policy, err = engine.MemoryPressurePolicy(policy, s.MemoryPressure)
+		if err != nil {
+			return AdmitOutput{}, err
+		}
+	}
+	verdict := engine.Decide(engReq, snapshot, ledger, policy, s.now())
+	return AdmitOutput{Admitted: verdict.Kind == engine.VerdictGrant, Verdict: verdict}, nil
 }
 
 // Claim runs the admission decision and records the resulting claim. In

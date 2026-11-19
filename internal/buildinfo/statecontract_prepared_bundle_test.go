@@ -84,7 +84,7 @@ func TestPreparedBundleManifestFormatChangesOwner(t *testing.T) {
 	}
 	fixture := t.TempDir()
 	writeTestFile(t, fixture, path, string(data))
-	for _, extra := range []string{"internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/rootdecision/pending.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"} {
+	for _, extra := range []string{"internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"} {
 		content, err := os.ReadFile(filepath.Join(root, extra))
 		if err != nil {
 			t.Fatal(err)
@@ -119,7 +119,7 @@ func TestPreparedBundleRecoveryFormatChangesOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := t.TempDir()
-	paths := []string{"internal/cliinstall/companions.go", "internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/rootdecision/pending.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"}
+	paths := []string{"internal/cliinstall/companions.go", "internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"}
 	contents := map[string]string{}
 	for _, path := range paths {
 		data, err := os.ReadFile(filepath.Join(root, path))
@@ -146,15 +146,12 @@ func TestPreparedBundleRecoveryFormatChangesOwner(t *testing.T) {
 		{"internal/buildinfo/source_root_pointer.go", `strings.TrimSpace(string(contents))`, `string(contents)`},
 		{"internal/cliinstall/rebaseline_bundle.go", `"prepared-bundles"`, `"prepared-bundles-v2"`},
 		{"internal/cliinstall/rebaseline_bundle.go", `filepath.Join(stage, "SHA256SUMS")`, `filepath.Join(stage, "manifest-v2")`},
-		{"internal/cli/runtimehandlers/root_update_recovery.go", `filepath.Join(recovery.BundleDir, rootdecision.PendingFilename)`, `filepath.Join(recovery.BundleDir, "locator-v2.json")`},
 		{"internal/app/runtime/prepared_rebaseline.go", `"progress.json"`, `"progress-v2.json"`},
 		{"internal/app/runtime/prepared_rebaseline.go", `"watchdog-pending"`, `"watchdog-recovery"`},
 		{"internal/app/runtime/prepared_rebaseline.go", `cliinstall.PreparedBundleWatchdogSHA(bundleDir, manifest)`, `cliinstall.PreparedBundleWatchdogSHA(manifest, bundleDir)`},
 		{"internal/app/runtime/prepared_rebaseline.go", `progress.Candidate != candidateSHA`, `progress.Candidate == candidateSHA`},
-		{"internal/app/runtime/prepared_rebaseline.go", `progress.Mode == "hub"`, `progress.Mode != "hub"`},
 		{"internal/app/runtime/prepared_rebaseline.go", `progress.Watchdog == watchdogSHA`, `progress.Watchdog != watchdogSHA`},
 		{"internal/app/runtime/prepared_rebaseline.go", `e.retainBundle(home, filepath.Dir(originalCandidate), bundleSHA)`, `e.retainBundle(home, filepath.Dir(originalCandidate), "other-bundle")`},
-		{"internal/app/runtime/prepared_rebaseline.go", `request.PrepareRecovery(ctx, RebaselineRecovery{Admission: admission, BundleDir: prepared.BundleDir})`, `request.PrepareRecovery(ctx, RebaselineRecovery{Admission: admission, BundleDir: originalCandidate})`},
 		{"internal/app/runtime/prepared_rebaseline.go", `retainRebaselineFile(stagedWatchdog, pendingWatchdog)`, `retainRebaselineFile(pendingWatchdog, stagedWatchdog)`},
 		{"internal/app/runtime/prepared_rebaseline.go", `rebaselineprogress.Write(progressPath, record)`, `rebaselineprogress.Write(record, progressPath)`},
 		{"internal/app/runtime/prepared_rebaseline.go", `e.removeBundle(home, bundleSHA)`, `e.removeBundle(home, "other-bundle")`},
@@ -182,7 +179,7 @@ func TestOrdinaryBundleCoordinatorBehaviorDoesNotChangeOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	fixture := t.TempDir()
-	paths := []string{"internal/cliinstall/companions.go", "internal/cliinstall/ordinary_bundle.go", "internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/rootdecision/pending.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"}
+	paths := []string{"internal/cliinstall/companions.go", "internal/cliinstall/ordinary_bundle.go", "internal/cliinstall/ordinary_bundle_transaction.go", "internal/cliinstall/rebaseline_bundle.go", "internal/cli/runtimehandlers/root_update_recovery.go", "internal/app/runtime/prepared_rebaseline.go", "internal/buildinfo/prepared_bundle_guard.go", "internal/buildinfo/root_activation_guard.go", "internal/buildinfo/source_root_pointer.go"}
 	contents := map[string]string{}
 	for _, path := range paths {
 		data, err := os.ReadFile(filepath.Join(root, path))

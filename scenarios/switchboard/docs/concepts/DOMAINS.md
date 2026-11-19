@@ -1,6 +1,5 @@
 # Domains — Switchboard
 
-## Purpose Of This Document
 
 This document is the canonical map of the bounded contexts this scenario owns.
 Use it to answer:

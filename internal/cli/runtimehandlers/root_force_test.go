@@ -43,15 +43,21 @@ func forceArgs(candidate string) []string {
 	return []string{"runtime", "update", "rebaseline", candidate, "--force", "--reason=additive schema"}
 }
 
-func TestForceRebaselineNeedsAStandingGrant(t *testing.T) {
+// An agent may force a recoverable transition without a standing grant. The
+// compensation is the snapshot, the retained image, the receipt and restore on
+// failure; the receipt names the agent session so the action stays attributable.
+func TestForceRebaselineDoesNotRequireAStandingGrant(t *testing.T) {
 	candidate, source := withForceSeams(t)
 	withCaller(t, cliutil.CallerKindExternalAgent, "")
+	t.Setenv(cliutil.AgentSessionEnv, "vrooli-agent-test-session")
 	resolved, prepared, ran := false, false, false
+	var captured runtimeapp.ForceRequest
 	verifyRootTransitionAuthorityFn = func(_ context.Context, target string) (rootauthority.Decision, error) {
 		return rootauthority.Decision{}, &rootauthority.Refusal{Target: target, Reason: "no approved grant was found"}
 	}
-	prepareForceControlsFn = func(context.Context, string, runtimeapp.ForceRequest) (runtimeapp.ForceControls, error) {
+	prepareForceControlsFn = func(_ context.Context, _ string, request runtimeapp.ForceRequest) (runtimeapp.ForceControls, error) {
 		prepared = true
+		captured = request
 		return runtimeapp.ForceControls{}, nil
 	}
 	rebaselineRootFn = func(context.Context, string, runtimeapp.RebaselineRequest) (runtimeapp.RebaselineResult, error) {
@@ -63,11 +69,14 @@ func TestForceRebaselineNeedsAStandingGrant(t *testing.T) {
 		resolved = true
 		return source()
 	})
-	if code != 1 || resolved || prepared || ran {
-		t.Fatalf("an unauthorized force reached the transition: code=%d resolved=%t prepared=%t ran=%t", code, resolved, prepared, ran)
+	if code != 0 || !resolved || !prepared || !ran {
+		t.Fatalf("an agent force did not run: code=%d resolved=%t prepared=%t ran=%t stderr=%q", code, resolved, prepared, ran, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "vrooli agent authorize") || !strings.Contains(stderr.String(), rootauthority.Policy) {
-		t.Fatalf("refusal does not name the request command: %q", stderr.String())
+	if captured.Authority.ApprovedBy != "vrooli-agent-test-session" || captured.Authority.GrantID != "" {
+		t.Fatalf("receipt authority = %+v", captured.Authority)
+	}
+	if !strings.Contains(stdout.String(), "agent session") || !strings.Contains(stdout.String(), "snapshot and receipt are mandatory") {
+		t.Fatalf("the agent was not told what makes it safe: %q", stdout.String())
 	}
 }
 
@@ -205,5 +214,71 @@ func TestForceRebaselineDoesNotWaitForATerminalAnswer(t *testing.T) {
 	code := runRootRebaseline(context.Background(), forceArgs(candidate), os.Stdin, &stdout, &stderr, source)
 	if code != 0 || !confirmed {
 		t.Fatalf("a verified forced transition did not confirm itself: code=%d confirmed=%t stderr=%q", code, confirmed, stderr.String())
+	}
+}
+
+// An operator at their own terminal is authority in the same sense a standing
+// grant is: both are the operator deciding. The transition still builds its
+// compensating controls, and the receipt names which authority was used.
+func TestOperatorTerminalAuthorizesATransitionWithoutAGrant(t *testing.T) {
+	candidate, source := withForceSeams(t)
+	previousOperator := operatorAuthorityFn
+	t.Cleanup(func() { operatorAuthorityFn = previousOperator })
+	operatorAuthorityFn = func(*os.File) bool { return true }
+	verifyRootTransitionAuthorityFn = func(context.Context, string) (rootauthority.Decision, error) {
+		return rootauthority.Decision{}, &rootauthority.Refusal{Reason: "no approved grant"}
+	}
+	var captured runtimeapp.ForceRequest
+	prepareForceControlsFn = func(_ context.Context, _ string, request runtimeapp.ForceRequest) (runtimeapp.ForceControls, error) {
+		captured = request
+		return runtimeapp.ForceControls{Dir: "/snapshot", ReceiptAt: "/receipt.json"}, nil
+	}
+	ran := false
+	rebaselineRootFn = func(_ context.Context, _ string, request runtimeapp.RebaselineRequest) (runtimeapp.RebaselineResult, error) {
+		ran = true
+		if request.Confirm == nil {
+			t.Fatal("an operator transition was not given a confirmation seam")
+		}
+		return runtimeapp.RebaselineResult{Build: "b", Contract: "c"}, nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := runRootRebaseline(context.Background(), forceArgs(candidate), os.Stdin, &stdout, &stderr, source)
+	if code != 0 || !ran {
+		t.Fatalf("operator authority did not run the transition: code=%d ran=%t stderr=%q", code, ran, stderr.String())
+	}
+	if captured.Authority.ApprovedBy != "operator terminal" || captured.Authority.GrantID != "" {
+		t.Fatalf("receipt authority = %+v", captured.Authority)
+	}
+	if !strings.Contains(stdout.String(), "authorized by this operator terminal") {
+		t.Fatalf("the operator was not told which authority applied: %q", stdout.String())
+	}
+}
+
+func TestAgentForceUsesAgentAuthorityWhenNoTerminalIsPresent(t *testing.T) {
+	candidate, source := withForceSeams(t)
+	previousOperator := operatorAuthorityFn
+	t.Cleanup(func() { operatorAuthorityFn = previousOperator })
+	operatorAuthorityFn = func(*os.File) bool { return false }
+	t.Setenv(cliutil.AgentSessionEnv, "vrooli-agent-test-session")
+	verifyRootTransitionAuthorityFn = func(context.Context, string) (rootauthority.Decision, error) {
+		return rootauthority.Decision{}, &rootauthority.Refusal{Reason: "no approved grant"}
+	}
+	var captured runtimeapp.ForceRequest
+	prepareForceControlsFn = func(_ context.Context, _ string, request runtimeapp.ForceRequest) (runtimeapp.ForceControls, error) {
+		captured = request
+		return runtimeapp.ForceControls{}, nil
+	}
+	ran := false
+	rebaselineRootFn = func(context.Context, string, runtimeapp.RebaselineRequest) (runtimeapp.RebaselineResult, error) {
+		ran = true
+		return runtimeapp.RebaselineResult{}, nil
+	}
+	var stdout, stderr bytes.Buffer
+	code := runRootRebaseline(context.Background(), forceArgs(candidate), os.Stdin, &stdout, &stderr, source)
+	if code != 0 || !ran {
+		t.Fatalf("agent authority did not run the transition: code=%d ran=%t stderr=%q", code, ran, stderr.String())
+	}
+	if captured.Authority.ApprovedBy != "vrooli-agent-test-session" || captured.Authority.GrantID != "" {
+		t.Fatalf("receipt authority = %+v", captured.Authority)
 	}
 }

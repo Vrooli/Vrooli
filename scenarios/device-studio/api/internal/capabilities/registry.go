@@ -4,13 +4,11 @@ package capabilities
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -64,27 +62,6 @@ var Known = []Def{
 	},
 }
 
-type ScenarioChecker struct{}
-
-func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	output, err := exec.Command("vrooli", "scenario", "status", "audio-tools", "--json").Output()
-	if err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools is unavailable; start it with the operator action"
-	}
-	var payload struct {
-		Scenario struct {
-			Status string `json:"status"`
-		} `json:"scenario"`
-	}
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools status was not valid JSON"
-	}
-	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, "audio-tools is healthy"
-	}
-	return capabilityregistry.StatusUnavailable, "audio-tools is not running; start it with the operator action"
-}
-
 // LoopbackScenarioChecker observes a scenario's cheap health endpoint through
 // the canonical scenario discovery owner. It pins only loopback addresses and
 // never uses environment proxies or follows redirects, so an optional service
@@ -94,6 +71,8 @@ type LoopbackScenarioChecker struct {
 	Resolve func(context.Context, string) (string, error)
 	Client  *http.Client
 }
+
+func (c LoopbackScenarioChecker) ScenarioSlug() string { return strings.TrimSpace(c.Slug) }
 
 func (c LoopbackScenarioChecker) Check(ctx context.Context) (capabilityregistry.Status, string) {
 	checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -176,7 +155,7 @@ func loopbackHealthURL(ctx context.Context, raw string) (string, error) {
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"audio-tools":       ScenarioChecker{},
+		"audio-tools":       capabilityregistry.ScenarioStatusChecker{Scenario: "audio-tools"},
 		"ai-gateway":        LoopbackScenarioChecker{Slug: "ai-gateway"},
 		"workspace-sandbox": LoopbackScenarioChecker{Slug: "workspace-sandbox"},
 	}, 5*time.Second)

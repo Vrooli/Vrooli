@@ -9,6 +9,10 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 )
 
+// Version is the progress record's format. A shape change bumps it and updates
+// the versioned store descriptor, exactly like any other stored format.
+const Version = 1
+
 // Progress records effects already completed; it is never operator
 // authority. Incomplete or unreadable evidence cannot establish completion.
 type Progress struct {
@@ -17,7 +21,6 @@ type Progress struct {
 	Watchdog   string `json:"watchdog_sha256"`
 	Bundle     string `json:"bundle_sha256,omitempty"`
 	SourceRoot string `json:"source_root,omitempty"`
-	Mode       string `json:"mode,omitempty"`
 	Complete   bool   `json:"complete"`
 }
 
@@ -30,7 +33,7 @@ func Read(path string) (*Progress, error) {
 		return nil, err
 	}
 	var p Progress
-	if len(data) > 4096 || json.Unmarshal(data, &p) != nil || p.Version != 1 || len(p.Candidate) != 64 || len(p.Watchdog) != 64 || (p.Mode != "" && p.Mode != "prepared" && p.Mode != "hub") {
+	if len(data) > 4096 || json.Unmarshal(data, &p) != nil || p.Version != Version || len(p.Candidate) != 64 || len(p.Watchdog) != 64 {
 		return nil, fmt.Errorf("invalid rebaseline progress at %s; inspect recovery state before continuing", path)
 	}
 	return &p, nil

@@ -2,6 +2,9 @@ package evidence
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +15,57 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
+
+func TestOfferDeskPublisherKeepsRequestedInstance(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "commands.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "ResolveScenarioAPIBaseURL" || len(call.Args) < 2 {
+			return true
+		}
+		options, ok := call.Args[1].(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		target := ""
+		fallback := false
+		for _, element := range options.Elts {
+			field, ok := element.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			key, ok := field.Key.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			switch key.Name {
+			case "Target":
+				if value, ok := field.Value.(*ast.BasicLit); ok {
+					target = value.Value
+				}
+			case "AllowLiveFallback":
+				if value, ok := field.Value.(*ast.Ident); ok && value.Name == "true" {
+					fallback = true
+				}
+			}
+		}
+		if target == `"offer-desk"` && !fallback {
+			found = true
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("Offer Desk publisher must resolve the offer-desk target without opting into live fallback")
+	}
+}
 
 type fakeRPC struct {
 	listRequest    *domainv1.ListEvidenceCapturesRequest

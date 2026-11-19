@@ -1,6 +1,5 @@
 # Security — Network Manager
 
-## Purpose Of This Document
 
 Define the security and privacy posture for a scenario that can observe and change local network behavior.
 

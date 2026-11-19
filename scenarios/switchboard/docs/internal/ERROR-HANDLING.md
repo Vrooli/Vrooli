@@ -1,6 +1,5 @@
 # Error Handling — Switchboard
 
-## Purpose Of This Document
 
 How this scenario decides what is an error, and where each kind surfaces. It
 inherits the template's transport error path unchanged; what it adds is a
@@ -113,8 +112,8 @@ Unchanged from the template, and load-bearing here because media is a first-clas
 message part.
 
 Opaque file bytes are not proto payloads. Upload endpoints use REST multipart for
-bytes and return proto-typed metadata, with a stable error envelope through
-`internal/httpx.WriteError`; the UI maps `ApiError.code` through the same
+bytes and return proto-typed metadata, with a stable error envelope; the UI maps
+`ApiError.code` through the same
 `errorMessage(...)` utility as Connect errors.
 
 - Connect-RPC for anything proto can describe.

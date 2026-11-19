@@ -90,9 +90,13 @@ func (r Record) validate(home string) error {
 			return fmt.Errorf("%w: incomplete artifact or state contract", ErrConflict)
 		}
 	}
-	if r.CandidateStateContract != r.PriorStateContract {
-		return fmt.Errorf("%w: persistent-state compatibility is not qualified", ErrConflict)
-	}
+	// CandidateStateContract and PriorStateContract are recorded identities, not
+	// the compatibility decision. The decision is directional and is re-derived
+	// from the frozen images (QualifyRollbackImages) before a record is admitted,
+	// so a compatible pair may legitimately carry different whole-source
+	// identities. Requiring equality here would make the legacy identity digest
+	// override the versioned manifest and force a transition for a change the
+	// manifest already proved safe.
 	if r.PriorPID <= 0 || !validIncarnation(r.PriorIncarnation) || !idPattern.MatchString(r.PriorNativeInvocation) {
 		return fmt.Errorf("%w: prior native identity is incomplete", ErrConflict)
 	}

@@ -115,6 +115,16 @@
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
         "startup_policy": "try_start"
+      },
+      "offer-desk": {
+        "degraded_behavior": "Desktop generation and serving continue when Offer Desk is unavailable; producer facts retry after the optional peer becomes reachable.",
+        "description": "Optional Offer Desk target for desktop producer-owned release facts",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop publishes facts through Offer Desk Connect at runtime without importing its implementation; an explicit OFFER_DESK_API_BASE_URL may select a deployed endpoint, otherwise local discovery is used.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

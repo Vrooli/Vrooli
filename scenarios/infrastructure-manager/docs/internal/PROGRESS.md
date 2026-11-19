@@ -1,9 +1,6 @@
 # Progress — Infrastructure Manager
 
-Historical execution details are preserved beneath the protected runtime home:
-`plan-artifacts/docs-html-progress-20260908/scenarios/infrastructure-manager/docs/internal/PROGRESS.md`.
-The archive retains exact entries, validation receipts, and unresolved qualifications;
-relocation does not resolve a finding or establish current readiness.
+Historical details: `plan-artifacts/docs-html-progress-20260908/scenarios/infrastructure-manager/docs/internal/PROGRESS.md`. See the [runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for backup custody and readiness semantics.
 Copied July 7 template history was removed from this scenario’s log.
 The table retains selected dated milestones. Other milestones and their limitations
 remain in the archive; consult it before resuming historical work.

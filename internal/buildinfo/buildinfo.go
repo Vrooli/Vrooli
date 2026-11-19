@@ -529,9 +529,10 @@ func FingerprintTargetsForExecutable(executableName string) []string {
 	case "vrooli-atomic-install":
 		return []string{"cmd/vrooli-atomic-install", "internal", "packages", "go.mod", "go.sum"}
 	case "vrooli-gocacheprog":
-		// The helper links only the build-cache protocol and the standard
-		// library, so only those sources can make it stale.
-		return []string{"cmd/vrooli-gocacheprog", "internal/gocache", "go.mod", "go.sum"}
+		// The helper links the build-cache protocol, the compiled store
+		// descriptors it publishes, and the standard library, so only those
+		// sources can make it stale.
+		return []string{"cmd/vrooli-gocacheprog", "internal/gocache", "internal/stateformat", "go.mod", "go.sum"}
 	default:
 		return nil
 	}

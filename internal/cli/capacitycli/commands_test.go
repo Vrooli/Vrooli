@@ -9,6 +9,31 @@ import (
 	engine "github.com/vrooli/vrooli/internal/capacity"
 )
 
+func TestParseAdmitRequestIsAReadOnlyYesNoQuestion(t *testing.T) {
+	got, err := ParseAdmitRequest([]string{
+		"--owner-kind", "resource", "--owner-id", "ollaya", "--resource-kind", "vram",
+		"--gpu-index", "0", "--preferred", "9GiB", "--floor", "9GiB", "--priority", "service", "--json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.OwnerID != "ollaya" || got.ResourceKind != "vram" || got.PreferredBytes != 9<<30 || got.FloorBytes != 9<<30 {
+		t.Fatalf("parsed = %+v", got)
+	}
+	if _, err := ParseAdmitRequest([]string{"--preferred", "1GiB"}); err == nil {
+		t.Fatal("admit without an owner id must be rejected")
+	}
+	var out bytes.Buffer
+	if err := RenderAdmit(&out, "", capacityapp.AdmitOutput{Admitted: true, Verdict: engine.Verdict{Kind: engine.VerdictGrant, GrantedBytes: 9 << 30}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"admitted: true", "grant", "9.00 GiB"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("admit render lacks %q: %s", want, out.String())
+		}
+	}
+}
+
 func TestParseDiskReservationsRequest(t *testing.T) {
 	got, err := ParseDiskReservationsRequest([]string{"--active", "--owner", " foreign:job ", "--filesystem", "dev:66306", "--json"})
 	if err != nil {

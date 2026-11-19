@@ -28,11 +28,5 @@ func TestRegistryDoesNotDescribeManifestDependencies(t *testing.T) {
 }
 
 func capabilityRegistryForTest() *Registry {
-	checkers := map[string]Checker{}
-	for _, def := range Known {
-		checkers[def.ID] = ScenarioChecker{Slug: def.DependencySlug, Run: func(context.Context, string, ...string) ([]byte, error) {
-			return []byte(`{"status":"healthy"}`), nil
-		}}
-	}
-	return capabilityregistry.New(Known, checkers, time.Minute)
+	return capabilityregistry.New(Known, nil, time.Minute)
 }

@@ -297,12 +297,16 @@ func (s *SQLiteStore) HeartbeatClaim(ctx context.Context, claimID string, genera
 		}
 		now := s.now()
 		deadline := now.Add(normalizeTTL(ttl, DefaultHeartbeatTTL))
+		// Heartbeat proves liveness; it is not a resize. Keeping updated_at on
+		// the last real mutation is what makes the degrade/upshift debounce
+		// meaningful: a parked claim is heartbeated every poll, and bumping this
+		// column made every upshift permanently look "just resized".
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
-SET last_heartbeat_at = ?, heartbeat_deadline_at = ?, updated_at = ?
+SET last_heartbeat_at = ?, heartbeat_deadline_at = ?
 WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)
   AND (owner_kind != ? OR heartbeat_deadline_at > ?)`,
-			formatTime(now), formatTime(deadline), formatTime(now),
+			formatTime(now), formatTime(deadline),
 			claimID, generation, StatusReserved, StatusGranted, StatusDegraded, OwnerKindOp, formatTime(now))
 		if execErr != nil {
 			return fmt.Errorf("heartbeat capacity claim: %w", execErr)
@@ -818,19 +822,7 @@ func scanFootprint(row rowScanner, out *Footprint) error {
 
 // GetClaim returns a single claim by ID.
 func (s *SQLiteStore) GetClaim(ctx context.Context, claimID string) (CapacityClaim, error) {
-	var out CapacityClaim
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		claim, getErr := getClaimTx(ctx, tx, claimID)
-		if getErr != nil {
-			return getErr
-		}
-		out = claim
-		return nil
-	})
-	if err != nil {
-		return CapacityClaim{}, err
-	}
-	return out, nil
+	return getClaimRow(ctx, s.db, claimID)
 }
 
 // ListClaims returns claims matching the filter, newest first.
@@ -870,18 +862,18 @@ func (s *SQLiteStore) ListClaims(ctx context.Context, filter ClaimFilter) ([]Cap
 	query += "\nORDER BY created_at DESC, claim_id ASC"
 
 	var out []CapacityClaim
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		rows, queryErr := tx.QueryContext(ctx, query, args...)
-		if queryErr != nil {
-			return fmt.Errorf("list capacity claims: %w", queryErr)
-		}
-		var scanErr error
-		out, scanErr = scanClaims(rows)
-		if closeErr := rows.Close(); closeErr != nil && scanErr == nil {
-			scanErr = closeErr
-		}
-		return scanErr
-	})
+	// A read runs outside the connection's immediate (write) transaction lock.
+	// _txlock=immediate is correct for mutations, but forcing every pure read
+	// through it made list/get contend with heartbeat writers and surface as
+	// SQLITE_BUSY on a busy host.
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list capacity claims: %w", err)
+	}
+	out, err = scanClaims(rows)
+	if closeErr := rows.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -892,28 +884,25 @@ func (s *SQLiteStore) ListClaims(ctx context.Context, filter ClaimFilter) ([]Cap
 // not yet set.
 func (s *SQLiteStore) GetPolicy(ctx context.Context) (Policy, error) {
 	policy := DefaultPolicy()
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		rows, queryErr := tx.QueryContext(ctx, `SELECT key, value FROM capacity_policy`)
-		if queryErr != nil {
-			return fmt.Errorf("read capacity policy: %w", queryErr)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var key, value string
-			if scanErr := rows.Scan(&key, &value); scanErr != nil {
-				return scanErr
-			}
-			next, applyErr := policy.withKey(key, value)
-			if applyErr != nil {
-				// A stored value that no longer validates is skipped rather than
-				// poisoning the whole read; the default for that key stands.
-				continue
-			}
-			policy = next
-		}
-		return rows.Err()
-	})
+	rows, err := s.db.QueryContext(ctx, `SELECT key, value FROM capacity_policy`)
 	if err != nil {
+		return Policy{}, fmt.Errorf("read capacity policy: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key, value string
+		if scanErr := rows.Scan(&key, &value); scanErr != nil {
+			return Policy{}, scanErr
+		}
+		next, applyErr := policy.withKey(key, value)
+		if applyErr != nil {
+			// A stored value that no longer validates is skipped rather than
+			// poisoning the whole read; the default for that key stands.
+			continue
+		}
+		policy = next
+	}
+	if err := rows.Err(); err != nil {
 		return Policy{}, err
 	}
 	return policy, nil
@@ -931,9 +920,7 @@ const sweepCursorKey = "__sweep_last_at"
 // (with a zero time, nil error) when no sweep has been recorded yet.
 func (s *SQLiteStore) LastSweepAt(ctx context.Context) (time.Time, bool, error) {
 	var raw string
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx, `SELECT value FROM capacity_policy WHERE key = ?`, sweepCursorKey).Scan(&raw)
-	})
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM capacity_policy WHERE key = ?`, sweepCursorKey).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return time.Time{}, false, nil
 	}
@@ -1049,7 +1036,17 @@ SELECT claim_id, owner_kind, owner_id, instance_id, resource_kind, gpu_index,
 FROM capacity_claims`
 
 func getClaimTx(ctx context.Context, tx *sql.Tx, claimID string) (CapacityClaim, error) {
-	row := tx.QueryRowContext(ctx, claimSelectSQL+`
+	return getClaimRow(ctx, tx, claimID)
+}
+
+// queryRower is the read surface shared by a pool handle and a transaction, so
+// the same scan serves a direct read and a write transaction's re-read.
+type queryRower interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+func getClaimRow(ctx context.Context, q queryRower, claimID string) (CapacityClaim, error) {
+	row := q.QueryRowContext(ctx, claimSelectSQL+`
 WHERE claim_id = ?`, claimID)
 	claim, err := scanClaimRow(row)
 	if errors.Is(err, sql.ErrNoRows) {

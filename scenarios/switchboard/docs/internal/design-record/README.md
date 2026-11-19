@@ -1,6 +1,5 @@
 # Design Record
 
-## Purpose Of This Document
 
 Preserve the design investigation that produced this scenario, so a later agent
 can recover *why* a decision was made without the conversation that made it.

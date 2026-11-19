@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,27 +24,34 @@ type deploymentReportFact struct {
 }
 
 // startReleaseFactPublisher keeps the producer direction explicit: deployment
-// manager observes its own durable report and pushes a fact to Offer Desk. It
-// is optional when Offer Desk is not configured, and a transient publish error
-// never affects the deployment API's serving lifecycle.
+// manager observes its own durable report and pushes a fact to Offer Desk. A
+// configured static URL overrides local discovery. Missing Offer Desk and
+// transient publish errors are retried on the next interval and never affect
+// the deployment API's serving lifecycle.
 func (s *Server) startReleaseFactPublisher(ctx context.Context) {
-	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/")
-	if baseURL == "" {
-		return
-	}
+	resolver := discovery.NewResolverWithOptionalStaticOverride(os.Getenv("OFFER_DESK_API_BASE_URL"))
 	interval := releaseFactInterval()
-	client := offersconnect.NewGatesServiceClient(http.DefaultClient, baseURL)
+	logger := s.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
 	publish := func() {
+		baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "offer-desk")
+		if err != nil {
+			logger.Info("release fact producer unavailable", "error", err)
+			return
+		}
+		client := offersconnect.NewGatesServiceClient(http.DefaultClient, baseURL)
 		fact, err := deploymentReportFactValue(defaultDeploymentReportPath(), time.Now().UTC(), 30*24*time.Hour)
 		if err != nil {
-			s.Logger.Info("release fact producer skipped", "error", err)
+			logger.Info("release fact producer skipped", "error", err)
 			return
 		}
 		if _, err := client.AddFact(ctx, connect.NewRequest(&offersv1.AddFactRequest{Fact: fact})); err != nil {
-			s.Logger.Info("release fact producer publish failed", "error", err)
+			logger.Info("release fact producer publish failed", "error", err)
 			return
 		}
-		s.Logger.Info("release fact producer published", "fact", fact.GetName())
+		logger.Info("release fact producer published", "fact", fact.GetName())
 	}
 
 	go func() {

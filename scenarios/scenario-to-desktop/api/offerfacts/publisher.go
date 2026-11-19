@@ -27,23 +27,20 @@ type buildRecord struct {
 // degraded configuration: the desktop ramp continues serving while facts are
 // retried on the next interval.
 func Start(ctx context.Context, logf func(string, ...any)) {
-	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "offer-desk")
-		if err != nil {
-			logf("offer fact producer unavailable", "error", err)
-			return
-		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
-	}
+	resolver := discovery.NewResolverWithOptionalStaticOverride(os.Getenv("OFFER_DESK_API_BASE_URL"))
 	interval := 24 * time.Hour
 	if raw := strings.TrimSpace(os.Getenv("OFFER_DESK_FACT_INTERVAL")); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil && parsed >= time.Minute {
 			interval = parsed
 		}
 	}
-	client := offersconnect.NewGatesServiceClient(http.DefaultClient, baseURL)
 	publish := func() {
+		baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "offer-desk")
+		if err != nil {
+			logf("offer fact producer unavailable", "error", err)
+			return
+		}
+		client := offersconnect.NewGatesServiceClient(http.DefaultClient, baseURL)
 		facts, err := ReadFacts(defaultRecordsPath(), time.Now().UTC(), 30)
 		if err != nil {
 			logf("desktop offer fact producer skipped", "error", err)

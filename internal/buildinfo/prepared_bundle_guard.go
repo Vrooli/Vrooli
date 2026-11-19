@@ -49,7 +49,7 @@ func WritePreparedBundleIntent(home string, intent PreparedBundleIntent) error {
 	if err != nil {
 		return err
 	}
-	return config.WriteOwnedFileDurable(path, data, 0600)
+	return config.WriteOwnedFileDurable(path, data, 0o600)
 }
 
 func ReadPreparedBundleIntent(home string) (*PreparedBundleIntent, error) {
@@ -119,5 +119,5 @@ func GuardPreparedBundle(home, candidate string) error {
 	if pathErr != nil {
 		return pathErr
 	}
-	return fmt.Errorf("an ordinary bundle install is incomplete; resume with %q --resume-bundle %q", filepath.Join(dir, "vrooli-atomic-install"), bin)
+	return fmt.Errorf("an ordinary bundle install is incomplete; resume it with %q --resume-bundle %q, or, when the installed images still match the recorded prior state, discard it with %q --abort-bundle %q", filepath.Join(dir, "vrooli-atomic-install"), bin, filepath.Join(dir, "vrooli-atomic-install"), bin)
 }

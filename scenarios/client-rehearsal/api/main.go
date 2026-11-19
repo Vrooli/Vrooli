@@ -90,7 +90,7 @@ func main() {
 	sandboxURL := strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL"))
 	if nativeN8NEnabled && sandboxURL == "" {
 		lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		resolvedURL, lookupErr := resolveWorkspaceSandboxURL(lookupCtx, sandboxURL, discovery.ResolveScenarioPort)
+		resolvedURL, lookupErr := discovery.ResolveScenarioURLDefault(lookupCtx, "workspace-sandbox")
 		cancel()
 		if lookupErr != nil {
 			log.Printf("native n8n task rehearsal is unavailable because Workspace Sandbox port discovery failed: %v; unscoped simulator rehearsals remain available", lookupErr)

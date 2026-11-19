@@ -11,48 +11,12 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
 	"github.com/vrooli/vrooli/internal/cliinstall"
-	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/rebaselineprogress"
-	"github.com/vrooli/vrooli/internal/rootdecision"
 )
 
 type preparedRootBundleIdentity struct {
 	manifestSHA string
 	rootSHA     string
-}
-
-type preparedSnapshotDecisionIdentity struct {
-	terms rootDecisionTerms
-}
-
-// loadPreparedHubDecisionLocator and savePreparedHubDecisionLocator are the
-// only runtimehandler path through the local durable Hub locator codec.
-func loadPreparedHubDecisionLocator(path string) (rootDecisionTerms, error) {
-	return rootdecision.Load(path)
-}
-
-func savePreparedHubDecisionLocator(path string, terms rootDecisionTerms) error {
-	return rootdecision.Save(path, terms)
-}
-
-func loadPreparedSnapshotDecision(snapshot string) (preparedSnapshotDecisionIdentity, error) {
-	terms, err := loadPreparedHubDecisionLocator(filepath.Join(snapshot, rootdecision.PendingFilename))
-	if err != nil {
-		return preparedSnapshotDecisionIdentity{}, fmt.Errorf("snapshot decision identity unavailable")
-	}
-	if terms.RequesterRef == "" {
-		return preparedSnapshotDecisionIdentity{}, fmt.Errorf("snapshot decision identity unavailable")
-	}
-	manifest, err := os.ReadFile(filepath.Join(snapshot, "SHA256SUMS"))
-	if err != nil || len(manifest) == 0 || len(manifest) > 8192 {
-		return preparedSnapshotDecisionIdentity{}, fmt.Errorf("snapshot manifest unavailable")
-	}
-	sum := sha256.Sum256(manifest)
-	manifestSHA := hex.EncodeToString(sum[:])
-	if manifestSHA != terms.BundleSHA {
-		return preparedSnapshotDecisionIdentity{}, fmt.Errorf("snapshot decision does not match bundle")
-	}
-	return preparedSnapshotDecisionIdentity{terms: terms}, nil
 }
 
 // readPreparedRootBundle verifies the durable bundle manifest and binds the
@@ -81,91 +45,38 @@ func preparedBundleManifestSHA(bundleDir string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-type preparedRootRecovery struct {
-	home        string
-	candidate   string
-	bundleSHA   string
-	pendingPath string
-	hubDecision bool
-	recovery    bool
-}
-
-func newPreparedRootRecovery(home, candidate, bundleSHA string, hubDecision, recovery bool) (*preparedRootRecovery, bool, error) {
-	workflow := &preparedRootRecovery{
-		home:        home,
-		candidate:   candidate,
-		bundleSHA:   bundleSHA,
-		hubDecision: hubDecision,
-		recovery:    recovery,
-	}
-	if !hubDecision {
-		return workflow, false, nil
-	}
-	workflow.pendingPath = filepath.Join(filepath.Dir(candidate), rootdecision.PendingFilename)
+// resumePreparedCandidate resolves the prepared bundle a paused transition
+// points at. It is the recovery owner's read; the dispatcher only asks whether
+// there is one and where it is.
+func resumePreparedCandidate(home string) (string, bool, error) {
 	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
 	if err != nil {
-		return nil, false, err
+		return "", false, err
 	}
 	progress, err := rebaselineprogress.Read(filepath.Join(state, "root-rebaseline", "progress.json"))
-	if err != nil {
-		return nil, false, err
+	if err != nil || progress == nil || progress.Complete {
+		return "", false, err
 	}
-	if progress != nil && !progress.Complete && progress.Bundle == bundleSHA && progress.Mode == "" {
-		terms, err := loadPreparedHubDecisionLocator(workflow.pendingPath)
-		if err != nil {
-			return nil, false, err
-		}
-		return workflow, legacyFinishingNeedsDecision(progress, bundleSHA, terms), nil
+	candidate := filepath.Join(state, "root-rebaseline", "prepared-bundles", progress.Bundle, "vrooli")
+	if _, err := os.Stat(candidate); err != nil {
+		return "", false, fmt.Errorf("the prepared bundle for the interrupted transition is gone (%v); run `make rebaseline` to prepare a new one", err)
 	}
-	return workflow, false, nil
+	return candidate, true, nil
 }
 
-func (r *preparedRootRecovery) beforeEffects(ctx context.Context, admission runtimeapp.RebaselineAdmission) error {
-	if !r.hubDecision {
-		return nil
-	}
-	client, err := rootDecisionClientFactory(ctx)
-	if err != nil {
-		return err
-	}
-	return verifyConsumedHubDecision(ctx, client, r.pendingPath, r.bundleSHA, admission.CandidateSHA, admission.WatchdogSHA)
+// preparedRootRecovery is the prepared transition's companion publication. It
+// holds no authority: the operator gate and the plan confirmation have already
+// happened by the time it runs.
+type preparedRootRecovery struct {
+	home      string
+	bundleSHA string
 }
 
-func (r *preparedRootRecovery) prepare(ctx context.Context, recovery runtimeapp.RebaselineRecovery) error {
-	if !r.hubDecision {
-		return nil
-	}
-	client, err := rootDecisionClientFactory(ctx)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(r.pendingPath)
-	if err != nil {
-		return err
-	}
-	if len(data) == 0 || len(data) > 16384 {
-		return fmt.Errorf("invalid Hub recovery locator")
-	}
-	retainedPending := filepath.Join(recovery.BundleDir, rootdecision.PendingFilename)
-	if r.pendingPath != retainedPending {
-		if err := config.WriteOwnedFileDurable(retainedPending, data, 0600); err != nil {
-			return err
-		}
-	}
-	return verifyConsumedHubDecision(ctx, client, retainedPending, r.bundleSHA, recovery.Admission.CandidateSHA, recovery.Admission.WatchdogSHA)
+func newPreparedRootRecovery(home, bundleSHA string) *preparedRootRecovery {
+	return &preparedRootRecovery{home: home, bundleSHA: bundleSHA}
 }
 
 func (r *preparedRootRecovery) afterActivation(ctx context.Context, recovery runtimeapp.RebaselineRecovery, source string) error {
-	if r.hubDecision {
-		client, err := rootDecisionClientFactory(ctx)
-		if err != nil {
-			return err
-		}
-		retainedPending := filepath.Join(recovery.BundleDir, rootdecision.PendingFilename)
-		if err := verifyConsumedHubDecision(ctx, client, retainedPending, r.bundleSHA, recovery.Admission.CandidateSHA, recovery.Admission.WatchdogSHA); err != nil {
-			return err
-		}
-	}
 	binDir, err := repocontract.RuntimeHomeEntryPath(r.home, repocontract.HomeKeyBin)
 	if err != nil {
 		return err
@@ -174,21 +85,6 @@ func (r *preparedRootRecovery) afterActivation(ctx context.Context, recovery run
 		return err
 	}
 	return cliinstall.PublishPreparedBundleSourceLocked(recovery.BundleDir, binDir, r.bundleSHA, source, r.home)
-}
-
-func (r *preparedRootRecovery) watchdogSnapshot() string {
-	if !r.hubDecision {
-		return ""
-	}
-	if r.recovery {
-		state, _ := repocontract.RuntimeHomeEntryPath(r.home, repocontract.HomeKeyState)
-		return filepath.Join(state, "root-rebaseline", "watchdog-pending")
-	}
-	return filepath.Join(filepath.Dir(r.candidate), rootdecision.WatchdogFilename)
-}
-
-func legacyFinishingNeedsDecision(p *rebaselineprogress.Progress, bundle string, terms rootDecisionTerms) bool {
-	return p != nil && !p.Complete && p.Bundle == bundle && p.Mode == "" && (terms.RequesterRef == "" || terms.Operation == "continuation")
 }
 
 // retainedRebaselineSource resolves only the runtime-owned bundle named by an
@@ -216,4 +112,14 @@ func retainedRebaselineSource(home, candidate string) (string, bool, error) {
 		return "", false, fmt.Errorf("interrupted rebaseline lacks a canonical source binding")
 	}
 	return p.SourceRoot, true, nil
+}
+
+// preparedBundleCandidate reports whether candidate names a root image inside a
+// directory carrying a bundle manifest.
+func preparedBundleCandidate(candidate string) bool {
+	if filepath.Base(candidate) != "vrooli" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(filepath.Dir(candidate), "SHA256SUMS"))
+	return err == nil && !info.IsDir()
 }

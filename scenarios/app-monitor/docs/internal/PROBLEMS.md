@@ -15,8 +15,8 @@
 ## Work ladder
 
 - Rung: W2
-- Evidence: App Monitor unit run `20261105-061756-db789895` failed the two `CheckIframeBridgeRule` tests because they used CLI scenario-port discovery despite supplying fake HTTP responses. The target scenario was stopped. After adding an injectable port resolver, the focused service tests and Test Genie unit run `20261105-071359-cc8125a7` pass without starting scenario-auditor.
-- Blocker: closed; the unit tests now control the scenario-auditor port and HTTP responses.
+- Evidence: App Monitor unit run `20261105-061756-db789895` failed the two `CheckIframeBridgeRule` tests because they used CLI scenario-port discovery despite supplying fake HTTP responses. The shared URL resolver now owns peer discovery and the optional static override; tests use a configured static base, including a path prefix.
+- Blocker: closed; tests control peer addressing and HTTP responses without starting scenario-auditor. The private port-resolver seam and stale Orchestrator-port fallback are removed.
 - Measured: 2026-11-05
 
 - Rung: W3

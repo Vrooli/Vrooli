@@ -38,7 +38,7 @@ type gatesRPC interface {
 
 type Commands struct {
 	rpc       evidenceRPC
-	gates     gatesRPC
+	gates     func() (gatesRPC, error)
 	apiPrefix string
 	http      interface {
 		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
@@ -52,9 +52,15 @@ func New(deps support.Dependencies) *Commands {
 		BaseOptions: app.APIBaseOptions(),
 		Timeout:     app.HTTPClient.Timeout(),
 	})
-	var gates gatesRPC
-	if offerDeskURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/"); offerDeskURL != "" {
-		gates = offersconnect.NewGatesServiceClient(httpClient, offerDeskURL)
+	gates := func() (gatesRPC, error) {
+		baseURL, err := cliutil.ResolveScenarioAPIBaseURL(context.Background(), cliutil.ScenarioAPIBaseOptions{
+			EnvVars: []string{"OFFER_DESK_API_BASE_URL"},
+			Target:  "offer-desk",
+		})
+		if err != nil {
+			return nil, err
+		}
+		return offersconnect.NewGatesServiceClient(httpClient, baseURL), nil
 	}
 	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, apiPrefix: app.APIPrefix(), http: restClient}
 }
@@ -197,7 +203,7 @@ func readDesktopBuildFact(path, scenario string, staleDays int32) (*offersv1.Fac
 func (c *Commands) publishOfferFactPrimitive() cliapp.PrimitiveHandler {
 	return cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*offersv1.AddFactResponse, error) {
 		if c.gates == nil {
-			return nil, fmt.Errorf("offer-desk is unavailable; producer fact was not published")
+			return nil, fmt.Errorf("offer-desk client is unavailable; producer fact was not published")
 		}
 		stale := int32(30)
 		if raw := strings.TrimSpace(ctx.Flag("stale-after-days")); raw != "" {
@@ -213,8 +219,12 @@ func (c *Commands) publishOfferFactPrimitive() cliapp.PrimitiveHandler {
 		if err != nil {
 			return nil, err
 		}
+		gates, err := c.gates()
+		if err != nil {
+			return nil, err
+		}
 		request := &offersv1.AddFactRequest{Fact: fact}
-		response, err := c.gates.AddFact(context.Background(), connect.NewRequest(request))
+		response, err := gates.AddFact(context.Background(), connect.NewRequest(request))
 		if err != nil {
 			return nil, cliapp.WrapAPIError("publish producer fact", err, nil)
 		}

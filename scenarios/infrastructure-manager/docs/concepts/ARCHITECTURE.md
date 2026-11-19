@@ -249,25 +249,22 @@ documents — projections and cells, banding, trust, and the bar — update
 
 ## Architecture Maturity
 
-**Current state: draft, documentation-first.** The charter (`PRD.md`), the
-requirements registry, the domain map, the four model documents, and this
-architecture are authored. **No domain code exists yet.** This mirrors how
-`meta-optimization-manager` was built and is deliberate: the models are the
-design decisions worth getting right before code hardens around them — and the
-2026-08-19 reframe onto projections is exactly the payoff, since it would have
-been a rewrite rather than an edit had the flat sensor map already been coded.
-
-The first real vertical slice is `coverage` — API, CLI and its board page —
-preceded by a design pass and by the `vrooli-autoheal` typed surface that the
-`condition` vertical depends on.
+**Current state: draft architecture documentation with implemented product
+verticals.** The documentation-first phase has ended: API modules and CLI
+groups exist for `coverage`, `condition`, `focus`, `portability`, and `ladder`.
+The UI routes expose pages for the three reliability axes and a joint substrate
+board for portability and the device ladder. [`DOMAINS.md`](DOMAINS.md) owns the
+capability map; requirements and owner evidence determine acceptance, not code
+presence alone. The scenario remains a read-mostly instrument: it has no
+actuation authority and no API write path to the reliability setpoint.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| Concept model | **Authored** | `COVERAGE-MODEL.md`, `CONDITION-MODEL.md`, `TRUST-MODEL.md` and `SETPOINT-MODEL.md` define ten projections, the cell grid, banding, the closed trust vocabulary, the bar, and the honesty invariants. `DOMAINS.md` names three domains and their build order. | No control layer has authored a space doc, so every denominator starts at `SKETCH`. The obligation list remains judgment owned by the team, not derivable here. |
-| API | Template-ready, no product code | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams — all from the template. | No `coverage`, `condition`, `focus`, or `sources` package exists. |
-| CLI | Template-ready, no product code | Domain command groups wrap API calls and render reports. | Command surface is designed in `DOMAINS.md` but unimplemented. |
-| UI | Template-ready, in scope | Feature folders, typed API clients, selector/i18n registries. | `OT-P1-005`; a polished board is first-class and ships vertical-by-vertical with each domain, after one design pass. |
-| Docs | **Contract-complete for a draft** | Manifest v2 registers every document with a maturity value; concept docs are authored rather than stubbed. | Reference and operations docs describe the template, not the product, until the first slice lands. |
+| Concept model | **Authored** | `COVERAGE-MODEL.md`, `CONDITION-MODEL.md`, `TRUST-MODEL.md`, `SETPOINT-MODEL.md` and `DOMAINS.md` define the axes, domains and invariants. | Owner-authored spaces and source availability still determine each live denominator and its confidence. |
+| API | **Implemented, read-mostly** | `api/main.go` mounts the five product domain modules; services live under `api/internal/`. | Requirements and per-source qualification remain tracked by their owners; module presence is not a passing measurement. |
+| CLI | **Implemented** | `cli/domains/domains.go` registers API-backed command groups for the five product domains. | Keep the manifest and handlers aligned with the canonical API contracts. |
+| UI | **Implemented pages** | `ui/src/app/routes.tsx` routes the coverage, condition, focus and substrate pages. | Requirement acceptance and served-journey evidence remain separate from route presence. |
+| Docs | **Maintained, evolving** | Manifest v2 registers the domain, model, operational and reference documents. | Keep maturity and source/consumer links current as implementation changes. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

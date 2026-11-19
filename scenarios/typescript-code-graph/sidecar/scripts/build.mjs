@@ -7,10 +7,17 @@ import * as path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+const outputDirArg = process.argv.indexOf("--output-dir");
+const outputDir = outputDirArg >= 0 && process.argv[outputDirArg + 1]
+  ? path.resolve(process.argv[outputDirArg + 1])
+  : path.join(root, "dist");
+const outputFile = path.join(outputDir, "index.js");
+
+await import("node:fs/promises").then(({ mkdir }) => mkdir(outputDir, { recursive: true }));
 
 await build({
   entryPoints: [path.join(root, "src/index.ts")],
-  outfile: path.join(root, "dist/index.js"),
+  outfile: outputFile,
   bundle: true,
   format: "esm",
   platform: "node",
@@ -35,4 +42,4 @@ await build({
   },
 });
 
-console.error("[build] dist/index.js written");
+console.error(`[build] ${outputFile} written`);

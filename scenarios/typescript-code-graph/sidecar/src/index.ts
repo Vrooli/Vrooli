@@ -9,6 +9,7 @@ import { handleHandshake } from "./handshake.js";
 import { withPathLock } from "./lock.js";
 import { logger } from "./logger.js";
 import { applyRewrite } from "./rewrite.js";
+import { runBoundaryFactsCLI } from "./boundary-facts-cli.js";
 import { parseMessage, writeMessage } from "./framing.js";
 import type {
   CancelRequest,
@@ -219,6 +220,8 @@ const invokedDirect =
   (import.meta.url === `file://${process.argv[1]}` ||
     import.meta.url.endsWith("/dist/index.js"));
 
-if (invokedDirect) {
+if (invokedDirect && process.argv[2] === "--boundary-facts") {
+  runBoundaryFactsCLI();
+} else if (invokedDirect) {
   startStdioLoop();
 }

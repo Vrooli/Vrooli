@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -301,7 +302,7 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		scenarioSlug = "scenario"
 	}
 
-	port, err := s.locateScenarioAuditorAPIPort(ctx)
+	baseURL, err := s.scenarioAuditorBaseURL(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
 	}
@@ -341,7 +342,10 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 			return nil, err
 		}
 
-		endpoint := buildLocalAPIURL(port, fmt.Sprintf("/api/v1/rules/%s/scenario-test", rule.ID))
+		endpoint, err := url.JoinPath(baseURL, "api/v1/rules", rule.ID, "scenario-test")
+		if err != nil {
+			return nil, fmt.Errorf("build scenario-auditor endpoint: %w", err)
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 		if err != nil {
 			return nil, err

@@ -139,7 +139,7 @@ func (f *rebaselineFixture) effects() rebaselineEffects {
 			}
 			return os.WriteFile(output, []byte("new watchdog"), 0o700)
 		},
-		probeWorker: func(context.Context, string, *cliv1.CliVersion) error { return step("qualify-watchdog") },
+		probeWorker: func(context.Context, string, *cliv1.CliVersion, string) error { return step("qualify-watchdog") },
 		enrollment: func(string) (coreactivation.Enrollment, bool, error) {
 			return coreactivation.Enrollment{Enabled: f.enrolled, RebaselinePaused: f.paused, UpdatedUnixNano: f.updated}, f.updated > 0, nil
 		},
@@ -346,11 +346,11 @@ func TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment(t *test
 				return identity, err
 			}
 			worker := effects.probeWorker
-			effects.probeWorker = func(ctx context.Context, path string, identity *cliv1.CliVersion) error {
+			effects.probeWorker = func(ctx context.Context, path string, identity *cliv1.CliVersion, rootImage string) error {
 				if when == "watchdog" {
 					mutate()
 				}
-				return worker(ctx, path, identity)
+				return worker(ctx, path, identity, rootImage)
 			}
 			explain := effects.explain
 			effects.explain = func(ctx context.Context, serving, candidate string) []string {
@@ -709,7 +709,7 @@ func TestRebaselineSerializesConcurrentTransitions(t *testing.T) {
 func TestRebaselineRejectsWatchdogReplacedDuringQualification(t *testing.T) {
 	f := newRebaselineFixture(t)
 	effects := f.effects()
-	effects.probeWorker = func(_ context.Context, image string, _ *cliv1.CliVersion) error {
+	effects.probeWorker = func(_ context.Context, image string, _ *cliv1.CliVersion, _ string) error {
 		return os.WriteFile(image, []byte("different watchdog"), 0700)
 	}
 	_, err := effects.run(context.Background(), f.home, f.request(true))
@@ -755,13 +755,8 @@ func TestRebaselinePublishesCompanionsUnderRootFence(t *testing.T) {
 	request.BundleSHA = strings.Repeat("a", 64)
 	called := false
 	var admitted RebaselineAdmission
-	var prepared RebaselineRecovery
 	request.BeforeEffects = func(_ context.Context, admission RebaselineAdmission) error {
 		admitted = admission
-		return nil
-	}
-	request.PrepareRecovery = func(_ context.Context, recovery RebaselineRecovery) error {
-		prepared = recovery
 		return nil
 	}
 	request.AfterActivation = func(_ context.Context, recovery RebaselineRecovery) error {
@@ -769,8 +764,8 @@ func TestRebaselinePublishesCompanionsUnderRootFence(t *testing.T) {
 		if !locked {
 			t.Fatal("companions ran outside root fence")
 		}
-		if recovery.Admission != admitted || recovery != prepared || recovery.BundleDir != filepath.Dir(request.Candidate) {
-			t.Fatalf("recovery callbacks did not share the qualified value: admitted=%+v prepared=%+v activated=%+v", admitted, prepared, recovery)
+		if recovery.Admission != admitted || recovery.BundleDir != filepath.Dir(request.Candidate) {
+			t.Fatalf("recovery callbacks did not share the qualified value: admitted=%+v activated=%+v", admitted, recovery)
 		}
 		actual, err := fileDigest(f.layout.Executable)
 		if err != nil || actual != recovery.Admission.CandidateSHA {
@@ -786,15 +781,14 @@ func TestRebaselinePublishesCompanionsUnderRootFence(t *testing.T) {
 	}
 }
 
-func TestCompanionFailureKeepsRootPausedAndNamesHubResume(t *testing.T) {
+func TestCompanionFailureKeepsRootPausedAndNamesResume(t *testing.T) {
 	f := newRebaselineFixture(t)
 	e := f.effects()
 	request := f.request(true)
 	request.BeforeEffects = func(context.Context, RebaselineAdmission) error { return nil }
-	request.HubDecision = true
 	request.AfterActivation = func(context.Context, RebaselineRecovery) error { return errors.New("companion unavailable") }
-	if _, err := e.run(context.Background(), f.home, request); err == nil || !strings.Contains(err.Error(), "make rebaseline-hub-resume") {
-		t.Fatalf("failure lacked Hub recovery: %v", err)
+	if _, err := e.run(context.Background(), f.home, request); err == nil || !strings.Contains(err.Error(), "runtime update rebaseline") {
+		t.Fatalf("failure lacked resume guidance: %v", err)
 	}
 	if f.enrolled || !f.paused {
 		t.Fatalf("enrollment unexpectedly restored: enabled=%v paused=%v", f.enrolled, f.paused)
@@ -846,42 +840,9 @@ func TestPreparedInteractiveFailureGuidanceRunsRetainedCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "runtime\nupdate\nrebaseline\n" + f.candidate + "\n--prepared\n"
+	want := "runtime\nupdate\nrebaseline\n" + f.candidate + "\n"
 	if string(got) != want {
 		t.Fatalf("recovery arguments = %q, want %q", got, want)
-	}
-}
-
-func TestHubAuthorityFencesFinishingAndSameContractContinuationBeforeEffects(t *testing.T) {
-	for _, mode := range []string{"finishing", "same-contract"} {
-		t.Run(mode, func(t *testing.T) {
-			f := newRebaselineFixture(t)
-			f.failAt = "converge"
-			if _, err := f.effects().run(context.Background(), f.home, f.request(true)); err == nil {
-				t.Fatal("expected interrupted fixture")
-			}
-			if mode == "same-contract" {
-				if err := os.WriteFile(f.layout.Executable, []byte("rebuilt candidate"), 0700); err != nil {
-					t.Fatal(err)
-				}
-				f.identities["rebuilt candidate"] = &cliv1.CliVersion{CliVersion: "1", PlatformVersion: "1", BuildIdentity: strings.Repeat("9", 64), RuntimeHomeContractSha256: strings.Repeat("e", 64), PersistentStateContractSha256: strings.Repeat("d", 64)}
-			}
-			f.failAt = ""
-			f.calls = nil
-			req := f.request(true)
-			req.BeforeEffects = func(_ context.Context, admission RebaselineAdmission) error {
-				if admission.CandidateSHA == "" || admission.WatchdogSHA == "" {
-					t.Fatal("missing qualified hashes")
-				}
-				return errors.New("unapproved")
-			}
-			if _, err := f.effects().run(context.Background(), f.home, req); err == nil || !strings.Contains(err.Error(), "unapproved") {
-				t.Fatalf("unapproved recovery: %v", err)
-			}
-			if got := strings.Join(f.calls, ","); got != "guard,qualify-watchdog" {
-				t.Fatalf("effects preceded authority: %s", got)
-			}
-		})
 	}
 }
 
@@ -899,92 +860,6 @@ func TestRebaselineWaitsForOrdinaryBundleWorkflow(t *testing.T) {
 	}
 	if len(f.calls) != 0 {
 		t.Fatalf("transition observed or changed owners while ordinary bundle held lock: %v", f.calls)
-	}
-}
-
-func TestHubRecoveryRetainsQualifiedWatchdogAndRejectsTampering(t *testing.T) {
-	f := newRebaselineFixture(t)
-	snapshot := filepath.Join(t.TempDir(), "watchdog")
-	request := f.request(true)
-	request.WatchdogSnapshot = snapshot
-	var approvedWatchdog string
-	request.BeforeEffects = func(_ context.Context, admission RebaselineAdmission) error {
-		if approvedWatchdog == "" {
-			approvedWatchdog = admission.WatchdogSHA
-			return nil
-		}
-		if admission.WatchdogSHA != approvedWatchdog {
-			return errors.New("watchdog changed")
-		}
-		return nil
-	}
-	f.failAt = "converge"
-	if _, err := f.effects().run(context.Background(), f.home, request); err == nil {
-		t.Fatal("expected interrupted activation")
-	}
-	f.failAt = ""
-	f.calls = nil
-	e := f.effects()
-	e.buildWatchdog = func(string, string) error { return errors.New("source changed") }
-	original, err := os.ReadFile(snapshot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(snapshot, []byte("tampered watchdog"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.run(context.Background(), f.home, request); err == nil || !strings.Contains(err.Error(), "watchdog changed") {
-		t.Fatalf("tampered watchdog accepted during recovery: %v", err)
-	}
-	if err := os.WriteFile(snapshot, original, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.run(context.Background(), f.home, request); err != nil {
-		t.Fatalf("retained watchdog could not resume: %v", err)
-	}
-	if err := os.WriteFile(snapshot, []byte("tampered watchdog"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	f.calls = nil
-	if _, err := e.run(context.Background(), f.home, request); !errors.Is(err, ErrRebaselineNotRequired) {
-		t.Fatalf("completed transition should use normal activation: %v", err)
-	}
-	if got := strings.Join(f.calls, ","); got != "guard" {
-		t.Fatalf("completed transition performed recovery: %s", got)
-	}
-}
-
-func TestHubSameContractContinuationRequiresFreshDecision(t *testing.T) {
-	f := newRebaselineFixture(t)
-	f.failAt = "converge"
-	if _, err := f.effects().run(context.Background(), f.home, f.request(true)); err == nil {
-		t.Fatal("expected interrupted transition")
-	}
-	if err := os.WriteFile(f.layout.Executable, []byte("rebuilt candidate"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	f.identities["rebuilt candidate"] = &cliv1.CliVersion{CliVersion: "1", PlatformVersion: "1", BuildIdentity: strings.Repeat("9", 64), RuntimeHomeContractSha256: strings.Repeat("e", 64), PersistentStateContractSha256: strings.Repeat("d", 64)}
-	f.failAt = ""
-	f.calls = nil
-	req := f.request(false)
-	req.AllowContinuationDecision = true
-	if _, err := f.effects().run(context.Background(), f.home, req); err == nil || !strings.Contains(err.Error(), "continuation cancelled") {
-		t.Fatalf("unapproved continuation: %v", err)
-	}
-	if len(f.confirmed) != 2 || !f.confirmed[1].Continuation || f.confirmed[1].CandidateContract != f.confirmed[1].ServingContract {
-		t.Fatalf("wrong continuation decision: %+v", f.confirmed)
-	}
-	if got := strings.Join(f.calls, ","); got != "guard,qualify-watchdog" {
-		t.Fatalf("effects before approval: %s", got)
-	}
-	req = f.request(true)
-	req.AllowContinuationDecision = true
-	req.BeforeEffects = func(context.Context, RebaselineAdmission) error { return nil }
-	if _, err := f.effects().run(context.Background(), f.home, req); err != nil {
-		t.Fatalf("approved continuation: %v", err)
-	}
-	if !f.enrolled {
-		t.Fatal("continuation did not restore enrollment")
 	}
 }
 
@@ -1127,57 +1002,15 @@ func TestPreparedRecoveryCannotBeCompletedByAnotherPath(t *testing.T) {
 	}
 }
 
-func TestRecoveryBundleAndAuthorityAreDurableBeforeEffects(t *testing.T) {
-	f := newRebaselineFixture(t)
-	req := f.request(true)
-	req.BundleSHA = strings.Repeat("a", 64)
-	req.HubDecision = true
-	req.BeforeEffects = func(context.Context, RebaselineAdmission) error { return nil }
-	req.AfterActivation = func(context.Context, RebaselineRecovery) error { return nil }
-	var prepared RebaselineRecovery
-	req.PrepareRecovery = func(_ context.Context, recovery RebaselineRecovery) error {
-		prepared = recovery
-		return errors.New("locator sync failed")
-	}
-	effects := f.effects()
-	retainedBundle := filepath.Join(f.home, "retained-bundle")
-	effects.retainBundle = func(string, string, string) (string, error) { return retainedBundle, nil }
-	if _, err := effects.run(context.Background(), f.home, req); err == nil || !strings.Contains(err.Error(), "locator sync failed") {
-		t.Fatalf("recovery authority failure: %v", err)
-	} else {
-		wantResume := "HUB_SNAPSHOT='" + filepath.Dir(req.Candidate) + "' make rebaseline-hub-resume"
-		if !strings.Contains(err.Error(), wantResume) || strings.Contains(err.Error(), filepath.Join(retainedBundle, "vrooli")) {
-			t.Fatalf("failure guidance did not use the locator-bearing snapshot: %v", err)
-		}
-	}
-	if prepared.BundleDir != retainedBundle || len(prepared.Admission.CandidateSHA) != 64 || len(prepared.Admission.WatchdogSHA) != 64 {
-		t.Fatalf("recovery callback did not receive the qualified immutable identity: %+v", prepared)
-	}
-	if len(f.confirmed) != 1 || prepared.Admission.CandidateSHA != f.confirmed[0].CandidateSHA || prepared.Admission.WatchdogSHA != f.confirmed[0].WatchdogSHA {
-		t.Fatalf("recovery identity differs from the qualified and confirmed images: recovery=%+v confirmed=%+v", prepared, f.confirmed)
-	}
-	if strings.Contains(strings.Join(f.calls, ","), "install") || !f.enrolled {
-		t.Fatalf("effects followed failed recovery preparation: %v", f.calls)
-	}
-	path := filepath.Join(f.home, ".vrooli", "state", "root-rebaseline", "progress.json")
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("intent written before recovery preparation: %v", err)
-	}
-}
-
 func TestRecoveryResumeGuidanceRequiresProgressAndAuthority(t *testing.T) {
 	original := "/snapshot/candidate"
 	bundle := "/snapshot/retained"
-	hub := RebaselineRequest{HubDecision: true, AfterActivation: func(context.Context, RebaselineRecovery) error { return nil }}
 	prepared := RebaselineRequest{AfterActivation: func(context.Context, RebaselineRecovery) error { return nil }}
 	tests := []struct {
 		name, got, want string
 	}{
-		{"Hub progress write failed", preparedRebaselineResumeCommand(hub, original, bundle, true, false), "HUB_SNAPSHOT='/snapshot' make rebaseline-hub-resume"},
-		{"Hub locator not bound", preparedRebaselineResumeCommand(hub, original, bundle, false, true), "HUB_SNAPSHOT='/snapshot' make rebaseline-hub-resume"},
-		{"Hub recovery is ready", preparedRebaselineResumeCommand(hub, original, bundle, true, true), "'/snapshot/retained/vrooli' runtime update rebaseline '/snapshot/retained/vrooli' --hub"},
-		{"prepared progress write failed", preparedRebaselineResumeCommand(prepared, original, bundle, false, false), "'/snapshot/candidate' runtime update rebaseline '/snapshot/candidate' --prepared"},
-		{"prepared recovery is ready", preparedRebaselineResumeCommand(prepared, original, bundle, false, true), "'/snapshot/retained/vrooli' runtime update rebaseline '/snapshot/retained/vrooli' --prepared"},
+		{"prepared progress write failed", preparedRebaselineResumeCommand(prepared, original, bundle, false), "'/snapshot/candidate' runtime update rebaseline '/snapshot/candidate'"},
+		{"prepared recovery is ready", preparedRebaselineResumeCommand(prepared, original, bundle, true), "'/snapshot/retained/vrooli' runtime update rebaseline '/snapshot/retained/vrooli'"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1193,9 +1026,7 @@ func TestRecoveryResumeGuidanceRequiresProgressAndAuthority(t *testing.T) {
 	f.failAt = "converge"
 	request := f.request(true)
 	request.BundleSHA = strings.Repeat("a", 64)
-	request.HubDecision = true
 	request.BeforeEffects = func(context.Context, RebaselineAdmission) error { return nil }
-	request.PrepareRecovery = func(context.Context, RebaselineRecovery) error { return nil }
 	request.AfterActivation = func(context.Context, RebaselineRecovery) error { return nil }
 	retained := filepath.Join(f.home, "retained-bundle")
 	effects := f.effects()
@@ -1203,7 +1034,7 @@ func TestRecoveryResumeGuidanceRequiresProgressAndAuthority(t *testing.T) {
 	if _, err := effects.run(context.Background(), f.home, request); err == nil {
 		t.Fatal("expected mutation interruption")
 	} else {
-		want := "'" + filepath.Join(retained, "vrooli") + "' runtime update rebaseline '" + filepath.Join(retained, "vrooli") + "' --hub"
+		want := "'" + filepath.Join(retained, "vrooli") + "' runtime update rebaseline '" + filepath.Join(retained, "vrooli") + "'"
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("post-progress mutation failure did not use retained recovery bundle: %v", err)
 		}
@@ -1256,40 +1087,6 @@ func TestCancellationBetweenStagesRecordsFailedStage(t *testing.T) {
 	}
 	if !slices.Equal(supervisorEvents, []string{"started", "failed"}) {
 		t.Fatalf("canceled stage events = %v, want [started failed]", supervisorEvents)
-	}
-}
-
-func TestLegacyBundleCannotSwitchToUnauthenticatedRecovery(t *testing.T) {
-	f := newRebaselineFixture(t)
-	f.failAt = "converge"
-	req := f.request(true)
-	req.BundleSHA = strings.Repeat("a", 64)
-	req.AfterActivation = func(context.Context, RebaselineRecovery) error { return nil }
-	if _, err := f.effects().run(context.Background(), f.home, req); err == nil {
-		t.Fatal("expected interruption")
-	}
-	path := filepath.Join(f.home, ".vrooli", "state", "root-rebaseline", "progress.json")
-	p, err := rebaselineprogress.Read(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p.Mode = ""
-	if err := rebaselineprogress.Write(path, *p); err != nil {
-		t.Fatal(err)
-	}
-	f.failAt = ""
-	if _, err := f.effects().run(context.Background(), f.home, req); err == nil || !strings.Contains(err.Error(), "--hub") {
-		t.Fatalf("legacy unauthenticated retry accepted: %v", err)
-	}
-	req.HubDecision = true
-	req.RequireFreshFinishingDecision = true
-	req.BeforeEffects = func(context.Context, RebaselineAdmission) error { return nil }
-	req.PrepareRecovery = func(context.Context, RebaselineRecovery) error { return nil }
-	if _, err := f.effects().run(context.Background(), f.home, req); err != nil {
-		t.Fatalf("fresh authenticated legacy recovery: %v", err)
-	}
-	if len(f.confirmed) != 2 || !f.confirmed[1].Continuation {
-		t.Fatalf("legacy completion lacked fresh confirmation: %+v", f.confirmed)
 	}
 }
 
@@ -1402,7 +1199,7 @@ func TestInterruptedProcessResumesPreparedBundle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := buildinfo.GuardRebaselineCompletion(f.home); err == nil || !strings.Contains(err.Error(), filepath.Join(retained, "vrooli")) || !strings.Contains(err.Error(), "--prepared") {
+			if err := buildinfo.GuardRebaselineCompletion(f.home); err == nil || !strings.Contains(err.Error(), filepath.Join(retained, "vrooli")) {
 				t.Fatalf("operator cannot discover retained recovery: %v", err)
 			}
 			if err := os.RemoveAll(bundle); err != nil {
@@ -1541,7 +1338,7 @@ func TestPreparedTransitionUsesManifestWatchdogAfterSourceChanges(t *testing.T) 
 	e := f.effects()
 	e.selectWatchdog = selectPreparedRebaselineWatchdog
 	e.buildWatchdog = func(string, string) error { t.Fatal("rebuilt watchdog from changed source"); return nil }
-	e.probeWorker = func(_ context.Context, image string, _ *cliv1.CliVersion) error {
+	e.probeWorker = func(_ context.Context, image string, _ *cliv1.CliVersion, _ string) error {
 		b, err := os.ReadFile(image)
 		if err != nil {
 			return err
@@ -1625,7 +1422,7 @@ func TestLegacyPreparedWatchdogRecovery(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := rebaselineprogress.Write(filepath.Join(transitionDir, "progress.json"), rebaselineprogress.Progress{Version: 1, Candidate: candidateSHA, Watchdog: watchdogSHA, Bundle: manifest, SourceRoot: request.Source, Mode: "prepared"}); err != nil {
+				if err := rebaselineprogress.Write(filepath.Join(transitionDir, "progress.json"), rebaselineprogress.Progress{Version: 1, Candidate: candidateSHA, Watchdog: watchdogSHA, Bundle: manifest, SourceRoot: request.Source}); err != nil {
 					t.Fatal(err)
 				}
 			}

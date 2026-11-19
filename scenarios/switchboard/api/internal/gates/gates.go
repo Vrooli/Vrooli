@@ -34,9 +34,37 @@ type Gate struct {
 }
 
 var (
-	ErrNotOwner   = errors.New("only the thread owner may answer a capability gate")
-	ErrNotPending = errors.New("capability gate is no longer pending")
+	ErrNotOwner          = errors.New("only the thread owner may answer a capability gate")
+	ErrNotPending        = errors.New("capability gate is no longer pending")
+	ErrInvalidTransition = errors.New("invalid capability gate status transition")
 )
+
+func (s Status) valid() bool {
+	switch s {
+	case Pending, Granted, Denied, Expired:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s Status) CanTransitionTo(next Status) bool {
+	if s == next {
+		return s.valid()
+	}
+	return s == Pending && (next == Granted || next == Denied || next == Expired)
+}
+
+func (g *Gate) TransitionTo(next Status) error {
+	if g == nil {
+		return fmt.Errorf("%w: nil gate", ErrInvalidTransition)
+	}
+	if !g.Status.valid() || !next.valid() || !g.Status.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidTransition, g.Status, next)
+	}
+	g.Status = next
+	return nil
+}
 
 type Service struct {
 	mu    sync.Mutex
@@ -91,9 +119,13 @@ func (s *Service) Answer(id, actorID string, grant bool) (Gate, error) {
 		return Gate{}, ErrNotPending
 	}
 	if grant {
-		g.Status = Granted
+		if err := g.TransitionTo(Granted); err != nil {
+			return Gate{}, err
+		}
 	} else {
-		g.Status = Denied
+		if err := g.TransitionTo(Denied); err != nil {
+			return Gate{}, err
+		}
 	}
 	s.gates[id] = g
 	return g, nil
@@ -105,7 +137,9 @@ func (s *Service) Expire() []Gate {
 	changed := make([]Gate, 0)
 	for id, g := range s.gates {
 		if g.Status == Pending && !s.now().Before(g.ExpiresAt) {
-			g.Status = Expired
+			if err := g.TransitionTo(Expired); err != nil {
+				continue
+			}
 			s.gates[id] = g
 			changed = append(changed, g)
 		}
@@ -115,8 +149,9 @@ func (s *Service) Expire() []Gate {
 
 func (s *Service) expireLocked(g Gate) Gate {
 	if g.Status == Pending && !s.now().Before(g.ExpiresAt) {
-		g.Status = Expired
-		s.gates[g.ID] = g
+		if g.TransitionTo(Expired) == nil {
+			s.gates[g.ID] = g
+		}
 	}
 	return g
 }

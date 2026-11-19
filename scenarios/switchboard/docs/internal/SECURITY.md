@@ -1,6 +1,5 @@
 # Security — Switchboard
 
-## Purpose Of This Document
 
 The security posture of this scenario: what data is sensitive, who may do what,
 where secrets live, what an attacker would try, and what is not yet defended.

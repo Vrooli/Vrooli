@@ -176,6 +176,7 @@ func TestCheckIframeBridgeRule_AppNotFound(t *testing.T) {
 }
 
 func TestCheckIframeBridgeRule_AuditorUnavailable(t *testing.T) {
+	t.Setenv("SCENARIO_AUDITOR_API_BASE_URL", "http://127.0.0.1:1")
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
 			{ID: "test-app", Name: "Test App", ScenarioName: "test-scenario"},
@@ -191,9 +192,6 @@ func TestCheckIframeBridgeRule_AuditorUnavailable(t *testing.T) {
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
-	service.scenarioPort = func(context.Context, string, string) (int, error) {
-		return 8090, nil
-	}
 
 	_, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err == nil {
@@ -211,6 +209,7 @@ func TestCheckIframeBridgeRule_AuditorUnavailable(t *testing.T) {
 }
 
 func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
+	t.Setenv("SCENARIO_AUDITOR_API_BASE_URL", "http://127.0.0.1:1")
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
 			{
@@ -222,7 +221,7 @@ func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
 		},
 	}
 
-	// The injected port resolver keeps this unit test on the HTTP rule path.
+	// The injected shared URL resolver keeps this unit test on the HTTP rule path.
 	callCount := 0
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
@@ -235,9 +234,6 @@ func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
-	service.scenarioPort = func(context.Context, string, string) (int, error) {
-		return 8090, nil
-	}
 
 	result, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err != nil {
@@ -264,6 +260,7 @@ func TestCheckIframeBridgeRule_RuleNotFound(t *testing.T) {
 }
 
 func TestCheckIframeBridgeRule_Success(t *testing.T) {
+	t.Setenv("SCENARIO_AUDITOR_API_BASE_URL", "http://127.0.0.1:1/v2/runtime")
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
 			{
@@ -279,6 +276,9 @@ func TestCheckIframeBridgeRule_Success(t *testing.T) {
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			callCount++
+			if !strings.HasPrefix(req.URL.Path, "/v2/runtime/api/v1/rules/") {
+				t.Errorf("unexpected scenario-auditor path: %s", req.URL.Path)
+			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body: io.NopCloser(bytes.NewBufferString(`{
@@ -293,9 +293,6 @@ func TestCheckIframeBridgeRule_Success(t *testing.T) {
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
-	service.scenarioPort = func(context.Context, string, string) (int, error) {
-		return 8090, nil
-	}
 
 	result, err := service.CheckIframeBridgeRule(context.Background(), "test-app")
 	if err != nil {

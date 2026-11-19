@@ -104,6 +104,7 @@ var lifecycleStateDependencyCallSites = map[string]string{
 	"run_log_retention.go:openRetainedRunLog:github.com/vrooli/vrooli/internal/config.EnsureOwnedDir#1":                                                "run-log directory helper; transient logs, not state records",
 	"run_log_retention.go:openRetainedRunLog:github.com/vrooli/vrooli/internal/config.OpenOwnedFile#1":                                                 "run-log writer; transient logs, not state records",
 	"scenario_locator.go:LocateScenarioCompletenessCLI:github.com/vrooli/vrooli/internal/config.HomeDir#1":                                             "scenario CLI path helper; excluded from root state contract",
+	"runtime_registry.go:(*Runner).beginRuntimeRegistryStop:github.com/vrooli/vrooli/internal/scenarioruntime.ActivePortClaimStatuses#1":               "port-claim status vocabulary used when stop enumerates the instance's dynamically allocated ports; runtime-registry owns the rows",
 	"component_exit.go:(*Runner).retireComponentGeneration:github.com/vrooli/vrooli/internal/process.LaunchRefID#1":                                    "process identity; process-records owner",
 	"component_exit.go:(*Runner).retireComponentGeneration:github.com/vrooli/vrooli/internal/process.ReadScenarioRecords#1":                            "process record reader; process-records owner",
 	"component_exit.go:(*Runner).retireComponentGeneration:github.com/vrooli/vrooli/internal/process.ReadScenarioRecords#2":                            "process record reader; process-records owner",
@@ -195,6 +196,7 @@ var lifecycleStateDependencyCallSites = map[string]string{
 var lifecycleStateRepositoryCallSites = map[string]string{
 	"component_exit.go:(*Runner).retireComponentGeneration:scenarioruntime-repository.store.ListProcessRefs#1":                           "runtime registry process-ref reader; scenario-contract owner",
 	"component_exit.go:(*Runner).retireComponentGeneration:scenarioruntime-repository.store.UpdateProcessRefStatus#1":                    "runtime registry process-ref writer; scenario-contract owner",
+	"runtime_registry.go:(*Runner).beginRuntimeRegistryStop:scenarioruntime-repository.store.ListPortClaims#1":                           "runtime registry port-claim reader; stop includes claims whose listener outlived its process record",
 	"dependencies.go:(*Runner).dependencyHasOtherLiveConsumers:scenarioruntime-repository.store.ListInstances#1":                         "runtime registry instance reader; scenario-contract owner",
 	"dependency_demand.go:(*Runner).acquireDependencyDemandLease:scenarioruntime-repository.store.AcquireDemandLease#1":                  "runtime demand-lease writer; scenario-contract owner",
 	"dependency_demand.go:(*Runner).releaseDemandLease:scenarioruntime-repository.store.ReleaseDemandLease#1":                            "runtime demand-lease writer; scenario-contract owner",

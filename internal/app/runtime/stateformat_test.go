@@ -37,13 +37,14 @@ func TestNativeStateFormatManifestCoversEveryOwner(t *testing.T) {
 				t.Fatalf("versioned store %q has no write-version digest: %+v", store.Name, store)
 			}
 			// A forced transition can only recover a store that declares the
-			// files it owns.
-			if len(store.StatePaths) == 0 {
-				t.Fatalf("versioned store %q declares no state paths", store.Name)
+			// files it owns. A store that owns no bytes must say so, so a
+			// forgotten path list cannot look like a deliberate contract.
+			if len(store.StatePaths) == 0 && !store.ContractOnly && !store.Discardable {
+				t.Fatalf("versioned store %q declares no state paths and is neither contract-only nor discardable", store.Name)
 			}
 			continue
 		}
-		if store.Write != 1 || len(store.Schemas) != 1 || len(store.StatePaths) != 0 {
+		if store.Write != 1 || len(store.Schemas) != 1 || len(store.StatePaths) != 0 || store.ContractOnly || store.Discardable {
 			t.Fatalf("unmigrated owner %q must be opaque until it has a declared format", store.Name)
 		}
 	}
@@ -89,5 +90,31 @@ func TestNativeStateFormatManifestSurvivesTheWire(t *testing.T) {
 	}
 	if decoded.Digest != manifest.Digest {
 		t.Fatalf("digest changed across the wire: %s != %s", decoded.Digest, manifest.Digest)
+	}
+}
+
+// opaqueStoreCeiling is the number of owners that still lack a declared format.
+// Converting a store lowers this number; nothing may raise it. A new owner
+// therefore has to arrive with a descriptor, and a conversion is a one-line
+// review event rather than a silent improvement.
+const opaqueStoreCeiling = 7
+
+func TestOpaqueStoreCountOnlyShrinks(t *testing.T) {
+	withRepositoryCodecStamp(t)
+	manifest, err := NativeStateFormatManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var opaque []string
+	for _, store := range manifest.Stores {
+		if _, converted := versionedStateStores[store.Name]; !converted {
+			opaque = append(opaque, store.Name)
+		}
+	}
+	if len(opaque) > opaqueStoreCeiling {
+		t.Fatalf("opaque stores = %d, ceiling = %d; a new persistence owner must declare a format (still opaque: %v)", len(opaque), opaqueStoreCeiling, opaque)
+	}
+	if len(opaque) < opaqueStoreCeiling {
+		t.Fatalf("opaque stores = %d, below the pinned ceiling %d; lower opaqueStoreCeiling to %d so the improvement is recorded", len(opaque), opaqueStoreCeiling, len(opaque))
 	}
 }

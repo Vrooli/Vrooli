@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/vrooli/internal/setpoint"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/setpoint"
 
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -44,6 +45,44 @@ func gpuSnapshot(totalGiB, usedGiB int64) hostinventory.Snapshot {
 		Index: 0, Name: "Test", Source: "nvidia-smi",
 		VRAMBytes: uint64(gib(totalGiB)), VRAMUsedBytes: uint64(gib(usedGiB)),
 	}}}
+}
+
+func TestServiceAdmitAnswersWithoutRecordingAClaim(t *testing.T) {
+	ctx := context.Background()
+	svc := testService(t, gpuSnapshot(16, 4), nil)
+
+	fits, err := svc.Admit(ctx, AdmitRequest{
+		OwnerKind: engine.OwnerKindResource, OwnerID: "ollaya",
+		ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(9), FloorBytes: gib(9),
+		PriorityTier: "service",
+	})
+	if err != nil {
+		t.Fatalf("Admit() error = %v", err)
+	}
+	if !fits.Admitted || fits.Verdict.Kind != engine.VerdictGrant {
+		t.Fatalf("Admit() = %+v, want a grant on a 12 GiB free device", fits)
+	}
+
+	tooLarge, err := svc.Admit(ctx, AdmitRequest{
+		OwnerKind: engine.OwnerKindResource, OwnerID: "ollaya",
+		ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(20), FloorBytes: gib(20),
+		PriorityTier: "service",
+	})
+	if err != nil {
+		t.Fatalf("Admit() error = %v", err)
+	}
+	if tooLarge.Admitted || tooLarge.Verdict.Kind != engine.VerdictDeny {
+		t.Fatalf("Admit() = %+v, want a deny for 20 GiB on a 12 GiB free device", tooLarge)
+	}
+
+	// A question must not become a claim.
+	list, err := svc.List(ctx, ListRequest{AllHistory: true})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(list.Claims) != 0 {
+		t.Fatalf("Admit recorded %d claim(s); a pre-flight question must be read-only", len(list.Claims))
+	}
 }
 
 func TestServiceClaimGrantAndList(t *testing.T) {
@@ -643,7 +682,7 @@ func TestServiceClaimUsesFreshMemoryPSI(t *testing.T) {
 
 func TestServiceClaimFailsVisibleWithInvalidPressureSetpoint(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "invalid-setpoint.json")
-	if err := os.WriteFile(p, []byte(`{"bad":true}`), 0600); err != nil {
+	if err := os.WriteFile(p, []byte(`{"bad":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(setpoint.PathEnv, p)

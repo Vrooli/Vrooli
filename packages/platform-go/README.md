@@ -3,6 +3,10 @@
 This governed Go package is owned by the Vrooli repository. Its package
 manifest is the machine-readable adoption and lifecycle record.
 
+`CurrentProcessElevated` reports the current process's native elevation state
+(effective UID on Unix, process token on Windows). It does not authorize an
+operation; callers retain their own consent and command policy.
+
 `StopScopeContext` retains `StopScope` ownership guards while bounding the Linux
 user-manager request by a caller context. The guarded cgroup.kill fallback still
 runs if the manager cannot finish. `StopScope` remains the compatibility entry.

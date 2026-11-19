@@ -1,6 +1,5 @@
 # Flows — Network Manager
 
-## Purpose Of This Document
 
 This document captures Network Manager's user/system workflows, lifecycle states, retries, cancellation points, and stale-completion risks. Data details live in [`DATA.md`](DATA.md); integration details live in [`INTEGRATIONS.md`](INTEGRATIONS.md).
 

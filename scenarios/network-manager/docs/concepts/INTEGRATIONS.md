@@ -1,6 +1,5 @@
 # Integrations — Network Manager
 
-## Purpose Of This Document
 
 This document records Network Manager's external resources, scenario dependencies, third-party systems, failure modes, and cross-platform integration contracts.
 

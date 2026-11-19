@@ -1,6 +1,5 @@
 # Decisions — Network Manager
 
-## Purpose Of This Document
 
 Record durable decisions and tradeoffs future agents should not relitigate without new evidence.
 

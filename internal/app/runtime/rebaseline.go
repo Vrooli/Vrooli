@@ -87,22 +87,12 @@ type RebaselineRequest struct {
 	// BeforeEffects verifies external authority for the exact requalified images,
 	// including recovery paths that do not ask for a new confirmation.
 	BeforeEffects func(context.Context, RebaselineAdmission) error
-	// PrepareRecovery binds additional authority data to the durable bundle.
-	PrepareRecovery func(context.Context, RebaselineRecovery) error
-	// HubDecision selects authenticated Hub recovery; it grants no authority.
-	HubDecision bool
-	// RequireFreshFinishingDecision is used for legacy progress without a
-	// recorded authority mode and no existing Hub decision locator.
-	RequireFreshFinishingDecision bool
 	// WatchdogSnapshot retains the qualified worker across Hub resumptions.
 	WatchdogSnapshot string
 	// ExpectedCandidateSHA binds a prepared bundle's root to its manifest.
 	ExpectedCandidateSHA string
 	// BundleSHA binds progress evidence to the exact prepared bundle, when present.
 	BundleSHA string
-	// AllowContinuationDecision requests a fresh decision when a paused
-	// transition is continued with a different same-contract candidate.
-	AllowContinuationDecision bool
 }
 
 // RebaselineResult identifies the established baseline.
@@ -141,7 +131,7 @@ type rebaselineEffects struct {
 	explain           func(context.Context, string, string) []string
 	buildWatchdog     func(root, output string) error
 	selectWatchdog    func(string, string, *rebaselineprogress.Progress, string, string) (string, string, error)
-	probeWorker       func(context.Context, string, *cliv1.CliVersion) error
+	probeWorker       func(context.Context, string, *cliv1.CliVersion, string) error
 	enrollment        func(string) (coreactivation.Enrollment, bool, error)
 	compareEnrollment func(context.Context, string, coreactivation.Enrollment, bool, bool) error
 	installRoot       func(string, string, string) error
@@ -195,8 +185,8 @@ func defaultRebaselineEffects() rebaselineEffects {
 		explain:        coreactivation.ExplainStateContractChange,
 		buildWatchdog:  watchdog.BuildImage,
 		selectWatchdog: selectPreparedRebaselineWatchdog,
-		probeWorker: func(ctx context.Context, image string, root *cliv1.CliVersion) error {
-			_, err := coreactivation.ProbeWorkerIdentity(ctx, image, root)
+		probeWorker: func(ctx context.Context, image string, root *cliv1.CliVersion, rootImage string) error {
+			_, err := coreactivation.ProbeWorkerIdentity(ctx, image, root, rootImage)
 			return err
 		},
 		enrollment: func(home string) (coreactivation.Enrollment, bool, error) {
@@ -238,12 +228,6 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if ctx == nil || request.Confirm == nil || !filepath.IsAbs(request.Candidate) || filepath.Clean(request.Candidate) != request.Candidate || !filepath.IsAbs(request.Source) || filepath.Clean(request.Source) != request.Source {
 		outcome = "invalid_request"
 		return result, fmt.Errorf("root rebaseline requires a context, an operator confirmation and canonical candidate/source paths")
-	}
-	if request.HubDecision && request.BeforeEffects == nil {
-		return result, fmt.Errorf("Hub recovery requires authenticated authority verification")
-	}
-	if request.HubDecision && request.BundleSHA != "" && request.PrepareRecovery == nil {
-		return result, fmt.Errorf("Hub recovery requires a durable authority locator")
 	}
 	confirm := request.Confirm
 	request.Confirm = func(plan RebaselinePlan) (bool, error) {
@@ -343,12 +327,12 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
 		return refuse(err)
 	}
-	fail := func(step string, cause error, recoveryBundle, retained string, hubLocatorBound, recoveryProgressWritten bool) error {
+	fail := func(step string, cause error, recoveryBundle, retained string, recoveryProgressWritten bool) error {
 		where := ""
 		if retained != "" {
 			where = fmt.Sprintf("The prior baseline is retained in %s (receipt.json lists its checksums). ", retained)
 		}
-		run := preparedRebaselineResumeCommand(request, originalCandidate, recoveryBundle, hubLocatorBound, recoveryProgressWritten)
+		run := preparedRebaselineResumeCommand(request, originalCandidate, recoveryBundle, recoveryProgressWritten)
 		return fmt.Errorf("root rebaseline stopped at %q: %w\n%s%s Fix the cause and rerun `%s`; it re-qualifies from the installed images", step, cause, where, e.enrollmentState(home), run)
 	}
 	result, err = runPreparedRebaseline(preparedRebaselineRunInput{
@@ -385,14 +369,7 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	return result, nil
 }
 
-func preparedRebaselineResumeCommand(request RebaselineRequest, originalCandidate, recoveryBundle string, hubLocatorBound, recoveryProgressWritten bool) string {
-	if request.HubDecision {
-		if recoveryBundle != "" && hubLocatorBound && recoveryProgressWritten {
-			candidate := "'" + strings.ReplaceAll(filepath.Join(recoveryBundle, "vrooli"), "'", "'\\''") + "'"
-			return fmt.Sprintf("%s runtime update rebaseline %s --hub", candidate, candidate)
-		}
-		return fmt.Sprintf("HUB_SNAPSHOT='%s' make rebaseline-hub-resume", strings.ReplaceAll(filepath.Dir(originalCandidate), "'", "'\\''"))
-	}
+func preparedRebaselineResumeCommand(request RebaselineRequest, originalCandidate, recoveryBundle string, recoveryProgressWritten bool) string {
 	if request.AfterActivation == nil {
 		return "make rebaseline"
 	}
@@ -401,7 +378,7 @@ func preparedRebaselineResumeCommand(request RebaselineRequest, originalCandidat
 		candidatePath = filepath.Join(recoveryBundle, "vrooli")
 	}
 	candidate := "'" + strings.ReplaceAll(candidatePath, "'", "'\\''") + "'"
-	return fmt.Sprintf("%s runtime update rebaseline %s --prepared", candidate, candidate)
+	return fmt.Sprintf("%s runtime update rebaseline %s", candidate, candidate)
 }
 
 func (e rebaselineEffects) verifyPrivateCandidate(ctx context.Context, path, expected string) error {

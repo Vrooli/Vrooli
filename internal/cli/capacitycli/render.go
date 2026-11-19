@@ -57,6 +57,25 @@ func RenderClaimView(w io.Writer, format cliout.Format, resp capacityapp.ClaimVi
 	})
 }
 
+// RenderAdmit renders a read-only admission verdict.
+func RenderAdmit(w io.Writer, format cliout.Format, resp capacityapp.AdmitOutput) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		v := resp.Verdict
+		_, _ = fmt.Fprintf(w, "admitted: %t\n  verdict: %s", resp.Admitted, v.Kind)
+		if v.Step != "" {
+			_, _ = fmt.Fprintf(w, " (step %s)", v.Step)
+		}
+		_, _ = fmt.Fprintf(w, "  granted: %s\n", humanBytes(v.GrantedBytes))
+		if v.Reason != "" {
+			_, _ = fmt.Fprintf(w, "  reason: %s\n", v.Reason)
+		}
+		for _, warn := range v.Warnings {
+			_, _ = fmt.Fprintf(w, "  ⚠ %s\n", warn)
+		}
+		return nil
+	})
+}
+
 // RenderList renders the claim listing.
 func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {

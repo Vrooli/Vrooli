@@ -4,7 +4,30 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"sort"
 )
+
+var schemaObjectNamePattern = regexp.MustCompile(`(?i)CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s+([A-Za-z0-9_]+)`)
+
+// schemaObjects lists every table and index the declarative schema owns. A
+// matching PRAGMA user_version is not enough on its own: additive tables and
+// indexes written into schemaSQL reach an existing greenfield ledger without a
+// version bump, so open must verify they exist.
+var schemaObjects = func() []string {
+	seen := map[string]struct{}{}
+	for _, statement := range []string{schemaSQL, placementGenerationIndexSQL} {
+		for _, match := range schemaObjectNamePattern.FindAllStringSubmatch(statement, -1) {
+			seen[match[1]] = struct{}{}
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}()
 
 const (
 	addPlacementGenerationSQL   = `ALTER TABLE capacity_placement_qualifications ADD COLUMN claim_generation INTEGER NOT NULL DEFAULT 0`
@@ -209,8 +232,21 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("capacity ledger schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
-		// The declarative schema is idempotent. Reapply it so whole new tables and
-		// indexes reach existing greenfield ledgers without a migration ladder.
+		// Opening the ledger is a read path. Reapplying the declarative schema on
+		// every open made every `capacity list`, every companion poll and every
+		// pre-flight question take a write transaction; under normal companion
+		// traffic that contention surfaced as SQLITE_BUSY ("ledger unavailable")
+		// and left the broker unable to upshift a degraded claim. Verify the
+		// declared objects read-only and only write when one is actually missing,
+		// so additive tables and indexes still reach an existing greenfield
+		// ledger exactly once.
+		complete, err := schemaObjectsPresent(ctx, s.db)
+		if err != nil {
+			return err
+		}
+		if complete {
+			return nil
+		}
 		if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
 			return fmt.Errorf("ensure capacity ledger schema: %w", err)
 		}
@@ -313,6 +349,37 @@ func ensureDiskJobPathSampleColumns(ctx context.Context, db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// schemaObjectsPresent reports whether every declared table and index exists.
+// It runs only reads, so a store open on a current ledger never contends for
+// the writer lock.
+func schemaObjectsPresent(ctx context.Context, db *sql.DB) (bool, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT name
+FROM sqlite_master
+WHERE type IN ('table', 'index')`)
+	if err != nil {
+		return false, fmt.Errorf("inspect capacity ledger schema objects: %w", err)
+	}
+	defer rows.Close()
+	present := make(map[string]struct{}, len(schemaObjects))
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return false, err
+		}
+		present[name] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	for _, name := range schemaObjects {
+		if _, ok := present[name]; !ok {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func readSchemaVersion(ctx context.Context, db *sql.DB) (int, error) {

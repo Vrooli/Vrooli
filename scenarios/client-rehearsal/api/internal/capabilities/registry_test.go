@@ -47,7 +47,7 @@ func TestNewRegistryCoversEveryDeclaredCapability(t *testing.T) {
 		if def.DependencyKind != capabilityregistry.DependencyScenario {
 			continue
 		}
-		if _, ok := any(ScenarioChecker{}).(capabilityregistry.Checker); !ok {
+		if _, ok := any(capabilityregistry.ScenarioStatusChecker{Scenario: "audio-tools"}).(capabilityregistry.Checker); !ok {
 			t.Fatalf("ScenarioChecker does not satisfy the Checker contract for %q", def.ID)
 		}
 	}

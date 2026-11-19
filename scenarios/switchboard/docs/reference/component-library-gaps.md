@@ -1,6 +1,5 @@
 # Component Library Gaps
 
-## Purpose Of This Document
 
 Record what `react-component-library` (RCL) does and does not yet provide for
 the experience defined in `path:../concepts/EXPERIENCE.md`, so the UI is built

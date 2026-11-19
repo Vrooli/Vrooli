@@ -1,6 +1,5 @@
 # Observability — Switchboard
 
-## Purpose Of This Document
 
 What this scenario emits, what should be watched, and — importantly — what it
 must never emit. Use it to answer: how would I know this is broken, and how

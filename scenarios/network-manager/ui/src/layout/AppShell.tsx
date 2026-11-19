@@ -21,13 +21,16 @@ function ShellUtility() {
   </div>;
 }
 
+const PHONE_TAB_KEYS = new Set(["dashboard", "devices", "resolver", "optimization"]);
+
 export function AppShell() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  return <LibraryAppShell density="sidebar" mobileNav="tabs" mainMode="scroll"
+  return <LibraryAppShell density="sidebar" mobileNav="menu-tabs" mainMode="scroll"
     brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>} brandHref="/"
-    items={NAV_ITEMS.map((item) => { const Icon = item.icon; return { id: item.key, href: item.path, label: t(item.labelKey), icon: <Icon size={16} aria-hidden />, current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`), testId: selectors.layout.navLink({ key: item.key }) }; })}
+    items={NAV_ITEMS.map((item) => { const Icon = item.icon; return { id: item.key, href: item.path, label: t(item.labelKey), icon: <Icon size={16} aria-hidden />, current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`), mobile: PHONE_TAB_KEYS.has(item.key),
+        testId: selectors.layout.navLink({ key: item.key }) }; })}
     utility={<ShellUtility />}
     renderLink={(item, { href, children, ...props }) => <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end} {...props}>{children}</NavLink>}
     onNavigate={(item) => navigate(item.href)} navigationLabel={t(strings.layout.sidebarLabel)} mobileNavigationLabel={t(strings.layout.bottomNavLabel)} sidebarStorageKey="network-manager.sidebar-width" testId={selectors.layout.shell}>

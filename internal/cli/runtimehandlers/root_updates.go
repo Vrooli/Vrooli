@@ -3,12 +3,12 @@ package runtimehandlers
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -20,16 +20,14 @@ import (
 	"github.com/vrooli/vrooli/internal/agentscope"
 	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/clifreshness"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
-	"github.com/vrooli/vrooli/internal/rebaselineprogress"
 	"github.com/vrooli/vrooli/internal/rootauthority"
 	"github.com/vrooli/vrooli/internal/rootmetrics"
 )
 
-const rootUpdateUsage = "Usage: vrooli runtime update <status|observations|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile|resume|rebaseline CANDIDATE [--hub|--force [--reason=TEXT]]> [--json]\nUpdates retain and qualify the serving image, activate under bounded native ownership, and restore independently on failure. Enrollment controls automatic installer/self-rebuild handoff; apply/retry are explicit one-shot requests.\nrebaseline crosses a persistent-state contract change without automatic rollback. Use `make rebaseline` in an operator terminal, --hub for a verified human decision in Notification Hub, or --force within an operator-approved `root-state-transition` grant; a forced run refuses unless it can snapshot state and write a receipt."
+const rootUpdateUsage = "Usage: vrooli runtime update <status|observations|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile|resume|rebaseline CANDIDATE [--force [--reason=TEXT]]> [--json]\nUpdates retain and qualify the serving image, activate under bounded native ownership, and restore independently on failure. Enrollment controls automatic installer/self-rebuild handoff; apply/retry are explicit one-shot requests.\nrebaseline crosses a persistent-state contract change without automatic rollback. Use `make rebaseline` in an operator terminal; --force is the same transition with explicit compensating controls and may be run by an agent. A forced run refuses unless it can snapshot state, retain the prior image and write a receipt; a `root-state-transition` grant, when present, records a named human approver."
 
 func rootUpdateCommand(args []string) bool {
 	return len(args) >= 2 && args[0] == "runtime" && args[1] == "update"
@@ -136,23 +134,6 @@ func RunRootUpdateEffectCommand(parent context.Context, args []string, stdout, s
 	if args[2] == "resume" {
 		return true, runRootResume(parent, args[3:], stdout, stderr, resolveSourceRoot)
 	}
-	if args[2] == "retire-snapshot" {
-		if len(args) != 4 || !filepath.IsAbs(args[3]) {
-			_, _ = fmt.Fprintln(stderr, "usage: vrooli runtime update retire-snapshot ABSOLUTE_SNAPSHOT")
-			return true, 2
-		}
-		ctx, cancel := context.WithTimeout(parent, 30*time.Second)
-		defer cancel()
-		client, err := newRootDecisionClient(ctx)
-		if err == nil {
-			err = retireSnapshotDecision(ctx, client, args[3])
-		}
-		if err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-			return true, 1
-		}
-		return true, 0
-	}
 	mode := map[string]string{"apply": "--submit-core-update", "retry": "--retry-core-update", "enroll": "--enroll-core-updates", "disable": "--disable-core-updates", "reconcile": "--reconcile-core-updates"}[args[2]]
 	if mode == "" || (args[2] == "apply" || args[2] == "retry") && len(args) != 4 || args[2] != "apply" && args[2] != "retry" && len(args) != 3 {
 		_, _ = fmt.Fprintln(stderr, rootUpdateUsage)
@@ -207,12 +188,8 @@ func RunRootUpdateEffectCommand(parent context.Context, args []string, stdout, s
 // cannot be the one to cross it. The decision is taken at an interactive
 // terminal and is never implied by flags.
 func runRootRebaseline(parent context.Context, args []string, stdin *os.File, stdout, stderr io.Writer, resolveSourceRoot func() (string, error)) int {
-	if len(args) == 5 && args[3] == "--capability" && args[4] == "--probe-hub-publication" {
-		_, _ = fmt.Fprintln(stdout, "hub-source-publication-v1")
-		return 0
-	}
-	hubDecision := len(args) == 5 && args[4] == "--hub"
-	prepared := len(args) == 5 && args[4] == "--prepared"
+	// Flags may be combined (`--force --reason=...`), so each one is parsed
+	// independently. A bare `rebaseline CANDIDATE` is the operator's path.
 	forced := false
 	forceReason := ""
 	if len(args) > 4 {
@@ -222,10 +199,13 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 				forced = true
 			case strings.HasPrefix(argument, "--reason="):
 				forceReason = strings.TrimPrefix(argument, "--reason=")
+			default:
+				_, _ = fmt.Fprintln(stderr, rootUpdateUsage)
+				return 2
 			}
 		}
 	}
-	if len(args) < 4 || (len(args) != 4 && !hubDecision && !prepared && !forced) {
+	if len(args) < 4 || (len(args) > 4 && !forced) {
 		_, _ = fmt.Fprintln(stderr, rootUpdateUsage)
 		return 2
 	}
@@ -235,39 +215,31 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 		return 1
 	}
 	var authority rootauthority.Decision
+	// A verified standing grant and an operator's own terminal are two forms of
+	// the same authority: the operator either delegated this transition in
+	// advance or is performing it now. An agent without a grant has neither.
+	operatorSupplied := false
 	if forced {
 		host, hostErr := os.Hostname()
 		if hostErr != nil {
 			_, _ = fmt.Fprintln(stderr, fmt.Errorf("root transition needs the host identity: %w", hostErr))
 			return 1
 		}
-		authority, err = verifyRootTransitionAuthorityFn(parent, rootauthority.Target(host, home))
-		if err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-			return 1
-		}
-		_, _ = fmt.Fprintf(stdout, "Forced root transition authorized by grant %s (approved by %s, run %s).\n", authority.GrantID, authority.ApprovedBy, authority.RunID)
-	}
-	transitionCaller := func() error {
-		if hubDecision || forced {
-			return nil
-		}
-		if refuseAgentSession("rebaseline", stderr) {
-			return fmt.Errorf("root transition requires an operator")
-		}
-		// A pseudo-terminal alone is not an authority boundary.
-		if stdin == nil {
-			return fmt.Errorf("root rebaseline needs an interactive terminal, a `--force` standing grant, or `make rebaseline-hub` for a decision in Notification Hub")
-		}
-		if info, err := stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
-			return fmt.Errorf("root rebaseline needs an interactive terminal, a `--force` standing grant, or `make rebaseline-hub` and review the decision in Notification Hub")
-		}
-		return nil
-	}
-	if !prepared && !hubDecision && !forced {
-		if err := transitionCaller(); err != nil {
-			_, _ = fmt.Fprintln(stderr, err)
-			return 1
+		target := rootauthority.Target(host, home)
+		authority, err = verifyRootTransitionAuthorityFn(parent, target)
+		switch {
+		case err == nil:
+			_, _ = fmt.Fprintf(stdout, "Forced root transition authorized by grant %s (approved by %s, run %s).\n", authority.GrantID, authority.ApprovedBy, authority.RunID)
+		case operatorAuthorityFn(stdin):
+			authority = rootauthority.OperatorDecision(target)
+			operatorSupplied = true
+			_, _ = fmt.Fprintf(stdout, "Root transition authorized by this operator terminal.\n")
+		default:
+			// No grant and no operator terminal: the agent may still force the
+			// transition, because the compensating controls — not a signature —
+			// are what make it reversible. The receipt names the agent session.
+			authority = rootauthority.AgentDecision(target, os.Getenv(cliutil.AgentSessionEnv), agentRunIdentity())
+			_, _ = fmt.Fprintf(stdout, "Forced root transition authorized by agent session %s; the state snapshot and receipt are mandatory.\n", authority.ApprovedBy)
 		}
 	}
 	candidate, err := filepath.Abs(args[3])
@@ -275,10 +247,31 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
+	// A prepared bundle carries a SHA256SUMS manifest next to its root image.
+	// The flag that used to say so was removed; detection is the only signal.
+	prepared := preparedBundleCandidate(candidate)
+	transitionCaller := func() error {
+		if forced {
+			return nil
+		}
+		if refuseAgentSession("rebaseline", stderr) {
+			return fmt.Errorf("root transition requires an operator")
+		}
+		if !interactiveTerminal(stdin) {
+			return fmt.Errorf("root rebaseline needs an interactive terminal, a `--force` standing grant, or `make rebaseline-hub` and review the decision in Notification Hub")
+		}
+		return nil
+	}
+	if !prepared && !forced {
+		if err := transitionCaller(); err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return 1
+		}
+	}
 	source, recovery, err := retainedRebaselineSource(home, candidate)
 	var verifySnapshotSource func() error
-	if err == nil && !recovery && (prepared || hubDecision) {
-		source, verifySnapshotSource, err = pinnedRuntimeSnapshotSource(home, candidate, resolveSourceRoot)
+	if err == nil && !recovery && prepared {
+		source, verifySnapshotSource, err = pinnedRuntimeSnapshotSource(home, candidate, resolveSourceRoot, func(message string) { _, _ = fmt.Fprintln(stderr, message) })
 	}
 	if err == nil && !recovery && verifySnapshotSource == nil {
 		source, err = pinnedRebaselineSource(resolveSourceRoot, candidate)
@@ -292,7 +285,7 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	var bundleSHA, expectedCandidateSHA string
-	if hubDecision || prepared {
+	if prepared {
 		bundle, err := readPreparedRootBundle(candidate)
 		if err != nil {
 			_, _ = fmt.Fprintln(stderr, err)
@@ -317,22 +310,18 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 		}
 		controls = &preparedControls
 		_, _ = fmt.Fprintf(stdout, "Pre-transition state snapshot: %s (%d file(s), digest %.12s).\nReceipt: %s\n", preparedControls.Dir, len(preparedControls.Receipt.SnapshotFiles), preparedControls.Receipt.SnapshotSHA, preparedControls.ReceiptAt)
+		if len(preparedControls.Receipt.UnreadableStateFiles) > 0 {
+			_, _ = fmt.Fprintf(stdout, "Snapshot skipped %d declared file(s) this user cannot read (for example %s); they are named in the receipt and would not be restored.\n", len(preparedControls.Receipt.UnreadableStateFiles), preparedControls.Receipt.UnreadableStateFiles[0])
+		}
+		if preparedControls.Receipt.StoresWithState < preparedControls.Receipt.StoresTotal {
+			_, _ = fmt.Fprintf(stdout, "Snapshot coverage: %d of %d stores declare state (%d own no bytes by contract, %d hold only derived data); the rest are unmigrated, so this transition cannot restore them.\n", preparedControls.Receipt.StoresWithState, preparedControls.Receipt.StoresTotal, preparedControls.Receipt.StoresContractOnly, preparedControls.Receipt.StoresDiscardable)
+		}
 	}
-	recoveryOwner, freshLegacyFinishing, err := newPreparedRootRecovery(home, candidate, bundleSHA, hubDecision, recovery)
-	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return 1
-	}
-	pendingPath := recoveryOwner.pendingPath
+	recoveryOwner := newPreparedRootRecovery(home, bundleSHA)
 	reader := bufio.NewReader(stdin)
 	var afterActivation func(context.Context, runtimeapp.RebaselineRecovery) error
 	var beforeEffects func(context.Context, runtimeapp.RebaselineAdmission) error
-	var prepareRecovery func(context.Context, runtimeapp.RebaselineRecovery) error
-	if hubDecision || prepared {
-		if hubDecision {
-			beforeEffects = recoveryOwner.beforeEffects
-		}
-		prepareRecovery = recoveryOwner.prepare
+	if prepared {
 		afterActivation = func(ctx context.Context, recovery runtimeapp.RebaselineRecovery) error {
 			return recoveryOwner.afterActivation(ctx, recovery, source)
 		}
@@ -350,33 +339,25 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 		}
 	}
 	result, err := rebaselineRootFn(ctx, home, runtimeapp.RebaselineRequest{
-		Candidate:                     candidate,
-		Source:                        source,
-		RequireTransitionCaller:       transitionCaller,
-		Progress:                      stdout,
-		AfterActivation:               afterActivation,
-		BeforeEffects:                 beforeEffects,
-		PrepareRecovery:               prepareRecovery,
-		HubDecision:                   hubDecision,
-		RequireFreshFinishingDecision: freshLegacyFinishing,
-		ExpectedCandidateSHA:          expectedCandidateSHA,
-		BundleSHA:                     bundleSHA,
-		AllowContinuationDecision:     hubDecision,
-		WatchdogSnapshot:              recoveryOwner.watchdogSnapshot(),
+		Candidate:               candidate,
+		Source:                  source,
+		RequireTransitionCaller: transitionCaller,
+		Progress:                stdout,
+		AfterActivation:         afterActivation,
+		BeforeEffects:           beforeEffects,
+		ExpectedCandidateSHA:    expectedCandidateSHA,
+		BundleSHA:               bundleSHA,
 		Confirm: func(plan runtimeapp.RebaselinePlan) (bool, error) {
 			writeRebaselinePlan(stdout, plan)
-			if hubDecision {
-				client, err := rootDecisionClientFactory(ctx)
-				if err != nil {
-					return false, err
-				}
-				return confirmRootViaHub(ctx, client, plan, bundleSHA, pendingPath, stdout)
-			}
 			// A verified standing grant is the consent. Asking again on a TTY
 			// would make `--force` unusable from an agent and would imply the
-			// verified grant is advisory. The receipt records the grant, the
-			// snapshot digest and the images, so the decision stays reviewable.
-			if forced {
+			// verified grant is advisory. An operator acting at their own
+			// terminal is asked, because that prompt is where they see the
+			// plan and the retained snapshot before it happens.
+			if forced && !operatorSupplied {
+				// A grant and an agent-forced transition are non-interactive by
+				// design; the operator's own terminal still sees the plan and
+				// answers for itself.
 				return true, nil
 			}
 			_, _ = fmt.Fprint(stdout, "Make this build the new baseline? [y/N] ")
@@ -388,7 +369,7 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 			return answer == "y" || answer == "yes", nil
 		},
 	})
-	if handled, code := installSameContractBundle(err, prepared || hubDecision, home, candidate, bundleSHA, stdout, stderr, func(bundle, bin, manifest string) error {
+	if handled, code := installSameContractBundle(err, prepared, home, candidate, bundleSHA, stdout, stderr, func(bundle, bin, manifest string) error {
 		return installPreparedSameContractBundleFn(bundle, bin, manifest, source, verifySnapshotSource)
 	}); handled {
 		return code
@@ -427,7 +408,7 @@ func installSameContractBundle(rebaselineErr error, prepared bool, home, candida
 	}
 	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
 	if err == nil {
-		_, _ = fmt.Fprintln(stdout, "Persistent-state contract is unchanged; activating the prepared bundle through the normal installer.")
+		_, _ = fmt.Fprintln(stdout, "Persistent-state formats are compatible; activating the prepared bundle through the normal installer.")
 		err = install(filepath.Dir(candidate), binDir, manifest)
 	}
 	if err != nil {
@@ -442,7 +423,6 @@ func installSameContractBundle(rebaselineErr error, prepared bool, home, candida
 var (
 	callerKindFn                        = cliutil.DetectCallerKind
 	callerCgroupFn                      = agentscope.SelfCgroup
-	rootDecisionClientFactory           = newRootDecisionClient
 	rebaselineRootFn                    = runtimeapp.RebaselineRoot
 	installPreparedSameContractBundleFn = cliinstall.InstallPreparedBundleSameContractWithSourceChecked
 	// verifyRootTransitionAuthorityFn resolves and verifies the operator's
@@ -453,7 +433,45 @@ var (
 	}
 	prepareForceControlsFn = runtimeapp.PrepareForceControls
 	restoreForceControlsFn = runtimeapp.RestoreForceControls
+	operatorAuthorityFn    = operatorAuthorityAvailable
 )
+
+// agentRunIdentity names the managed run behind this process, when the harness
+// supplied one. It is attribution for the receipt, never authority.
+func agentRunIdentity() string {
+	token := strings.TrimSpace(os.Getenv("VROOLI_AGENT_IDENTITY_TOKEN"))
+	payload, _, _ := strings.Cut(token, ".")
+	if payload == "" {
+		return ""
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		RunID string `json:"run_id"`
+	}
+	if json.Unmarshal(decoded, &claims) != nil {
+		return ""
+	}
+	return strings.TrimSpace(claims.RunID)
+}
+
+// operatorAuthorityAvailable reports whether this process is an operator acting
+// at an interactive terminal rather than an agent. It is deliberately the same
+// two facts the transition gate uses, so a caller cannot be "operator" for
+// authority and "agent" for the gate.
+func operatorAuthorityAvailable(stdin *os.File) bool {
+	return agentscope.CallerSessionEvidence() == "" && interactiveTerminal(stdin)
+}
+
+func interactiveTerminal(stdin *os.File) bool {
+	if stdin == nil {
+		return false
+	}
+	info, err := stdin.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
 
 // refuseAgentSession refuses an operator-only root update verb from a
 // coding-agent session before anything else happens.
@@ -507,8 +525,8 @@ func writeRebaselinePlan(out io.Writer, plan runtimeapp.RebaselinePlan) {
 // not reconstruct a path or pick a command: `make rebaseline` calls this first
 // and starts a new transition only when nothing is pending.
 //
-// It is the same operator-gated path as `rebaseline --prepared`. A non-operator
-// caller is refused before anything is read or changed.
+// The transition runs in this process through the same operator-gated path as
+// `rebaseline`; nothing here reads recovery state itself.
 func runRootResume(parent context.Context, args []string, stdout, stderr io.Writer, resolveSourceRoot func() (string, error)) int {
 	statusOnly := len(args) == 1 && args[0] == "--status"
 	if len(args) != 0 && !statusOnly {
@@ -520,17 +538,12 @@ func runRootResume(parent context.Context, args []string, stdout, stderr io.Writ
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	candidate, pending, err := resumePreparedCandidate(home)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	progress, err := rebaselineprogress.Read(filepath.Join(state, "root-rebaseline", "progress.json"))
-	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return 1
-	}
-	if progress == nil || progress.Complete {
+	if !pending {
 		if statusOnly {
 			// A content answer, not an exit code: `go run` flattens a child's
 			// non-zero status, and the make target only needs to know whether
@@ -545,39 +558,6 @@ func runRootResume(parent context.Context, args []string, stdout, stderr io.Writ
 		_, _ = fmt.Fprintln(stdout, "pending")
 		return 0
 	}
-	if progress.Mode != "" && progress.Mode != "prepared" {
-		_, _ = fmt.Fprintln(stderr, "The interrupted transition is a Hub decision; resume it with `make rebaseline-hub-resume`.")
-		return 1
-	}
-	candidate := filepath.Join(state, "root-rebaseline", "prepared-bundles", progress.Bundle, "vrooli")
-	if _, err := os.Stat(candidate); err != nil {
-		_, _ = fmt.Fprintf(stderr, "The prepared bundle for the interrupted transition is gone (%v); run `make rebaseline` to prepare a new one.\n", err)
-		return 1
-	}
 	_, _ = fmt.Fprintf(stdout, "Resuming the interrupted root transition from %s.\n", filepath.Dir(candidate))
-	return execResumeCandidate(candidate, stdout, stderr)
-}
-
-// execResumeCandidate runs the transition under the prepared bundle's own
-// binary, exactly as the qualified transition does. Running it in this process
-// would work, but the bundle binary is the image the transition qualified and
-// carries its build stamps; using it also keeps the operator gate and the
-// confirmation prompt in the same process the operator expects.
-//
-// The bundle may predate the local-refresh guard, so refresh is disabled for
-// its process tree. That is a property of this recovery command, not something
-// the operator should have to remember.
-func execResumeCandidate(candidate string, stdout, stderr io.Writer) int {
-	command := exec.Command(candidate, "runtime", "update", "rebaseline", candidate, "--prepared")
-	command.Stdin, command.Stdout, command.Stderr = os.Stdin, stdout, stderr
-	command.Env = append(os.Environ(), clifreshness.EnvDisable+"=0")
-	if err := command.Run(); err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			return exit.ExitCode()
-		}
-		_, _ = fmt.Fprintf(stderr, "resume the prepared transition with %s: %v\n", candidate, err)
-		return 1
-	}
-	return 0
+	return runRootRebaseline(parent, []string{"runtime", "update", "rebaseline", candidate}, os.Stdin, stdout, stderr, resolveSourceRoot)
 }

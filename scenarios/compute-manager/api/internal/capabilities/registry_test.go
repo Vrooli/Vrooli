@@ -2,8 +2,6 @@ package capabilities
 
 import (
 	"testing"
-
-	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
 // TestKnownDefinitionsAreComplete guards the declared capability surface: an
@@ -43,12 +41,7 @@ func TestNewRegistryCoversEveryDeclaredCapability(t *testing.T) {
 	if registry == nil {
 		t.Fatal("NewRegistry returned nil")
 	}
-	for _, def := range Known {
-		if def.DependencyKind != capabilityregistry.DependencyScenario {
-			continue
-		}
-		if _, ok := any(ScenarioChecker{}).(capabilityregistry.Checker); !ok {
-			t.Fatalf("ScenarioChecker does not satisfy the Checker contract for %q", def.ID)
-		}
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("NewRegistry checker wiring is invalid: %v", err)
 	}
 }

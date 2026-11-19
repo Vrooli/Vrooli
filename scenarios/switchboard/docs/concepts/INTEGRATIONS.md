@@ -1,6 +1,5 @@
 # Integrations — Switchboard
 
-## Purpose Of This Document
 
 This document is the canonical dependency contract for resources, other
 scenarios, and third-party services used by this scenario.
