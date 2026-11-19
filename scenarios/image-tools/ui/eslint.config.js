@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 import stringsPlugin from "./eslint-rules/index.js";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage", "src/**/flow/generated/**"] },
+  { ignores: ["dist", "node_modules", "coverage", "src/**/flow/generated/**", "src/**/*.generated.ts"] },
   {
     extends: [
       js.configs.recommended,

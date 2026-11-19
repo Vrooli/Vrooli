@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/storage/storage_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Storage resolver writes outside repo and honors per-request override"
         },
         {

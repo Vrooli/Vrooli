@@ -3,8 +3,6 @@ package diff
 import (
 	"image"
 	"math"
-
-	"github.com/disintegration/imaging"
 )
 
 // pixelStats bundles the byte-level comparison metrics.
@@ -77,113 +75,6 @@ func pixelMetrics(base, cmp *image.NRGBA, tolerance float64) pixelStats {
 	}
 }
 
-// perceptualHash computes a 64-bit DCT-based perceptual hash (pHash). The image
-// is reduced to 32x32 grayscale, a 2D DCT is taken, the top-left 8x8
-// low-frequency block (excluding the DC term's bias) is compared to its median,
-// and each coefficient becomes one bit. Resolution-independent and robust to
-// re-encode / minor noise.
-func perceptualHash(img image.Image) uint64 {
-	const n = 32
-	const lo = 8
-	gray := imaging.Grayscale(imaging.Resize(img, n, n, imaging.Lanczos))
-
-	// Load luminance into a float matrix.
-	vals := make([][]float64, n)
-	for y := 0; y < n; y++ {
-		vals[y] = make([]float64, n)
-		for x := 0; x < n; x++ {
-			r, _, _, _ := gray.At(gray.Bounds().Min.X+x, gray.Bounds().Min.Y+y).RGBA()
-			vals[y][x] = float64(r >> 8)
-		}
-	}
-
-	dct := dct2D(vals, n)
-
-	// Collect the low-frequency block, excluding the DC term (0,0).
-	coeffs := make([]float64, 0, lo*lo-1)
-	for y := 0; y < lo; y++ {
-		for x := 0; x < lo; x++ {
-			if x == 0 && y == 0 {
-				continue
-			}
-			coeffs = append(coeffs, dct[y][x])
-		}
-	}
-	med := medianOf(coeffs)
-
-	var hash uint64
-	bit := 0
-	for y := 0; y < lo; y++ {
-		for x := 0; x < lo; x++ {
-			if x == 0 && y == 0 {
-				continue
-			}
-			if dct[y][x] > med {
-				hash |= 1 << uint(bit)
-			}
-			bit++
-		}
-	}
-	return hash
-}
-
-// dct2D returns the 2D type-II DCT of an n×n matrix (separable: rows then cols).
-func dct2D(m [][]float64, n int) [][]float64 {
-	// 1D DCT-II basis is precomputable per size; n=32 is small so direct is fine.
-	cos := make([][]float64, n)
-	for u := 0; u < n; u++ {
-		cos[u] = make([]float64, n)
-		for x := 0; x < n; x++ {
-			cos[u][x] = math.Cos((2*float64(x) + 1) * float64(u) * math.Pi / (2 * float64(n)))
-		}
-	}
-	// Rows.
-	rows := make([][]float64, n)
-	for y := 0; y < n; y++ {
-		rows[y] = make([]float64, n)
-		for u := 0; u < n; u++ {
-			var sum float64
-			for x := 0; x < n; x++ {
-				sum += m[y][x] * cos[u][x]
-			}
-			rows[y][u] = sum
-		}
-	}
-	// Columns.
-	out := make([][]float64, n)
-	for v := 0; v < n; v++ {
-		out[v] = make([]float64, n)
-	}
-	for u := 0; u < n; u++ {
-		for v := 0; v < n; v++ {
-			var sum float64
-			for y := 0; y < n; y++ {
-				sum += rows[y][u] * cos[v][y]
-			}
-			out[v][u] = sum
-		}
-	}
-	return out
-}
-
-// hammingDistance counts differing bits between two 64-bit hashes.
-func hammingDistance(a, b uint64) int {
-	return popcount(a ^ b)
-}
-
-func popcount(x uint64) int {
-	count := 0
-	for x != 0 {
-		x &= x - 1
-		count++
-	}
-	return count
-}
-
-// ssim returns a global structural-similarity estimate (0..1) over the two
-// grayscale images. This is the single-window (whole-image) SSIM: it captures
-// luminance, contrast, and covariance — a robust, cheap structural score that
-// complements the per-pixel and perceptual metrics.
 func ssim(base, cmp *image.NRGBA) float64 {
 	b := base.Bounds()
 	w, h := b.Dx(), b.Dy()
@@ -229,24 +120,6 @@ func ssim(base, cmp *image.NRGBA) float64 {
 
 func luma(r, g, b uint8) float64 {
 	return 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
-}
-
-func medianOf(xs []float64) float64 {
-	if len(xs) == 0 {
-		return 0
-	}
-	cp := append([]float64(nil), xs...)
-	// insertion sort is fine for the 63-element pHash block.
-	for i := 1; i < len(cp); i++ {
-		for j := i; j > 0 && cp[j-1] > cp[j]; j-- {
-			cp[j-1], cp[j] = cp[j], cp[j-1]
-		}
-	}
-	mid := len(cp) / 2
-	if len(cp)%2 == 1 {
-		return cp[mid]
-	}
-	return (cp[mid-1] + cp[mid]) / 2
 }
 
 func round2(v float64) float64 { return math.Round(v*100) / 100 }

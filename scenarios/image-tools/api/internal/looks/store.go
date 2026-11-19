@@ -18,9 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"image-tools/internal/ai"
-	"image-tools/internal/ops"
-
 	"github.com/vrooli/api-core/schedule"
 
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
@@ -265,37 +262,6 @@ func (s *Store) getCustom(ctx context.Context, id string) (*looksv1.Look, bool, 
 		return nil, false, fmt.Errorf("looks: decode %q: %w", id, err)
 	}
 	return look, true, nil
-}
-
-// Validate enforces the structural rules a usable Look must satisfy: a name, at
-// least one step, and every step naming a real operation tagged with the right
-// engine (deterministic ⇒ internal/ops, AI ⇒ internal/ai catalog).
-func Validate(look *looksv1.Look) error {
-	if strings.TrimSpace(look.GetName()) == "" {
-		return fmt.Errorf("%w: a name is required", ErrInvalid)
-	}
-	if len(look.GetSteps()) == 0 {
-		return fmt.Errorf("%w: a Look needs at least one step", ErrInvalid)
-	}
-	for i, step := range look.GetSteps() {
-		op := step.GetOperation()
-		if op == "" {
-			return fmt.Errorf("%w: step %d has no operation", ErrInvalid, i)
-		}
-		switch step.GetKind() {
-		case looksv1.StepKind_STEP_KIND_DETERMINISTIC:
-			if !ops.Has(op) {
-				return fmt.Errorf("%w: step %d %q is not a deterministic op", ErrInvalid, i, op)
-			}
-		case looksv1.StepKind_STEP_KIND_AI:
-			if !ai.Has(op) {
-				return fmt.Errorf("%w: step %d %q is not an AI op", ErrInvalid, i, op)
-			}
-		default:
-			return fmt.Errorf("%w: step %d has an unspecified kind", ErrInvalid, i)
-		}
-	}
-	return nil
 }
 
 // slugify lowercases name and collapses non-alphanumeric runs to single

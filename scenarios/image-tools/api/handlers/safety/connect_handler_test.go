@@ -1,6 +1,7 @@
 package safety
 
 import (
+	"strings"
 	"testing"
 
 	internalsafety "image-tools/internal/safety"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestGetPolicy_Local(t *testing.T) {
-	h := NewConnectHandler(internalsafety.TierLocal)
+	h := NewConnectHandler(internalsafety.PolicyFor(internalsafety.TierLocal))
 	resp, err := h.GetPolicy(t.Context(), connect.NewRequest(&safetyv1.GetPolicyRequest{}))
 	if err != nil {
 		t.Fatalf("GetPolicy: %v", err)
@@ -26,13 +27,16 @@ func TestGetPolicy_Local(t *testing.T) {
 	if p.GetSummary() == "" {
 		t.Error("summary should be set")
 	}
+	if !strings.Contains(p.GetSummary(), "minor-safety review off") {
+		t.Errorf("local summary should report the minor-safety control off: %q", p.GetSummary())
+	}
 	if len(p.GetOpWeights()) == 0 {
 		t.Error("op weights table should be populated")
 	}
 }
 
 func TestGetPolicy_Public(t *testing.T) {
-	h := NewConnectHandler(internalsafety.TierPublic)
+	h := NewConnectHandler(internalsafety.PolicyFor(internalsafety.TierPublic))
 	resp, err := h.GetPolicy(t.Context(), connect.NewRequest(&safetyv1.GetPolicyRequest{}))
 	if err != nil {
 		t.Fatalf("GetPolicy: %v", err)
@@ -46,6 +50,17 @@ func TestGetPolicy_Public(t *testing.T) {
 	}
 	if p.GetRateLimitPerMin() <= 0 {
 		t.Errorf("public rate limit = %d, want > 0", p.GetRateLimitPerMin())
+	}
+	// Discovery must say the required detector is absent rather than implying the
+	// boundary is enforced.
+	if !strings.Contains(p.GetSummary(), "NO DETECTOR") {
+		t.Errorf("public summary should flag the missing detector: %q", p.GetSummary())
+	}
+
+	configured := internalsafety.PolicyFor(internalsafety.TierPublic)
+	configured.MinorSafetyDetector = true
+	if !strings.Contains(configured.Summary(), "detector configured") {
+		t.Errorf("configured summary should report the detector: %q", configured.Summary())
 	}
 	// edit_instruct must be reported HIGH weight; text_to_image NONE.
 	weights := map[string]safetyv1.ConsentWeight{}

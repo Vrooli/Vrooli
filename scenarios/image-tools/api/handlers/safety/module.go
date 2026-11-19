@@ -11,12 +11,13 @@ import (
 )
 
 // Module returns the safety domain's contribution: the SafetyService discovery
-// handler (Connect-RPC, GetPolicy) reporting the resolved Responsible-Use policy
-// for the running deployment tier. Enforcement itself lives on the AI submit
-// edge (handlers/ai), which holds the gate; this surface is pure discovery so
-// the UI/CLI can show what is enforced.
-func Module(tier internalsafety.Tier) module.Module {
-	connectPath, connectHandler := safetyconnect.NewSafetyServiceHandler(NewConnectHandler(tier))
+// handler (Connect-RPC, GetPolicy) reporting the RESOLVED Responsible-Use policy
+// (preset + per-control overrides) for the running deployment. Enforcement
+// itself lives on the AI submit edge (handlers/ai), which holds the same policy
+// through its gate; this surface is pure discovery so the UI/CLI can show exactly
+// what is enforced.
+func Module(policy internalsafety.Policy) module.Module {
+	connectPath, connectHandler := safetyconnect.NewSafetyServiceHandler(NewConnectHandler(policy))
 	return module.Module{
 		Name: "safety",
 		Mount: func(r *mux.Router) {

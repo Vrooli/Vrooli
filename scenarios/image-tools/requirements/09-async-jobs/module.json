@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/jobs/manager_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Job state machine survives simulated client disconnect"
         },
         {
           "type": "test",
           "ref": "api/internal/jobs/manager_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "GPU jobs serialize while CPU ops run concurrently"
         },
         {

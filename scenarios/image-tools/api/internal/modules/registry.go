@@ -25,12 +25,13 @@ import (
 	adaptersH "image-tools/handlers/adapters"
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
+	catalogH "image-tools/handlers/catalog"
 	diffH "image-tools/handlers/diff"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	looksH "image-tools/handlers/looks"
-	modelsH "image-tools/handlers/models"
 	measuresH "image-tools/handlers/measures"
+	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
 	preparationH "image-tools/handlers/preparation"
 	qualityH "image-tools/handlers/quality"
@@ -43,6 +44,7 @@ import (
 	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/catalog"
 	diffv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/diff"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
@@ -62,6 +64,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, adaptersH.Endpoints...)
+	out = append(out, catalogH.Endpoints...)
 	out = append(out, aiH.Endpoints...)
 	out = append(out, analysisH.Endpoints...)
 	out = append(out, internalcleanup.Endpoints...)
@@ -104,6 +107,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "adapters", File: adaptersv1.File_image_tools_v1_adapters_adapters_proto},
 		{Module: "ai", File: aiv1.File_image_tools_v1_ai_ai_proto},
 		{Module: "analysis", File: analysisv1.File_image_tools_v1_analysis_analysis_proto},
+		{Module: "catalog", File: catalogv1.File_image_tools_v1_catalog_catalog_proto},
 		{Module: "diff", File: diffv1.File_image_tools_v1_diff_diff_proto},
 		{Module: "jobs", File: jobsv1.File_image_tools_v1_jobs_jobs_proto},
 		{Module: "looks", File: looksv1.File_image_tools_v1_looks_looks_proto},

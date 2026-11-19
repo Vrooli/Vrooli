@@ -19,7 +19,7 @@ it("retains include/exclude refinement and shows only the completed native mask"
  act(()=>result.current.addPoint({x:.5,y:.4,negative:false}));
  act(()=>result.current.addPoint({x:.1,y:.2,negative:true}));
  await act(async()=>result.current.run());
- expect(client.submit).toHaveBeenCalledWith("segment",expect.objectContaining({segmentation:{points:[{x:.5,y:.4,negative:false},{x:.1,y:.2,negative:true}]}}),expect.objectContaining({image,operationId:expect.any(String)}));
+ expect(client.submit).toHaveBeenCalledWith("segment",expect.objectContaining({opParams:{segmentation:{points:[{x:.5,y:.4,negative:false},{x:.1,y:.2,negative:true}]}}}),expect.objectContaining({image,operationId:expect.any(String)}));
  expect(client.wait).toHaveBeenCalledTimes(1);
  expect(result.current.maskUrl).toBe("/blob/mask/output.png");
  act(()=>result.current.undo());

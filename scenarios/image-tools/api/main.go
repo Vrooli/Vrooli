@@ -19,7 +19,9 @@ import (
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capacity"
 	internalcleanup "image-tools/internal/cleanup"
+	localdb "image-tools/internal/database"
 	"image-tools/internal/fetch"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
@@ -51,6 +53,7 @@ import (
 	adaptersH "image-tools/handlers/adapters"
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
+	catalogH "image-tools/handlers/catalog"
 	diffH "image-tools/handlers/diff"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
@@ -189,8 +192,19 @@ func main() {
 	}
 	configureTestPoolSchemas(db)
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	bootCtx := context.Background()
+	if err := database.ApplySchemas(bootCtx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	// Forward-only migrations run BETWEEN schema application and the drift check:
+	// the declarative schema is the target shape, CREATE TABLE IF NOT EXISTS is a
+	// no-op on an existing DB, and the migration performs what declarative DDL
+	// cannot (drops, alters, backfills). See internal/database/migrations/.
+	if err := localdb.Migrate(bootCtx, db.Primary()); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
+	if err := database.VerifyDeclaredColumns(bootCtx, db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema drift check failed: %v", err)
 	}
 
 	// Load the validated model registry once (its seed-integrity invariants are
@@ -218,7 +232,7 @@ func main() {
 	// execution handlers on the dispatcher; in Phase 1 none are registered yet,
 	// so a submitted job for an unknown op fails cleanly (and nothing submits).
 	jobCtx, cancelJobs := context.WithCancel(context.Background())
-	dispatcher := jobrunner.New(internalai.AdmitCPUWork)
+	dispatcher := jobrunner.New(capacity.AdmitCPUWork)
 
 	// Runtime measures (IMG-P0-012): the recorder captures op latency + queue-wait
 	// + outcome for every finalized job via the Manager's OnComplete hook. Recorded
@@ -344,7 +358,7 @@ func main() {
 	// (fetch → env → smoke) through the venv interpreter so an installed-but-broken
 	// model fails the install instead of surfacing as a late job crash.
 	modelUseGate := internalmodels.NewModelUseGate(modelsRoot)
-	imageCapacity := &internalai.CLICapacityBroker{}
+	imageCapacity := &capacity.CLIBroker{}
 	installer := &internalmodels.Installer{
 		Root:          modelsRoot,
 		Reg:           registry,
@@ -565,6 +579,13 @@ func main() {
 	// The shared policy evaluator reads the canonical operator-owned business
 	// context on every evaluation, including execution-time rechecks.
 	rightsEvaluator := internalmodels.AdaptRightsEvaluator(sharedpolicy.NewDefaultRightsEvaluator(os.Getenv))
+	// The minor-safety reviewer is operator-supplied: no bundled model answers
+	// "how old is this person". A configured reviewer runs on every generated
+	// image; the one non-configurable refusal fails the job and deletes the bytes.
+	minorReviewer, err := safety.MinorReviewerFromEnv()
+	if err != nil {
+		log.Fatalf("%s: %v", safety.MinorSafetyEnv, err)
+	}
 	aiEngine, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
 		Registry:              registry,
 		Backends:              backendReg,
@@ -583,12 +604,16 @@ func main() {
 		AcquireAdapterUse:     adapterUseGate.Acquire,
 		PosePreprocessor:      analysisService.PoseMap,
 		AdaptersRoot:          modelsRoot,
-		AutoScan:              analysisService.ScanNSFW,
-		Capacity:              imageCapacity,
-		Disk:                  imageCapacity,
-		Memory:                internalai.AcquireLocalRAM,
-		CPU:                   internalai.AcquireLocalCPU,
-		Logger:                log.Default(),
+		AutoScan: func(ctx context.Context, img []byte) (internalai.ScanVerdict, error) {
+			nsfw, score, err := analysisService.ScanNSFW(ctx, img)
+			return internalai.ScanVerdict{NSFW: nsfw, Score: score}, err
+		},
+		ReviewOutput: minorOutputReviewer(minorReviewer),
+		Capacity:     imageCapacity,
+		Disk:         imageCapacity,
+		Memory:       capacity.AcquireLocalRAM,
+		CPU:          capacity.AcquireLocalCPU,
+		Logger:       log.Default(),
 	}, rightsEvaluator)
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -601,11 +626,18 @@ func main() {
 	}
 
 	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
-	// time (IMAGE_TOOLS_DEPLOYMENT_TIER), defaulting to local/unrestricted. The
-	// gate the AI submit edge enforces bundles the resolved policy, the consent
-	// audit log, and the public-tier abuse throttle.
-	deployTier := safety.ResolveTier()
-	safetyGate := safety.NewGate(deployTier, safety.NewConsentLog(db.Primary()))
+	// time (IMAGE_TOOLS_DEPLOYMENT_TIER), defaulting to local/unrestricted, and
+	// each harm-protection control can be overridden individually
+	// (IMAGE_TOOLS_REQUIRE_CONSENT / _NSFW_SCAN / _REQUIRE_PROVENANCE /
+	// _RATE_LIMIT_PER_MIN). The same resolved policy drives enforcement (the gate
+	// on the AI submit edge) and discovery (SafetyService.GetPolicy), so the two
+	// cannot disagree.
+	safetyPolicy := safety.ResolvePolicy()
+	safetyGate := safety.NewGateFromPolicy(safetyPolicy, safety.NewConsentLog(db.Primary()))
+	safetyGate.SetMinorReviewer(minorReviewer)
+	// Discovery reads the gate's resolved policy so it reports the detector that
+	// enforcement actually has, rather than the one the environment implied.
+	safetyPolicy = safetyGate.Policy()
 
 	// Non-critical health summary: an enabled model whose install-time load-smoke
 	// FAILED (installed but not runnable) degrades /health so the standard probe
@@ -644,6 +676,7 @@ func main() {
 		}, log.Default()),
 		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, blobStore, jobManager, log.Default()),
+		catalogH.Module(),
 		internalcleanup.Module(internalcleanup.Deps{Jobs: jobManager, Store: blobStore}),
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
@@ -659,7 +692,7 @@ func main() {
 			Installed: adapterInstalled,
 		}, rightsEvaluator, log.Default()),
 		opsH.Module(blobStore, jobManager, imageCapacity, log.Default()),
-		safetyH.Module(deployTier),
+		safetyH.Module(safetyPolicy),
 		selectionH.Module(blobStore, jobManager, log.Default()),
 	)
 
@@ -709,5 +742,27 @@ func configureTestPoolSchemas(db *database.RoutedDB) {
 func hostModelRuntimeReadiness(installer *internalmodels.Installer) func(context.Context, string) (bool, string) {
 	return func(_ context.Context, id string) (bool, string) {
 		return installer.RuntimeReadiness(context.Background(), id)
+	}
+}
+
+// minorOutputReviewer adapts the deployment's reviewer to the engine's output
+// hook. A nil reviewer leaves the hook nil, which is the local default.
+func minorOutputReviewer(reviewer safety.MinorReviewer) internalai.OutputScanner {
+	if reviewer == nil {
+		return nil
+	}
+	return func(ctx context.Context, img []byte) (internalai.ScanVerdict, error) {
+		verdict, err := reviewer.Review(ctx, [][]byte{img})
+		if err != nil {
+			return internalai.ScanVerdict{}, err
+		}
+		if verdict.Minor && verdict.Sexual {
+			detail := strings.TrimSpace(verdict.Detail)
+			if detail == "" {
+				detail = "sexual content involving a minor"
+			}
+			return internalai.ScanVerdict{HardRefusal: detail}, nil
+		}
+		return internalai.ScanVerdict{}, nil
 	}
 }

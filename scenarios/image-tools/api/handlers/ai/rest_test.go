@@ -125,7 +125,7 @@ func TestSubmitImageOperationRetryUsesSourceBytesAndSurvivesModelUnload(t *testi
 		req.Header.Set("Idempotency-Key", operationID)
 		return req
 	}
-	const params = `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.5,"y":0.4}]}}`
+	const params = `{"modelOverride":"mobilesam","opParams":{"segmentation":{"points":[{"x":0.5,"y":0.4}]}}}`
 	for _, input := range []string{"input/original", "input/same-bytes-other-key"} {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, request(input, params))
@@ -138,7 +138,7 @@ func TestSubmitImageOperationRetryUsesSourceBytesAndSurvivesModelUnload(t *testi
 	}
 	for _, req := range []*http.Request{
 		request("input/changed", params),
-		request("input/original", `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.7,"y":0.4}]}}`),
+		request("input/original", `{"modelOverride":"mobilesam","opParams":{"segmentation":{"points":[{"x":0.7,"y":0.4}]}}}`),
 	} {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -259,7 +259,7 @@ func TestSubmit_PromptedSegmentationRetainsTypedCoordinates(t *testing.T) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	mw.WriteField("input_ref", "input/device.png")
-	mw.WriteField("params", `{"modelOverride":"mobilesam","segmentation":{"points":[{"x":0.72,"y":0.4},{"x":0.1,"y":0.2,"negative":true}],"box":{"x":0.2,"y":0.1,"width":0.6,"height":0.8}}}`)
+	mw.WriteField("params", `{"modelOverride":"mobilesam","opParams":{"segmentation":{"points":[{"x":0.72,"y":0.4},{"x":0.1,"y":0.2,"negative":true}],"box":{"x":0.2,"y":0.1,"width":0.6,"height":0.8}}}}`)
 	mw.Close()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/segment", &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
@@ -272,11 +272,17 @@ func TestSubmit_PromptedSegmentationRetainsTypedCoordinates(t *testing.T) {
 	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {
 		t.Fatal(err)
 	}
-	var prompt aiv1.SegmentationPrompt
-	if err := protojson.Unmarshal([]byte(payload.Params["segmentation"]), &prompt); err != nil {
+	var prompt map[string]any
+	if err := json.Unmarshal([]byte(payload.Params["segmentation"]), &prompt); err != nil {
 		t.Fatal(err)
 	}
-	if len(prompt.Points) != 2 || !prompt.Points[1].Negative || prompt.Points[0].X != 0.72 || prompt.Box.Width != 0.6 || payload.ModelID != "mobilesam" {
+	points, _ := prompt["points"].([]any)
+	box, _ := prompt["box"].(map[string]any)
+	if len(points) != 2 ||
+		points[1].(map[string]any)["negative"] != true ||
+		points[0].(map[string]any)["x"] != 0.72 ||
+		box["width"] != 0.6 ||
+		payload.ModelID != "mobilesam" {
 		t.Fatalf("prompt/model lost: %+v %+v", prompt, payload)
 	}
 	// All local model jobs serialize to bound resident model memory, even when
@@ -287,7 +293,7 @@ func TestSubmit_PromptedSegmentationRetainsTypedCoordinates(t *testing.T) {
 }
 
 func TestSubmit_InvalidSegmentationDoesNotQueue(t *testing.T) {
-	for _, raw := range []string{`{}`, `{"segmentation":{}}`, `{"segmentation":{"points":[{"x":0.5,"y":0.5,"negative":true}]}}`, `{"segmentation":{"points":[{"x":"NaN","y":0.5}]}}`, `{"segmentation":{"box":{"x":0.9,"y":0,"width":0.2,"height":1}}}`} {
+	for _, raw := range []string{`{}`, `{"opParams":{"segmentation":{}}}`, `{"opParams":{"segmentation":{"points":[{"x":0.5,"y":0.5,"negative":true}]}}}`, `{"opParams":{"segmentation":{"points":[{"x":"NaN","y":0.5}]}}}`, `{"opParams":{"segmentation":{"box":{"x":0.9,"y":0,"width":0.2,"height":1}}}}`} {
 		t.Run(raw, func(t *testing.T) {
 			r, sub := newTestServer(t, true)
 			w := httptest.NewRecorder()

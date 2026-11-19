@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/ai/providers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "buildDiffusers dispatches edit_instruct to the instruction-edit sidecar module (distinct argv from inpaint), threads the instruction + guidance, and rejects a missing input — TestArgBuilders cases 'diffusers edit_instruct', 'diffusers inpaint via dispatcher'."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/generation_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Full edit_instruct vertical over fake providers: materializes the single input, threads the natural-language instruction, persists output — TestGeneration_EditInstructMaterializesInput."
         },
         {
           "type": "test",
           "ref": "api/internal/models/registry_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Instruction-edit models (instruct-pix2pix default CPU-capable, qwen-image-edit GPU quality) seeded with hardware-fit + commercial-clean licenses; flux-1-kontext-dev blocklisted — seed-invariant validation in Load()."
         },
         {
           "type": "test",
           "ref": "cli/domains/ai/generation_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI `image-tools ai edit \u003cinput\u003e --prompt` submits the async instruction-edit job — TestEditInstruct_SubmitsAsyncJob; TestSubmitCommandsCoverP0 pins the verb set."
         }
       ]

@@ -3,7 +3,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { cn } from "../../lib/utils";
 import type { OperationInfo } from "../../api/ops";
-import { opPresentation } from "./opCatalog";
+import { capabilityPresentation, familyIcon } from "./capabilityCatalog";
 
 export interface OpPickerProps {
   operations: OperationInfo[];
@@ -19,7 +19,7 @@ export interface OpPickerProps {
  */
 export function OpPicker({ operations, operation, onSelect }: OpPickerProps) {
   const { t } = useTranslation();
-  const selected = opPresentation(operation);
+  const selected = capabilityPresentation(operation);
 
   return (
     <div className="flex flex-col gap-2">
@@ -33,11 +33,9 @@ export function OpPicker({ operations, operation, onSelect }: OpPickerProps) {
         className="grid grid-cols-2 gap-1"
       >
         {operations.map((op) => {
-          const presentation = opPresentation(op.name);
-          if (!presentation) {
-            return null;
-          }
-          const { Icon, labelKey } = presentation;
+          const presentation = capabilityPresentation(op.name);
+          const Icon = presentation?.Icon ?? familyIcon(undefined);
+          const labelKey = presentation?.labelKey;
           const active = op.name === operation;
           return (
             <button
@@ -55,7 +53,7 @@ export function OpPicker({ operations, operation, onSelect }: OpPickerProps) {
               )}
             >
               <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t(labelKey)}</span>
+              <span className="truncate">{labelKey ? t(labelKey) : op.name}</span>
             </button>
           );
         })}
@@ -65,7 +63,7 @@ export function OpPicker({ operations, operation, onSelect }: OpPickerProps) {
           data-testid={selectors.workspace.opDescription}
           className="text-xs text-app-muted-foreground"
         >
-          {t(selected.descKey)}
+          {selected.descKey ? t(selected.descKey) : operation}
         </p>
       ) : null}
     </div>

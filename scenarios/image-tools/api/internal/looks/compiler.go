@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"image-tools/internal/ai"
+	"image-tools/internal/capability"
 
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 )
@@ -34,7 +35,18 @@ func Compile(look *looksv1.Look, subject, prompt string, hasInput bool) *looksv1
 			params[k] = v
 		}
 
-		switch step.GetKind() {
+		// Derive the lane from the catalogs so an omitted kind is resolved
+		// correctly (mechanism is not the lane: naturalize is compute but runs
+		// on the model-backed job lane).
+		lane := step.GetKind()
+		if derived, ok := LaneForOperation(step.GetOperation()); ok {
+			lane = derived
+		}
+		outputKind := ""
+		if manifest, ok := capability.Get(step.GetOperation()); ok {
+			outputKind = manifest.IO.Output.Kind
+		}
+		switch lane {
 		case looksv1.StepKind_STEP_KIND_AI:
 			hasAI = true
 			meta, known := ai.Get(step.GetOperation())
@@ -63,10 +75,16 @@ func Compile(look *looksv1.Look, subject, prompt string, hasInput bool) *looksv1
 			resp.RequiresImage = true
 		}
 
+		scenario := step.GetScenario()
+		if scenario == "" {
+			scenario = ImageToolsScenario
+		}
 		resp.Steps = append(resp.Steps, &looksv1.CompiledStep{
-			Operation: step.GetOperation(),
-			Kind:      step.GetKind(),
-			Params:    params,
+			Operation:  step.GetOperation(),
+			Kind:       lane,
+			Params:     params,
+			Scenario:   scenario,
+			OutputKind: outputKind,
 		})
 	}
 

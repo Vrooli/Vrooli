@@ -18,12 +18,13 @@ import (
 )
 
 // TestSubmitCommandsCoverP0 asserts the CLI exposes one submit command per
-// AI op (the P0 generation/enhancement ops + the Phase-4 breadth ops:
-// outpaint / background-replace / colorize / depth — the headless surface
-// IMG-P0-002/003 + IMG-P1-001/002 require).
+// AI-catalog operation. The command table is generated from the capability
+// manifests (`commands.generated.go`), so this guards the end-to-end wiring:
+// every manifest with a cli spec becomes a runnable command, and the three
+// restoration ops that previously had no headless verb are now reachable.
 func TestSubmitCommandsCoverP0(t *testing.T) {
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"background-replace", "bg-removal", "caption", "colorize", "denoise", "depth", "edit", "generate", "geometry", "image-to-object", "img2img", "inpaint", "naturalize", "normal-map", "object-removal", "outpaint", "segment", "upscale"}
+	want := []string{"background-replace", "bg-removal", "caption", "colorize", "deblur", "denoise", "depth", "edit", "face-restore", "face-swap", "garment-replace", "generate", "geometry", "image-to-object", "img2img", "inpaint", "naturalize", "normal-map", "object-removal", "old-photo-restore", "outpaint", "segment", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {
@@ -73,7 +74,10 @@ func TestSegment_SubmitsExplicitNegativePointAndBox(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
 			t.Fatal(err)
 		}
-		if len(p.GetSegmentation().GetPoints()) != 2 || !p.Segmentation.Points[1].Negative || p.Segmentation.Box.Width != 0.6 {
+		seg, _ := p.GetOpParams().AsMap()["segmentation"].(map[string]any)
+		points, _ := seg["points"].([]any)
+		box, _ := seg["box"].(map[string]any)
+		if len(points) != 2 || points[1].(map[string]any)["negative"] != true || box["width"] != 0.6 {
 			t.Errorf("prompt lost: %s", r.FormValue("params"))
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -152,8 +156,8 @@ func TestGeometry_SubmitsTypedSupportROI(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
 			t.Fatal(err)
 		}
-		roi := p.GetSceneGeometry().GetSupportRoi()
-		if roi == nil || roi.GetY() != 0.85 || roi.GetHeight() != 0.15 || roi.GetWidth() != 1 {
+		roi, _ := p.GetOpParams().AsMap()["support_roi"].(map[string]any)
+		if roi == nil || roi["y"] != 0.85 || roi["height"] != 0.15 || roi["width"] != 1.0 {
 			t.Errorf("support ROI lost: %s", r.FormValue("params"))
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -203,8 +207,8 @@ func TestInpaint_SubmitsTypedMaskCrop(t *testing.T) {
 				t.Errorf("%s bytes=%q, want %q (read err %v)", field, data, want, readErr)
 			}
 		}
-		crop := p.GetInpaint()
-		if crop == nil || !crop.GetCropToMask() || crop.GetContextPixels() != 96 || crop.GetMaxEdgePx() != 1024 || !crop.GetNeutralizeMaskedPixels() {
+		crop := p.GetOpParams().AsMap()
+		if crop["inpaint_crop_to_mask"] != true || crop["inpaint_context_pixels"] != float64(96) || crop["inpaint_max_edge_px"] != float64(1024) || crop["inpaint_neutralize_masked_pixels"] != true {
 			t.Errorf("inpaint crop controls lost: %s", r.FormValue("params"))
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -238,8 +242,9 @@ func TestObjectRemoval_SubmitsExplicitMaskAdditions(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
 			t.Fatal(err)
 		}
-		repair := p.GetBackgroundRepair()
-		if repair == nil || repair.GetMaskExpansionPixels() != 12 || len(repair.GetRemovalRegions()) != 1 || repair.RemovalRegions[0].GetY() != .8 {
+		repair, _ := p.GetOpParams().AsMap()["background_repair"].(map[string]any)
+		regions, _ := repair["removalRegions"].([]any)
+		if repair == nil || repair["maskExpansionPixels"] != 12.0 || len(regions) != 1 || regions[0].(map[string]any)["y"] != 0.8 {
 			t.Errorf("repair controls lost: %s", r.FormValue("params"))
 		}
 		w.Header().Set("Content-Type", "application/json")

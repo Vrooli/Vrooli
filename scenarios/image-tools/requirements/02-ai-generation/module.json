@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/ai/generation_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Generation/edit op invokes selected standalone backend and persists params with output"
         },
         {

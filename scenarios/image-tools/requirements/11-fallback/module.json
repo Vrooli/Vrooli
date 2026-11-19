@@ -15,12 +15,12 @@
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fallback chain advances tiers and records the reason"
         },
         {
           "type": "manual",
-          "ref": "api/internal/byok/estimate_test.go",
+          "ref": "api/internal/ai/ai_gateway_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Planned (not yet implemented; automated test pending): BYOK cost estimate shown before a cloud op executes"

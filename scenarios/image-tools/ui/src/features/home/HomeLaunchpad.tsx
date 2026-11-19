@@ -13,9 +13,7 @@ import { importImageLink } from "../../api/importLink";
 import { jobsClient } from "../../api/jobs";
 import { useTranslation } from "../../i18n";
 import { HealthCard } from "../health/HealthCard";
-import { AI_CATALOG } from "../workspace/aiCatalog";
-import { CREATE_CATALOG } from "../workspace/createCatalog";
-import { OP_CATALOG } from "../workspace/opCatalog";
+import { capabilityPresentation } from "../workspace/capabilityCatalog";
 import type { WorkspaceMode } from "../workspace/useWorkspace";
 import { imageOutputs } from "../library/outputs";
 import { useReopenOutput } from "../library/useReopenOutput";
@@ -173,7 +171,7 @@ export function HomeLaunchpad() {
   };
 
   const showFirstRun = firstRun && recent.length === 0;
-  const generate = CREATE_CATALOG.text_to_image;
+  const generate = capabilityPresentation("text_to_image");
 
   return (
     <div data-testid={selectors.home.root} className="flex flex-col gap-8">
@@ -246,7 +244,11 @@ export function HomeLaunchpad() {
             {t(strings.home.entry.sample)}
           </Button>
         </div>
-        <form onSubmit={submitImageLink} className="mx-auto flex w-full max-w-2xl flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-3 sm:flex-row">
+        <form
+          onSubmit={(event) => {
+            void submitImageLink(event);
+          }}
+          className="mx-auto flex w-full max-w-2xl flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-3 sm:flex-row">
           <label className="sr-only" htmlFor="home-image-url">{t(strings.home.entry.linkLabel)}</label>
           <input
             id="home-image-url"
@@ -295,7 +297,7 @@ export function HomeLaunchpad() {
       <div data-testid={selectors.home.groups} className="grid gap-6 md:grid-cols-2">
         <TileGroup heading={t(strings.home.group.quickEdits)}>
           {QUICK_EDIT_OPS.map((name) => {
-            const pres = OP_CATALOG[name];
+            const pres = capabilityPresentation(name);
             if (!pres) {
               return null;
             }
@@ -303,7 +305,7 @@ export function HomeLaunchpad() {
               <IntentTile
                 key={name}
                 name={name}
-                label={t(pres.labelKey)}
+                label={pres.labelKey ? t(pres.labelKey) : name}
                 Icon={pres.Icon}
                 onClick={() => openInWorkspace({ mode: "edit", operation: name })}
               />
@@ -313,7 +315,7 @@ export function HomeLaunchpad() {
 
         <TileGroup heading={t(strings.home.group.enhance)}>
           {ENHANCE_OPS.map((name) => {
-            const pres = AI_CATALOG[name];
+            const pres = capabilityPresentation(name);
             if (!pres) {
               return null;
             }
@@ -321,7 +323,7 @@ export function HomeLaunchpad() {
               <IntentTile
                 key={name}
                 name={name}
-                label={t(pres.labelKey)}
+                label={pres.labelKey ? t(pres.labelKey) : name}
                 Icon={pres.Icon}
                 needsModel
                 onClick={() => openInWorkspace({ mode: "enhance", operation: name })}
@@ -334,7 +336,7 @@ export function HomeLaunchpad() {
           {generate ? (
             <IntentTile
               name="text_to_image"
-              label={t(generate.labelKey)}
+              label={generate.labelKey ? t(generate.labelKey) : "text_to_image"}
               Icon={generate.Icon}
               needsModel
               onClick={() => openInWorkspace({ mode: "create", operation: "text_to_image" })}

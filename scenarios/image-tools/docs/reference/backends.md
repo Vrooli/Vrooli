@@ -95,12 +95,11 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 <!-- BEGIN GENERATED: host-tool-matrix (regenerate with `make backends-doc`) -->
 | Backend (provider) | Host tool | Operations | Install / remediation |
 |---|---|---|---|
-| `diffusers` | `uv` | `text_to_image`, `image_to_image`, `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install uv` |
+| `diffusers` | `uv` | `text_to_image`, `image_to_image`, `inpaint`, `outpaint`, `background_replace`, `edit_instruct`, `face_swap`, `garment_replace` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
 | `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `object_removal`, `colorize`, `depth_map`, `scene_geometry`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |
-| `python-sidecar` | `uv` | `colorize` | `vrooli host install uv` |
-| `python-sidecar` | `uv` | `face_restore`, `old_photo_restore` | `vrooli host install uv` |
+| `python-sidecar` | `uv` | `colorize`, `face_restore`, `old_photo_restore` | `vrooli host install uv` |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
 | `sam2-transformers` | `uv` | `segment` | `vrooli host install uv` |
@@ -130,6 +129,8 @@ or backend reassignment.
 | `embedding` | `nomic-embed-vision-v1.5` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `face_detection` | `yunet` | `library-cgo` | `default` | `python3` with OpenCV (`cv2`) and numpy; CPU-capable. |
 | `face_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | **Gated (not yet promoted)** — its stack (`torch`, `basicsr`, `facexlib`) is deliberately excluded from the lock; the op fails loud until the Phase 2 restore path lands (DECISIONS.md). |
+| `face_swap` | `ip-adapter-faceid-sd15` | `diffusers` | `nice-to-have` | **Declared experimental, ships disabled.** Needs the SD1.5 base + IP-Adapter FaceID weight + InsightFace models provisioned manually (`source.manual`); blocked from commercial default use until the InsightFace terms review lands. Local-first policy: the capability is not blocked, only unprovisioned. |
+| `garment_replace` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); masked inpaint driven by a prompt. GPU recommended, CPU-capable but slow. |
 | `image_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
 | `inpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `naturalize` | `naturalize-detail-v1` | `builtin` | `default` | In-process Go; no weights or host provisioning. |
@@ -335,7 +336,7 @@ distinguishes runtime compute from parameter residency. CPU offloading alone
 does not prove CPU execution.
 
 Prompted segmentation is available as `image-tools ai segment` / the durable
-`POST /api/v1/ai/segment` edge with typed `AIParams.segmentation` points/box.
+`POST /api/v1/ai/segment` edge with schema-validated `AIParams.op_params.segmentation` points/box.
 The qualified existing runtime is CPU MobileSAM (SAM1 export contract), not
 SAM2. The synchronous `select segment` region-grow remains heuristic and does
 not invoke this model path. See [layered photography](layered-photography.md)

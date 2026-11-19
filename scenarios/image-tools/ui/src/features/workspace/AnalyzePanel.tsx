@@ -16,7 +16,7 @@ import {
   type AnalyzeQuality,
 } from "../../api/analysis";
 import { listAIOperations } from "../../api/ai";
-import { ANALYZE_FALLBACK_ICON, analyzePresentation } from "./analyzeCatalog";
+import { capabilityPresentation, familyIcon } from "./capabilityCatalog";
 import { MODE_LABEL } from "./modeLabels";
 import { isAnalyzeActive, type UseAnalyze } from "./useAnalyze";
 
@@ -448,8 +448,8 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
             className="flex flex-col gap-2"
           >
             {operations.map((op) => {
-              const meta = analyzePresentation(op.name);
-              const Icon = meta?.Icon ?? ANALYZE_FALLBACK_ICON;
+              const meta = capabilityPresentation(op.name);
+              const Icon = meta?.Icon ?? familyIcon("extract");
               const isSelected = op.name === operation;
               return (
                 <button
@@ -469,10 +469,10 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                   <Icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-app-brand" />
                   <span className="flex flex-col">
                     <span className="text-sm font-medium text-app-foreground">
-                      {meta ? t(meta.labelKey) : op.summary || op.name}
+                      {meta?.labelKey ? t(meta.labelKey) : op.summary || op.name}
                     </span>
                     <span className="text-xs text-app-muted-foreground">
-                      {meta ? t(meta.descKey) : op.summary}
+                      {meta?.descKey ? t(meta.descKey) : op.summary}
                     </span>
                   </span>
                 </button>

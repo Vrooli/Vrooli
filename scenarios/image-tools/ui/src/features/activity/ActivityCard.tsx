@@ -164,9 +164,20 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
   );
 }
 
+// Rows written before scheduling_queue carry only the deprecated lane. Read it
+// through its structural shape so the compatibility path is explicit rather than
+// a lint suppression.
+interface LegacyLaneJob extends Omit<Job, "lane"> {
+  lane?: JobLane;
+}
+
+function legacyLane(job: Job): JobLane {
+  return (job as LegacyLaneJob).lane ?? JobLane.UNSPECIFIED;
+}
+
 function schedulingQueueForJob(job: Job): JobQueue {
   if (job.schedulingQueue !== JobQueue.UNSPECIFIED) return job.schedulingQueue;
-  switch (job.lane) {
+  switch (legacyLane(job)) {
     // Legacy JOB_LANE_GPU described the serialized local queue. It never
     // established which device the selected backend used.
     case JobLane.GPU:

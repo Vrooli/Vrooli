@@ -16,8 +16,8 @@ import (
 	"sort"
 	"strings"
 
+	"image-tools/internal/capability"
 	"image-tools/internal/fetch"
-	"image-tools/internal/operations"
 )
 
 //go:embed registry.seed.json
@@ -372,10 +372,10 @@ func Parse(data []byte) (*Registry, error) {
 		return nil, fmt.Errorf("registry has no models")
 	}
 
-	// The operation vocabulary is the SSOT (internal/operations); the registry
-	// reads it rather than carrying its own copy. Per-model operations[] are
-	// validated against it below.
-	vocabOrder := operations.Names()
+	// The operation vocabulary is the capability manifest set; the registry reads
+	// it rather than carrying its own copy. Per-model operations[] are validated
+	// against it below.
+	vocabOrder := capability.VocabularyNames()
 	r := &Registry{
 		schemaVersion: sf.SchemaVersion,
 		byID:          make(map[string]Model, len(sf.Models)),

@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/ops/*_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Each op transforms pixels/metadata correctly with deterministic output"
         },
         {

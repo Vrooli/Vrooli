@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -33,41 +34,41 @@ func rejectAdmission(status int, code, message string) error {
 	return &admissionError{status: status, code: code, message: message}
 }
 
-func (h *Deps) preflightAdmission(ctx context.Context, op string, params *aiv1.AIParams, operationID string) (bool, error) {
+func (h *Deps) preflightAdmission(ctx context.Context, op string, params *aiv1.AIParams, operationID string) (safety.Decision, error) {
 	if _, ok := internalai.Get(op); !ok {
-		return false, rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, fmt.Sprintf("unknown AI operation %q", op))
+		return safety.Decision{}, rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, fmt.Sprintf("unknown AI operation %q", op))
 	}
-	for _, validate := range []func(string, *aiv1.AIParams) error{validateSegmentation, validateSceneGeometry, validateImageToObject, validateBackgroundRepair, validateInpaint} {
+	for _, validate := range []func(string, *aiv1.AIParams) error{validateOpParams, validateSegmentationSemantics} {
 		if err := validate(op, params); err != nil {
-			return false, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
+			return safety.Decision{}, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
 		}
 	}
 	if operationID != "" {
 		if _, err := uuid.Parse(operationID); err != nil {
-			return false, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "operation identity must be a UUID")
+			return safety.Decision{}, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "operation identity must be a UUID")
 		}
 	}
 	if h.Gate == nil {
-		return false, nil
+		return safety.Decision{Allowed: true}, nil
 	}
 	if !h.Gate.AllowRate() {
-		return false, rejectAdmission(http.StatusTooManyRequests, httpx.CodeRateLimited, "rate limit exceeded for this deployment tier; retry shortly")
+		return safety.Decision{}, rejectAdmission(http.StatusTooManyRequests, httpx.CodeRateLimited, "rate limit exceeded for this deployment tier; retry shortly")
 	}
 	decision := h.Gate.Evaluate(op, params.GetConsentAffirmed())
 	if !decision.Allowed {
-		return false, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+		return safety.Decision{}, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
 	}
 	if decision.RecordConsent {
 		if err := h.Gate.RecordConsent(ctx, op, decision.Weight); err != nil {
 			h.logf("ai.submit consent log: %v", err)
 		}
 	}
-	return decision.ForceNSFWScan, nil
+	return decision, nil
 }
 
 // admitStored receives only owned blob references, never filesystem paths or
 // remote URLs. A retained admission is reconciled before current model selection.
-func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey, operationID string, forceScan bool) (*aiv1.SubmitAIResponse, error) {
+func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams, inputKey, maskKey, operationID string, gate safety.Decision) (*aiv1.SubmitAIResponse, error) {
 	meta, ok := internalai.Get(op)
 	if !ok {
 		return nil, rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, "unknown AI operation")
@@ -84,6 +85,9 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			return nil, rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, "input or mask does not identify an Image Tools artifact")
 		}
 		_ = reader.Close()
+	}
+	if err := h.reviewMinorInput(ctx, op, gate, inputKey); err != nil {
+		return nil, err
 	}
 	fingerprint := ""
 	if operationID != "" {
@@ -111,10 +115,10 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	if err := bindPosePreprocessorInput(plan.Adapters, inputKey); err != nil {
 		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
 	}
-	if params.GetInpaint() != nil && h.modelBackend(plan.ModelID) != "diffusers" {
+	if hasInpaintControls(params) && h.modelBackend(plan.ModelID) != "diffusers" {
 		return nil, rejectAdmission(http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, "contextual inpainting requires a native diffusers inpaint model; choose one explicitly")
 	}
-	if params.GetBackgroundRepair() != nil && plan.ModelID != "big-lama" {
+	if hasBackgroundRepair(params) && plan.ModelID != "big-lama" {
 		return nil, rejectAdmission(http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, "background repair controls require the qualified big-lama model; select it explicitly")
 	}
 	if h.Gate != nil && len(plan.Adapters) > 0 && plan.Weight != "" {
@@ -128,7 +132,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			}
 		}
 	}
-	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: allowBYOKForParams(params), CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || forceScan, Variations: int(params.GetVariations()), Params: paramsMap(params), Adapters: plan.Adapters}
+	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: allowBYOKForParams(params), CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || gate.ForceNSFWScan, Variations: int(params.GetVariations()), Params: paramsMap(params), Adapters: plan.Adapters}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to prepare job")
@@ -169,6 +173,40 @@ func bindPosePreprocessorInput(resolved []adapters.ResolvedAdapter, inputKey str
 	return nil
 }
 
+// reviewMinorInput runs the deployment's reviewer on the source image before any
+// model is admitted. It is skipped entirely on a local deployment and for
+// operations whose policy does not require it.
+func (h *Deps) reviewMinorInput(ctx context.Context, op string, gate safety.Decision, refs ...string) error {
+	if h.Gate == nil || !gate.RequireMinorReview {
+		return nil
+	}
+	const maxReviewBytes = 64 << 20
+	images := make([][]byte, 0, len(refs))
+	for _, ref := range refs {
+		if ref == "" {
+			continue
+		}
+		reader, _, err := h.Store.Get(ctx, ref)
+		if err != nil {
+			return rejectAdmission(http.StatusNotFound, httpx.CodeNotFound, "input does not identify an Image Tools artifact")
+		}
+		data, readErr := io.ReadAll(io.LimitReader(reader, maxReviewBytes+1))
+		closeErr := reader.Close()
+		if readErr != nil || closeErr != nil {
+			return rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to read input for safety review")
+		}
+		if len(data) > maxReviewBytes {
+			return rejectAdmission(http.StatusRequestEntityTooLarge, httpx.CodeInvalidRequest, "input is too large for the required safety review")
+		}
+		images = append(images, data)
+	}
+	decision := h.Gate.ReviewMinor(ctx, op, images)
+	if !decision.Allowed {
+		return rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+	}
+	return nil
+}
+
 func savedAdmission(job internaljobs.Job, warnings []string) (*aiv1.SubmitAIResponse, error) {
 	var payload internalai.Payload
 	if err := decodeSavedAIPayload(job, &payload); err != nil {
@@ -201,9 +239,9 @@ func (h *Deps) submitStored(ctx context.Context, request *aiv1.SubmitStoredAIReq
 	if operationID == "" {
 		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "stored-input submission requires a stable UUID operation_id")
 	}
-	forceScan, err := h.preflightAdmission(ctx, request.GetOperation(), params, operationID)
+	gate, err := h.preflightAdmission(ctx, request.GetOperation(), params, operationID)
 	if err != nil {
 		return nil, err
 	}
-	return h.admitStored(ctx, request.GetOperation(), params, strings.TrimSpace(request.GetInputRef()), strings.TrimSpace(request.GetMaskRef()), operationID, forceScan)
+	return h.admitStored(ctx, request.GetOperation(), params, strings.TrimSpace(request.GetInputRef()), strings.TrimSpace(request.GetMaskRef()), operationID, gate)
 }

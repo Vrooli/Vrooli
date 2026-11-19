@@ -654,6 +654,14 @@ export const strings = {
         label: "workspace.createOp.background_replace.label",
         desc: "workspace.createOp.background_replace.desc",
       },
+      face_swap: {
+        label: "workspace.createOp.face_swap.label",
+        desc: "workspace.createOp.face_swap.desc",
+      },
+      garment_replace: {
+        label: "workspace.createOp.garment_replace.label",
+        desc: "workspace.createOp.garment_replace.desc",
+      },
     },
     create: {
       intro: "workspace.create.intro",
@@ -704,6 +712,15 @@ export const strings = {
         sendToCanvas: "workspace.create.result.sendToCanvas",
         sendToEnhance: "workspace.create.result.sendToEnhance",
         download: "workspace.create.result.download",
+      },
+      pose: {
+        title: "workspace.create.pose.title",
+        body: "workspace.create.pose.body",
+        stageLabel: "workspace.create.pose.stageLabel",
+        staged: "workspace.create.pose.staged",
+        acceptPrefix: "workspace.create.pose.acceptPrefix",
+        license: "workspace.create.pose.license",
+        acceptSuffix: "workspace.create.pose.acceptSuffix",
       },
     },
     mask: {
@@ -769,6 +786,10 @@ export const strings = {
       metadata: {
         label: "workspace.op.metadata.label",
         desc: "workspace.op.metadata.desc",
+      },
+      screenshot_cleanup: {
+        label: "workspace.op.screenshot_cleanup.label",
+        desc: "workspace.op.screenshot_cleanup.desc",
       },
     },
     fitOption: {
@@ -859,6 +880,9 @@ export const strings = {
       stripAll: "workspace.field.stripAll",
       stripGps: "workspace.field.stripGps",
       autoOrient: "workspace.field.autoOrient",
+      tolerance: "workspace.field.tolerance",
+      maxTrimPercent: "workspace.field.maxTrimPercent",
+      padding: "workspace.field.padding",
     },
   },
   errors: {

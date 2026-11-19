@@ -95,6 +95,10 @@ finer-grained presets.
 | Establish UI design language | `DESIGN.md` at this scenario's root |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Classify a new capability | [`docs/concepts/CAPABILITY-MODEL.md`](docs/concepts/CAPABILITY-MODEL.md) |
+| Add an operation (today vs target) | [`docs/internal/CAPABILITY-MANIFEST.md`](docs/internal/CAPABILITY-MANIFEST.md) |
+| Compose operations or reach other media scenarios | [`docs/concepts/COMPOSITION.md`](docs/concepts/COMPOSITION.md) |
+| Reduce debt / understand the roadmap | [`docs/internal/MATURATION-PLAN.md`](docs/internal/MATURATION-PLAN.md) |
 | Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
 | Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
 | Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |

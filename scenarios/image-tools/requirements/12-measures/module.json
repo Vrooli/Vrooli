@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/measures/measures_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Measure values are recorded per op/model and queryable"
         },
         {

@@ -69,7 +69,7 @@ time. The pattern from wire to render:
 | UI (`ui/`) | 85% lines / branches / functions / statements | `ui/vite.config.ts` `test.coverage`; CI runs `pnpm test:coverage` |
 | API (`api/`) | 75% total | `.github/workflows/test.yml` `api` job |
 | CLI (`cli/`) | 75% total | `.github/workflows/test.yml` `cli` job |
-| Model lifecycle packages | 85% each for `internal/models`, `internal/ai`, `internal/backends` | `.github/workflows/test.yml` `api` job; local `make coverage-model-lifecycle` |
+| Package coverage floors | Ratcheted to the measured baseline: `internal/models` 79.5%, `internal/ai` 77%, `internal/backends` 88%, `internal/capacity` 27%, `internal/aigateway` 55%, `handlers/adapters` 44%, `handlers/preparation` 70% | local `make coverage-floors` (the old 85% figures were aspirational and unenforced; the gate now fails on regression rather than describing a target nobody ran) |
 
 ### Go (API + CLI)
 

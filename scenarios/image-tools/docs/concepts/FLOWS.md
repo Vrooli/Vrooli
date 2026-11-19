@@ -105,6 +105,15 @@ ordered list of normal operation steps. There is no `recipes` package, schema,
 CLI or second pipeline representation. Model-backed steps still use their
 normal model selection, admission, job and cancellation paths.
 
+Looks now carries a scenario qualifier and typed ports, and the store validates
+the chain (unknown op, non-executable op, lane mismatch, bad port, image-after-text)
+before it can be saved or compiled. The chain is still linear rather than a DAG,
+and cross-scenario steps are declared but rejected for execution. The target for
+workflow-level flows (typed ports, scenario-qualified steps, per-owner execution,
+cross-scenario composition) is [`COMPOSITION.md`](COMPOSITION.md). Until that
+lands, a Look cannot express a non-image step or validate that one step's output
+kind matches the next step's input.
+
 ### Quality evaluation and promotion
 
 `image-tools quality evaluate` scores an output-set manifest using the

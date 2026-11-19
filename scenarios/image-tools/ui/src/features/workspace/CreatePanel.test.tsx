@@ -138,7 +138,7 @@ describe("CreatePanel", () => {
     await user.upload(screen.getByTestId("create-pose-source"), poseSource);
 
     expect(screen.getByText(/operator approved this exact ControlNet under CreativeML OpenRAIL-M/i)).toBeInTheDocument();
-    expect(screen.getByText("Staged: synthetic-pose.png")).toBeInTheDocument();
+    expect(screen.getByTestId("create-pose-staged")).toHaveTextContent("synthetic-pose.png");
     expect(screen.getByTestId("create-pose-license-acceptance")).not.toBeChecked();
     await user.click(screen.getByTestId("create-pose-license-acceptance"));
     expect(screen.getByTestId("create-pose-license-acceptance")).toBeChecked();
@@ -282,7 +282,9 @@ describe("CreatePanel", () => {
       "inpaint",
       expect.objectContaining({
         prompt: "fill the masked area",
-        inpaint: { cropToMask: true, contextPixels: 128, maxEdgePx: 0, neutralizeMaskedPixels: false },
+        // Operation-specific knobs ride opParams under the schema's key names; a
+        // zero max_edge_px is omitted because 0 is not one of its legal values.
+        opParams: { inpaint_crop_to_mask: true, inpaint_context_pixels: 128 },
       }),
       PNG,
       MASK,

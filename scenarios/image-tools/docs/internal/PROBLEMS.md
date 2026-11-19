@@ -335,6 +335,11 @@ namespace access; route the `AppShell` main-content label through i18n; and drop
 the dead SSR guards in `ThemeProvider` (the SPA is client-only). Then every
 generated scenario inherits the fix.
 
+**Local status (2026-11-19):** resolved for this scenario — lint now ignores
+generated files (they contain literals by design) and the remaining findings were
+fixed, so `pnpm lint` is 0 errors. The upstream template work above still matters
+for newly generated scenarios.
+
 **Owner:** unassigned (react-vite template + api-core maintainers).
 
 **Refs:** `api/internal/httpx/errors.go`, `api/internal/{middleware,module,server}/*_test.go`,
@@ -704,7 +709,7 @@ statuses to failing — confirm against an isolated re-run before believing it.
 **Refs:** `requirements/{14..20,22,23}/module.json`, `requirements/index.json`,
 `api/internal/ai/catalog.go`, `docs/internal/PROGRESS.md`.
 
-### 2026-06-18 — Phase 4 suite residuals: proto commit-gating (now incl. diff/safety), unit flake, DCT-hash duplication
+### 2026-06-18 — Phase 4 suite residuals: proto commit-gating (now incl. diff/safety), unit flake, DCT-hash duplication — DCT duplication RESOLVED 2026-07-05
 
 **Symptom:** Full `vrooli scenario test image-tools` after Phase 4 = 13 pass / 6 red.
 Three things to know for the next agent (none a Phase-4 code defect — confirmed
@@ -936,3 +941,101 @@ ledger path lock. Music Tools reuses the shared scope and completes only after
 release. Focused tests and race checks pass; live showcase and scenario-phase
 receipts are retained in the programme-four-20261108 IT2 checkpoint. Earlier
 serialized-queue descriptions above are historical, not the current policy.
+
+
+### 2026-07-05 — Capability extension tax: seven hand-synced surfaces per operation
+
+**Symptom:** Adding one model-backed operation requires editing ~20 files across
+seven surfaces (vocabulary, proto params, `paramsMap`, per-op validators,
+provider/technique rows, CLI commands, UI catalogs + i18n). Two of those surfaces
+(CLI, UI catalogs) have no conformance test, so forgetting one degrades silently.
+
+**Root cause:** The operation *names* are data (`internal/operations`), but
+operation *semantics* are code: params are a flat proto struct flattened to
+`map[string]string`, validators are hand-written per op, providers are Go literals
+with string-matched quirks, and CLI/UI surfaces are hand-maintained.
+
+**Workaround:** Follow the extension path in `ARCHITECTURE.md` and update all
+seven surfaces; keep the operation's consent weight in `internal/safety` (a
+conformance test forces that one).
+
+**Real fix:** One declarative capability manifest per operation with generated
+CLI/UI/params surfaces. Design, schema, and gates:
+[`CAPABILITY-MANIFEST.md`](CAPABILITY-MANIFEST.md). Program view:
+[`MATURATION-PLAN.md`](MATURATION-PLAN.md) item D1.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/operations`, `api/handlers/ai/params.go`,
+`api/internal/ai/provider_catalog.go`, `cli/domains/{ai,ops}/register.go`,
+`ui/src/features/workspace/*Catalog.ts`.
+
+### 2026-07-05 — Requirements ledger still cites retired packages
+
+**Symptom:** The requirements registry marks 50 validations `failing` while every
+Go package is green, and 14 validation refs point at paths that do not exist
+(`internal/recipes`, `internal/batch`, `internal/provenance`, `internal/byok`,
+`internal/presets`, `internal/watch`).
+
+**Root cause:** The 2026-06-18 repair moved module statuses from `complete` to
+`in_progress` but did not delete or re-point the dead validation refs. `recipes`
+was retired in favour of Looks, so its refs are stale by definition.
+
+**Workaround:** Treat the ledger as historical; trust `go test ./...` and the
+conformance tests for current state.
+
+**Real fix:** Delete refs to non-existent paths, re-point recipes→Looks, and
+re-derive `failing` flags from actual runs. Tracked as D2 in
+[`MATURATION-PLAN.md`](MATURATION-PLAN.md).
+
+**Owner:** unassigned.
+
+**Refs:** `requirements/*/module.json`, `requirements/index.json`.
+
+### 2026-07-05 — Orphan tables `attachments` and `notes` — RESOLVED 2026-07-05
+
+**Symptom:** The live SQLite file contains `attachments` and `notes` tables with
+zero references in code; no domain schema declares them.
+
+**Root cause:** Template-scaffold residue from `react-vite`. The `notes` reference
+was replaced end-to-end by `jobs` + `models` (DECISIONS 2026-06-17), but the live
+tables were never dropped.
+
+**Workaround:** Harmless while empty; do not write to them.
+
+**Real fix:** Drop them when a migration mechanism lands (D7/D8 in
+[`MATURATION-PLAN.md`](MATURATION-PLAN.md)). A declarative `CREATE TABLE IF NOT
+EXISTS` schema cannot express a drop, which is why this waits for migrations.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/database/system.sql`, live `data/image-tools.db`.
+
+### 2026-07-05 — Declarative schemas have no evolution path — RESOLVED 2026-07-05
+
+**Symptom:** Every domain applies a forward-only `schema.sql` built from
+`CREATE TABLE IF NOT EXISTS`. There is no `migrations/` directory and no versioned
+step, so the first column change or table drop has no governed route.
+
+**Root cause:** Greenfield bias — the storage doctrine defers versioned migrations
+until production schema evolution earns them. With 19 live tables and active
+feature growth, that threshold is near.
+
+**Workaround:** Additive tables only; never alter or drop in place.
+
+**Real fix:** Adopt versioned migrations when the first non-additive change is
+needed, not before. Trigger recorded as D8 in
+[`MATURATION-PLAN.md`](MATURATION-PLAN.md).
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/*/schema.sql`, `api/internal/database/system.sql`.
+
+### Resolution — versioned migrations (2026-07-05)
+
+`api/internal/database/migrate.go` adds an embedded, lexically ordered,
+transactional migration runner recording applied versions in `schema_migrations`.
+Boot order is now `ApplySchemas → Migrate → VerifyDeclaredColumns`, which lets a
+migration repair drift that the declarative schema alone cannot express before the
+drift check runs. `migrations/0001_drop_template_tables.sql` drops the two orphan
+tables. Tests cover application, idempotence, ordering, and rollback-on-failure.

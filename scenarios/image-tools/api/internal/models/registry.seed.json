@@ -592,12 +592,14 @@
       "name": "Stable Diffusion 1.5 Inpainting",
       "operations": [
         "inpaint",
-        "outpaint"
+        "outpaint",
+        "garment_replace"
       ],
       "architecture": "sd15",
       "default_for": [
         "inpaint",
-        "outpaint"
+        "outpaint",
+        "garment_replace"
       ],
       "tier": "default",
       "backend": "diffusers",
@@ -4482,6 +4484,74 @@
         "revision": "",
         "sha256": "",
         "license_id": "n/a (own code)",
+        "classification": "unknown",
+        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "review_triggers": [
+          "artifact_changed",
+          "license_source_changed",
+          "review_due"
+        ]
+      }
+    },
+    {
+      "id": "ip-adapter-faceid-sd15",
+      "name": "IP-Adapter FaceID face-transfer stack (SD 1.5)",
+      "operations": [
+        "face_swap"
+      ],
+      "architecture": "sd15",
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "diffusers",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 5600,
+      "quant_variants": [
+        "SD1.5 base + ip-adapter-faceid SD15 weight file",
+        "plus InsightFace detection/embedding models (buffalo_l)"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 8,
+        "min_ram_gb": 12,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ],
+        "speed_note": "Face-transfer profile: SD1.5 base + IP-Adapter FaceID reference conditioning. GPU recommended; CPU path is slow and not yet qualified."
+      },
+      "io": {
+        "native_resolution": "512x512",
+        "notes": "Needs the subject image plus a reference identity image supplied as a conditioning adapter (AdapterRef.conditioning_image_key). This is a stack profile, not a new base checkpoint."
+      },
+      "capability_labels": {
+        "nsfw_capable": true,
+        "license": "Apache-2.0 (IP-Adapter) + InsightFace model terms",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "IP-Adapter code and weights are Apache-2.0, but the FaceID variant depends on InsightFace detection/embedding models whose published weights carry non-commercial research terms by default. Verify or replace the InsightFace component before any commercial deployment, and keep this entry disabled until that review is recorded.",
+        "base_model_lineage": "Stable Diffusion 1.5 + IP-Adapter FaceID",
+        "known_risks": "Identity substitution of real people. Local-first policy does not block the capability; a hosted deployment should keep the consent, provenance and content-scan controls on. Declared experimental and disabled until the InsightFace commercial review lands."
+      },
+      "source": {
+        "manual": true,
+        "download_url": "https://huggingface.co/h94/IP-Adapter-FaceID",
+        "source_repo": "https://github.com/tencent-ailab/IP-Adapter",
+        "docs_url": "https://github.com/tencent-ailab/IP-Adapter#faceid",
+        "update_source": "https://huggingface.co/h94/IP-Adapter-FaceID",
+        "checksum": {
+          "algo": "sha256",
+          "value": "",
+          "status": "unverified-capture-on-download"
+        }
+      },
+      "enabled": false,
+      "rights": {
+        "artifact_id": "ip-adapter-faceid-sd15",
+        "revision": "",
+        "sha256": "",
+        "license_id": "Apache-2.0 + InsightFace terms",
         "classification": "unknown",
         "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
         "review_triggers": [

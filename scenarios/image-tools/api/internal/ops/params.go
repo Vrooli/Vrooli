@@ -113,6 +113,13 @@ type Params struct {
 	LowThreshold  float64 `json:"low_threshold,omitempty"`
 	HighThreshold float64 `json:"high_threshold,omitempty"`
 
+	// Screenshot cleanup: trim the uniform chrome/letterbox bands a screenshot
+	// carries around its subject. Tolerance is a per-channel fraction of full
+	// scale; MaxTrimPercent is the per-side safety ceiling.
+	Tolerance      float64 `json:"tolerance,omitempty"`
+	MaxTrimPercent float64 `json:"max_trim_percent,omitempty"`
+	PaddingPx      int     `json:"padding_px,omitempty"`
+
 	// Canvas / background.
 	Background string `json:"background,omitempty"` // hex (#rrggbb / #rrggbbaa)
 

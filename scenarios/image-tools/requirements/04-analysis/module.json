@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/analysis/analysis_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "OCR, NSFW classify, and probe return structured results"
         },
         {

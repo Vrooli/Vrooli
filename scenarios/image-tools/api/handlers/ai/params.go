@@ -1,14 +1,13 @@
 package ai
 
 import (
+	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
 	"image-tools/internal/adapters"
+	"image-tools/internal/capability"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 )
@@ -80,31 +79,6 @@ func allowReclaimForParams(p *aiv1.AIParams) bool {
 // so a provider's per-op defaults apply to the rest.
 func paramsMap(p *aiv1.AIParams) map[string]string {
 	m := map[string]string{}
-	if v := p.GetSegmentation(); v != nil {
-		// Admission validates finite, bounded coordinates before this conversion.
-		if raw, err := protojson.Marshal(v); err == nil {
-			m["segmentation"] = string(raw)
-		}
-	}
-	if v := p.GetSceneGeometry(); v != nil && v.GetSupportRoi() != nil {
-		if raw, err := (protojson.MarshalOptions{EmitUnpopulated: true}).Marshal(v.GetSupportRoi()); err == nil {
-			m["support_roi"] = string(raw)
-		}
-	}
-	if v := p.GetImageToObject(); v != nil && v.GetMeshResolution() != 0 {
-		m["mesh_resolution"] = strconv.FormatUint(uint64(v.GetMeshResolution()), 10)
-	}
-	if v := p.GetBackgroundRepair(); v != nil {
-		if raw, err := protojson.Marshal(v); err == nil {
-			m["background_repair"] = string(raw)
-		}
-	}
-	if v := p.GetInpaint(); v != nil {
-		m["inpaint_crop_to_mask"] = strconv.FormatBool(v.GetCropToMask())
-		m["inpaint_context_pixels"] = strconv.FormatUint(uint64(v.GetContextPixels()), 10)
-		m["inpaint_max_edge_px"] = strconv.FormatUint(uint64(v.GetMaxEdgePx()), 10)
-		m["inpaint_neutralize_masked_pixels"] = strconv.FormatBool(v.GetNeutralizeMaskedPixels())
-	}
 	if v := p.GetPrompt(); v != "" {
 		m["prompt"] = v
 	}
@@ -141,119 +115,102 @@ func paramsMap(p *aiv1.AIParams) map[string]string {
 	if v := p.GetOpenrouterRole(); v != "" {
 		m["openrouter_role"] = v
 	}
+	// Operation-specific parameters declared by the capability manifest. Shared
+	// typed fields above win on name collision, so op_params can only add knobs
+	// the operation's schema declares.
+	for k, v := range opParamsMap(p) {
+		if _, exists := m[k]; !exists {
+			m[k] = v
+		}
+	}
 	return m
 }
 
-func validateBackgroundRepair(op string, p *aiv1.AIParams) error {
-	params := p.GetBackgroundRepair()
-	if op != "object_removal" {
-		if params != nil {
-			return fmt.Errorf("background_repair parameters apply only to object_removal")
+// opParamsMap flattens AIParams.op_params (a proto Struct) into the string map
+// the engine threads to providers. Values are schema-validated before this runs.
+func opParamsMap(p *aiv1.AIParams) map[string]string {
+	out := map[string]string{}
+	if p == nil || p.GetOpParams() == nil {
+		return out
+	}
+	for k, v := range p.GetOpParams().AsMap() {
+		switch tv := v.(type) {
+		case string:
+			out[k] = tv
+		case bool:
+			out[k] = strconv.FormatBool(tv)
+		case float64:
+			out[k] = strconv.FormatFloat(tv, 'f', -1, 64)
+		case nil:
+			// Explicit null means "unset"; let the provider default apply.
+		default:
+			if raw, err := json.Marshal(tv); err == nil {
+				out[k] = string(raw)
+			}
 		}
-		return nil
 	}
-	if params == nil {
-		return nil
-	}
-	if params.GetMaskExpansionPixels() > 64 {
-		return fmt.Errorf("background_repair mask_expansion_pixels must be at most 64")
-	}
-	if len(params.GetRemovalRegions()) > 32 {
-		return fmt.Errorf("background_repair accepts at most 32 removal_regions")
-	}
-	unit := func(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && v <= 1 }
-	for _, b := range params.GetRemovalRegions() {
-		if b == nil || !unit(b.GetX()) || !unit(b.GetY()) || !unit(b.GetWidth()) || !unit(b.GetHeight()) || b.GetWidth() <= 0 || b.GetHeight() <= 0 || b.GetX()+b.GetWidth() > 1 || b.GetY()+b.GetHeight() > 1 {
-			return fmt.Errorf("background_repair removal_regions must have positive area within normalized 0..1 coordinates")
-		}
-	}
-	return nil
+	return out
 }
 
-func validateImageToObject(op string, p *aiv1.AIParams) error {
-	params := p.GetImageToObject()
-	if op != "image_to_object" {
-		if params != nil {
-			return fmt.Errorf("image_to_object parameters apply only to image_to_object")
-		}
-		return nil
+// validateOpParams enforces the operation's declared params_schema. An operation
+// with no schema rejects any op_params, so typos and silently-ignored input fail
+// loudly instead of being dropped.
+func validateOpParams(op string, p *aiv1.AIParams) error {
+	values := map[string]any{}
+	if p != nil && p.GetOpParams() != nil {
+		values = p.GetOpParams().AsMap()
 	}
-	if params == nil || params.GetMeshResolution() == 0 || params.GetMeshResolution() == 128 || params.GetMeshResolution() == 256 {
-		return nil
-	}
-	return fmt.Errorf("image_to_object mesh_resolution must be 128 or 256")
+	return capability.ValidateOpParams(op, values)
 }
 
-func validateSegmentation(op string, p *aiv1.AIParams) error {
-	s := p.GetSegmentation()
+func hasInpaintControls(p *aiv1.AIParams) bool {
+	for k := range opParamsMap(p) {
+		if strings.HasPrefix(k, "inpaint_") {
+			return true
+		}
+	}
+	return false
+}
+
+// validateSegmentationSemantics covers the part of the segment contract that is
+// genuinely relational and therefore cannot be a JSON Schema constraint: the
+// prompt must contain a positive point or a box, and segmentation accepts no
+// variations or conditioning adapters. Types and coordinate ranges are enforced
+// by the operation's params_schema.
+func validateSegmentationSemantics(op string, p *aiv1.AIParams) error {
 	if op != "segment" {
-		if s != nil {
-			return fmt.Errorf("segmentation prompts apply only to segment")
-		}
 		return nil
 	}
-	if s == nil || len(s.GetPoints()) > 64 {
-		return fmt.Errorf("segment requires a box or at most 64 explicit points")
+	raw, ok := p.GetOpParams().AsMap()["segmentation"]
+	if !ok {
+		return fmt.Errorf("segment requires a segmentation prompt (points or box)")
 	}
-	unit := func(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && v <= 1 }
-	positive := false
-	for _, point := range s.GetPoints() {
-		if point == nil || !unit(point.GetX()) || !unit(point.GetY()) {
-			return fmt.Errorf("segment points must have finite coordinates in 0..1")
+	prompt, ok := raw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("segment prompt must be an object")
+	}
+	if _, ok := prompt["box"].(map[string]any); ok {
+		// Geometry (positive area inside the frame) is the operation's schema rule;
+		// this check is only "a prompt exists to segment".
+		return nil
+	}
+	points, _ := prompt["points"].([]any)
+	for _, pt := range points {
+		if m, ok := pt.(map[string]any); ok {
+			if neg, _ := m["negative"].(bool); !neg {
+				return nil
+			}
 		}
-		positive = positive || !point.GetNegative()
 	}
-	if b := s.GetBox(); b != nil {
-		if !unit(b.X) || !unit(b.Y) || !unit(b.Width) || !unit(b.Height) || b.Width <= 0 || b.Height <= 0 || b.X+b.Width > 1 || b.Y+b.Height > 1 {
-			return fmt.Errorf("segment box must have positive area within 0..1")
-		}
-		positive = true
-	}
-	if !positive {
-		return fmt.Errorf("segment requires a positive point or object box; auto-subject is not supported")
-	}
-	if p.GetVariations() > 1 || len(p.GetAdapters()) > 0 {
-		return fmt.Errorf("segment does not accept variations or conditioning adapters")
-	}
-	return nil
+	return fmt.Errorf("segment requires a positive point or an object box; auto-subject is not supported")
 }
 
-func validateSceneGeometry(op string, p *aiv1.AIParams) error {
-	g := p.GetSceneGeometry()
-	if op != "scene_geometry" {
-		if g != nil {
-			return fmt.Errorf("scene_geometry parameters apply only to scene_geometry")
-		}
-		return nil
+// hasBackgroundRepair reports whether the request carries background-repair
+// controls (now op_params). Only the qualified big-lama model implements them.
+func hasBackgroundRepair(p *aiv1.AIParams) bool {
+	if p == nil || p.GetOpParams() == nil {
+		return false
 	}
-	if g == nil || g.GetSupportRoi() == nil {
-		return nil
-	}
-	b := g.GetSupportRoi()
-	unit := func(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && v <= 1 }
-	if !unit(b.GetX()) || !unit(b.GetY()) || !unit(b.GetWidth()) || !unit(b.GetHeight()) || b.GetWidth() <= 0 || b.GetHeight() <= 0 || b.GetX()+b.GetWidth() > 1 || b.GetY()+b.GetHeight() > 1 {
-		return fmt.Errorf("scene_geometry support_roi must have positive area within normalized 0..1 coordinates")
-	}
-	return nil
-}
-
-// validateInpaint prevents crop controls from silently disappearing in other ops.
-func validateInpaint(op string, p *aiv1.AIParams) error {
-	crop := p.GetInpaint()
-	if crop == nil {
-		return nil
-	}
-	if op != "inpaint" {
-		return fmt.Errorf("inpaint controls are supported only by inpaint")
-	}
-	if !crop.CropToMask {
-		return fmt.Errorf("inpaint crop controls require crop_to_mask=true; omit inpaint to use the full source")
-	}
-	if crop.ContextPixels > 512 {
-		return fmt.Errorf("inpaint context_pixels must be 0..512")
-	}
-	if crop.MaxEdgePx != 0 && crop.MaxEdgePx != 512 && crop.MaxEdgePx != 1024 {
-		return fmt.Errorf("inpaint max_edge_px must be 512 or 1024, or unset")
-	}
-	return nil
+	_, ok := p.GetOpParams().AsMap()["background_repair"]
+	return ok
 }

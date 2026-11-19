@@ -38,23 +38,12 @@ type RunResult struct {
 // RunFunc executes one operation end-to-end (decode already done by Execute).
 type RunFunc func(in RunInput) (RunResult, error)
 
-// Category groups operations for discovery/UI.
-type Category string
-
-const (
-	CategoryGeometry Category = "geometry"
-	CategoryColor    Category = "color"
-	CategoryFormat   Category = "format"
-	CategoryCompose  Category = "compose"
-	CategoryMetadata Category = "metadata"
-)
-
 // Op is a registered deterministic operation.
+// Op is one in-process operation. Discovery metadata (family, summary, ports)
+// comes from the operation's capability manifest; this table owns only execution.
 type Op struct {
-	Name     string
-	Category Category
-	Summary  string
-	run      RunFunc
+	Name string
+	run  RunFunc
 }
 
 // registry is the canonical deterministic-op table. It is the single source of
@@ -62,43 +51,44 @@ type Op struct {
 // the CLI (command surface).
 var registry = func() map[string]Op {
 	ops := []Op{
-		{Name: "resize", Category: CategoryGeometry, Summary: "Resize (fit/fill/stretch) preserving or forcing aspect", run: pixel(Resize)},
-		{Name: "crop", Category: CategoryGeometry, Summary: "Crop a rectangle or a gravity-anchored region", run: pixel(Crop)},
-		{Name: "rotate", Category: CategoryGeometry, Summary: "Rotate by 90° steps or an arbitrary angle", run: pixel(Rotate)},
-		{Name: "flip", Category: CategoryGeometry, Summary: "Mirror horizontally or vertically", run: pixel(Flip)},
-		{Name: "deskew", Category: CategoryGeometry, Summary: "Auto-straighten a skewed scan/document", run: pixel(Deskew)},
-		{Name: "thumbnail", Category: CategoryGeometry, Summary: "Produce a fill-cropped thumbnail", run: pixel(Thumbnail)},
-		{Name: "canvas", Category: CategoryGeometry, Summary: "Pad/extend onto a background canvas", run: pixel(Canvas)},
-		{Name: "adjust", Category: CategoryColor, Summary: "Brightness/contrast/gamma/saturation/hue", run: pixel(Adjust)},
-		{Name: "filter", Category: CategoryColor, Summary: "Grayscale/sepia/invert/blur/sharpen", run: pixel(Filter)},
-		{Name: "duotone", Category: CategoryColor, Summary: "Map perceptual lightness onto a deterministic two- or three-ink ramp", run: treatment(treatments.Duotone)},
-		{Name: "posterize", Category: CategoryColor, Summary: "Quantize perceptual lightness to a fixed number of levels", run: treatment(treatments.Posterize)},
-		{Name: "halftone", Category: CategoryColor, Summary: "Render perceptual lightness on a rotated dot screen", run: treatment(treatments.Halftone)},
-		{Name: "dither_ordered", Category: CategoryColor, Summary: "Apply a deterministic Bayer ordered dither", run: treatment(treatments.DitherOrdered)},
-		{Name: "dither_diffusion", Category: CategoryColor, Summary: "Apply deterministic Floyd-Steinberg error diffusion", run: treatment(treatments.DitherDiffusion)},
-		{Name: "grain", Category: CategoryColor, Summary: "Add seeded film grain", run: treatment(treatments.Grain)},
-		{Name: "scrim", Category: CategoryColor, Summary: "Apply a directional contrast scrim", run: treatment(treatments.Scrim)},
-		{Name: "line_screen", Category: CategoryColor, Summary: "Render perceptual lightness as a line screen", run: tier2("line_screen")},
-		{Name: "stipple", Category: CategoryColor, Summary: "Render seeded jittered stipple", run: tier2("stipple")},
-		{Name: "engraving", Category: CategoryColor, Summary: "Render tonal value as hatching density", run: tier2("engraving")},
-		{Name: "aberration", Category: CategoryColor, Summary: "Separate color channels at edges", run: tier2("aberration")},
-		{Name: "bloom", Category: CategoryColor, Summary: "Lift highlights into a soft bloom", run: tier2("bloom")},
-		{Name: "curve", Category: CategoryColor, Summary: "Apply a deterministic tonal curve", run: tier2("curve")},
-		{Name: "defocus", Category: CategoryColor, Summary: "Apply a deterministic aperture blur", run: tier2("defocus")},
-		{Name: "motion_blur", Category: CategoryColor, Summary: "Blur along a deterministic motion axis", run: tier2("motion_blur")},
-		{Name: "ascii_mosaic", Category: CategoryColor, Summary: "Rebuild the image as tone-matched ASCII glyphs", run: tier2("ascii_mosaic")},
-		{Name: "pixel_sort", Category: CategoryColor, Summary: "Sort bright runs by lightness along an axis", run: tier2("pixel_sort")},
-		{Name: "displacement", Category: CategoryColor, Summary: "Offset pixels through a deterministic displacement map", run: tier2("displacement")},
-		{Name: "canny", Category: CategoryColor, Summary: "Deterministic Canny edge map (ControlNet conditioning preprocessor)", run: pixel(Canny)},
-		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertImage)},
-		{Name: "rasterize", Category: CategoryFormat, Summary: "Rasterize an SVG at an exact pixel size", run: Rasterize},
-		{Name: "vectorize", Category: CategoryFormat, Summary: "Trace a flat raster mark into a clean SVG", run: Vectorize},
-		{Name: "icon_container", Category: CategoryFormat, Summary: "Pack PNG renders into an ICO or ICNS container", run: IconContainer},
-		{Name: "compress", Category: CategoryFormat, Summary: "Re-encode at a quality or to a target file size", run: compressRun},
-		{Name: "overlay", Category: CategoryCompose, Summary: "Composite a watermark image or text", run: pixel(Overlay)},
-		{Name: "parallax", Category: CategoryCompose, Summary: "Render a bounded layered-depth parallax PNG sequence with provenance", run: parallaxSequence},
-		{Name: "composite", Category: CategoryCompose, Summary: "Merge an ordered stack of depth plates into one raster", run: pixel(Composite)},
-		{Name: "metadata", Category: CategoryMetadata, Summary: "Read, strip, or auto-orient image metadata", run: metadataRun},
+		{Name: "resize", run: pixel(Resize)},
+		{Name: "crop", run: pixel(Crop)},
+		{Name: "rotate", run: pixel(Rotate)},
+		{Name: "flip", run: pixel(Flip)},
+		{Name: "deskew", run: pixel(Deskew)},
+		{Name: "thumbnail", run: pixel(Thumbnail)},
+		{Name: "canvas", run: pixel(Canvas)},
+		{Name: "adjust", run: pixel(Adjust)},
+		{Name: "filter", run: pixel(Filter)},
+		{Name: "duotone", run: treatment(treatments.Duotone)},
+		{Name: "posterize", run: treatment(treatments.Posterize)},
+		{Name: "halftone", run: treatment(treatments.Halftone)},
+		{Name: "dither_ordered", run: treatment(treatments.DitherOrdered)},
+		{Name: "dither_diffusion", run: treatment(treatments.DitherDiffusion)},
+		{Name: "grain", run: treatment(treatments.Grain)},
+		{Name: "scrim", run: treatment(treatments.Scrim)},
+		{Name: "line_screen", run: tier2("line_screen")},
+		{Name: "stipple", run: tier2("stipple")},
+		{Name: "engraving", run: tier2("engraving")},
+		{Name: "aberration", run: tier2("aberration")},
+		{Name: "bloom", run: tier2("bloom")},
+		{Name: "curve", run: tier2("curve")},
+		{Name: "defocus", run: tier2("defocus")},
+		{Name: "motion_blur", run: tier2("motion_blur")},
+		{Name: "ascii_mosaic", run: tier2("ascii_mosaic")},
+		{Name: "pixel_sort", run: tier2("pixel_sort")},
+		{Name: "displacement", run: tier2("displacement")},
+		{Name: "canny", run: pixel(Canny)},
+		{Name: "screenshot_cleanup", run: pixel(ScreenshotCleanup)},
+		{Name: "convert", run: pixel(convertImage)},
+		{Name: "rasterize", run: Rasterize},
+		{Name: "vectorize", run: Vectorize},
+		{Name: "icon_container", run: IconContainer},
+		{Name: "compress", run: compressRun},
+		{Name: "overlay", run: pixel(Overlay)},
+		{Name: "parallax", run: parallaxSequence},
+		{Name: "composite", run: pixel(Composite)},
+		{Name: "metadata", run: metadataRun},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

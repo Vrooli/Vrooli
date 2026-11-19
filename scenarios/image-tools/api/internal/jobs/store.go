@@ -84,8 +84,8 @@ const selectJobColumns = `id, operation, lane, state, progress, message, error, 
 
 // encodeMeta stores an absent map as the empty string rather than "{}" so a row
 // that carries no backend record is distinguishable from one that carries an
-// empty record, which is the same distinction ai.MetaCostUSD is written to
-// preserve: "cost nothing" and "nobody reported a cost" are different facts.
+// empty record, which is the same distinction aigateway.MetaCostUSD is written
+// to preserve: "cost nothing" and "nobody reported a cost" are different facts.
 func encodeMeta(meta map[string]string) string {
 	if len(meta) == 0 {
 		return ""

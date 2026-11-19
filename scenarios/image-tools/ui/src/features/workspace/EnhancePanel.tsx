@@ -9,7 +9,8 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIParamsInput } from "../../api/ai";
 import { ModelPickerButton } from "../models/ModelPickerButton";
-import { AI_FALLBACK_ICON, TIER_LABEL, UPSCALE_SCALES, aiPresentation } from "./aiCatalog";
+import { TIER_LABEL, UPSCALE_SCALES } from "./aiCatalog";
+import { capabilityPresentation, capabilitySummary, familyIcon, isPanelOperation } from "./capabilityCatalog";
 import { MODE_LABEL } from "./modeLabels";
 import { isEnhanceActive, type UseEnhance } from "./useEnhance";
 
@@ -69,7 +70,7 @@ export function EnhancePanel({
   const [lastRunOp, setLastRunOp] = useState("");
 
   const enhancementOps = useMemo(
-    () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "enhancement" || op.category === "restoration"),
+    () => (aiOpsQuery.data?.operations ?? []).filter((op) => isPanelOperation(op.name, "enhance")),
     [aiOpsQuery.data],
   );
 
@@ -102,8 +103,8 @@ export function EnhancePanel({
     return base;
   }, [operation, scale, realism, faceAware, modelOverride]);
 
-  const opMeta = operation ? aiPresentation(operation) : undefined;
-  const operationLabel = opMeta ? t(opMeta.labelKey) : operation;
+  const opMeta = operation ? capabilityPresentation(operation) : undefined;
+  const operationLabel = opMeta?.labelKey ? t(opMeta.labelKey) : operation;
 
   // After an over-smoothing op succeeds, offer Naturalize as the next step
   // (unless the user is already on it). Cleared as soon as the op changes.
@@ -160,8 +161,8 @@ export function EnhancePanel({
             className="flex flex-col gap-2"
           >
             {enhancementOps.map((op) => {
-              const meta = aiPresentation(op.name);
-              const Icon = meta?.Icon ?? AI_FALLBACK_ICON;
+              const meta = capabilityPresentation(op.name);
+              const Icon = meta?.Icon ?? familyIcon(undefined);
               const selected = op.name === operation;
               return (
                 <button
@@ -181,11 +182,13 @@ export function EnhancePanel({
                   <Icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-app-brand" />
                   <span className="flex flex-col">
                     <span className="text-sm font-medium text-app-foreground">
-                      {meta ? t(meta.labelKey) : op.name}
+                      {meta?.labelKey ? t(meta.labelKey) : op.name}
                     </span>
-                    {meta && (
+                    {meta?.descKey ? (
                       <span className="text-xs text-app-muted-foreground">{t(meta.descKey)}</span>
-                    )}
+                    ) : capabilitySummary(op.name) ? (
+                      <span className="text-xs text-app-muted-foreground">{capabilitySummary(op.name)}</span>
+                    ) : null}
                   </span>
                 </button>
               );

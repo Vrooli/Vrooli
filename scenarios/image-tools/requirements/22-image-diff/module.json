@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/diff/diff_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Pixel + perceptual diff: identical/different/tolerance/dimension-mismatch verdicts, pHash robust to re-encode, heat-map highlights changed regions."
         },
         {

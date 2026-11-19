@@ -94,7 +94,10 @@ func TestNaturalize_BuildParams(t *testing.T) {
 		Schema: cmd.Args,
 		Flags:  map[string]string{"realism": "0.6", "face-aware": "true"},
 	})
-	p := buildParams(ctx)
+	p, err := buildParams(ctx)
+	if err != nil {
+		t.Fatalf("buildParams: %v", err)
+	}
 	if p.GetRealism() != 0.6 {
 		t.Errorf("realism = %v, want 0.6", p.GetRealism())
 	}

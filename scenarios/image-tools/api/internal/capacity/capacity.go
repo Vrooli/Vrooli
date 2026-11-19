@@ -1,4 +1,9 @@
-package ai
+// Package capacity owns image-tools' share of the host resource ledger: GPU,
+// RAM, CPU and disk claims are acquired, renewed and released here, independent
+// of what is being executed. The inference engine, the model installer and the
+// shared CPU job scheduler all admit through this one boundary, so a claim made
+// by one cannot be invisible to the others.
+package capacity
 
 import (
 	"context"
@@ -15,17 +20,17 @@ import (
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
-// capacityClaimTTL bounds an op claim's liveness without a heartbeat. A
+// ClaimTTL bounds an op claim's liveness without a heartbeat. A
 // generation is bounded (seconds–minutes) and run() releases the claim in a
 // defer; the TTL is the crash-safety net so an abandoned claim is swept by the
 // broker rather than leaking a VRAM reservation forever.
-const capacityClaimTTL = 10 * time.Minute
+const ClaimTTL = 10 * time.Minute
 
-// capacityGPU binds accounting and execution to the same freshly observed
+// GPUFor binds accounting and execution to the same freshly observed
 // physical device. Backends without device selection retain their qualified
 // single-GPU path with UUID accounting; unidentified hardware requires explicit
 // qualification rather than silently claiming a different device.
-func capacityGPU(host capabilities.Host, bytes int64, provider backends.Provider) (capabilities.GPU, error) {
+func GPUFor(host capabilities.Host, bytes int64, provider backends.Provider) (capabilities.GPU, error) {
 	binder, canBind := provider.(interface{ SupportsGPUUUID() bool })
 	canBind = canBind && binder.SupportsGPUUUID()
 	var best capabilities.GPU
@@ -44,15 +49,15 @@ func capacityGPU(host capabilities.Host, bytes int64, provider backends.Provider
 		}
 	}
 	if !found {
-		return capabilities.GPU{}, fmt.Errorf("ai: no GPU with known capacity and a supported physical-device binding; use a CPU-capable backend or qualify device selection")
+		return capabilities.GPU{}, fmt.Errorf("capacity: no GPU with known capacity and a supported physical-device binding; use a CPU-capable backend or qualify device selection")
 	}
 	return best, nil
 }
 
-// CapacityLease retains the shared owner's exact lease along with diagnostics.
+// Lease retains the shared owner's exact lease along with diagnostics.
 // Only an explicit valid denial permits a CPU fallback; protocol/cleanup failures
 // are errors and must never start unadmitted GPU work.
-type CapacityLease struct {
+type Lease struct {
 	ClaimID      string
 	Generation   int64
 	DegradeToCPU bool
@@ -62,29 +67,29 @@ type CapacityLease struct {
 	native       *vroolicli.GPUCapacityLease
 }
 
-type CapacityClaimOptions struct {
+type ClaimOptions struct {
 	Priority     string
 	AllowReclaim bool
 	GPUUUID      string
 }
 
-// CapacityBroker is the engine seam; the shared typed client owns CLI policy,
+// Broker is the engine seam; the shared typed client owns CLI policy,
 // fresh UUID/index validation, claim renewal and cancellation-safe cleanup.
-type CapacityBroker interface {
-	Claim(context.Context, string, int64, CapacityClaimOptions) (CapacityLease, error)
-	Release(context.Context, CapacityLease) error
-	Heartbeat(context.Context, CapacityLease) (CapacityLease, error)
+type Broker interface {
+	Claim(context.Context, string, int64, ClaimOptions) (Lease, error)
+	Release(context.Context, Lease) error
+	Heartbeat(context.Context, Lease) (Lease, error)
 }
 
-// capacityMemoryLease lets a warm worker retain a GPU claim using the same
+// memoryLease lets a warm worker retain a GPU claim using the same
 // cancellation-safe lease-group lifecycle as its RAM and model-file claims.
-type capacityMemoryLease struct {
+type memoryLease struct {
 	mu     sync.Mutex
-	broker CapacityBroker
-	lease  CapacityLease
+	broker Broker
+	lease  Lease
 }
 
-func (l *capacityMemoryLease) Heartbeat(ctx context.Context) error {
+func (l *memoryLease) Heartbeat(ctx context.Context) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	updated, err := l.broker.Heartbeat(ctx, l.lease)
@@ -94,34 +99,34 @@ func (l *capacityMemoryLease) Heartbeat(ctx context.Context) error {
 	return err
 }
 
-func (l *capacityMemoryLease) Release(ctx context.Context) error {
+func (l *memoryLease) Release(ctx context.Context) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.broker.Release(ctx, l.lease)
 }
 
-type CLICapacityBroker struct{ Client *vroolicli.Client }
+type CLIBroker struct{ Client *vroolicli.Client }
 
-func (b *CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferredBytes int64, opts CapacityClaimOptions) (CapacityLease, error) {
+func (b *CLIBroker) Claim(ctx context.Context, ownerID string, preferredBytes int64, opts ClaimOptions) (Lease, error) {
 	client := b.Client
 	if client == nil {
 		client = vroolicli.New()
 	}
 	native, err := client.AcquireGPUCapacity(ctx, vroolicli.GPUCapacityRequest{
 		OwnerID: ownerID, GPUUUID: opts.GPUUUID, VRAMBytes: preferredBytes,
-		Priority: normalizeCapacityPriority(opts.Priority), AllowReclaim: opts.AllowReclaim, TTL: capacityClaimTTL,
+		Priority: normalizeCapacityPriority(opts.Priority), AllowReclaim: opts.AllowReclaim, TTL: ClaimTTL,
 	})
 	if err != nil {
 		var denied *vroolicli.GPUCapacityDenied
 		if errors.As(err, &denied) {
-			return CapacityLease{DegradeToCPU: true, Warnings: append(append([]string{}, denied.Warnings...), denied.Reason), ReclaimBytes: denied.ReclaimBytes, Enforce: denied.Enforce}, nil
+			return Lease{DegradeToCPU: true, Warnings: append(append([]string{}, denied.Warnings...), denied.Reason), ReclaimBytes: denied.ReclaimBytes, Enforce: denied.Enforce}, nil
 		}
-		return CapacityLease{}, err
+		return Lease{}, err
 	}
-	return CapacityLease{ClaimID: native.ClaimID(), Generation: native.Generation(), Warnings: native.Warnings(), ReclaimBytes: native.ReclaimBytes(), Enforce: native.Enforce(), native: native}, nil
+	return Lease{ClaimID: native.ClaimID(), Generation: native.Generation(), Warnings: native.Warnings(), ReclaimBytes: native.ReclaimBytes(), Enforce: native.Enforce(), native: native}, nil
 }
 
-func (b *CLICapacityBroker) Heartbeat(ctx context.Context, lease CapacityLease) (CapacityLease, error) {
+func (b *CLIBroker) Heartbeat(ctx context.Context, lease Lease) (Lease, error) {
 	if lease.native == nil {
 		return lease, fmt.Errorf("capacity heartbeat: no owned GPU lease")
 	}
@@ -131,7 +136,7 @@ func (b *CLICapacityBroker) Heartbeat(ctx context.Context, lease CapacityLease) 
 	return lease, nil
 }
 
-func (b *CLICapacityBroker) Release(ctx context.Context, lease CapacityLease) error {
+func (b *CLIBroker) Release(ctx context.Context, lease Lease) error {
 	if lease.native == nil {
 		if lease.ClaimID == "" {
 			return nil
@@ -141,9 +146,9 @@ func (b *CLICapacityBroker) Release(ctx context.Context, lease CapacityLease) er
 	return lease.native.Release(ctx)
 }
 
-// keepCapacityAlive shares the job cancellation path with renewal failure. Stop
+// KeepAlive shares the job cancellation path with renewal failure. Stop
 // and join renewal before releasing the claim so no late heartbeat can race it.
-func keepCapacityAlive(ctx context.Context, broker CapacityBroker, lease CapacityLease, interval time.Duration) (context.Context, func()) {
+func KeepAlive(ctx context.Context, broker Broker, lease Lease, interval time.Duration) (context.Context, func()) {
 	return keepLeaseAlive(ctx, "GPU", func(beatCtx context.Context) error {
 		updated, err := broker.Heartbeat(beatCtx, lease)
 		if err == nil {
@@ -183,7 +188,7 @@ type DiskAdmission interface {
 	ReserveDiskJob(context.Context, sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error)
 }
 
-func (b *CLICapacityBroker) ReserveDiskJob(ctx context.Context, request sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error) {
+func (b *CLIBroker) ReserveDiskJob(ctx context.Context, request sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error) {
 	broker, err := sharedcapacity.NewBroker(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("open shared disk capacity broker: %w", err)
@@ -266,13 +271,24 @@ func acquireLocalResources(ctx context.Context, owner string, bytes, cpuMilli in
 	return &localMemoryLease{RenewableLease: renewable, broker: broker}, nil
 }
 
-type (
-	operationMemoryContextKey struct{}
-	capacityPriorityKey       struct{}
-)
+// NewMemoryLease adapts a broker lease into the renewal surface the engine's
+// lease group holds. A warm worker uses it to retain a GPU claim across idle
+// periods, so the claim's lifetime follows model residency rather than the job.
+func NewMemoryLease(broker Broker, lease Lease) MemoryLease {
+	return &memoryLease{broker: broker, lease: lease}
+}
+
+type priorityKey struct{}
+
+// WithPriority carries the job's admission priority to the broker. It is
+// exported because the inference engine and the CPU scheduler both set it
+// before admitting.
+func WithPriority(ctx context.Context, priority string) context.Context {
+	return context.WithValue(ctx, priorityKey{}, priority)
+}
 
 func capacityPriority(ctx context.Context) string {
-	priority, _ := ctx.Value(capacityPriorityKey{}).(string)
+	priority, _ := ctx.Value(priorityKey{}).(string)
 	return normalizeCapacityPriority(priority)
 }
 
@@ -282,14 +298,17 @@ func AdmitCPUWork(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
 	if job.Lane == jobs.LaneNetwork {
 		return jobs.Admission{Context: ctx}, nil
 	}
-	ctx = context.WithValue(ctx, capacityPriorityKey{}, string(job.Priority))
+	ctx = WithPriority(ctx, string(job.Priority))
 	lease, err := acquireLocalResources(ctx, "image-tools:"+job.ID+":support", 256<<20, 1000)
 	if err != nil {
 		return jobs.Admission{}, err
 	}
-	group := newLeaseGroup(ctx)
-	group.renew("support", lease)
-	return jobs.Admission{Context: group.ctx, Release: group.release, Meta: map[string]string{"ram_capacity_claim_bytes": "268435456", "cpu_capacity_milli": "1000"}}, nil
+	scope := sharedcapacity.Maintain(ctx, lease)
+	return jobs.Admission{
+		Context: scope.Context(),
+		Release: func(cleanup context.Context) error { return scope.Release(cleanup) },
+		Meta:    map[string]string{"ram_capacity_claim_bytes": "268435456", "cpu_capacity_milli": "1000"},
+	}, nil
 }
 
 func normalizeCapacityPriority(priority string) string {

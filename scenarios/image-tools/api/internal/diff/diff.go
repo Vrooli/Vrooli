@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image-tools/internal/percepthash"
 
 	"github.com/disintegration/imaging"
 )
@@ -135,7 +136,7 @@ func Compare(baseData, compareData []byte, params Params) (Result, error) {
 	res.RMSE = pm.rmse
 	res.PSNR = pm.psnr
 
-	res.PhashDistance = hammingDistance(perceptualHash(base), perceptualHash(cmp))
+	res.PhashDistance = percepthash.Hamming(percepthash.PHash(base), percepthash.PHash(cmp))
 	res.PhashSimilarity = 1 - float64(res.PhashDistance)/64
 	res.SSIM = ssim(baseRGBA, cmpRGBA)
 

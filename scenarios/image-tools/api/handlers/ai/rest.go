@@ -47,6 +47,10 @@ type Gate interface {
 	EvaluateWeight(weight safety.Weight, op string, consentAffirmed bool) safety.Decision
 	AllowRate() bool
 	RecordConsent(ctx context.Context, op string, weight safety.Weight) error
+	// ReviewMinor enforces the non-configurable boundary against the request's
+	// images. It is a no-op on a local deployment and fails closed when a hosted
+	// deployment has no configured reviewer.
+	ReviewMinor(ctx context.Context, op string, images [][]byte) safety.Decision
 }
 
 // Deps wires the AI submit edge's seams.
@@ -86,7 +90,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	operationID := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
-	forceScan, err := h.preflightAdmission(r.Context(), op, params, operationID)
+	gate, err := h.preflightAdmission(r.Context(), op, params, operationID)
 	if err != nil {
 		writeAdmissionError(w, err)
 		return
@@ -120,7 +124,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	response, err := h.admitStored(r.Context(), op, params, inputKey, maskKey, operationID, forceScan)
+	response, err := h.admitStored(r.Context(), op, params, inputKey, maskKey, operationID, gate)
 	if err != nil {
 		writeAdmissionError(w, err)
 		return

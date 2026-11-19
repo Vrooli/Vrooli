@@ -628,9 +628,13 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 func TestAddCustomValidationErrors(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
-	withoutStore := *f.in
-	withoutStore.Custom = nil
-	if err := withoutStore.AddCustom(ctx, Model{ID: "x"}); err == nil {
+	// Do not copy the Installer: it carries a mutex. Temporarily remove the
+	// custom store from the shared fixture and restore it before the next case.
+	savedCustom := f.in.Custom
+	f.in.Custom = nil
+	err := f.in.AddCustom(ctx, Model{ID: "x"})
+	f.in.Custom = savedCustom
+	if err == nil {
 		t.Fatal("expected unavailable custom store error")
 	}
 	if err := f.in.AddCustom(ctx, Model{}); err == nil {

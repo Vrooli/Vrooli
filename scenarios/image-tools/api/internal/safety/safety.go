@@ -1,11 +1,22 @@
 // Package safety is image-tools' Responsible-Use deployment gate (IMG-P1-015).
 //
-// The scenario's position (docs/internal/DECISIONS.md, 2026-06-18): editing real
-// people is gated at DEPLOYMENT, not at the capability. Local/personal use is
-// unrestricted; a public/monetized deployment opts into a stricter policy. The
-// hard non-goals (no recognition / face-swap / deepfake / try-on) hold on EVERY
-// tier regardless of policy — they live in the op catalog (those ops simply do
-// not exist), not here.
+// The scenario's position (docs/internal/DECISIONS.md, 2026-07-04): this is a
+// LOCAL-FIRST tool. No legitimate capability is blocked at the code layer. Editing
+// real people — including identity/face/garment/appearance edits — is available on
+// every tier. Harm protection is a set of CONFIGURABLE controls (attribution /
+// provenance marking, consent affirmation, content scanning, abuse throttling)
+// that a deployment can tighten or disable.
+//
+// The controls therefore gate *how a deployment exposes* the capability, not
+// whether the capability exists. A hosted/public deployment is expected to run
+// the strict preset because that is where legal exposure lives; a personal
+// install may run fully permissive. The operator owns that choice.
+//
+// One thing is not a configurable control: sexual content involving minors. That
+// is illegal content rather than a contested-use question, so the documented
+// posture is a hard refusal on any deployment that serves other people. See
+// docs/internal/SECURITY.md ("Non-negotiable") for its current build status —
+// it is a classifier-policy requirement, not a per-op allowlist.
 //
 // This package owns:
 //   - tier resolution (the deployment chooses local vs public at deploy time, via
@@ -22,7 +33,10 @@ package safety
 
 import (
 	"os"
+	"strconv"
 	"strings"
+
+	"image-tools/internal/capability"
 )
 
 // Tier is the resolved deployment tier.
@@ -85,37 +99,59 @@ func MaxWeight(ws ...Weight) Weight {
 // TierEnv is the deployment-time environment variable that selects the tier.
 const TierEnv = "IMAGE_TOOLS_DEPLOYMENT_TIER"
 
-// publicRateLimitPerMin is the AI-submit rate cap on the public tier (abuse
-// throttle). 0 would mean unlimited; the local tier is always unlimited.
+// Per-control overrides. Each one wins over the tier preset in BOTH directions,
+// so an operator can tighten a local install (e.g. mark provenance) or loosen a
+// public one they run themselves. These control harm protection only; they never
+// add or remove a capability.
+const (
+	// ConsentEnv toggles the consent affirmation requirement.
+	ConsentEnv = "IMAGE_TOOLS_REQUIRE_CONSENT"
+	// NSFWScanEnv toggles forced content scanning of generated output.
+	NSFWScanEnv = "IMAGE_TOOLS_NSFW_SCAN"
+	// ProvenanceEnv toggles provenance/attribution marking of outputs.
+	ProvenanceEnv = "IMAGE_TOOLS_REQUIRE_PROVENANCE"
+	// RateLimitEnv sets the AI-submit rate cap (requests/minute, 0 = unlimited).
+	RateLimitEnv = "IMAGE_TOOLS_RATE_LIMIT_PER_MIN"
+)
+
+// publicRateLimitPerMin is the default AI-submit rate cap on the public tier
+// (abuse throttle). 0 would mean unlimited; the local preset is always unlimited.
 const publicRateLimitPerMin = 60
 
-// opWeights is the canonical per-operation consent-weight table. Ops absent from
-// the map default to WeightNone (analysis, diff, text_to_image, upscale,
-// background_removal, denoise — none can alter a real person). High-weight ops
-// are the identity/body/clothing/pose-altering edits.
-var opWeights = map[string]Weight{
-	"naturalize":         WeightLow,
-	"edit_instruct":      WeightHigh,
-	"inpaint":            WeightHigh,
-	"outpaint":           WeightHigh,
-	"object_removal":     WeightHigh,
-	"background_replace": WeightHigh,
-	"image_to_image":     WeightHigh,
-}
+// Consent weights are declared in the capability manifest set
+// (internal/capability, manifests.seed.json) and read here. That makes the
+// manifest the single source: a conformance test requires every AI-catalog
+// operation to declare a weight, so a newly added identity-altering op cannot
+// silently inherit "none".
+//
+// Weight NEVER gates availability. It only decides whether an enabled control
+// (consent affirmation, elevated provenance, forced scan) applies — and only when
+// the deployment has that control on. A weight of High on a permissive local
+// install means "nothing"; on a public deployment it means "consent required".
+const (
+	weightNone = Weight(capability.ConsentWeightNone)
+	weightLow  = Weight(capability.ConsentWeightLow)
+	weightHigh = Weight(capability.ConsentWeightHigh)
+)
 
 // OpWeight returns the consent weight of an operation (WeightNone when unknown).
 func OpWeight(op string) Weight {
-	if w, ok := opWeights[op]; ok {
-		return w
+	switch capability.ConsentWeightFor(op) {
+	case capability.ConsentWeightHigh:
+		return weightHigh
+	case capability.ConsentWeightLow:
+		return weightLow
+	default:
+		return weightNone
 	}
-	return WeightNone
 }
 
 // OpWeights returns a copy of the full op-weight table (for discovery).
 func OpWeights() map[string]Weight {
-	out := make(map[string]Weight, len(opWeights))
-	for k, v := range opWeights {
-		out[k] = v
+	declared := capability.Weights()
+	out := make(map[string]Weight, len(declared))
+	for id, w := range declared {
+		out[id] = Weight(w)
 	}
 	return out
 }
@@ -145,29 +181,126 @@ type Policy struct {
 	ForceNSFWScan     bool
 	RequireProvenance bool
 	RateLimitPerMin   int
+	// MinorSafetyRequired is the one non-configurable control: a deployment that
+	// serves other people must review for sexual content involving minors. It is
+	// on for the public tier and is not overridable, unlike every other control.
+	MinorSafetyRequired bool
+	// MinorSafetyDetector reports whether the deployment actually configured a
+	// reviewer. Required-but-absent is a refusal, never a silent pass: the policy
+	// cannot claim the boundary while nothing enforces it.
+	MinorSafetyDetector bool
 }
 
-// PolicyFor derives the policy for a tier. Local is fully permissive; public
-// turns on consent, forced NSFW scanning, provenance marking, and rate limiting.
+// PolicyFor derives the DEFAULT control set for a tier. Local is fully
+// permissive; public turns on consent, forced content scanning, provenance
+// marking, and rate limiting. These are defaults, not mandates — ResolvePolicy
+// applies the per-control environment overrides on top.
 func PolicyFor(t Tier) Policy {
 	if t == TierPublic {
 		return Policy{
-			Tier:              TierPublic,
-			RequireConsent:    true,
-			ForceNSFWScan:     true,
-			RequireProvenance: true,
-			RateLimitPerMin:   publicRateLimitPerMin,
+			Tier:                TierPublic,
+			RequireConsent:      true,
+			ForceNSFWScan:       true,
+			RequireProvenance:   true,
+			RateLimitPerMin:     publicRateLimitPerMin,
+			MinorSafetyRequired: true,
 		}
 	}
 	return Policy{Tier: TierLocal}
 }
 
-// Summary is a one-line human description of the active policy.
+// ResolvePolicy returns the effective policy for this process: the tier preset
+// with any per-control environment overrides applied. This is what the submit
+// edge and the discovery surface should use.
+func ResolvePolicy() Policy {
+	return ApplyOverrides(PolicyFor(ResolveTier()), lookupEnv)
+}
+
+// ApplyOverrides layers environment overrides onto a base policy. Exported with
+// an injected lookup so tests can drive it without mutating the process env.
+func ApplyOverrides(base Policy, lookup func(string) (string, bool)) Policy {
+	if v, ok := parseBoolEnv(lookup, ConsentEnv); ok {
+		base.RequireConsent = v
+	}
+	if v, ok := parseBoolEnv(lookup, NSFWScanEnv); ok {
+		base.ForceNSFWScan = v
+	}
+	if v, ok := parseBoolEnv(lookup, ProvenanceEnv); ok {
+		base.RequireProvenance = v
+	}
+	if v, ok := parseIntEnv(lookup, RateLimitEnv); ok {
+		if v < 0 {
+			v = 0
+		}
+		base.RateLimitPerMin = v
+	}
+	return base
+}
+
+func lookupEnv(key string) (string, bool) { return os.LookupEnv(key) }
+
+func parseBoolEnv(lookup func(string) (string, bool), key string) (bool, bool) {
+	raw, ok := lookup(key)
+	if !ok {
+		return false, false
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true, true
+	case "0", "false", "no", "off":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func parseIntEnv(lookup func(string) (string, bool), key string) (int, bool) {
+	raw, ok := lookup(key)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
+// Summary is a one-line human description of the active policy. It is DERIVED
+// from the resolved controls rather than asserting a fixed posture, so it cannot
+// claim a protection the deployment has turned off (or deny a capability that
+// exists).
 func (p Policy) Summary() string {
 	if p.Tier == TierPublic {
-		return "Public deployment: consent required for identity-altering edits, NSFW auto-scan on, provenance marked, abuse rate-limited. Hard non-goals (no recognition/face-swap/deepfake) always enforced."
+		return "Public deployment policy: " + p.controlsSummary() + ". All image capabilities remain available."
 	}
-	return "Local/personal deployment: unrestricted. Hard non-goals (no recognition/face-swap/deepfake) always enforced."
+	return "Local/personal deployment policy: " + p.controlsSummary() + ". All image capabilities remain available."
+}
+
+func (p Policy) controlsSummary() string {
+	on := func(b bool, name string) string {
+		if b {
+			return name + " on"
+		}
+		return name + " off"
+	}
+	rate := "rate limit off"
+	if p.RateLimitPerMin > 0 {
+		rate = "rate limit " + strconv.Itoa(p.RateLimitPerMin) + "/min"
+	}
+	minor := "minor-safety review off"
+	if p.MinorSafetyRequired {
+		minor = "minor-safety review required"
+		if p.MinorSafetyDetector {
+			minor += " (detector configured)"
+		} else {
+			minor += " (NO DETECTOR — image-output submissions are refused)"
+		}
+	}
+	return on(p.RequireConsent, "consent affirmation") + ", " +
+		on(p.ForceNSFWScan, "content scan") + ", " +
+		on(p.RequireProvenance, "provenance marking") + ", " + rate + ", " + minor +
+		". Override with " + ConsentEnv + " / " + NSFWScanEnv + " / " + ProvenanceEnv + " / " + RateLimitEnv
 }
 
 // ImportServeFacts are the catalog facts the import serve gate keys on (a
@@ -214,6 +347,9 @@ type Decision struct {
 	ForceNSFWScan bool
 	// RecordConsent is true when an affirmed high-weight op should be logged.
 	RecordConsent bool
+	// RequireMinorReview tells the submit edge that this operation must be
+	// reviewed for sexual content involving minors before it runs.
+	RequireMinorReview bool
 	// Weight is the resolved consent weight of the op (for logging/telemetry).
 	Weight Weight
 }
@@ -236,14 +372,38 @@ func (p Policy) EvaluateWeight(w Weight, op string, consentAffirmed bool) Decisi
 	if p.Tier != TierPublic {
 		return d
 	}
+	// The minor-safety boundary is checked before any capability runs, and it is
+	// not a consent question: no affirmation makes it acceptable. A public
+	// deployment with no detector cannot produce images at all, because the
+	// boundary it promises would otherwise be unenforced.
+	if p.RequiresMinorReview(op) {
+		d.RequireMinorReview = true
+		if !p.MinorSafetyDetector {
+			d.Allowed = false
+			d.Reason = "this deployment serves other people and requires a minor-safety reviewer for image output, but none is configured"
+			d.RecoveryHint = "set " + MinorSafetyEnv + " to a program implementing the documented JSON review contract; the local/personal deployment tier (the default) does not require one"
+			return d
+		}
+	}
 	if w == WeightHigh && p.RequireConsent && !consentAffirmed {
 		d.Allowed = false
 		d.Reason = "this deployment requires a consent affirmation for identity-altering edits (" + op + ")"
-		d.RecoveryHint = "resubmit with consent_affirmed=true after confirming you have the right to edit the people in this image; editing real people without consent is prohibited by the Acceptable-Use Policy"
+		d.RecoveryHint = "resubmit with consent_affirmed=true to record that you have the right to edit the people in this image; this deployment's Acceptable-Use Policy requires the affirmation. Set " + ConsentEnv + "=0 to disable this control if you own the deployment"
 		return d
 	}
 	if w == WeightHigh && consentAffirmed {
 		d.RecordConsent = true
 	}
 	return d
+}
+
+// RequiresMinorReview reports whether producing this operation's output must be
+// reviewed for sexual content involving minors. It is scoped to image output:
+// an operation that returns data or a mesh cannot depict a person.
+func (p Policy) RequiresMinorReview(op string) bool {
+	if p.Tier != TierPublic {
+		return false
+	}
+	m, ok := capability.Get(op)
+	return ok && m.IO.Output.Kind == "image"
 }

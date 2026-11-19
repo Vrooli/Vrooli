@@ -31,9 +31,9 @@ it("refines a model mask with keyboard include/exclude points and exposes the re
   await userEvent.click(screen.getByRole("button", { name: k.addPoint }));
   await userEvent.click(screen.getByRole("button", { name: k.run }));
   await waitFor(() => expect(screen.getByRole("link", { name: k.download })).toHaveAttribute("href", "/blob/mask/real.png"));
-  expect(client.submit).toHaveBeenCalledWith("segment", expect.objectContaining({ segmentation: { points: [
+  expect(client.submit).toHaveBeenCalledWith("segment", expect.objectContaining({ opParams: { segmentation: { points: [
     { x: .5, y: .5, negative: false }, { x: .1, y: .5, negative: true },
-  ] } }), expect.objectContaining({ image }));
+  ] } } }), expect.objectContaining({ image }));
   await expectNoA11yViolations(container);
   await userEvent.click(screen.getByRole("button", { name: k.undo }));
   expect(screen.queryByRole("link", { name: k.download })).not.toBeInTheDocument();

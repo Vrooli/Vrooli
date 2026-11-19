@@ -15,13 +15,12 @@ import { needsConsent } from "../../api/safety";
 import { useSafetyPolicy } from "../safety/useSafetyPolicy";
 import { TIER_LABEL } from "./aiCatalog";
 import {
-  CREATE_FALLBACK_ICON,
   DEFAULT_SIZE_PRESET,
   SIZE_PRESETS,
   VARIATION_OPTIONS,
-  createPresentation,
   type SizePreset,
 } from "./createCatalog";
+import { capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
 import { ModelPickerButton } from "../models/ModelPickerButton";
 import { MaskBrush } from "./MaskBrush";
 import { MODE_LABEL } from "./modeLabels";
@@ -46,8 +45,8 @@ const sizePresetByKey = (key: string): SizePreset =>
   SIZE_PRESETS.find((preset) => preset.key === key) ?? DEFAULT_SIZE_PRESET;
 
 /**
- * The Create-mode inspector: the generation-op list (discovered from
- * `AIService.ListAIOperations`, category `generation`), a prompt, size / seed /
+ * The Create-mode inspector: the operations whose manifest declares the `create`
+ * panel (discovered from `AIService.ListAIOperations`), a prompt, size / seed /
  * variations controls, an Advanced disclosure, the hardware-fit model badge,
  * and the full durable-job lifecycle (install gate → live progress → cancel /
  * retry) — then the N-variation result grid. Masked ops (inpaint / object
@@ -86,7 +85,7 @@ export function CreatePanel({
   const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
 
   const generationOps = useMemo(
-    () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "generation"),
+    () => (aiOpsQuery.data?.operations ?? []).filter((op) => isPanelOperation(op.name, "create")),
     [aiOpsQuery.data],
   );
 
@@ -95,8 +94,8 @@ export function CreatePanel({
     [generationOps, operation],
   );
 
-  const opMeta = operation ? createPresentation(operation) : undefined;
-  const operationLabel = opMeta ? t(opMeta.labelKey) : operation;
+  const opMeta = operation ? capabilityPresentation(operation) : undefined;
+  const operationLabel = opMeta?.labelKey ? t(opMeta.labelKey) : operation;
 
   // Default to the first generation op once discovery resolves.
   useEffect(() => {
@@ -180,12 +179,14 @@ export function CreatePanel({
       if (Number.isFinite(value)) out.strength = value;
     }
     if (operation === "inpaint" && cropToMask) {
+      // Operation-specific knobs ride `opParams`, validated against the
+      // operation's capability schema. Keys are the schema's (snake_case) names;
+      // a field the schema does not allow is rejected rather than ignored.
       const context = Number(cropContextPixels);
-      out.inpaint = {
-        cropToMask: true,
-        contextPixels: Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
-        maxEdgePx: 0,
-        neutralizeMaskedPixels: false,
+      out.opParams = {
+        inpaint_crop_to_mask: true,
+        inpaint_context_pixels:
+          Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
       };
     }
     if (operation === "text_to_image" && poseSource) {
@@ -287,8 +288,8 @@ export function CreatePanel({
             className="grid grid-cols-2 gap-2"
           >
             {generationOps.map((op) => {
-              const meta = createPresentation(op.name);
-              const Icon = meta?.Icon ?? CREATE_FALLBACK_ICON;
+              const meta = capabilityPresentation(op.name);
+              const Icon = meta?.Icon ?? familyIcon(undefined);
               const selected = op.name === operation;
               return (
                 <button
@@ -307,7 +308,7 @@ export function CreatePanel({
                 >
                   <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-brand" />
                   <span className="text-xs font-medium text-app-foreground">
-                    {meta ? t(meta.labelKey) : op.name}
+                    {meta?.labelKey ? t(meta.labelKey) : op.name}
                   </span>
                 </button>
               );
@@ -330,12 +331,12 @@ export function CreatePanel({
 
           {showSize && (
             <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
-              <legend className="px-1 text-xs font-medium text-app-foreground">Pose control · setup pending</legend>
+              <legend className="px-1 text-xs font-medium text-app-foreground">{t(strings.workspace.create.pose.title)}</legend>
               <p className="text-xs text-app-muted-foreground">
-                The operator approved this exact ControlNet under CreativeML OpenRAIL-M. The adapter and pinned pose runtime still need safe installation and output-quality qualification. You can stage a synthetic pose source; generation remains disabled until those checks complete.
+                {t(strings.workspace.create.pose.body)}
               </p>
               <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-                <span>Stage a pose source image (synthetic images only)</span>
+                <span>{t(strings.workspace.create.pose.stageLabel)}</span>
                 <input
                   data-testid="create-pose-source"
                   type="file"
@@ -343,7 +344,11 @@ export function CreatePanel({
                   onChange={(event) => setPoseSource(event.currentTarget.files?.[0] ?? null)}
                 />
               </label>
-              {poseSource && <span className="text-xs text-app-muted-foreground">Staged: {poseSource.name}</span>}
+              {poseSource && (
+                <span className="text-xs text-app-muted-foreground" data-testid="create-pose-staged">
+                  {t(strings.workspace.create.pose.staged, { name: poseSource.name })}
+                </span>
+              )}
               <label className="flex items-start gap-2 text-xs text-app-muted-foreground">
                 <input
                   data-testid="create-pose-license-acceptance"
@@ -352,11 +357,11 @@ export function CreatePanel({
                   onChange={(event) => setOpenRailMAccepted(event.currentTarget.checked)}
                 />
                 <span>
-                  I accept the{" "}
+                  {t(strings.workspace.create.pose.acceptPrefix)}{" "}
                   <a className="underline" href="/api/v1/adapters/controlnet-openpose-sd15/license-terms" target="_blank" rel="noreferrer">
-                    CreativeML OpenRAIL-M license
+                    {t(strings.workspace.create.pose.license)}
                   </a>{" "}
-                  and agree to its use restrictions, including Attachment A, and to pass the license and restrictions to recipients if I redistribute the model or a derivative.
+                  {t(strings.workspace.create.pose.acceptSuffix)}
                 </span>
               </label>
             </fieldset>

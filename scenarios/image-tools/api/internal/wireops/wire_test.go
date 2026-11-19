@@ -1,4 +1,4 @@
-package ops
+package wireops
 
 import (
 	"testing"
@@ -13,6 +13,11 @@ import (
 // messages. protojson rejects unknown fields, so those styles did not degrade
 // quietly — they failed the render with a 400. The unit suites never saw it
 // because they run against a fake executor that skips the REST edge.
+//
+// It lives beside the binding table for the same reason: the binding is generated
+// from the proto, so a knob that exists on the wire but is not bound here is
+// dropped silently. The generated table and this test are the two halves of the
+// same guarantee.
 //
 // Every case below is a parameter object a real caller sends. If a treatment
 // grows a knob and the proto is not extended, this fails at the boundary rather
@@ -46,7 +51,7 @@ func TestEveryEmittedParameterSurvivesTheWire(t *testing.T) {
 			if err := protojson.Unmarshal([]byte(raw), pb); err != nil {
 				t.Fatalf("%s params rejected at the wire: %v\npayload: %s", op, err, raw)
 			}
-			p, err := translateParams(op, pb)
+			p, err := Translate(op, pb)
 			if err != nil {
 				t.Fatalf("%s translate: %v", op, err)
 			}
@@ -75,7 +80,7 @@ func TestNormalizeReachesTheEngine(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(tc.raw), pb); err != nil {
 			t.Fatalf("%s: %v", tc.op, err)
 		}
-		p, err := translateParams(tc.op, pb)
+		p, err := Translate(tc.op, pb)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.op, err)
 		}
@@ -99,7 +104,7 @@ func TestBrandInksReachTheTier2Screens(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(tc.raw), pb); err != nil {
 			t.Fatalf("%s: %v", tc.op, err)
 		}
-		p, err := translateParams(tc.op, pb)
+		p, err := Translate(tc.op, pb)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.op, err)
 		}
@@ -123,7 +128,7 @@ func TestEveryCompositePlateFieldReachesTheEngine(t *testing.T) {
 	if err := protojson.Unmarshal([]byte(raw), pb); err != nil {
 		t.Fatalf("composite params rejected at the wire: %v", err)
 	}
-	p, err := translateParams("composite", pb)
+	p, err := Translate("composite", pb)
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -164,7 +169,7 @@ func TestTheScrimRegionReachesTheEngine(t *testing.T) {
 	if err := protojson.Unmarshal([]byte(raw), pb); err != nil {
 		t.Fatalf("scrim params rejected at the wire: %v", err)
 	}
-	p, err := translateParams("scrim", pb)
+	p, err := Translate("scrim", pb)
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -188,7 +193,7 @@ func TestParallaxWireRetainsLayerDepthAndCameraPath(t *testing.T) {
 	if err := protojson.Unmarshal(raw, pb); err != nil {
 		t.Fatal(err)
 	}
-	p, err := translateParams("parallax", pb)
+	p, err := Translate("parallax", pb)
 	if err != nil {
 		t.Fatal(err)
 	}

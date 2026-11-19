@@ -3,11 +3,10 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"image-tools/internal/capability"
 	"reflect"
 	"strings"
 	"testing"
-
-	"image-tools/internal/operations"
 )
 
 // TestLoadSeed asserts the bundled catalog loads, validates, and upholds the
@@ -529,8 +528,8 @@ func TestParseValid(t *testing.T) {
 	}
 	// The vocabulary is the SSOT (internal/operations), not declared in the seed;
 	// Operations() exposes it verbatim regardless of which ops the seed's models use.
-	if got := r.Operations(); !reflect.DeepEqual(got, operations.Names()) {
-		t.Fatalf("operations = %v, want SSOT vocabulary %v", got, operations.Names())
+	if got := r.Operations(); !reflect.DeepEqual(got, capability.VocabularyNames()) {
+		t.Fatalf("operations = %v, want manifest vocabulary %v", got, capability.VocabularyNames())
 	}
 	models := r.ForOperation("upscale")
 	if len(models) != 1 || models[0].ID != "good-default" {

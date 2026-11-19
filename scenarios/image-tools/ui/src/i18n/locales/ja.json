@@ -637,6 +637,14 @@
       "background_replace": {
         "label": "背景を置換",
         "desc": "マスクした背景をプロンプトの新しいシーンに差し替えます。"
+      },
+      "face_swap": {
+        "label": "顔の入れ替え",
+        "desc": "参照する顔を被写体の画像に反映します。"
+      },
+      "garment_replace": {
+        "label": "衣装を変更",
+        "desc": "マスクした範囲の衣装・髪・メイクを置き換えます。"
       }
     },
     "create": {
@@ -688,6 +696,15 @@
         "sendToCanvas": "キャンバスに送る",
         "sendToEnhance": "補正",
         "download": "ダウンロード"
+      },
+      "pose": {
+        "title": "ポーズ制御 · セットアップ保留中",
+        "body": "オペレーターはこの ControlNet を CreativeML OpenRAIL-M の下で承認しました。アダプターと固定ポーズランタイムには、安全なインストールと出力品質の認定がまだ必要です。合成ポーズのソースを準備できますが、これらの確認が完了するまで生成は無効です。",
+        "stageLabel": "ポーズのソース画像を準備（合成画像のみ）",
+        "staged": "準備済み: {{name}}",
+        "acceptPrefix": "以下に同意します:",
+        "license": "CreativeML OpenRAIL-M ライセンス",
+        "acceptSuffix": "およびその利用制限（Attachment A を含む）に同意し、モデルまたは派生物を再配布する場合はライセンスと制限を受領者に引き継ぎます。"
       }
     },
     "mask": {
@@ -753,6 +770,10 @@
       "metadata": {
         "label": "メタデータ",
         "desc": "EXIF や向きの情報を削除または読み取ります。"
+      },
+      "screenshot_cleanup": {
+        "label": "スクリーンショット整理",
+        "desc": "スクリーンショットの被写体の周囲にあるウィンドウ枠やレターボックスの帯を切り取ります。"
       }
     },
     "fitOption": {
@@ -842,7 +863,10 @@
       "fontSize": "フォントサイズ",
       "stripAll": "すべて削除",
       "stripGps": "GPS を削除",
-      "autoOrient": "自動回転"
+      "autoOrient": "自動回転",
+      "tolerance": "色の許容差",
+      "maxTrimPercent": "片側の最大トリム",
+      "padding": "残す余白"
     }
   },
   "errors": {

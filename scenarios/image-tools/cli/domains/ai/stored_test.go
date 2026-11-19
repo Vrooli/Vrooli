@@ -18,7 +18,11 @@ func TestSubmitStoredRetainsReferencesTypedParamsAndIdentity(t *testing.T) {
 	calls := 0
 	_, server := aiconnect.NewAIServiceHandler(&storedCLIServer{submit: func(request *aiv1.SubmitStoredAIRequest) {
 		calls++
-		if request.Operation != "segment" || request.InputRef != "input/owned-source" || request.MaskRef != "mask/owned-mask" || request.OperationId != id || len(request.GetParams().GetSegmentation().GetPoints()) != 1 || request.Params.Segmentation.Points[0].X != .7 {
+		if request.Operation != "segment" || request.InputRef != "input/owned-source" || request.MaskRef != "mask/owned-mask" || request.OperationId != id || func() bool {
+			seg, _ := request.GetParams().GetOpParams().AsMap()["segmentation"].(map[string]any)
+			points, _ := seg["points"].([]any)
+			return !(len(points) == 1 && points[0].(map[string]any)["x"] == 0.7)
+		}() {
 			t.Errorf("request lost fields: %v", request)
 		}
 	}})
@@ -33,7 +37,7 @@ func TestSubmitStoredRetainsReferencesTypedParamsAndIdentity(t *testing.T) {
 	}
 	cmd := findCommand(t, group.Subcommands, "submit-stored")
 	var output bytes.Buffer
-	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cmd.Args, Positionals: map[string]string{"operation": "segment"}, Flags: map[string]string{"input-ref": "input/owned-source", "mask-ref": "mask/owned-mask", "operation-id": id, "params": `{"segmentation":{"points":[{"x":0.7,"y":0.4}]}}`}, Core: core, Stdout: &output, Stderr: &output})
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: cmd.Args, Positionals: map[string]string{"operation": "segment"}, Flags: map[string]string{"input-ref": "input/owned-source", "mask-ref": "mask/owned-mask", "operation-id": id, "params": `{"opParams":{"segmentation":{"points":[{"x":0.7,"y":0.4}]}}}`}, Core: core, Stdout: &output, Stderr: &output})
 	if err := cmd.RunCtx(ctx); err != nil {
 		t.Fatal(err)
 	}

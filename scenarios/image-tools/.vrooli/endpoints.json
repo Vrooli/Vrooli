@@ -431,6 +431,38 @@
       }
     },
     {
+      "id": "catalog_get_operation_catalog",
+      "path": "/vrooli.image_tools.v1.catalog.CatalogService/GetOperationCatalog",
+      "method": "POST",
+      "summary": "Publish the operation catalog",
+      "description": "Returns this scenario's operations in the shared common.v1 media-operation contract: typed ports, requirement facts, consent weight, ordered backends, and parameter schema. A workflow builder in another scenario reads this instead of importing image-tools.",
+      "category": "catalog",
+      "request": {
+        "type": "object",
+        "properties": {
+          "family": "string (optional: generate|edit|enhance|restore|extract|compose)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "contract_version": "string",
+          "operations": "array<common.v1.MediaOperation>",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Whole catalog",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.catalog.CatalogService/GetOperationCatalog -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "Only generation operations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.catalog.CatalogService/GetOperationCatalog -H 'Content-Type: application/json' -d '{\"family\":\"generate\"}'"
+        }
+      ]
+    },
+    {
       "id": "ai_submit_stored",
       "path": "/vrooli.image_tools.v1.ai.AIService/SubmitStoredAI",
       "method": "POST",

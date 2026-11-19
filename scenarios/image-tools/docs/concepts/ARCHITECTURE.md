@@ -136,10 +136,14 @@ The scenario does not own:
 - **document→text** — owned by text-tools; image-tools owns image→text/OCR
   (the boundary is clear and non-overlapping).
 
-Two further hard boundaries follow from PRD non-goals: no face
-recognition / identity matching, no face-swap / deepfake / virtual
-try-on, and no video or motion content (that belongs to
-rich-media-studio). SVG is an import/export raster format only — no vector
+The remaining boundaries are **ownership/scope boundaries, not moral
+prohibitions**. Video and motion content belongs to rich-media-studio; face
+recognition / identity *matching* is not implemented here (no op, no model) but
+is not forbidden by policy. Identity- and appearance-editing capabilities
+(face transfer, clothing/hair/makeup changes) are in scope and are added through
+the normal operation path; a deployment may configure harm-protection controls
+(see [`../internal/SECURITY.md`](../internal/SECURITY.md)) but policy never
+removes a capability. SVG is an import/export raster format only — no vector
 editing.
 
 Document dependency and resource decisions in
@@ -252,6 +256,14 @@ piece back into the owning domain or split a new domain first.
 Add product behavior by adding or updating the owning domain, not by
 growing generic buckets.
 
+> **Target path.** Today a new operation touches seven hand-synced surfaces. The
+> target is one declarative **capability manifest** plus, at most, one adapter.
+> The design and migration gates live in
+> [`../internal/CAPABILITY-MANIFEST.md`](../internal/CAPABILITY-MANIFEST.md); the
+> classification it implements is
+> [`CAPABILITY-MODEL.md`](CAPABILITY-MODEL.md). Use the steps below until Phase 1
+> lands, and prefer the manifest shape when adding new declarations.
+
 For a normal proto-backed domain:
 
 1. Add proto messages and service methods under
@@ -305,6 +317,11 @@ contention, quality-promotion and portability showcases remain open. The
 table records current source evidence and the remaining mission gates; it is
 not a release-readiness claim.
 
+For the *engineering* path from here (debt removal, package boundaries,
+capability substrate, sequencing), see
+[`../internal/MATURATION-PLAN.md`](../internal/MATURATION-PLAN.md). This table
+answers "what works"; that plan answers "what it costs to extend".
+
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
 | API | Implemented | `ops`, `ai`, `analysis`, `jobs`, `models`, `adapters`, `looks`, `selection`, `preparation`, `quality`, `safety`, `diff`, measures and health handler modules are source-backed. Operation/technique/model resolution lives in `operations`, `technique`, `models` and `resolver`. | Mission-listed operations still need complete client journeys, right-clean defaults, measured profiles and platform receipts. |
@@ -336,6 +353,10 @@ question, one canonical home.
 | Concern | Canonical Document |
 |---|---|
 | System map and extension rules | `docs/concepts/ARCHITECTURE.md` |
+| Capability axes, mechanisms, and hot-loading | `docs/concepts/CAPABILITY-MODEL.md` |
+| Workflows, ports, and cross-scenario composition | `docs/concepts/COMPOSITION.md` |
+| Operation manifest substrate and migration gates | `docs/internal/CAPABILITY-MANIFEST.md` |
+| Debt reduction, package boundaries, and phasing | `docs/internal/MATURATION-PLAN.md` |
 | Product capabilities and bounded contexts | `docs/concepts/DOMAINS.md` |
 | Workflows and state transitions | `docs/concepts/FLOWS.md` |
 | Data ownership, retention, and migrations | `docs/concepts/DATA.md` |
@@ -358,6 +379,8 @@ Every durable scenario document should be registered in
 
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow
 - [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
+- [`CAPABILITY-MODEL.md`](CAPABILITY-MODEL.md) — operation axes and hot-loading
+- [`COMPOSITION.md`](COMPOSITION.md) — workflows and cross-scenario interop
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership
 - [`FLOWS.md`](FLOWS.md) — workflow and state-transition map
 - [`DATA.md`](DATA.md) — data ownership and storage

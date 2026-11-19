@@ -362,7 +362,7 @@
         "gpu": "Runs on your GPU",
         "cpu": "Runs on your CPU",
         "cpuBackend": "Runs on CPU (selected backend has no GPU support)",
-      "cpuRequested": "Runs on CPU (requested)",
+        "cpuRequested": "Runs on CPU (requested)",
         "cpuFallback": "Runs on CPU (won't fit your GPU right now)",
         "insufficientVram": "Needs ~{{gb}} GB more free VRAM",
         "noGpu": "Requires a GPU (none detected)",
@@ -641,6 +641,14 @@
       "background_replace": {
         "label": "Replace background",
         "desc": "Swap the masked background for a new prompted scene."
+      },
+      "face_swap": {
+        "label": "Face swap",
+        "desc": "Transfer a reference face onto the subject image."
+      },
+      "garment_replace": {
+        "label": "Change outfit",
+        "desc": "Replace or restyle clothing, hair, or makeup in a masked area."
       }
     },
     "create": {
@@ -692,6 +700,15 @@
         "sendToCanvas": "Send to canvas",
         "sendToEnhance": "Enhance",
         "download": "Download"
+      },
+      "pose": {
+        "title": "Pose control · setup pending",
+        "body": "The operator approved this exact ControlNet under CreativeML OpenRAIL-M. The adapter and pinned pose runtime still need safe installation and output-quality qualification. You can stage a synthetic pose source; generation remains disabled until those checks complete.",
+        "stageLabel": "Stage a pose source image (synthetic images only)",
+        "staged": "Staged: {{name}}",
+        "acceptPrefix": "I accept the",
+        "license": "CreativeML OpenRAIL-M license",
+        "acceptSuffix": "and agree to its use restrictions, including Attachment A, and to pass the license and restrictions to recipients if I redistribute the model or a derivative."
       }
     },
     "mask": {
@@ -757,6 +774,10 @@
       "metadata": {
         "label": "Metadata",
         "desc": "Strip or read EXIF and orientation data."
+      },
+      "screenshot_cleanup": {
+        "label": "Screenshot cleanup",
+        "desc": "Trim the window chrome, frame, and letterbox bands around a screenshot's subject."
       }
     },
     "fitOption": {
@@ -846,7 +867,10 @@
       "fontSize": "Font size",
       "stripAll": "Strip all",
       "stripGps": "Strip GPS",
-      "autoOrient": "Auto-orient"
+      "autoOrient": "Auto-orient",
+      "tolerance": "Colour tolerance",
+      "maxTrimPercent": "Max trim per side",
+      "padding": "Keep padding"
     }
   },
   "errors": {

@@ -159,6 +159,12 @@ AI commands submit durable jobs through the REST multipart edge and can block
 once with `--wait`. Analysis commands run synchronous image-to-data operations
 and record terminal jobs for observability.
 
+The AI submit command table is **generated** from
+`api/internal/capability/manifests.seed.json` (`make capability-gen` →
+`cli/domains/ai/commands.generated.go`). Every AI-catalog operation has a verb,
+including the restoration ops `deblur`, `face-restore`, and `old-photo-restore`;
+those three refuse with provisioning guidance until their backends are installed.
+
 No-download model-lifecycle paths are intentionally exposed through the same
 CLI surface as provisioned model paths:
 
@@ -175,6 +181,34 @@ provider, so neither command requires model downloads or host AI packages.
 Model-backed commands such as `generate`, `upscale`, `bg-removal`, `depth`, and
 `colorize` keep the same submit/wait shape but correctly refuse with actionable
 install/provisioning guidance until their weights and backend runtime are ready.
+
+Two identity/appearance verbs follow the same shape:
+
+```bash
+# Masked clothing/hair/makeup restyle. Served by the enabled SD1.5-inpainting
+# default, so it behaves like inpaint once the diffusers venv is provisioned.
+image-tools ai garment-replace photo.jpg --mask outfit.png --prompt "leather jacket" --wait --out restyled.png
+
+# Face transfer. The reference identity travels as an IP-Adapter conditioning
+# key, not a new positional. Declared experimental: the model ships disabled with
+# a manual fetch source, so this refuses with provisioning guidance until an
+# operator provisions and enables `ip-adapter-faceid-sd15`.
+image-tools ai face-swap subject.jpg --ip-adapter ip-adapter-faceid-sd15:0.8:ref_blob_key --wait --out swapped.png
+```
+
+Operation-specific parameters travel as JSON through `--op-params` and are
+validated against the operation's capability schema before submission:
+
+```bash
+image-tools ai object-removal photo.jpg --mask object.png \
+  --op-params '{"grow_px":12,"halo_threshold":40}'
+```
+
+An operation with no declared schema rejects `--op-params` rather than ignoring it.
+
+Neither verb is policy-gated locally. A deployment that turns the consent control
+on (`IMAGE_TOOLS_REQUIRE_CONSENT=1`) asks for `--consent` on these high-weight ops,
+and the provenance/content-scan controls may likewise be enabled independently.
 For an attended clean-host install proof, run
 `IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS=1 make model-install-e2e` from the scenario
 directory; it loops enabled weight-backed models through `models install --wait`
@@ -457,6 +491,40 @@ image-tools backends doctor
 image-tools backends doctor --json
 ```
 
+## Scenario commands — `ops` deterministic run surface
+
+Every deterministic operation is a subcommand, generated from the `OpParams`
+wire contract (`make capability-gen`). One flag exists per scalar parameter, named
+by kebab-casing the proto field, so a parameter added to `ops.proto` is reachable
+from the CLI without a handler edit, and a flag can never name a field the server
+does not read. Flag descriptions live in `cli/domains/ops/params.go`.
+
+```bash
+image-tools ops list                          # names, categories, summaries
+image-tools ops resize photo.jpg --width 1600 --out hero.webp
+image-tools ops screenshot_cleanup shot.png --padding-px 8 --out clean.png
+image-tools ops canny photo.jpg --amount 1.4 --out edges.png
+```
+
+`--out` chooses the output encoding by extension (`--out result.webp` re-encodes
+to WebP for any operation). Repeated parameters take the plural field name, e.g.
+`--keep-colors` and `--sizes`.
+
+### `image-tools ops screenshot_cleanup <input>`
+
+Trim the uniform bands a screenshot carries around its subject: window chrome,
+the frame a picture was embedded in, and letterbox bars. Parameters:
+
+| Flag | Meaning |
+|---|---|
+| `--padding-px` | margin kept (or restored) around the detected content |
+| `--tolerance` | per-channel match tolerance as a fraction of full scale (default 0.04) |
+| `--max-trim-percent` | per-side ceiling (default 0.25, max 0.45); reaching it aborts the trim rather than eating content |
+
+Anything printed **on** the picture (a floating button, a burned-in toolbar) is
+not a band; chain the masked `inpaint` operation for that. The seeded
+`screenshot-cleanup` Look runs the trim and then upscales the result.
+
 ## Scenario commands — `ops` vector bridge (`rasterize`, `vectorize`, `icon_container`)
 
 Three deterministic operations turn a flat mark into every icon target. All three
@@ -466,13 +534,13 @@ are pure Go, always available, and reachable from the CLI and the REST edge
 ### `image-tools ops vectorize <input>`
 
 Trace a flat raster mark into a clean SVG: k-means palette (or pinned
-`--keep-color` entries), per-colour masks, boundary tracing, Ramer–Douglas–Peucker
+`--keep-colors` entries), per-colour masks, boundary tracing, Ramer–Douglas–Peucker
 simplification, and one nonzero-winding path per layer. The SVG renders identically
 under the pure-Go rasterizer (`fill-rule=evenodd` is avoided because oksvg ignores
 it).
 
 ```bash
-image-tools ops vectorize logo.png --keep-color '#ffffff' --keep-color '#22d3ee' \
+image-tools ops vectorize logo.png --keep-colors '#ffffff' --keep-colors '#22d3ee' \
   --clip-to-largest-rounded-region --inset-px 30 --tolerance-px 0.8 --out logo.svg
 ```
 
@@ -491,14 +559,14 @@ image-tools ops rasterize logo.svg --width 180 --height 180 --background '#0f172
 ### `image-tools ops icon_container <input>`
 
 Pack PNG renders of one SVG or raster into an ICO or ICNS container. Repeatable
-`--size` sets the exact pixel sizes; ICNS emits both the standard and @2x OSTypes
+`--sizes` sets the exact pixel sizes; ICNS emits both the standard and @2x OSTypes
 for 256 and 512.
 
 ```bash
-image-tools ops icon_container logo.svg --format ico --size 16 --size 24 --size 32 \
-  --size 48 --size 64 --size 128 --size 256 --out icon.ico
-image-tools ops icon_container logo.svg --format icns --size 32 --size 64 --size 128 \
-  --size 256 --size 512 --size 1024 --out icon.icns
+image-tools ops icon_container logo.svg --format ico --sizes 16 --sizes 24 --sizes 32 \
+  --sizes 48 --sizes 64 --sizes 128 --sizes 256 --out icon.ico
+image-tools ops icon_container logo.svg --format icns --sizes 32 --sizes 64 --sizes 128 \
+  --sizes 256 --sizes 512 --sizes 1024 --out icon.icns
 ```
 
 `image-tools ops list` reports the three operations and lists `ico` and `icns` as

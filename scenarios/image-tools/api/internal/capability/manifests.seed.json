@@ -1,0 +1,2005 @@
+{
+  "schema_version": "2.4.0",
+  "generated": "2026-07-05",
+  "notes": [
+    "Capability manifest seed: one declarative record per operation across both operation tables.",
+    "registry=operations is internal/operations (model-backed/analysed, 32 ops); registry=ops is internal/ops (deterministic, in-process, 37 ops).",
+    "Phase 1 scope: identity, registry, family, mechanism, I/O ports, requirement class, ordered backend preference, and consent weight.",
+    "cli (verb + flag list) is declared per AI operation and consumed by cmd/gen-capability; params_schema, technique binding, and label/presentation codegen land in later phases (docs/internal/CAPABILITY-MANIFEST.md).",
+    "consent_weight is the SSOT consumed by internal/safety; it never gates availability.",
+    "Deterministic ops run in-process: backends is empty and mechanism is always compute.",
+    "Conformance tests enforce vocabulary coverage, backend existence in the model seed, requirement/mechanism coherence, and I/O agreement.",
+    "params_schema (JSON Schema subset, validated by internal/paramschema) declares operation-specific knobs without a proto change; op_params carries them on the wire.",
+    "presentation (icon name + i18n label/desc keys) is consumed by the generated UI catalog; labels stay in i18n, not in the manifest.",
+    "Deterministic records omit mechanism/requires/consent_weight/backends: the registry implies all four, and the loader makes them explicit before validation.",
+    "withinFrame expresses the relational box rule (positive area inside 0..1) once, so object_removal/scene_geometry/segment need no hand validator.",
+    "engine (ai|analysis|compute|unwired) declares the runtime; it replaces the table-name discriminator so consumers stop keeping a second membership list. presentation.panel is the workspace surface, deliberately separate from family.",
+    "Deterministic stylistic treatments are family=edit: enhance is reserved for operations that raise fidelity (and every such operation is model-backed).",
+    "A compute manifest omits io when it is the engine default (one image in, one image out); four operations declare ports explicitly.",
+    "probe is declared like every other analysis operation (engine=analysis, mechanism=compute): it was the last operation served without a manifest.",
+    "A deterministic operation declares its workspace form under presentation.fields; the TS spec is generated from that declaration and validated against the OpParams descriptor."
+  ],
+  "manifests": [
+    {
+      "id": "text_to_image",
+      "summary": "Generate an image from a text prompt",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "stable-diffusion.cpp",
+        "diffusers",
+        "openrouter"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "generate",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.createOp.text_to_image.label",
+        "desc_key": "workspace.createOp.text_to_image.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "image_to_image",
+      "summary": "Transform an input image guided by a prompt",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "stable-diffusion.cpp",
+        "diffusers"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "img2img",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "strength"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Replace",
+        "label_key": "workspace.createOp.image_to_image.label",
+        "desc_key": "workspace.createOp.image_to_image.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "edit_instruct",
+      "summary": "Edit an image from a natural-language instruction (identity-preserving)",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers",
+        "openrouter"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "edit",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "strength"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Wand",
+        "label_key": "workspace.createOp.edit_instruct.label",
+        "desc_key": "workspace.createOp.edit_instruct.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "inpaint",
+      "summary": "Regenerate a masked region from a prompt",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "high",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inpaint_crop_to_mask": {
+            "type": "boolean"
+          },
+          "inpaint_context_pixels": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 512
+          },
+          "inpaint_max_edge_px": {
+            "type": "integer",
+            "enum": [
+              512,
+              1024
+            ]
+          },
+          "inpaint_neutralize_masked_pixels": {
+            "type": "boolean"
+          }
+        },
+        "requiresTrue": {
+          "inpaint_context_pixels": [
+            "inpaint_crop_to_mask"
+          ],
+          "inpaint_max_edge_px": [
+            "inpaint_crop_to_mask"
+          ],
+          "inpaint_neutralize_masked_pixels": [
+            "inpaint_crop_to_mask"
+          ]
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "inpaint",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "mask",
+          "crop-to-mask",
+          "crop-context-pixels",
+          "crop-max-edge-px",
+          "neutralize-masked-pixels"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Stamp",
+        "label_key": "workspace.createOp.inpaint.label",
+        "desc_key": "workspace.createOp.inpaint.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "outpaint",
+      "summary": "Expand an image beyond its borders, generating the new region from a prompt",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "outpaint",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "mask"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Expand",
+        "label_key": "workspace.createOp.outpaint.label",
+        "desc_key": "workspace.createOp.outpaint.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "object_removal",
+      "summary": "Remove a masked object and fill the gap",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "iopaint",
+        "onnxruntime",
+        "mask-fill"
+      ],
+      "consent_weight": "high",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grow_px": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 64
+          },
+          "halo_threshold": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "background_repair": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "maskExpansionPixels": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 64
+              },
+              "removalRegions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y",
+                    "width",
+                    "height"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "width": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "height": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "withinFrame": true
+                },
+                "maxItems": 32
+              }
+            }
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "object-removal",
+        "flags": [
+          "mask",
+          "mask-expansion",
+          "remove-region"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Eraser",
+        "label_key": "workspace.createOp.object_removal.label",
+        "desc_key": "workspace.createOp.object_removal.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "background_removal",
+      "summary": "Remove the background to transparency",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime",
+        "rembg"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "bg-removal",
+        "flags": []
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Scissors",
+        "label_key": "workspace.aiOp.background_removal.label",
+        "desc_key": "workspace.aiOp.background_removal.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "background_replace",
+      "summary": "Replace the background behind a masked subject from a prompt",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers",
+        "rembg"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "background-replace",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "mask"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Images",
+        "label_key": "workspace.createOp.background_replace.label",
+        "desc_key": "workspace.createOp.background_replace.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "face_swap",
+      "summary": "Transfer a reference face onto a subject (reference supplied as a conditioning image)",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "face-swap",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "ScanFace",
+        "label_key": "workspace.createOp.face_swap.label",
+        "desc_key": "workspace.createOp.face_swap.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "garment_replace",
+      "summary": "Replace or restyle clothing, hair, or makeup on a masked region from a prompt",
+      "family": "edit",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          },
+          {
+            "name": "mask",
+            "kind": "mask",
+            "required": true
+          },
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "high",
+      "cli": {
+        "group": "ai",
+        "verb": "garment-replace",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps",
+          "cfg-scale",
+          "variations",
+          "auto-scan",
+          "mask"
+        ]
+      },
+      "panel": "create",
+      "presentation": {
+        "icon": "Shirt",
+        "label_key": "workspace.createOp.garment_replace.label",
+        "desc_key": "workspace.createOp.garment_replace.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "upscale",
+      "summary": "Super-resolve / enlarge an image",
+      "family": "enhance",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "realesrgan-ncnn-vulkan"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "upscale",
+        "flags": [
+          "scale"
+        ]
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Sparkles",
+        "label_key": "workspace.aiOp.upscale.label",
+        "desc_key": "workspace.aiOp.upscale.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "denoise",
+      "summary": "Reduce noise / deblur an image",
+      "family": "enhance",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime",
+        "realesrgan-ncnn-vulkan"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "denoise",
+        "flags": []
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Aperture",
+        "label_key": "workspace.aiOp.denoise.label",
+        "desc_key": "workspace.aiOp.denoise.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "deblur",
+      "summary": "Sharpen and remove motion/defocus blur from an image",
+      "family": "restore",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "deblur",
+        "flags": []
+      },
+      "panel": "enhance",
+      "engine": "ai"
+    },
+    {
+      "id": "naturalize",
+      "summary": "Reintroduce realistic texture/grain to over-smoothed (restored/upscaled) images",
+      "family": "enhance",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "builtin"
+      ],
+      "consent_weight": "low",
+      "cli": {
+        "group": "ai",
+        "verb": "naturalize",
+        "flags": [
+          "realism",
+          "face-aware"
+        ]
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Fingerprint",
+        "label_key": "workspace.aiOp.naturalize.label",
+        "desc_key": "workspace.aiOp.naturalize.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "colorize",
+      "summary": "Add realistic colour to a grayscale / black-and-white image",
+      "family": "enhance",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime",
+        "python-sidecar"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "colorize",
+        "flags": []
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Palette",
+        "label_key": "workspace.aiOp.colorize.label",
+        "desc_key": "workspace.aiOp.colorize.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "old_photo_restore",
+      "summary": "Repair scratches, fading, and damage on old photographs",
+      "family": "restore",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "python-sidecar"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "old-photo-restore",
+        "flags": []
+      },
+      "panel": "enhance",
+      "engine": "ai"
+    },
+    {
+      "id": "face_restore",
+      "summary": "Restore degraded faces in a photo",
+      "family": "restore",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "python-sidecar"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "face-restore",
+        "flags": []
+      },
+      "panel": "enhance",
+      "engine": "ai"
+    },
+    {
+      "id": "segment",
+      "summary": "Segment objects/regions in an image",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "mask"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime",
+        "sam2-transformers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "segment",
+        "flags": [
+          "selection"
+        ]
+      },
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "segmentation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "x": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "y": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "negative": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "maxItems": 64
+              },
+              "box": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "y": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "withinFrame": true
+              }
+            }
+          }
+        }
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "depth_map",
+      "summary": "Estimate a per-pixel depth map from a single image",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "depth",
+        "flags": []
+      },
+      "panel": "enhance",
+      "presentation": {
+        "icon": "Layers",
+        "label_key": "workspace.aiOp.depth_map.label",
+        "desc_key": "workspace.aiOp.depth_map.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "scene_geometry",
+      "summary": "Estimate a camera-calibrated floating-point scene geometry bundle",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "geometry",
+        "flags": [
+          "support-roi"
+        ]
+      },
+      "panel": "enhance",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "support_roi": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "width": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "height": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "withinFrame": true
+          }
+        }
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "image_to_object",
+      "summary": "Reconstruct a textured 3D prop mesh from one image and optional foreground mask",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "mesh"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "triposr"
+      ],
+      "consent_weight": "none",
+      "params_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mesh_resolution": {
+            "type": "integer",
+            "enum": [
+              128,
+              256
+            ]
+          }
+        }
+      },
+      "cli": {
+        "group": "ai",
+        "verb": "image-to-object",
+        "flags": [
+          "mask",
+          "mesh-resolution"
+        ]
+      },
+      "panel": "enhance",
+      "engine": "ai"
+    },
+    {
+      "id": "normal_map",
+      "summary": "Convert image luminance/depth into a tangent-space normal map",
+      "family": "enhance",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "computed"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "normal-map",
+        "flags": []
+      },
+      "panel": "enhance",
+      "engine": "ai"
+    },
+    {
+      "id": "ocr",
+      "summary": "Extract text from an image (OCR)",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "tesseract"
+      ],
+      "consent_weight": "none",
+      "presentation": {
+        "icon": "ScanText",
+        "label_key": "workspace.analyzeOp.ocr.label",
+        "desc_key": "workspace.analyzeOp.ocr.desc"
+      },
+      "engine": "analysis"
+    },
+    {
+      "id": "nsfw_classify",
+      "summary": "Classify an image for NSFW / unsafe content",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "presentation": {
+        "icon": "ShieldAlert",
+        "label_key": "workspace.analyzeOp.nsfw_classify.label",
+        "desc_key": "workspace.analyzeOp.nsfw_classify.desc"
+      },
+      "engine": "analysis"
+    },
+    {
+      "id": "caption",
+      "summary": "Describe an image in natural language",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "text"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "llama.cpp"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "caption",
+        "flags": [
+          "prompt"
+        ]
+      },
+      "panel": "analyze",
+      "presentation": {
+        "icon": "Image",
+        "label_key": "workspace.analyzeOp.caption.label",
+        "desc_key": "workspace.analyzeOp.caption.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "object_detection",
+      "summary": "Detect and locate objects with bounding boxes",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "tagging",
+      "summary": "Predict descriptive tags/labels for an image",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "face_detection",
+      "summary": "Detect face bounding boxes / landmarks",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "library-cgo"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "quality_assessment",
+      "summary": "Assess no-reference image quality (sharpness, exposure, contrast)",
+      "family": "extract",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "computed"
+      ],
+      "consent_weight": "none",
+      "presentation": {
+        "icon": "Gauge",
+        "label_key": "workspace.analyzeOp.quality_assessment.label",
+        "desc_key": "workspace.analyzeOp.quality_assessment.desc"
+      },
+      "engine": "analysis"
+    },
+    {
+      "id": "probe",
+      "engine": "analysis",
+      "summary": "Report structured image info (dimensions, format, metadata, palette)",
+      "family": "extract",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "name": "data",
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [],
+      "consent_weight": "none",
+      "presentation": {
+        "icon": "ScanSearch",
+        "label_key": "workspace.analyzeOp.probe.label",
+        "desc_key": "workspace.analyzeOp.probe.desc"
+      }
+    },
+    {
+      "id": "duplicate_detect",
+      "summary": "Compute perceptual fingerprints to find near-duplicate images",
+      "family": "extract",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "library-go"
+      ],
+      "consent_weight": "none",
+      "presentation": {
+        "icon": "Copy",
+        "label_key": "workspace.analyzeOp.duplicate_detect.label",
+        "desc_key": "workspace.analyzeOp.duplicate_detect.desc"
+      },
+      "engine": "analysis"
+    },
+    {
+      "id": "embedding",
+      "summary": "Compute a vector embedding of an image",
+      "family": "extract",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "onnxruntime"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "qr_barcode_read",
+      "summary": "Read QR codes / barcodes from an image",
+      "family": "extract",
+      "mechanism": "compute",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "requires": {
+        "process": false,
+        "weights": false,
+        "network": false
+      },
+      "backends": [
+        "library-go"
+      ],
+      "consent_weight": "none",
+      "engine": "unwired"
+    },
+    {
+      "id": "aberration",
+      "summary": "Separate color channels at edges",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "adjust",
+      "summary": "Brightness/contrast/gamma/saturation/hue",
+      "family": "edit",
+      "presentation": {
+        "icon": "SlidersHorizontal",
+        "label_key": "workspace.op.adjust.label",
+        "desc_key": "workspace.op.adjust.desc",
+        "fields": [
+          {"name": "brightness", "control": "slider", "label_key": "workspace.field.brightness", "default": 0, "min": -100, "max": 100, "step": 1},
+          {"name": "contrast", "control": "slider", "label_key": "workspace.field.contrast", "default": 0, "min": -100, "max": 100, "step": 1},
+          {"name": "gamma", "control": "slider", "label_key": "workspace.field.gamma", "default": 0, "min": 0, "max": 3, "step": 0.05},
+          {"name": "saturation", "control": "slider", "label_key": "workspace.field.saturation", "default": 0, "min": -100, "max": 100, "step": 1},
+          {"name": "hue", "control": "slider", "label_key": "workspace.field.hue", "default": 0, "min": -180, "max": 180, "step": 1, "unit": "°"}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "ascii_mosaic",
+      "summary": "Rebuild the image as tone-matched ASCII glyphs",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "bloom",
+      "summary": "Lift highlights into a soft bloom",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "canny",
+      "summary": "Deterministic Canny edge map (ControlNet conditioning preprocessor)",
+      "family": "extract",
+      "engine": "compute"
+    },
+    {
+      "id": "canvas",
+      "summary": "Pad/extend onto a background canvas",
+      "family": "edit",
+      "presentation": {
+        "icon": "Frame",
+        "label_key": "workspace.op.canvas.label",
+        "desc_key": "workspace.op.canvas.desc",
+        "fields": [
+          {"name": "width", "control": "number", "label_key": "workspace.field.width", "default": 512, "min": 1, "unit": "px"},
+          {"name": "height", "control": "number", "label_key": "workspace.field.height", "default": 512, "min": 1, "unit": "px"},
+          {"name": "background", "control": "color", "label_key": "workspace.field.background", "default": ""},
+          {"name": "gravity", "control": "position", "label_key": "workspace.field.gravity", "default": ""}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "composite",
+      "summary": "Merge an ordered stack of depth plates into one raster",
+      "family": "compose",
+      "engine": "compute"
+    },
+    {
+      "id": "compress",
+      "summary": "Re-encode at a quality or to a target file size",
+      "family": "edit",
+      "presentation": {
+        "icon": "Minimize2",
+        "label_key": "workspace.op.compress.label",
+        "desc_key": "workspace.op.compress.desc",
+        "fields": [
+          {"name": "format", "control": "format", "label_key": "workspace.field.format", "default": "jpeg", "options_from": "encode_formats"},
+          {"name": "quality", "control": "slider", "label_key": "workspace.field.quality", "default": 80, "min": 1, "max": 100, "step": 1},
+          {"name": "lossless", "control": "toggle", "label_key": "workspace.field.lossless", "default": false},
+          {"name": "target_bytes", "control": "targetSize", "label_key": "workspace.field.targetBytes", "default": 0}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "convert",
+      "summary": "Convert to another image format",
+      "family": "edit",
+      "presentation": {
+        "icon": "FileType2",
+        "label_key": "workspace.op.convert.label",
+        "desc_key": "workspace.op.convert.desc",
+        "fields": [
+          {"name": "format", "control": "format", "label_key": "workspace.field.format", "default": "png", "options_from": "encode_formats"},
+          {"name": "quality", "control": "slider", "label_key": "workspace.field.quality", "default": 90, "min": 1, "max": 100, "step": 1},
+          {"name": "lossless", "control": "toggle", "label_key": "workspace.field.lossless", "default": false}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "crop",
+      "summary": "Crop a rectangle or a gravity-anchored region",
+      "family": "edit",
+      "presentation": {
+        "icon": "Crop",
+        "label_key": "workspace.op.crop.label",
+        "desc_key": "workspace.op.crop.desc",
+        "fields": [
+          {"name": "x", "control": "number", "label_key": "workspace.field.x", "default": 0, "min": 0, "unit": "px", "advanced": true},
+          {"name": "y", "control": "number", "label_key": "workspace.field.y", "default": 0, "min": 0, "unit": "px", "advanced": true},
+          {"name": "width", "control": "number", "label_key": "workspace.field.width", "default": 100, "min": 1, "unit": "px", "advanced": true},
+          {"name": "height", "control": "number", "label_key": "workspace.field.height", "default": 100, "min": 1, "unit": "px", "advanced": true}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "curve",
+      "summary": "Apply a deterministic tonal curve",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "defocus",
+      "summary": "Apply a deterministic aperture blur",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "deskew",
+      "summary": "Auto-straighten a skewed scan/document",
+      "family": "edit",
+      "presentation": {
+        "icon": "Ruler",
+        "label_key": "workspace.op.deskew.label",
+        "desc_key": "workspace.op.deskew.desc",
+        "fields": [
+          {"name": "background", "control": "color", "label_key": "workspace.field.background", "default": ""}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "displacement",
+      "summary": "Offset pixels through a deterministic displacement map",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "dither_diffusion",
+      "summary": "Apply deterministic Floyd-Steinberg error diffusion",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "dither_ordered",
+      "summary": "Apply a deterministic Bayer ordered dither",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "duotone",
+      "summary": "Map perceptual lightness onto a deterministic two- or three-ink ramp",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "engraving",
+      "summary": "Render tonal value as hatching density",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "filter",
+      "summary": "Grayscale/sepia/invert/blur/sharpen",
+      "family": "edit",
+      "presentation": {
+        "icon": "Wand2",
+        "label_key": "workspace.op.filter.label",
+        "desc_key": "workspace.op.filter.desc",
+        "fields": [
+          {"name": "filter", "control": "filterGrid", "label_key": "workspace.field.filter", "default": "grayscale", "options": ["grayscale", "sepia", "invert", "blur", "sharpen"]},
+          {"name": "amount", "control": "slider", "label_key": "workspace.field.amount", "default": 1, "min": 0, "max": 10, "step": 0.5}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "flip",
+      "summary": "Mirror horizontally or vertically",
+      "family": "edit",
+      "presentation": {
+        "icon": "FlipHorizontal2",
+        "label_key": "workspace.op.flip.label",
+        "desc_key": "workspace.op.flip.desc",
+        "fields": [
+          {"name": "axis", "control": "segmented", "label_key": "workspace.field.axis", "default": "horizontal", "options": ["horizontal", "vertical"]}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "grain",
+      "summary": "Add seeded film grain",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "halftone",
+      "summary": "Render perceptual lightness on a rotated dot screen",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "icon_container",
+      "summary": "Pack PNG renders into an ICO or ICNS container",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "line_screen",
+      "summary": "Render perceptual lightness as a line screen",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "metadata",
+      "summary": "Read, strip, or auto-orient image metadata",
+      "family": "extract",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "data"
+        }
+      },
+      "presentation": {
+        "icon": "Info",
+        "label_key": "workspace.op.metadata.label",
+        "desc_key": "workspace.op.metadata.desc",
+        "fields": [
+          {"name": "strip_all", "control": "toggle", "label_key": "workspace.field.stripAll", "default": false},
+          {"name": "strip_gps", "control": "toggle", "label_key": "workspace.field.stripGps", "default": false},
+          {"name": "auto_orient", "control": "toggle", "label_key": "workspace.field.autoOrient", "default": false}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "motion_blur",
+      "summary": "Blur along a deterministic motion axis",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "overlay",
+      "summary": "Composite a watermark image or text",
+      "family": "compose",
+      "presentation": {
+        "icon": "Type",
+        "label_key": "workspace.op.overlay.label",
+        "desc_key": "workspace.op.overlay.desc",
+        "fields": [
+          {"name": "text", "control": "text", "label_key": "workspace.field.text", "default": ""},
+          {"name": "position", "control": "position", "label_key": "workspace.field.position", "default": ""},
+          {"name": "opacity", "control": "slider", "label_key": "workspace.field.opacity", "default": 1, "min": 0, "max": 1, "step": 0.05},
+          {"name": "color", "control": "color", "label_key": "workspace.field.color", "default": ""},
+          {"name": "font_size", "control": "slider", "label_key": "workspace.field.fontSize", "default": 0, "min": 0, "max": 128, "step": 1, "unit": "px"}
+        ],
+        "accepts_overlay": true
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "parallax",
+      "summary": "Render a bounded layered-depth parallax PNG sequence with provenance",
+      "family": "compose",
+      "engine": "compute"
+    },
+    {
+      "id": "pixel_sort",
+      "summary": "Sort bright runs by lightness along an axis",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "posterize",
+      "summary": "Quantize perceptual lightness to a fixed number of levels",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "rasterize",
+      "summary": "Rasterize an SVG at an exact pixel size",
+      "family": "edit",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "vector",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "resize",
+      "summary": "Resize (fit/fill/stretch) preserving or forcing aspect",
+      "family": "edit",
+      "presentation": {
+        "icon": "Maximize2",
+        "label_key": "workspace.op.resize.label",
+        "desc_key": "workspace.op.resize.desc",
+        "fields": [
+          {"name": "width", "control": "number", "label_key": "workspace.field.width", "default": 256, "min": 0, "unit": "px"},
+          {"name": "height", "control": "number", "label_key": "workspace.field.height", "default": 0, "min": 0, "unit": "px"},
+          {"name": "fit", "control": "segmented", "label_key": "workspace.field.fit", "default": "fit", "options": ["fit", "fill", "stretch"]},
+          {"name": "gravity", "control": "position", "label_key": "workspace.field.gravity", "default": ""}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "rotate",
+      "summary": "Rotate by 90° steps or an arbitrary angle",
+      "family": "edit",
+      "presentation": {
+        "icon": "RotateCw",
+        "label_key": "workspace.op.rotate.label",
+        "desc_key": "workspace.op.rotate.desc",
+        "fields": [
+          {"name": "angle", "control": "slider", "label_key": "workspace.field.angle", "default": 90, "min": -180, "max": 180, "step": 1, "unit": "°"},
+          {"name": "background", "control": "color", "label_key": "workspace.field.background", "default": ""}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "screenshot_cleanup",
+      "summary": "Trim uniform screenshot chrome, frame, and letterbox bands",
+      "family": "restore",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "name": "image",
+          "kind": "image"
+        }
+      },
+      "presentation": {
+        "icon": "Crop",
+        "label_key": "workspace.op.screenshot_cleanup.label",
+        "desc_key": "workspace.op.screenshot_cleanup.desc",
+        "fields": [
+          {"name": "padding_px", "control": "number", "label_key": "workspace.field.padding", "default": 0, "min": 0, "unit": "px"},
+          {"name": "tolerance", "control": "slider", "label_key": "workspace.field.tolerance", "default": 0.04, "min": 0, "max": 0.3, "step": 0.01, "advanced": true},
+          {"name": "max_trim_percent", "control": "slider", "label_key": "workspace.field.maxTrimPercent", "default": 0.25, "min": 0, "max": 0.45, "step": 0.05, "advanced": true}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "scrim",
+      "summary": "Apply a directional contrast scrim",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "stipple",
+      "summary": "Render seeded jittered stipple",
+      "family": "edit",
+      "engine": "compute"
+    },
+    {
+      "id": "thumbnail",
+      "summary": "Produce a fill-cropped thumbnail",
+      "family": "edit",
+      "presentation": {
+        "icon": "Image",
+        "label_key": "workspace.op.thumbnail.label",
+        "desc_key": "workspace.op.thumbnail.desc",
+        "fields": [
+          {"name": "width", "control": "number", "label_key": "workspace.field.width", "default": 128, "min": 1, "unit": "px"},
+          {"name": "height", "control": "number", "label_key": "workspace.field.height", "default": 128, "min": 1, "unit": "px"}
+        ]
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "vectorize",
+      "summary": "Trace a flat raster mark into a clean SVG",
+      "family": "edit",
+      "io": {
+        "inputs": [
+          {
+            "name": "image",
+            "kind": "image",
+            "required": true
+          }
+        ],
+        "output": {
+          "kind": "vector"
+        }
+      },
+      "engine": "compute"
+    }
+  ]
+}

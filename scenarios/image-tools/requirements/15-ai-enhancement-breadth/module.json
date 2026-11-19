@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/ai/catalog_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "colorize + depth_map registered in the AI catalog (enhancement, RequiresImage) and each gets a dispatcher runner."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/providers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "colorize + depth_map dispatch through the onnxruntime CPU sidecar (image_tools_sidecar.colorize / .depth)."
         },
         {

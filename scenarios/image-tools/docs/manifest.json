@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "Image Tools Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
+  "description": "Documentation contract for Image Tools (Lume): a local-first image toolbox and composable image capability",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -540,6 +540,40 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "concepts/CAPABILITY-MODEL.md",
+          "docType": "capability-model",
+          "title": "Capability Model",
+          "description": "Operation classification: mechanism (compute/infer/fetch), application family, requirement class, harm surface, and the hot-loading ladder",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "capability-classification",
+            "operation-axes",
+            "hot-loading"
+          ],
+          "maturity": "active",
+          "completion": "required"
+        },
+        {
+          "path": "concepts/COMPOSITION.md",
+          "docType": "composition",
+          "title": "Composition",
+          "description": "Typed ports, workflows, Looks generalization, execution ownership, and cross-scenario operation catalog",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "workflow-composition",
+            "cross-scenario-interop",
+            "operation-catalog"
+          ],
+          "maturity": "active",
+          "completion": "required"
         }
       ]
     },
@@ -1493,6 +1527,40 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "internal/CAPABILITY-MANIFEST.md",
+          "docType": "capability-manifest",
+          "title": "Capability Manifest",
+          "description": "Target operation substrate: one declarative record per op, generated CLI/UI/params surfaces, conformance tests, and migration phases",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "operation-manifest",
+            "codegen-surfaces",
+            "extension-substrate"
+          ],
+          "maturity": "active",
+          "completion": "required"
+        },
+        {
+          "path": "internal/MATURATION-PLAN.md",
+          "docType": "maturation-plan",
+          "title": "Maturation Plan",
+          "description": "Debt register, package boundary moves, delete list, quality gates, and phased sequencing for extensibility",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "tech-debt",
+            "maturation-sequencing",
+            "package-boundaries"
+          ],
+          "maturity": "active",
+          "completion": "required"
         }
       ]
     }

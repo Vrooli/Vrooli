@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/models/install_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Installer rejects non-weight artifacts (HTML / wrong type / oversize); pins an upstream-verified checksum after artifact validation"
         },
         {

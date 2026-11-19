@@ -19,13 +19,17 @@ import (
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capacity"
 	"image-tools/internal/jobs"
 	"image-tools/internal/models"
 )
 
 type (
 	executionAdmissionKey struct{}
-	preparedExecution     struct {
+	// operationMemoryContextKey marks a job whose RAM is already admitted, so a
+	// warm worker does not double-claim.
+	operationMemoryContextKey struct{}
+	preparedExecution         struct {
 		model                   models.Model
 		selection               backends.Selection
 		payload                 Payload
@@ -47,7 +51,7 @@ func (e *warmGPUCapacityFallbackError) Unwrap() error { return jobs.ErrCapacityB
 // use this same boundary. Failed acquisition returns its partial ownership so
 // every acquired resource is released before retry or terminal completion.
 func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
-	ctx = context.WithValue(ctx, capacityPriorityKey{}, string(job.Priority))
+	ctx = capacity.WithPriority(ctx, string(job.Priority))
 	group := newLeaseGroup(ctx)
 	meta := map[string]string{}
 	admission := jobs.Admission{Context: ctx, Release: group.release, Meta: meta}
@@ -195,7 +199,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		warmModelKey := model.ID
 		var residentGPU capabilities.GPU
 		if warmTier == backends.TierLocalGPU {
-			residentGPU, err = capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
+			residentGPU, err = capacity.GPUFor(host, modelVRAMClaimBytes(model), bsel.Provider)
 			if err != nil {
 				return admission, err
 			}
@@ -209,7 +213,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 					return resident, err
 				}
 				if tier == backends.TierLocalGPU {
-					lease, err := e.deps.Capacity.Claim(residentCtx, "image-tools:resident:"+model.ID+":"+gpu.UUID, modelVRAMClaimBytes(model), CapacityClaimOptions{
+					lease, err := e.deps.Capacity.Claim(residentCtx, "image-tools:resident:"+model.ID+":"+gpu.UUID, modelVRAMClaimBytes(model), capacity.ClaimOptions{
 						Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID,
 					})
 					if err != nil {
@@ -218,7 +222,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 					if lease.DegradeToCPU {
 						return resident, &warmGPUCapacityFallbackError{detail: "GPU capacity denied warm model residency"}
 					}
-					resident.renew("GPU residency", &capacityMemoryLease{broker: e.deps.Capacity, lease: lease})
+					resident.renew("GPU residency", capacity.NewMemoryLease(e.deps.Capacity, lease))
 					meta["gpu_capacity_claim_id"] = lease.ClaimID
 					meta["gpu_uuid"] = gpu.UUID
 					meta["gpu_capacity_policy"] = "held-for-warm-model-residency"
@@ -314,11 +318,11 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		meta["pose_preprocessor_ram_claim_bytes"] = strconv.FormatInt(poseWorkerRAMBytes, 10)
 	}
 	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU && !warmGPUResidency {
-		gpu, err := capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
+		gpu, err := capacity.GPUFor(host, modelVRAMClaimBytes(model), bsel.Provider)
 		if err != nil {
 			return admission, err
 		}
-		lease, err := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), CapacityClaimOptions{
+		lease, err := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), capacity.ClaimOptions{
 			Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID,
 		})
 		if err != nil {
@@ -343,7 +347,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		} else {
 			pl.GPUUUID = gpu.UUID
 			var stop func()
-			ctx, stop = keepCapacityAlive(ctx, e.deps.Capacity, lease, capacityClaimTTL/3)
+			ctx, stop = capacity.KeepAlive(ctx, e.deps.Capacity, lease, capacity.ClaimTTL/3)
 			group.stops = append(group.stops, stop)
 			meta["gpu_capacity_claim_id"] = lease.ClaimID
 			meta["gpu_uuid"] = gpu.UUID
@@ -567,7 +571,7 @@ func newLeaseGroup(ctx context.Context) *leaseGroup {
 	return &leaseGroup{ctx: ctx, diskCleanupVerified: true}
 }
 
-func (g *leaseGroup) renew(kind string, lease MemoryLease) {
+func (g *leaseGroup) renew(kind string, lease capacity.MemoryLease) {
 	scope := sharedcapacity.Maintain(g.ctx, lease)
 	g.ctx = scope.Context()
 	release := func(ctx context.Context) error {

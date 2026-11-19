@@ -105,6 +105,7 @@ func (s diskAdmissionInputStore) Get(context.Context, string) (io.ReadCloser, st
 }
 
 func (diskAdmissionInputStore) Put(context.Context, string, io.Reader, string) error { return nil }
+func (diskAdmissionInputStore) Delete(context.Context, string) error                 { return nil }
 
 func TestDiskAdmissionUsesMeasuredInputDimensions(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 512, 512))

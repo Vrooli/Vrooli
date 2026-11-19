@@ -328,9 +328,10 @@ func (s *Service) parseNSFW(raw []byte) (NSFWResult, error) {
 	return res, nil
 }
 
-// ScanNSFW adapts NSFW to the ai package's NSFWScanner signature for the
-// generation auto-scan hook. A backend-unavailable error degrades to "not
-// flagged" with a logged note rather than failing the generation job.
+// ScanNSFW is the advisory half of the generation auto-scan. The engine's
+// hard-refusal review is separate and fails closed; this advisory hook degrades
+// to "not flagged" with a logged note when the classifier is unavailable, so a
+// local install without the model still generates.
 func (s *Service) ScanNSFW(ctx context.Context, img []byte) (bool, float64, error) {
 	res, err := s.NSFW(ctx, img)
 	if err != nil {

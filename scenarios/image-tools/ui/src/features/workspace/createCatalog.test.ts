@@ -1,16 +1,16 @@
 /**
  * createCatalog tests — the pure pieces of the Create surface: the
  * variation-key parser (which turns the backend's terminal job message into the
- * full set of output blob keys) and the presentation/preset tables.
+ * full set of output blob keys) and the preset tables. Per-operation
+ * presentation is generated from the capability manifests and covered by
+ * capabilityCatalog.test.ts.
  */
 import { describe, expect, it } from "vitest";
 
 import {
-  CREATE_CATALOG,
   DEFAULT_SIZE_PRESET,
   SIZE_PRESETS,
   VARIATION_OPTIONS,
-  createPresentation,
   parseVariationKeys,
 } from "./createCatalog";
 
@@ -41,32 +41,6 @@ describe("parseVariationKeys", () => {
   it("tolerates extra surrounding text and whitespace", () => {
     const keys = parseVariationKeys("done — variations: [  k0   k1  ] ok", "k0");
     expect(keys).toEqual(["k0", "k1"]);
-  });
-});
-
-describe("createPresentation", () => {
-  it("maps every generation op to a label/desc/icon", () => {
-    for (const op of [
-      "text_to_image",
-      "image_to_image",
-      "edit_instruct",
-      "inpaint",
-      "object_removal",
-      "outpaint",
-      "background_replace",
-    ]) {
-      const meta = createPresentation(op);
-      expect(meta).toBeDefined();
-      // lucide icons are forwardRef components (objects), not plain functions.
-      expect(meta?.Icon).toBeTruthy();
-    }
-    expect(Object.keys(CREATE_CATALOG)).toContain("text_to_image");
-    expect(Object.keys(CREATE_CATALOG)).toContain("outpaint");
-    expect(Object.keys(CREATE_CATALOG)).toContain("background_replace");
-  });
-
-  it("returns undefined for an unknown op", () => {
-    expect(createPresentation("nope")).toBeUndefined();
   });
 });
 

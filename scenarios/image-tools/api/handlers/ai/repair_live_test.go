@@ -21,7 +21,6 @@ import (
 	"github.com/vrooli/api-core/blobstore"
 	testdb "github.com/vrooli/api-core/databasetest"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
-	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 	"google.golang.org/protobuf/encoding/protojson"
 	internalai "image-tools/internal/ai"
 	"image-tools/internal/backends"
@@ -117,10 +116,14 @@ func TestRepair_ManagedLaMaDurableJob(t *testing.T) {
 	}
 	params, err := protojson.Marshal(&aiv1.AIParams{
 		ModelOverride: "big-lama",
-		BackgroundRepair: &aiv1.BackgroundRepairParams{
-			MaskExpansionPixels: 16,
-			RemovalRegions:      []*selectionv1.Box{{X: 0.08, Y: 0.88, Width: 0.84, Height: 0.11}},
-		},
+		OpParams: opParamsStruct(t, map[string]any{
+			"background_repair": map[string]any{
+				"maskExpansionPixels": float64(16),
+				"removalRegions": []any{
+					map[string]any{"x": 0.08, "y": 0.88, "width": 0.84, "height": 0.11},
+				},
+			},
+		}),
 	})
 	if err != nil {
 		t.Fatal(err)

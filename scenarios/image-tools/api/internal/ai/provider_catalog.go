@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	aigateway "image-tools/internal/aigateway"
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 	"image-tools/internal/technique"
@@ -27,6 +28,14 @@ type providerSpec struct {
 	// there is one source of truth and no free-text drift.
 	hostTool string
 	imports  []string
+	// gpuProbe selects the runtime probe that proves accelerator use: "torch",
+	// "onnx", "sd", or "" (no accelerator claim). Data, not a name comparison in
+	// RegisterProviders.
+	gpuProbe string
+	// warmSidecar keeps a bounded persistent JSONL worker for this backend.
+	warmSidecar bool
+	// progressScan selects a stdout progress parser ("sd" for stable-diffusion.cpp).
+	progressScan string
 }
 
 // ops returns the operations this provider serves, in technique-declaration
@@ -100,14 +109,25 @@ func HostToolForOperation(operation string) (string, bool) {
 // HostToolBindings returns the provider→host-tool bindings for every standalone
 // backend that depends on a host tool (including llama.cpp). In-process
 // providers (builtin/computed/library-go) need no host tool and are omitted.
+// HostToolBindings is the projection of the two tables that name host tools: the
+// provider specs (a tool per inference backend) and the tool-only bindings below.
 func HostToolBindings() []HostToolBinding {
 	specs := providerSpecs()
-	out := make([]HostToolBinding, 0, len(specs)+1)
+	out := make([]HostToolBinding, 0, len(specs)+len(hostToolOnlyBindings))
 	for _, s := range specs {
 		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: s.ops()})
 	}
-	out = append(out, HostToolBinding{Provider: "llama.cpp", HostTool: llamaCppHostTool, Ops: []string{"caption"}}, HostToolBinding{Provider: "tesseract", HostTool: "tesseract", Ops: []string{"ocr"}})
-	return out
+	return append(out, hostToolOnlyBindings...)
+}
+
+// hostToolOnlyBindings cover operations that a host tool serves directly, with no
+// inference technique row: the captioning runtime and the OCR engine are
+// installed as tools and invoked by their own code path, so they have no
+// providerSpec. They are data here rather than appends inside the projection so
+// that adding one is a row, and so the conformance test cannot miss it.
+var hostToolOnlyBindings = []HostToolBinding{
+	{Provider: "llama.cpp", HostTool: llamaCppHostTool, Ops: []string{"caption"}},
+	{Provider: "tesseract", HostTool: "tesseract", Ops: []string{"ocr"}},
 }
 
 // nativeTechnique is a thin constructor for a proven, native technique row: a
@@ -131,14 +151,14 @@ func conditioningTechnique(name, op string, build technique.ArgBuilder) techniqu
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{
-			name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, gpuCapable: true, hostTool: "sd",
+			name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, gpuCapable: true, hostTool: "sd", gpuProbe: "sd", progressScan: "sd",
 			techniques: []technique.Technique{
 				nativeTechnique("sd-txt2img", "text_to_image", technique.StableDiffusionCpp),
 				nativeTechnique("sd-img2img", "image_to_image", technique.StableDiffusionCpp),
 			},
 		},
 		{
-			name: "diffusers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"},
+			name: "diffusers", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", imports: []string{"diffusers", "torch", "PIL"},
 			techniques: []technique.Technique{
 				conditioningTechnique("diffusers-txt2img", "text_to_image", technique.DiffusersText2Image),
 				conditioningTechnique("diffusers-img2img", "image_to_image", technique.DiffusersImg2Img),
@@ -146,6 +166,13 @@ func providerSpecs() []providerSpec {
 				conditioningTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
 				conditioningTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),
 				nativeTechnique("diffusers-edit-instruct", "edit_instruct", technique.DiffusersEditInstruct),
+				// Identity/appearance substitution. Both reuse an existing builder:
+				// face swap is img2img driven by a reference-identity IP-Adapter, and
+				// garment replace is a masked inpaint driven by a prompt. The model
+				// rows declare which weights back them; the technique is the same
+				// pipeline. See DECISIONS.md 2026-07-04 for the capability policy.
+				conditioningTechnique("diffusers-face-swap", "face_swap", technique.DiffusersImg2Img),
+				conditioningTechnique("diffusers-garment-replace", "garment_replace", technique.DiffusersInpaint),
 			},
 		},
 		{
@@ -169,7 +196,7 @@ func providerSpecs() []providerSpec {
 			},
 		},
 		{
-			name: "onnxruntime", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
+			name: "onnxruntime", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "onnx", warmSidecar: true, imports: []string{"onnxruntime", "PIL", "numpy"},
 			techniques: []technique.Technique{
 				nativeTechnique("onnx-denoise", "denoise", technique.OnnxSidecar),
 				nativeTechnique("onnx-deblur", "deblur", technique.OnnxSidecar),
@@ -186,26 +213,26 @@ func providerSpecs() []providerSpec {
 			},
 		},
 		{
-			name: "python-sidecar", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
+			// One provider row for the python-sidecar backend. It previously appeared
+			// twice with the same name (one row per dependency set), which made the
+			// generated host-tool matrix ambiguous and split one backend's ops across
+			// two registrations.
+			name: "python-sidecar", program: pythonProgram, gpuCapable: false, hostTool: "uv",
+			imports: []string{"onnxruntime", "torch", "basicsr", "facexlib", "PIL", "numpy"},
 			techniques: []technique.Technique{
 				nativeTechnique("python-sidecar-colorize", "colorize", technique.PythonSidecar),
-			},
-		},
-		{
-			name: "python-sidecar", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"},
-			techniques: []technique.Technique{
 				nativeTechnique("python-sidecar-face-restore", "face_restore", technique.PythonSidecar),
 				nativeTechnique("python-sidecar-old-photo-restore", "old_photo_restore", technique.PythonSidecar),
 			},
 		},
 		{
-			name: "sam2-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"torch", "transformers", "PIL"},
+			name: "sam2-transformers", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", warmSidecar: true, imports: []string{"torch", "transformers", "PIL"},
 			techniques: []technique.Technique{
 				nativeTechnique("sam2-transformers-segment", "segment", technique.SAM2Sidecar),
 			},
 		},
 		{
-			name: "triposr", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"torch", "einops", "trimesh", "skimage", "yaml"},
+			name: "triposr", program: pythonProgram, gpuCapable: true, hostTool: "uv", gpuProbe: "torch", imports: []string{"torch", "einops", "trimesh", "skimage", "yaml"},
 			techniques: []technique.Technique{
 				nativeTechnique("triposr-image-to-object", "image_to_object", technique.TripoSRSidecar),
 			},
@@ -255,24 +282,25 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 		if s.isPython() {
 			p.pythonInterpreter = pythonInterpreter
 			p.probe.TTL = 30 * time.Second
-			if s.gpuCapable {
-				p.gpuProbe = torchProbe
-			}
 		}
-		if s.name == "onnxruntime" {
+		// Provider-specific behaviour is declared in the spec row, not selected by
+		// comparing the provider name, so adding a backend is a data change.
+		switch s.gpuProbe {
+		case "torch":
+			p.gpuProbe = torchProbe
+		case "onnx":
 			p.gpuProbe = onnxProbe
-		}
-		if s.name == "onnxruntime" && run == nil {
-			p.warm = newWarmSidecarRunner()
-		}
-		if s.name == "sam2-transformers" && run == nil {
-			p.warm = newWarmSidecarRunner()
-		}
-		if s.name == "stable-diffusion.cpp" {
+		case "sd":
 			// The installed sd-cli may be a CPU-only prebuilt; probe the real binary
-			// so the tier is honest, and parse its sampler bar so the long run shows
-			// live progress instead of a frozen percent.
+			// so the tier is honest.
 			p.gpuProbe = probeStableDiffusionGPU
+		}
+		if s.warmSidecar && run == nil {
+			p.warm = newWarmSidecarRunner()
+		}
+		if s.progressScan == "sd" {
+			// Parse the sampler bar so a long run shows live progress instead of a
+			// frozen percent.
 			p.progressScan = scanStableDiffusionProgress
 		}
 		if err := reg.Register(p); err != nil {
@@ -291,7 +319,7 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 	// BYOK cloud provider (last tier). The provider is registered unconditionally
 	// so selection and readiness remain explicit, but all remote transport,
 	// credentials, model policy, receipts, and retries belong to AI Gateway.
-	if err := reg.Register(newAIGatewayProvider(newAIGatewayMediaClient())); err != nil {
+	if err := reg.Register(aigateway.NewProvider(aigateway.NewMediaClient())); err != nil {
 		return fmt.Errorf("ai: register provider %q: %w", models.BackendOpenRouter, err)
 	}
 	return nil

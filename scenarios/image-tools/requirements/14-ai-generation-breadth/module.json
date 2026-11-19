@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/ai/catalog_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "outpaint + background_replace registered in the AI catalog (generation, RequiresImage+RequiresMask+PromptDriven) and each gets a dispatcher runner."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/providers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "outpaint + background_replace dispatch through the diffusers inpaint sidecar (image+mask+prompt argv); a missing mask errors."
         },
         {

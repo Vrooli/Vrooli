@@ -10,9 +10,9 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	qualityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/quality"
 	qualityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/quality/quality_v1connect"
+	"image-tools/internal/capability"
 	"image-tools/internal/jobs"
 	"image-tools/internal/module"
-	"image-tools/internal/operations"
 	"image-tools/internal/ops"
 	internalquality "image-tools/internal/quality"
 )
@@ -35,8 +35,8 @@ func Module(store internalquality.BlobStore, scheduler Scheduler) module.Module 
 }
 func (h *Deps) ListQualityProfiles(context.Context, *connect.Request[qualityv1.ListQualityProfilesRequest]) (*connect.Response[qualityv1.ListQualityProfilesResponse], error) {
 	names := []string{}
-	for _, op := range operations.All() {
-		names = append(names, op.Name)
+	for _, op := range capability.Vocabulary() {
+		names = append(names, op.ID)
 	}
 	for _, op := range ops.List() {
 		names = append(names, op.Name)

@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"image-tools/internal/capability"
 	"strings"
 
 	"image-tools/internal/fetch"
@@ -86,6 +87,12 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	}
 
 	for _, op := range r.vocabOrder {
+		// An operation that needs no weights cannot be missing weights: the
+		// in-process analysis operations (probe) and any future compute-mechanism
+		// operation are runnable on any host and have no model to install.
+		if m, ok := capability.Get(op); ok && !m.Requires.Weights {
+			continue
+		}
 		if installableEnabledByOp[op] == 0 {
 			severity, message := FindingError, "operation has no enabled model with resolvable install assets"
 			if disabledDeclaredByOp[op] > 0 {

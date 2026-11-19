@@ -150,6 +150,17 @@ func BuiltinLooks() []*looksv1.Look {
 			},
 		},
 		{
+			Id:          "screenshot-cleanup",
+			Name:        "Screenshot Cleanup",
+			Description: "Trim the window chrome, frame, and letterbox bands around a screenshot's subject, then upscale what is left so it holds up in a page. The trim is deterministic; the upscale needs a model.",
+			Kind:        looksv1.LookKind_LOOK_KIND_ENHANCE,
+			Builtin:     true,
+			Steps: []*looksv1.LookStep{
+				det("screenshot_cleanup", map[string]string{"padding_px": "0"}),
+				aiStep("upscale", map[string]string{"scale": "2"}),
+			},
+		},
+		{
 			Id:             "hi-res-fix",
 			Name:           "Hi-Res Fix",
 			Description:    "Super-resolve, then refine with a low-strength img2img pass so the upscaled detail is coherent rather than merely interpolated — the classic high-resolution-fix chain. (model-backed)",

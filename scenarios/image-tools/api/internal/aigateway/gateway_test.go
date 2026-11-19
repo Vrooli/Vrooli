@@ -1,4 +1,4 @@
-package ai
+package aigateway
 
 import (
 	"context"
@@ -108,7 +108,7 @@ func TestAIGatewayProvider_DelegatesIntentAndPreservesGatewayOutput(t *testing.T
 		t.Fatal(err)
 	}
 	media := &fakeMediaGateway{result: mediaGenerationResult{MediaType: "image/svg+xml", Model: "recraft/recraft-v4.1-vector", CostKnown: true, CostUSD: 0, ExecutionID: "gw-success", GatewayStatus: "SUCCEEDED", Outcome: "succeeded"}}
-	provider := newAIGatewayProvider(media)
+	provider := NewProvider(media)
 
 	result, err := provider.Execute(context.Background(), backends.Request{
 		Operation: "text_to_image",
@@ -133,7 +133,7 @@ func TestAIGatewayProvider_DelegatesIntentAndPreservesGatewayOutput(t *testing.T
 	if result.Meta[MetaCostUSD] != "0" || result.Meta[MetaCostProvenance] != ProviderReportedCostProvenance {
 		t.Fatalf("known zero cost metadata = %#v", result.Meta)
 	}
-	if _, ok := gatewayEvidenceVariationFromMeta(0, result.Meta); !ok {
+	if _, ok := EvidenceVariationFromMeta(0, result.Meta); !ok {
 		t.Fatalf("successful gateway execution evidence missing: %#v", result.Meta)
 	}
 }
@@ -143,7 +143,7 @@ func TestAIGatewayProviderRetainsGatewayReceiptWhenGenerateReturnsError(t *testi
 	media := &fakeMediaGateway{result: mediaGenerationResult{
 		ExecutionID: "gw-accepted", GatewayStatus: "MEDIA_EXECUTION_STATUS_FAILED", CostKnown: true, CostUSD: 0, Outcome: "failed",
 	}, err: wantErr}
-	provider := newAIGatewayProvider(media)
+	provider := NewProvider(media)
 	result, err := provider.Execute(context.Background(), backends.Request{
 		Operation: "text_to_image", Params: map[string]string{"prompt": "x"},
 		Output: storage.OutputTarget{LocalPath: filepath.Join(t.TempDir(), "not-written.png")},
@@ -151,7 +151,7 @@ func TestAIGatewayProviderRetainsGatewayReceiptWhenGenerateReturnsError(t *testi
 	if err == nil || !errors.Is(err, wantErr) {
 		t.Fatalf("error=%v", err)
 	}
-	entry, ok := gatewayEvidenceVariationFromMeta(0, result.Meta)
+	entry, ok := EvidenceVariationFromMeta(0, result.Meta)
 	if !ok || entry.ExecutionID != "gw-accepted" || entry.Status != "MEDIA_EXECUTION_STATUS_FAILED" || entry.Outcome != "failed" || entry.CostState != "known" || entry.CostUSD == nil || *entry.CostUSD != 0 {
 		t.Fatalf("partial gateway evidence = %+v, metadata=%#v", entry, result.Meta)
 	}
@@ -161,7 +161,7 @@ func TestAIGatewayProviderMarksLocalOutputFailureButKeepsKnownReceipt(t *testing
 	media := &fakeMediaGateway{result: mediaGenerationResult{
 		ExecutionID: "gw-written", GatewayStatus: "SUCCEEDED", CostKnown: true, CostUSD: 0.25, Outcome: "succeeded",
 	}}
-	provider := newAIGatewayProvider(media)
+	provider := NewProvider(media)
 	result, err := provider.Execute(context.Background(), backends.Request{
 		Operation: "text_to_image", Params: map[string]string{"prompt": "x"},
 		Output: storage.OutputTarget{LocalPath: filepath.Join(t.TempDir(), "missing.png")},
@@ -169,7 +169,7 @@ func TestAIGatewayProviderMarksLocalOutputFailureButKeepsKnownReceipt(t *testing
 	if err == nil {
 		t.Fatal("expected absent output error")
 	}
-	entry, ok := gatewayEvidenceVariationFromMeta(0, result.Meta)
+	entry, ok := EvidenceVariationFromMeta(0, result.Meta)
 	if !ok || entry.ExecutionID != "gw-written" || entry.Outcome != "failed" || entry.CostState != "known" || entry.CostUSD == nil || *entry.CostUSD != 0.25 {
 		t.Fatalf("partial gateway evidence = %+v, metadata=%#v", entry, result.Meta)
 	}
@@ -185,7 +185,7 @@ func TestAIGatewayProvider_ForwardsEditInput(t *testing.T) {
 		t.Fatal(err)
 	}
 	media := &fakeMediaGateway{result: mediaGenerationResult{MediaType: "image/png"}}
-	provider := newAIGatewayProvider(media)
+	provider := NewProvider(media)
 
 	result, err := provider.Execute(context.Background(), backends.Request{
 		Operation: "edit_instruct",
@@ -208,7 +208,7 @@ func TestAIGatewayProvider_ForwardsEditInput(t *testing.T) {
 }
 
 func TestAIGatewayProvider_RejectsMissingOutputAndEmptyGatewayOutput(t *testing.T) {
-	provider := newAIGatewayProvider(&fakeMediaGateway{})
+	provider := NewProvider(&fakeMediaGateway{})
 	if _, err := provider.Execute(context.Background(), backends.Request{Operation: "text_to_image", Params: map[string]string{"prompt": "x"}}); err == nil {
 		t.Fatal("expected missing output path error")
 	}

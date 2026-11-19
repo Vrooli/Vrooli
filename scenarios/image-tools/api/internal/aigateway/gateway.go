@@ -1,4 +1,8 @@
-package ai
+// Package aigateway is image-tools' remote-image provider. It is the only code
+// in the scenario that knows the AI Gateway media RPC: all provider choice,
+// credentials, retry policy and cost accounting stay behind that boundary, and
+// this package owns the wire format of the execution evidence it returns.
+package aigateway
 
 import (
 	"context"
@@ -35,10 +39,10 @@ const (
 	MetaCostUSD                    = "cost_usd"
 	MetaCostProvenance             = "cost_provenance"
 	ProviderReportedCostProvenance = "provider_reported_v1"
-	MetaGatewayExecutionAttempt    = "_gateway_execution_attempt_v1"
+	MetaExecutionAttempt           = "_gateway_execution_attempt_v1"
 )
 
-type gatewayExecutionAttempt struct {
+type Attempt struct {
 	Outcome     string   `json:"outcome"`
 	ExecutionID string   `json:"gateway_execution_id,omitempty"`
 	Status      string   `json:"gateway_status,omitempty"`
@@ -46,7 +50,7 @@ type gatewayExecutionAttempt struct {
 	CostUSD     *float64 `json:"cost_usd,omitempty"`
 }
 
-type gatewayExecutionEvidenceVariation struct {
+type EvidenceVariation struct {
 	Index       int      `json:"index"`
 	Outcome     string   `json:"outcome"`
 	ExecutionID string   `json:"gateway_execution_id,omitempty"`
@@ -55,17 +59,17 @@ type gatewayExecutionEvidenceVariation struct {
 	CostUSD     *float64 `json:"cost_usd,omitempty"`
 }
 
-type gatewayExecutionEvidence struct {
-	SchemaVersion       int                                 `json:"schema_version"`
-	Complete            bool                                `json:"complete"`
-	RequestedVariations int                                 `json:"requested_variations"`
-	Variations          []gatewayExecutionEvidenceVariation `json:"variations"`
+type Evidence struct {
+	SchemaVersion       int                 `json:"schema_version"`
+	Complete            bool                `json:"complete"`
+	RequestedVariations int                 `json:"requested_variations"`
+	Variations          []EvidenceVariation `json:"variations"`
 }
 
 // parseCostUSD reads the cost a backend reported. The second return separates
 // "reported nothing" from "reported zero", which is the same distinction the
 // writer above is careful to preserve.
-func parseCostUSD(meta map[string]string) (float64, bool) {
+func ParseCostUSD(meta map[string]string) (float64, bool) {
 	if meta[MetaCostProvenance] != ProviderReportedCostProvenance {
 		return 0, false
 	}
@@ -112,7 +116,7 @@ type mediaGenerationResult struct {
 	Outcome          string
 }
 
-func gatewayAttemptMeta(result mediaGenerationResult, outcomeOverride string) map[string]string {
+func attemptMeta(result mediaGenerationResult, outcomeOverride string) map[string]string {
 	if result.Outcome == "" && result.ExecutionID == "" {
 		return nil
 	}
@@ -120,7 +124,7 @@ func gatewayAttemptMeta(result mediaGenerationResult, outcomeOverride string) ma
 	if outcomeOverride != "" {
 		outcome = outcomeOverride
 	}
-	entry := gatewayExecutionAttempt{
+	entry := Attempt{
 		Outcome:     outcome,
 		ExecutionID: strings.TrimSpace(result.ExecutionID),
 		Status:      strings.TrimSpace(result.GatewayStatus),
@@ -135,10 +139,11 @@ func gatewayAttemptMeta(result mediaGenerationResult, outcomeOverride string) ma
 	if err != nil {
 		return nil
 	}
-	return map[string]string{MetaGatewayExecutionAttempt: string(encoded)}
+	return map[string]string{MetaExecutionAttempt: string(encoded)}
 }
 
-type mediaGateway interface {
+// MediaGateway is the narrow remote-media seam; tests substitute a fake.
+type MediaGateway interface {
 	Generate(context.Context, mediaGenerationRequest) (mediaGenerationResult, error)
 }
 
@@ -151,7 +156,7 @@ type aiGatewayMediaClient struct {
 	resolve    func(context.Context) (string, error)
 }
 
-func newAIGatewayMediaClient() *aiGatewayMediaClient {
+func NewMediaClient() MediaGateway {
 	return &aiGatewayMediaClient{
 		httpClient: &http.Client{Timeout: 10 * time.Minute},
 		resolve: func(ctx context.Context) (string, error) {
@@ -273,10 +278,10 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 // model/backend vocabulary for selection and telemetry, while all remote
 // transport and credential/model policy are delegated to AI Gateway.
 type aiGatewayProvider struct {
-	media mediaGateway
+	media MediaGateway
 }
 
-func newAIGatewayProvider(media mediaGateway) *aiGatewayProvider {
+func NewProvider(media MediaGateway) backends.Provider {
 	return &aiGatewayProvider{media: media}
 }
 
@@ -339,13 +344,13 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 		if result.Outcome == "succeeded" {
 			outcomeOverride = "failed"
 		}
-		return backends.Result{Meta: gatewayAttemptMeta(result, outcomeOverride)}, fmt.Errorf("ai: AI Gateway image generation: %w", err)
+		return backends.Result{Meta: attemptMeta(result, outcomeOverride)}, fmt.Errorf("ai: AI Gateway image generation: %w", err)
 	}
 	if info, statErr := os.Stat(req.Output.LocalPath); statErr != nil || info.Size() == 0 {
 		if statErr == nil {
 			statErr = io.ErrUnexpectedEOF
 		}
-		return backends.Result{Meta: gatewayAttemptMeta(result, "failed")}, fmt.Errorf("ai: AI Gateway output is empty: %w", statErr)
+		return backends.Result{Meta: attemptMeta(result, "failed")}, fmt.Errorf("ai: AI Gateway output is empty: %w", statErr)
 	}
 	meta := map[string]string{
 		"backend": models.BackendOpenRouter,
@@ -368,7 +373,7 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 	if len(result.Warnings) > 0 {
 		meta["warnings"] = strings.Join(result.Warnings, "; ")
 	}
-	for key, value := range gatewayAttemptMeta(result, "succeeded") {
+	for key, value := range attemptMeta(result, "succeeded") {
 		meta[key] = value
 	}
 	return backends.Result{OutputRef: req.Output.LocalPath, Tier: backends.TierBYOK, Meta: meta}, nil
@@ -384,11 +389,4 @@ func mediaTypeForFile(path string) string {
 		return "image/svg+xml"
 	}
 	return http.DetectContentType(data)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

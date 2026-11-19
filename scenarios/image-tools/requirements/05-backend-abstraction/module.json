@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Provider registry rejects an op lacking a standalone backend"
         },
         {
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Provider selection order standalone-\u003ecomfyui-\u003ebyok-\u003ecpu honored"
         }
       ]

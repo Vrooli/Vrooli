@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,6 +22,23 @@ import (
 // the given tier. Models are reported installed so the gate (not a missing
 // model) is what decides the outcome.
 func newGatedServer(t *testing.T, tier safety.Tier) (*mux.Router, *fakeSubmitter) {
+	return newGatedServerWithReviewer(t, tier, cleanMinorReviewer{})
+}
+
+// cleanMinorReviewer stands in for an operator-configured detector.
+type cleanMinorReviewer struct{}
+
+func (cleanMinorReviewer) Review(context.Context, [][]byte) (safety.MinorVerdict, error) {
+	return safety.MinorVerdict{}, nil
+}
+
+type flaggingMinorReviewer struct{}
+
+func (flaggingMinorReviewer) Review(context.Context, [][]byte) (safety.MinorVerdict, error) {
+	return safety.MinorVerdict{Minor: true, Sexual: true, Detail: "classifier: minor + sexual"}, nil
+}
+
+func newGatedServerWithReviewer(t *testing.T, tier safety.Tier, reviewer safety.MinorReviewer) (*mux.Router, *fakeSubmitter) {
 	t.Helper()
 	registry, err := models.Load()
 	if err != nil {
@@ -44,7 +62,9 @@ func newGatedServer(t *testing.T, tier safety.Tier) (*mux.Router, *fakeSubmitter
 		t.Fatalf("new engine: %v", err)
 	}
 	sub := &fakeSubmitter{}
-	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard(), Gate: safety.NewGate(tier, nil)}
+	gate := safety.NewGate(tier, nil)
+	gate.SetMinorReviewer(reviewer)
+	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard(), Gate: gate}
 	r := mux.NewRouter()
 	path, handler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry, deps))
 	r.PathPrefix(path).Handler(handler)
@@ -75,6 +95,32 @@ func TestGate_PublicAllowsLowWeight(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202 (gate must not block none-weight); body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestGate_PublicRequiresMinorReviewerForImageOutput(t *testing.T) {
+	r, _ := newGatedServerWithReviewer(t, safety.TierPublic, nil)
+	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"a landscape"}`)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 when the required reviewer is absent; body=%s", w.Code, w.Body.String())
+	}
+	if !contains(w.Body.String(), "minor-safety") {
+		t.Errorf("403 body should name the missing control; got %s", w.Body.String())
+	}
+}
+
+func TestGate_PublicRefusesFlaggedMinorSexualContent(t *testing.T) {
+	r, _ := newGatedServerWithReviewer(t, safety.TierPublic, flaggingMinorReviewer{})
+	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"x"}`)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 from the non-configurable refusal; body=%s", w.Code, w.Body.String())
+	}
+	if !contains(w.Body.String(), "refused") {
+		t.Errorf("403 body should state the refusal; got %s", w.Body.String())
 	}
 }
 

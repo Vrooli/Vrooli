@@ -116,7 +116,7 @@ type fakeImportStore struct {
 }
 
 func (s *fakeImportStore) Put(_ context.Context, key string, r io.Reader, mime string) error {
-	s.key, s.mime, s.err = key, mime, s.err
+	s.key, s.mime = key, mime
 	if s.err != nil {
 		return s.err
 	}

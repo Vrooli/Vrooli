@@ -1,56 +1,5 @@
-import {
-  Crop,
-  FileType2,
-  FlipHorizontal2,
-  Frame,
-  Image,
-  Info,
-  Maximize2,
-  Minimize2,
-  RotateCw,
-  Ruler,
-  SlidersHorizontal,
-  Type,
-  Wand2,
-  type LucideIcon,
-} from "lucide-react";
-
 import { strings } from "../../consts/strings";
 import type { PositionToken } from "../../components/ui/position-picker";
-
-type OpStrings = typeof strings.workspace.op;
-type OpStringEntry = OpStrings[keyof OpStrings];
-
-/** Per-op presentation: friendly label key, one-line description key, icon. */
-export interface OpPresentation {
-  labelKey: OpStringEntry["label"];
-  descKey: OpStringEntry["desc"];
-  Icon: LucideIcon;
-}
-
-/**
- * Maps each deterministic op to its humanized label/description i18n keys and a
- * lucide icon. The keys resolve through the typed registry, so a renamed op
- * string fails the build at this table.
- */
-export const OP_CATALOG: Readonly<Record<string, OpPresentation>> = {
-  resize: { labelKey: strings.workspace.op.resize.label, descKey: strings.workspace.op.resize.desc, Icon: Maximize2 },
-  crop: { labelKey: strings.workspace.op.crop.label, descKey: strings.workspace.op.crop.desc, Icon: Crop },
-  rotate: { labelKey: strings.workspace.op.rotate.label, descKey: strings.workspace.op.rotate.desc, Icon: RotateCw },
-  flip: { labelKey: strings.workspace.op.flip.label, descKey: strings.workspace.op.flip.desc, Icon: FlipHorizontal2 },
-  deskew: { labelKey: strings.workspace.op.deskew.label, descKey: strings.workspace.op.deskew.desc, Icon: Ruler },
-  thumbnail: { labelKey: strings.workspace.op.thumbnail.label, descKey: strings.workspace.op.thumbnail.desc, Icon: Image },
-  canvas: { labelKey: strings.workspace.op.canvas.label, descKey: strings.workspace.op.canvas.desc, Icon: Frame },
-  adjust: { labelKey: strings.workspace.op.adjust.label, descKey: strings.workspace.op.adjust.desc, Icon: SlidersHorizontal },
-  filter: { labelKey: strings.workspace.op.filter.label, descKey: strings.workspace.op.filter.desc, Icon: Wand2 },
-  convert: { labelKey: strings.workspace.op.convert.label, descKey: strings.workspace.op.convert.desc, Icon: FileType2 },
-  compress: { labelKey: strings.workspace.op.compress.label, descKey: strings.workspace.op.compress.desc, Icon: Minimize2 },
-  overlay: { labelKey: strings.workspace.op.overlay.label, descKey: strings.workspace.op.overlay.desc, Icon: Type },
-  metadata: { labelKey: strings.workspace.op.metadata.label, descKey: strings.workspace.op.metadata.desc, Icon: Info },
-};
-
-/** Presentation for an op, or `undefined` if it is unknown. */
-export const opPresentation = (operation: string): OpPresentation | undefined => OP_CATALOG[operation];
 
 /** A translatable key path from the typed string registry. */
 type FitKey = (typeof strings.workspace.fitOption)[keyof typeof strings.workspace.fitOption];

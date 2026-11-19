@@ -26,6 +26,7 @@ import (
 	internalai "image-tools/internal/ai"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capacity"
 	"image-tools/internal/fetch"
 	"image-tools/internal/jobrunner"
 	internaljobs "image-tools/internal/jobs"
@@ -286,10 +287,10 @@ func TestSegment_ManagedInstallSAM2DurableJob(t *testing.T) {
 	})
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	var hostProbe capabilities.Probe = capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 4}}
-	var capacityBroker internalai.CapacityBroker
+	var capacityBroker capacity.Broker
 	if qualifyGPU {
 		hostProbe = capabilities.NewCLIProbe()
-		capacityBroker = &internalai.CLICapacityBroker{}
+		capacityBroker = &capacity.CLIBroker{}
 		host, probeErr := hostProbe.Inventory(context.Background())
 		if probeErr != nil {
 			t.Fatalf("native GPU inventory: %v", probeErr)
@@ -299,13 +300,13 @@ func TestSegment_ManagedInstallSAM2DurableJob(t *testing.T) {
 			t.Logf("native GPU inventory index=%d uuid=%s name=%s free_bytes=%d free_known=%t", gpu.Index, gpu.UUID, gpu.Name, free, known)
 		}
 	}
-	var blockerClaim internalai.CapacityLease
+	var blockerClaim capacity.Lease
 	if qualifyContention {
 		host, probeErr := hostProbe.Inventory(context.Background())
 		if probeErr != nil || len(host.GPUs) == 0 {
 			t.Fatalf("fresh native GPU inventory for contention: host=%+v err=%v", host, probeErr)
 		}
-		blocker, claimErr := capacityBroker.Claim(context.Background(), "image-tools:qualification-contention", int64(9)<<30, internalai.CapacityClaimOptions{
+		blocker, claimErr := capacityBroker.Claim(context.Background(), "image-tools:qualification-contention", int64(9)<<30, capacity.ClaimOptions{
 			Priority: "service", AllowReclaim: false, GPUUUID: host.GPUs[0].UUID,
 		})
 		if claimErr != nil {
@@ -476,7 +477,7 @@ func TestSegment_ManagedInstallSAM2DurableJob(t *testing.T) {
 		if err := capacityBroker.Release(base, blockerClaim); err != nil {
 			t.Fatalf("release temporary contention claim %s: %v", blockerClaim.ClaimID, err)
 		}
-		blockerClaim = internalai.CapacityLease{}
+		blockerClaim = capacity.Lease{}
 	}
 	jobMS := int64(0)
 	if job.FinishedAt != nil {

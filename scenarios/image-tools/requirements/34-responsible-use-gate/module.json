@@ -1,21 +1,21 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-28T23:34:11-04:00"
+    "last_validated_at": "2026-11-19T06:30:00-05:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-015",
       "title": "Responsible-Use Deployment Gate",
-      "status": "in_progress",
+      "status": "implemented",
       "prd_ref": "OT-P1-015",
       "category": "feature",
-      "description": "Editing real people is gated at DEPLOYMENT, not at the capability. Public/monetized deployment requires: NSFW/CSAM auto-scan on by default, C2PA provenance on by default (at least for real-person edits), a published Acceptable-Use Policy, a consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Local/personal use is unrestricted; the hard non-goals (no recognition / face-swap / deepfake) remain enforced. Naturalize is low-weight; body/clothing/pose edits are high-weight. Built in api/internal/safety (tier resolution + policy + op-weight table + consent log + rate limiter) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy.",
+      "description": "Harm protection is a set of CONFIGURABLE controls, not a capability allowlist. No image capability is blocked at the code layer: identity/appearance edits (face transfer, clothing/hair/makeup changes) are ordinary operations. A public/monetized deployment defaults to content scan on, provenance/attribution marking on (>= real-person edits), a published Acceptable-Use Policy, consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Each control is independently overridable (IMAGE_TOOLS_REQUIRE_CONSENT, IMAGE_TOOLS_NSFW_SCAN, IMAGE_TOOLS_REQUIRE_PROVENANCE, IMAGE_TOOLS_RATE_LIMIT_PER_MIN); local defaults are permissive. The only non-configurable refusal is sexual content involving minors, and it is enforced rather than asserted: the public tier requires a reviewer, refuses image output when none is configured, fails closed on a reviewer error, and the engine deletes any refused output before the job fails. The reviewer is operator-supplied (IMAGE_TOOLS_MINOR_SAFETY_CMD) because no bundled model answers the age question. Built in api/internal/safety (tier preset + per-control overrides + op-weight table + consent log + rate limiter) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy uses the same resolved policy. Naturalize is low-weight; identity/body/clothing/appearance edits are high-weight.",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/safety/safety_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Policy/tier/op-weight/consent-log/rate-limiter logic: local unrestricted; public blocks high-weight ops without consent, forces NSFW scan, records affirmed consent."
         },
         {
@@ -29,8 +29,29 @@
           "type": "test",
           "ref": "api/handlers/safety/connect_handler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "SafetyService.GetPolicy reports the resolved policy + op-weight table for local and public tiers."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/safety/minor_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Minor-safety reviewer contract (JSON stdin/stdout, no shell), malformed output, bounded input; required-without-detector refuses; minor+sexual verdict refuses; reviewer error fails closed; local tier never consults it."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ai/generation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Output review runs regardless of the request flag; a HardRefusal fails the job and deletes the produced artifacts; a review error also deletes them (fail closed)."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/ai/gate_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Public submit edge refuses image output when the required reviewer is absent and returns 403 on a flagged minor+sexual verdict."
         }
       ]
     }

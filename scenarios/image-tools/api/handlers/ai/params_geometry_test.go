@@ -1,91 +1,188 @@
 package ai
 
 import (
+	"encoding/json"
 	"testing"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
-	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestValidateImageToObjectResolution(t *testing.T) {
-	for _, resolution := range []uint32{0, 128, 256} {
-		if err := validateImageToObject("image_to_object", &aiv1.AIParams{ImageToObject: &aiv1.ImageToObjectParams{MeshResolution: resolution}}); err != nil {
-			t.Errorf("resolution %d rejected: %v", resolution, err)
+// The operation-specific parameter contracts now live in the capability
+// manifests and are enforced by internal/paramschema. These tests exercise the
+// schema path end to end: validation at the edge and threading into the backend
+// request map (whose keys the Python sidecars consume).
+
+func TestImageToObjectResolutionSchema(t *testing.T) {
+	for _, resolution := range []float64{128, 256} {
+		params := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{"mesh_resolution": resolution})}
+		if err := validateOpParams("image_to_object", params); err != nil {
+			t.Errorf("resolution %v rejected: %v", resolution, err)
 		}
 	}
-	if err := validateImageToObject("image_to_object", &aiv1.AIParams{ImageToObject: &aiv1.ImageToObjectParams{MeshResolution: 512}}); err == nil {
-		t.Fatal("unbounded resolution accepted")
+	bad := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{"mesh_resolution": float64(512)})}
+	if err := validateOpParams("image_to_object", bad); err == nil {
+		t.Fatal("unbounded mesh resolution accepted")
 	}
-	if err := validateImageToObject("depth_map", &aiv1.AIParams{ImageToObject: &aiv1.ImageToObjectParams{MeshResolution: 128}}); err == nil {
-		t.Fatal("image-to-object params accepted for unrelated operation")
-	}
-}
-
-func TestParamsMapPreservesExplicitImageToObjectResolution(t *testing.T) {
-	got := paramsMap(&aiv1.AIParams{ImageToObject: &aiv1.ImageToObjectParams{MeshResolution: 128}})
-	if got["mesh_resolution"] != "128" {
-		t.Fatalf("mesh resolution not forwarded: %#v", got)
+	if err := validateOpParams("depth_map", bad); err == nil {
+		t.Fatal("image_to_object params accepted for an unrelated operation")
 	}
 }
 
-func TestValidateSceneGeometrySupportROI(t *testing.T) {
-	valid := &aiv1.AIParams{SceneGeometry: &aiv1.SceneGeometryParams{SupportRoi: &selectionv1.Box{X: 0, Y: 0.85, Width: 1, Height: 0.15}}}
-	if err := validateSceneGeometry("scene_geometry", valid); err != nil {
-		t.Fatalf("valid support ROI rejected: %v", err)
+func TestInpaintCropSchema(t *testing.T) {
+	valid := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"inpaint_crop_to_mask":             true,
+		"inpaint_context_pixels":           float64(96),
+		"inpaint_max_edge_px":              float64(1024),
+		"inpaint_neutralize_masked_pixels": true,
+	})}
+	if err := validateOpParams("inpaint", valid); err != nil {
+		t.Fatalf("valid crop controls rejected: %v", err)
 	}
-	if err := validateSceneGeometry("depth_map", valid); err == nil {
-		t.Fatal("scene geometry parameters accepted by depth_map")
+	got := paramsMap(valid)
+	want := map[string]string{
+		"inpaint_crop_to_mask":             "true",
+		"inpaint_context_pixels":           "96",
+		"inpaint_max_edge_px":              "1024",
+		"inpaint_neutralize_masked_pixels": "true",
 	}
-	invalid := &aiv1.AIParams{SceneGeometry: &aiv1.SceneGeometryParams{SupportRoi: &selectionv1.Box{X: 0.5, Y: 0.5, Width: 0.6, Height: 0.5}}}
-	if err := validateSceneGeometry("scene_geometry", invalid); err == nil {
-		t.Fatal("support ROI extending outside normalized image coordinates was accepted")
-	}
-}
-
-func TestParamsMapPreservesTypedSupportROI(t *testing.T) {
-	p := &aiv1.AIParams{SceneGeometry: &aiv1.SceneGeometryParams{SupportRoi: &selectionv1.Box{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.4}}}
-	got := paramsMap(p)["support_roi"]
-	var roi selectionv1.Box
-	if got == "" || protojson.Unmarshal([]byte(got), &roi) != nil || roi.GetX() != 0.1 || roi.GetY() != 0.2 || roi.GetWidth() != 0.3 || roi.GetHeight() != 0.4 {
-		t.Fatalf("support ROI provider parameter = %q", got)
-	}
-}
-
-func TestValidateBackgroundRepairAdditions(t *testing.T) {
-	valid := &aiv1.AIParams{BackgroundRepair: &aiv1.BackgroundRepairParams{
-		MaskExpansionPixels: 12,
-		RemovalRegions:      []*selectionv1.Box{{X: .1, Y: .8, Width: .2, Height: .1}},
-	}}
-	if err := validateBackgroundRepair("object_removal", valid); err != nil {
-		t.Fatalf("valid explicit additions rejected: %v", err)
-	}
-	if err := validateBackgroundRepair("denoise", valid); err == nil {
-		t.Fatal("background repair params accepted for unrelated operation")
-	}
-	if err := validateBackgroundRepair("object_removal", &aiv1.AIParams{BackgroundRepair: &aiv1.BackgroundRepairParams{MaskExpansionPixels: 65}}); err == nil {
-		t.Fatal("unbounded mask expansion accepted")
-	}
-	if err := validateBackgroundRepair("object_removal", &aiv1.AIParams{BackgroundRepair: &aiv1.BackgroundRepairParams{RemovalRegions: []*selectionv1.Box{{X: .8, Y: .8, Width: .3, Height: .3}}}}); err == nil {
-		t.Fatal("out-of-frame removal region accepted")
-	}
-}
-
-func TestParamsMapPreservesTypedBackgroundRepair(t *testing.T) {
-	p := &aiv1.AIParams{BackgroundRepair: &aiv1.BackgroundRepairParams{MaskExpansionPixels: 6, RemovalRegions: []*selectionv1.Box{{X: .2, Y: .7, Width: .3, Height: .1}}}}
-	raw := paramsMap(p)["background_repair"]
-	var parsed aiv1.BackgroundRepairParams
-	if raw == "" || protojson.Unmarshal([]byte(raw), &parsed) != nil || parsed.GetMaskExpansionPixels() != 6 || len(parsed.GetRemovalRegions()) != 1 {
-		t.Fatalf("typed repair controls not preserved: %q", raw)
-	}
-}
-
-func TestParamsMapPreservesTypedInpaintCrop(t *testing.T) {
-	got := paramsMap(&aiv1.AIParams{Inpaint: &aiv1.InpaintParams{CropToMask: true, ContextPixels: 96, MaxEdgePx: 1024, NeutralizeMaskedPixels: true}})
-	want := map[string]string{"inpaint_crop_to_mask": "true", "inpaint_context_pixels": "96", "inpaint_max_edge_px": "1024", "inpaint_neutralize_masked_pixels": "true"}
 	for key, value := range want {
 		if got[key] != value {
 			t.Fatalf("%s = %q, want %q; map=%#v", key, got[key], value, got)
 		}
+	}
+	missing := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{"inpaint_context_pixels": float64(96)})}
+	if err := validateOpParams("inpaint", missing); err == nil {
+		t.Fatal("crop control without crop_to_mask accepted")
+	}
+	tooMuch := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"inpaint_crop_to_mask":   true,
+		"inpaint_context_pixels": float64(600),
+	})}
+	if err := validateOpParams("inpaint", tooMuch); err == nil {
+		t.Fatal("out-of-range context pixels accepted")
+	}
+}
+
+func TestSegmentationSchemaAndSemantics(t *testing.T) {
+	valid := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"segmentation": map[string]any{
+			"points": []any{
+				map[string]any{"x": 0.4, "y": 0.4},
+				map[string]any{"x": 0.7, "y": 0.6, "negative": true},
+			},
+			"box": map[string]any{"x": 0.1, "y": 0.1, "width": 0.6, "height": 0.5},
+		},
+	})}
+	if err := validateOpParams("segment", valid); err != nil {
+		t.Fatalf("valid segmentation rejected: %v", err)
+	}
+	if err := validateSegmentationSemantics("segment", valid); err != nil {
+		t.Fatalf("valid segmentation failed semantics: %v", err)
+	}
+	raw := paramsMap(valid)["segmentation"]
+	if raw == "" {
+		t.Fatal("segmentation not threaded to params")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("threaded segmentation is not JSON: %v", err)
+	}
+	if _, ok := parsed["box"]; !ok {
+		t.Fatalf("threaded segmentation lost box: %s", raw)
+	}
+
+	// Relational rule: only negative points, no box → rejected.
+	negativeOnly := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"segmentation": map[string]any{
+			"points": []any{map[string]any{"x": 0.4, "y": 0.4, "negative": true}},
+		},
+	})}
+	if err := validateSegmentationSemantics("segment", negativeOnly); err == nil {
+		t.Fatal("all-negative prompt accepted")
+	}
+
+	// Range rule (schema).
+	outOfRange := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"segmentation": map[string]any{"points": []any{map[string]any{"x": 1.4, "y": 0.4}}},
+	})}
+	if err := validateOpParams("segment", outOfRange); err == nil {
+		t.Fatal("out-of-range point accepted")
+	}
+
+	// Unknown key (schema: additionalProperties=false).
+	unknown := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"segmentation": map[string]any{"mask": "nope"},
+	})}
+	if err := validateOpParams("segment", unknown); err == nil {
+		t.Fatal("unknown segmentation key accepted")
+	}
+}
+
+func TestSceneGeometrySupportROISchema(t *testing.T) {
+	valid := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"support_roi": map[string]any{"x": 0.0, "y": 0.85, "width": 1.0, "height": 0.15},
+	})}
+	if err := validateOpParams("scene_geometry", valid); err != nil {
+		t.Fatalf("valid support ROI rejected: %v", err)
+	}
+	var roi map[string]any
+	if err := json.Unmarshal([]byte(paramsMap(valid)["support_roi"]), &roi); err != nil {
+		t.Fatalf("support ROI not threaded as JSON: %v", err)
+	}
+	if roi["y"] != 0.85 || roi["height"] != 0.15 {
+		t.Fatalf("threaded support ROI = %#v", roi)
+	}
+	outOfRange := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"support_roi": map[string]any{"x": 0.5, "y": 0.5, "width": 0.6, "height": 0.5},
+	})}
+	// Each field is in 0..1, so only the relational rule can reject this; it is
+	// the schema's `withinFrame`, not a Go function.
+	if err := validateOpParams("scene_geometry", outOfRange); err == nil {
+		t.Fatal("support ROI extending outside the frame accepted")
+	}
+	missing := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"support_roi": map[string]any{"x": 0.0, "y": 0.0, "width": 1.0},
+	})}
+	if err := validateOpParams("scene_geometry", missing); err == nil {
+		t.Fatal("support ROI missing height accepted")
+	}
+}
+
+func TestBackgroundRepairSchemaAndSemantics(t *testing.T) {
+	valid := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"background_repair": map[string]any{
+			"maskExpansionPixels": float64(12),
+			"removalRegions": []any{
+				map[string]any{"x": 0.1, "y": 0.8, "width": 0.2, "height": 0.1},
+			},
+		},
+	})}
+	if err := validateOpParams("object_removal", valid); err != nil {
+		t.Fatalf("valid repair controls rejected: %v", err)
+	}
+	var repair map[string]any
+	if err := json.Unmarshal([]byte(paramsMap(valid)["background_repair"]), &repair); err != nil {
+		t.Fatalf("repair controls not threaded as JSON: %v", err)
+	}
+	if repair["maskExpansionPixels"] != 12.0 {
+		t.Fatalf("threaded repair = %#v", repair)
+	}
+
+	tooLarge := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"background_repair": map[string]any{"maskExpansionPixels": float64(65)},
+	})}
+	if err := validateOpParams("object_removal", tooLarge); err == nil {
+		t.Fatal("unbounded mask expansion accepted")
+	}
+
+	outOfFrame := &aiv1.AIParams{OpParams: opParamsStruct(t, map[string]any{
+		"background_repair": map[string]any{
+			"removalRegions": []any{
+				map[string]any{"x": 0.8, "y": 0.8, "width": 0.3, "height": 0.3},
+			},
+		},
+	})}
+	if err := validateOpParams("object_removal", outOfFrame); err == nil {
+		t.Fatal("out-of-frame removal region accepted")
 	}
 }

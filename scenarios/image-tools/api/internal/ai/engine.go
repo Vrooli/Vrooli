@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"image-tools/internal/adapters"
+	aigateway "image-tools/internal/aigateway"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capacity"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
 	"image-tools/internal/resolver"
@@ -33,12 +35,23 @@ import (
 type BlobStore interface {
 	Get(ctx context.Context, key string) (io.ReadCloser, string, error)
 	Put(ctx context.Context, key string, r io.Reader, mime string) error
+	// Delete removes an artifact the engine refuses to publish. A hard-refusal
+	// verdict is only meaningful if the bytes stop being addressable.
+	Delete(ctx context.Context, key string) error
 }
 
-// NSFWScanner classifies image bytes for the optional auto-scan hook. It is
-// injected (implemented by internal/analysis) so the ai package does not depend
-// on analysis and stays unit-testable with a fake.
-type NSFWScanner func(ctx context.Context, img []byte) (nsfw bool, score float64, err error)
+// ScanVerdict is what an injected output scanner answers. NSFW is advisory and
+// only surfaces when a caller asked for it; HardRefusal is the one
+// non-configurable outcome and always fails the job.
+type ScanVerdict struct {
+	NSFW        bool
+	Score       float64
+	HardRefusal string
+}
+
+// OutputScanner classifies generated image bytes. Both hooks are injected so
+// the ai package does not depend on analysis or safety and stays unit-testable.
+type OutputScanner func(ctx context.Context, img []byte) (ScanVerdict, error)
 
 // PosePreprocessor derives an OpenPose bone image from a source image. It runs
 // inside the already-admitted AI job and writes a concrete PNG under that job's
@@ -101,9 +114,13 @@ type Deps struct {
 	// AdaptersRoot is the absolute directory adapter weights live under (per
 	// adapter: <AdaptersRoot>/adapters/<id>). Filled into each ResolvedAdapter.Dir.
 	AdaptersRoot string
-	// AutoScan classifies generated output when a job requests it. Optional; nil
-	// disables the hook.
-	AutoScan NSFWScanner
+	// AutoScan reports the advisory NSFW classification when a job requests it.
+	// Optional; nil disables the advisory hook.
+	AutoScan OutputScanner
+	// ReviewOutput runs on every generated image regardless of what the caller
+	// asked for, and fails the job when it returns a HardRefusal. A deployment
+	// that serves other people wires this; a local install may leave it nil.
+	ReviewOutput OutputScanner
 	// PosePreprocessor derives OpenPose maps for ControlNet under the same AI job
 	// admission. Optional until the governed CPU runtime and pinned model are ready.
 	PosePreprocessor PosePreprocessor
@@ -111,16 +128,16 @@ type Deps struct {
 	// before a GPU generation (plan §7 Phase 7). Optional; nil disables
 	// arbitration. Production always wires it; admission/renewal failures stop
 	// GPU work, and degraded work requires a real CPU-capable model/backend.
-	Capacity CapacityBroker
+	Capacity capacity.Broker
 	// Memory admits local CPU and GPU inference. Production always supplies it;
 	// a warm worker must be reaped before this operation's RAM lease is released.
-	Memory MemoryAdmission
+	Memory capacity.MemoryAdmission
 	// CPU reserves the bounded inference thread budget independently of warm
 	// model residency. It is released after each job, including cancellation.
-	CPU MemoryAdmission
+	CPU capacity.MemoryAdmission
 	// Disk reserves measured output and temporary peak bytes on their actual
 	// filesystems through the shared host capacity owner for the full job.
-	Disk DiskAdmission
+	Disk capacity.DiskAdmission
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -382,7 +399,7 @@ func estimateSeconds(op string, gpuViable bool) int {
 		return 2
 	}
 	base := 30
-	if o, ok := Get(op); ok && o.Category == CategoryEnhancement {
+	if o, ok := Get(op); ok && o.Family == "enhance" {
 		base = 15
 	}
 	if !gpuViable {
@@ -436,7 +453,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	jobContext := ctx
 	requestedVariations := 0
 	nextVariation := 0
-	var gatewayVariations []gatewayExecutionEvidenceVariation
+	var gatewayVariations []aigateway.EvidenceVariation
 	gatewayEvidenceObserved := false
 	defer func() {
 		if runErr != nil {
@@ -452,11 +469,11 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		}
 		if runErr != nil && gatewayEvidenceObserved {
 			for index := nextVariation; index < requestedVariations; index++ {
-				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{
+				gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{
 					Index: index, Outcome: "not_started", CostState: "unknown",
 				})
 			}
-			evidence := gatewayExecutionEvidence{
+			evidence := aigateway.Evidence{
 				SchemaVersion: 1, Complete: false, RequestedVariations: requestedVariations,
 				Variations: gatewayVariations,
 			}
@@ -572,16 +589,16 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			emit(lo+int(frac*float64(hi-lo)), message)
 		}
 		key, runMeta, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i, progress)
-		if attempt, ok := gatewayEvidenceVariationFromMeta(i, runMeta); ok {
+		if attempt, ok := aigateway.EvidenceVariationFromMeta(i, runMeta); ok {
 			gatewayVariations = append(gatewayVariations, attempt)
 			gatewayEvidenceObserved = true
 		}
 		if err != nil {
 			if !gatewayEvidenceObserved && bsel.Tier == backends.TierBYOK && bsel.Provider.Name() == models.BackendOpenRouter {
-				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
+				gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
 				gatewayEvidenceObserved = true
 			} else if gatewayEvidenceObserved && (len(gatewayVariations) == 0 || gatewayVariations[len(gatewayVariations)-1].Index != i) {
-				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
+				gatewayVariations = append(gatewayVariations, aigateway.EvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
 			}
 			nextVariation = i + 1
 			return internaljobs.Result{}, err
@@ -595,13 +612,13 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			// map belongs to the provider that produced it.
 			meta = make(map[string]string, len(runMeta))
 			for k, v := range runMeta {
-				if k == MetaGatewayExecutionAttempt {
+				if k == aigateway.MetaExecutionAttempt {
 					continue
 				}
 				meta[k] = v
 			}
 		}
-		if cost, ok := parseCostUSD(runMeta); ok {
+		if cost, ok := aigateway.ParseCostUSD(runMeta); ok {
 			aggregatedCost += cost
 			if math.IsInf(aggregatedCost, 0) || math.IsNaN(aggregatedCost) {
 				allVariationCostsKnown = false
@@ -616,14 +633,19 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		meta = make(map[string]string)
 	}
 	if allVariationCostsKnown {
-		meta[MetaCostUSD] = strconv.FormatFloat(aggregatedCost, 'f', -1, 64)
-		meta[MetaCostProvenance] = ProviderReportedCostProvenance
+		meta[aigateway.MetaCostUSD] = strconv.FormatFloat(aggregatedCost, 'f', -1, 64)
+		meta[aigateway.MetaCostProvenance] = aigateway.ProviderReportedCostProvenance
 	} else if meta != nil {
-		delete(meta, MetaCostUSD)
-		delete(meta, MetaCostProvenance)
+		delete(meta, aigateway.MetaCostUSD)
+		delete(meta, aigateway.MetaCostProvenance)
 	}
 	primary := outKeys[0]
-	if e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object" {
+	// The hard-refusal review is unconditional when it is configured: it must not
+	// depend on a request flag, because the caller cannot opt out of the one
+	// non-configurable boundary. The advisory NSFW scan stays opt-in.
+	reviewRequired := e.deps.ReviewOutput != nil && op != "scene_geometry" && op != "image_to_object"
+	advisoryScan := e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object"
+	if reviewRequired || advisoryScan {
 		// Relinquish execution claims before the next model is admitted. A warm
 		// worker retains only its independently admitted resident ownership.
 		cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
@@ -632,9 +654,17 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		if err != nil {
 			return internaljobs.Result{}, err
 		}
-		emit(92, "auto-scanning output for NSFW content")
+	}
+	if reviewRequired {
+		emit(92, "reviewing output for the non-configurable safety boundary")
+		if err := e.reviewOutputs(ctx, outKeys); err != nil {
+			return internaljobs.Result{}, err
+		}
+	}
+	if advisoryScan {
+		emit(96, "auto-scanning output for NSFW content")
 		if msg := e.autoScan(ctx, primary); msg != "" {
-			emit(96, msg)
+			emit(97, msg)
 		}
 	}
 	if len(outKeys) > 1 {
@@ -861,33 +891,19 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	if err != nil {
 		return "", res.Meta, err
 	}
+	// A mesh bundle is a structured artifact, not a raster: validate it before it
+	// becomes addressable, so a malformed provider output fails the job instead of
+	// publishing a corrupt downloadable.
+	if op == "image_to_object" {
+		if verr := validateMeshArtifact(outPath); verr != nil {
+			return "", aigateway.MarkAttemptFailed(res.Meta), verr
+		}
+	}
 	key, err := e.persistOutput(ctx, outPath, res.Meta)
 	if err != nil {
-		return "", markGatewayAttemptFailed(res.Meta), err
+		return "", aigateway.MarkAttemptFailed(res.Meta), err
 	}
 	return key, res.Meta, nil
-}
-
-func markGatewayAttemptFailed(meta map[string]string) map[string]string {
-	raw := strings.TrimSpace(meta[MetaGatewayExecutionAttempt])
-	if raw == "" {
-		return meta
-	}
-	var attempt gatewayExecutionAttempt
-	if err := json.Unmarshal([]byte(raw), &attempt); err != nil {
-		return meta
-	}
-	attempt.Outcome = "failed"
-	encoded, err := json.Marshal(attempt)
-	if err != nil {
-		return meta
-	}
-	copyMeta := make(map[string]string, len(meta))
-	for key, value := range meta {
-		copyMeta[key] = value
-	}
-	copyMeta[MetaGatewayExecutionAttempt] = string(encoded)
-	return copyMeta
 }
 
 func collectInputs(in inputFiles) []string {
@@ -920,33 +936,6 @@ func (e *Engine) persistOutput(ctx context.Context, outPath string, meta map[str
 	return key, nil
 }
 
-func gatewayEvidenceVariationFromMeta(index int, meta map[string]string) (gatewayExecutionEvidenceVariation, bool) {
-	raw := strings.TrimSpace(meta[MetaGatewayExecutionAttempt])
-	if raw == "" {
-		return gatewayExecutionEvidenceVariation{}, false
-	}
-	var attempt gatewayExecutionAttempt
-	if err := json.Unmarshal([]byte(raw), &attempt); err != nil {
-		return gatewayExecutionEvidenceVariation{}, false
-	}
-	switch attempt.Outcome {
-	case "succeeded", "failed", "outcome_unknown", "not_started":
-	default:
-		attempt.Outcome = "outcome_unknown"
-	}
-	entry := gatewayExecutionEvidenceVariation{
-		Index: index, Outcome: attempt.Outcome,
-		ExecutionID: strings.TrimSpace(attempt.ExecutionID), Status: strings.TrimSpace(attempt.Status),
-		CostState: "unknown",
-	}
-	if attempt.CostState == "known" && attempt.CostUSD != nil && !math.IsNaN(*attempt.CostUSD) && !math.IsInf(*attempt.CostUSD, 0) && *attempt.CostUSD >= 0 && attempt.Outcome != "outcome_unknown" {
-		cost := *attempt.CostUSD
-		entry.CostState = "known"
-		entry.CostUSD = &cost
-	}
-	return entry, true
-}
-
 func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
 	mime = strings.TrimSpace(meta["media_type"])
 	if mime == "" {
@@ -971,6 +960,56 @@ func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
 	}
 }
 
+// maxReviewBytes bounds what the mandatory review will read from one artifact.
+const maxReviewBytes = 64 << 20
+
+// HardRefusalError is returned when an output review identifies the one class
+// this project refuses to produce. It is a terminal job failure, not a warning:
+// the artifact is deleted before the error is returned.
+type HardRefusalError struct{ Reason string }
+
+func (e *HardRefusalError) Error() string { return "ai: output refused: " + e.Reason }
+
+// reviewOutputs runs the configured review on every produced variation. Any
+// review failure deletes the artifacts: a deployment that promised the boundary
+// cannot leave unreviewed bytes addressable because its classifier crashed.
+func (e *Engine) reviewOutputs(ctx context.Context, keys []string) error {
+	for _, key := range keys {
+		rc, _, err := e.deps.Store.Get(ctx, key)
+		if err != nil {
+			return errors.Join(fmt.Errorf("ai: read output for safety review: %w", err), e.deleteOutputs(ctx, keys))
+		}
+		// Bound the read: a provider that produced an oversized file must not turn
+		// the mandatory review into an unbounded allocation.
+		data, readErr := io.ReadAll(io.LimitReader(rc, maxReviewBytes+1))
+		closeErr := rc.Close()
+		if readErr != nil || closeErr != nil {
+			return errors.Join(fmt.Errorf("ai: read output for safety review: %w", errors.Join(readErr, closeErr)), e.deleteOutputs(ctx, keys))
+		}
+		if len(data) > maxReviewBytes {
+			return errors.Join(fmt.Errorf("ai: output exceeds the %d-byte review limit", maxReviewBytes), e.deleteOutputs(ctx, keys))
+		}
+		verdict, err := e.deps.ReviewOutput(ctx, data)
+		if err != nil {
+			return errors.Join(fmt.Errorf("ai: required output review failed: %w", err), e.deleteOutputs(ctx, keys))
+		}
+		if verdict.HardRefusal != "" {
+			return errors.Join(&HardRefusalError{Reason: verdict.HardRefusal}, e.deleteOutputs(ctx, keys))
+		}
+	}
+	return nil
+}
+
+func (e *Engine) deleteOutputs(ctx context.Context, keys []string) error {
+	var errs []error
+	for _, key := range keys {
+		if err := e.deps.Store.Delete(ctx, key); err != nil {
+			errs = append(errs, fmt.Errorf("ai: delete refused output %q: %w", key, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
 func (e *Engine) autoScan(ctx context.Context, key string) string {
 	rc, _, err := e.deps.Store.Get(ctx, key)
 	if err != nil {
@@ -981,13 +1020,13 @@ func (e *Engine) autoScan(ctx context.Context, key string) string {
 	if err != nil {
 		return ""
 	}
-	nsfw, score, err := e.deps.AutoScan(ctx, data)
+	verdict, err := e.deps.AutoScan(ctx, data)
 	if err != nil {
 		e.deps.Logger.Printf("ai: auto-scan failed: %v", err)
 		return ""
 	}
-	if nsfw {
-		return fmt.Sprintf("NSFW flagged (score %.2f)", score)
+	if verdict.NSFW {
+		return fmt.Sprintf("NSFW flagged (score %.2f)", verdict.Score)
 	}
-	return fmt.Sprintf("NSFW clear (score %.2f)", score)
+	return fmt.Sprintf("NSFW clear (score %.2f)", verdict.Score)
 }

@@ -71,7 +71,21 @@ export function useObjectMask(image: File, client: ObjectMaskClient = liveClient
     try {
       // Keep admission observable even if the user cancels while it is in
       // flight: once its job identity arrives, cancel that actual owner job.
-      const accepted = await client.submit("segment", { segmentation: { points }, modelOverride: model }, { image, operationId });
+      const accepted = await client.submit(
+        "segment",
+        {
+          // Operation-specific prompts ride `opParams` (validated against the
+          // capability schema). The points are copied field by field because a
+          // JsonObject value must be a plain JSON value, not a class instance.
+          opParams: {
+            segmentation: {
+              points: points.map((p) => ({ x: p.x, y: p.y, negative: p.negative })),
+            },
+          },
+          modelOverride: model,
+        },
+        { image, operationId },
+      );
       work.jobId = accepted.jobId;
       if (work.controller.signal.aborted) {
         try { await client.cancel(accepted.jobId); } catch (err) { if (mounted.current) setCancelError(err instanceof Error ? err.message : String(err)); }

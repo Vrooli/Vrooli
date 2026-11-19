@@ -13,18 +13,19 @@ import (
 
 // connectHandler implements SafetyServiceHandler — the policy discovery surface.
 type connectHandler struct {
-	tier internalsafety.Tier
+	policy internalsafety.Policy
 }
 
-// NewConnectHandler builds the SafetyService discovery handler for the resolved
-// deployment tier.
-func NewConnectHandler(tier internalsafety.Tier) *connectHandler {
-	return &connectHandler{tier: tier}
+// NewConnectHandler builds the SafetyService discovery handler from the RESOLVED
+// policy (preset + per-control overrides). Taking the resolved policy, rather
+// than a tier, guarantees discovery reports the same controls the submit edge
+// enforces — a tier alone would report the preset and hide operator overrides.
+func NewConnectHandler(policy internalsafety.Policy) *connectHandler {
+	return &connectHandler{policy: policy}
 }
 
 func (h *connectHandler) GetPolicy(_ context.Context, _ *connect.Request[safetyv1.GetPolicyRequest]) (*connect.Response[safetyv1.SafetyPolicy], error) {
-	policy := internalsafety.PolicyFor(h.tier)
-	return connect.NewResponse(policyToProto(policy)), nil
+	return connect.NewResponse(policyToProto(h.policy)), nil
 }
 
 // policyToProto maps the internal policy + the op-weight table to the proto.

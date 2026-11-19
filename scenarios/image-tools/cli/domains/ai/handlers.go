@@ -11,11 +11,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
-	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 )
 
 type handlers struct {
@@ -69,7 +69,10 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				return fmt.Errorf("--mask is required for %s", operation)
 			}
 		}
-		params := buildParams(ctx)
+		params, err := buildParams(ctx)
+		if err != nil {
+			return err
+		}
 		if operation == "inpaint" {
 			contextRaw, edgeRaw := flagOr(ctx, "crop-context-pixels"), flagOr(ctx, "crop-max-edge-px")
 			neutralize := boolOr(ctx, "neutralize-masked-pixels")
@@ -77,22 +80,29 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				if !boolOr(ctx, "crop-to-mask") {
 					return fmt.Errorf("inpaint crop controls and --neutralize-masked-pixels require --crop-to-mask")
 				}
-				crop := &aiv1.InpaintParams{CropToMask: true, NeutralizeMaskedPixels: neutralize}
+				// Inpaint knobs travel through op_params; the capability manifest's
+				// schema (and its requiresTrue rule) is the server-side contract.
+				extra := map[string]any{
+					"inpaint_crop_to_mask":             true,
+					"inpaint_neutralize_masked_pixels": neutralize,
+				}
 				if contextRaw != "" {
 					value, err := strconv.ParseUint(contextRaw, 10, 32)
 					if err != nil || value > 512 {
 						return fmt.Errorf("invalid --crop-context-pixels %q: expected 0..512", contextRaw)
 					}
-					crop.ContextPixels = uint32(value)
+					extra["inpaint_context_pixels"] = float64(value)
 				}
 				if edgeRaw != "" {
 					value, err := strconv.ParseUint(edgeRaw, 10, 32)
 					if err != nil || (value != 512 && value != 1024) {
 						return fmt.Errorf("invalid --crop-max-edge-px %q: expected 512 or 1024", edgeRaw)
 					}
-					crop.MaxEdgePx = uint32(value)
+					extra["inpaint_max_edge_px"] = float64(value)
 				}
-				params.Inpaint = crop
+				if err := mergeOpParams(params, extra); err != nil {
+					return err
+				}
 			}
 		}
 		var removalRegions []string
@@ -108,33 +118,52 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				}
 				expansion = parsed
 			}
-			params.BackgroundRepair = &aiv1.BackgroundRepairParams{MaskExpansionPixels: uint32(expansion)}
+			repair := map[string]any{"maskExpansionPixels": float64(expansion)}
+			regions := make([]any, 0, len(removalRegions))
 			for _, raw := range removalRegions {
-				box := &selectionv1.Box{}
-				if err := protojson.Unmarshal([]byte(raw), box); err != nil {
+				var box map[string]any
+				if err := json.Unmarshal([]byte(raw), &box); err != nil {
 					return fmt.Errorf("invalid --remove-region: %w", err)
 				}
-				params.BackgroundRepair.RemovalRegions = append(params.BackgroundRepair.RemovalRegions, box)
+				regions = append(regions, box)
+			}
+			if len(regions) > 0 {
+				repair["removalRegions"] = regions
+			}
+			if err := mergeOpParams(params, map[string]any{"background_repair": repair}); err != nil {
+				return err
 			}
 		}
 		if raw := flagOr(ctx, "selection"); raw != "" {
-			params.Segmentation = &aiv1.SegmentationPrompt{}
-			if err := protojson.Unmarshal([]byte(raw), params.Segmentation); err != nil {
+			var prompt map[string]any
+			if err := json.Unmarshal([]byte(raw), &prompt); err != nil {
 				return fmt.Errorf("invalid --selection: %w", err)
+			}
+			if err := mergeOpParams(params, map[string]any{"segmentation": prompt}); err != nil {
+				return err
 			}
 		}
 		if raw := flagOr(ctx, "support-roi"); raw != "" {
-			params.SceneGeometry = &aiv1.SceneGeometryParams{}
-			if err := protojson.Unmarshal([]byte(raw), params.SceneGeometry); err != nil {
+			var box map[string]any
+			if err := json.Unmarshal([]byte(raw), &box); err != nil {
 				return fmt.Errorf("invalid --support-roi: %w", err)
+			}
+			// Accept either a bare rectangle or the historical {"supportRoi": {...}} wrapper.
+			if inner, ok := box["supportRoi"].(map[string]any); ok {
+				box = inner
+			}
+			if err := mergeOpParams(params, map[string]any{"support_roi": box}); err != nil {
+				return err
 			}
 		}
 		if raw := flagOr(ctx, "mesh-resolution"); raw != "" {
 			resolution, err := strconv.ParseUint(raw, 10, 32)
-			if err != nil {
+			if err != nil || (resolution != 128 && resolution != 256) {
 				return fmt.Errorf("invalid --mesh-resolution %q: expected 128 or 256", raw)
 			}
-			params.ImageToObject = &aiv1.ImageToObjectParams{MeshResolution: uint32(resolution)}
+			if err := mergeOpParams(params, map[string]any{"mesh_resolution": float64(resolution)}); err != nil {
+				return err
+			}
 		}
 		resp, err := submitAI(h.core, operation, input, mask, params, flagOr(ctx, "operation-id"))
 		if err != nil {
@@ -300,7 +329,28 @@ func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) er
 }
 
 // buildParams assembles AIParams from whichever flags the command declared.
-func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
+// mergeOpParams merges operation-specific values into AIParams.op_params,
+// preserving anything already provided by --op-params.
+func mergeOpParams(p *aiv1.AIParams, extra map[string]any) error {
+	if len(extra) == 0 {
+		return nil
+	}
+	values := map[string]any{}
+	if p.GetOpParams() != nil {
+		values = p.GetOpParams().AsMap()
+	}
+	for k, v := range extra {
+		values[k] = v
+	}
+	structured, err := structpb.NewStruct(values)
+	if err != nil {
+		return fmt.Errorf("invalid op params: %w", err)
+	}
+	p.OpParams = structured
+	return nil
+}
+
+func buildParams(ctx cliapp.RunContext) (*aiv1.AIParams, error) {
 	p := &aiv1.AIParams{
 		Prompt:          flagOr(ctx, "prompt"),
 		NegativePrompt:  flagOr(ctx, "negative"),
@@ -327,7 +377,18 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		ConsentAffirmed: boolOr(ctx, "consent"),
 		Adapters:        adapterRefs(ctx),
 	}
-	return p
+	if raw := flagOr(ctx, "op-params"); raw != "" {
+		var values map[string]any
+		if err := json.Unmarshal([]byte(raw), &values); err != nil {
+			return nil, fmt.Errorf("invalid --op-params JSON: %w", err)
+		}
+		structured, err := structpb.NewStruct(values)
+		if err != nil {
+			return nil, fmt.Errorf("invalid --op-params: %w", err)
+		}
+		p.OpParams = structured
+	}
+	return p, nil
 }
 
 func optionalReclaim(ctx cliapp.RunContext) *bool {

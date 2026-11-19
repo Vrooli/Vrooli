@@ -10,22 +10,7 @@
       "prd_ref": "OT-P1-005",
       "category": "feature",
       "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
-      "validation": [
-        {
-          "type": "manual",
-          "ref": "api/internal/batch/batch_test.go",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Planned (not yet implemented; automated test pending): Batch expands globs and fans out jobs"
-        },
-        {
-          "type": "manual",
-          "ref": "api/internal/watch/watch_test.go",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Watch-folder debounces and routes outputs on new files"
-        }
-      ]
+      "validation": []
     }
   ]
 }

@@ -9,10 +9,17 @@ owners and surfaces and does not claim every target is qualified end to end.
 Image Tools separates distinct ideas in its model-backed path: an **operation** is
 a user request, a **technique** is a declared pipeline, a **model** is a set of
 weights, and a **backend/provider** is the process or route that executes it.
-`internal/operations`, `internal/technique`, and `internal/resolver` form the
+`internal/capability` (the operation declarations), `internal/technique`, and `internal/resolver` form the
 shared operation/technique/model spine. They are not another operation catalog
 or product feature family. See
 [`../internal/TECHNIQUE-SUBSTRATE.md`](../internal/TECHNIQUE-SUBSTRATE.md).
+
+Operations are classified on independent axes — mechanism (`compute` / `infer` /
+`fetch`), application family, requirement class, and harm surface. The old
+"deterministic vs model-backed" split conflated them. See
+[`CAPABILITY-MODEL.md`](CAPABILITY-MODEL.md) for the authoritative reading, and
+[`../internal/CAPABILITY-MANIFEST.md`](../internal/CAPABILITY-MANIFEST.md) for how
+one declaration is meant to replace the hand-synced per-op surfaces.
 
 ## Domain Inventory
 
@@ -31,7 +38,8 @@ or product feature family. See
 | `measures` | Performance telemetry | `api/internal/measures` | Operation timing, queue-wait and model/backend trace collection and aggregation. | `op_measure` and `job_trace` tables. | API internals and CLI measure surface. |
 | `quality` | Quality evaluation | `api/internal/quality` | Reference-based image quality evaluation, judge evidence and regression gates. | Versioned manifests and evaluation artifacts; no model catalog ownership. | API, CLI; used by model-quality research and promotion. |
 | `preparation` / `sceneprep` | Product domain | `api/internal/`sceneprep` | Durable photographic preparation and review metadata. | `prepared_photograph` and idempotent review-operation tables; image/geometry bytes remain in blobs. | API, CLI, preparation UI. |
-| `safety` | Consent policy | `api/internal/safety` | Operation/adapter consent policy and public-deployment affirmation records. | Policy code plus `consent_log` where deployment policy requires it. | API, CLI, safety UI. |
+| `safety` | Consent policy | `api/internal/safety` | Configurable harm-protection controls (consent affirmation, content scan, provenance marking, rate limit) with local-first permissive defaults. Never removes a capability. | Policy code plus `consent_log` where a deployment enables the consent control. | API, CLI, safety UI. |
+| `percepthash` | Shared primitive | `api/internal/percepthash` | Perceptual fingerprint primitives (pHash/aHash, DCT, median, Hamming) shared by duplicate detection and image diff. | None (pure computation). | API internals. |
 | `diff` | Image comparison | `api/internal/diff` | Pixel/perceptual comparison of image pairs. | Reads image references and returns a comparison artifact/result. | API, CLI, comparison UI. |
 | `health` | Service health | `api/internal/health` | API and dependency readiness reporting. | No product data. | API, CLI status, health UI. |
 
@@ -44,7 +52,7 @@ Ready. The selector and resolver enforce that boundary.
 ## Shared Concepts
 
 Operations, techniques, models and providers are distinct concepts. Their shared
-contracts live in `internal/operations`, `internal/technique` and `internal/resolver`.
+contracts live in `internal/capability`, `internal/technique` and `internal/resolver`.
 
 ## Domain Details
 
@@ -65,8 +73,12 @@ Explicit non-domains and superseded names:
 - `internal/recipes`, `automation`, and `notes` are not implemented product
   domains. The old Recipes concept is subsumed by Looks; no second graph format,
   schema or replay pipeline should be introduced.
-- `internal/operations`, `internal/technique`, and `internal/resolver` are
+- `internal/capability`, `internal/technique`, and `internal/resolver` are
   shared technical layers, not parallel user-facing domains.
+- `internal/capability` is the declarative manifest set (one record per
+  operation across both operation tables, tagged `operations` or `ops`). It is a
+  technical layer: `safety` reads consent weights from it, and `make
+  capability-gen` renders the UI catalog from it. Not a product domain.
 - `internal/database`, `internal/modules`, `internal/module`, `internal/server`
   and `internal/testutil` are infrastructure. Host hardware detection and
   remediation belong to the platform control plane; Image Tools consumes its
@@ -77,6 +89,8 @@ Explicit non-domains and superseded names:
 ## Cross-References
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — service composition and boundaries
+- [`CAPABILITY-MODEL.md`](CAPABILITY-MODEL.md) — operation axes and classification
+- [`COMPOSITION.md`](COMPOSITION.md) — workflows and cross-scenario composition
 - [`FLOWS.md`](FLOWS.md) — lifecycle and ordering rules
 - [`DATA.md`](DATA.md) — persisted data and retention boundaries
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — platform and scenario dependencies

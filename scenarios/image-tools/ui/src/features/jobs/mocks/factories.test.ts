@@ -14,7 +14,6 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
 
 import {
-  JobLane,
   JobQueue,
   JobSchema,
   JobState,
@@ -28,7 +27,6 @@ describe("makeJob", () => {
     const j = makeJob();
     expect(j.id).not.toBe("");
     expect(j.operation).not.toBe("");
-    expect(j.lane).toBe(JobLane.GPU);
     expect(j.schedulingQueue).toBe(JobQueue.LOCAL_SERIAL);
     expect(j.state).toBe(JobState.RUNNING);
     if (!j.createdAt) {

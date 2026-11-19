@@ -2,6 +2,7 @@ package looks
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -49,31 +50,46 @@ func RenderPreview(look *looksv1.Look) (pngBytes []byte, deferred []string, err 
 	return cur, deferred, nil
 }
 
-// opsParamsFromMap maps a Look step's string params onto the deterministic ops
-// Params struct (the subset the seeded color-grade Looks use: the adjust deltas
-// and the filter selector). Unparseable/absent fields stay zero (no-op).
+// opsParamsFromMap maps a Look step's string parameters onto the deterministic
+// ops Params struct. Look parameters are a string map because a workflow edge is
+// text; each value is coerced to the type its field expects and decoded through
+// the struct's own JSON tags, so every operation's scalar parameters work here
+// without a per-field list to drift from internal/ops.
+//
+// Values that name a list (vectorize's keep_colors, icon_container's sizes) are
+// not expressible in a string map and are ignored in a preview; previews are a
+// visual approximation, not the run.
 func opsParamsFromMap(m map[string]string) *ops.Params {
 	p := &ops.Params{}
-	p.Brightness = parseF(m["brightness"])
-	p.Contrast = parseF(m["contrast"])
-	p.Saturation = parseF(m["saturation"])
-	p.Gamma = parseF(m["gamma"])
-	p.Hue = parseF(m["hue"])
-	p.Filter = m["filter"]
-	p.Amount = parseF(m["amount"])
-	p.Format = m["format"]
-	return p
-}
-
-func parseF(s string) float64 {
-	if s == "" {
-		return 0
+	if len(m) == 0 {
+		return p
 	}
-	f, err := strconv.ParseFloat(s, 64)
+	values := make(map[string]any, len(m))
+	for k, v := range m {
+		switch {
+		case v == "":
+			continue
+		case v == "true":
+			values[k] = true
+		case v == "false":
+			values[k] = false
+		default:
+			if f, err := strconv.ParseFloat(v, 64); err == nil {
+				values[k] = f
+			} else {
+				values[k] = v
+			}
+		}
+	}
+	raw, err := json.Marshal(values)
 	if err != nil {
-		return 0
+		return p
 	}
-	return f
+	// Errors here mean a Look carries a parameter the operation does not have, or
+	// a value of the wrong type. The run path rejects that with an actionable
+	// message; a preview keeps whatever decoded and shows the rest as a no-op.
+	_ = json.Unmarshal(raw, p)
+	return p
 }
 
 // referencePNG synthesizes the deterministic reference swatch: a diagonal

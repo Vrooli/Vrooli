@@ -31,7 +31,7 @@ func (h *connectHandler) ListAIOperations(_ context.Context, _ *connect.Request[
 	for _, op := range internalai.List() {
 		info := &aiv1.AIOperationInfo{
 			Name:          op.Name,
-			Category:      string(op.Category),
+			Category:      op.Family,
 			Summary:       op.Summary,
 			RequiresImage: op.RequiresImage,
 			RequiresMask:  op.RequiresMask,

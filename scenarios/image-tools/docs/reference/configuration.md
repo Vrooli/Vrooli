@@ -34,6 +34,18 @@ for the full policy.
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `IMAGE_TOOLS_CPU_WORKERS` | `4` | Maximum simultaneous local job admission/execution slots, including AI and analysis. Valid range: `1`-`32`. CPU/RAM/GPU capacity and exclusive warm-worker use can impose lower concurrency. Raising this ceiling never bypasses admission. |
 | `IMAGE_TOOLS_INSTALL_MB_PER_SECOND` | `15` | Assumed model-download throughput for install ETA calculation. Valid range: `1`-`10000` MB/s. Tune to measured host/network throughput; it affects ETA reporting only, not download behavior. |
+| `IMAGE_TOOLS_DEPLOYMENT_TIER` | `local` | Selects the Responsible-Use control preset. Anything other than `public`/`prod`/`production`/`monetized`/`saas` resolves to `local`. The tier chooses defaults only; it never enables or disables a capability. |
+| `IMAGE_TOOLS_REQUIRE_CONSENT` | preset (off local, on public) | Require and audit a consent affirmation for high-weight (identity/body/clothing/appearance-altering) operations. `1/true/yes/on` or `0/false/no/off`; other values are ignored. |
+| `IMAGE_TOOLS_NSFW_SCAN` | preset (off local, on public) | Force content scanning of generated output regardless of the per-request flag. Same boolean syntax. |
+| `IMAGE_TOOLS_REQUIRE_PROVENANCE` | preset (off local, on public) | Mark outputs with provenance/attribution metadata. Same boolean syntax. Turning it on never blocks an edit. |
+| `IMAGE_TOOLS_RATE_LIMIT_PER_MIN` | preset (`0` local, `60` public) | AI-submit rate cap. `0` = unlimited. Malformed values leave the preset intact. |
+| `IMAGE_TOOLS_MINOR_SAFETY_CMD` | unset | Operator-supplied reviewer for the one non-configurable boundary (sexual content involving minors). Whitespace-separated program + args, executed without a shell; receives one JSON object on stdin and must return `{"minor":bool,"sexual":bool,"detail":string}`. On the public tier this is **required**: AI image-output submissions are refused until it is configured, and a reviewer error fails closed. See [SECURITY.md](../internal/SECURITY.md#reviewer-contract). |
+
+The harm-protection overrides win in **both** directions: a personal install
+may opt into provenance marking, and an operator running their own public
+instance may turn a control off. The minor-safety control is the exception: it is
+required on the public tier and cannot be overridden off. `image-tools safety policy` / `SafetyService.GetPolicy`
+reports the resolved result, so the UI cannot claim a protection that is off.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

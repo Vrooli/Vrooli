@@ -1527,6 +1527,11 @@
   ],
   "omitted": [
     {
+      "service": "CatalogService",
+      "method": "GetOperationCatalog",
+      "reason": "Cross-scenario workflow contract. Its consumer is a workflow builder or the control plane, not this scenario's CLI: browsing and merging peer catalogs is fleet-level surface (docs/concepts/COMPOSITION.md, 'Search and manage operations'). Read it with curl against the Connect procedure."
+    },
+    {
       "service": "JobsService",
       "method": "WatchJob",
       "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."

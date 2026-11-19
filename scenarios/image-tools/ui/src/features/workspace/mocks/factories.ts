@@ -25,7 +25,7 @@ export const makeOperationInfo = (
 ): OperationInfo =>
   create(OperationInfoSchema, {
     name: "resize",
-    category: "geometry",
+    category: "edit",
     summary: "Resize the image",
     ...overrides,
   });
@@ -36,9 +36,9 @@ export const makeListOperationsResponse = (
   create(ListOperationsResponseSchema, {
     operations: [
       makeOperationInfo({ name: "resize" }),
-      makeOperationInfo({ name: "filter", category: "color", summary: "Apply a filter" }),
+      makeOperationInfo({ name: "filter", category: "edit", summary: "Apply a filter" }),
       makeOperationInfo({ name: "overlay", category: "compose", summary: "Overlay a watermark" }),
-      makeOperationInfo({ name: "metadata", category: "metadata", summary: "Read metadata" }),
+      makeOperationInfo({ name: "metadata", category: "extract", summary: "Read metadata" }),
     ],
     decodableFormats: ["png", "jpeg", "webp"],
     encodableFormats: ["png", "jpeg", "webp"],

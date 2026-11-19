@@ -1,7 +1,8 @@
 // Package safety is the CLI's Responsible-Use policy surface. `safety policy`
-// mirrors the Connect SafetyService.GetPolicy RPC — it reports the resolved
-// deployment policy (local = unrestricted; public = consent-gated + NSFW
-// auto-scan + provenance + rate-limit) and the per-operation consent weights.
+// mirrors the Connect SafetyService.GetPolicy RPC — it reports the RESOLVED
+// deployment policy (tier preset + per-control overrides; local defaults to
+// permissive, public turns on consent + content scan + provenance + rate-limit)
+// and the per-operation consent weights.
 package safety
 
 import (
@@ -64,7 +65,7 @@ func tierLabel(t safetyv1.DeploymentTier) string {
 func weightLabel(w safetyv1.ConsentWeight) string {
 	switch w {
 	case safetyv1.ConsentWeight_CONSENT_WEIGHT_HIGH:
-		return "high (consent-gated on public)"
+		return "high (consent-gated when the consent control is on)"
 	case safetyv1.ConsentWeight_CONSENT_WEIGHT_LOW:
 		return "low"
 	default:

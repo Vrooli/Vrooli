@@ -21,51 +21,50 @@ package ai
 import (
 	"sort"
 
-	"image-tools/internal/operations"
+	"image-tools/internal/capability"
 )
 
-// Category and Op are views over the operation vocabulary SSOT
-// (internal/operations). The AI engine runs generation/enhancement, captioning,
-// and the image-producing prompted segmentation job. Other structured analysis
-// and builtin smart selection retain their owners. This catalog filters the vocabulary
-// rather than redeclaring operation entries (W1 collapse, see
-// docs/internal/TECHNIQUE-SUBSTRATE.md).
-type Category = operations.Category
+// Op is one AI operation, projected from its capability manifest. The manifest is
+// the declaration of record; this view adds the execution-shaped accessors the
+// engine and discovery need, derived from the declared ports so a port change
+// cannot leave a stale flag behind.
+type Op struct {
+	Name          string
+	Family        string
+	Summary       string
+	RequiresImage bool
+	RequiresMask  bool
+	PromptDriven  bool
+}
 
-const (
-	// CategoryGeneration covers text-to-image and image-editing generation.
-	CategoryGeneration = operations.CategoryGeneration
-	// CategoryEnhancement covers super-resolution / restoration enhancement.
-	CategoryEnhancement = operations.CategoryEnhancement
-	CategoryRestoration = operations.CategoryRestoration
-	CategoryAnalysis    = operations.CategoryAnalysis
-)
-
-// Op is one model-backed AI operation (an alias of the vocabulary entry). Name
-// matches the registry operation vocabulary so the selector and provider registry
-// agree.
-type Op = operations.Operation
-
-// catalog is the AI-op table derived from the vocabulary SSOT: generation,
-// enhancement, caption and prompted segmentation operations. It is
-// consumed by the runner factory (execution), the AIService (discovery), and the
-// CLI surface. Each op's model is forward-declared in registry.seed.json and the
-// op gates honestly (HTTP 409) until its backend program + weights are installed.
+// catalog is the AI engine's membership: every manifest whose declared engine is
+// the AI job lane. There is no second list — adding an operation to this engine
+// is setting engine=ai on its manifest, and the conformance test proves the
+// runner set agrees with it.
 var catalog = func() map[string]Op {
-	ops := operations.ByCategory(CategoryGeneration, CategoryEnhancement, CategoryRestoration)
+	ops := capability.ByEngine(capability.EngineAI)
 	m := make(map[string]Op, len(ops))
-	for _, o := range ops {
-		m[o.Name] = o
-	}
-	// Captioning returns structured text; segmentation returns an image. Both
-	// are model-backed jobs unlike synchronous heuristic smart-selection.
-	for _, o := range operations.ByCategory(operations.CategoryAnalysis) {
-		if o.Name == "segment" || o.Name == "caption" {
-			m[o.Name] = o
-		}
+	for _, manifest := range ops {
+		m[manifest.ID] = project(manifest)
 	}
 	return m
 }()
+
+// project derives the flags the engine reads from the operation's declared ports.
+func project(m capability.Manifest) Op {
+	op := Op{Name: m.ID, Family: string(m.Family), Summary: m.Summary}
+	for _, in := range m.IO.Inputs {
+		switch in.Kind {
+		case "image":
+			op.RequiresImage = true
+		case "mask":
+			op.RequiresMask = true
+		case "text":
+			op.PromptDriven = true
+		}
+	}
+	return op
+}
 
 // Names returns the registered AI-op names in stable (sorted) order.
 func Names() []string {

@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/models/selector_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Selector maps probed capability to a fitting model tier"
         },
         {

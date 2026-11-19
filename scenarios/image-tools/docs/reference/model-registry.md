@@ -57,8 +57,7 @@ to install it and understand which backend makes it runnable.
 6. Run the fast gates:
 
 ```bash
-cd scenarios/image-tools/api && go test ./internal/models ./internal/ai ./internal/backends -count=1
-cd scenarios/image-tools && make coverage-model-lifecycle
+cd scenarios/image-tools && make coverage-floors
 image-tools models doctor --json
 image-tools backends doctor --json
 ```
@@ -147,7 +146,8 @@ Legend: **D**=default · **Q**=quality tier · **V**=size/CPU variant · **N**=n
 | edit_instruct | 🔴 Q (on-demand install) | Qwen-Image-Edit (2509) | Apache-2.0 ✅ | ~57.7GB repo (Q4 GGUF ~12-16GB) | [HF repo snapshot](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) — `QwenImageEditPlusPipeline`; multi-ref + ControlNet; current selector requires 24GB VRAM (historical attended CPU-offload proof ran on a 16GB GPU) |
 | edit_instruct | ⚪ Q (disabled, pending adapter) | FLUX.2 [klein] 4B | Apache-2.0 ✅ *(4B only; 9B/dev non-commercial)* | ~9GB transformer | [HF](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) — `Flux2KleinPipeline` is bleeding-edge diffusers; enable after an attended run |
 | edit_instruct | ⚪ Q (disabled, pending adapter) | LongCat-Image-Edit-Turbo | Apache-2.0 ✅ | ~34GB (DF11 quant smaller) | [HF](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo) — `LongCatImageEditPipeline` needs recent diffusers; enable after an attended run |
-| inpaint / outpaint | 🟢 D | SD 1.5 inpainting | OpenRAIL-M ✅ | ~4.2GB ckpt | [direct checkpoint](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/resolve/main/sd-v1-5-inpainting.ckpt) |
+| inpaint / outpaint / garment_replace | 🟢 D | SD 1.5 inpainting | OpenRAIL-M ✅ | ~4.2GB ckpt | [direct checkpoint](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/resolve/main/sd-v1-5-inpainting.ckpt) — garment_replace is a masked inpaint driven by a prompt |
+| face_swap | ⚪ N (disabled, manual provision) | IP-Adapter FaceID stack (SD 1.5) | Apache-2.0 + InsightFace terms ⚠️ | ~5.6GB stack | [IP-Adapter-FaceID](https://huggingface.co/h94/IP-Adapter-FaceID) — **conditional**: the FaceID variant depends on InsightFace weights whose published terms are non-commercial; verify or replace that component before commercial use. Declared experimental; not blocked by policy |
 | inpaint / outpaint | 🔴 Q | SDXL inpainting 0.1 | OpenRAIL++-M ✅ | ~6.9GB | [HF](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) |
 | object_removal | 🟢 D | MI-GAN | MIT ✅ | ~27MB | [IOPaint traced weight](https://github.com/Sanster/models/releases/download/migan/migan_traced.pt) · [repo](https://github.com/Picsart-AI-Research/MI-GAN) |
 | object_removal | 🟢 Q | Big-LaMa (disabled) | Conditional — pretrained-weight grant unresolved | ~198MB | [upstream weight questions #366](https://github.com/advimman/lama/issues/366) / [#368](https://github.com/advimman/lama/issues/368) · [repo](https://github.com/advimman/lama) |

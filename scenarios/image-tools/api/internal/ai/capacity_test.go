@@ -10,6 +10,7 @@ import (
 
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/capacity"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
@@ -26,7 +27,7 @@ type fakeBroker struct {
 	releaseErr   error
 	claimedFor   string
 	claimedPref  int64
-	claimedOpts  CapacityClaimOptions
+	claimedOpts  capacity.ClaimOptions
 	released     string
 	claimN       int
 }
@@ -50,7 +51,7 @@ func TestLocalRAMDenialPreventsGPUClaimAndProviderExecution(t *testing.T) {
 	provider := &fakeProvider{}
 	gpu := &fakeBroker{}
 	engine, id := newCapacityTestEngine(t, "text_to_image", provider, gpu)
-	engine.deps.Memory = func(context.Context, string, int64) (MemoryLease, error) {
+	engine.deps.Memory = func(context.Context, string, int64) (capacity.MemoryLease, error) {
 		return nil, errors.New("host memory PSI above policy threshold")
 	}
 	err := runGPUJob(t, engine, "text_to_image", id)
@@ -74,7 +75,7 @@ func TestLocalCPUInferenceReservesDeclaredRAMAndReleasesAfterOutput(t *testing.T
 			if failRelease {
 				lease.releaseErr = errors.New("ledger unavailable during release")
 			}
-			engine.deps.Memory = func(_ context.Context, owner string, bytes int64) (MemoryLease, error) {
+			engine.deps.Memory = func(_ context.Context, owner string, bytes int64) (capacity.MemoryLease, error) {
 				if !strings.HasPrefix(owner, "image-tools:") || bytes != int64(model.Hardware.MinRAMGB)<<30 {
 					t.Fatalf("wrong RAM request: %s %d", owner, bytes)
 				}
@@ -95,29 +96,29 @@ func TestLocalCPUInferenceReservesDeclaredRAMAndReleasesAfterOutput(t *testing.T
 	}
 }
 
-func (b *fakeBroker) Claim(_ context.Context, ownerID string, preferredBytes int64, opts CapacityClaimOptions) (CapacityLease, error) {
+func (b *fakeBroker) Claim(_ context.Context, ownerID string, preferredBytes int64, opts capacity.ClaimOptions) (capacity.Lease, error) {
 	b.claimN++
 	b.claimedFor = ownerID
 	b.claimedPref = preferredBytes
 	b.claimedOpts = opts
 	if b.claimErr != nil {
-		return CapacityLease{}, b.claimErr
+		return capacity.Lease{}, b.claimErr
 	}
-	return CapacityLease{ClaimID: "clm-test", DegradeToCPU: b.degrade}, nil
+	return capacity.Lease{ClaimID: "clm-test", DegradeToCPU: b.degrade}, nil
 }
 
-func (b *fakeBroker) Release(_ context.Context, lease CapacityLease) error {
+func (b *fakeBroker) Release(_ context.Context, lease capacity.Lease) error {
 	b.released = lease.ClaimID
 	return b.releaseErr
 }
 
-func (b *fakeBroker) Heartbeat(_ context.Context, lease CapacityLease) (CapacityLease, error) {
+func (b *fakeBroker) Heartbeat(_ context.Context, lease capacity.Lease) (capacity.Lease, error) {
 	return lease, b.heartbeatErr
 }
 
-// newCapacityTestEngine mirrors newTestEngine but wires a CapacityBroker and a
+// newCapacityTestEngine mirrors newTestEngine but wires a capacity.Broker and a
 // GPU-capable fake provider so the GPU-tier arbitration branch is exercised.
-func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker CapacityBroker) (*Engine, string) {
+func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker capacity.Broker) (*Engine, string) {
 	t.Helper()
 	registry, err := models.Load()
 	if err != nil {
@@ -214,14 +215,14 @@ func TestCapacityPhysicalDeviceSelection(t *testing.T) {
 		{Index: 0, UUID: "GPU-small", VRAMBytes: 4 << 30, VRAMUsedBytes: 3 << 30},
 		{Index: 2, UUID: "GPU-large", VRAMBytes: 16 << 30, VRAMUsedBytes: 2 << 30},
 	}}
-	g, err := capacityGPU(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "diffusers"}})
+	g, err := capacity.GPUFor(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "diffusers"}})
 	if err != nil || g.Index != 2 || g.UUID != "GPU-large" {
 		t.Fatalf("wrong physical binding: %+v, %v", g, err)
 	}
-	if _, err := capacityGPU(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
+	if _, err := capacity.GPUFor(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
 		t.Fatal("unqualified multi-GPU backend silently accepted arbitrary device")
 	}
-	if _, err := capacityGPU(capabilities.Host{GPUs: []capabilities.GPU{{Index: 0, VRAMBytes: 16 << 30}}}, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
+	if _, err := capacity.GPUFor(capabilities.Host{GPUs: []capabilities.GPU{{Index: 0, VRAMBytes: 16 << 30}}}, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
 		t.Fatal("unidentified physical GPU accepted")
 	}
 }
@@ -271,8 +272,8 @@ func TestAdmission_RequireGPUReleasesCPUAndRAMOnBrokerDegradation(t *testing.T) 
 	broker := &fakeBroker{degrade: true}
 	eng, modelID := newCapacityTestEngine(t, "text_to_image", provider, broker)
 	cpuLease, ramLease := &memoryTestLease{}, &memoryTestLease{}
-	eng.deps.CPU = func(context.Context, string, int64) (MemoryLease, error) { return cpuLease, nil }
-	eng.deps.Memory = func(context.Context, string, int64) (MemoryLease, error) { return ramLease, nil }
+	eng.deps.CPU = func(context.Context, string, int64) (capacity.MemoryLease, error) { return cpuLease, nil }
+	eng.deps.Memory = func(context.Context, string, int64) (capacity.MemoryLease, error) { return ramLease, nil }
 
 	raw, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{
 		Operation: "text_to_image", ModelID: modelID, GPU: true, RequireGPU: true,
@@ -316,7 +317,7 @@ func TestCapacity_ClaimErrorDoesNotRunUnadmittedGPUWork(t *testing.T) {
 
 func TestCapacity_RenewalLossCancelsConsumer(t *testing.T) {
 	b := &fakeBroker{heartbeatErr: errors.New("reservation expired")}
-	ctx, stop := keepCapacityAlive(context.Background(), b, CapacityLease{ClaimID: "claim", Generation: 1}, time.Millisecond)
+	ctx, stop := capacity.KeepAlive(context.Background(), b, capacity.Lease{ClaimID: "claim", Generation: 1}, time.Millisecond)
 	defer stop()
 	select {
 	case <-ctx.Done():
@@ -348,8 +349,8 @@ func (r capacityRunner) RunCombined(ctx context.Context, name string, args ...st
 
 func TestSharedCapacityAdapterDenialPermitsCPUButTransportFailureDoesNot(t *testing.T) {
 	for _, fail := range []bool{false, true} {
-		b := &CLICapacityBroker{Client: vroolicli.New(vroolicli.WithRunner(capacityRunner{fail: fail}))}
-		lease, err := b.Claim(context.Background(), "image-tools:job", 1<<30, CapacityClaimOptions{GPUUUID: "GPU-test"})
+		b := &capacity.CLIBroker{Client: vroolicli.New(vroolicli.WithRunner(capacityRunner{fail: fail}))}
+		lease, err := b.Claim(context.Background(), "image-tools:job", 1<<30, capacity.ClaimOptions{GPUUUID: "GPU-test"})
 		if fail {
 			if err == nil || lease.DegradeToCPU {
 				t.Fatalf("transport error became CPU fallback: %+v %v", lease, err)
@@ -372,7 +373,7 @@ func TestLocalCPUInferenceBindsProviderToAdmittedCPUBudget(t *testing.T) {
 	engine, store, id := newTestEngine(t, "denoise", provider)
 	storeInput(t, store, "input/source.png", []byte("source"))
 	var admittedMilli int64
-	engine.deps.CPU = func(_ context.Context, _ string, milli int64) (MemoryLease, error) {
+	engine.deps.CPU = func(_ context.Context, _ string, milli int64) (capacity.MemoryLease, error) {
 		admittedMilli = milli
 		return &memoryTestLease{}, nil
 	}

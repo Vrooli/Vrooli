@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/models/registry_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Registry entries validate against schema; malformed entries rejected"
         },
         {
           "type": "test",
           "ref": "api/internal/models/selector_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Selector returns best-fit model for probed host with user override"
         }
       ]

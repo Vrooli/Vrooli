@@ -1,6 +1,9 @@
 package safety
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,6 +115,7 @@ func TestEvaluatePublicHighWeightBlockedWithoutConsent(t *testing.T) {
 
 func TestEvaluatePublicHighWeightAllowedWithConsent(t *testing.T) {
 	p := PolicyFor(TierPublic)
+	p.MinorSafetyDetector = true
 	d := p.Evaluate("inpaint", true)
 	if !d.Allowed {
 		t.Fatal("public high-weight op WITH consent should be allowed")
@@ -126,6 +130,7 @@ func TestEvaluatePublicHighWeightAllowedWithConsent(t *testing.T) {
 
 func TestEvaluatePublicLowAndNoneWeightNeverGated(t *testing.T) {
 	p := PolicyFor(TierPublic)
+	p.MinorSafetyDetector = true
 	// Naturalize (low) and text_to_image (none) never need consent, even public.
 	for _, op := range []string{"naturalize", "text_to_image", "upscale"} {
 		d := p.Evaluate(op, false)
@@ -180,6 +185,7 @@ func TestGateAndConsentLog(t *testing.T) {
 	}
 	logStore := NewConsentLog(d)
 	gate := NewGate(TierPublic, logStore)
+	gate.SetMinorReviewer(cleanReviewer{})
 
 	if gate.Policy().Tier != TierPublic {
 		t.Fatalf("gate tier = %q, want public", gate.Policy().Tier)
@@ -218,5 +224,171 @@ func TestConsentLogNilSafe(t *testing.T) {
 	}
 	if n, err := l.Count(t.Context()); err != nil || n != 0 {
 		t.Errorf("nil consent log Count = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
+// mapLookup builds an env lookup from a map so override tests never mutate the
+// process environment.
+func mapLookup(m map[string]string) func(string) (string, bool) {
+	return func(k string) (string, bool) {
+		v, ok := m[k]
+		return v, ok
+	}
+}
+
+// TestApplyOverrides_DisablesPublicControls proves every harm-protection control
+// on the strict preset can be turned off independently — an operator who owns a
+// deployment is not forced into a gate they did not choose.
+func TestApplyOverrides_DisablesPublicControls(t *testing.T) {
+	base := PolicyFor(TierPublic)
+	got := ApplyOverrides(base, mapLookup(map[string]string{
+		ConsentEnv:    "false",
+		NSFWScanEnv:   "off",
+		ProvenanceEnv: "0",
+		RateLimitEnv:  "0",
+	}))
+	if got.Tier != TierPublic {
+		t.Errorf("tier = %q, want public (overrides must not change the tier)", got.Tier)
+	}
+	if got.RequireConsent || got.ForceNSFWScan || got.RequireProvenance || got.RateLimitPerMin != 0 {
+		t.Errorf("all controls should be disabled, got %+v", got)
+	}
+	// Disabling controls must NOT remove the capability gate decision path.
+	if !got.MinorSafetyRequired {
+		t.Error("minor-safety must stay required; it is the one non-configurable control")
+	}
+	got.MinorSafetyDetector = true
+	if d := got.Evaluate("edit_instruct", false); !d.Allowed {
+		t.Errorf("with consent control off, edit_instruct should be allowed, got %+v", d)
+	}
+}
+
+// TestApplyOverrides_TightensLocal proves a personal install can opt INTO
+// protection (e.g. provenance marking) without changing tier or capability.
+func TestApplyOverrides_TightensLocal(t *testing.T) {
+	base := PolicyFor(TierLocal)
+	got := ApplyOverrides(base, mapLookup(map[string]string{
+		ProvenanceEnv: "true",
+		NSFWScanEnv:   "1",
+	}))
+	if got.Tier != TierLocal {
+		t.Errorf("tier = %q, want local", got.Tier)
+	}
+	if !got.RequireProvenance || !got.ForceNSFWScan {
+		t.Errorf("local controls should be raised, got %+v", got)
+	}
+	if got.RequireConsent {
+		t.Error("consent must stay off unless explicitly requested")
+	}
+	// A raised local control still must not block a capability.
+	if d := got.Evaluate("inpaint", false); !d.Allowed {
+		t.Errorf("local tier should allow inpaint, got %+v", d)
+	}
+}
+
+// TestApplyOverrides_IgnoresGarbage proves a malformed override leaves the preset
+// intact rather than silently disabling a control.
+func TestApplyOverrides_IgnoresGarbage(t *testing.T) {
+	base := PolicyFor(TierPublic)
+	got := ApplyOverrides(base, mapLookup(map[string]string{
+		ConsentEnv:    "maybe",
+		NSFWScanEnv:   "perhaps",
+		ProvenanceEnv: "sure",
+		RateLimitEnv:  "lots",
+	}))
+	if !got.RequireConsent || !got.ForceNSFWScan || !got.RequireProvenance {
+		t.Errorf("garbage values must not disable controls, got %+v", got)
+	}
+	if got.RateLimitPerMin != publicRateLimitPerMin {
+		t.Errorf("rate limit = %d, want preset %d", got.RateLimitPerMin, publicRateLimitPerMin)
+	}
+}
+
+// TestSummaryReflectsResolvedControls proves the human summary is derived from the
+// effective controls, so it cannot advertise a protection that is off.
+func TestSummaryReflectsResolvedControls(t *testing.T) {
+	off := ApplyOverrides(PolicyFor(TierPublic), mapLookup(map[string]string{
+		ConsentEnv:    "0",
+		NSFWScanEnv:   "0",
+		ProvenanceEnv: "0",
+		RateLimitEnv:  "0",
+	}))
+	s := off.Summary()
+	for _, want := range []string{"consent affirmation off", "content scan off", "provenance marking off", "rate limit off"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("summary %q missing %q", s, want)
+		}
+	}
+	if strings.Contains(s, "non-goal") || strings.Contains(s, "face-swap") {
+		t.Errorf("summary must not assert capability prohibitions, got %q", s)
+	}
+}
+
+// cleanReviewer is a configured detector that finds nothing.
+type cleanReviewer struct{}
+
+func (cleanReviewer) Review(context.Context, [][]byte) (MinorVerdict, error) {
+	return MinorVerdict{}, nil
+}
+
+// flaggingReviewer simulates a classifier that identifies the one class the
+// project refuses.
+type flaggingReviewer struct{}
+
+func (flaggingReviewer) Review(context.Context, [][]byte) (MinorVerdict, error) {
+	return MinorVerdict{Minor: true, Sexual: true, Detail: "classifier: minor + sexual"}, nil
+}
+
+type failingReviewer struct{}
+
+func (failingReviewer) Review(context.Context, [][]byte) (MinorVerdict, error) {
+	return MinorVerdict{}, errors.New("classifier crashed")
+}
+
+func TestRequiredMinorReviewWithoutDetectorRefuses(t *testing.T) {
+	p := PolicyFor(TierPublic)
+	d := p.Evaluate("text_to_image", false) // weight none, but image output
+	if d.Allowed {
+		t.Fatal("public text_to_image was allowed with no minor-safety detector")
+	}
+	if !d.RequireMinorReview || d.Reason == "" || d.RecoveryHint == "" {
+		t.Fatalf("decision = %+v", d)
+	}
+}
+
+func TestMinorReviewOnlyAppliesToImageOutput(t *testing.T) {
+	p := PolicyFor(TierPublic)
+	// probe returns data, not an image, so it cannot depict a person.
+	if d := p.Evaluate("probe", false); !d.Allowed {
+		t.Fatalf("data-output op blocked: %+v", d)
+	}
+}
+
+func TestReviewMinorRefusesFlaggedAndFailsClosed(t *testing.T) {
+	p := PolicyFor(TierPublic)
+	p.MinorSafetyDetector = true
+	gate := NewGateFromPolicy(p, nil)
+	gate.SetMinorReviewer(cleanReviewer{})
+
+	if d := gate.ReviewMinor(context.Background(), "edit_instruct", [][]byte{[]byte("img")}); !d.Allowed {
+		t.Fatalf("clean reviewer refused: %+v", d)
+	}
+
+	gate.SetMinorReviewer(flaggingReviewer{})
+	if d := gate.ReviewMinor(context.Background(), "edit_instruct", [][]byte{[]byte("img")}); d.Allowed {
+		t.Fatal("minor+sexual verdict was allowed")
+	}
+
+	gate.SetMinorReviewer(failingReviewer{})
+	if d := gate.ReviewMinor(context.Background(), "edit_instruct", [][]byte{[]byte("img")}); d.Allowed {
+		t.Fatal("a failed required review was allowed; it must fail closed")
+	}
+}
+
+func TestLocalTierNeverConsultsReviewer(t *testing.T) {
+	gate := NewGateFromPolicy(PolicyFor(TierLocal), nil)
+	gate.SetMinorReviewer(flaggingReviewer{})
+	if d := gate.ReviewMinor(context.Background(), "edit_instruct", [][]byte{[]byte("img")}); !d.Allowed {
+		t.Fatalf("local tier consulted the reviewer and refused: %+v", d)
 	}
 }

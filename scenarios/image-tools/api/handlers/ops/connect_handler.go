@@ -3,6 +3,7 @@ package ops
 import (
 	"context"
 
+	"image-tools/internal/capability"
 	internalops "image-tools/internal/ops"
 
 	"connectrpc.com/connect"
@@ -24,11 +25,14 @@ func (h *connectHandler) ListOperations(_ context.Context, _ *connect.Request[op
 		EncodableFormats: internalops.EncodableFormats,
 	}
 	for _, op := range internalops.List() {
-		resp.Operations = append(resp.Operations, &opsv1.OperationInfo{
-			Name:     op.Name,
-			Category: string(op.Category),
-			Summary:  op.Summary,
-		})
+		// Discovery metadata comes from the operation's capability manifest, which
+		// is the declaration of record: the in-process table owns execution only.
+		info := &opsv1.OperationInfo{Name: op.Name}
+		if m, ok := capability.Get(op.Name); ok {
+			info.Category = string(m.Family)
+			info.Summary = m.Summary
+		}
+		resp.Operations = append(resp.Operations, info)
 	}
 	return connect.NewResponse(resp), nil
 }

@@ -87,6 +87,12 @@ func (h *connectHandler) CompileLook(ctx context.Context, req *connect.Request[l
 	if err != nil {
 		return nil, mapErr(err)
 	}
+	// A stored Look is validated on write, but built-ins ship with the binary and
+	// a future seed could drift; validate again before compiling so an invalid
+	// chain fails as InvalidArgument rather than producing a broken run.
+	if err := internallooks.Validate(look); err != nil {
+		return nil, mapErr(err)
+	}
 	out := internallooks.Compile(look, req.Msg.GetSubject(), req.Msg.GetPrompt(), req.Msg.GetHasInput())
 	return connect.NewResponse(out), nil
 }

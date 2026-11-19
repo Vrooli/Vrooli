@@ -15,35 +15,35 @@
           "type": "test",
           "ref": "api/internal/hfmeta/hfmeta_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "HF metadata seam (fake + recorded fixture) feeding architecture inference + layout detection."
         },
         {
           "type": "test",
           "ref": "api/internal/models/architecture_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "InferArchitecture pipeline-class/tag → Architecture table with confidence + evidence; ambiguous/unknown returns low confidence (never silently guessed)."
         },
         {
           "type": "test",
           "ref": "api/internal/models/import_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "ProposeImport / BuildImportEntry layout→backend routing, provenance label, local-tier + commercial-attestation gate; add-only enforcement."
         },
         {
           "type": "test",
           "ref": "api/internal/fetch/download_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Shared download / HF snapshot / checksum-pin / artifact-kind validation spine reused by models + adapters import."
         },
         {
           "type": "test",
           "ref": "ui/src/features/models/ImportModelWizard.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Import wizard states (inspect → preview detected metadata → confirm architecture/license → install with progress)."
         }
       ]

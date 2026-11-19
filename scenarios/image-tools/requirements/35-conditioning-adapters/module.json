@@ -15,35 +15,35 @@
           "type": "test",
           "ref": "api/internal/adapters/adapters_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Adapter catalog load/parse/validate, compatibility rule, scale clamp, seed license + no-vaporware (Ready=false) invariants."
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/conditioning_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "ResolveConditioning fail-closed matrix (unknown/incompatible/disabled/not-Ready/uninstalled/missing-ref/dup), canonical ordering, EffectiveWeight = max(op, adapters...) (C4)."
         },
         {
           "type": "test",
           "ref": "api/internal/technique/technique_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Pure arg-builders: LoRAArgs / ControlNetArgs / IPAdapterArgs flag assembly, skip-by-kind, fail-closed on missing weight/image; txt2img+img2img thread the whole stack (TestDiffusersBuildersEmitConditioning)."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/engine_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Engine materializes each adapter's conditioning/reference image blob to a local path and rewrites the key (TestMaterializeAdapterImages); fails closed on a missing blob."
         },
         {
           "type": "test",
           "ref": "api/internal/models/families_conformance_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go↔Python wire-format parity for the LoRA / ControlNet / IP-Adapter specs (TestLoRASpecParityPython, TestConditioningSpecParityPython) and the diffusers adapter contract module (TestDiffusersSidecarContract)."
         }
       ]

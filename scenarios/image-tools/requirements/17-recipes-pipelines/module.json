@@ -13,14 +13,14 @@
       "validation": [
         {
           "type": "manual",
-          "ref": "api/internal/recipes/recipes_test.go",
+          "ref": "api/internal/looks/compiler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Planned (not yet implemented; automated test pending): Recipe serializes, validates, and replays deterministically"
         },
         {
           "type": "manual",
-          "ref": "cli/domains/recipes/recipes_test.go",
+          "ref": "api/internal/looks/store_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Planned (not yet implemented; automated test pending): Same recipe runs headless via CLI and in the UI op-stack"

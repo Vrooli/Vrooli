@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"image-tools/internal/adapters"
+	aigateway "image-tools/internal/aigateway"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
@@ -99,22 +100,22 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 }
 
 func TestRunFailureRetainsGatewayVariationEvidenceAndMarksUnstarted(t *testing.T) {
-	firstAttempt, err := json.Marshal(gatewayExecutionAttempt{Outcome: "succeeded", ExecutionID: "gw-first", Status: "SUCCEEDED", CostState: "known", CostUSD: ptrCost(0)})
+	firstAttempt, err := json.Marshal(aigateway.Attempt{Outcome: "succeeded", ExecutionID: "gw-first", Status: "SUCCEEDED", CostState: "known", CostUSD: ptrCost(0)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	failedAttempt, err := json.Marshal(gatewayExecutionAttempt{Outcome: "outcome_unknown", ExecutionID: "gw-second", CostState: "unknown"})
+	failedAttempt, err := json.Marshal(aigateway.Attempt{Outcome: "outcome_unknown", ExecutionID: "gw-second", CostState: "unknown"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	fp := &fakeProvider{
 		metas: []map[string]string{
-			{MetaGatewayExecutionAttempt: string(firstAttempt), MetaCostUSD: "0", MetaCostProvenance: ProviderReportedCostProvenance},
-			{MetaGatewayExecutionAttempt: string(failedAttempt)},
+			{aigateway.MetaExecutionAttempt: string(firstAttempt), aigateway.MetaCostUSD: "0", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
+			{aigateway.MetaExecutionAttempt: string(failedAttempt)},
 		},
 		failOn:   2,
 		failWith: errors.New("gateway wait interrupted"),
-		failMeta: map[string]string{MetaGatewayExecutionAttempt: string(failedAttempt)},
+		failMeta: map[string]string{aigateway.MetaExecutionAttempt: string(failedAttempt)},
 	}
 	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 	runner := eng.BuildRunners()["text_to_image"]
@@ -129,7 +130,7 @@ func TestRunFailureRetainsGatewayVariationEvidenceAndMarksUnstarted(t *testing.T
 	if len(result.Meta) != 1 {
 		t.Fatalf("failed result metadata = %#v", result.Meta)
 	}
-	var evidence gatewayExecutionEvidence
+	var evidence aigateway.Evidence
 	if err := json.Unmarshal([]byte(result.Meta[internaljobs.MetaGatewayExecutionEvidence]), &evidence); err != nil {
 		t.Fatal(err)
 	}
@@ -156,24 +157,24 @@ func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
 		want  string
 	}{
 		{name: "all known including zero", metas: []map[string]string{
-			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance},
-			{MetaCostUSD: "0", MetaCostProvenance: ProviderReportedCostProvenance},
-			{MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0.1", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0.3", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
 		}, want: "0.4"},
 		{name: "unknown first", metas: []map[string]string{
-			{}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+			{}, {aigateway.MetaCostUSD: "0.2", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {aigateway.MetaCostUSD: "0.3", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
 		}},
 		{name: "unknown middle", metas: []map[string]string{
-			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0.1", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {}, {aigateway.MetaCostUSD: "0.3", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
 		}},
 		{name: "unknown last", metas: []map[string]string{
-			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {},
+			{aigateway.MetaCostUSD: "0.1", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {aigateway.MetaCostUSD: "0.2", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {},
 		}},
 		{name: "malformed contribution", metas: []map[string]string{
-			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "NaN", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0.1", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {aigateway.MetaCostUSD: "NaN", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {aigateway.MetaCostUSD: "0.3", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
 		}},
 		{name: "unmarked amount is unknown", metas: []map[string]string{
-			{MetaCostUSD: "0.1"}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+			{aigateway.MetaCostUSD: "0.1"}, {aigateway.MetaCostUSD: "0.2", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance}, {aigateway.MetaCostUSD: "0.3", aigateway.MetaCostProvenance: aigateway.ProviderReportedCostProvenance},
 		}},
 	}
 	for _, tc := range tests {
@@ -190,15 +191,15 @@ func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tc.want == "" {
-				if _, ok := result.Meta[MetaCostUSD]; ok {
+				if _, ok := result.Meta[aigateway.MetaCostUSD]; ok {
 					t.Fatalf("partial or unmarked cost published: %#v", result.Meta)
 				}
-				if _, ok := result.Meta[MetaCostProvenance]; ok {
+				if _, ok := result.Meta[aigateway.MetaCostProvenance]; ok {
 					t.Fatalf("provenance published without complete cost: %#v", result.Meta)
 				}
 				return
 			}
-			if result.Meta[MetaCostUSD] != tc.want || result.Meta[MetaCostProvenance] != ProviderReportedCostProvenance {
+			if result.Meta[aigateway.MetaCostUSD] != tc.want || result.Meta[aigateway.MetaCostProvenance] != aigateway.ProviderReportedCostProvenance {
 				t.Fatalf("aggregated cost metadata = %#v", result.Meta)
 			}
 		})
@@ -210,14 +211,14 @@ func TestRunLeasesModelAcrossVariationsAndReleasesBeforeAutoScan(t *testing.T) {
 	fp := &fakeProvider{}
 	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 	eng.deps.AcquireModelUse = gate.Acquire
-	eng.deps.AutoScan = func(context.Context, []byte) (bool, float64, error) {
+	eng.deps.AutoScan = func(context.Context, []byte) (ScanVerdict, error) {
 		release, err := gate.AcquireExclusive(modelID)
 		if err != nil {
 			t.Errorf("model lease should be released before NSFW auto-scan; exclusive acquire err=%v", err)
 		} else {
 			release()
 		}
-		return false, 0, nil
+		return ScanVerdict{}, nil
 	}
 	fp.onExecute = func() {
 		release, err := gate.AcquireExclusive(modelID)

@@ -16,6 +16,7 @@ import (
 	internaljobs "image-tools/internal/jobs"
 	internalops "image-tools/internal/ops"
 	"image-tools/internal/storage"
+	"image-tools/internal/wireops"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -216,7 +217,7 @@ func (h *Deps) parseParams(w http.ResponseWriter, operation, raw string) (*inter
 			return nil, false
 		}
 	}
-	params, err := translateParams(operation, pb)
+	params, err := wireops.Translate(operation, pb)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
 		return nil, false

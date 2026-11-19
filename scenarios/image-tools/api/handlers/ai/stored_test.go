@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
-	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 	"image-tools/internal/safety"
 )
 
@@ -38,7 +37,7 @@ func TestStoredAdmissionSharesRESTIdentityAndRecoversWithoutModel(t *testing.T) 
 		t.Fatalf("cross-transport retry: %v %+v calls=%d", err, response, jobs.calls)
 	}
 	// A source-bearing admission uses content identity, not a storage key.
-	request = &aiv1.SubmitStoredAIRequest{Operation: "segment", InputRef: "input/a", OperationId: uuid.NewString(), Params: &aiv1.AIParams{ModelOverride: "mobilesam", Segmentation: &aiv1.SegmentationPrompt{Points: []*selectionv1.Point{{X: .5, Y: .4}}}}}
+	request = &aiv1.SubmitStoredAIRequest{Operation: "segment", InputRef: "input/a", OperationId: uuid.NewString(), Params: &aiv1.AIParams{ModelOverride: "mobilesam", OpParams: opParamsStruct(t, map[string]any{"segmentation": map[string]any{"points": []any{map[string]any{"x": 0.5, "y": 0.4}}}})}}
 	if _, err = client.SubmitStoredAI(context.Background(), connect.NewRequest(request)); err != nil {
 		t.Fatal(err)
 	}

@@ -5,19 +5,19 @@ import "testing"
 func TestCatalog_BreadthOpsRegistered(t *testing.T) {
 	cases := []struct {
 		op       string
-		category Category
+		family   string
 		reqImage bool
 		reqMask  bool
 		prompt   bool
 	}{
-		{"outpaint", CategoryGeneration, true, true, true},
-		{"background_replace", CategoryGeneration, true, true, true},
-		{"colorize", CategoryEnhancement, true, false, false},
-		{"depth_map", CategoryEnhancement, true, false, false},
-		{"deblur", CategoryRestoration, true, false, false},
-		{"face_restore", CategoryRestoration, true, false, false},
-		{"old_photo_restore", CategoryRestoration, true, false, false},
-		{"caption", CategoryAnalysis, true, false, false},
+		{"outpaint", "edit", true, true, true},
+		{"background_replace", "edit", true, true, true},
+		{"colorize", "enhance", true, false, false},
+		{"depth_map", "extract", true, false, false},
+		{"deblur", "restore", true, false, false},
+		{"face_restore", "restore", true, false, false},
+		{"old_photo_restore", "restore", true, false, false},
+		{"caption", "extract", true, false, false},
 	}
 	for _, c := range cases {
 		op, ok := Get(c.op)
@@ -25,8 +25,8 @@ func TestCatalog_BreadthOpsRegistered(t *testing.T) {
 			t.Errorf("op %q not in catalog", c.op)
 			continue
 		}
-		if op.Category != c.category {
-			t.Errorf("%q category = %q, want %q", c.op, op.Category, c.category)
+		if op.Family != c.family {
+			t.Errorf("%q family = %q, want %q", c.op, op.Family, c.family)
 		}
 		if op.RequiresImage != c.reqImage || op.RequiresMask != c.reqMask || op.PromptDriven != c.prompt {
 			t.Errorf("%q flags = img:%t mask:%t prompt:%t, want img:%t mask:%t prompt:%t",

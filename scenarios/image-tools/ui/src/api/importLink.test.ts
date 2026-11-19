@@ -32,8 +32,15 @@ describe("api/importLink", () => {
     expect(result.name).toBe("imported.png");
     expect(result.type).toBe("image/png");
     const [importURL, importInit] = vi.mocked(fetch).mock.calls[0] ?? [];
-    expect(String(importURL)).toContain("/api/v1/import/link");
-    expect(JSON.parse(String(importInit?.body))).toEqual({ url: "https://images.example/photo.png" });
-    expect(String(vi.mocked(fetch).mock.calls[1]?.[0])).toContain("/api/v1/blobs/input/abc.png");
+    if (typeof importURL !== "string" || typeof importInit?.body !== "string") {
+      throw new Error("expected the import request to use string URL and body");
+    }
+    expect(importURL).toContain("/api/v1/import/link");
+    expect(JSON.parse(importInit.body)).toEqual({ url: "https://images.example/photo.png" });
+    const downloadURL = vi.mocked(fetch).mock.calls[1]?.[0];
+    if (typeof downloadURL !== "string") {
+      throw new Error("expected the download request to use a string URL");
+    }
+    expect(downloadURL).toContain("/api/v1/blobs/input/abc.png");
   });
 });

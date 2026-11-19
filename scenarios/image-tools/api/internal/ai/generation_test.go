@@ -2,7 +2,9 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"image-tools/internal/storage"
@@ -137,9 +139,9 @@ func TestGeneration_AutoScanHook(t *testing.T) {
 	fp := &fakeProvider{}
 	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 	scanned := false
-	eng.deps.AutoScan = func(context.Context, []byte) (bool, float64, error) {
+	eng.deps.AutoScan = func(context.Context, []byte) (ScanVerdict, error) {
 		scanned = true
-		return true, 0.91, nil
+		return ScanVerdict{NSFW: true, Score: 0.91}, nil
 	}
 
 	_, err := runJob(t, eng, "text_to_image", Payload{
@@ -169,5 +171,57 @@ func assertBlob(t *testing.T, store *storage.Store, ref, want string) {
 	}
 	if string(got) != want {
 		t.Errorf("blob %q = %q, want %q", ref, string(got), want)
+	}
+}
+
+// recordingStore records which artifacts the engine refuses to publish.
+type recordingStore struct {
+	*storage.Store
+	deleted []string
+}
+
+func (s *recordingStore) Delete(ctx context.Context, key string) error {
+	s.deleted = append(s.deleted, key)
+	return s.Store.Delete(ctx, key)
+}
+
+func TestReviewOutputHardRefusalFailsJobAndDeletesArtifacts(t *testing.T) {
+	fp := &fakeProvider{}
+	eng, store, modelID := newTestEngine(t, "text_to_image", fp)
+	rec := &recordingStore{Store: store}
+	eng.deps.Store = rec
+	reviewed := 0
+	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+		reviewed++
+		return ScanVerdict{HardRefusal: "classifier: minor + sexual"}, nil
+	}
+
+	_, err := runJob(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"prompt": "x"}})
+	if err == nil || !strings.Contains(err.Error(), "refused") {
+		t.Fatalf("err = %v, want a hard refusal", err)
+	}
+	if reviewed != 1 {
+		t.Fatalf("reviewed %d outputs, want 1", reviewed)
+	}
+	if len(rec.deleted) != 1 {
+		t.Fatalf("deleted %v, want the refused artifact removed before the job failed", rec.deleted)
+	}
+}
+
+func TestReviewOutputUnavailableFailsClosed(t *testing.T) {
+	fp := &fakeProvider{}
+	eng, store, modelID := newTestEngine(t, "text_to_image", fp)
+	rec := &recordingStore{Store: store}
+	eng.deps.Store = rec
+	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+		return ScanVerdict{}, errors.New("classifier crashed")
+	}
+
+	_, err := runJob(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"prompt": "x"}})
+	if err == nil || !strings.Contains(err.Error(), "review failed") {
+		t.Fatalf("err = %v, want the review failure surfaced", err)
+	}
+	if len(rec.deleted) != 1 {
+		t.Fatalf("deleted %v, want the unreviewed artifact removed", rec.deleted)
 	}
 }

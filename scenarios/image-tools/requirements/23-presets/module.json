@@ -13,7 +13,7 @@
       "validation": [
         {
           "type": "manual",
-          "ref": "api/internal/presets/presets_test.go",
+          "ref": "api/internal/looks/store_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Planned (not yet implemented; automated test pending): Preset renders deterministic composite output"

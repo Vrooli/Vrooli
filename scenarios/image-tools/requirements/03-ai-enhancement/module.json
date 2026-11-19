@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/ai/enhancement_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Enhancement op runs against standalone backend; CPU fallback model selectable"
         },
         {

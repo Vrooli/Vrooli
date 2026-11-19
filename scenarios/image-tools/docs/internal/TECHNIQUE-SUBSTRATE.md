@@ -8,7 +8,7 @@
 
 | Stage | Implemented source | Remaining proof or limitation |
 |---|---|---|
-| Operation vocabulary | `internal/operations` is the vocabulary owner; `ai/catalog.go` filters categories and the seed no longer carries a second operation vocabulary. | Audit every public CLI/API/UI capability against the client list; end-to-end gaps remain under IT4. |
+| Operation vocabulary | *(moved 2026-07-06: the owner is now `internal/capability`; the historical `internal/operations` below was deleted, see MATURATION-PLAN D13)* `internal/operations` was the vocabulary owner; `ai/catalog.go` filters categories and the seed no longer carries a second operation vocabulary. | Audit every public CLI/API/UI capability against the client list; end-to-end gaps remain under IT4. |
 | Technique and backend process | `internal/technique` owns operation argument builders and readiness; `ai/backend_process.go` owns process/runtime availability and invocation; `ai/providers.go` binds a backend process to resolved techniques. | This split does not itself qualify every provider or model on each platform. |
 | Architecture derivation | `models.Model.EffectiveOps` combines declared operations with architecture-derived operations; `_diffusers.py` mirrors the architecture table and parity tests protect the contract. `ServesOperation` delegates to the derived set. | Derived techniques remain unavailable unless their row is marked Ready; unqualified pipelines stay hidden. |
 | Resolution | `internal/resolver` returns the operation, selected model, technique, provider tier, support class and caveats; explain routes expose the decision without running inference. | Resolution evidence does not prove a model has enough live device capacity or produces acceptable output. |
@@ -186,7 +186,29 @@ keyed on the operation; the adapter stack can only *raise* it via
 `EffectiveWeight = max(opWeight, adapter weights...)` (IP-Adapter / identity
 LoRA carry `high`). Conditioning never lowers a consent requirement.
 
-## 7. What this note commits the plan to
+## 8. Target: one capability manifest replaces the hand-synced surfaces
+
+The spine above is sound, but the *declaration* of an operation is still spread
+across seven hand-synced surfaces (vocabulary, proto params, the `paramsMap`
+bridge, per-op validators, provider/technique rows, CLI commands, UI catalogs).
+Adding one operation therefore costs ~20 file edits and two of those surfaces
+have no conformance test — the UI catalog being the dangerous one, because a
+missing entry degrades silently to a raw operation name.
+
+The target is a single declarative **capability manifest** per operation, with the
+navigation layer generated from it. That does not change the
+operation/technique/model spine; it changes how an operation is *declared* and how
+the CLI/UI/params are produced. Full schema, generated-surface list, conformance
+tests, and migration phases:
+
+→ [`CAPABILITY-MANIFEST.md`](CAPABILITY-MANIFEST.md)
+→ [`../concepts/CAPABILITY-MODEL.md`](../concepts/CAPABILITY-MODEL.md) for the axes
+→ [`MATURATION-PLAN.md`](MATURATION-PLAN.md) for sequencing and debt
+
+The technique table and the architecture→technique derivation remain exactly as
+described in §1–§3; the manifest references a technique, it does not replace one.
+
+## 9. What this note commits the plan to
 
 - One vocabulary SSOT (`internal/operations`); `models` + `ai` read it; `operations_vocabulary` in
   the seed JSON and the `Op` table in `ai/catalog.go` are **deleted** (Phase 1).

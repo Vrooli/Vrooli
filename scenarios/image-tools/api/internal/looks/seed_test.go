@@ -46,3 +46,29 @@ func TestBuiltinDeterministicLooksRenderableInProcess(t *testing.T) {
 		}
 	}
 }
+
+// TestScreenshotCleanupLookRunsHeadless is the composition proof for a
+// cross-step chain: a trimmed screenshot is produced by a deterministic step and
+// handed to the next step through the image port, and only the model-backed
+// step is deferred. It runs in-process with no API, no model, and no network.
+func TestScreenshotCleanupLookRunsHeadless(t *testing.T) {
+	var look *looksv1.Look
+	for _, candidate := range BuiltinLooks() {
+		if candidate.GetId() == "screenshot-cleanup" {
+			look = candidate
+		}
+	}
+	if look == nil {
+		t.Fatal("the screenshot-cleanup Look is not seeded")
+	}
+	png, deferred, err := RenderPreview(look)
+	if err != nil {
+		t.Fatalf("RenderPreview: %v", err)
+	}
+	if len(png) == 0 {
+		t.Fatal("preview produced no image")
+	}
+	if len(deferred) != 1 || deferred[0] != "upscale" {
+		t.Fatalf("deferred = %v, want only [upscale]", deferred)
+	}
+}
