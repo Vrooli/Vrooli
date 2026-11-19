@@ -2,6 +2,14 @@
 
 Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
 
+## 2026-11-18 — Workbench direction: D · Nocturne
+
+The operator selected **D · Nocturne** for every page after the three-direction study and the B/D expansion. The workbench target is eleven pages, two component modes (Fixtures / In context), an Asset data drawer preserving the current seven asset tabs, a consolidated Design studio, and first-class Review, Activity and Create pages. The implementation is in `ui/src/workbench/` and was served on 2026-11-19; current behavior remains only what the [behavior claim register](TESTING.md#behavior-claim-register) proves. Full page map, implementation record, data contracts, migration and open capture limits are in [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md).
+
+Two proposal artifacts are retained with distinct jobs: the full 11-page interactive prototype is the canonical design artifact; the page-by-page review is the decision and feature-preservation record. Do not replace one with the other.
+
+Nocturne is workbench chrome, not a shared library theme. The scoped token implementation (app-local workbench token file vs a BaseStyles release) is an open implementation decision in the redesign plan; published components remain on BaseStyles.
+
 ## 2026-09-08 — Token authority
 
 BaseStyles authors shared runtime token values. The UI token generator derives consumer CSS, Tailwind aliases and the Tokens projection; app-tokens.css owns only disjoint local geometry/runtime compatibility values. This supersedes the 2026-08-29 `_base/tokens.css` authority decision for this scenario and the earlier claim that copied UI ramps author the same values independently. Enforced by `node ui/scripts/design-token-generate.mjs --check` and its parser/generator tests. Revisit if a new owner can provide the same deterministic generation and collision checks without duplicated values.

@@ -6,6 +6,16 @@
     "noEmit": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@vrooli/api-base": ["../../../packages/api-base/dist/index.d.ts"],
+      "@vrooli/api-base/notifications": [
+        "../../../packages/api-base/dist/client/notification-preferences.d.ts"
+      ],
+      "@vrooli/api-base/notifications/react": [
+        "../../../packages/api-base/dist/client/notification-preferences-react.d.ts"
+      ],
+      "@vrooli/api-base/server": ["../../../packages/api-base/dist/server/index.d.ts"],
+      "@vrooli/api-base/testing": ["../../../packages/api-base/dist/testing/index.d.ts"],
+      "@vrooli/api-base/types": ["../../../packages/api-base/dist/shared/types.d.ts"],
       "@vrooli/audio-capture-browser": [
         "../../../packages/audio-capture-browser/dist/index.d.ts"
       ],

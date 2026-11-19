@@ -1,6 +1,19 @@
 # React Component Library
 
-Browse, author and inspect Vrooli's versioned React assets. The workbench separates visual components, hooks and supporting assets, renders declared stories, and exposes source-backed page verification. Start it with `make start` from this scenario directory.
+Browse, author, inspect and compose Vrooli's versioned React assets. The workbench separates visual components, hooks and supporting assets, renders declared stories, and exposes source-backed page verification. Start it with `make start` from this scenario directory.
+
+## Workbench redesign — D · Nocturne (implemented and served; governed capture pending)
+
+The operator selected **D · Nocturne** as the target workbench design on 2026-11-18. The target is a warm, dark editorial workbench with eleven pages: Home, Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview. It keeps the component's two working modes — **Fixtures** and **In context** — and moves the seven current asset tabs into an **Asset data** drawer.
+
+The Nocturne shell, eleven page surfaces, component workspace, design studio and eight page templates are implemented in [`ui/src/workbench/`](ui/src/workbench/). The Design studio can compose, inspect, edit, duplicate and present those templates, and In context places the real component harness inside them where it can be dragged, resized and reset. Fixtures, layers and browser-local templates persist across a reload. The coverage report now persists its last verdict and reports an explicit “preparing” state instead of failing or rendering zero on a cold pass.
+This is **not yet a production-ready claim**. The governed capture service returns `503` on this host, so page/component pixel and accessibility evidence is not fresh; full phone journeys, durable activity attribution and the Create write path remain open. The full page map, component workspace, design system, data contracts, migration phases and feature-preservation ledger are in [docs/concepts/WORKBENCH-REDESIGN.md](docs/concepts/WORKBENCH-REDESIGN.md). The selected interactive prototype and the page-by-page decision review are in the experience-engineering operator experiment:
+
+```text
+~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118/
+```
+
+Current behavior remains what the checked behavior register proves, not what the redesign promises.
 
 ## The asset loop
 
@@ -24,6 +37,7 @@ These rules are enforced at the boundaries named in the checked behavior registe
 
 ## Further reading
 
+- [Workbench redesign plan](docs/concepts/WORKBENCH-REDESIGN.md)
 - [Edit, rebuild and look](docs/guides/asset-update-flow.md#edit-rebuild-and-look)
 - [Architecture and owners](docs/concepts/ARCHITECTURE.md)
 - [Tokens](docs/reference/token-contract.md) and [stamps/capture](docs/reference/cli-commands.md#inspect-a-running-page)

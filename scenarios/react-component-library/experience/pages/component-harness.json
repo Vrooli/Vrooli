@@ -66,5 +66,13 @@
         "selector": "[data-experience-surface=\"component-harness\"]"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Remains a machine iframe execution target; not a human page"
+    ]
   }
 }

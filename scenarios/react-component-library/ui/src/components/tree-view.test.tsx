@@ -41,6 +41,10 @@ describe("TreeView", () => {
   });
 
   it("supports legacy string nodes, explicit defaults, disabled nodes, and collapse navigation", async () => {
+    // Bare string nodes are a documented legacy form, while the released
+    // contract declares object nodes. The warning is the contract speaking;
+    // assert it instead of treating it as console noise.
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const folder: TreeNode = {
@@ -78,5 +82,6 @@ describe("TreeView", () => {
     expect(screen.getByRole("treeitem", { name: "Alpha" })).toBeInTheDocument();
     rerender(<TreeView items={[]} label="Simple" />);
     expect(screen.getByRole("status")).toHaveTextContent("Nothing to display.");
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("object item"));
   });
 });

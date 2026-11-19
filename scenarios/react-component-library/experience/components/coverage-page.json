@@ -6,7 +6,7 @@
     "id": "coverage-page",
     "title": "Catalog coverage",
     "purpose": "Local catalog coverage page composition.",
-    "storyRef": "../../ui/src/pages/CoveragePage.story.json"
+    "storyRef": "../../ui/src/workbench/pages/CoveragePage.story.json"
   },
   "states": [
     {

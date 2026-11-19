@@ -8,9 +8,9 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
-	"github.com/vrooli/api-core/uimanifest"
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 )

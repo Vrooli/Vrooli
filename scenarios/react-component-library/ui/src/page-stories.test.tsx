@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@testing-library/react";
 import { renderWithProviders } from "./test-utils";
-import { CoveragePage } from "./pages/CoveragePage";
+import { CoveragePage } from "./workbench/pages/CoveragePage";
 import { installPageAPIState, preparePageStory } from "./page-stories";
 import { setLocale } from "./i18n";
-import coverageStory from "./pages/CoveragePage.story.json";
+import coverageStory from "./workbench/pages/CoveragePage.story.json";
 
 afterEach(() => {
   cleanup();
@@ -34,7 +34,7 @@ describe("page story API state", () => {
     window.history.replaceState(
       {},
       "",
-      "/coverage?__rcl_page_story=CoveragePage&__rcl_story=service-unavailable",
+      "/coverage?__rcl_page_story=CoveragePage&__rcl_story=default",
     );
     const run = preparePageStory(new URLSearchParams(window.location.search));
     expect(run).toBeDefined();
@@ -44,6 +44,9 @@ describe("page story API state", () => {
       const expected = coverageStory.stories[0]?.expect[0]?.value;
       if (!expected) throw new Error("Coverage story must declare visible failure text");
       await screen.findByText(expected);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
       await run.run(container);
     } finally {
       run.dispose();
@@ -56,7 +59,7 @@ describe("page story API state", () => {
   it("rejects a story requested on the wrong route before mounting", () => {
     expect(() =>
       preparePageStory(
-        new URLSearchParams("__rcl_page_story=CoveragePage&__rcl_story=service-unavailable"),
+        new URLSearchParams("__rcl_page_story=CoveragePage&__rcl_story=default"),
       ),
     ).toThrow("requires route /coverage");
   });

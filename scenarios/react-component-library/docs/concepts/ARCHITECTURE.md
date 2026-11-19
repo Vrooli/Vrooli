@@ -23,6 +23,26 @@ flowchart LR
   Bundle --> UI
 ```
 
+## Workbench Surface Map
+
+The operator-selected **D · Nocturne** redesign changes the workbench surface map, not the API/library ownership below. The target is eleven pages: Home, Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview. The Component page has Fixtures and In context modes plus an Asset data drawer; Review, Activity and Create are new surfaces; the three design routes consolidate into one studio. The route map, page responsibilities, data contracts and migration plan are in [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md).
+
+This table records the served route and projection ownership. The behavior claims remain the checked register above; governed capture and full phone certification are still open:
+
+| Page | Primary projection / owner | Served surface |
+|---|---|---|
+| Home | Catalog health, findings, recent activity, continuation | Nocturne launchpad at `/` |
+| Components | Catalog/registry + adoption counts | Nocturne gallery at `/components` (`/catalog` redirects) |
+| Component | Component registry, stories, preview, test evidence, versions, relationships | Fixtures / In context at `/assets/:id` with the Asset data drawer |
+| Design | Experience pages, catalog assets, templates, reconcile verdicts, adoption handoff | One studio at `/design` (legacy design and sketch routes redirect) |
+| Review | Findings projection over gate/test/capture evidence | Severity board at `/review` |
+| Coverage | Catalog coverage service + persisted report | Maturity matrix at `/coverage` |
+| Capabilities | Health/integration readiness | Integration cards at `/capabilities` |
+| Activity | Change/evidence trail | Index-derived trail at `/activity` |
+| Settings | Browser-local preferences | Preference cards at `/settings` |
+| Create | Authoring/extract/adopt workflows | Explained routes at `/new` |
+| Preview | Preview harness + evidence | Chrome-free share at `/assets/:id/preview` |
+
 ## Contracts And Data Flow
 
 ### Proto as the canonical contract
@@ -48,7 +68,7 @@ Commands live under `cli/domains/`. Argument and API routing tests in those dire
 | Page stories | Concrete route plus explicit API fixtures, shared story evaluator, no undeclared POST mutations | `api/internal/components/page_stories_test.go`, `ui/src/page-stories.test.tsx` |
 | Route inventory | Each declared UI URL has one registered experience page and an executable page story | `ui/scripts/experience-routes-check.mjs` |
 | Catalog tabs | Semantic kind is filtered before limiting, independently of the legacy component/hook bucket | `api/handlers/components/catalog_projection_test.go` |
-| UI failures | Coverage and editor source failures expose retry controls; ranked-work failure is separate from an empty queue | `ui/src/pages/CoveragePage.test.tsx`, PreviewPopout page story |
+| UI failures | Coverage reports unavailable/preparing with retry and never renders zero; ranked-work failure is separate from an empty queue | `ui/src/workbench/pages/CoveragePage.story.json`; `api/handlers/catalog/report_cache_test.go` |
 | Tokens | BaseStyles values generate consumer projections, with a separate collision-checked app geometry file | `ui/scripts/design-token-generate.mjs --check` |
 
 ## Asset hierarchy and Preview composition

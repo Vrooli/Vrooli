@@ -6,8 +6,23 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
 	"react-component-library/internal/components"
 )
+
+// previewImagePath resolves a version preview through the manifest's own
+// category. The library is organized by category (`components`, `primitives`,
+// `foundations`, …); assuming every renderable asset lived in `components/`
+// returned a 404 for every captured primitive preview.
+func previewImagePath(libraryRoot string, component components.Component, version string) string {
+	assetDir := filepath.Join(component.Slug)
+	if manifest := strings.TrimSpace(component.ManifestPath); manifest != "" {
+		if relative := filepath.Dir(filepath.FromSlash(manifest)); relative != "." {
+			assetDir = relative
+		}
+	}
+	return filepath.Join(libraryRoot, assetDir, "versions", version, "preview.png")
+}
 
 // ServePreviewImage exposes the durable version preview through the same
 // library identity resolver as the harness. The browse UI can therefore show
@@ -37,11 +52,7 @@ func (h *HarnessHandler) ServePreviewImage(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	root := filepath.Join(h.repoRoot, "scenarios", "react-component-library", "library")
-	kind := "components"
-	if component.AssetKind == components.AssetKindHook {
-		kind = "hooks"
-	}
-	path := filepath.Join(root, kind, component.Slug, "versions", version, "preview.png")
+	path := previewImagePath(root, component, version)
 	if _, err := filepath.Rel(root, path); err != nil || !strings.HasPrefix(filepath.Clean(path), filepath.Clean(root)+string(filepath.Separator)) {
 		http.Error(w, "preview path escapes library root", http.StatusBadRequest)
 		return

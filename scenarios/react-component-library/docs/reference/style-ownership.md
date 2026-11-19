@@ -6,6 +6,19 @@ Behavioral claims are current only within the specific checks in the register. O
 policy, forced-colors policy, control-size tokens, direct-child icon scale, and visually-hidden
 utility. It mounts through `useLibraryStyleSheet` in `document.head`.
 
+## Workbench chrome (D · Nocturne)
+
+The selected D · Nocturne workbench introduces dark warm surfaces, an amber signal and serif display
+type. These are **workbench chrome** values, not a new theme for published components. Shared
+components continue to render from BaseStyles; a workbench token must never be imported by a
+library asset.
+
+The implementation chose the scoped path: `ui/src/workbench/nocturne.css` owns the chrome palette and
+remaps the BaseStyles custom properties inside `.wb-root` so shared RCL controls render in Nocturne.
+Published components are unaffected, and preview harnesses keep their own iframe document. The
+remaining proof is a collision/leak check that fails if a published component imports the scoped
+file. Until that check exists, Nocturne is a scoped application identity, not a token authority.
+
 An asset may add selectors for its own named state or anatomy. It must not repeat those shared
 concerns, emit a `<style>` element from component output, or rely on render order to beat a
 consumer class. Asset-specific CSS belongs in a module-level stylesheet mounted with a stable

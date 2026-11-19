@@ -28,6 +28,20 @@ REST-exception failure mode appears.
 
 ---
 
+## Planned workbench projections (D · Nocturne, not implemented)
+
+The redesign needs three read projections that do not exist as first-class endpoints today. They are documented here as design intent so the UI does not invent them client-side:
+
+| Projection | Needed by | Required content |
+|---|---|---|
+| Findings / review queue | Review | finding id, severity, asset/version, type, age, blast radius, evidence refs, assignee, disposition |
+| Activity trail | Activity | event id, kind, asset/version, actor, timestamp, evidence ref, summary |
+| Home health / continuation | Home | last scenario/page/revision, draft state, checks, catalog health, freshness, open findings |
+
+Coverage already has a service, but its failure state must be a typed unavailable result rather than an empty report. Version history and current-release test evidence must come from their existing owners; the redesign must not derive them from a capped list. See [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#data-and-contracts).
+
+---
+
 ## System
 
 ### `GET /health`

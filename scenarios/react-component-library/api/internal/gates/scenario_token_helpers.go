@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 	"react-component-library/internal/themes"
-	"github.com/vrooli/api-core/uimanifest"
 )
 
 const (

@@ -53,5 +53,15 @@
         "testid": "coverage-page"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Use the D domain x maturity matrix",
+      "Preserve ranked next work and definition of ready",
+      "Expose unavailable/stale/empty states without a false zero"
+    ]
   }
 }

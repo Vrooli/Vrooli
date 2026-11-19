@@ -1,10 +1,14 @@
 {
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:region-correction-provider",
+  "version": "0.1.0-draft.1",
+  "resolvedAt": "2026-11-19T05:26:04.272Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:LayerManager",
       "major": 2,
       "observed": "2.0.2",
-      "rank": 1
+      "rank": 2
     },
     {
       "libraryId": "react-component-library:StyleSheet",
@@ -12,9 +16,5 @@
       "observed": "1.0.2",
       "rank": 1
     }
-  ],
-  "libraryId": "react-component-library:region-correction-provider",
-  "resolvedAt": "2026-11-15T22:54:00Z",
-  "schemaVersion": 2,
-  "version": "0.1.0-draft.1"
+  ]
 }

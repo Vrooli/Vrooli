@@ -19,14 +19,56 @@ func RuleSetDigest(root, assetID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	inputs := make(map[string][]string)
-	for _, definition := range gates.Definitions() {
-		inputs[definition.ID] = append([]string(nil), definition.DeterminismInputs...)
-	}
+	inputs := determinismInputs()
 	config, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		return "", err
 	}
+	return digestBindings(bindings, inputs, config)
+}
+
+// RuleSetDigests computes every asset's rule digest from one catalog load.
+// The per-asset entry point re-reads the whole catalog, so a freshness check
+// that visited every asset was quadratic and dominated request latency.
+func RuleSetDigests(root string) (map[string]string, error) {
+	catalogRoot := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	assets, err := LoadCatalog(catalogRoot)
+	if err != nil {
+		return nil, err
+	}
+	definitions, err := LoadGateDefinitions(filepath.Join(catalogRoot, "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	config, err := os.ReadFile(filepath.Join(catalogRoot, "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	inputs := determinismInputs()
+	out := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		bindings, resolveErr := ResolveRuleSetFor(catalogRoot, asset, definitions)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		digest, digestErr := digestBindings(bindings, inputs, config)
+		if digestErr != nil {
+			return nil, digestErr
+		}
+		out[asset.ID] = digest
+	}
+	return out, nil
+}
+
+func determinismInputs() map[string][]string {
+	inputs := make(map[string][]string)
+	for _, definition := range gates.Definitions() {
+		inputs[definition.ID] = append([]string(nil), definition.DeterminismInputs...)
+	}
+	return inputs
+}
+
+func digestBindings(bindings []RuleBinding, inputs map[string][]string, config []byte) (string, error) {
 	payload, err := json.Marshal(struct {
 		Bindings []RuleBinding
 		Inputs   map[string][]string
@@ -183,6 +225,15 @@ func ResolveRuleSet(root, assetID string) ([]RuleBinding, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ResolveRuleSetFor(catalogRoot, asset, definitions)
+}
+
+// ResolveRuleSetFor resolves one asset against an already-loaded catalog and
+// gate vocabulary. Batch callers that visit every asset must use this instead
+// of ResolveRuleSet: reloading the whole catalog per asset made the evidence
+// recompute O(n²) and turned a coverage request into a multi-minute stall.
+func ResolveRuleSetFor(catalogRoot string, asset Asset, definitions []GateDefinition) ([]RuleBinding, error) {
+	assetID := asset.ID
 	manifest, err := loadAssetRuleOverrides(catalogRoot, assetID)
 	if err != nil {
 		return nil, err

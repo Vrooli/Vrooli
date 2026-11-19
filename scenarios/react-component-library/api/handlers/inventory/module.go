@@ -7,9 +7,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/module"
-	"github.com/vrooli/api-core/uimanifest"
 
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 	inventoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory/inventory_v1connect"

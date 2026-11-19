@@ -13,7 +13,7 @@ function installAxeEvidence(target: typeof globalThis) {
     "globalThis",
     `${helperSource}; return globalThis.__rclRunAxeEvidence;`,
   ) as (
-    globalThis: typeof globalThis,
+    scope: typeof globalThis,
   ) => (root: Element, axeRuntime?: unknown) => Promise<Record<string, unknown>>;
   return install(target);
 }
@@ -62,7 +62,9 @@ describe("RCL browser axe evidence producer", () => {
     expect(result.status).toBe("complete");
     expect(result.violations.map((item) => item.id)).toContain("button-name");
     expect(JSON.stringify(result)).not.toContain("PRIVATE FIXTURE LABEL");
-    expect(result.violations[0].targets.length).toBeGreaterThan(0);
+    const [violation] = result.violations;
+    expect(violation).toBeDefined();
+    expect(violation?.targets.length ?? 0).toBeGreaterThan(0);
     root.remove();
   });
 

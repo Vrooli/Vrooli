@@ -50,5 +50,15 @@
         "testid": "settings-page"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Preserve theme, preview text size and language",
+      "Add density, accent, evidence defaults and notifications",
+      "Keep the browser-local vs scenario-policy boundary explicit"
+    ]
   }
 }

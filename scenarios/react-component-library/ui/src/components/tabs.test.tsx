@@ -1,11 +1,13 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { renderWithProviders } from "../test-utils";
 
 describe("Tabs", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("supports labeled items, badges, and roving keyboard selection", async () => {
     const user = userEvent.setup();
     renderWithProviders(
@@ -35,6 +37,10 @@ describe("Tabs", () => {
   });
 
   it("supports string items, panels, custom ids, and Home/End navigation", async () => {
+    // The released usage contract declares object items with stable ids. The
+    // component keeps accepting bare strings as a legacy convenience and warns;
+    // assert that warning instead of letting the test harness swallow it.
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWithProviders(
@@ -56,6 +62,7 @@ describe("Tabs", () => {
     expect(screen.getByTestId("tab-three")).toHaveFocus();
     expect(onChange).toHaveBeenCalledWith("one");
     expect(onChange).toHaveBeenCalledWith("three");
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("object item"));
   });
 
   it("selects the requested tab and announces the active tab", async () => {
@@ -81,6 +88,7 @@ describe("Tabs", () => {
   });
 
   it("keeps controlled selection controlled while reporting keyboard changes", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderWithProviders(
@@ -89,5 +97,6 @@ describe("Tabs", () => {
     await user.click(screen.getByRole("tab", { name: "two" }));
     expect(onChange).toHaveBeenCalledWith("two");
     expect(screen.getByRole("tab", { name: "one" })).toHaveAttribute("aria-selected", "true");
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("object item"));
   });
 });

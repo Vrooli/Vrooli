@@ -28,6 +28,8 @@ when product requirements identify protected data or user-specific
 behavior. UI and CLI must not enforce business authorization locally;
 authorization belongs at the API/service layer.
 
+The D · Nocturne redesign adds visible write actions: assign/triage a finding, accept a composition, request review, create/extract/adopt, publish and reset preferences. A visible button is not a grant. The owning API must authorize the operation and target; the UI must render permission-denied distinctly and must not infer authority from a rendered control. The workbench chrome and preview must not store credentials or expose them to the iframe. See [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md) and [../reference/api-endpoints.md](../reference/api-endpoints.md).
+
 When a consuming scenario needs accounts, use the shared project contract and
 provider rather than inventing a local identity model. The reusable UI layer
 may provide presentation components for sign-in, account switching, MFA,

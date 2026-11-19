@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { AlertDialog } from "../../../library/components/AlertDialog/versions/2.0.13-draft.1/AlertDialog";
@@ -13,24 +13,25 @@ vi.mock("@vrooli/react-component-library/StyleSheet/1", () => ({
   useLibraryStyleSheet: () => undefined,
   StyleSheet: () => null,
 }));
-vi.mock("@vrooli/react-component-library/useOverlaySurface/1", () => ({
-  useOverlaySurface: ({ open }: { open: boolean }) => ({
-    present: open,
-    state: open ? "open" : "closed",
-    rootProps: { "data-overlay-root": true },
-    surfaceRef: { current: null },
-  }),
-}));
+vi.mock("@vrooli/react-component-library/useOverlaySurface/1", () => {
+  // A real overlay hook returns a stable ref object. Creating a new one on
+  // every render made the focus effect read a different object than the one
+  // the surface wrote, so the dialog never received initial focus.
+  const surfaceRef = { current: null as HTMLDivElement | null };
+  return {
+    useOverlaySurface: ({ open }: { open: boolean }) => ({
+      present: open,
+      state: open ? "open" : "closed",
+      rootProps: { "data-overlay-root": true },
+      surfaceRef,
+    }),
+  };
+});
 
 describe("AlertDialog 2.0.13 draft actions", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("keeps one row at phone width, shortens German labels, and focuses Cancel", () => {
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
-    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  it("keeps one row at phone width, shortens German labels, and focuses Cancel", async () => {
     render(
       <AlertDialog
         open
@@ -47,13 +48,19 @@ describe("AlertDialog 2.0.13 draft actions", () => {
     const group = screen.getByRole("group", { name: "Confirmation actions" });
     const buttons = within(group).getAllByRole("button");
     expect(buttons).toHaveLength(2);
-    expect(buttons[0]).toHaveAttribute("data-action-id", "confirm");
-    expect(buttons[1]).toHaveAttribute("data-action-id", "cancel");
+    const confirmButton = buttons[0];
+    const cancel = buttons[1];
+    if (!confirmButton || !cancel) throw new Error("the dialog must render confirm and cancel actions");
+    expect(confirmButton).toHaveAttribute("data-action-id", "confirm");
+    expect(cancel).toHaveAttribute("data-action-id", "cancel");
     expect(group).toHaveStyle({ flexWrap: "nowrap", flexDirection: "row-reverse" });
-    expect(buttons[0]).toHaveTextContent("…");
-    expect(buttons[0]).toHaveAttribute("title", "Arbeitsbereich endgültig entfernen");
-    expect(buttons[0].parentElement?.parentElement).toHaveAttribute("data-destructive", "true");
-    expect(buttons[1]).toHaveFocus();
+    expect(confirmButton).toHaveTextContent("…");
+    expect(confirmButton).toHaveAttribute("title", "Arbeitsbereich endgültig entfernen");
+    expect(confirmButton.parentElement?.parentElement).toHaveAttribute("data-destructive", "true");
+    // Focus is scheduled in requestAnimationFrame so it lands after the
+    // surface is committed. Wait for the frame instead of forcing rAF to run
+    // synchronously inside the effect, which fires before refs attach.
+    await waitFor(() => expect(cancel).toHaveFocus());
   });
 
   it("preserves explicit cancel and destructive confirm callbacks, and disables both while busy", () => {

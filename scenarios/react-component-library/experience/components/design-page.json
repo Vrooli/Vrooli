@@ -6,7 +6,7 @@
     "id": "design-page",
     "title": "Design workspaces",
     "purpose": "Local design workspaces page composition.",
-    "storyRef": "../../ui/src/pages/DesignPage.story.json"
+    "storyRef": "../../ui/src/workbench/pages/DesignStudioPage.story.json"
   },
   "states": [
     {

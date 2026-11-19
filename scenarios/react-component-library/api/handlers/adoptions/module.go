@@ -23,11 +23,11 @@ import (
 
 	adoptionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions/adoptions_v1connect"
 
+	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/adoptions"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/module"
-	"github.com/vrooli/api-core/uimanifest"
 
 	"github.com/vrooli/api-core/schedule"
 )

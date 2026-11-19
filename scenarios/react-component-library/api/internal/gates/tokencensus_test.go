@@ -41,6 +41,26 @@ func TestTokenCensusClassifiesEveryCompatibilityVerdict(t *testing.T) {
 	}
 }
 
+func TestTokenCensusSkipsDraftOnlyAssets(t *testing.T) {
+	root := t.TempDir()
+	writeCensusFixture(t, root, "templates/design/_base/tokens.css", ":root {\n  --shared: red;\n}\n")
+	writeCensusFixture(t, root, "templates/design/kit-a/metadata.json", `{}`)
+	writeCensusFixture(t, root, "templates/design/kit-a/adapters/react-vite-tailwind/tokens.css", ":root {\n  --a: red;\n}\n")
+	writeAssetFixture(t, root, "foundations", "BaseStyles", "rcl:BaseStyles", `:root { --base: 1px; }`, nil)
+	writeAssetFixture(t, root, "components", "Released", "rcl:Released", `.x { color: var(--shared); }`, nil)
+	base := filepath.Join("scenarios", "react-component-library", "library", "components", "DraftOnly")
+	writeCensusFixture(t, root, filepath.Join(base, "component.json"), `{"libraryId":"rcl:DraftOnly","latest":"","draft":"0.1.0-draft.1"}`)
+	writeCensusFixture(t, root, filepath.Join(base, "versions", "0.1.0-draft.1", "DraftOnly.tsx"), `.x { color: var(--missing); }`)
+
+	census, err := TokenCensus(root)
+	if err != nil {
+		t.Fatalf("draft-only asset must not fail the corpus census: %v", err)
+	}
+	if census.VerdictCounts[string(CompatibilityUniversal)] != 1 {
+		t.Fatalf("universal verdicts = %d, want 1 (draft-only must be skipped)", census.VerdictCounts[string(CompatibilityUniversal)])
+	}
+}
+
 func writeAssetFixture(t *testing.T, root, kind, name, libraryID, source string, styles []string) {
 	t.Helper()
 	manifest := `{"libraryId":"` + libraryID + `","latest":"1.0.0","designStyles":[`

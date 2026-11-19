@@ -37,7 +37,7 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 	if pages["missing"].Status != "missing" || pages["bad"].Status != "invalid" || pages["orphan"].Registered {
 		t.Fatalf("gaps concealed: %+v", got)
 	}
-	if good := pages["good"]; good.Title != "A good page" || good.RegionCount != 2 || good.Route != "/good" || len(good.Routes)!=2 || good.ContentHash == "" {
+	if good := pages["good"]; good.Title != "A good page" || good.RegionCount != 2 || good.Route != "/good" || len(good.Routes) != 2 || good.ContentHash == "" {
 		t.Fatalf("wrong page projection: %+v", good)
 	}
 }

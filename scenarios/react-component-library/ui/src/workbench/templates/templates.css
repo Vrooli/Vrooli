@@ -1,0 +1,603 @@
+/*
+ * Template compositions. These are "consumer pages" rendered from RCL assets,
+ * so they intentionally own their own palette and typography. The workbench
+ * chrome surrounds them; it never restyles them.
+ */
+
+.tpl-host {
+  container-type: inline-size;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--t-bg, #fff);
+}
+
+.tpl {
+  position: relative;
+  min-height: 100%;
+  background: var(--t-bg);
+  color: var(--t-ink);
+  font-family: var(--wb-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tpl.is-preview {
+  cursor: default;
+}
+
+.tpl-page {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px;
+}
+
+.tpl-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tpl-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.tpl-row.is-wrap {
+  flex-wrap: wrap;
+}
+
+.tpl-row.is-bordered {
+  border-bottom: 1px solid var(--t-line);
+}
+
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--tpl-cols, 2), minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.tpl-surface {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tpl-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--t-line) !important;
+  color: var(--t-ink);
+}
+
+.tpl-card > * {
+  min-width: 0;
+}
+
+.tpl-text {
+  min-width: 0;
+  text-wrap: pretty;
+}
+
+.tpl-text.is-display {
+  font-family: var(--t-display);
+  font-size: 3.35em;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+}
+
+.tpl-text.is-title {
+  font-family: var(--t-display);
+  font-size: 1.55em;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+}
+
+.tpl-text.is-subtitle {
+  font-size: 1.06em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tpl-text.is-body {
+  font-size: 0.94em;
+  line-height: 1.62;
+}
+
+.tpl-text.is-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tpl-text.is-caption {
+  font-size: 0.73em;
+  line-height: 1.45;
+}
+
+.tpl-text.is-eyebrow {
+  font-family: var(--wb-mono);
+  font-size: 0.66em;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.tpl-text.is-mono {
+  font-family: var(--wb-mono);
+  font-size: 0.78em;
+  letter-spacing: 0.01em;
+}
+
+.tpl-text.is-price {
+  font-family: var(--t-display);
+  font-size: 1.65em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tpl-text.is-ink {
+  color: var(--t-ink);
+}
+
+.tpl-text.is-muted {
+  color: var(--t-muted);
+}
+
+.tpl-text.is-accent {
+  color: var(--t-accent);
+}
+
+.tpl-text.is-secondary {
+  color: var(--t-secondary);
+}
+
+.tpl-control {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.tpl-control > * {
+  min-width: 0;
+}
+
+.tpl-control:has(input) {
+  width: 100%;
+}
+
+.tpl-stat {
+  display: block;
+  min-width: 0;
+}
+
+.tpl-stat [data-rcl-stat] {
+  height: 100%;
+  border-color: var(--t-line);
+  background: var(--t-surface);
+}
+
+.tpl-stat [data-rcl-stat-value] {
+  font-family: var(--t-display);
+}
+
+.tpl-meter {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+
+.tpl-meter [data-rcl-bounded-meter] {
+  color: var(--t-muted);
+}
+
+.tpl-divider {
+  height: 1px;
+  background: var(--t-line);
+}
+
+.tpl-swatch {
+  min-width: 0;
+  flex: none;
+}
+
+.tpl-slot {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 100%;
+  border-radius: calc(var(--t-radius) - 4px);
+  background: transparent;
+  color: var(--t-accent);
+  font-family: var(--wb-mono);
+  font-size: 0.66em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tpl-slot.is-empty {
+  border: 1px dashed var(--t-accent);
+}
+
+.tpl-slot.is-filled {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.tpl-slot.is-placed-anchor {
+  border: 1px dashed color-mix(in oklab, var(--t-line) 70%, transparent);
+  background: transparent;
+}
+
+.tpl-slot-hint {
+  opacity: 0.7;
+}
+
+/* The live component floats above the authored page so moving it never
+ * reflows the composition. Coordinates are layout pixels; clamp keeps the
+ * layer inside the page at every device width. */
+.tpl-slot-float {
+  position: absolute;
+  z-index: 6;
+  border-radius: calc(var(--t-radius) - 2px);
+  outline: 1px solid transparent;
+  transition: outline-color 120ms ease;
+}
+
+.tpl-slot-float-body {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.tpl-slot-float-body > * {
+  width: 100%;
+  min-width: 0;
+}
+
+.tpl-slot-float.is-editable {
+  outline-color: color-mix(in oklab, var(--wb-signal) 55%, transparent);
+  cursor: grab;
+}
+
+.tpl-slot-float.is-editable:active {
+  cursor: grabbing;
+}
+
+.tpl-slot-float.is-selected {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.tpl-slot-grip {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  line-height: 1;
+  background: var(--wb-signal);
+  color: #1a1208;
+  font-family: var(--wb-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tpl-slot-grip.is-inline {
+  position: static;
+  margin: 6px auto 0;
+}
+
+.tpl-slot-grip:focus-visible,
+.tpl-slot-resize:focus-visible {
+  outline: 2px solid var(--t-ink);
+  outline-offset: 2px;
+}
+
+.tpl-slot-resize {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--t-bg);
+  border-radius: 3px;
+  background: var(--wb-signal);
+  cursor: nwse-resize;
+}
+
+.tpl-slot-size {
+  position: absolute;
+  right: 0;
+  bottom: -20px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--t-ink) 82%, transparent);
+  color: var(--t-bg);
+  font-family: var(--wb-mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+/* Presentation hides edit chrome. In-context keeps it because the mode is
+ * explicitly editable even though it renders a preview. */
+.tpl.is-preview:not(.is-slot-editable) .tpl-slot-grip,
+.tpl.is-preview:not(.is-slot-editable) .tpl-slot-resize,
+.tpl.is-preview:not(.is-slot-editable) .tpl-slot-size {
+  display: none;
+}
+
+.tpl-slot-hint {
+  padding: 0 10px;
+  text-align: center;
+}
+
+.tpl.is-thumb {
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.tpl.is-thumb .tpl-page {
+  gap: 8px;
+  padding: 14px;
+}
+
+.tpl.is-thumb .tpl-text.is-display {
+  font-size: 2.2em;
+}
+
+/* Selection affordance is chrome-only; preview never shows it. */
+.tpl [data-selected="true"] {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tpl.is-thumb [data-node-id],
+.tpl.is-preview [data-node-id] {
+  outline: none !important;
+}
+
+/* Container-responsive compositions: a template responds to the device frame,
+   not to the browser window. */
+@container (max-width: 760px) {
+  .tpl-page {
+    gap: 14px;
+    padding: 22px;
+  }
+
+  .tpl-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tpl-row {
+    flex-wrap: wrap;
+  }
+
+  .tpl-text.is-display {
+    font-size: 2.45em;
+  }
+
+  .tpl-text.is-title {
+    font-size: 1.3em;
+  }
+}
+
+@container (max-width: 480px) {
+  .tpl-page {
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .tpl-text.is-display {
+    font-size: 2em;
+  }
+
+  .tpl-text.is-body {
+    font-size: 0.9em;
+  }
+
+  .tpl-row {
+    gap: 8px;
+  }
+}
+
+/* Template picker thumbnails */
+.tpl-thumb {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--wb-line);
+}
+
+.tpl-thumb-kicker {
+  font: 8px/1.4 var(--wb-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tpl-thumb-title {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+}
+
+.tpl-thumb-art {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 34px;
+}
+
+.tpl-thumb-art span {
+  display: block;
+  flex: 1;
+  border-radius: 3px;
+}
+
+.tpl-thumb-art span:nth-child(1) {
+  height: 100%;
+}
+
+.tpl-thumb-art span:nth-child(2) {
+  height: 62%;
+}
+
+.tpl-thumb-art span:nth-child(3) {
+  height: 82%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tpl * {
+    transition: none !important;
+  }
+}
+
+/* Composed art inside a swatch. These are CSS-only studies, not images:
+   a product silhouette, an arch, rings, a wave or a grid. They give the
+   template shelf depth without shipping stock photography. */
+.tpl-swatch {
+  position: relative;
+  overflow: hidden;
+}
+
+.tpl-swatch[data-shape] {
+  background-image:
+    radial-gradient(120% 80% at 30% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.12));
+  background-blend-mode: soft-light;
+}
+
+.tpl-art {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.tpl-art-shape {
+  position: relative;
+  display: block;
+}
+
+.tpl-art-shape.is-orb {
+  width: 54%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.18) 32%, transparent 62%),
+    linear-gradient(150deg, var(--t-surface), var(--t-surface-alt));
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.28);
+}
+
+.tpl-art-shape.is-vase {
+  width: 38%;
+  height: 58%;
+  border-radius: 46% 46% 42% 42% / 34% 34% 58% 58%;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.75), transparent 38%),
+    linear-gradient(155deg, var(--t-surface), var(--t-surface-alt));
+  box-shadow: inset -14px 0 26px rgba(0, 0, 0, 0.16), 0 26px 46px rgba(0, 0, 0, 0.26);
+}
+
+.tpl-art-shape.is-vase::before {
+  content: "";
+  position: absolute;
+  top: -12%;
+  left: 34%;
+  width: 32%;
+  height: 22%;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--t-surface-alt), var(--t-surface));
+}
+
+.tpl-art-shape.is-arch {
+  width: 52%;
+  height: 72%;
+  border-radius: 999px 999px 0 0;
+  background:
+    radial-gradient(90% 70% at 50% 100%, rgba(255, 255, 255, 0.55), transparent 62%),
+    linear-gradient(180deg, var(--t-surface-alt), var(--t-surface));
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.22);
+}
+
+.tpl-art-shape.is-rings {
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 34%, var(--t-surface) 35% 46%, transparent 47% 58%, var(--t-surface-alt) 59% 70%, transparent 71%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+}
+
+.tpl-art-shape.is-wave {
+  width: 84%;
+  height: 54%;
+  border-radius: 48% 52% 40% 60% / 60% 44% 56% 40%;
+  background: linear-gradient(150deg, var(--t-surface), var(--t-surface-alt));
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.22);
+}
+
+.tpl-art-shape.is-wave::before,
+.tpl-art-shape.is-wave::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  inset: 12% -10% -18% 18%;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), transparent 60%);
+  z-index: -1;
+}
+
+.tpl-art-shape.is-grid {
+  width: 68%;
+  height: 58%;
+  background-image:
+    linear-gradient(var(--t-surface) 1px, transparent 1px),
+    linear-gradient(90deg, var(--t-surface) 1px, transparent 1px);
+  background-size: 18% 22%;
+  border: 1px solid var(--t-surface);
+  border-radius: 4px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+}
+
+.tpl-art-shape.is-portrait {
+  width: 40%;
+  aspect-ratio: 0.8;
+  border-radius: 999px 999px 14px 14px;
+  background:
+    radial-gradient(circle at 50% 30%, var(--t-surface) 0 18%, transparent 19%),
+    radial-gradient(60% 46% at 50% 100%, var(--t-surface-alt) 0 70%, transparent 71%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}

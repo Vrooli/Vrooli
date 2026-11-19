@@ -38,6 +38,10 @@ This document maps the product capability boundaries for the scenario.
   does not replace manifest-pinned closure resolution used by adoption and
   preview, and reconciliation never repairs a manifest.
 
+## Workbench surfaces (planned)
+
+The D · Nocturne workbench is a UI consumer of the domains above, not a new data domain. **Review** is a projection over gate evidence, component-test evidence, provenance and capture state; **Activity** is a projection over publication, adoption and evidence events. Neither should invent a second source of truth. The page map and ownership questions are in [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md).
+
 ## Non-Domains
 
 - `api/internal/server/`, `api/internal/module/`, and

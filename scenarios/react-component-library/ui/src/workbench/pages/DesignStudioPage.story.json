@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Design studio",
+  "route": "/design",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/design",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "react-component-library",
+                "pageCount": 2
+              },
+              {
+                "scenario": "command-center",
+                "pageCount": 3
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Component catalog workspace",
+                "route": "/components",
+                "status": "region-declared",
+                "contentHash": "abc",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/components"
+                ]
+              },
+              {
+                "page": "coverage",
+                "title": "Catalog coverage",
+                "route": "/coverage",
+                "status": "region-declared",
+                "contentHash": "def",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/coverage"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Aperture"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-overview\"]"
+        }
+      ]
+    },
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/design/react-component-library",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "react-component-library",
+                "pageCount": 2
+              },
+              {
+                "scenario": "command-center",
+                "pageCount": 3
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Component catalog workspace",
+                "route": "/components",
+                "status": "region-declared",
+                "contentHash": "abc",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/components"
+                ]
+              },
+              {
+                "page": "coverage",
+                "title": "Catalog coverage",
+                "route": "/coverage",
+                "status": "region-declared",
+                "contentHash": "def",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/coverage"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Aperture"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-overview\"]"
+        }
+      ]
+    },
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/design/react-component-library/catalog-workspace",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "react-component-library",
+                "pageCount": 2
+              },
+              {
+                "scenario": "command-center",
+                "pageCount": 3
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Component catalog workspace",
+                "route": "/components",
+                "status": "region-declared",
+                "contentHash": "abc",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/components"
+                ]
+              },
+              {
+                "page": "coverage",
+                "title": "Catalog coverage",
+                "route": "/coverage",
+                "status": "region-declared",
+                "contentHash": "def",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/coverage"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Aperture"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-overview\"]"
+        }
+      ]
+    },
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/sketch/react-component-library/catalog-workspace",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "scenarios": [
+              {
+                "scenario": "react-component-library",
+                "pageCount": 2
+              },
+              {
+                "scenario": "command-center",
+                "pageCount": 3
+              }
+            ],
+            "pages": [
+              {
+                "page": "catalog-workspace",
+                "title": "Component catalog workspace",
+                "route": "/components",
+                "status": "region-declared",
+                "contentHash": "abc",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/components"
+                ]
+              },
+              {
+                "page": "coverage",
+                "title": "Catalog coverage",
+                "route": "/coverage",
+                "status": "region-declared",
+                "contentHash": "def",
+                "regionCount": 1,
+                "registered": true,
+                "routes": [
+                  "/coverage"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Aperture"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-experience-surface=\"design-overview\"]"
+        }
+      ]
+    }
+  ]
+}

@@ -6,14 +6,17 @@
  * reviewable set of routes to protect.
  */
 export const appRoutes = {
-  catalog: "/",
+  home: "/",
   components: "/components",
   assetCatalog: "/catalog",
   asset: "/assets/:id",
   preview: "/assets/:id/preview",
   coverage: "/coverage",
   capabilities: "/capabilities",
+  review: "/review",
+  activity: "/activity",
   settings: "/settings",
+  create: "/new",
   design: "/design",
   designScenario: "/design/:scenario",
   designPage: "/design/:scenario/:page",

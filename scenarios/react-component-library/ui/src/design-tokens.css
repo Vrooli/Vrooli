@@ -246,6 +246,7 @@
   --scrollbar-thumb-hover: #64748b;
   color-scheme: dark;
 }
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-resolved-theme="light"]) {
     --color-background: #020617;
@@ -282,5 +283,6 @@
     color-scheme: dark;
   }
 }
+
 :root { --control-size-xs: 32px; --control-size-sm: 36px; --control-size-md: 40px; --control-size-lg: 44px; --control-size-xl: 48px; --control-size-icon: 40px; --control-icon-size-xs: 12px; --control-icon-size-sm: 14px; --control-icon-size-md: 16px; --control-icon-size-lg: 18px; --control-icon-size-xl: 20px; --control-icon-size-icon: 16px; }
 :root { --rcl-safe-top: env(safe-area-inset-top, 0px); --rcl-safe-right: env(safe-area-inset-right, 0px); --rcl-safe-bottom: env(safe-area-inset-bottom, 0px); --rcl-safe-left: env(safe-area-inset-left, 0px); --rcl-keyboard-inset: 0px; --rcl-viewport-height: 100dvh; }

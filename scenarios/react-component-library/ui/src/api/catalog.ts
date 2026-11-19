@@ -40,6 +40,7 @@ export interface CapabilityDefinition {
   actionKind?: string;
   actionLabel?: string;
   operatorCommand?: string;
+  required?: boolean;
 }
 
 export interface CapabilityState extends CapabilityDefinition {

@@ -10,6 +10,15 @@
     "1.0.5",
     "1.0.0"
   ],
+  "description": "Reusable monetization account component implementation for the React component library.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Monetization Account",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -19,14 +28,5 @@
   ],
   "latest": "2.0.2",
   "libraryId": "react-component-library:MonetizationAccount",
-  "displayName": "Monetization Account",
-  "description": "Reusable monetization account component implementation for the React component library.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

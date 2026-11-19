@@ -30,8 +30,8 @@ describe("versioned RCL development usage warnings", () => {
     render(
       <AsyncBoundary status="success" detectOffline={false}>
         <>
-          <Card />
-          <Card />
+          <Card>first</Card>
+          <Card>second</Card>
         </>
       </AsyncBoundary>,
     );

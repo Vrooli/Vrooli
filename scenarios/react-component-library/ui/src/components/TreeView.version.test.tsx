@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -7,16 +7,21 @@ import { renderWithProviders } from "../test-utils";
 import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1";
 
 describe("released TreeView 1.0.0", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("renders the empty state and legacy string nodes", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { rerender } = renderWithProviders(<TreeView label="Assets" />);
     expect(screen.getByRole("status")).toHaveTextContent("Nothing to display.");
 
     rerender(<TreeView nodes={["Alpha", "Beta"]} label="Assets" />);
     expect(screen.getByRole("treeitem", { name: "Alpha" })).toBeVisible();
     expect(screen.getByRole("treeitem", { name: "Beta" })).toHaveAttribute("aria-level", "1");
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("object item"));
   });
 
   it("supports default expansion, custom labels, icons, and selection", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const folder: TreeNode = {
@@ -44,6 +49,7 @@ describe("released TreeView 1.0.0", () => {
     await user.click(folderItem);
     expect(onSelect).toHaveBeenCalledWith(folder);
     expect(folderItem).toHaveAttribute("aria-selected", "true");
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("string label"));
   });
 
   it("opens and closes folders through disclosure and arrow keys", async () => {

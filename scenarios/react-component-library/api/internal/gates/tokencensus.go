@@ -107,7 +107,10 @@ func TokenCensus(root string) (Census, error) {
 			return Census{}, err
 		}
 		if manifest.Latest == "" {
-			return Census{}, fmt.Errorf("component manifest %s has no latest version", manifestPath)
+			// A draft-only asset has no released source to census. Its own draft
+			// checks own that state; the corpus token gate must not fail the whole
+			// report because one asset has not published yet.
+			continue
 		}
 		files, err := readVersionFiles(filepath.Join(filepath.Dir(manifestPath), "versions", manifest.Latest))
 		if err != nil {

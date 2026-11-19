@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -217,5 +218,74 @@ func TestRevisionIndexTracksSourceAndDependents(t *testing.T) {
 	}
 	if before["controls.card"] == after["controls.card"] {
 		t.Fatal("dependent revision did not change after its dependency changed")
+	}
+}
+
+func TestReportCachePersistsAndReloadsAcrossProcesses(t *testing.T) {
+	root := writeProbeTree(t)
+	path := filepath.Join(t.TempDir(), "coverage-report-v1.json")
+	first := &catalogcoverage.Report{Rows: []catalogcoverage.Row{{AssetID: "aperture", Name: "Aperture"}}}
+
+	cache := &reportCache{diskPath: path}
+	got, err := cache.get(context.Background(), root, func(context.Context) (*catalogcoverage.Report, error) {
+		return first, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != first {
+		t.Fatal("cold compute did not return its report")
+	}
+	if _, statErr := os.Stat(path); statErr != nil {
+		t.Fatalf("report was not persisted: %v", statErr)
+	}
+
+	// A fresh process must answer from disk without running the corpus.
+	reloaded := &reportCache{diskPath: path}
+	computeRan := false
+	got, err = reloaded.get(context.Background(), root, func(context.Context) (*catalogcoverage.Report, error) {
+		computeRan = true
+		return &catalogcoverage.Report{}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if computeRan {
+		t.Fatal("reloaded cache recomputed instead of reading the persisted report")
+	}
+	if len(got.Rows) != 1 || got.Rows[0].AssetID != "aperture" {
+		t.Fatalf("persisted report was not restored: %#v", got.Rows)
+	}
+}
+
+func TestReportCacheReportsWarmingInsteadOfBlockingAColdRequest(t *testing.T) {
+	previous := reportWarmGrace
+	reportWarmGrace = 10 * time.Millisecond
+	defer func() { reportWarmGrace = previous }()
+
+	root := writeProbeTree(t)
+	release := make(chan struct{})
+	computeStarted := make(chan struct{}, 1)
+	cache := &reportCache{}
+	_, err := cache.get(context.Background(), root, func(context.Context) (*catalogcoverage.Report, error) {
+		computeStarted <- struct{}{}
+		<-release
+		return &catalogcoverage.Report{Rows: []catalogcoverage.Row{{AssetID: "ready"}}}, nil
+	})
+	if !errors.Is(err, ErrReportWarming) {
+		t.Fatalf("cold request error = %v, want ErrReportWarming", err)
+	}
+	select {
+	case <-computeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("background compute did not start")
+	}
+	close(release)
+	deadline := time.Now().Add(2 * time.Second)
+	for cache.peek() == nil && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if cache.peek() == nil {
+		t.Fatal("background compute never published its report")
 	}
 }

@@ -69,5 +69,14 @@
         "selector": "[data-experience-surface=\"design-workspace\"]"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Keep brief, composition, findings, verify and adoption handoff",
+      "Add compare/fidelity, comments and present mode"
+    ]
   }
 }

@@ -29,6 +29,7 @@
     "22-version-ledger-and-progression/module.json",
     "23-cold-version-tier/module.json",
     "24-executable-page-design/module.json",
-    "25-rehabilitation/module.json"
+    "25-rehabilitation/module.json",
+    "26-workbench-redesign/module.json"
   ]
 }

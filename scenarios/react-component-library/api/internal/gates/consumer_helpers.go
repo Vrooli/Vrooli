@@ -24,7 +24,28 @@ func scenarioConsumerPins(root string) ([]consumerPin, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if entry.Name() == ".retired" {
+			name := entry.Name()
+			if name == ".retired" || strings.HasPrefix(name, ".") || name == "node_modules" || name == "dist" || name == "build" {
+				return filepath.SkipDir
+			}
+			rel, relErr := filepath.Rel(scenariosRoot, path)
+			if relErr != nil {
+				return relErr
+			}
+			if rel == "." {
+				return nil
+			}
+			// Only `<scenario>/ui/src/**` can contribute a consumer pin. Prune
+			// everything else; walking every scenario's node_modules made the
+			// consumer scan I/O-bound for minutes, and one unreadable staging
+			// directory failed the entire coverage report.
+			parts := strings.Split(filepath.ToSlash(rel), "/")
+			switch {
+			case len(parts) == 1:
+				return nil
+			case len(parts) == 2 && parts[1] != "ui":
+				return filepath.SkipDir
+			case len(parts) == 3 && parts[2] != "src":
 				return filepath.SkipDir
 			}
 			return nil

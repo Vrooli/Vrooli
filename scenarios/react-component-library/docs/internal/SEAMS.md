@@ -14,6 +14,7 @@ shortcut around a consuming scenario's API or authorization policy.
 | Identity presentation | Consuming scenario plus shared auth components | RCL renders signed-out, sign-in, MFA, session, account-link, and denied states; it never verifies tokens or grants access | Deterministic auth-state fixtures and accessibility tests |
 | Authorization | Consuming scenario API | Domain and object authorization is enforced at the service boundary, not by component visibility | API authorization tests plus UI state tests |
 | External integrations | Consuming scenario | Credentials and provider clients stay behind the scenario integration seam | Fake clients and failure-state tests |
+| Workbench chrome theme | RCL UI | D · Nocturne chrome uses a scoped workbench token layer (or a BaseStyles release); published components never import chrome tokens | Token collision/leak test plus style-ownership review |
 
 ## Identity-specific rule
 

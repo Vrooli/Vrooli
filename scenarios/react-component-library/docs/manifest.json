@@ -159,11 +159,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -645,6 +645,56 @@
           "requiredBy": [
             "implemented"
           ]
+        },
+        {
+          "path": "concepts/WORKBENCH-REDESIGN.md",
+          "docType": "concept",
+          "title": "Workbench redesign — D · Nocturne",
+          "aliases": [
+            "redesign",
+            "nocturne",
+            "workbench-redesign",
+            "page-map"
+          ],
+          "description": "Operator-selected D · Nocturne workbench: implementation record, page map, component workspace, design system, data contracts, migration, acceptance and open capture limits",
+          "audience": [
+            "designers",
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "workbench-redesign",
+            "nocturne",
+            "page-map",
+            "redesign-migration"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "Decision",
+              "Information architecture",
+              "Page responsibilities",
+              "Nocturne design system",
+              "Feature preservation",
+              "Migration plan",
+              "Acceptance"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "ARCHITECTURE.md",
+              "FLOWS.md",
+              "../reference/style-ownership.md",
+              "../reference/token-contract.md",
+              "../internal/TESTING.md"
+            ]
+          }
         }
       ]
     },
@@ -1056,7 +1106,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `components`",
+              "Scenario commands — `components`",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1174,7 +1224,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1489,7 +1539,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"
@@ -1536,7 +1586,7 @@
         {
           "path": "RESEARCH.md",
           "docType": "research",
-          "title": "Research \u2014 React Component Library",
+          "title": "Research — React Component Library",
           "audience": [
             "developers",
             "agents"

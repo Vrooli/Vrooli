@@ -53,5 +53,13 @@
         "testid": "capabilities-page"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Show service cards with state, what they enable, last check and recovery command"
+    ]
   }
 }

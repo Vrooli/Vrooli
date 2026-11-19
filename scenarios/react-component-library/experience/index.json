@@ -7,8 +7,14 @@
   },
   "schemaVersion": "1.1.0",
   "scenario": "react-component-library",
-  "description": "Experience contracts for reusable catalog primitives and the live component-preview workspace that composes them.",
+  "description": "Experience contracts for reusable catalog primitives and the D · Nocturne workbench: shell, home, components, component workspace, design studio, review, coverage, capabilities, activity, settings, create and preview.",
   "pages": [
+    {
+      "id": "home",
+      "path": "pages/home.json",
+      "title": "Workbench home",
+      "status": "active"
+    },
     {
       "id": "catalog-workspace",
       "path": "pages/catalog-workspace.json",
@@ -68,6 +74,24 @@
       "path": "pages/design-workspace.json",
       "title": "Page design workspace",
       "status": "active"
+    },
+    {
+      "id": "review",
+      "path": "pages/review.json",
+      "title": "Review queue",
+      "status": "active"
+    },
+    {
+      "id": "activity",
+      "path": "pages/activity.json",
+      "title": "Activity trail",
+      "status": "active"
+    },
+    {
+      "id": "create",
+      "path": "pages/create.json",
+      "title": "Add to library",
+      "status": "active"
     }
   ],
   "journeys": [
@@ -76,6 +100,18 @@
       "path": "journeys/brief-to-adoption.json",
       "title": "Move a page brief through design and adoption",
       "status": "active"
+    },
+    {
+      "id": "inspect-to-compose",
+      "path": "journeys/inspect-to-compose.json",
+      "title": "Inspect an asset and take it into a page",
+      "status": "draft"
+    },
+    {
+      "id": "review-to-resolution",
+      "path": "journeys/review-to-resolution.json",
+      "title": "Move a finding to a verified resolution",
+      "status": "draft"
     }
   ],
   "components": [
@@ -403,5 +439,33 @@
       "title": "Preview popout",
       "status": "draft"
     }
-  ]
+  ],
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "operator_experiment": "~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118",
+    "target_pages": [
+      "home",
+      "components",
+      "component",
+      "design",
+      "review",
+      "coverage",
+      "capabilities",
+      "activity",
+      "settings",
+      "create",
+      "preview"
+    ],
+    "route_migration": {
+      "/": "Home (currently catalog workspace)",
+      "/components": "Components (currently aliases / and /catalog)",
+      "/catalog": "redirect to /components",
+      "/design/*": "one Design studio with legacy redirects",
+      "/review": "new",
+      "/activity": "new",
+      "/new": "new Create route (currently Main actions dialog)"
+    }
+  }
 }

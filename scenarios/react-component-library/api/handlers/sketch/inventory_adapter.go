@@ -2,10 +2,10 @@ package sketch
 
 import (
 	"context"
+	"github.com/vrooli/api-core/uimanifest"
 	"log"
 	"path/filepath"
 	inventory "react-component-library/handlers/inventory"
-	"github.com/vrooli/api-core/uimanifest"
 
 	"connectrpc.com/connect"
 	"react-component-library/internal/reconcile"

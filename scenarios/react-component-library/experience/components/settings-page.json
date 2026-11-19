@@ -6,7 +6,7 @@
     "id": "settings-page",
     "title": "Preferences",
     "purpose": "Local preferences page composition.",
-    "storyRef": "../../ui/src/pages/SettingsPage.story.json"
+    "storyRef": "../../ui/src/workbench/pages/SettingsPage.story.json"
   },
   "states": [
     {

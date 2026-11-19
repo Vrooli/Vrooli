@@ -6,7 +6,7 @@
     "id": "preview-popout-page",
     "title": "Preview popout",
     "purpose": "Local preview popout page composition.",
-    "storyRef": "../../ui/src/pages/PreviewPopoutPage.story.json"
+    "storyRef": "../../ui/src/workbench/pages/PreviewPage.story.json"
   },
   "states": [
     {

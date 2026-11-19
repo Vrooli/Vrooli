@@ -1,0 +1,138 @@
+import { useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Copy, Monitor, Smartphone, Tablet } from "lucide-react";
+
+import { useTranslation } from "../../i18n";
+import { assetVersion, useComponentBundle } from "../data";
+import { FixtureFrame } from "../component/FixtureFrame";
+import { Chip, Segmented, Select, Skeleton } from "../primitives";
+
+type Device = "desktop" | "tablet" | "phone";
+const WIDTH: Record<Device, number> = { desktop: 1180, tablet: 834, phone: 390 };
+
+export function PreviewPage() {
+  const { t } = useTranslation();
+  const { id = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const bundle = useComponentBundle(id);
+  const [device, setDevice] = useState<Device>(() => {
+    const requested = searchParams.get("device");
+    return requested === "desktop" || requested === "tablet" || requested === "phone" ? requested : "desktop";
+  });
+  const [copied, setCopied] = useState(false);
+
+  const stories = bundle.data?.stories ?? [];
+  const selectedStoryId = searchParams.get("story") ?? stories[0]?.id ?? "";
+  const selectedStory = stories.find((story) => story.id === selectedStoryId) ?? stories[0];
+
+  const share = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="wb-root" data-workbench="nocturne" data-testid="preview-popout">
+      <div className="wb-preview-page">
+        <header className="wb-preview-bar">
+          <div className="wb-row" style={{ minWidth: 0 }}>
+            <Link to={`/assets/${encodeURIComponent(id)}`} className="wb-iconbtn" aria-label={t("workbench.preview.back", { defaultValue: "Back to asset" })}>
+              <ArrowLeft aria-hidden size={15} />
+            </Link>
+            <span style={{ minWidth: 0 }}>
+              <b style={{ display: "block", overflow: "hidden", fontSize: 13, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {bundle.data?.asset.displayName ?? t("workbench.preview.loading", { defaultValue: "Loading…" })}
+              </b>
+              <small className="wb-mono wb-muted-2">
+                {bundle.data?.asset ? `${assetVersion(bundle.data.asset)} · ${selectedStory?.name ?? "story"}` : ""}
+              </small>
+            </span>
+          </div>
+          <div className="wb-row" style={{ flexWrap: "wrap" }}>
+            <Select
+              aria-label={t("workbench.preview.story", { defaultValue: "Story" })}
+              value={selectedStoryId}
+              onChange={(event) => {
+                const params = new URLSearchParams(searchParams);
+                params.set("story", event.target.value);
+                setSearchParams(params, { replace: true });
+              }}
+              style={{ width: "auto", minWidth: 160 }}
+            >
+              {stories.map((story) => (
+                <option key={story.id} value={story.id}>
+                  {story.name || story.id}
+                </option>
+              ))}
+            </Select>
+            <Segmented
+              label={t("workbench.preview.device", { defaultValue: "Device" })}
+              value={device}
+              onChange={(next) => {
+                setDevice(next);
+                const params = new URLSearchParams(searchParams);
+                params.set("device", next);
+                setSearchParams(params, { replace: true });
+              }}
+              items={[
+                { id: "desktop", label: <Monitor aria-hidden size={13} /> },
+                { id: "tablet", label: <Tablet aria-hidden size={13} /> },
+                { id: "phone", label: <Smartphone aria-hidden size={13} /> },
+              ]}
+            />
+            <Chip tone={bundle.data?.experience?.evidenceStatus === "fresh" ? "green" : "amber"}>
+              {bundle.data?.experience?.evidenceStatus ?? "unmeasured"}
+            </Chip>
+            <button type="button" className="wb-btn ghost sm" onClick={() => void share()}>
+              <Copy aria-hidden size={13} />
+              {copied ? t("workbench.preview.copied", { defaultValue: "Copied" }) : t("workbench.preview.share", { defaultValue: "Share" })}
+            </button>
+          </div>
+        </header>
+
+        <main className="wb-preview-stage">
+          {bundle.isLoading ? (
+            <Skeleton height={480} width="min(1180px, 90vw)" />
+          ) : bundle.isError || !bundle.data ? (
+            <div className="wb-banner is-red" role="alert">
+              {t("workbench.preview.error", {
+                defaultValue: "The asset could not be loaded. Return to the component and retry.",
+              })}
+            </div>
+          ) : selectedStory ? (
+            <div className="wb-device" style={{ width: WIDTH[device], maxWidth: "100%" }}>
+              <div className="wb-device-bar">
+                <span className="wb-device-dot" />
+                <span className="wb-device-dot" />
+                <span className="wb-device-dot" />
+                <span className="wb-device-url">{`preview/${bundle.data.asset.libraryId}`}</span>
+                <span className="wb-tag">{device}</span>
+              </div>
+              <div className="wb-device-host" style={{ height: device === "phone" ? 720 : 760 }}>
+                <FixtureFrame
+                  assetId={id}
+                  storyId={selectedStory.id}
+                  version={assetVersion(bundle.data.asset)}
+                  height={device === "phone" ? 720 : 760}
+                  title={t("workbench.preview.title", {
+                    defaultValue: "{{name}} preview",
+                    name: selectedStory.name || selectedStory.id,
+                  })}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="wb-empty">
+              <div className="wb-empty-title">{t("workbench.preview.noStories", { defaultValue: "No story to preview" })}</div>
+              <p>{t("workbench.preview.noStoriesBody", { defaultValue: "This asset has no declared story." })}</p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

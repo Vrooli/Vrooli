@@ -72,7 +72,7 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 	if len(dbs) > 0 && dbs[0] != nil {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
-	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}, jobRunner: jobs.New(nil), checkCache: map[string]*catalogv1.CheckAssetResponse{}, search: catalogsearch.New()}
+	h := &handler{repoRoot: repoRoot, evidence: evidence, reports: reportCache{diskPath: coverageCachePath()}, quarantined: map[string]bool{}, jobRunner: jobs.New(nil), checkCache: map[string]*catalogv1.CheckAssetResponse{}, search: catalogsearch.New()}
 	_ = h.search.Reindex(filepath.Join(repoRoot, "scenarios", "react-component-library"))
 	return h.module()
 }
@@ -102,6 +102,7 @@ func ModuleWithCapture(repoRoot string, db *sql.DB, assets components.Service, e
 			return catalogcoverage.CurrentRevisionForVersion(repoRoot, resolveRevisionLibraryID(ctx, assets, repoRoot, assetID), version)
 		}}, componenttests.NewSQLiteRepository(db)),
 		assets:     assets,
+		reports:    reportCache{diskPath: coverageCachePath()},
 		jobRunner:  jobs.New(db),
 		checkCache: map[string]*catalogv1.CheckAssetResponse{},
 		search:     catalogsearch.NewWithAvailability(factory),
@@ -574,6 +575,9 @@ func (h *handler) computeReport(ctx context.Context) (*catalogcoverage.Report, e
 func (h *handler) GetCoverage(ctx context.Context, _ *connect.Request[catalogv1.GetCoverageRequest]) (*connect.Response[catalogv1.GetCoverageResponse], error) {
 	report, err := h.report(ctx)
 	if err != nil {
+		if errors.Is(err, ErrReportWarming) {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("compute catalog coverage: %w", err))
 	}
 	return connect.NewResponse(&catalogv1.GetCoverageResponse{Report: toProto(report)}), nil
@@ -582,6 +586,9 @@ func (h *handler) GetCoverage(ctx context.Context, _ *connect.Request[catalogv1.
 func (h *handler) ListNextWork(ctx context.Context, req *connect.Request[catalogv1.ListNextWorkRequest]) (*connect.Response[catalogv1.ListNextWorkResponse], error) {
 	report, err := h.report(ctx)
 	if err != nil {
+		if errors.Is(err, ErrReportWarming) {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("compute catalog next work: %w", err))
 	}
 	lane := strings.ToLower(strings.TrimSpace(req.Msg.GetLane()))

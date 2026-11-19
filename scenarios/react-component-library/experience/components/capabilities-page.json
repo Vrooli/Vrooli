@@ -6,7 +6,7 @@
     "id": "capabilities-page",
     "title": "Capability readiness",
     "purpose": "Local capability readiness page composition.",
-    "storyRef": "../../ui/src/pages/CapabilitiesPage.story.json"
+    "storyRef": "../../ui/src/workbench/pages/CapabilitiesPage.story.json"
   },
   "states": [
     {

@@ -6,7 +6,6 @@
     "id": "catalog-workspace",
     "title": "Component catalog workspace",
     "routes": [
-      "/",
       "/components",
       "/catalog"
     ],
@@ -21,13 +20,21 @@
       "statement": "The component and hook catalog is usable before secondary controls or metadata."
     }
   ],
-  "claims": [{
-    "id": "catalog-results-state-covered",
-    "type": "state-covered",
-    "statement": "The catalog results surface is captured in each declared page state.",
-    "tier": "machine",
-    "states": ["default", "hooks", "loading", "empty", "request-error"]
-  }],
+  "claims": [
+    {
+      "id": "catalog-results-state-covered",
+      "type": "state-covered",
+      "statement": "The catalog results surface is captured in each declared page state.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "hooks",
+        "loading",
+        "empty",
+        "request-error"
+      ]
+    }
+  ],
   "states": [
     {
       "id": "default",
@@ -77,5 +84,15 @@
         "selector": "[data-experience-surface=\"catalog-results\"]"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Split Home from Components in the target IA",
+      "Preserve Components/Hooks/Support kinds, search and list/gallery/tree",
+      "Use real evidence and pending-preview states"
+    ]
   }
 }

@@ -9,6 +9,12 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import "./styles.css";
+import "./workbench/nocturne.css";
+import "./workbench/pages.css";
+import "./workbench/templates/templates.css";
+import { applyWorkbenchPreferences, readWorkbenchPreferences } from "./workbench/preferences";
+
+applyWorkbenchPreferences(readWorkbenchPreferences());
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
 // the parent shell can route iframe bridge events to this scenario.

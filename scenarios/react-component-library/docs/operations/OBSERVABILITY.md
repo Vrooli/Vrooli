@@ -42,6 +42,21 @@ The generated scenario has lifecycle health checks for API and UI. Add
 deployment-specific alerts only when deployment target and operator
 expectations are known.
 
+## Workbench redesign signals (planned)
+
+The D · Nocturne pages need signals before they can be called production-ready:
+
+| Signal | Type | Purpose | Failure meaning |
+|---|---|---|---|
+| Findings projection latency/errors | metric + log | Review and Home | A slow or failed queue is not an empty queue |
+| Coverage report unavailable count | metric | Coverage | A service outage must be visible, not a zero distribution |
+| Activity projection errors | metric + log | Activity | A missing trail is not “no changes” |
+| Evidence freshness by asset | metric | Home/Component/Coverage | Stale evidence must stay visible |
+| Workbench route error rate | metric | All pages | A route that fails is not a page with no data |
+| Empty vs unavailable outcome | structured log | All projections | The two states must never collapse |
+
+These are design intent until the projections and their instrumentation exist. See [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#data-and-contracts).
+
 ## Telemetry Gaps
 
 | Gap | Impact | Revisit Trigger |

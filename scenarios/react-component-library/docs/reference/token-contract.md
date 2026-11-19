@@ -20,6 +20,15 @@ Other scenarios own their token mapping and template-declared destination. Token
 
 The previous `_base`/Go-generator ownership description is superseded for this scenario's runtime values.
 
+## Workbench chrome (D · Nocturne)
+
+Nocturne's dark surfaces, amber signal and serif display are application chrome, not a shared
+component theme. The implementation uses a scoped `ui/src/workbench/nocturne.css` file that
+published components cannot import, and remaps the BaseStyles custom properties only inside
+`.wb-root`. The remaining proof is a collision/leak check. See
+[WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#token-ownership) and
+[style ownership](style-ownership.md#workbench-chrome-d--nocturne).
+
 ## Host viewport contract
 
 The `--rcl-viewport-height`, `--rcl-safe-top/right/bottom/left`, and `--rcl-keyboard-inset` names let hosts report usable viewport facts. BaseStyles supplies defaults. Correct host reporting is an integration obligation, not an assertion that every consumer fulfills it. See [style ownership](style-ownership.md).

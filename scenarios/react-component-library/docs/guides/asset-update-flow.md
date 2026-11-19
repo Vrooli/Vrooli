@@ -2,6 +2,8 @@
 
 Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
 
+> The D · Nocturne workbench redesign changes the workbench UI, not this authored-source loop. The governed draft → validate → publish → compile → inspect sequence remains the implementation procedure. See [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md).
+
 Use one governed draft for an asset change, then rebuild the consumer and inspect the rendered result. The checked boundaries are listed in [Testing](../internal/TESTING.md#behavior-claim-register); broader quality recommendations here are design intent.
 
 ## Run the scenario

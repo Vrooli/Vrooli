@@ -53,5 +53,13 @@
         "selector": "[data-experience-surface=\"design-overview\"]"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Collapse page chooser into the single Design studio"
+    ]
   }
 }

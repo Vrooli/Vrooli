@@ -32,7 +32,13 @@ def versions(asset: str | None, version: str | None, all_versions: bool):
             continue
         manifest = json.loads(manifest_path.read_text())
         library_id = manifest.get("libraryId", "")
-        if manifest.get("assetKind") not in RENDERABLE_ASSET_KINDS:
+        # Older manifests predate `assetKind`. Their category folder is the
+        # authority; treating a missing kind as unrenderable silently skipped
+        # every asset that still needed a preview.
+        kind = manifest.get("assetKind") or (
+            "component" if root.parent.name == "components" else ""
+        )
+        if kind not in RENDERABLE_ASSET_KINDS:
             continue
         if wanted and wanted not in {library_id, manifest.get("catalogId", "")}:
             continue

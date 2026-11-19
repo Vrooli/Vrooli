@@ -1,34 +1,47 @@
 import { Suspense, lazy, type ReactNode } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { ApplicationShell as AppShell } from "./components/ui/ApplicationShell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useHostShortcutRelay } from "./hooks/useHostShortcutRelay";
 import { useTranslation } from "./i18n";
-import { CatalogBrowser } from "./features/catalog/CatalogBrowser";
+import { WorkbenchShell } from "./workbench/WorkbenchShell";
 import { appRoutes } from "./routes";
 
-const DesignPage = lazy(() =>
-  import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })),
+const HomePage = lazy(() =>
+  import("./workbench/pages/HomePage").then((m) => ({ default: m.HomePage })),
 );
-
-const ComponentDetailPage = lazy(() =>
-  import("./pages/ComponentDetailPage").then((m) => ({ default: m.ComponentDetailPage })),
+const ComponentsPage = lazy(() =>
+  import("./workbench/pages/ComponentsPage").then((m) => ({ default: m.ComponentsPage })),
 );
-const SettingsPage = lazy(() =>
-  import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+const ComponentPage = lazy(() =>
+  import("./workbench/pages/ComponentPage").then((m) => ({ default: m.ComponentPage })),
+);
+const DesignStudioPage = lazy(() =>
+  import("./workbench/pages/DesignStudioPage").then((m) => ({ default: m.DesignStudioPage })),
+);
+const ReviewPage = lazy(() =>
+  import("./workbench/pages/ReviewPage").then((m) => ({ default: m.ReviewPage })),
 );
 const CoveragePage = lazy(() =>
-  import("./pages/CoveragePage").then((m) => ({ default: m.CoveragePage })),
+  import("./workbench/pages/CoveragePage").then((m) => ({ default: m.CoveragePage })),
 );
 const CapabilitiesPage = lazy(() =>
-  import("./pages/CapabilitiesPage").then((m) => ({ default: m.CapabilitiesPage })),
+  import("./workbench/pages/CapabilitiesPage").then((m) => ({ default: m.CapabilitiesPage })),
+);
+const ActivityPage = lazy(() =>
+  import("./workbench/pages/ActivityPage").then((m) => ({ default: m.ActivityPage })),
+);
+const SettingsPage = lazy(() =>
+  import("./workbench/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const CreatePage = lazy(() =>
+  import("./workbench/pages/CreatePage").then((m) => ({ default: m.CreatePage })),
+);
+const PreviewPage = lazy(() =>
+  import("./workbench/pages/PreviewPage").then((m) => ({ default: m.PreviewPage })),
 );
 const NotFoundPage = lazy(() =>
-  import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
-);
-const PreviewPopoutPage = lazy(() =>
-  import("./pages/PreviewPopoutPage").then((m) => ({ default: m.PreviewPopoutPage })),
+  import("./workbench/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 );
 
 function RouteSkeleton() {
@@ -38,10 +51,11 @@ function RouteSkeleton() {
       data-testid="route-skeleton"
       role="status"
       aria-live="polite"
-      className="flex items-center gap-space-2xs text-sm text-app-muted-foreground"
+      className="wb-page"
+      style={{ color: "var(--wb-muted)" }}
     >
-      <span className="inline-block h-icon-xs w-icon-xs animate-pulse rounded-pill bg-app-surface-muted" />
-      {t("route.loading", { defaultValue: "Loading…" })}
+      <span className="wb-skeleton" style={{ display: "block", width: 180, height: 14 }} />
+      <span style={{ display: "block", marginTop: 12 }}>{t("route.loading", { defaultValue: "Loading…" })}</span>
     </div>
   );
 }
@@ -54,6 +68,24 @@ function Page({ children }: { children: ReactNode }) {
   );
 }
 
+/** `/catalog` was the asset catalog. Preserve its query string on the new route. */
+function CatalogRedirect() {
+  const location = useLocation();
+  return <Navigate to={`${appRoutes.components}${location.search}`} replace />;
+}
+
+/** The three design routes collapse into one studio; keep scenario/page context. */
+function SketchRedirect() {
+  const location = useLocation();
+  const parts = location.pathname.split("/").filter(Boolean);
+  const scenario = parts[1];
+  const page = parts[2];
+  const search = new URLSearchParams(location.search);
+  if (scenario) search.set("scenario", scenario);
+  if (page) search.set("page", page);
+  return <Navigate to={`${appRoutes.design}?${search.toString()}`} replace />;
+}
+
 export default function App() {
   useHostShortcutRelay();
 
@@ -63,48 +95,25 @@ export default function App() {
         path={appRoutes.preview}
         element={
           <Page>
-            <PreviewPopoutPage />
+            <PreviewPage />
           </Page>
         }
       />
-      <Route element={<AppShell />}>
-        {[
-          appRoutes.design,
-          appRoutes.designScenario,
-          appRoutes.designPage,
-          appRoutes.legacySketch,
-        ].map((path) => (
-          <Route
-            key={path}
-            path={path}
-            element={
-              <Page>
-                <DesignPage />
-              </Page>
-            }
-          />
-        ))}
+      <Route element={<WorkbenchShell />}>
         <Route
-          path={appRoutes.catalog}
+          path={appRoutes.home}
           element={
             <Page>
-              <CatalogBrowser surfaceId="catalog-results" view="home" />
+              <HomePage />
             </Page>
           }
         />
+        <Route path={appRoutes.assetCatalog} element={<CatalogRedirect />} />
         <Route
           path={appRoutes.components}
           element={
             <Page>
-                <CatalogBrowser surfaceId="catalog-results" view="components" />
-            </Page>
-          }
-        />
-        <Route
-          path={appRoutes.assetCatalog}
-          element={
-            <Page>
-                <CatalogBrowser surfaceId="catalog-results" view="catalog" />
+              <ComponentsPage />
             </Page>
           }
         />
@@ -112,7 +121,27 @@ export default function App() {
           path={appRoutes.asset}
           element={
             <Page>
-              <ComponentDetailPage />
+              <ComponentPage />
+            </Page>
+          }
+        />
+        {[appRoutes.design, appRoutes.designScenario, appRoutes.designPage].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Page>
+                <DesignStudioPage />
+              </Page>
+            }
+          />
+        ))}
+        <Route path={appRoutes.legacySketch} element={<SketchRedirect />} />
+        <Route
+          path={appRoutes.review}
+          element={
+            <Page>
+              <ReviewPage />
             </Page>
           }
         />
@@ -133,10 +162,26 @@ export default function App() {
           }
         />
         <Route
+          path={appRoutes.activity}
+          element={
+            <Page>
+              <ActivityPage />
+            </Page>
+          }
+        />
+        <Route
           path={appRoutes.settings}
           element={
             <Page>
               <SettingsPage />
+            </Page>
+          }
+        />
+        <Route
+          path={appRoutes.create}
+          element={
+            <Page>
+              <CreatePage />
             </Page>
           }
         />

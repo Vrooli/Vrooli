@@ -44,6 +44,10 @@ requires them.
 |---|---|---|---|
 | None yet. | not-applicable | No external third-party service is required; Agent Manager is a Vrooli scenario dependency. | Add when a non-Vrooli service is introduced. |
 
+## Capabilities surface (planned D · Nocturne)
+
+The Capabilities page is the human projection of this dependency inventory. It does not add a dependency or own health; it renders each integration's state, what it enables, the last check and the recovery command. A missing service is a visible finding, not a silently skipped check. See [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md#capabilities).
+
 ## Failure Modes
 
 | Dependency | Failure Signal | Expected Behavior | Tests |

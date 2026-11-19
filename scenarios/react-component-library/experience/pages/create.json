@@ -1,0 +1,80 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "create",
+    "title": "Add to library",
+    "routes": [
+      "/new"
+    ],
+    "purpose": "Offer Create, Extract and Adopt as explained governed routes with a visible draft, check and publish lifecycle.",
+    "prd_refs": [
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The three routes and the exact next step are understandable before a form is filled."
+    }
+  ],
+  "claims": [
+    {
+      "id": "create-state-covered",
+      "type": "state-covered",
+      "tier": "aspirational",
+      "statement": "The create flow is captured in default, validation-error and permission-denied states.",
+      "states": [
+        "default",
+        "validation-error",
+        "permission-denied"
+      ],
+      "rationale": "Draft page authored ahead of implementation; promote to machine when the governed authoring route and page story exist."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Create, Extract and Adopt are explained and the default route is ready."
+    },
+    {
+      "id": "validation-error",
+      "description": "A required field or source path is invalid and the failing field is identified."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller may inspect the flow but may not create or publish."
+    }
+  ],
+  "regions": [
+    {
+      "id": "create-flow",
+      "required": true,
+      "purpose": "Render the selected create/extract/adopt route, its inputs and its next-step contract.",
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "create-flow": {
+        "testid": "create-page"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Activity trail",
+  "route": "/activity",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/activity",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "components": [
+              {
+                "id": "asset-button",
+                "libraryId": "react-component-library:Button",
+                "displayName": "Button",
+                "description": "The primary action control: one clear action at any density.",
+                "sourcePath": "components/Button/versions/2.2.14/Button.tsx",
+                "version": "2.2.14",
+                "latestVersion": "2.2.14",
+                "tags": [
+                  "control",
+                  "action"
+                ],
+                "slug": "Button",
+                "manifestPath": "components/Button/component.json",
+                "slot": "ui-primitive",
+                "category": "controls",
+                "assetKind": "ASSET_KIND_COMPONENT",
+                "catalogId": "controls.button",
+                "catalogKind": "component",
+                "catalogDomain": "controls",
+                "catalogDomainOrder": 2,
+                "catalogRung": 2,
+                "catalogRungName": "primitive",
+                "metrics": {
+                  "directAdoptionCount": 8,
+                  "effectiveAdoptionCount": 80,
+                  "versionCount": 3
+                },
+                "designStyles": [
+                  {
+                    "styleId": "vrooli-default",
+                    "affinity": "DESIGN_AFFINITY_NATIVE",
+                    "reason": "token-native"
+                  }
+                ],
+                "dependencies": [
+                  {
+                    "libraryId": "react-component-library:StyleSheet",
+                    "version": "1.0.2"
+                  }
+                ],
+                "updatedAt": "2026-11-18T12:00:00Z",
+                "indexedAt": "2026-11-18T11:00:00Z"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "What changed, and who changed it"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"activity-page\"]"
+        }
+      ]
+    }
+  ]
+}

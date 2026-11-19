@@ -86,5 +86,15 @@
         "selector": "[data-experience-surface=\"component-preview\"]"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Add Fixtures and In context modes",
+      "Move Overview/Source/Versions/Experience/Tests/Relationships into an Asset data drawer",
+      "Make checks ambient on the fixture and in the inspector"
+    ]
   }
 }

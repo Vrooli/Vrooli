@@ -32,9 +32,13 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | Page fixtures precede mount and block undeclared mutation methods | `ui/src/page-stories.test.tsx` |
 | Every declared URL pattern has an experience document and page story | `ui/scripts/experience-routes-check.mjs` |
 | Semantic catalog kind is filtered before truncation | `api/handlers/components/catalog_projection_test.go` |
-| Catalog tab requests and navigation preserve the selected view | `ui/src/features/catalog/CatalogBrowser.test.tsx`; CatalogBrowser page stories |
-| Coverage failures expose retry and do not claim an empty ranking | `ui/src/pages/CoveragePage.test.tsx`; CoveragePage page stories |
-| Design ranks declared pages and retains access to empty scenarios | `ui/src/pages/DesignPage.test.tsx`; DesignPage page stories |
+| Components preserves kind tabs, search, filters and views | `ui/src/workbench/pages/ComponentsPage.story.json`; served browser sweep in `docs/concepts/WORKBENCH-REDESIGN.md` |
+| Coverage never renders zero while unavailable or preparing; it retries and exposes refresh | `ui/src/workbench/pages/CoveragePage.story.json`; `api/handlers/catalog/report_cache_test.go` |
+| Fixtures drag by pointer and keyboard without activating the specimen | `ui/src/workbench/data.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
+| In-context move/resize persists per component and template and resets to the authored slot | `ui/src/workbench/templates/spec.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
+| The studio edits text, layers and template presentation, and browser-local templates round-trip | `ui/src/workbench/templates/local.test.ts`; `ui/src/workbench/templates/spec.test.ts`; served browser sweep |
+| A cold coverage pass is persisted, coalesced, and reported as preparing instead of timing out | `api/handlers/catalog/report_cache_test.go`; `docs/internal/PROBLEMS.md` (2026-11-19) |
+| Design ranks declared pages and retains access to empty scenarios | `ui/src/workbench/pages/DesignStudioPage.story.json`; `ui/src/workbench/data.test.ts` |
 | Preview source errors expose a retry control | PreviewPopoutPage page story; `ui/src/features/components/ComponentEditor.test.tsx` |
 | Settings, capability readiness and unknown-asset boundaries render | Their source-adjacent page stories |
 | Package boundary and pinned exports survive compilation | `packages/react-component-library/tooling/build-boundary.test.mjs`; `ui/scripts/library-pins-check.mjs` |
@@ -48,6 +52,8 @@ This inventory covers the scenario README, design intent and every Markdown docu
 | --- | --- | --- |
 | [README.md](../../README.md) | Catalog/source observations, page stories and the served-bundle edit loop | The checks below and guides/asset-update-flow.md |
 | [DESIGN.md](../../DESIGN.md) | Design intent only; runtime token values are not authored here | No blanket visual/readiness guarantee |
+| [docs/concepts/WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md) | D · Nocturne implementation record, page map, data contracts, acceptance path and open capture limits | `ui/scripts/experience-routes-check.mjs`; the workbench checks in the register above; served browser sweep. Governed capture evidence remains blocked. |
+| [experience/README.md](../../experience/README.md) | Draft Review/Activity/Create contracts; aspirational claims; planned pages | Experience schema validation and route guard; draft pages reconcile advisory only |
 | [docs/RESEARCH.md](../RESEARCH.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
 | [docs/business/GO-TO-MARKET.md](../business/GO-TO-MARKET.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
 | [docs/business/MONETIZATION.md](../business/MONETIZATION.md) | Design intent; dated observations retain their dates | No claim of current implementation unless a specific executable check is cited |
@@ -85,7 +91,20 @@ This inventory covers the scenario README, design intent and every Markdown docu
 
 ## Scenario-specific testing
 
-The ordinary suite owner is `vrooli scenario test react-component-library --phases <relevant-phases>`. For a background run, block once with `test-genie runs wait --json react-component-library <run-id>`. Do not poll or confuse canceling a local tool with aborting the server-owned run.
+The D · Nocturne redesign exposes Home, Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview from one shell. Every served route has an experience contract and an executable page story; Home, Review, Activity and Create are active contracts. They are still not production-certified: governed capture evidence is blocked by the capture service and full phone journeys are not captured. See [experience/README.md](../../experience/README.md) and [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md).
+
+The workbench's own focused tests are:
+
+- `ui/src/workbench/data.test.ts` — findings projection, activity projection, timestamp normalization, coverage warming detection.
+- `ui/src/workbench/templates/spec.test.ts` — template shelf integrity, spec operations, slot placement, layer move/duplicate.
+- `ui/src/workbench/templates/TemplateRenderer.test.tsx` — every template renders a page root, slot and selection state; placed slots float above the page and respond to keyboard move/resize.
+- `ui/src/workbench/templates/local.test.ts` — browser-local template persistence, duplication, blank starter and malformed-storage recovery.
+- `ui/src/workbench/preferences.test.ts` — browser-local workbench preferences.
+- `api/handlers/catalog/report_cache_test.go` — persisted coverage, stale-while-refresh, single-flight cold compute and the preparing state.
+- `ui/src/workbench/preferences.test.ts` — local preference round-trip and document application.
+- `ui/src/App.test.tsx` — route resolution and one-shell continuity.
+
+Page stories under `ui/src/workbench/pages/*.story.json` are the executable route contracts. The ordinary suite owner is `vrooli scenario test react-component-library --phases <relevant-phases>`. For a background run, block once with `test-genie runs wait --json react-component-library <run-id>`. Do not poll or confuse canceling a local tool with aborting the server-owned run.
 
 ## Cross-references
 

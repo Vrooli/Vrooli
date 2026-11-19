@@ -22,6 +22,12 @@ The CLI uses the same `connect.Error` values through cli-core. Human
 output is English for now; future CLI i18n should use the same code
 names as the UI catalog instead of string-matching messages.
 
+## Workbench projections (planned D · Nocturne)
+
+Review, Activity, Home health and Coverage are read projections. They must distinguish `unavailable` (the producer did not answer), `stale` (the last answer is too old), `empty` (the producer answered with no applicable rows) and `permission-denied` (the caller may not read or act). Do not map a transport failure to an empty list, and do not render a missing capture or zero-input run as a pass.
+
+Where these become API errors, use the canonical Connect code set and a typed unavailable result rather than an empty success. The page copy must identify the failed producer and the retry/recovery path. See [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#data-and-contracts).
+
 ## Sentinel Mapping
 
 | Domain error | Connect code | UI i18n key |

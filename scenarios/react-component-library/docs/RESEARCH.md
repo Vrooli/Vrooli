@@ -6,6 +6,18 @@ Notes on substrate decisions that don't rise to a permanent decision in
 `docs/internal/DECISIONS.md` but need a written record so future agents
 don't relitigate them.
 
+## Workbench redesign direction (2026-11-18)
+
+The operator selected **D · Nocturne** for every workbench page after a three-direction study and a B/D expansion. Nocturne is a dark editorial chrome: amber signal, serif display, gallery Components page, Review severity board and Coverage domain × maturity matrix. The target is documented in [WORKBENCH-REDESIGN.md](concepts/WORKBENCH-REDESIGN.md) and is design intent, not current behavior.
+
+Two proposal-presentation artifacts are retained with distinct jobs: the full 11-page interactive prototype is the canonical design artifact; the page-by-page review is the decision and feature-preservation record. The selected prototype and review live in the experience-engineering operator experiment:
+
+```text
+~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118/
+```
+
+This note records the direction; it does not authorize product code changes. Implementation needs a separate commission and the data contracts named in the plan.
+
 ## Preview harness bundling (Phase 4 slice 3, 2026-05-12)
 
 The library has to execute real React inside an iframe so the user

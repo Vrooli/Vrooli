@@ -24,6 +24,25 @@ This document is the canonical workflow map for ordered behavior.
 | Graduate scenario component | components / experience | Scenario UI component becomes reusable | TSX, story contract, and experience-component claims land in the catalog as one versioned contract | Catalog conformance, preview e2e, experience phase |
 | Story workbench | preview | User selects a named story and varies generated Args or explicit environment fixtures | Exactly that iframe rerenders from validated effective story args; Reset/reload restores the named baseline | Component editor UI tests, preview harness tests, preview E2E, BAS workflow |
 
+## Workbench redesign flows (planned)
+
+The **D · Nocturne** redesign is design intent, not current behavior. It adds these workbench flows without changing the publication/adoption flows above:
+
+| Flow | Entry | Outcome | Planned evidence |
+|---|---|---|---|
+| Resume work | Home continuation card | The last scenario/page draft opens at its saved revision and checks | Home page story; revision/checks fixture |
+| Inspect fixtures | Component → Fixtures | The user arranges stories, selects one, edits public props and re-runs its evidence | Fixture canvas page story; drag/select/keyboard tests |
+| Place in context | Component → In context | The user switches devices, moves/resizes the component and sees fit checks | In-context page story; device/viewport captures |
+| Inspect asset data | Component → Asset data | Overview, Source, Versions, Experience, Tests and Relationships open in a deep-linked drawer | Drawer page stories; tab deep-link tests |
+| Design a page | Design studio | Scenario/page/layers → brief → artboard → contract → compare → present/adopt | Design studio page story; served journey |
+| Triage findings | Review | Findings rank by blast radius; a selected finding exposes evidence and authority | Review page story; findings fixture/capture |
+| Read maturity | Coverage | Maturity and ranked next work render, or an explicit unavailable/stale state does | Coverage page story; unavailable state capture |
+| Explain an integration | Capabilities | Service state, what it enables and recovery command are visible | Capabilities page story |
+| Trace a change | Activity | Publishes, adoptions, evidence and resolutions appear with actor/time/asset | Activity page story |
+| Add to library | Create | Create/Extract/Adopt each explain inputs and the draft→checks→publish lifecycle | Create page story; validation/permission states |
+
+The route guard and experience contracts must exist before these flows are called delivered. See [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md).
+
 ## Runtime Artifact Publication
 
 1. Draft catalog work remains mutable and is never selected directly by a

@@ -32,6 +32,19 @@ uses SQLite as an indexed registry and adoption ledger.
 | Component version test rollups | componenttests | SQLite `component_version_test_rollup` | Component test report writer | Until the version is retired | Lossless pass/fail/blocked totals keyed by stable library id and version. |
 | Version ledger | versionledger | SQLite `version_ledger` | Replayable projection of indexed versions, gate evidence, test rollups, and adoption facts | Durable, including evicted and retired versions | Stable `(library_id, version)` analytical row; source content is never copied into this projection. `versions export-archive` is the portable backup of the identity and file mirror tables. |
 
+### Workbench projections (planned D · Nocturne)
+
+Review, Activity and Home health should be **read projections**, not new stores:
+
+| Projection | Derived from | Owner | Persistence |
+|---|---|---|---|
+| Findings / review queue | gate evidence, component-test reports, provenance, capture/evidence state | catalog coverage / component tests / reconcile owners | none; request-time projection |
+| Activity trail | publication, adoption, evidence and resolution events | existing owners | none until a durable event store is justified |
+| Home continuation | experience page drafts, design revisions, latest checks | experience/design owners plus browser-local session | browser-local session for “continue”; no new server store |
+| Coverage report | catalog gate evidence and version/test rollups | catalog coverage | existing owner; typed unavailable result required |
+
+The UI must not reconstruct these from a capped asset list. If an owner cannot answer, the projection returns `unavailable`, not an empty list. See [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md#data-and-contracts).
+
 Released authored source (`*.ts`, `*.tsx`, stories, and experience contracts)
 is immutable and hash-protected. `dependencies.json` is a derived lock: it
 stores exact resolutions for major-line imports and is regenerated when the

@@ -977,7 +977,8 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 // because their verdict is not attributable to an individual asset and must
 // always be recomputed.
 func staleAssetsByGate(root string, persisted []GateEvidence, definitions []GateDefinition, revisions map[string]string) map[string]map[string]bool {
-	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
+	catalogRoot := filepath.Join(resolveScenarioRoot(root), "catalog")
+	assets, err := LoadCatalog(catalogRoot)
 	if err != nil {
 		return nil
 	}
@@ -1003,7 +1004,7 @@ func staleAssetsByGate(root string, persisted []GateEvidence, definitions []Gate
 		if !built[asset.ID] {
 			continue
 		}
-		bindings, resolveErr := ResolveRuleSet(root, asset.ID)
+		bindings, resolveErr := ResolveRuleSetFor(catalogRoot, asset, definitions)
 		if resolveErr != nil {
 			// Small isolated fixtures used by the evidence tests often provide
 			// catalog assets without the production config.json. Preserve the
@@ -1355,7 +1356,8 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 		}
 		return len(assets) > 0
 	}
-	assets, err := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
+	catalogRoot := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	assets, err := LoadCatalog(catalogRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -1379,7 +1381,7 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 		if _, ok := implByAsset[asset.ID]; !ok {
 			continue
 		}
-		bindings, resolveErr := ResolveRuleSet(root, asset.ID)
+		bindings, resolveErr := ResolveRuleSetFor(catalogRoot, asset, definitions)
 		if resolveErr != nil {
 			return nil, resolveErr
 		}

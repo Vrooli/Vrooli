@@ -53,5 +53,14 @@
         "testid": "preview-popout"
       }
     }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Become the chrome-free Preview share surface",
+      "Preserve story, device/viewport and checks"
+    ]
   }
 }

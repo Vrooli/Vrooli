@@ -80,6 +80,7 @@ function explicitlyMarked(element: HTMLElement): boolean {
   return element.matches("[data-ux-feedback-target]");
 }
 
+const optional = <T,>(value: T): T | undefined => value;
 const stableId = (value: string): boolean => /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 const digest = (value: string): boolean => /^[0-9a-f]{64}$/.test(value);
 const bundlePath = (value: string): boolean => Boolean(value && /^[A-Za-z0-9._~!$&'()*+,;=@%/-]+$/.test(value) && value.split("/").every((part) => part !== "" && part !== "." && part !== ".."));
@@ -87,14 +88,22 @@ const bundlePath = (value: string): boolean => Boolean(value && /^[A-Za-z0-9._~!
 function validEvidence(value: ResolvedRegionCorrection | null): value is ResolvedRegionCorrection {
   const evidence = value?.evidence;
   if (!value || !evidence || typeof value.cropPreviewUrl !== "string" || !/^\/(?!\/)[^?#\s]+$/.test(value.cropPreviewUrl)) return false;
-  if (evidence.schema !== REGION_CORRECTION_SCHEMA || evidence.kind !== "correction" || evidence.storage !== "local" || evidence.private !== true) return false;
+  // Evidence can arrive from another build or a hand-edited packet, so the
+  // published type is a claim, not a guarantee. Widen the literal fields
+  // before validating them; otherwise the compiler proves the checks dead.
+  const schema: string = evidence.schema;
+  const kind: string = evidence.kind;
+  const storage: string = evidence.storage;
+  const isPrivate = optional(evidence.private);
+  if (schema !== REGION_CORRECTION_SCHEMA || kind !== "correction" || storage !== "local" || !isPrivate) return false;
   if (!stableId(evidence.correction_id) || !stableId(evidence.owner_scenario) || !stableId(evidence.corpus)) return false;
-  const capture = evidence.capture;
+  const capture = optional(evidence.capture);
   if (!capture || !stableId(capture.id) || !/^sha256:[0-9a-f]{64}$/.test(capture.build_id) || !/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{0,1023}$/.test(capture.route) || !stableId(capture.state_id) || !stableId(capture.data_id)) return false;
-  if (!evidence.origin || (evidence.origin.kind === "served-page" && (!stableId(evidence.origin.id) || evidence.origin.id !== capture.id)) || (evidence.origin.kind === "hub-packet" && (!stableId(evidence.origin.id) || !stableId(evidence.origin.attachment))) || !["served-page", "hub-packet"].includes(evidence.origin.kind)) return false;
+  const origin = optional(evidence.origin);
+  if (!origin || (origin.kind === "served-page" && (!stableId(origin.id) || origin.id !== capture.id)) || (origin.kind === "hub-packet" && (!stableId(origin.id) || !stableId(origin.attachment))) || !["served-page", "hub-packet"].includes(origin.kind)) return false;
   if (!["captured", "composited", "rendered", "sketch"].includes(capture.fidelity) || !bundlePath(capture.image.path) || !digest(capture.image.sha256)) return false;
   if (!Number.isInteger(capture.viewport.width) || capture.viewport.width < 1 || !Number.isInteger(capture.viewport.height) || capture.viewport.height < 1) return false;
-  const region = evidence.region;
+  const region = optional(evidence.region);
   if (!region || !stableId(region.id) || !stableId(region.node_id) || !region.label.trim() || region.label.length > 256 || !stableId(region.component) || !stableId(region.evidence_id)) return false;
   if (!bundlePath(region.crop.path) || !digest(region.crop.sha256)) return false;
   const { x, y, width, height } = region.bounds;
@@ -215,6 +224,10 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
     }
   };
 
+  // The provider root is a passive event-capture shell, not a control: the
+  // only interactive elements are the launcher button and the dialog. Capture
+  // listeners map a drag to a page region without taking focus.
+  // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-element-interactions
   return <div data-rcl-region-correction-root onClickCapture={onClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={clearTimer} onPointerCancel={clearTimer} onContextMenu={(event) => { if (point.current) event.preventDefault(); }}>
     {children}
     <StyleSheet libraryId="react-component-library:RegionCorrectionProvider" version="0.1.0-draft.1" css={correctionStyles} />
@@ -227,6 +240,7 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
       </button>}
     </div>, portal)}
     {evidence && portal && createPortal(
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- backdrop click closes the dialog; Escape is handled by the panel.
       <div role="dialog" aria-modal="true" aria-labelledby="region-correction-title" data-rcl-region-correction-backdrop onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
         <section data-rcl-region-correction-panel aria-describedby="region-correction-description">
           <div data-rcl-region-correction-header>

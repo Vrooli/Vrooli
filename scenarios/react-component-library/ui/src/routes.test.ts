@@ -12,17 +12,17 @@ import {
 describe("workspace route contract", () => {
   it("owns the route patterns used by the application shell", () => {
     expect(appRoutes).toEqual({
-      catalog: "/",
+      home: "/",
       components: "/components",
       assetCatalog: "/catalog",
       asset: "/assets/:id",
-      coverage: "/coverage",
-      // The preview popout is a real route: `routes.ts` declares it and
-      // `App.tsx` renders `PreviewPopoutPage` at `appRoutes.preview`. This
-      // contract test simply had not been updated when it was added.
       preview: "/assets/:id/preview",
+      coverage: "/coverage",
       capabilities: "/capabilities",
+      review: "/review",
+      activity: "/activity",
       settings: "/settings",
+      create: "/new",
       design: "/design",
       designScenario: "/design/:scenario",
       designPage: "/design/:scenario/:page",

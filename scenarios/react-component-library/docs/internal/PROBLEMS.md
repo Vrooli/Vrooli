@@ -1,5 +1,33 @@
 # Problems — React Component Library
 
+## 2026-11-18 — Workbench redesign discovery findings (open, with fixes landed)
+
+The D · Nocturne redesign preparation captured the served workbench and found these defects. They are recorded here because a redesign cannot fix a missing data contract by styling it. The 2026-11-18 implementation addressed the shell and page surface; the items marked **fixed** were repaired in source and need a served re-check.
+
+- **Coverage unavailable — cause found and fixed in source.** The running API was stale relative to the gate registry, and then the corpus token census failed the whole report when any library component had `latest: ""`. `TokenCensus` now skips draft-only assets instead of crashing coverage; the asset's own draft checks still own its state. Regression test: `api/internal/gates/tokencensus_test.go`. Served re-check passed on 2026-11-19: `GetCoverage` returned 200 with 496 rows and 22 domains.
+- **Version history empty.** Button 2.2.14's Versions tab showed the source/index check and cleanup panel, but no version history and no diff options. The new Asset data drawer reads `VersionsService.ListVersions`; a served check is still required.
+- **Current-release test evidence missing.** Button 2.2.14's Tests tab said “No component test evidence yet.” The new drawer can run a focused component test and lists real reports; a fresh report is still required before the claim is earned.
+- **Phone preview toolbar clipped.** At 390×844 the appearance and viewport controls collapsed into blank, overlapping boxes. The Nocturne phone composition is defined but not yet captured.
+- **Pending previews.** TimeMention and RunLadder showed “Preview pending” on the home grid. The new Components gallery labels a failed capture as “Preview pending” rather than hiding it.
+- **Usage-contract type map stale.** `pnpm usage-contracts:types` failed with “usage-contract type map is stale; run …”. Regenerated; the build gate passes.
+- **CLI identity preflight blocked capture.** `react-component-library page inspect` and `components` commands failed with `identity_refresh_unavailable`, then “Vrooli policy denied”. The API itself was healthy; the capture used direct HTTP and headless Chromium instead.
+- **Main actions unexplained.** The dialog presented Extract into library, Adopt into scenarios and Create component as three text links without descriptions. Replaced by the `/new` route with three explained, working flows.
+- **Seven peer asset tabs.** Preview, Overview, Files, Versions, Experience, Tests and Relationships had equal tab weight, competing with the preview. Replaced by Fixtures/In context plus the Asset data drawer.
+
+Evidence: the captured current-state showcase and screenshots are in `~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118/data/current/`. The target page map and data-contract dependencies are in [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md#data-and-contracts).
+
+## 2026-11-19 — Workbench implementation gaps (open)
+
+The D · Nocturne workbench is implemented in source, but these capabilities are deliberately not claimed yet:
+
+- **In-context move/resize.** The component is placed in the template's declared slot; freeform move/resize inside the page is not implemented. The studio edits the composition instead.
+- **Collaborators and comments.** The studio shows a local, single-user draft. Multi-user presence and comment threads are not implemented.
+- **Findings disposition.** Review can open the affected asset and copy evidence; assignment and triage writes wait for a findings projection that owns dispositions.
+- **Durable activity.** Activity is derived from catalog timestamps and says so. A durable event store is not implemented.
+- **Phone certification.** Home at 390 px is captured; Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview still need 390/320 px captures and keyboard checks.
+- **Token leak proof.** Nocturne is scoped to `.wb-root`, but the collision/leak check that fails if a published component imports the scoped file does not exist yet.
+- **Legacy page deletion.** The old page components are no longer routed but remain in source. They need focused replacement tests before deletion.
+
 ## 2026-11-14 — Overlapping package builds delete each other's compiler inputs (FIXED in source)
 
 A non-strict `--runtime` build (reached through `vrooli package refresh`) ended
@@ -823,3 +851,86 @@ reused; the new Web Console observation is `knw-1792244510179589499`. Physical
 iPhone behavior is not certified by Chromium touch or WebKitGTK mouse evidence.
 
 Follow-up work record: `7484dde7-c00d-4054-af17-819e82ea70de`.
+
+## 2026-11-19 — Nocturne workbench implementation (W3)
+
+The D · Nocturne redesign was implemented in `ui/src/workbench/`. The work
+surfaced defects that were not cosmetic; each is recorded with its disposition.
+
+### Fixed — coverage could not answer, and every restart paid the full corpus
+
+`GetCoverage` executed the whole gate corpus on every cold request, twice on the
+first page load (`GetCoverage` and `ListNextWork`). On this host that pass takes
+minutes, so the browser timed out while the API kept working; the page rendered
+"Coverage unavailable" against a healthy service. The in-memory cache also
+vanished on every restart, and concurrent callers could each start their own
+pass.
+
+The report cache now persists the last report beside runtime data
+(`~/.vrooli/data/vrooli/react-component-library/coverage-report-v1.json`),
+serves a matching cache immediately, serves a stale report while one background
+refresh runs, coalesces cold callers, and returns an explicit
+`coverage report is being prepared` (Connect `unavailable`) when the first pass
+is still running. The Coverage page renders a "Preparing" state and polls; it
+does not render zero. Evidence: `handlers/catalog/report_cache_test.go`
+(persistence, stale serving, cold warming) and the served page.
+
+### Fixed — primitive previews returned 404 despite a captured PNG
+
+`ServePreviewImage` assumed every renderable asset lived in
+`library/components/<slug>`. Primitives, foundations and navigation assets live
+under their own category, so 14 captured previews returned 404 on the
+Components gallery. The path now derives from the manifest's own directory.
+Evidence: `handlers/preview/image_test.go`.
+
+### Fixed — the consumer-pin scan walked every scenario's node_modules
+
+`scenarioConsumerPins` walked the entire `scenarios/` tree and only read files
+under `<scenario>/ui/src`. The scan was I/O-bound for minutes, and one
+root-owned staging directory (`.vrooli-displaced-dist`) turned a permission error
+into a failed coverage run. The walk now prunes everything except
+`<scenario>/ui/src` and skips hidden, `node_modules`, `dist` and `build`
+directories. Evidence: `internal/gates/consumer_helpers.go`.
+
+### Fixed — batch evidence resolution was quadratic
+
+`MergeExperienceEvidence` resolved the whole catalog for every asset, and
+`AssetCacheFingerprints` did the same through `RuleSetDigest`. Both now load the
+catalog and gate vocabulary once (`ResolveRuleSetFor`, `RuleSetDigests`).
+Coverage fingerprinting dropped from minutes to seconds and is cached for 30
+seconds.
+
+### Fixed — legacy contract drift failed unrelated tests
+
+The Tabs and TreeView usage contracts declare object items with stable ids,
+while both components deliberately accept bare strings. The tests now assert the
+runtime warning instead of treating it as console noise. The shared runtime also
+treated an `optional` collection primary count as an exact count; it now enforces
+"at most N", matching the action-slot evaluator.
+
+### Open — governed capture evidence is unavailable on this host
+
+`page capture` and `preview capture` return
+`503 service unavailable: lifecycle admission closed`. No page-level pixel,
+accessibility-tree or console evidence can be produced until the capture service
+admits work. The desktop/phone browser sweep is diagnostic only and is recorded
+as such in `docs/concepts/WORKBENCH-REDESIGN.md`.
+
+### Open — released contract/implementation mismatches surface as findings
+
+- `CommandCenterShell@1.0.5` requires `metrics[].id` in its usage contract, but
+  its published type declares only `label`, `value` and `detail`. The test keeps
+  the published type valid and asserts the warning.
+- `AsyncBoundary@1.0.11` allows only `Card`, `EmptyState` and `ErrorState`
+  children, while released `MessageList@1.0.0` and `1.1.1` compose a
+  `VirtualList` inside it. The stylesheet collision test asserts the warning and
+  the conflict remains open.
+- `AppNotificationSettings@1.0.6` emits library-owned utility classes
+  (`grid`, `gap-space-md`, `text-sm`, `divide-y`, …), which the live utility
+  allowlist rejects.
+- Five released directories have no publish/backfill provenance:
+  BottomSheet 1.3.7, Dialog 1.3.10, DrawerShell 1.1.9, FullPageDrawer 1.5.2 and
+  OverlayActionBar 1.0.0.
+
+These are pre-existing corpus findings, not redesign regressions. They are
+visible in Review and Coverage.

@@ -23,8 +23,8 @@ function sheets(id: string): HTMLStyleElement[] {
 }
 
 function librarySheets(name: string): HTMLStyleElement[] {
-  return Array.from(
-    document.head.querySelectorAll<HTMLStyleElement>(`style[data-rcl-sheet="${name}"]`),
+  return Array.from(document.head.querySelectorAll<HTMLStyleElement>("style[data-rcl-sheet]")).filter(
+    (sheet) => sheet.dataset.rclSheet?.startsWith(name),
   );
 }
 
@@ -149,7 +149,7 @@ describe("useComponentStyles", () => {
       // Before the shared injector this rendered five byte-identical <style>
       // blocks inline in the tree; now it is one sheet in <head>.
       expect(container.querySelectorAll("style")).toHaveLength(0);
-      expect(librarySheets("react-component-library-statusbadge-1.2.2")).toHaveLength(1);
+      expect(librarySheets("react-component-library-statusbadge-")).toHaveLength(1);
     });
 
     it("shares nothing between different components", () => {
@@ -160,8 +160,8 @@ describe("useComponentStyles", () => {
         </div>,
       );
 
-      expect(librarySheets("react-component-library-statusbadge-1.2.2")).toHaveLength(1);
-      expect(librarySheets("react-component-library-card-1.3.0")).toHaveLength(1);
+      expect(librarySheets("react-component-library-statusbadge-")).toHaveLength(1);
+      expect(librarySheets("react-component-library-card-")).toHaveLength(1);
     });
   });
 });

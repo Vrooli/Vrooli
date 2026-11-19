@@ -1,10 +1,14 @@
 import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CommandCenterShell } from "@vrooli/react-component-library/CommandCenterShell/1";
 
 describe("CommandCenterShell", () => {
   it("keeps operational context visible while its primary region reports a partial lifecycle", () => {
+    // The authored usage contract now requires `metrics[].id`, while the
+    // published 1.0.5 type still declares label/value/detail only. The runtime
+    // warning is the mismatch; assert it and keep the published type valid.
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     renderWithProviders(
       <CommandCenterShell
         title="Operations"
@@ -24,9 +28,11 @@ describe("CommandCenterShell", () => {
       "data-experience-state",
       "partial",
     );
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("stable non-empty identifier"));
   });
 
   it("renders optional controls, metric details, and primary content", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     renderWithProviders(
       <CommandCenterShell
         title="Operations"
@@ -42,5 +48,6 @@ describe("CommandCenterShell", () => {
     expect(screen.getByRole("button", { name: "Refresh" })).toBeVisible();
     expect(screen.getByText("Across all environments")).toBeVisible();
     expect(screen.getByText("Recent activity")).toBeVisible();
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("stable non-empty identifier"));
   });
 });

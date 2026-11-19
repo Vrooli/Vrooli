@@ -56,6 +56,27 @@ All interaction feel values live in `GestureTokens`:
 These values are tunable through `resolveGestureFeel`, but consumers must not
 restate literals or retune them incidentally during a migration.
 
+## Workbench canvas gestures (planned D · Nocturne)
+
+The redesign adds two canvases. These are design intent, not current behavior. See [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md#component-workspace-details).
+
+### Fixtures canvas
+
+- **Drag from the fixture header, not the specimen.** Pressing the rendered component is a separate intent; a drag started on the specimen must not move the card or suppress the component's activation.
+- Use `useDrag` for free two-dimensional placement after `axisSlop`. The card stays inside the canvas; no drop action, no destructive reorder.
+- A short press selects; a drag moves. Click suppression expires at the next pointerdown so the component remains activatable after a drag.
+- Keyboard alternative: a focused fixture can be moved by arrow keys or a visible “Move” menu. Every drag outcome has a non-pointer path.
+- Canvas pan/zoom is optional and never required to reach a fixture. A “Fit” control restores all fixtures.
+- Touch scrolling is preserved outside the drag handle; the inspector becomes a sheet on phone.
+
+### In-context canvas
+
+- Selecting the placed component exposes visible move and resize handles. The body moves; the handles resize; both have keyboard equivalents.
+- `Escape` cancels the active pointer gesture and restores the starting geometry; `pointercancel` restores it without performing an action.
+- Resizing is bounded by the page frame and the component's contract; a failed fit is shown as a finding, not silently clamped.
+- Device switching ends the active pointer stream and restores a valid placement for the new viewport.
+- Reduced motion removes resize/move easing; it does not remove the handles or the keyboard path.
+
 ## Kernel contract
 
 Use `useSwipeGesture` for staged travel along one logical axis. Use `useDrag`
