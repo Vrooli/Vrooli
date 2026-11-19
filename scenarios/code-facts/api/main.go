@@ -127,7 +127,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// Symbol-resolved Describe reports legitimately exceed the 30s default
+		// write budget on a cold generation; the server must not cut the
+		// response off mid-scan and make the client see an empty reply.
+		WriteTimeout: 2 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		logger.Fatalf("Server error: %v", err)
 	}

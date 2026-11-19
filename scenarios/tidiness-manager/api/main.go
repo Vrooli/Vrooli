@@ -333,6 +333,10 @@ func main() {
 
 	if err := server.Run(server.Config{
 		Handler: srv.Router(),
+		// A control-plane validation includes the Code Facts symbol scan and can
+		// legitimately exceed the 30s default write budget. Cutting it off makes
+		// the caller see a 500/EOF for a validation that actually completed.
+		WriteTimeout: 5 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

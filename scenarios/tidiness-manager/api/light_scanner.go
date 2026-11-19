@@ -219,6 +219,17 @@ func (ls *LightScanner) collectScanFacts(ctx context.Context) ([]FileMetric, *fa
 		Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ls.scenarioPath,
 		LanguageFilter: []string{"go", "typescript", "javascript"},
 	}
+	// The control-plane tree is a subdirectory of a repository that also holds
+	// independently versioned package and scenario modules. A PATH target at
+	// internal resolves to that multi-module root, which Code Facts correctly
+	// rejects. Ask for the control-plane shape instead so it scopes the Go
+	// package patterns to the declared roots.
+	if filepath.Base(filepath.Clean(ls.scenarioPath)) == "internal" {
+		target = &facts.CodeTarget{
+			Kind: facts.TargetKind_TARGET_KIND_CONTROL_PLANE, RepoRoot: filepath.Dir(filepath.Clean(ls.scenarioPath)),
+			LanguageFilter: []string{"go", "typescript", "javascript"},
+		}
+	}
 	report, err := currentCodeFactsWithFamilies(ctx, ls.codeFacts, target, []facts.FactFamily{
 		facts.FactFamily_FACT_FAMILY_SYMBOLS, facts.FactFamily_FACT_FAMILY_FILE_METRICS,
 	})
