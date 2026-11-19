@@ -1,0 +1,23 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "crypto-infrastructure-evaluator",
+    "display_name": "github.com/vrooli/crypto-infrastructure-evaluator",
+    "description": "Consumer-side evaluator for the chain-forensics case contract; reports chain coverage, flow grades, legal-claim boundaries, and residual risk.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/crypto-infrastructure-evaluator"],
+    "adoption": {
+      "scenario_adoptable": false,
+      "allowed_consumers": [],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": ["packages/crypto-infrastructure-evaluator/README.md", "docs/package-governance.md"]
+  }
+}

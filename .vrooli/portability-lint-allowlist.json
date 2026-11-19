@@ -1,0 +1,663 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/hostinventory/collector.go",
+      "line": 188,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/hostinventory/hostmemory_linux.go",
+      "line": 7,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/hostinventory/storage_candidates_unix.go",
+      "line": 65,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/resources/managed_service_supervisor.go",
+      "line": 396,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/resources/managed_service_supervisor_test.go",
+      "line": 137,
+      "reason": "Linux-only RLIMIT/OOM score regression probe reads procfs to verify the managed-service test contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/resources/managed_service_supervisor_test.go",
+      "line": 138,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/securestore/keyringdaemon_linux.go",
+      "line": 41,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/securestore/keyringdaemon_linux.go",
+      "line": 45,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/securestore/keyringdaemon_linux.go",
+      "line": 97,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/safeguards/nvidia-driver/handler.go",
+      "line": 153,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/safeguards/ollama-resource-controls/handler.go",
+      "line": 154,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/safeguards/pstore-native/handler.go",
+      "line": 135,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/cli-core/cliutil/agent_context.go",
+      "line": 256,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/platform-go/process_linux.go",
+      "line": 87,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/platform-go/process_linux.go",
+      "line": 102,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/platform-go/process_linux.go",
+      "line": 132,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/platform-go/process_linux.go",
+      "line": 146,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "packages/platform-go/process_linux.go",
+      "line": 159,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "resources/doc-parse/cli/cmd/portable-compare/main.go",
+      "line": 151,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/agent-manager/api/internal/orchestration/reconciler.go",
+      "line": 591,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/agent-manager/api/internal/orchestration/reconciler.go",
+      "line": 608,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/agent-manager/api/internal/orchestration/reconciler.go",
+      "line": 1177,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/code-facts/api/handlers/health/handler.go",
+      "line": 108,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/program-runtime/api/internal/programs/runner.go",
+      "line": 505,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/program-runtime/api/internal/programs/runner.go",
+      "line": 524,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/scenario-to-desktop/api/procmetrics/proc_reader.go",
+      "line": 165,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/scenario-to-desktop/api/procmetrics/proc_reader.go",
+      "line": 173,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/storage-manager/api/hostfs/process_liveness_unix.go",
+      "line": 40,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/storage-manager/api/internal/migration/reconcile/isolation_process_test.go",
+      "line": 121,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/disk.go",
+      "line": 122,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/disk.go",
+      "line": 132,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/disk.go",
+      "line": 245,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/disk.go",
+      "line": 321,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/disk.go",
+      "line": 387,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/network.go",
+      "line": 282,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_cpu_linux.go",
+      "line": 16,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_cpu_linux.go",
+      "line": 181,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_cpu_linux.go",
+      "line": 215,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_cpu_linux.go",
+      "line": 233,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_cpu_linux.go",
+      "line": 234,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_forkrate_linux.go",
+      "line": 14,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/platform_fragmentation_linux.go",
+      "line": 15,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/pressure.go",
+      "line": 26,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/pressure.go",
+      "line": 66,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/pressure.go",
+      "line": 80,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/process.go",
+      "line": 258,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/socketowners_linux.go",
+      "line": 52,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/socketowners_linux.go",
+      "line": 57,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/system-monitor/api/internal/collectors/socketowners_linux.go",
+      "line": 118,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/unit-health/api/internal/executor/leaks_linux.go",
+      "line": 13,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/unit-health/api/internal/executor/leaks_linux.go",
+      "line": 32,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/vrooli-autoheal/api/internal/checks/filesystem.go",
+      "line": 283,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/vrooli-autoheal/api/internal/checks/filesystem.go",
+      "line": 361,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/vrooli-autoheal/api/internal/checks/system/stale_service_binary_linux.go",
+      "line": 24,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/vrooli-autoheal/api/internal/checks/system/swap.go",
+      "line": 207,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/vrooli-autoheal/api/internal/watchdog/watchdog.go",
+      "line": 158,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/driver/exec/run_test.go",
+      "line": 171,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/driver/overlay.go",
+      "line": 303,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/driver/probe.go",
+      "line": 20,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/driver/probe.go",
+      "line": 90,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/driver/probe.go",
+      "line": 108,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/namespace/namespace.go",
+      "line": 86,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "scenarios/workspace-sandbox/api/internal/namespace/namespace.go",
+      "line": 120,
+      "reason": "Existing kernel-filesystem read is platform-specific or already isolated by package contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "internal/process/process_linux_test.go",
+      "line": 11,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "internal/safeguards/vrooli-launcher/handler_test.go",
+      "line": 124,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "internal/safeguards/vrooli-launcher/handler_test.go",
+      "line": 154,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "packages/cli-core/cliapp/scenario_app_test.go",
+      "line": 693,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/exit_code_test.go",
+      "line": 24,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 46,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 47,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 72,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 73,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 107,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 108,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 138,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 139,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 191,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/agent-manager/api/internal/adapters/runner/idle_scanner_test.go",
+      "line": 192,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-kernel-fs",
+      "path": "internal/resources/managed_service_supervisor_test.go",
+      "line": 138,
+      "reason": "Linux-only RLIMIT/OOM score regression probe reads procfs to verify the managed-service test contract; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/algorithm-library/api/local_executor.go",
+      "line": 202,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/algorithm-library/api/local_executor.go",
+      "line": 372,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/algorithm-library/api/local_executor.go",
+      "line": 459,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/api-library/api/main.go",
+      "line": 2263,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/app-monitor/api/services/metrics_service.go",
+      "line": 148,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/app-monitor/api/services/metrics_service.go",
+      "line": 160,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/app-monitor/api/services/metrics_service.go",
+      "line": 217,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/app-monitor/api/services/metrics_service.go",
+      "line": 246,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/content-desk/api/internal/claims/check_runner.go",
+      "line": 47,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/scenario-to-cloud/api/vps/native_cli_test.go",
+      "line": 205,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/scenario-to-desktop/api/screenrecording/media_test.go",
+      "line": 49,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/scenario-to-desktop/api/screenrecording/media_test.go",
+      "line": 51,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/test-genie/api/internal/orchestrator/requirements/requirements_syncer_test.go",
+      "line": 70,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/test-genie/api/internal/orchestrator/requirements/requirements_syncer_test.go",
+      "line": 150,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    },
+    {
+      "rule": "no-unguarded-shell-out",
+      "path": "scenarios/vrooli-onboarding/api/coverage_gaps_test.go",
+      "line": 165,
+      "reason": "Existing shell boundary is platform-specific and retained pending native split; revisit during portability remediation.",
+      "review_by": "2027-08-26"
+    }
+  ]
+}

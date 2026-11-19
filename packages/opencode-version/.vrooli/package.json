@@ -1,0 +1,26 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "opencode-version",
+    "display_name": "github.com/vrooli/vrooli/packages/opencode-version",
+    "description": "Single source of truth for the behavioural differences between OpenCode 1.x and 2.x: directory pinning, model variants, session storage, catalog presence, and plugin API.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/opencode-version"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "internal_platform"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Shared by the root launcher (cmd/vrooli-agent-launcher) and the agent-manager scenario API; it remains in the repository module while its public seam is established."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    }
+  }
+}

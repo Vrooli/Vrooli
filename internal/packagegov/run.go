@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -74,7 +75,11 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 				return err
 			}
 		}
-		stderrTail := &bytes.Buffer{} // both streams: pnpm reports its refusal on either
+		// pnpm may report its refusal on either stream, and the two stream
+		// copiers run concurrently, so both write through one synchronized
+		// tail. Two writers over one unsynchronized buffer can lose the
+		// refusal and turn a classified failure back into a bare exit status.
+		stderrTail := &limitedTail{limit: 8 << 10}
 		spec := shell.Spec{
 			Context: options.Context,
 			Name:    run[0],
@@ -82,8 +87,8 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 			Dir:     workdir,
 			Env:     commandEnv,
 			Stdin:   stdin,
-			Stdout:  io.MultiWriter(stdout, &limitedTail{buf: stderrTail, limit: 8 << 10}),
-			Stderr:  io.MultiWriter(stderr, &limitedTail{buf: stderrTail, limit: 8 << 10}),
+			Stdout:  io.MultiWriter(stdout, stderrTail),
+			Stderr:  io.MultiWriter(stderr, stderrTail),
 		}
 		if err := shell.Run(spec); err != nil {
 			return ExplainPnpmPurgeAbort(err, stderrTail.String(), workdir)
@@ -127,13 +132,17 @@ func MatchDependents(dependents []Dependent, target string) []Dependent {
 }
 
 // limitedTail keeps the first limit bytes written to it; pnpm names its refusal
-// near the top of its output.
+// near the top of its output. It is safe for concurrent writes because a
+// command's stdout and stderr copiers both target the same instance.
 type limitedTail struct {
-	buf   *bytes.Buffer
+	mu    sync.Mutex
+	buf   bytes.Buffer
 	limit int
 }
 
 func (t *limitedTail) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if room := t.limit - t.buf.Len(); room > 0 {
 		if len(p) < room {
 			room = len(p)
@@ -141,4 +150,10 @@ func (t *limitedTail) Write(p []byte) (int, error) {
 		t.buf.Write(p[:room])
 	}
 	return len(p), nil
+}
+
+func (t *limitedTail) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.buf.String()
 }

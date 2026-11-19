@@ -1,0 +1,26 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "driveprofile",
+    "display_name": "github.com/vrooli/vrooli/packages/driveprofile",
+    "description": "Single source of truth for how a storage filesystem behaves as a backup destination: check/repair tools, state signal, suitability, and operator remedy.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/driveprofile"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "internal_platform"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "The filesystem profile table is read by both the root control plane (internal/volumeremediation) and scenario APIs; it remains in the repository module while its public seam is established."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    }
+  }
+}
