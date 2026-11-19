@@ -111,7 +111,7 @@
           "interval": 30000
         }
       ],
-      "startup_grace_period": 15000
+      "startup_grace_period": 120000
     }
   },
   "dependencies": {
