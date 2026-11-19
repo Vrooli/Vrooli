@@ -54,6 +54,7 @@ func Run(t *testing.T, cfg Config) {
 	}
 	var buildLogs logTail
 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
+	build.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	build.Stdout, build.Stderr = &buildLogs, &buildLogs
 	build.WaitDelay = time.Second
 	if err := build.Run(); err != nil {

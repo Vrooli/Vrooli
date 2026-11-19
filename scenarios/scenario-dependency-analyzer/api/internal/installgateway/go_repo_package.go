@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"golang.org/x/mod/modfile"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // A repository package (a package of a module in this checkout) is used in
@@ -39,7 +41,7 @@ type goListRunner func(ctx context.Context, dir string, env []string, args ...st
 var runGoList goListRunner = func(ctx context.Context, dir string, env []string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = dir
-	cmd.Env = env
+	cmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &limitedWriter{w: &stdout, limit: maxGoListBytes}
 	cmd.Stderr = &stderr

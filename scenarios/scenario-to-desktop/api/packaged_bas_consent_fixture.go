@@ -14,6 +14,8 @@ import (
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-desktop-api/captures"
+
+	"github.com/vrooli/envkit-go"
 )
 
 const (
@@ -80,7 +82,7 @@ func (e validationMatrixLocalExecutor) executePackagedBASConsentFixture(ctx cont
 
 	command := exec.CommandContext(ctx, "go", "test", "./internal/identity", "-run", "^TestGatewayConsentBrowserJourney$", "-count=1", "-v")
 	command.Dir = gatewayDir
-	command.Env = packagedConsentEnvironment(artifactPath, request.ArtifactDigest, evidencePath, screenshotPath)
+	command.Env = envkit.Toolchain(envkit.Env(packagedConsentEnvironment(artifactPath, request.ArtifactDigest, evidencePath, screenshotPath)), envkit.ToolchainOptions{})
 	output, err := command.CombinedOutput()
 	if err != nil {
 		if ctx.Err() != nil {

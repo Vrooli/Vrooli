@@ -19,6 +19,8 @@ import (
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // EvidenceProducerCommand is copied from a validated descriptor by the
@@ -284,7 +286,9 @@ func containedProducerCommand(ctx context.Context, working string, outputLimit i
 }
 
 func trustedGoModuleCache() string {
-	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	cmd := exec.Command("go", "env", "GOMODCACHE")
+	cmd.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}

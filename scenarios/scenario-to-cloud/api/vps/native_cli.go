@@ -17,6 +17,8 @@ import (
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/reach"
 	"scenario-to-cloud/release"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // The native control plane is never compiled at deploy time. The release
@@ -229,6 +231,7 @@ func main() {
 	}
 	versionCmd := exec.Command("go", "run", versionPath)
 	versionCmd.Dir = repoRoot
+	versionCmd.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	version, err := versionCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("compute watchdog version: %w", err)
@@ -244,7 +247,7 @@ func main() {
 	}
 	ldflags := "-X main.buildVersion=" + strings.TrimSpace(string(version))
 	cmd := exec.Command("go", "-C", repoRoot, "build", "-ldflags", ldflags, "-o", artifactPath, "./cmd/vrooli-watchdog")
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
+	cmd.Env = envkit.Toolchain(envkit.Env(append(os.Environ(), "GOOS=linux", "GOARCH=amd64")), envkit.ToolchainOptions{})
 	if output, err := cmd.CombinedOutput(); err != nil {
 		os.Remove(artifactPath)
 		return "", fmt.Errorf("build release watchdog: %w: %s", err, strings.TrimSpace(string(output)))
@@ -401,6 +404,7 @@ func maintenancePackageSourcePaths(repoRoot, moduleDir, pattern string) ([]strin
 	}
 	cmd := exec.Command("go", "list", "-deps", "-json", pattern)
 	cmd.Dir = localDir
+	cmd.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err

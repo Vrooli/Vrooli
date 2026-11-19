@@ -50,6 +50,12 @@ type CoverageReport struct {
 	Totals map[string]CoverageMetric
 }
 
+// NativeVitestReportPath is the disposable native observation file the
+// vitest adapter asks its runner to leave under the governed coverage root.
+func NativeVitestReportPath(root, runID string) string {
+	return filepath.Join(root, "coverage", "unit-health", runID+".json")
+}
+
 func DefaultCoverageArtifacts(language string) []Artifact {
 	switch strings.ToLower(strings.TrimSpace(language)) {
 	case "go":

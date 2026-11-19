@@ -6,6 +6,8 @@ import (
 	"os/exec"
 
 	"audio-tools/internal/buildidentity"
+
+	"github.com/vrooli/envkit-go"
 )
 
 func main() {
@@ -15,6 +17,7 @@ func main() {
 	}
 
 	command := exec.Command("go", "build", "-ldflags", fmt.Sprintf("-X audio-tools/internal/buildidentity.SourceIdentity=%s", identity), "-o", "audio-tools-api", ".")
+	command.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {

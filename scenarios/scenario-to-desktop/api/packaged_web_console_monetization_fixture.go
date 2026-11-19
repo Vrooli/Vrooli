@@ -18,10 +18,14 @@ import (
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/target"
+
+	"github.com/vrooli/envkit-go"
 )
 
-const packagedWebConsoleMonetizationJourneyID = "web-console:sp1/packaged-metered-ai"
-const packagedWebConsoleIdentity = "sp1-web-console@example.invalid"
+const (
+	packagedWebConsoleMonetizationJourneyID = "web-console:sp1/packaged-metered-ai"
+	packagedWebConsoleIdentity              = "sp1-web-console@example.invalid"
+)
 
 type packagedWebConsoleMonetizationEvidence struct {
 	SchemaVersion  int                             `json:"schema_version"`
@@ -291,7 +295,7 @@ type packagedWebConsoleTestInputs struct {
 func runPackagedWebConsoleTest(ctx context.Context, apiDir string, inputs packagedWebConsoleTestInputs) error {
 	command := exec.CommandContext(ctx, "go", "test", ".", "-run", "^TestWebConsolePackagedMeteringRefusal$", "-count=1")
 	command.Dir = apiDir
-	command.Env = packagedWebConsoleMonetizationEnvironment(inputs)
+	command.Env = envkit.Toolchain(envkit.Env(packagedWebConsoleMonetizationEnvironment(inputs)), envkit.ToolchainOptions{})
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go test failed: %w: %s", err, strings.TrimSpace(string(output)))

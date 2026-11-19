@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 const (
@@ -207,7 +209,7 @@ func runCLI(directory, apiBase string, args ...string) (string, error) {
 		env = append(env, entry)
 	}
 	env = append(env, "API_BASE_URL="+apiBase, testModeEnv+"=1")
-	cmd.Env = env
+	cmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return string(output), fmt.Errorf("go run . %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(output)))

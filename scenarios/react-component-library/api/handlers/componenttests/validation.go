@@ -27,6 +27,8 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // sharedHandler turns the catalog suite into a Test Genie provider phase.
@@ -361,6 +363,7 @@ func (h *sharedHandler) validateConsumerContractFleet(ctx context.Context, req *
 	defer cancel()
 	command := exec.CommandContext(commandCtx, "pnpm", "--silent", "run", "usage-contracts:fleet", "--", "--json")
 	command.Dir = filepath.Join(uiRoot, "ui")
+	command.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	var stderr strings.Builder
 	command.Stderr = &stderr
 	output, commandErr := command.Output()

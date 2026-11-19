@@ -34,7 +34,7 @@ type nativeTest struct {
 }
 
 func (Analyzer) QualityArtifact(root, runID string) adapters.Artifact {
-	return adapters.Artifact{Kind: "vitest-native", Label: "Native test observations", Path: filepath.Join(root, "coverage", "unit-health", runID+".json")}
+	return adapters.Artifact{Kind: "vitest-native", Label: "Native test observations", Path: adapters.NativeVitestReportPath(root, runID)}
 }
 
 func (Analyzer) CollectQuality(input adapters.QualityInput) ([]testquality.Result, testquality.Reason) {

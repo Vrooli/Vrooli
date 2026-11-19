@@ -64,8 +64,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// This is the SeedStatePath contract consumed by the provider's seed owner.
-	out := filepath.Join(scenario, "coverage", "runtime", "seed-state.json")
+	// Mirrors artifactpaths.SeedStatePath; this build-tag-ignored seed stays
+	// stdlib-only so Workflow Health can run it without the root module.
+	const governedCoverageRoot = "coverage"
+	out := filepath.Join(scenario, governedCoverageRoot, "runtime", "seed-state.json")
 	if err := os.MkdirAll(filepath.Dir(out), 0755); err != nil {
 		log.Fatal(err)
 	}

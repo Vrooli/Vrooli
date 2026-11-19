@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"deployment-manager/bundles"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Platform represents a target platform for cross-compilation.
@@ -195,7 +197,7 @@ func (b *Builder) buildGo(ctx context.Context, config *BuildConfig, platform Pla
 
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = sourceDir
-	cmd.Env = env
+	cmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -225,7 +227,7 @@ func (b *Builder) buildRust(ctx context.Context, config *BuildConfig, platform P
 	for k, v := range config.Env {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
-	cmd.Env = env
+	cmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -257,6 +259,7 @@ func (b *Builder) buildNpm(ctx context.Context, config *BuildConfig, platform Pl
 	// Run npm install first
 	installCmd := exec.CommandContext(ctx, "npm", "install")
 	installCmd.Dir = sourceDir
+	installCmd.Env = envkit.Toolchain(envkit.Env(os.Environ()), envkit.ToolchainOptions{})
 	if output, err := installCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("npm install failed: %v\n%s", err, string(output))
 	}
@@ -275,7 +278,7 @@ func (b *Builder) buildNpm(ctx context.Context, config *BuildConfig, platform Pl
 
 	buildCmd := exec.CommandContext(ctx, "npm", buildArgs...)
 	buildCmd.Dir = sourceDir
-	buildCmd.Env = env
+	buildCmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 
 	output, err := buildCmd.CombinedOutput()
 	if err != nil {
@@ -309,7 +312,7 @@ func (b *Builder) buildCustom(ctx context.Context, config *BuildConfig, platform
 	for k, v := range config.Env {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
-	cmd.Env = env
+	cmd.Env = envkit.Toolchain(envkit.Env(env), envkit.ToolchainOptions{})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
