@@ -640,3 +640,8 @@ func isGenericLabel(label string) bool {
 	}
 	return false
 }
+
+// EnrollmentOrigin resolves the current authoritative public Hub origin.
+func (s *Service) EnrollmentOrigin(ctx context.Context) (string, error) {
+	return s.appPublicURL(ctx, "notification-hub", false)
+}

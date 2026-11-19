@@ -10,7 +10,7 @@ import { useTranslation } from "../../../i18n";
 import { TextArea } from "../form/TextArea";
 import { withAttachmentNote, type PacketDraft } from "../model/draft";
 import { ANSWER_LIMITS } from "../model/questions";
-import { regionEntryPath, type CaptureRef, type FeedbackRegion, type ParsedRegionFeedback } from "./regionFeedback";
+import { regionEntryPath, type CaptureRef, type FeedbackRegion, type ParsedRegionFeedback, type RegionFeedbackIssue } from "./regionFeedback";
 
 interface RegionFeedbackCompareProps {
   askId: string;
@@ -33,6 +33,25 @@ export function RegionFeedbackCompare({ askId, attachment, parsed, failed, onClo
   const notePath = region ? regionEntryPath(region.id) : "";
   const savedNote = region ? draft.attachmentNotes.find((note) => note.attachment === attachment.name && note.path === notePath)?.note ?? "" : "";
   const canSubmit = text.trim().length > 0 && text.trim().length <= ANSWER_LIMITS.attachmentNoteChars;
+  const sideLabel = (key: "before" | "after") => key === "before" ? t(strings.packet.regionFeedback.before) : t(strings.packet.regionFeedback.after);
+  const fidelityLabel = (value: "captured" | "composited" | "rendered" | "sketch") => {
+    if (value === "captured") return t(strings.packet.regionFeedback.captured);
+    if (value === "composited") return t(strings.packet.regionFeedback.composited);
+    if (value === "rendered") return t(strings.packet.regionFeedback.rendered);
+    return t(strings.packet.regionFeedback.sketch);
+  };
+  const issueText = (issue: RegionFeedbackIssue) => {
+    switch (issue.code) {
+      case "routeMismatch": return t(strings.packet.regionFeedback.issues.routeMismatch);
+      case "stateMismatch": return t(strings.packet.regionFeedback.issues.stateMismatch);
+      case "dataMismatch": return t(strings.packet.regionFeedback.issues.dataMismatch);
+      case "viewportMismatch": return t(strings.packet.regionFeedback.issues.viewportMismatch);
+      case "sameBuild": return t(strings.packet.regionFeedback.issues.sameBuild);
+      case "imageMismatch": return t(strings.packet.regionFeedback.issues.imageMismatch, { fidelity: fidelityLabel(issue.fidelity) });
+      case "regionEntryMissing": return t(strings.packet.regionFeedback.issues.regionEntryMissing, { regionId: issue.regionId });
+      case "regionCropMismatch": return t(strings.packet.regionFeedback.issues.regionCropMismatch, { regionId: issue.regionId });
+    }
+  };
 
   useEffect(() => setText(savedNote), [savedNote]);
   useEffect(() => {
@@ -43,7 +62,7 @@ export function RegionFeedbackCompare({ askId, attachment, parsed, failed, onClo
 
   const imageByPath = useMemo(() => (capture: CaptureRef) =>
     attachmentUrl(askId, attachment.name, capture.image.path), [askId, attachment.name]);
-  const unsupported = failed || (parsed && parsed.issues.some((item) => /image reference|crop image|answerable evidence/.test(item)));
+  const unsupported = failed || Boolean(parsed?.issues.some((item) => item.code === "imageMismatch" || item.code === "regionEntryMissing" || item.code === "regionCropMismatch"));
 
   const chooseRegion = (item: FeedbackRegion) => {
     setSelected(item.id);
@@ -73,13 +92,13 @@ export function RegionFeedbackCompare({ askId, attachment, parsed, failed, onClo
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {parsed.issues.length > 0 && (
             <div role="status" className="m-3 rounded-panel border border-app-warning/50 bg-app-warning/10 p-3 text-sm">
-              {parsed.issues.map((issue) => <p key={issue}>{t(strings.packet.regionFeedback.comparisonWarning, { reason: issue })}</p>)}
+              {parsed.issues.map((issue, index) => <p key={`${issue.code}-${index}`}>{t(strings.packet.regionFeedback.comparisonWarning, { reason: issueText(issue) })}</p>)}
             </div>
           )}
           <div className="flex gap-2 px-3 pt-2 md:hidden" role="tablist" aria-label={t(strings.packet.regionFeedback.title)}>
             {(["before", "after"] as const).map((key) => (
               <button key={key} role="tab" aria-selected={side === key} type="button" onClick={() => setSide(key)} className={`min-h-11 flex-1 rounded-control border px-3 text-sm font-semibold ${side === key ? "border-app-primary bg-app-primary/10 text-app-primary" : "border-app-border"}`}>
-                {t(strings.packet.regionFeedback[key])}
+                {sideLabel(key)}
               </button>
             ))}
           </div>
@@ -90,11 +109,11 @@ export function RegionFeedbackCompare({ askId, attachment, parsed, failed, onClo
               return (
                 <figure key={key} className={`relative m-0 min-w-0 overflow-hidden rounded-panel border border-app-border bg-app-surface-muted ${side === key ? "block" : "hidden md:block"}`}>
                   <figcaption className="flex flex-wrap items-center justify-between gap-2 border-b border-app-border px-3 py-2 text-sm">
-                    <span className="font-semibold">{t(strings.packet.regionFeedback[key])}</span>
-                    <span data-fidelity={capture.fidelity} className="rounded-pill bg-app-primary/10 px-2.5 py-1 text-xs font-medium text-app-primary">{t(strings.packet.regionFeedback.fidelity, { label: t(strings.packet.regionFeedback[capture.fidelity]) })}</span>
+                    <span className="font-semibold">{sideLabel(key)}</span>
+                    <span data-fidelity={capture.fidelity} className="rounded-pill bg-app-primary/10 px-2.5 py-1 text-xs font-medium text-app-primary">{t(strings.packet.regionFeedback.fidelity, { label: fidelityLabel(capture.fidelity) })}</span>
                   </figcaption>
                   <div className="relative">
-                    <img src={imageByPath(capture)} alt={`${t(strings.packet.regionFeedback[key])}: ${bundle.route}`} className="block h-auto w-full" />
+                    <img src={imageByPath(capture)} alt={`${sideLabel(key)}: ${bundle.route}`} className="block h-auto w-full" />
                     {isAfter && bundle.regions.map((item) => (
                       <button
                         key={item.id}

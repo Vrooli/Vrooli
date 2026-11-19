@@ -39,14 +39,10 @@ body {
 }
 
 @layer components {
-  /* A bar pinned to the bottom edge of the main pane. A sticky bar stops at the
-     content edge, above the pane's bottom padding, so page content showed through
-     that strip; the negative offset closes it. The tab bar owns the phone's
-     bottom inset, so the bar adds none there. Beside a sidebar the pane's own
-     padding carries the inset, so the bar clears the home indicator itself. Wide
-     screens pin it inside the answer panel, which has no padding to cancel. */
+  /* Conversation controls replace the phone tabs and own the bottom safe area.
+     The dock cancels the pane gutter; on wide screens it sits in its panel. */
   .packet-dock {
-    --dock-inset: 0px;
+    --dock-inset: env(safe-area-inset-bottom, 0px);
     position: sticky;
     bottom: calc(-1 * var(--page-gutter) - var(--dock-inset));
     margin-block-end: calc(-1 * var(--page-gutter) - var(--dock-inset));
@@ -55,9 +51,9 @@ body {
     padding-block-end: calc(var(--space-2xs) + var(--dock-inset));
   }
 
-  @media (min-width: 48rem) {
-    .packet-dock {
-      --dock-inset: env(safe-area-inset-bottom, 0px);
+  @media (max-width: 47.999rem) {
+    .conversation-shell[data-rcl-app-shell][data-mobile-nav] [data-rcl-app-shell-tabs] {
+      display: none;
     }
   }
 
@@ -74,7 +70,7 @@ body {
 /* The page header clears the top inset; the fixed drawer and main pane own
    their own safe padding. Subtract the offset to keep the shell in the viewport. */
 [data-rcl-app-shell] {
-  --rcl-app-shell-block-size: calc(100dvh - var(--safe-area-inset-top));
+  --rcl-app-shell-block-size: calc(var(--hub-viewport-height, 100dvh) - var(--safe-area-inset-top));
   block-size: var(--rcl-app-shell-block-size);
   margin-block-start: var(--safe-area-inset-top);
   margin-inline: var(--safe-area-inset-left) var(--safe-area-inset-right);

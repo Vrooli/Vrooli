@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { en } from "../../i18n/catalog";
 import { selectors } from "../../consts/selectors";
@@ -151,10 +151,35 @@ describe("Escalation order", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/settings"));
   });
 
-  it("shows the sign-in card in place of the order when signed out", async () => {
+  it("shows the escalation order read-only when signed out and exposes no write controls", async () => {
     hub.signOut();
     renderSettings(PATH);
-    expect(await screen.findByRole("region", { name: "Sign in" })).toBeInTheDocument();
-    expect(hub.recipientsClient.getEscalationChain).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Answering decisions and changing personal settings requires an owner session/)).toBeInTheDocument();
+    const list = await screen.findByRole("list", { name: "Escalation order" });
+    expect(within(list).getByText(en.settings.channel.webPush)).toBeInTheDocument();
+    expect(within(list).getByText(en.settings.channel.email)).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toEqual([screen.getByTestId(selectors.session.submit)]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(hub.recipientsClient.getEscalationChain).toHaveBeenCalledTimes(1);
+    expect(hub.recipientsClient.listDevices).not.toHaveBeenCalled();
+    expect(hub.recipientsClient.setEscalationChain).not.toHaveBeenCalled();
+  });
+
+  it("keeps escalation readable without write controls after the owner session expires", async () => {
+    hub.reset({ chain: ["web_push", "email"] });
+    renderSettings(PATH);
+    await screen.findByRole("list", { name: "Escalation order" });
+    expect(await screen.findByTestId(selectors.escalation.moveUp({ channel: "email" }))).toBeInTheDocument();
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByText(en.settings.sessionEnded.title)).toBeInTheDocument();
+    await waitFor(() => expect(hub.recipientsClient.getEscalationChain.mock.calls.length).toBeGreaterThanOrEqual(2));
+    const list = await screen.findByRole("list", { name: "Escalation order" });
+    expect(within(list).getByText(en.settings.channel.webPush)).toBeInTheDocument();
+    expect(within(list).getByText(en.settings.channel.email)).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toEqual([screen.getByTestId(selectors.session.submit)]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(hub.recipientsClient.setEscalationChain).not.toHaveBeenCalled();
   });
 });

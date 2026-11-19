@@ -2,6 +2,7 @@ package conversations_test
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -58,6 +59,7 @@ func servicePrincipal(name string) apiidentity.Principal {
 type readerFixture struct {
 	client  conversationsconnect.ConversationsServiceClient
 	service *hub.Service
+	primary *sql.DB
 	// url is the address of the in-process Hub, for a caller that is not a Connect client.
 	url string
 }
@@ -98,6 +100,7 @@ func newReaderFixtureBehind(t *testing.T, behind func(http.Handler) http.Handler
 		// roles here; each role's own audience, scope and name rule tell them apart.
 		"snd-treasury":   senderPrincipal("treasury-notification-hub"),
 		"snd-desk":       senderPrincipal("research-desk-notification-hub"),
+		"snd-steward":    senderPrincipal("portfolio-steward-notification-hub"),
 		"snd-wrong-aud":  {Kind: apiidentity.ActorService, Subject: "treasury-notification-hub", Verified: true, Audience: askreader.Audience, Scopes: []string{hubsender.Scope}},
 		"snd-no-scope":   {Kind: apiidentity.ActorService, Subject: "treasury-notification-hub", Verified: true, Audience: hubsender.Audience},
 		"snd-other-name": {Kind: apiidentity.ActorService, Subject: "treasury", Verified: true, Audience: hubsender.Audience, Scopes: []string{hubsender.Scope}},
@@ -130,7 +133,7 @@ func newReaderFixtureBehind(t *testing.T, behind func(http.Handler) http.Handler
 	}
 	server := httptest.NewServer(provenance.Middleware(runs)(entry))
 	t.Cleanup(server.Close)
-	return &readerFixture{client: conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL), service: service, url: server.URL}
+	return &readerFixture{client: conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL), service: service, primary: primary, url: server.URL}
 }
 
 // reading stamps a request with one kind of caller: "" (none), "owner",

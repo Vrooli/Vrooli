@@ -1,14 +1,12 @@
 package integrations
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -58,31 +56,17 @@ func (p EventsPublisher) PublishDomainEvent(ctx context.Context, event eventbus.
 func reconcileDecisionResolution(ctx context.Context, base, owner, subscriptionName string, event eventbus.DomainEvent) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	base = strings.TrimRight(base, "/")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner="+owner, nil)
+	client, err := eventbus.NewSubscriptionClient(base, nil)
 	if err != nil {
 		return err
 	}
-	response, err := http.DefaultClient.Do(req)
+	subscriptions, err := client.ListSubscriptions(ctx, owner)
 	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("list %s subscriptions: %s", owner, response.Status)
-	}
-	var subscriptions []struct {
-		ID      int64  `json:"id"`
-		Name    string `json:"name"`
-		Enabled bool   `json:"enabled"`
-		Pattern string `json:"event_pattern"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&subscriptions); err != nil {
 		return err
 	}
 	var id int64
 	for _, sub := range subscriptions {
-		if sub.Name == subscriptionName && sub.Enabled && sub.Pattern == "notification_hub.ask.resolved.v1" {
+		if sub.Name == subscriptionName && sub.Enabled && sub.EventPattern == "notification_hub.ask.resolved.v1" {
 			if id != 0 {
 				return fmt.Errorf("multiple %s answer subscriptions", owner)
 			}
@@ -98,22 +82,5 @@ func reconcileDecisionResolution(ctx context.Context, base, owner, subscriptionN
 		return err
 	}
 	hash := sha256.Sum256(seed)
-	body, err := json.Marshal(map[string]string{"event_id": hex.EncodeToString(hash[:])})
-	if err != nil {
-		return err
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/v1/subscriptions/%d/deliveries/reconcile", base, id), bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	response, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("reconcile %s answer delivery: %s", owner, response.Status)
-	}
-	return nil
+	return client.ReconcileDelivery(ctx, id, hex.EncodeToString(hash[:]))
 }

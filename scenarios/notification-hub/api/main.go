@@ -443,6 +443,7 @@ func main() {
 // exists; browser test-mode requests must instead fail closed. Pinning closes
 // the race between checking the lease and the handler's first database call.
 func requireRoutedTestLease(db *database.RoutedDB, next http.Handler, fixtureServices ...*hub.Service) http.Handler {
+	const leaseStateHeader = "X-Vrooli-Test-Lease-State"
 	type pendingFixture struct {
 		name       string
 		selectedAt time.Time
@@ -456,11 +457,13 @@ func requireRoutedTestLease(db *database.RoutedDB, next http.Handler, fixtureSer
 		}
 		leaseID := db.ActiveLeaseID()
 		if leaseID == "" {
+			w.Header().Set(leaseStateHeader, "inactive")
 			http.Error(w, "routed test lease is not active", http.StatusServiceUnavailable)
 			return
 		}
 		ctx, err := db.PinTestPool(r.Context(), leaseID)
 		if err != nil {
+			w.Header().Set(leaseStateHeader, "inactive")
 			http.Error(w, "routed test lease is not active", http.StatusServiceUnavailable)
 			return
 		}

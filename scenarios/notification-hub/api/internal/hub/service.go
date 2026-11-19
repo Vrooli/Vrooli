@@ -408,6 +408,7 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 	}
 	s.normalizeStoredTimes(ctx)
 	s.backfillAskSenders(ctx)
+	s.backfillTemplateTitles(ctx)
 }
 
 func (s *Service) SetPushSender(sender PushSender) {

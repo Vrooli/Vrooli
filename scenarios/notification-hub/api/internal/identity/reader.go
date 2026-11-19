@@ -43,7 +43,10 @@ func (p Producer) Audience() hub.AskAudience {
 	case strings.HasPrefix(p.Key, "owner:"):
 		return hub.OwnerAudience()
 	}
-	return hub.AskAudience{CreatedBy: p.Key, Conversation: p.Conversation, Subject: p.Subject}
+	return hub.AskAudience{
+		CreatedBy: p.Key, Conversation: p.Conversation, Subject: p.Subject,
+		DirectSubjectSource: p.Source,
+	}
 }
 
 // ReaderFor resolves which asks the caller of GetAsk, ListAsks or Wait may see.
@@ -86,7 +89,7 @@ func ReaderFor(ctx context.Context, headers http.Header, owner Verifier, service
 	if source, err := hubsender.VerifiedSource(ctx, services.Senders, headers); err == nil {
 		// A sender reads back the asks it sent, as a run does; it never reads the
 		// asks another scenario raised.
-		return hub.AskAudience{CreatedBy: serviceKeyPrefix + source}, nil
+		return hub.AskAudience{CreatedBy: serviceKeyPrefix + source, DirectSubjectSource: source}, nil
 	}
 	return hub.AskAudience{}, owneridentity.ErrUnauthenticated
 }

@@ -14,6 +14,7 @@ import { routes } from "./routeTable";
 import { TestAppRouter } from "./routes";
 
 vi.mock("../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })) },
   notificationsClient: { get: vi.fn(() => Promise.resolve({ notification: { id: "record-1" }, receipts: [] })) },
@@ -36,9 +37,9 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("opens the authenticated Needs you queue at /", async () => {
+  it("opens the read-only Updates feed at /", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(await screen.findByTestId(selectors.pages.asks)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
   it("says so inside the shell when an address is not served, with one way back", async () => {
@@ -46,7 +47,7 @@ describe("AppRouter", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/nowhere"]} />, { withoutRouter: true });
     const page = await screen.findByTestId(selectors.pages.notFound);
     expect(within(page).getByRole("heading", { level: 1, name: en.pages.notFound.title })).toBeInTheDocument();
-    expect(within(page).getByRole("link", { name: en.pages.notFound.home })).toHaveAttribute("href", "/asks");
+    expect(within(page).getByRole("link", { name: en.pages.notFound.home })).toHaveAttribute("href", "/updates");
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
   });
 

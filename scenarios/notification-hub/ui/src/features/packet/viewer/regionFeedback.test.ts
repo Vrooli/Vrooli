@@ -42,8 +42,8 @@ describe("region feedback packet contract", () => {
     manifest.after.viewport.width = 412;
     manifest.after.fidelity = "sketch";
     const parsed = parseRegionFeedbackBundle(manifest);
-    expect(parsed?.issues).toContain("The two captures use different routes.");
-    expect(parsed?.issues).toContain("The two captures use different viewport sizes.");
+    expect(parsed?.issues.map((issue) => issue.code)).toContain("routeMismatch");
+    expect(parsed?.issues.map((issue) => issue.code)).toContain("viewportMismatch");
     expect(parsed?.bundle.after.fidelity).toBe("sketch");
   });
 
@@ -91,6 +91,6 @@ describe("region feedback packet contract", () => {
     const parsed = parseRegionFeedbackBundle(manifest)!;
     const wrong = folder.entries.map((entry) => entry.path === "regions/crops/settings.png" ? { ...entry, sha256: digest("9") } : entry);
     const changedFolder = { ...folder, entries: wrong };
-    expect(validateRegionEntries(parsed.bundle, changedFolder)[0]).toContain("no matching crop image");
+    expect(validateRegionEntries(parsed.bundle, changedFolder)[0]?.code).toBe("regionCropMismatch");
   });
 });

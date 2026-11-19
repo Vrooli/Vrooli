@@ -19,6 +19,7 @@ import { SaveBar } from "../settings/SaveBar";
 import { SettingsScreen } from "../settings/SettingsScreen";
 import { useSettingsPath } from "../settings/testContext";
 import { UnsavedChangesGuard } from "../settings/UnsavedChangesGuard";
+import { useSession } from "../session/useSession";
 import { contentLabel } from "./contentLabel";
 import { CONTENT_LABELS, isContentLabel, newStableAddressId, sameLabels, type ContentLabel } from "./webPush";
 
@@ -60,8 +61,10 @@ export function ChannelPage() {
 function ChannelContent({ deviceId, channel, devicePath }: { deviceId: string; channel: string; devicePath: string }) {
   const { t } = useTranslation();
   const path = useSettingsPath();
-  const devices = useQuery({ ...devicesQuery, refetchOnWindowFocus: true });
-  const addresses = useQuery({ ...channelAddressesQuery, refetchOnWindowFocus: true });
+  const session = useSession();
+  const owner = session.isSuccess && session.data.signedIn;
+  const devices = useQuery({ ...devicesQuery, enabled: owner, refetchOnWindowFocus: true });
+  const addresses = useQuery({ ...channelAddressesQuery, enabled: owner, refetchOnWindowFocus: true });
   // The form edits the address as it was when the form opened. A later read that
   // finds a different row (another tab, a save's own read-back) must not swap the
   // form underneath a draft; the save compares against fresh reads itself.

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "notification-hub/kit/opportunity-roadmap.schema.json",
   "title": "Opportunity roadmap",
-  "description": "Data for templates/opportunity-roadmap.html: every portfolio line on one timeline with its recorded steps, dated plans, saved first-money gate ranges and review history. Sent as a status update. The operator can change a line's weight (answer key 'weight.<id>' = weight key) and ask for a decision on a line ('ask.<id>' = true); absent keys mean no change. Weight choices affect the next planning order only; they do not predict dates or capacity. Optional linked elapsed hours are historical trailing-seven-day measurements, not future allocations. Omit what is unknown; never invent dates.",
+  "description": "Data for templates/opportunity-roadmap.html: every portfolio line on one timeline with its recorded steps, dated plans, saved first-money gate ranges, optional current-step milestone ranges and review history. A milestoneGate is separate from the first-money gate. Sent as a status update. The operator can change a line's weight (answer key 'weight.<id>' = weight key) and ask for a decision on a line ('ask.<id>' = true); absent keys mean no change. Weight choices affect the next planning order only; they do not predict dates or capacity. Optional linked elapsed hours are historical trailing-seven-day measurements, not future allocations. Omit what is unknown; never invent dates.",
   "type": "object",
   "required": [
     "meta",
@@ -183,12 +183,13 @@
         "source": { "$ref": "#/$defs/source" },
         "steps": {
           "type": "array",
+          "description": "Ordered evidence levels and measured counts.",
           "items": {
             "type": "object",
             "required": ["key", "label", "count"],
             "additionalProperties": false,
             "properties": {
-              "key": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+              "key": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$", "description": "Stable evidence-level identifier." },
               "label": { "type": "string", "minLength": 1, "description": "Evidence level in funnel order." },
               "count": { "type": "integer", "minimum": 0, "description": "Observed distinct recorded roadmap steps at this evidence level; not raw job totals or a guessed conversion rate." },
               "note": { "type": "string", "description": "Optional explanation of what evidence qualifies at this level." }
@@ -226,7 +227,7 @@
           },
           "plan": {
             "type": "boolean",
-            "description": "Has a dated plan. Without one, planned phases and the gate are hidden ('Plans as they are') and shown from draft ('Every plan written')."
+            "description": "Has a dated plan. Without one, planned phases and the first-money gate are hidden ('Plans as they are') and shown from draft ('Every plan written'). An explicitly recorded milestoneGate may still be shown independently."
           },
           "weight": {
             "type": "string",
@@ -246,6 +247,10 @@
           },
           "gate": {
             "$ref": "#/$defs/gate"
+          },
+          "milestoneGate": {
+            "$ref": "#/$defs/gate",
+            "description": "Current forecast range for the named actionable roadmap milestone. This range and its slip history are independent of the first-money gate and must never be presented as a payment date."
           },
           "draft": {
             "type": "object",
@@ -303,7 +308,7 @@
           "slip": {
             "type": "object",
             "additionalProperties": false,
-            "description": "The gate forecast at each saved review, oldest first (slip history).",
+            "description": "The forecast range at each saved review, oldest first. When milestoneGate is present, this history belongs to that named milestone; otherwise it belongs to the first-money gate. It never changes the meaning or availability of gate.",
             "properties": {
               "source": {
                 "$ref": "#/$defs/source"
@@ -332,6 +337,10 @@
                       "type": "string",
                       "format": "date-time",
                       "description": "Latest likely date at that review."
+                  },
+                  "ifLaunchedNow": {
+                    "type": "boolean",
+                    "description": "True only when the saved gate range explicitly assumes the work is launched now."
                     }
                   }
                 },
@@ -477,6 +486,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Latest likely date."
+        },
+        "ifLaunchedNow": {
+          "type": "boolean",
+          "description": "True only when the recorded range is conditional on launching the work now; omit when the source did not record this assumption."
         }
       }
     }

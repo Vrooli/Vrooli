@@ -55,8 +55,13 @@ export interface RegionCorrectionEvent {
 
 export interface ParsedRegionFeedback {
   bundle: RegionFeedbackBundle;
-  issues: string[];
+  issues: RegionFeedbackIssue[];
 }
+
+export type RegionFeedbackIssue =
+  | { code: "routeMismatch" | "stateMismatch" | "dataMismatch" | "viewportMismatch" | "sameBuild" }
+  | { code: "imageMismatch"; fidelity: FidelityLabel }
+  | { code: "regionEntryMissing" | "regionCropMismatch"; regionId: string };
 
 const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -114,12 +119,12 @@ export function parseRegionFeedbackBundle(raw: unknown): ParsedRegionFeedback | 
   const ids = new Set(cleanRegions.map((item) => item.id));
   if (ids.size !== cleanRegions.length) return null;
   const bundle: RegionFeedbackBundle = { schema: REGION_FEEDBACK_SCHEMA, id: raw.id, route: raw.route, state_id: raw.state_id, data_id: raw.data_id, before, after, regions: cleanRegions };
-  const issues: string[] = [];
-  if (before.route !== after.route || before.route !== bundle.route) issues.push("The two captures use different routes.");
-  if (before.state_id !== after.state_id || before.state_id !== bundle.state_id) issues.push("The two captures use different interaction states.");
-  if (before.data_id !== after.data_id || before.data_id !== bundle.data_id) issues.push("The two captures use different data sets.");
-  if (before.viewport.width !== after.viewport.width || before.viewport.height !== after.viewport.height) issues.push("The two captures use different viewport sizes.");
-  if (before.build_id === after.build_id) issues.push("The before and after captures name the same build.");
+  const issues: RegionFeedbackIssue[] = [];
+  if (before.route !== after.route || before.route !== bundle.route) issues.push({ code: "routeMismatch" });
+  if (before.state_id !== after.state_id || before.state_id !== bundle.state_id) issues.push({ code: "stateMismatch" });
+  if (before.data_id !== after.data_id || before.data_id !== bundle.data_id) issues.push({ code: "dataMismatch" });
+  if (before.viewport.width !== after.viewport.width || before.viewport.height !== after.viewport.height) issues.push({ code: "viewportMismatch" });
+  if (before.build_id === after.build_id) issues.push({ code: "sameBuild" });
   return { bundle, issues };
 }
 
@@ -137,17 +142,17 @@ export function regionEntryPath(regionId: string): string {
   return `${REGION_NOTE_DIRECTORY}/${encodeURIComponent(regionId)}.json`;
 }
 
-export function validateRegionEntries(bundle: RegionFeedbackBundle, attachment: AskAttachment): string[] {
+export function validateRegionEntries(bundle: RegionFeedbackBundle, attachment: AskAttachment): RegionFeedbackIssue[] {
   const paths = new Set(attachment.entries.map((entry) => entry.path));
-  const issues: string[] = [];
+  const issues: RegionFeedbackIssue[] = [];
   for (const capture of [bundle.before, bundle.after]) {
     const entry = attachment.entries.find((item) => item.path === capture.image.path);
-    if (!entry || !["image/png", "image/jpeg", "image/webp"].includes(entry.mediaType) || entry.sha256 !== capture.image.sha256 || entry.sizeBytes > 20n * 1024n * 1024n) issues.push(`The ${capture.fidelity} image reference is missing or its digest does not match.`);
+    if (!entry || !["image/png", "image/jpeg", "image/webp"].includes(entry.mediaType) || entry.sha256 !== capture.image.sha256 || entry.sizeBytes > 20n * 1024n * 1024n) issues.push({ code: "imageMismatch", fidelity: capture.fidelity });
   }
   for (const region of bundle.regions) {
-    if (!paths.has(regionEntryPath(region.id))) issues.push(`Region ${region.id} has no answerable evidence entry.`);
+    if (!paths.has(regionEntryPath(region.id))) issues.push({ code: "regionEntryMissing", regionId: region.id });
     const crop = attachment.entries.find((item) => item.path === region.crop.path);
-    if (!crop || !["image/png", "image/jpeg", "image/webp"].includes(crop.mediaType) || crop.sha256 !== region.crop.sha256 || crop.sizeBytes > 5n * 1024n * 1024n) issues.push(`Region ${region.id} has no matching crop image.`);
+    if (!crop || !["image/png", "image/jpeg", "image/webp"].includes(crop.mediaType) || crop.sha256 !== region.crop.sha256 || crop.sizeBytes > 5n * 1024n * 1024n) issues.push({ code: "regionCropMismatch", regionId: region.id });
   }
   return issues;
 }

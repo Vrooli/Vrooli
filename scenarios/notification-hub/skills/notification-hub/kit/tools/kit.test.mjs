@@ -5,17 +5,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   KIT_DIR, MAX_PAGE_BYTES, embedJSON, kitSources, loadSample, loadSchema, loadTemplate, render, syncTemplate, templateNames, validate,
 } from "./kit.mjs";
 
-const TEMPLATES = ["daily-briefing", "opportunity-roadmap", "research-report", "structural-change", "usage-mode"];
+const TEMPLATES = ["daily-briefing", "evidence-decision", "opportunity-roadmap", "research-report", "structural-change", "usage-mode"];
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
-test("all five templates exist, each with a schema and a sample", () => {
+test("all six templates exist, each with a schema and a sample", () => {
   assert.deepEqual(templateNames(), TEMPLATES);
   for (const name of TEMPLATES) { loadSchema(name); loadSample(name); }
 });
@@ -51,6 +51,13 @@ test("schemas reject data the templates cannot render honestly", () => {
   assert.ok(structuralErrors.some((e) => e.includes("guardId")), structuralErrors.join("\n"));
   assert.ok(structuralErrors.some((e) => e.includes("hardStop")), structuralErrors.join("\n"));
 
+  const evidence = clone(loadSample("evidence-decision"));
+  evidence.record.decidedBy = "system";
+  evidence.record.title = "x".repeat(81);
+  const evidenceErrors = validate(loadSchema("evidence-decision"), evidence);
+  assert.ok(evidenceErrors.some((e) => e.includes("decidedBy")), evidenceErrors.join("\n"));
+  assert.ok(evidenceErrors.some((e) => e.includes("title")), evidenceErrors.join("\n"));
+
   const roadmap = clone(loadSample("opportunity-roadmap"));
   roadmap.lines.find((l) => l.gate).gate.from = "next week";
   assert.ok(validate(loadSchema("opportunity-roadmap"), roadmap).some((e) => e.includes("gate")));
@@ -73,6 +80,29 @@ test("schemas reject data the templates cannot render honestly", () => {
   assert.ok(validate(loadSchema("research-report"), qualitativeTarget).some((e) => e.includes("was")));
 });
 
+test("research report enforces brief lines and carries asks, evidence, and feedback receipts", () => {
+  const schema = loadSchema("research-report");
+  const sample = clone(loadSample("research-report"));
+  assert.deepEqual(validate(schema, sample), []);
+  assert.equal(schema.properties.evidence.items.$ref, "#/$defs/evidence");
+  assert.deepEqual(schema.$defs.evidence, loadSchema("evidence-decision").$defs.evidence, "report embeds the same canonical evidence record definition");
+  const badLine = clone(sample); badLine.workstreams.items[0].note = "x".repeat(91);
+  assert.ok(validate(schema, badLine).some((e) => e.includes("note")));
+  const longLede = clone(sample); longLede.meta.lede = "x".repeat(141);
+  assert.ok(validate(schema, longLede).some((e) => e.includes("lede")));
+  const badTitle = clone(sample); badTitle.meta.title = "x".repeat(81);
+  assert.ok(validate(schema, badTitle).some((e) => e.includes("title")));
+  const badVerdict = clone(sample); badVerdict.evidence[0].verdict.text = "x".repeat(141);
+  assert.ok(validate(schema, badVerdict).some((e) => e.includes("verdict") || e.includes("text")));
+  const badMethod = clone(sample); badMethod.evidence[0].method[0] = "x".repeat(91);
+  assert.ok(validate(schema, badMethod).some((e) => e.includes("method")));
+  const badAsk = clone(sample); badAsk.asks[0].state = "complete";
+  assert.ok(validate(schema, badAsk).some((e) => e.includes("state")));
+  assert.ok(sample.asks.every((ask) => ask.id && ask.title && ask.workstream));
+  assert.ok(sample.evidence.every((record) => record.format && record.sides.a && record.sides.b));
+  assert.ok(sample.feedbackReceipts.every((receipt) => receipt.said && receipt.status && receipt.progress));
+});
+
 test("research report sample preserves unknown numeric progress and current weight", () => {
   const d = loadSample("research-report");
   const qualitative = d.scorecard.dimensions.find((x) => x.key === "runtime");
@@ -92,6 +122,16 @@ test("the daily pace can be sent without a timeline and with an unknown slot cou
   delete last.points;
   delete daily.schedules[last.key];
   assert.deepEqual(validate(loadSchema("daily-briefing"), daily), []);
+});
+
+test("evidence-decision embeds the canonical evidence record schema without drift", () => {
+  const standalone = clone(loadSchema("evidence"));
+  const decision = loadSchema("evidence-decision");
+  const side = standalone.$defs.side;
+  delete standalone.$schema; delete standalone.$id; delete standalone.title; delete standalone.description; delete standalone.$defs;
+  standalone.properties.sides.properties = { a: side, b: clone(side) };
+  standalone.description = decision.$defs.evidence.description;
+  assert.deepEqual(decision.$defs.evidence, standalone);
 });
 
 test("every field in every schema is documented, and shared definitions agree", () => {
@@ -174,13 +214,13 @@ test("each daily tier with known slots has a contingency schedule with the same 
 const CHROME = ["google-chrome", "chromium", "chromium-browser"].find((c) => spawnSync(c, ["--version"]).status === 0);
 
 // Runs the page in headless Chrome. `act` runs after load; it writes its findings with report(obj).
-function runPage(name, { data, width = 400, act = "", hub = null } = {}) {
+function runPage(name, { data, width = 400, act = "", hub = null, assets = {} } = {}) {
   const probe = `<script>
     window.__errors = [];
     window.addEventListener("error", function (e) { window.__errors.push(String(e.message)); });
     window.__log = [];
-    ${hub ? `window.hub = { context: ${JSON.stringify(hub.context || {})}, prefill: function (q, v) { window.__log.push(["prefill", q, v]); },
-      answer: { set: function (k, l, v) { window.__log.push(["set", k, v]); }, remove: function (k) { window.__log.push(["remove", k]); } } };` : ""}
+    ${hub ? `var __testAssets = ${JSON.stringify(hub.assets || {})}; window.hub = { context: ${JSON.stringify(hub.context || {})}, prefill: function (q, v) { window.__log.push(["prefill", q, v]); },
+      answer: { set: function (k, l, v) { window.__log.push(["set", k, v]); }, remove: function (k) { window.__log.push(["remove", k]); } }, note: function(k,l){window.__log.push(["note",k,l]);}, openAsk: function(id){window.__log.push(["openAsk",id]);}, asset: function (ref) { window.__log.push(["asset", ref]); return Promise.resolve(__testAssets[ref] || ref); } };` : ""}
   </script>`;
   const finish = `<script>
     window.addEventListener("load", function () { setTimeout(function () {
@@ -191,13 +231,14 @@ function runPage(name, { data, width = 400, act = "", hub = null } = {}) {
         out.log = window.__log;
         out.errors = window.__errors.filter(function (m) { return m.indexOf("ResizeObserver") < 0; });
         var pre = document.createElement("pre"); pre.id = "__result"; pre.textContent = JSON.stringify(out); document.body.appendChild(pre);
-      }, 200);
+      }, 700);
     }, 400); });
   </script>`;
-  const page = render(loadTemplate(name), data || loadSample(name)).replace("<head>", "<head>" + probe).replace("</body>", finish + "</body>");
+  let page = render(loadTemplate(name), data || loadSample(name)).replace("<head>", "<head>" + probe).replace("</body>", finish + "</body>");
   const dir = mkdtempSync(join(tmpdir(), "hub-kit-"));
   try {
     const file = join(dir, "page.html");
+    for (const [name, contents] of Object.entries(assets)) { const dest = join(dir, name); mkdirSync(dest.slice(0, dest.lastIndexOf("/")), { recursive: true }); writeFileSync(dest, contents); }
     writeFileSync(file, page);
     const dom = execFileSync(CHROME, ["--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", `--window-size=${width},2000`, "--virtual-time-budget=4000", "--dump-dom", "file://" + file], { encoding: "utf8", timeout: 90000, stdio: ["ignore", "pipe", "ignore"] });
     const m = dom.match(/<pre id="__result">([\s\S]*?)<\/pre>/);
@@ -290,7 +331,7 @@ test("daily and roadmap source badges wrap complete long labels at phone widths"
         document.documentElement.style.width = "${width}px";
         document.body.style.width = "${width}px";
         document.body.style.margin = "0";
-        var badge = document.querySelector(".kc-src");
+        var badge = document.querySelector("${name === "opportunity-roadmap" ? "#hours-src .kc-src" : "#sec-target .kc-src"}");
         var rect = badge.getBoundingClientRect();
         report({ text: badge.textContent, width: badge.clientWidth, scrollWidth: badge.scrollWidth,
           right: rect.right, height: rect.height, viewport: document.documentElement.getBoundingClientRect().width,
@@ -378,6 +419,60 @@ test("opportunity roadmap renders measured funnel counts and linked-step notes",
   assert.equal(r.overflow, false);
 });
 
+test("opportunity roadmap shows current milestone range and its saved slip history without a first-money gate", browser, () => {
+  const data = clone(loadSample("opportunity-roadmap"));
+  const line = data.lines[0];
+  delete line.gate;
+  delete line.draft;
+  line.milestoneGate = { label: "M1 · Current actionable step", from: "2026-11-17T00:00:00Z", to: "2026-11-25T00:00:00Z" };
+  line.slip = {
+    source: { status: "real", label: "saved milestone reviews" },
+    reviews: [
+      { label: "Prior review", from: "2026-11-15T00:00:00Z", to: "2026-11-23T00:00:00Z" },
+      { label: "Latest review", from: "2026-11-17T00:00:00Z", to: "2026-11-25T00:00:00Z" },
+    ],
+  };
+  assert.deepEqual(validate(loadSchema("opportunity-roadmap"), data), []);
+  const r = runPage("opportunity-roadmap", { data, width: 390, act: `
+    var detail = document.querySelector("#view .kc-card__detail");
+    report({ detail: detail.textContent,
+      charts: detail.querySelectorAll(".kc-box:last-child svg").length,
+      sub: document.querySelector("#view .kc-card__sub").textContent,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth });` });
+  assert.deepEqual(r.errors, []);
+  assert.match(r.detail, /Current milestone range · M1 · Current actionable step: 17 Nov–25 Nov\. This is not a first-money date\./);
+  assert.match(r.detail, /Saved forecast history · M1 · Current actionable step/);
+  assert.match(r.detail, /Named milestone · slipped 2 days over 2 reviews/);
+  assert.equal(r.charts, 1, "the milestone history chart renders without a terminal first-money gate");
+  assert.match(r.sub, /Current milestone · M1/);
+  assert.doesNotMatch(r.sub, /First money/);
+  assert.equal(r.overflow, false);
+});
+
+test("opportunity roadmap marks recorded if-launched-now ranges as conditional in the card and timeline", browser, () => {
+  const data = clone(loadSample("opportunity-roadmap"));
+  const line = data.lines[0];
+  line.plan = true;
+  line.gate = { label: "First payment", from: "2026-11-17T00:00:00Z", to: "2026-11-25T00:00:00Z", ifLaunchedNow: true };
+  line.slip = {
+    source: { status: "real", label: "saved final-step gate history" },
+    reviews: [{ label: "Latest review", from: line.gate.from, to: line.gate.to, ifLaunchedNow: true }],
+  };
+  assert.deepEqual(validate(loadSchema("opportunity-roadmap"), data), []);
+  const r = runPage("opportunity-roadmap", { data, width: 390, act: `
+    var card = document.querySelector("#view .kc-card");
+    var range = card.querySelector(".kc-card__sub");
+    var gate = card.querySelector("svg rect[stroke-dasharray='4 3']");
+    var detail = card.querySelector(".kc-card__detail");
+    report({ range: range.textContent, conditionalNote: detail.textContent,
+      dashed: !!gate, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth });` });
+  assert.deepEqual(r.errors, []);
+  assert.match(r.range, /Conditional first-money range/);
+  assert.match(r.conditionalNote, /Conditional range: this saved estimate assumes launch at the saved review time shown in its history/);
+  assert.equal(r.dashed, true, "the timeline marks the recorded assumption visually");
+  assert.equal(r.overflow, false);
+});
+
 test("opportunity roadmap states the funnel is unavailable without drawing invented counts", browser, () => {
   const data = clone(loadSample("opportunity-roadmap"));
   data.funnel = { source: { status: "unavailable", note: "No linked source facts" }, steps: [] };
@@ -433,77 +528,176 @@ test("opportunity roadmap weights do not invent allocation or move saved forecas
   assert.match(JSON.stringify(r.log), /weight\.O5/);
 });
 
-test("research report: qualitative progress and unknown weights stay explicit and choices go into the answer", browser, () => {
+test("roadmap changed row and data notes respond to selection and undo", browser, () => {
+  const data = clone(loadSample("opportunity-roadmap"));
+  data.meta.notice = "Phase intervals and prices are unavailable.";
+  for (const width of [390, 1100]) {
+    const r = runPage("opportunity-roadmap", { data, width, hub: { context: { kind: "status" } }, act: `
+      var notes = document.getElementById("data-notes");
+      var button = document.querySelector(".kc-weight button[data-v=most]"); button.click();
+      var changed = document.querySelectorAll("#view .is-changed").length;
+      var key = window.__log.filter(function (x) { return x[0] === "set"; }).pop()[1];
+      window.dispatchEvent(new CustomEvent("hub:answer-remove", { detail: { key: key } }));
+      var undone = document.querySelectorAll("#view .is-changed").length;
+      var changes = {}; changes[key] = { label: "Restored", value: "most" };
+      window.dispatchEvent(new CustomEvent("hub:answer-restore", { detail: { changes: changes } }));
+      report({ closed: !notes.open, summary: notes.querySelector("summary").textContent, details: notes.textContent, changed: changed, undone: undone, restored: document.querySelectorAll("#view .is-changed").length });` });
+    assert.deepEqual(r.errors, []);
+    assert.equal(r.closed, true); assert.equal(r.summary, "Data notes");
+    assert.match(r.details, /Phase intervals and prices/);
+    assert.match(r.details, /Missing dates stay blank/);
+    assert.equal(r.changed, 1); assert.equal(r.undone, 0); assert.equal(r.restored, 1); assert.equal(r.log.filter((entry) => entry[0] === "set").length, 1);
+  }
+});
+
+test("roadmap sample keeps its illustrative label visible and its data notes collapsed", browser, () => {
+  const r = runPage("opportunity-roadmap", { act: `
+    var notes = document.getElementById("data-notes");
+    report({ open: notes.open, label: notes.querySelector("summary").textContent,
+      missingOutside: Array.from(document.querySelectorAll("#page > header > p")).some(function (p) { return /Missing dates stay blank/.test(p.textContent); }) });` });
+  assert.deepEqual(r.errors, []); assert.equal(r.open, false);
+  assert.match(r.label, /Illustrative sample/); assert.equal(r.missingOutside, false);
+});
+
+test("research report keeps qualitative progress, priority controls, and weight answer keys", browser, () => {
   const d = loadSample("research-report");
   const steerable = d.workstreams.items.filter((w) => w.steerable !== false);
   const known = steerable.find((w) => w.weight);
   const unknown = steerable.find((w) => !w.weight);
-  const dim = d.scorecard.dimensions[0];
+  const dim = d.scorecard.dimensions.find((x) => x.key === "runtime");
   const r = runPage("research-report", { hub: { context: { kind: "status" } }, act: `
-    var rows = document.querySelectorAll("#ws .kc-ws");
-    report({ rows: rows.length, segs: document.querySelectorAll("#ws .kc-ws .kc-seg").length, wins: document.querySelectorAll("#wins .kc-win").length,
-      dims: document.querySelectorAll("#score .kc-prog:not(.kc-prog--axis)").length, qualitative: document.querySelectorAll("#score .kc-prog--qual").length,
-      qualitativeText: document.querySelector("#score .kc-prog--qual .kc-prog__v").textContent, numericSummary: document.querySelector("#overall").textContent,
-      unknownText: [].filter.call(rows, function (row) { return row.querySelector(".kc-ws__id").textContent === ${JSON.stringify(unknown.id)}; })[0].querySelector(".kc-ws__current").textContent,
-      unknownPressed: [].filter.call(rows, function (row) { return row.querySelector(".kc-ws__id").textContent === ${JSON.stringify(unknown.id)}; })[0].querySelectorAll('.kc-seg button[aria-pressed="true"]').length,
-      ranges: document.querySelectorAll("#next .kc-range__bar").length,
-      closed: document.querySelector("#score .kc-prog__more").hidden });
-    document.querySelector("#score .kc-prog:not(.kc-prog--axis)").click();
-    report({ opened: document.querySelector("#score .kc-prog__more").textContent, open: !document.querySelector("#score .kc-prog__more").hidden });
-    function weight(id, v) { [].filter.call(document.querySelectorAll("#ws .kc-ws"), function (r) { return r.querySelector(".kc-ws__id").textContent === id; })[0].querySelector('button[data-v="' + v + '"]').click(); }
-    weight(${JSON.stringify(known.id)}, "more"); weight(${JSON.stringify(known.id)}, ${JSON.stringify(known.weight)}); weight(${JSON.stringify(unknown.id)}, "hold");
-    [].filter.call(document.querySelectorAll("#ws .kc-ws"), function (r) { return r.querySelector(".kc-ws__id").textContent === ${JSON.stringify(unknown.id)}; })[0].querySelector(".kc-ws__clear").click();
-    report({ changes: document.getElementById("ws-changes").textContent });
-    var groups = {}; [].forEach.call(document.querySelectorAll("#ws details.kc-wsg"), function (g) { groups[g.getAttribute("data-state")] = { open: g.open, rows: g.querySelectorAll(".kc-ws").length, ids: g.querySelector(".kc-wsg__ids").textContent }; });
-    report({ groups: groups, first: document.querySelector("#ws details.kc-wsg").getAttribute("data-state") });` });
+    function row(id) { return [].find.call(document.querySelectorAll("#ws .rr-ws"), function (x) { return x.querySelector(".rr-tag").textContent === id; }); }
+    function weight(id, label) { var r=row(id); r.open=true; [].find.call(r.querySelectorAll(".rr-seg button"), function (b) { return b.textContent === label; }).click(); }
+    report({ rows: document.querySelectorAll("#ws .rr-ws").length, segs: Array.from(document.querySelectorAll("#ws .rr-ws")).filter(function (x) { return x.querySelectorAll(".rr-seg button").length > 0; }).length,
+      wins: document.querySelectorAll("#changed .rr-mrow").length, dims: document.querySelectorAll("#score .rr-score-row").length,
+      qualitative: [].find.call(document.querySelectorAll("#score .rr-score-row"), function (x) { return x.querySelector(".rr-score-title").textContent === ${JSON.stringify(dim.title)}; }).textContent,
+      ranges: document.querySelectorAll("#ranges .rr-range").length,
+      groups: Array.from(document.querySelectorAll("#ws .rr-wgroup")).map(function (x) { return x.getAttribute("data-state"); }) });
+    weight(${JSON.stringify(known.id)}, "More"); weight(${JSON.stringify(known.id)}, "Normal"); weight(${JSON.stringify(unknown.id)}, "Hold");
+    report({ changes: document.getElementById("ws-changes").textContent });` });
   assert.deepEqual(r.errors, []);
   assert.equal(r.rows, d.workstreams.items.length);
-  assert.equal(r.segs, steerable.length, "finished workstreams have no weight control");
+  assert.equal(r.segs, steerable.length, "finished workstreams have no priority control");
   assert.equal(r.wins, d.measurements.items.length);
   assert.equal(r.dims, d.scorecard.dimensions.length);
-  assert.equal(r.qualitative, 1);
-  assert.match(r.qualitativeText, /Numeric progress unavailable/);
-  assert.match(r.numericSummary, /Unavailable/);
-  assert.match(r.numericSummary, /1 of 7 dimensions/);
-  assert.match(r.unknownText, /weight unknown/i);
-  assert.equal(r.unknownPressed, 0, "an unknown weight does not select a default");
+  assert.match(r.qualitative, new RegExp(dim.level));
+  assert.match(r.qualitative, new RegExp(dim.reason));
   assert.equal(r.ranges, d.next.items.length);
-  assert.equal(r.closed, true);
-  assert.equal(r.open, true);
-  assert.ok(r.opened.includes(dim.reason) && r.opened.includes(dim.level));
-  assert.deepEqual(r.log, [["set", `weight.${known.id}`, "more"], ["remove", `weight.${known.id}`], ["set", `weight.${unknown.id}`, "hold"], ["remove", `weight.${unknown.id}`]]);
-  assert.doesNotMatch(r.changes, new RegExp(known.id));
-  assert.doesNotMatch(r.changes, new RegExp(`\\b${unknown.id}\\b`));
-  // Rows are grouped by state: what needs the operator first and open, parked work collapsed, changes marked.
-  assert.equal(r.first, "waiting_on_you");
-  assert.equal(r.groups.waiting_on_you.open, true);
-  assert.equal(r.groups.parked.open, true, "the group stays open so the operator can see the cleared row");
-  assert.equal(r.groups.landed.open, false);
-  for (const [k, g] of Object.entries(r.groups)) assert.equal(g.rows, d.workstreams.items.filter((w) => w.state === k).length, k);
-  assert.doesNotMatch(r.groups[known.state].ids, /changed/);
+  assert.deepEqual(r.log, [["set", `weight.${known.id}`, "more"], ["remove", `weight.${known.id}`], ["set", `weight.${unknown.id}`, "hold"]]);
+  assert.doesNotMatch(r.changes, new RegExp(`\\b${known.id}\\b`));
+  assert.ok(r.groups.includes("waiting_on_you") && r.groups.includes("parked") && r.groups.includes("landed"));
 });
 
-test("research report says which sections have no source instead of drawing them", browser, () => {
+test("research report links live asks and renders evidence and feedback receipts", browser, () => {
+  const d = loadSample("research-report");
+  const open = d.asks[0], closed = d.asks[1];
+  const ctx = { kind: "status", asks: {
+    [open.id]: { state: "open", askedAt: "2026-11-16T18:00:00Z" },
+    [closed.id]: { state: "approved", answeredAt: "2026-11-16T20:00:00Z" },
+  } };
+  const r = runPage("research-report", { data: d, width: 320, hub: { context: ctx }, act: `
+    var asks = document.querySelectorAll("#asks .rr-need");
+    asks[0].querySelector("button").click();
+    var receipt = document.querySelector("#receipts .rr-receipt");
+    receipt.querySelector(".ev-note").click();
+    document.documentElement.style.width = "320px"; document.body.style.width = "320px"; document.body.style.margin = "0";
+    location.hash = "#evidence";
+    report({ askCount: asks.length, askState: asks[0].textContent, approvedState: asks[1].textContent, evidenceCount: document.querySelectorAll("#evidence-list .ev-card").length,
+      evidenceTitle: document.querySelector("#evidence-list .ev-card h2").textContent, teaserCount: document.querySelectorAll("#teaser .rr-teaser-card").length,
+      receiptCount: document.querySelectorAll("#receipts .rr-receipt").length, gauge: receipt.querySelector(".rr-gauge").getAttribute("aria-label") || receipt.querySelector(".rr-gauge").textContent, pageWidth: document.documentElement.scrollWidth, bodyWidth: document.body.scrollWidth, rightmost: Array.from(document.querySelectorAll("#view-evidence *")).filter(function(el){return el.getClientRects().length;}).reduce(function(m,el){return Math.max(m,el.getBoundingClientRect().right);},0) });` });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.askCount, 2, "approved asks remain visible until their decision is run");
+  assert.match(r.approvedState, /Approved.*not run yet/i);
+  assert.match(r.askState, /open/i);
+  assert.match(r.askState, /asked/i);
+  assert.deepEqual(r.log.filter((entry) => entry[0] === "openAsk").map((entry) => entry[1]), [open.id]);
+  assert.deepEqual(r.log.filter((entry) => entry[0] === "note").map((entry) => entry[1]), [`fb.${d.feedbackReceipts[0].id}`]);
+  assert.equal(r.evidenceCount, d.evidence.length);
+  assert.equal(r.evidenceTitle, d.evidence[0].title);
+  assert.equal(r.teaserCount, d.evidence.length);
+  assert.equal(r.receiptCount, d.feedbackReceipts.length);
+  assert.match(r.gauge, /was/i);
+  assert.ok(r.bodyWidth <= 320, `report body overflows at 320px: ${r.bodyWidth}px`);
+  assert.ok(r.rightmost <= 320, `evidence content crosses the 320px viewport: ${r.rightmost}px`);
+});
+
+test("research report marks unavailable scorecard and measurements without hiding workstreams", browser, () => {
   const d = clone(loadSample("research-report"));
   d.scorecard = { source: { status: "unavailable", note: "The supervisor has not reviewed this commission yet" } };
-  delete d.measurements;
+  d.measurements = { source: { status: "unavailable", note: "No measurements were retained" } };
   const r = runPage("research-report", { data: d, act: `
-    report({ score: document.getElementById("sec-score").textContent, wins: document.getElementById("sec-measure").textContent, ws: document.querySelectorAll("#ws .kc-ws").length });` });
+    report({ score: document.getElementById("score").textContent, wins: document.getElementById("changed").textContent,
+      ws: document.querySelectorAll("#ws .rr-ws").length });` });
   assert.deepEqual(r.errors, []);
   assert.match(r.score, /unavailable/i);
-  assert.match(r.score, /not reviewed/);
+  assert.match(r.score, /not reviewed/i);
   assert.match(r.wins, /unavailable/i);
   assert.equal(r.ws, d.workstreams.items.length, "other sections still render");
 });
 
 test("every template opens with empty data and says what is missing", browser, () => {
   for (const name of TEMPLATES) {
-    const r = runPage(name, { data: { meta: { title: "Empty" } }, act: `report({ unavailable: document.querySelectorAll(".kc-unavailable").length });` });
+    const r = runPage(name, { data: { meta: { title: "Empty" } }, act: `var empty=document.getElementById("evidence-empty"); report({ unavailable: document.querySelectorAll(".kc-unavailable").length, evidenceEmpty: !!empty && !empty.hidden });` });
     assert.deepEqual(r.errors, [], name);
-    assert.ok(r.unavailable >= 1, `${name}: shows unavailable sections`);
+    assert.ok(r.unavailable >= 1 || (name === "research-report" && r.evidenceEmpty), `${name}: shows a clear empty-state notice`);
   }
 });
 
 test("kit folder is where the docs say", () => {
   assert.ok(readFileSync(join(KIT_DIR, "hub-charts.js"), "utf8").includes("window.HubCharts"));
+});
+
+
+test("evidence kit renders each viewer with real image, audio and video attachments at 320px", browser, () => {
+  const dirAssets = {
+    "media/a.png": Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", "base64"),
+    "media/b.png": Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg==", "base64"),
+  };
+  const wav = Buffer.alloc(44 + 8000);
+  wav.write("RIFF",0); wav.writeUInt32LE(wav.length-8,4); wav.write("WAVEfmt ",8); wav.writeUInt32LE(16,16); wav.writeUInt16LE(1,20); wav.writeUInt16LE(1,22); wav.writeUInt32LE(8000,24); wav.writeUInt32LE(8000,28); wav.writeUInt16LE(1,32); wav.writeUInt16LE(8,34); wav.write("data",36); wav.writeUInt32LE(8000,40); wav.fill(128,44);
+  dirAssets["media/a.wav"] = wav; dirAssets["media/b.wav"] = wav;
+  const dir = mkdtempSync(join(tmpdir(), "hub-evidence-media-"));
+  try {
+    const video = join(dir, "media.webm");
+    const ffmpeg = spawnSync("ffmpeg", ["-loglevel","error","-f","lavfi","-i","color=c=red:s=32x32:d=1:r=10","-c:v","libvpx","-deadline","realtime","-y",video]);
+    assert.equal(ffmpeg.status, 0, "ffmpeg creates a real WebM test clip");
+    dirAssets["media/a.webm"] = readFileSync(video); dirAssets["media/b.webm"] = readFileSync(video);
+  } finally { rmSync(dir, { recursive:true, force:true }); }
+  const side = (label, src, fidelity) => ({ label, src, ...(fidelity ? { fidelity } : {}) });
+  const rec = (id, format, sides, items = []) => ({ id, title: id, format, decidedBy:"agent", sides, items, verdict:{text:"Compared with retained inputs."}, method:["Same source data."], limits:["Small fixture."] });
+  const records = [
+    rec("image", "image", {a:side("A","media/a.png"),b:side("B","media/b.png")}, [{label:"image",a:"media/a.png",b:"media/b.png"}]),
+    rec("audio", "audio", {a:{...side("A","media/a.wav"),transcript:[{word:"hello",start:0,end:.1},{word:"world",start:.1,end:.4}]},b:{...side("B","media/b.wav"),transcript:[{word:"hello",start:0,end:.1},{word:"world",start:.1,end:.4}]}}),
+    rec("video", "video", {a:side("A","media/a.webm"),b:side("B","media/b.webm")}),
+    rec("text", "text", {a:{label:"A",text:"blue sky"},b:{label:"B",text:"blue sea"}}),
+    rec("fields", "fields", {a:{label:"A",fields:{score:2}},b:{label:"B",fields:{score:3}}}),
+    rec("ui", "ui", {a:side("Before","media/a.png","captured"),b:side("After","media/b.png","composited")}, [{label:"screen",a:"media/a.png",b:"media/b.png"}]),
+    rec("measure", "measure", {a:side("A"),b:side("B")}, [{label:"Latency",a:[21,22,19],b:[15,15.5,14],unit:"ms"}]),
+  ];
+  const r = runPage("evidence-decision", {data:{records,options:[{key:"candidate",label:"Use candidate"},{key:"baseline",label:"Keep baseline"}]}, assets:dirAssets, hub:{assets:{"media/a.png":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==","media/b.png":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg=="}}, width:320, act:`
+    document.documentElement.style.width="320px"; document.body.style.width="320px"; document.body.style.margin="0";
+    var image=document.querySelector('[data-format="image"]');
+    var modes=image.querySelectorAll('.ev-seg button'); modes[1].click();
+    var slider=image.querySelector('input[type=range]'); slider.value='73'; slider.dispatchEvent(new Event('input',{bubbles:true}));
+    image.querySelectorAll(".ev-seg button")[2].click();
+    setTimeout(function(){var hasDiff=!!image.querySelector("canvas.ev-diff"), imagesLoaded=Array.from(image.querySelectorAll(".ev-stage-image img")).every(function(x){return x.complete&&x.naturalWidth>0;});image.querySelectorAll(".ev-seg button")[1].click();slider=image.querySelector('input[type=range]');report({diffCanvas:hasDiff,assetCalls:window.__log.filter(function(x){return x[0]==="asset";}).length,imageLoaded:imagesLoaded,audioLoaded:document.querySelectorAll("[data-format=audio] audio").length===2,videoLoaded:document.querySelectorAll("[data-format=video] video").length===2,pressed:Array.from(image.querySelectorAll(".ev-seg button")).map(x=>x.getAttribute("aria-pressed")),sliderValue:slider.value,sliderPos:image.querySelector(".ev-clip").style.width,audioPosition:document.querySelector("[data-format=audio] audio").currentTime,transcriptNow:document.querySelector("[data-format=audio] .ev-lane.b .ev-word.now")&&document.querySelector("[data-format=audio] .ev-lane.b .ev-word.now").textContent,videoControls:document.querySelectorAll("[data-format=video] .ev-video-controls button").length,videoPosition:document.querySelectorAll("[data-format=video] video")[1].currentTime});},500);
+    var audio=document.querySelector('[data-format="audio"]'); audio.querySelector('audio').currentTime=.2; audio.querySelector('audio').dispatchEvent(new Event("timeupdate"));
+    audio.querySelectorAll('.ev-seg button')[1].click();
+    var va=document.querySelector('[data-format="video"] video'); va.currentTime=.35; va.dispatchEvent(new Event('timeupdate'));
+    document.querySelector('[data-format="image"] .ev-note').click();
+    document.querySelector("[data-format=image] .ev-media-side");
+    document.querySelector(".kc-panel .kc-btn").click();
+    report({formats:Array.from(document.querySelectorAll('.ev-card')).map(function(card){return {format:card.querySelector('.ev-pill').textContent,who:card.querySelector('.ev-who').textContent.trim()};}), measureDots:document.querySelectorAll("[data-format=measure] .track .dot").length, imageLoaded:!!document.querySelector('[data-format="image"] img').naturalWidth,
+      audioLoaded:document.querySelectorAll('[data-format="audio"] audio').length===2, videoLoaded:document.querySelectorAll('[data-format="video"] video').length===2,
+      audioPosition:audio.querySelectorAll('audio')[0].currentTime,
+      videoPosition:document.querySelectorAll('[data-format="video"] video')[1].currentTime, uiFidelity:Array.from(document.querySelectorAll('[data-format="ui"] .ev-label')).map(x=>x.textContent), width:document.body.scrollWidth, viewport:document.body.clientWidth});`});
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.formats, ["Image","Audio","Video","Text","Fields","UI","Measure"].map((format) => ({format, who:"Your call"}))); assert.equal(r.measureDots,6);
+  assert.ok(r.imageLoaded); assert.ok(r.diffCanvas); assert.ok(r.assetCalls>=8); assert.ok(r.log.some(function(x){return x[0]==="note"&&x[1]==="evidence.image";})); assert.ok(r.log.some(function(x){return x[0]==="prefill"&&x[2]==="candidate";})); assert.ok(r.audioLoaded); assert.ok(r.videoLoaded);
+  assert.equal(r.sliderValue,"73"); assert.equal(r.sliderPos,"73%");
+  assert.ok(Math.abs(r.audioPosition-.2)<.01, "A/B switch retains playback position"); assert.equal(r.transcriptNow,"world"); assert.ok(r.videoControls>=3);
+  assert.ok(Math.abs(r.videoPosition-.35)<.05, "video follower seeks to leader clock");
+  assert.deepEqual(r.uiFidelity, ["Before · captured", "After · composited"]);
+  assert.equal(r.viewport, 320, JSON.stringify(r));
+  assert.ok(r.width <= r.viewport, `no horizontal overflow at 320px (${r.width}/${r.viewport})`);
 });

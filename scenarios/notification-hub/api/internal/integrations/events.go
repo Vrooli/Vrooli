@@ -1,7 +1,6 @@
 package integrations
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/eventbus"
 	apiidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/scopecatalog"
 	"notification-hub/internal/hub"
@@ -776,97 +776,46 @@ func EnsureEventSubscriptionsRetiring(ctx context.Context, baseURL, target strin
 			return ErrEventIntegrationUnconfigured
 		}
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
-	listURL := baseURL + "/api/v1/subscriptions?owner=notification-hub"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, listURL, nil)
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	client, err := eventbus.NewSubscriptionClient(baseURL, httpClient)
 	if err != nil {
 		return err
 	}
-	response, err := client.Do(request)
-	if err != nil {
-		return fmt.Errorf("list event subscriptions: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", response.Status)
-	}
-	var existing []struct {
-		ID             int64  `json:"id"`
-		Name           string `json:"name"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&existing); err != nil {
-		return fmt.Errorf("decode event subscriptions: %w", err)
-	}
+	desired := make([]eventbus.Subscription, 0, len(specs))
+	desiredNames := make(map[string]struct{}, len(specs))
 	for _, spec := range specs {
-		pattern := strings.TrimSpace(spec.Pattern)
-		var update int64
-		satisfied := false
-		for _, item := range existing {
-			if (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName)) && item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
-				satisfied = true
-				break
-			}
+		name, pattern := strings.TrimSpace(spec.Name), strings.TrimSpace(spec.Pattern)
+		if _, duplicate := desiredNames[name]; duplicate {
+			return fmt.Errorf("duplicate desired event subscription %s", name)
 		}
-		for _, item := range existing {
-			if update == 0 && (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName && item.DeliveryTarget == target)) {
-				update = item.ID
-			}
-		}
-		if satisfied {
+		desiredNames[name] = struct{}{}
+		desired = append(desired, eventbus.Subscription{
+			Name: name, OwnerScenario: "notification-hub", EventPattern: pattern,
+			DeliveryType: "webhook", DeliveryTarget: target, Enabled: true,
+		})
+	}
+	retiredNames := make(map[string]struct{}, len(retired))
+	for _, name := range retired {
+		name = strings.TrimSpace(name)
+		if name == "" {
 			continue
 		}
-		// vrooli-events treats PUT as a full resource replacement. Keep the
-		// owner-controlled identity and delivery type in the update; sending
-		// only the changed fields would fail validation and leave a legacy
-		// pattern active.
-		body, err := json.Marshal(map[string]any{
-			"name":            spec.Name,
-			"owner_scenario":  "notification-hub",
-			"event_pattern":   pattern,
-			"delivery_type":   "webhook",
-			"delivery_target": target,
-			"enabled":         true,
-		})
-		if err != nil {
-			return err
+		if _, conflicts := desiredNames[name]; conflicts {
+			return fmt.Errorf("event subscription %s cannot be both desired and retired", name)
 		}
-		method, url, verb := http.MethodPost, baseURL+"/api/v1/subscriptions", "create"
-		if update != 0 {
-			method, url, verb = http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", baseURL, update), "update"
-		}
-		if err := sendSubscription(ctx, client, method, url, body); err != nil {
-			return fmt.Errorf("%s event subscription %s: %w", verb, spec.Name, err)
-		}
+		retiredNames[name] = struct{}{}
+	}
+	existing, err := client.EnsureNamedSubscriptions(ctx, desired)
+	if err != nil {
+		return err
 	}
 	for _, item := range existing {
-		for _, name := range retired {
-			if item.Name != name || item.ID == 0 {
-				continue
-			}
-			if err := sendSubscription(ctx, client, http.MethodDelete, fmt.Sprintf("%s/api/v1/subscriptions/%d", baseURL, item.ID), nil); err != nil {
-				return fmt.Errorf("retire event subscription %s: %w", name, err)
-			}
+		if _, retiring := retiredNames[item.Name]; !retiring || item.OwnerScenario != "notification-hub" || item.ID <= 0 {
+			continue
 		}
-	}
-	return nil
-}
-
-func sendSubscription(ctx context.Context, client *http.Client, method, url string, body []byte) error {
-	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode >= 400 {
-		return fmt.Errorf("vrooli-events returned %s", response.Status)
+		if err := client.DeleteSubscription(ctx, item.ID); err != nil {
+			return fmt.Errorf("retire event subscription %s: %w", item.Name, err)
+		}
 	}
 	return nil
 }

@@ -1,8 +1,9 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 import { FileQuestion } from "lucide-react";
 
@@ -25,11 +26,13 @@ import { ActionBar } from "./form/ActionBar";
 import { PinnedBar } from "./form/PinnedBar";
 import { SecondaryActions } from "./form/SecondaryActions";
 import { AnswerPanel } from "./form/AnswerPanel";
-import { withPrefill } from "./model/answer";
+import { blockerFor, withPrefill } from "./model/answer";
 import { usePacketDraft } from "./usePacketDraft";
 import { PacketBack } from "./PacketBack";
 import { PacketCover } from "./PacketCover";
+import { PacketNavigation, PacketNavigationButton, usePacketNavigation, usePacketSwipe } from "./PacketNavigation";
 import { Revisions } from "./Revisions";
+import { RootDecisionRead } from "./RootDecisionRead";
 import { RootPasswordAnswer } from "./RootPasswordAnswer";
 import { OutcomeNotices } from "./status/OutcomeNotices";
 import { PacketStatus } from "./status/PacketStatus";
@@ -55,6 +58,9 @@ export function PacketPage() {
   const { askId = "" } = useParams();
   const session = useSession();
   const subject = session.data?.subject ?? "";
+  const { t } = useTranslation();
+  const [rootNotice, setRootNotice] = useState<{ id: string; kind: "recorded" | "changed" | "uncertain" } | null>(null);
+  const [rootRead, setRootRead] = useState<{ id: string; ask: Ask } | null>(null);
   const [expiredAttemptSubject, setExpiredAttemptSubject] = useState("");
   useEffect(() => {
     const onExpired = () => {
@@ -70,17 +76,19 @@ export function PacketPage() {
     retry: (count, error) => !(error instanceof ConnectError && (error.code === Code.NotFound || error.code === Code.Unauthenticated)) && count < 2,
   });
 
+  if (rootNotice?.id === askId && rootNotice.kind === "recorded") return <p role="status">{t(strings.packet.rootPassword.recorded)}</p>;
   if (session.isPending || ask.isPending) return <SkeletonRows rows={3} />;
-  if (ask.error instanceof ConnectError && ask.error.code === Code.Unauthenticated) return <SignInForm />;
+  if (ask.error instanceof ConnectError && ask.error.code === Code.Unauthenticated && rootRead?.id !== askId) return <div className="flex flex-col gap-4">{rootNotice?.id === askId && <p role="alert">{t(rootNotice.kind === "changed" ? strings.packet.rootPassword.changed : strings.packet.rootPassword.uncertain)}</p>}<SignInForm /><RootDecisionRead key={askId} askId={askId} onRead={(value) => { setRootNotice(null); setRootRead({ id: askId, ask: value }); }} /></div>;
+  if (rootRead?.id === askId && !ask.data) return <PacketBody key={`${askId}\u0000root-read`} ask={rootRead.ask} subject="" attemptSubject="" signedIn={false} rootRead onRootRecorded={() => { setRootRead(null); setRootNotice({ id: askId, kind: "recorded" }); }} onRootChanged={() => { setRootRead(null); setRootNotice({ id: askId, kind: "changed" }); }} onRootUncertain={() => { setRootRead(null); setRootNotice({ id: askId, kind: "uncertain" }); }} />;
   if (!ask.data) return <PacketUnavailable error={ask.error} retrying={ask.isFetching} onRetry={() => void ask.refetch()} />;
-  if (ask.data.kind === "status") return <StatusPacketBody ask={ask.data} subject={subject} signedIn={Boolean(session.data?.signedIn)} />;
+  if (ask.data.kind === "status") return <StatusPacketBody key={`${askId}\u0000${subject}`} ask={ask.data} subject={subject} signedIn={session.isSuccess && session.data.signedIn} />;
   return (
     <PacketBody
       key={`${askId}\u0000${subject}`}
       ask={ask.data}
       subject={subject}
       attemptSubject={subject || expiredAttemptSubject}
-      signedIn={Boolean(session.data?.signedIn)}
+      signedIn={session.isSuccess && session.data.signedIn}
     />
   );
 }
@@ -118,12 +126,19 @@ interface PacketBodyProps {
   subject: string;
   attemptSubject: string;
   signedIn: boolean;
+  rootRead?: boolean;
+  onRootRecorded?: () => void;
+  onRootChanged?: () => void;
+  onRootUncertain?: () => void;
 }
 
-function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps) {
+function PacketBody({ ask, subject, attemptSubject, signedIn, rootRead = false, onRootRecorded, onRootChanged, onRootUncertain }: PacketBodyProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { returnTo, section } = usePacketOrigin(ask);
+  const navigation = usePacketNavigation(ask.id, returnTo);
+  usePacketSwipe(navigation);
   useClaimNavSection(section);
   const phone = useMediaQuery(PHONE);
   const now = useNow();
@@ -137,6 +152,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   const [askingContext, setAskingContext] = useState(false);
   const [revisionsOpen, setRevisionsOpen] = useState(false);
   const [answering, setAnswering] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [passwordAnswer, setPasswordAnswer] = useState(false);
   const isRootDecision = ask.source === "root-rebaseline" && ask.sourceEventType === "root.rebaseline.decision_requested.v1";
@@ -146,7 +162,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   const explainer = explainerOf(ask.attachments);
   const hasPacket = ask.attachments.length > 0 || ask.questions.length > 0 || Boolean(ask.templateName);
   // A sent answer is shown as one stacked, read-only form, never as steps.
-  const paged = phone && ask.questions.length >= 2 && !flow.settling;
+  const [paged] = useState(false);
   const openAttachment = useCallback((target: AttachmentTarget) => {
     setLinkedArtifact(undefined);
     setLinkedArtifactError(false);
@@ -218,12 +234,13 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
 
   return (
     <section aria-labelledby="ask-heading" className={`mx-auto flex min-h-full w-full flex-col gap-3 md:gap-5 ${hasPacket ? "max-w-6xl" : "max-w-3xl"}`}>
-      <PacketBack returnTo={returnTo} askId={ask.id} />
-      <div className={hasPacket ? "flex flex-1 flex-col gap-4 md:gap-6 lg:grid lg:flex-none lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start lg:gap-8" : "flex flex-1 flex-col gap-4 md:gap-5"}>
+      <div className={hasPacket ? "flex flex-1 flex-col gap-4 md:gap-6 lg:grid lg:flex-none lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6" : "flex flex-1 flex-col gap-4 md:gap-5"}>
         {showCover ? (
           <div className="flex min-w-0 flex-col gap-4 md:gap-5">
             <PacketCover
               ask={ask}
+              back={<PacketBack returnTo={returnTo} askId={ask.id} compact />}
+              navigation={<PacketNavigation navigation={navigation} />}
               links={links}
               onOpenAttachment={openAttachment}
               outcome={open ? undefined : status}
@@ -237,10 +254,11 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
                       document.getElementById("packet-revisions")?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
                   />
-                  {(explainer || ask.templateName) && <ExplainerFrame askId={ask.id} kind={ask.kind} recurrence={ask.recurrence} templateName={ask.templateName} templateData={ask.templateData} explainer={explainer} attachments={ask.attachments} onOpen={onExplainerOpen} onPrefill={onExplainerPrefill} onAnswerChange={(change) => updateDraft((current) => {
-                    const answerChanges = { ...current.answerChanges };
-                    if (change.operation === "remove") delete answerChanges[change.key];
-                    else answerChanges[change.key] = { label: change.label, value: change.value };
+                  {(explainer || ask.templateName) && <ExplainerFrame askId={ask.id} subject={subject} kind={ask.kind} recurrence={ask.recurrence} templateName={ask.templateName} templateData={ask.templateData} answerChanges={draft.answerChanges} explainer={explainer} attachments={ask.attachments} onOpen={onExplainerOpen} onOpenAsk={(id) => navigate(`/asks/${encodeURIComponent(id)}`)} onPrefill={onExplainerPrefill} onAnswerChange={(change) => updateDraft((current) => {
+                    const { [change.key]: _removed, ...remaining } = current.answerChanges;
+                    const answerChanges = change.operation === "remove"
+                      ? remaining
+                      : { ...remaining, [change.key]: { label: change.label, value: change.value } };
                     return { ...current, answerChanges };
                   })} />}
                 </>
@@ -266,9 +284,6 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
               readError={flow.readError}
               returnTo={returnTo}
             />
-            <p className="text-xs text-app-muted-foreground">
-              {t(strings.packet.status.requestId)} <bdi dir="ltr" className="select-all font-mono">{ask.id}</bdi>
-            </p>
           </div>
         ) : null}
         {hasAnswerColumn && (
@@ -283,12 +298,12 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
               </div>
             )}
             {showForm && !passwordAnswer && prefillNotice}
-            {showForm && !passwordAnswer && form}
-            {showForm && isRootDecision && !flow.settling && !passwordAnswer && (
+            {showForm && !passwordAnswer && !phone && form}
+            {(showForm || rootRead) && isRootDecision && !flow.settling && !passwordAnswer && (
               <Button type="button" variant="outline" onClick={() => setPasswordAnswer(true)}>{t(strings.packet.rootPassword.openForm)}</Button>
             )}
-            {showForm && isRootDecision && passwordAnswer && (
-              <RootPasswordAnswer ask={ask} email="" onCancel={() => setPasswordAnswer(false)} onRecorded={() => { void refreshAsk(); void queryClient.invalidateQueries({ queryKey: ["asks"] }); }} onChanged={() => { void refreshAsk(); }} />
+            {(showForm || rootRead) && isRootDecision && passwordAnswer && (
+              <RootPasswordAnswer ask={ask} email="" onCancel={() => setPasswordAnswer(false)} onRecorded={() => { if (rootRead) onRootRecorded?.(); else { void refreshAsk(); void queryClient.invalidateQueries({ queryKey: ["asks"] }); } }} onChanged={() => { if (rootRead) onRootChanged?.(); else void refreshAsk(); }} onUncertain={rootRead ? onRootUncertain : undefined} />
             )}
             {signedIn && flow.settling && !settled && (
               <PinnedBar>{checkStatus}</PinnedBar>
@@ -296,6 +311,21 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
           </div>
         )}
       </div>
+      {phone && showForm && !passwordAnswer && !flow.settling && (
+        <>
+          <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 flex items-center gap-2 rounded-panel border border-app-border bg-app-surface p-3 shadow-lg">
+            <PacketNavigationButton navigation={navigation} direction="previous" />
+            <button type="button" className="min-h-11 min-w-0 flex-1 text-start text-sm" onClick={() => setDrawerOpen(true)}>
+              {ask.options.find((option) => option.key === draft.answer)?.label || (draft.answer === "other" ? t(strings.packet.form.otherOption) : t(strings.packet.form.choose))}
+            </button>
+            <Button type="button" variant="primary" disabled={flow.busy || blockerFor(ask, draft) !== null} onClick={flow.submit}>{t(strings.packet.statusBar.send)}</Button>
+            <PacketNavigationButton navigation={navigation} direction="next" />
+          </div>
+          <FullPageDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={t(strings.packet.form.stepDecision)} closeLabel={t(strings.packet.form.closeChoices)} contentPadding="comfortable">
+            {form}
+          </FullPageDrawer>
+        </>
+      )}
       {canAnswer && signedIn && paged && !answering && (
         <>
           {open && <SecondaryActions canRequestContext={ask.canRequestContext} onRequestContext={() => setAskingContext(true)} onDismiss={flow.dismiss} dismissing={flow.dismissing} disabled={flow.busy} />}

@@ -30,7 +30,7 @@ describe("styles.css", () => {
 
   // jsdom cannot lay out a sticky bar, so the contract is pinned in the stylesheet: the dock
   // cancels exactly the gutter the shell adds (so no page content shows below it), the tab bar
-  // alone owns the phone's bottom inset, and the pane contains what is absolutely positioned
+  // is hidden on conversation pages, and the pane contains what is absolutely positioned
   // inside it (otherwise the whole document scrolls and slides the tab bar away).
   describe("the pinned answer dock", () => {
     const css = readFileSync("src/styles.css", "utf8");
@@ -43,11 +43,9 @@ describe("styles.css", () => {
       expect(dockRule).toMatch(/margin-inline:\s*calc\(-1 \* var\(--page-gutter\)\)/);
     });
 
-    it("adds the device's bottom inset only beside a sidebar, never above the phone's tab bar", () => {
-      expect(dockRule).toMatch(/--dock-inset:\s*0px/);
-      const inset = [...css.matchAll(/--dock-inset:\s*([^;]+);/g)].map((match) => match[1]);
-      expect(inset).toEqual(["0px", "env(safe-area-inset-bottom, 0px)", "0px"]);
-      expect(/@media \(min-width: 48rem\)\s*\{\s*\.packet-dock\s*\{\s*--dock-inset:\s*env\(safe-area-inset-bottom/.test(css)).toBe(true);
+    it("clears the home indicator on the phone and hides conversation tabs", () => {
+      expect(dockRule).toMatch(/--dock-inset:\s*env\(safe-area-inset-bottom, 0px\)/);
+      expect(css).toMatch(/@media \(max-width: 47\.999rem\)[\s\S]*?\.conversation-shell\[data-rcl-app-shell\]\[data-mobile-nav\] \[data-rcl-app-shell-tabs\]\s*\{\s*display:\s*none/);
     });
 
     it("keeps the main pane the containing block of everything inside it", () => {

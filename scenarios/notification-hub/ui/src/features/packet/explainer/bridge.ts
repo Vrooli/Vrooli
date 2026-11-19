@@ -18,11 +18,15 @@ const MAX_ANSWER_LABEL = 160;
 const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
 
 export type BridgeMessage =
+  | { type: "swipe"; direction: "previous" | "next" }
   | { type: "height"; height: number }
   | { type: "open"; name: string; path: string }
   | { type: "prefill"; questionId: string; value: unknown }
   | { type: "answer"; operation: "set"; key: string; label: string; value: unknown }
-  | { type: "answer"; operation: "remove"; key: string };
+  | { type: "answer"; operation: "remove"; key: string }
+  | { type: "open-ask"; askId: string }
+  | { type: "note"; key: string; label: string }
+  | { type: "asset"; requestId: string; name: string; path: string };
 
 /**
  * The message a frame posted, or null when it must be ignored: it did not
@@ -36,6 +40,8 @@ export function parseBridgeMessage(event: Pick<MessageEvent, "source" | "data">,
   const message = data as Record<string, unknown>;
   if (message.hub !== BRIDGE_PROTOCOL) return null;
   switch (message.type) {
+    case "swipe":
+      return message.direction === "previous" || message.direction === "next" ? { type: "swipe", direction: message.direction } : null;
     case "height": {
       const height = message.height;
       if (typeof height !== "number" || !Number.isFinite(height)) return null;
@@ -67,6 +73,23 @@ export function parseBridgeMessage(event: Pick<MessageEvent, "source" | "data">,
       let size = 0;
       try { size = JSON.stringify(value ?? null).length; } catch { return null; }
       return size <= MAX_ANSWER_BYTES ? { type: "answer", operation, key, label, value } : null;
+    }
+    case "open-ask": {
+      const askId = message.askId;
+      return typeof askId === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(askId) ? { type: "open-ask", askId } : null;
+    }
+    case "note": {
+      const { key, label } = message;
+      return typeof key === "string" && key.trim() && key.length <= MAX_ANSWER_KEY && typeof label === "string" && label.trim() && label.length <= MAX_ANSWER_LABEL
+        ? { type: "note", key, label }
+        : null;
+    }
+    case "asset": {
+      const { requestId, name, path } = message;
+      if (typeof requestId !== "string" || !/^a[0-9]{1,8}$/.test(requestId)) return null;
+      if (typeof name !== "string" || !ATTACHMENT_NAME.test(name)) return null;
+      if (path !== undefined && (typeof path !== "string" || !path || path.length > MAX_ENTRY_PATH || path.split("/").some((part) => !part || part === "." || part === ".."))) return null;
+      return { type: "asset", requestId, name, path: typeof path === "string" ? path : "" };
     }
     default:
       return null;

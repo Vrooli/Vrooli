@@ -6,10 +6,13 @@ import { IdentityService } from "@vrooli/proto-types/notification-hub/v1/identit
 import { NotificationsService } from "@vrooli/proto-types/notification-hub/v1/notifications/notifications_pb";
 import { RecipientsService } from "@vrooli/proto-types/notification-hub/v1/recipients/recipients_pb";
 import { AppDeliveryService } from "@vrooli/proto-types/notification-hub/v1/appdelivery/appdelivery_pb";
+import { currentSessionGeneration } from "./sessionGeneration";
 
 const TEST_MODE_QUERY = "vrooli_test_mode";
 const TEST_MODE_HEADER = "X-Vrooli-Test-Mode";
 const E4_FIXTURE_HEADER = "X-Notification-Hub-E4-Fixture";
+export const ROUTED_TEST_LEASE_EXPIRED_EVENT = "notification-hub:routed-test-lease-expired";
+const TEST_LEASE_STATE_HEADER = "X-Vrooli-Test-Lease-State";
 
 function isRoutedTestMode(): boolean {
   return typeof window !== "undefined" && new URLSearchParams(window.location.search).get(TEST_MODE_QUERY) === "1";
@@ -22,6 +25,7 @@ function isRoutedTestMode(): boolean {
  * into a response body.
  */
 export const sessionFetch: typeof fetch = (input, init) => {
+  const sessionGeneration = currentSessionGeneration();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init?.headers).forEach((value, name) => headers.set(name, value));
   headers.set("X-Vrooli-Browser-Session", "1");
@@ -32,10 +36,13 @@ export const sessionFetch: typeof fetch = (input, init) => {
     if (e4Fixture === "decision-links-phone") headers.set(E4_FIXTURE_HEADER, e4Fixture);
   }
   return fetch(input, { ...init, headers, credentials: "same-origin" }).then((response) => {
+    if (response.status === 503 && isRoutedTestMode() && response.headers.get(TEST_LEASE_STATE_HEADER) === "inactive") {
+      window.dispatchEvent(new Event(ROUTED_TEST_LEASE_EXPIRED_EVENT));
+    }
     // A failed step-up is not evidence that the existing Hub session expired.
     const requestUrl = input instanceof Request ? input.url : String(input);
     const isStepUp = /\/AnswerRootWithPassword(?:[?#]|$)/.test(requestUrl);
-    if (response.status === 401 && typeof window !== "undefined" && !isStepUp) {
+    if (response.status === 401 && typeof window !== "undefined" && !isStepUp && sessionGeneration === currentSessionGeneration()) {
       window.dispatchEvent(new Event("notification-hub:session-expired"));
     }
     return response;

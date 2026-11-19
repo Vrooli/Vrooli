@@ -19,8 +19,7 @@ import (
 
 const testSubject = "operator-subject"
 
-// newServer wires the preferences module with a configured recipient and no
-// verified owner identity, mirroring production read scoping on a bare mux.
+// newServer wires the preferences module with a configured recipient.
 func newServer(t *testing.T) (*mux.Router, *preferences.Storage) {
 	t.Helper()
 	db := databasetest.NewSQLite(t)
@@ -108,6 +107,25 @@ func TestCatalog_EmptyThenAfterSet(t *testing.T) {
 	require.Equal(t, "incident", after.Preferences[0].Category)
 	require.False(t, after.Preferences[0].Enabled)
 	require.Equal(t, "high", after.Preferences[0].MinUrgency)
+}
+
+func TestPreferenceReadsAreUnauthenticatedAndUseConfiguredRecipient(t *testing.T) {
+	r, _ := newServer(t)
+	put := do(t, r, http.MethodPut, "/api/v1/notifications/preferences", map[string]any{
+		"source_scenario": "git-control-tower", "category": "review", "enabled": false,
+	})
+	require.Equal(t, http.StatusOK, put.Code)
+
+	for _, path := range []string{"/api/v1/notifications/catalog", "/api/v1/notifications/preferences"} {
+		anonymous := doWithoutIdentity(t, r, http.MethodGet, path)
+		require.Equal(t, http.StatusOK, anonymous.Code, path)
+		foreign := httptest.NewRequest(http.MethodGet, path, nil)
+		foreign.Header.Set("X-Vrooli-Identity-Subject", "another-owner")
+		foreignResponse := httptest.NewRecorder()
+		r.ServeHTTP(foreignResponse, foreign)
+		require.Equal(t, http.StatusOK, foreignResponse.Code, path)
+		require.JSONEq(t, anonymous.Body.String(), foreignResponse.Body.String(), "read identity must not select another preference account")
+	}
 }
 
 func TestPreferenceWriteStillRequiresIdentity(t *testing.T) {

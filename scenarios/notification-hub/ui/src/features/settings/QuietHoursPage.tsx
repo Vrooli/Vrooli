@@ -28,14 +28,14 @@ export function QuietHoursPage() {
   const { t } = useTranslation();
   return (
     <SettingsScreen title={t(strings.settings.section.quietHours)} description={t(strings.settings.quietHours.description)} backToSettings>
-      <OwnerGate><QuietHoursContent /></OwnerGate>
+      <OwnerGate readOnly={<QuietHoursContent readOnly />}><QuietHoursContent /></OwnerGate>
     </SettingsScreen>
   );
 }
 
 type Editing = { kind: "new" } | { kind: "edit"; schedule: Schedule };
 
-function QuietHoursContent() {
+function QuietHoursContent({ readOnly = false }: { readOnly?: boolean }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const windows = useQuery(quietWindowsQuery);
@@ -50,12 +50,13 @@ function QuietHoursContent() {
   const schedules = groupSchedules(stored);
   const used = schedules.flatMap((schedule) => schedule.days);
   const openEditor = (next: Editing) => { setResult(null); setEditing(next); };
-  const add = (
+  const add = !readOnly && (
     <Button className="min-h-11" type="button" variant="outline" onClick={() => openEditor({ kind: "new" })} data-testid={selectors.quietHours.add}>{t(strings.settings.quietHours.add)}</Button>
   );
 
   return (
     <>
+      {readOnly && <Notice>{t(strings.session.readOnlyBrowse)}</Notice>}
       {result && (
         <Notice tone="success" testId={selectors.quietHours.message}>
           {t(result === "saved" ? strings.settings.quietHours.saved : strings.settings.quietHours.removed)}
@@ -71,7 +72,14 @@ function QuietHoursContent() {
           <ListGroup aria-label={t(strings.settings.section.quietHours)}>
             {schedules.map((schedule) => (
               <ListItem key={schedule.days.join()}>
-                <RowButton
+                {readOnly ? <div className="flex min-h-14 w-full items-center gap-3 px-4 py-3">
+                  <span className="flex flex-1 flex-col">
+                    <span className="text-base font-semibold">{describeDays(schedule.days, lang, t)}</span>
+                    <span className="text-sm text-app-muted-foreground">{describeHours(schedule, lang)}</span>
+                    <span className="text-sm text-app-muted-foreground [overflow-wrap:anywhere]">{schedule.timezone}</span>
+                  </span>
+                  {schedule.criticalOverride && <span className="mt-0.5 shrink-0 rounded-full bg-app-surface-muted px-2 py-0.5 text-xs">{t(strings.settings.quietHours.criticalChip)}</span>}
+                </div> : <RowButton
                   onClick={() => openEditor({ kind: "edit", schedule })}
                   data-testid={selectors.quietHours.schedule({ day: dayKey(schedule.days[0] ?? 0) })}
                   trailing={schedule.criticalOverride ? <span className="mt-0.5 shrink-0 rounded-full bg-app-surface-muted px-2 py-0.5 text-xs">{t(strings.settings.quietHours.criticalChip)}</span> : undefined}
@@ -81,14 +89,14 @@ function QuietHoursContent() {
                     <span className="text-sm text-app-muted-foreground">{describeHours(schedule, lang)}</span>
                     <span className="text-sm text-app-muted-foreground [overflow-wrap:anywhere]">{schedule.timezone}</span>
                   </span>
-                </RowButton>
+                </RowButton>}
               </ListItem>
             ))}
           </ListGroup>
           {used.length < 7 && <div>{add}</div>}
         </>
       )}
-      {editing && (
+      {!readOnly && editing && (
         <QuietScheduleEditor
           key={editing.kind === "edit" ? editing.schedule.days.join() : "new"}
           stored={stored}

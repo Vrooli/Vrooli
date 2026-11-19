@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { appDeliveryClient } from "../../api/notifications";
@@ -10,6 +10,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { Notice } from "../settings/Notice";
+import { sessionQueryKey, useSession } from "../session/useSession";
 
 interface Removal { id: string; app: string; device: string }
 
@@ -20,18 +21,27 @@ interface Removal { id: string; app: string; device: string }
  */
 export function DeviceAppsPanel() {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const session = useSession();
   const [outcome, setOutcome] = useState<{ ok: boolean; app: string; device: string } | null>(null);
   const [confirming, setConfirming] = useState<Removal | null>(null);
-  const devices = useQuery({ queryKey: ["device-apps"], queryFn: () => appDeliveryClient.listDeviceApps({}), refetchOnWindowFocus: true });
+  const owner = session.isSuccess && session.data.signedIn;
+  const devices = useQuery({ queryKey: ["device-apps"], queryFn: () => appDeliveryClient.listDeviceApps({}), enabled: owner, refetchOnWindowFocus: true });
   const remove = useMutation({
     mutationFn: async (input: Removal) => {
+      const sessionNow = queryClient.getQueryData<{ signedIn?: boolean }>(sessionQueryKey);
+      if (!sessionNow?.signedIn) throw new Error("owner session required");
       await appDeliveryClient.removeDeviceApp({ subscriptionId: input.id });
       return input;
     },
     onSuccess: (input) => setOutcome({ ok: true, app: input.app, device: input.device }),
     onError: (_error, input) => setOutcome({ ok: false, app: input.app, device: input.device }),
-    onSettled: () => void devices.refetch(),
+    onSettled: () => {
+      const sessionNow = queryClient.getQueryData<{ signedIn?: boolean }>(sessionQueryKey);
+      if (sessionNow?.signedIn) void devices.refetch();
+    },
   });
+  useEffect(() => { if (!owner) setConfirming(null); }, [owner]);
   const rows = devices.data?.devices ?? [];
   const lastSeen = (iso: string) => {
     const parsed = new Date(iso);

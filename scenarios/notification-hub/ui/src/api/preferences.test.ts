@@ -108,7 +108,7 @@ describe("api/preferences", () => {
       const headers = new Headers(init.headers);
       expect(headers.get("Content-Type")).toBe("application/json");
       expect(headers.get("X-Vrooli-Browser-Session")).toBe("1");
-      expect(init.body).toBe(JSON.stringify(preference));
+      expect(JSON.parse(init.body as string)).toEqual(preference);
     });
 
     it("raises an error with the status code when the update fails", async () => {

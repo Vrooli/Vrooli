@@ -15,6 +15,7 @@ const HIDDEN_READ_FAILURE = "hidden read failure";
 const DETAIL_FAILURE = "private detail failure";
 
 vi.mock("../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })), login: vi.fn() },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })), listNativeConsents: vi.fn(() => Promise.resolve({ consents: [] })) },
   notificationsClient: { get: vi.fn() },

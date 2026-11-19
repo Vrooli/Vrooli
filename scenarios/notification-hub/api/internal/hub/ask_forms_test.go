@@ -459,6 +459,28 @@ func TestAnswerForm_AnAnswerCheckedAgainstARevisedFormIsRefusedNotStored(t *test
 	require.Equal(t, 1, revisions)
 }
 
+func TestRootDecisionCannotBeAnsweredWhenDeadlinePassesDuringValidation(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	start := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	at(service, start)
+	spec := subjectSpec(start, "root-deadline")
+	spec.Source = "root-rebaseline"
+	spec.SourceEventType = "root.rebaseline.decision_requested.v1"
+	spec.Deadline = start.Add(time.Minute)
+	spec.DeadlineSpecified = true
+	spec.ProviderDecisionContext = &hub.ProviderDecisionContext{SchemaVersion: 1, Scope: hub.ProviderDecisionScopeRootRebaseline, CanonicalTermsSHA256: strings.Repeat("a", 64)}
+	ask, _, err := service.AskWithSpec(ctx, spec)
+	require.NoError(t, err)
+	service.SetBeforeAnswerCommitForTest(func() { at(service, spec.Deadline) })
+	_, err = service.AnswerAsk(ctx, hub.AnswerInput{AskID: ask.ID, Answer: "retry", Actor: "alice"})
+	require.ErrorIs(t, err, hub.ErrAskResolved)
+	current, err := service.GetAsk(ctx, ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskPending, current.State)
+	require.Zero(t, countRows(t, db, `answers`))
+}
+
 // droppedWarnings are the packet check's findings that a part was left out.
 func droppedWarnings(result hub.AskResult) []hub.PacketWarning {
 	var dropped []hub.PacketWarning

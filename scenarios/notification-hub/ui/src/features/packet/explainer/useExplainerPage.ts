@@ -42,11 +42,11 @@ function blobToDataUrl(blob: Blob, mediaType: string): Promise<string> {
  * that open the viewer. Only the page itself failing is an error, and that
  * never blocks the decision.
  */
-export function useExplainerPage(askId: string, explainer: AskAttachment | undefined, attachments: readonly AskAttachment[]) {
+export function useExplainerPage(askId: string, subject: string, explainer: AskAttachment | undefined, attachments: readonly AskAttachment[]) {
   const others = attachments.filter((attachment) => attachment.name !== explainer?.name);
   const fingerprint = explainer ? [explainer, ...others].map((attachment) => `${attachment.name}:${attachment.sha256}:${attachment.entries.length}`).join("|") : "kit-template";
   return useQuery({
-    queryKey: ["ask-explainer", askId, fingerprint],
+    queryKey: ["ask-explainer", subject, askId, fingerprint],
     enabled: Boolean(explainer),
     staleTime: Infinity,
     retry: 1,

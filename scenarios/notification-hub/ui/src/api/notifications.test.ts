@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { conversationsClient, identityClient, recipientsClient, registerBrowserPushSubscription } from "./notifications";
+import { conversationsClient, identityClient, recipientsClient, registerBrowserPushSubscription, sessionFetch } from "./notifications";
+import { advanceSessionGeneration } from "./sessionGeneration";
 
 describe("browser push registration", () => {
   const register = vi.spyOn(recipientsClient, "registerPushSubscription");
@@ -73,6 +74,23 @@ describe("browser push registration", () => {
     }
   });
 
+  it("ignores an old request's delayed 401 after the session generation changes", async () => {
+    let resolveFetch!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve; })));
+    const expired = vi.fn();
+    window.addEventListener("notification-hub:session-expired", expired);
+    try {
+      const sessionRequest = sessionFetch("/api/v1/private");
+      advanceSessionGeneration();
+      resolveFetch(new Response("unauthorized", { status: 401 }));
+      await sessionRequest;
+      expect(expired).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("notification-hub:session-expired", expired);
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("does not expire the Hub session when step-up credentials are rejected", async () => {
     const expired = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 401 })));
@@ -103,6 +121,24 @@ describe("browser push registration", () => {
       expect(new Headers(ordinaryInit.headers).has("X-Vrooli-Test-Mode")).toBe(false);
       expect(new Headers(ordinaryInit.headers).has("X-Notification-Hub-E4-Fixture")).toBe(false);
     } finally {
+      window.history.replaceState({}, "", "/");
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("announces an ended routed-test lease without treating unrelated 503s as test teardown", async () => {
+    window.history.replaceState({}, "", "/settings/reach?vrooli_test_mode=1&e4_fixture=old");
+    const expired = vi.fn();
+    window.addEventListener("notification-hub:routed-test-lease-expired", expired);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 503, headers: { "X-Vrooli-Test-Lease-State": "inactive" } })));
+    try {
+      await expect(identityClient.getSession({})).rejects.toBeDefined();
+      expect(expired).toHaveBeenCalledTimes(1);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 503 })));
+      await expect(identityClient.getSession({})).rejects.toBeDefined();
+      expect(expired).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener("notification-hub:routed-test-lease-expired", expired);
       window.history.replaceState({}, "", "/");
       vi.unstubAllGlobals();
     }

@@ -1,6 +1,6 @@
 import { en } from "../i18n/catalog";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 
 import { renderWithProviders } from "../test-utils";
@@ -10,11 +10,12 @@ import { setLocale } from "../i18n";
 import { DashboardPage } from "./DashboardPage";
 
 vi.mock("../api/notifications", () => ({
+  identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   deliveryClient: { getTimeline: vi.fn() },
   conversationsClient: { listAsks: vi.fn() },
 }));
 
-import { conversationsClient, deliveryClient } from "../api/notifications";
+import { conversationsClient, deliveryClient, identityClient } from "../api/notifications";
 
 const getTimeline = vi.mocked(deliveryClient.getTimeline);
 const listAsks = vi.mocked(conversationsClient.listAsks);
@@ -22,6 +23,7 @@ const listAsks = vi.mocked(conversationsClient.listAsks);
 describe("Updates page", () => {
   afterEach(() => {
     vi.resetAllMocks();
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: true, subject: "owner-1" } as never);
   });
 
   it("Given a native notification, when Updates opens, then its safe original source is linked without a Hub approval", async () => {
@@ -46,6 +48,18 @@ describe("Updates page", () => {
     expect(page).toHaveTextContent("When an agent sends you something, it shows up here.");
     expect(screen.queryByTestId(selectors.health.card)).not.toBeInTheDocument();
     expect(listAsks).toHaveBeenCalledWith({ openOnly: false, limit: 200 });
+  });
+
+  it("shows Updates without querying private ask links when signed out", async () => {
+    await setLocale("en");
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
+    getTimeline.mockResolvedValue({ notifications: [{ id: "read-only", title: "Visible update", state: NotificationState.DELIVERED }] } as never);
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getByTestId(selectors.pages.dashboard)).toHaveTextContent("Visible update"));
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(screen.queryByText(/ask links are unavailable/i)).not.toBeInTheDocument();
   });
 
   it("shows informational content and the seven native states without read or acknowledgement controls", async () => {
@@ -75,7 +89,7 @@ describe("Updates page", () => {
     }
     expect(page).not.toHaveTextContent("raw adapter failure sentinel");
     expect(page).toHaveTextContent(/Unknown status.*Unknown status/s);
-    const decisionLink = screen.getByRole("link", { name: "Open decision" });
+    const decisionLink = await screen.findByRole("link", { name: "Open decision" });
     expect(decisionLink).toHaveAttribute("href", "/asks/ask-1");
     expect(decisionLink).toHaveClass("min-h-11", "inline-flex");
     expect(screen.getAllByRole("link", { name: "Delivery details" })).toHaveLength(9);
@@ -156,7 +170,7 @@ describe("Updates page", () => {
       notifications: [{ id: "notification-1", title: "Informational update", body: "Details", state: NotificationState.PENDING }],
     } as never);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
-    queryClient.setQueryData(["updates", "linked-asks"], {
+    queryClient.setQueryData(["updates", "linked-asks", "owner-1"], {
       asks: [{ id: "stale-ask", notificationId: "notification-1", state: "pending" }],
     });
     listAsks.mockRejectedValue(new Error("offline"));
@@ -165,7 +179,7 @@ describe("Updates page", () => {
 
     const page = await screen.findByTestId(selectors.pages.dashboard);
     expect(page).toHaveTextContent("Informational update");
-    expect(page).toHaveTextContent("Couldn’t check which updates have a decision, so decision links are hidden.");
+    expect(await screen.findByText(en.pages.dashboard.askLinksUnavailable)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
     queryClient.clear();
   });

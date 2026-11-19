@@ -29,11 +29,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
 /**
  * Whether the item is the current destination. A page may claim a destination
  * (see `useClaimNavSection`), which wins; otherwise `pathname` decides, with the
- * index route belonging to Needs you.
+ * index route belonging to Updates.
  */
 export function isCurrent(item: NavItem, pathname: string, claimed: NavItem["key"] | null = null): boolean {
   if (claimed) return item.key === claimed;
-  const path = pathname === "/" ? "/asks" : pathname;
+  const path = pathname === "/" ? "/updates" : pathname;
   return item.within.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }
 

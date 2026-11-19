@@ -128,7 +128,9 @@ regenerates from the CLI's own output.
 
 One `Wait` call never lasts longer than ten minutes (`hub.MaxWaitSlice`), whatever
 deadline the caller gave: the Hub then returns the ask as it is, still open, with
-the reason `wait_slice`. The server's ordinary 30 s write deadline would otherwise
+the reason `wait_slice`. Maintenance preparation may also return a pending ask
+early with that prefix, so the caller can resume waiting after the service returns.
+The server's ordinary 30 s write deadline would otherwise
 cut a longer response, which a caller saw as a bare EOF; `Wait` is mounted with an
 operation budget (`apiserver.WithOperationBudget`) of the slice plus a margin. The
 CLI asks again until its own deadline, and also carries on across a dropped
@@ -700,6 +702,10 @@ script exposes:
 | `hub.open(name, path?)` | Opens an attachment in the Hub viewer. Elements with `data-hub-open="name"` do this on tap. |
 | `hub.prefill(questionId, response)` | Fills one form question in the draft (`response` is an `AskQuestionResponse` in JSON form, or a choice key string). Also `hub.prefill("answer", key)` for the main option. The operator still submits. |
 | `hub.theme` | `"light"` or `"dark"`; the page root also gets `data-theme`. A page locked to one scheme (`data-hub-scheme`) keeps it. |
+| `hub.note(key, label)` | Opens a Hub-owned note sheet. Saved notes and uploaded file references are sent under `changes.notes[key]`. |
+| `hub.openAsk(id)` | Opens another Hub ask at `/asks/<id>`. |
+| `hub.context.asks[id]` | Live `{state, askedAt, answeredAt, question}` for up to 20 distinct ids named in page data `asks[]`; inaccessible ids have `state: "unknown"`. `hub.context.asksTruncated` reports when additional ids were omitted. |
+| `await hub.asset("folder-name/relative/path")` | Resolves an existing entry in an attached folder to a data URL (up to 12 MiB); invalid, missing or larger entries return `null`. |
 
 Height is reported automatically. The Hub ignores any other message.
 

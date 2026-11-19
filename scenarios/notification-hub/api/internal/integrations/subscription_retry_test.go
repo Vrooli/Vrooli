@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,7 +34,7 @@ func TestDecisionSubscriptionRepairsNamedRowAfterPortChange(t *testing.T) {
 	updated := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_, _ = w.Write([]byte(`[{"id":42,"name":"notification-hub-decisions","event_pattern":"*.decision_requested.v1","delivery_target":"http://old/events","enabled":false}]`))
+			_, _ = w.Write([]byte(`[{"id":42,"name":"notification-hub-decisions","owner_scenario":"notification-hub","event_pattern":"*.decision_requested.v1","delivery_type":"webhook","delivery_target":"http://old/events","enabled":false}]`))
 			return
 		}
 		if r.Method != http.MethodPut || r.URL.Path != "/api/v1/subscriptions/42" {
@@ -54,6 +55,42 @@ func TestDecisionSubscriptionRepairsNamedRowAfterPortChange(t *testing.T) {
 	}
 	if !updated {
 		t.Fatal("named subscription not repaired")
+	}
+}
+
+func TestDecisionSubscriptionRepairsSourceFilterAndDisablesNamedDuplicates(t *testing.T) {
+	rows := []map[string]any{
+		{"id": 1, "name": "notification-hub-decisions", "owner_scenario": "notification-hub", "event_pattern": DecisionRequestPattern, "source_filter": "stale-source", "delivery_type": "webhook", "delivery_target": "http://hub/events", "enabled": true},
+		{"id": 2, "name": "notification-hub-decisions", "owner_scenario": "notification-hub", "event_pattern": DecisionRequestPattern, "delivery_type": "webhook", "delivery_target": "http://hub/events", "enabled": true},
+	}
+	updated := map[int64]map[string]any{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(rows)
+		case http.MethodPut:
+			id := int64(0)
+			if _, err := fmt.Sscanf(r.URL.Path, "/api/v1/subscriptions/%d", &id); err != nil {
+				t.Errorf("parse update path %q: %v", r.URL.Path, err)
+			}
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("decode update payload: %v", err)
+			}
+			updated[id] = payload
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Errorf("unexpected method %s", r.Method)
+			http.Error(w, "unexpected", http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	if err := EnsureDecisionSubscription(context.Background(), server.URL, "http://hub/events"); err != nil {
+		t.Fatal(err)
+	}
+	if sourceFilter := updated[1]["source_filter"]; len(updated) != 2 || updated[2]["enabled"] != false || (sourceFilter != nil && sourceFilter != "") || updated[1]["enabled"] != true {
+		t.Fatalf("named route updates = %#v, want duplicate 2 disabled and canonical 1 repaired to the complete projection", updated)
 	}
 }
 

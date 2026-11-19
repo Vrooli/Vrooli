@@ -143,6 +143,7 @@
   },
   "sources": {
     "description": "Choose which apps may notify you, and the lowest urgency that gets through.",
+    "readOnly": "You can review these preferences without signing in. Sign in to change them.",
     "emptyTitle": "No sources yet",
     "emptyDetail": "When an app starts sending you notifications, it will appear here.",
     "loadFailed": "Couldn’t load event sources",

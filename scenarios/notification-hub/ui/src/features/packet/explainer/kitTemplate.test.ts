@@ -26,12 +26,12 @@ describe("Hub kit template rendering", () => {
   it("rejects data that does not match the published template schema", () => {
     const result = renderKitTemplate("usage-mode", {});
     expect(result.html).toBe("");
-    expect(result.error).toContain("template data is invalid");
+    expect(result.error).toBe("dataInvalid");
   });
 
   it("reports a template that is absent from this Hub build", () => {
     const result = renderKitTemplate("not-published", {});
     expect(result.html).toBe("");
-    expect(result.error).toContain("not available");
+    expect(result.error).toBe("unavailable");
   });
 });

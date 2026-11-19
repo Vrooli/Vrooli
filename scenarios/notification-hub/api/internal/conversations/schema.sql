@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS asks (
   template_name TEXT NOT NULL DEFAULT '',
   template_data_json TEXT NOT NULL DEFAULT ''
 );
+-- A recipient's explicit approval for one verified service to continue one
+-- existing direct ask. This is an audit fact, never inferred from its key.
+CREATE TABLE IF NOT EXISTS ask_source_attestations (
+  ask_id TEXT NOT NULL REFERENCES asks(id) ON DELETE CASCADE,
+  source TEXT NOT NULL,
+  recipient TEXT NOT NULL,
+  attested_at TEXT NOT NULL,
+  PRIMARY KEY (ask_id, source, recipient)
+);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
 CREATE INDEX IF NOT EXISTS idx_asks_resolution_outbox ON asks(resolution_published_at, resolved_at, id);
 -- The open asks, in attention order: the inbox page, the awaiting count and the
@@ -252,3 +261,14 @@ CREATE TABLE IF NOT EXISTS ask_attachment_entries (
   FOREIGN KEY (ask_id, attachment_name) REFERENCES ask_attachments(ask_id, name) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_ask_attachment_entries_sha ON ask_attachment_entries(sha256);
+
+-- Narrow proof association for root decision answers; never grants Hub access.
+CREATE TABLE IF NOT EXISTS root_enrollments (
+  recipient TEXT NOT NULL, cloudflare_subject TEXT NOT NULL, authenticator_subject TEXT NOT NULL,
+  PRIMARY KEY (recipient, cloudflare_subject, authenticator_subject)
+);
+
+CREATE TABLE IF NOT EXISTS root_enrollment_generations (
+ recipient TEXT NOT NULL, cloudflare_subject TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 0,
+ PRIMARY KEY (recipient, cloudflare_subject)
+);

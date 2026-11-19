@@ -1,0 +1,52 @@
+{
+  "record": {
+    "id": "img-check-01",
+    "title": "Generated image comparison",
+    "format": "image",
+    "decidedBy": "agent",
+    "sides": {
+      "a": {
+        "label": "Baseline"
+      },
+      "b": {
+        "label": "Candidate"
+      }
+    },
+    "items": [
+      {
+        "label": "Sample 1",
+        "a": "evidence/images/baseline.png",
+        "b": "evidence/images/candidate.png",
+        "prompt": "A red bicycle beside a tree"
+      }
+    ],
+    "facts": [
+      {
+        "label": "Resolution",
+        "a": "1024 × 1024",
+        "b": "1024 × 1024"
+      }
+    ],
+    "verdict": {
+      "text": "Candidate follows the requested composition more closely.",
+      "recommendation": "Candidate"
+    },
+    "method": [
+      "Compared the same prompt and seed."
+    ],
+    "limits": [
+      "One prompt; no blinded preference study."
+    ],
+    "workstream": "LM17"
+  },
+  "options": [
+    {
+      "key": "candidate",
+      "label": "Use candidate"
+    },
+    {
+      "key": "baseline",
+      "label": "Keep baseline"
+    }
+  ]
+}

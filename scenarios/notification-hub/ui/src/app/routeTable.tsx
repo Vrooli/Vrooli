@@ -23,7 +23,9 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     errorElement: <RouteError />,
     children: [
-      { index: true, element: <AsksPage /> },
+      // Start on the useful read-only feed; the decision queue is explicitly
+      // available at /asks and requires an owner session.
+      { index: true, element: <DashboardPage /> },
       { path: "updates", element: <DashboardPage /> },
       { path: "asks", element: <AsksPage /> },
       { path: "asks/:askId", element: <PacketPage /> },

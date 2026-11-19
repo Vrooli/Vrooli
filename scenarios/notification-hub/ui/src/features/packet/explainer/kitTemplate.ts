@@ -33,37 +33,37 @@ function validateSchema(schema: Schema, data: JsonValue): string[] {
     if (typeof rule.$ref === "string") {
       const target = resolveRef(rule.$ref);
       if (target) check(target, value, path, out);
-      else out.push(`${path}: schema reference is unavailable`);
+      else out.push("invalid");
       return;
     }
     const expected = Array.isArray(rule.type) ? rule.type : typeof rule.type === "string" ? [rule.type] : [];
     if (expected.length && !expected.some((kind) => typeof kind === "string" && matchesType(value, kind))) {
-      out.push(`${path}: expected ${expected.join(" or ")}, got ${typeOf(value)}`);
+      out.push("invalid");
       return;
     }
-    if (Array.isArray(rule.enum) && !rule.enum.some((item) => sameJSON(item as JsonValue, value))) out.push(`${path}: value is not in the allowed set`);
-    if (Object.prototype.hasOwnProperty.call(rule, "const") && !sameJSON(rule.const as JsonValue, value)) out.push(`${path}: value does not match the required constant`);
+    if (Array.isArray(rule.enum) && !rule.enum.some((item) => sameJSON(item as JsonValue, value))) out.push("invalid");
+    if (Object.prototype.hasOwnProperty.call(rule, "const") && !sameJSON(rule.const as JsonValue, value)) out.push("invalid");
     if (typeof value === "number") {
-      if (typeof rule.minimum === "number" && value < rule.minimum) out.push(`${path}: must be at least ${rule.minimum}`);
-      if (typeof rule.maximum === "number" && value > rule.maximum) out.push(`${path}: must be at most ${rule.maximum}`);
+      if (typeof rule.minimum === "number" && value < rule.minimum) out.push("invalid");
+      if (typeof rule.maximum === "number" && value > rule.maximum) out.push("invalid");
     }
     if (typeof value === "string") {
-      if (typeof rule.minLength === "number" && value.length < rule.minLength) out.push(`${path}: must contain at least ${rule.minLength} characters`);
-      if (typeof rule.pattern === "string" && !new RegExp(rule.pattern).test(value)) out.push(`${path}: format is invalid`);
-      if (rule.format === "date-time" && (!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(value) || Number.isNaN(Date.parse(value)))) out.push(`${path}: must be an ISO date and time`);
+      if (typeof rule.minLength === "number" && value.length < rule.minLength) out.push("invalid");
+      if (typeof rule.pattern === "string" && !new RegExp(rule.pattern).test(value)) out.push("invalid");
+      if (rule.format === "date-time" && (!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(value) || Number.isNaN(Date.parse(value)))) out.push("invalid");
     }
     if (Array.isArray(value)) {
-      if (typeof rule.minItems === "number" && value.length < rule.minItems) out.push(`${path}: needs at least ${rule.minItems} items`);
-      if (typeof rule.maxItems === "number" && value.length > rule.maxItems) out.push(`${path}: allows at most ${rule.maxItems} items`);
+      if (typeof rule.minItems === "number" && value.length < rule.minItems) out.push("invalid");
+      if (typeof rule.maxItems === "number" && value.length > rule.maxItems) out.push("invalid");
       if (rule.items && typeof rule.items === "object") value.forEach((item, index) => check(rule.items as Schema, item, `${path}[${index}]`, out));
     }
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-      const object = value as JsonObject;
+      const object = value;
       const properties = rule.properties && typeof rule.properties === "object" ? rule.properties as Record<string, Schema> : {};
-      if (Array.isArray(rule.required)) for (const key of rule.required) if (typeof key === "string" && !(key in object)) out.push(`${path}: missing field "${key}"`);
+      if (Array.isArray(rule.required)) for (const key of rule.required) if (typeof key === "string" && !(key in object)) out.push("invalid");
       for (const [key, item] of Object.entries(object)) {
         if (properties[key]) check(properties[key], item, `${path}.${key}`, out);
-        else if (rule.additionalProperties === false) out.push(`${path}: unknown field "${key}"`);
+        else if (rule.additionalProperties === false) out.push("invalid");
       }
     }
     for (const variant of ["anyOf", "oneOf"] as const) {
@@ -75,7 +75,7 @@ function validateSchema(schema: Schema, data: JsonValue): string[] {
         return found;
       });
       const passing = results.filter((result) => result.length === 0).length;
-      if ((variant === "anyOf" && passing === 0) || (variant === "oneOf" && passing !== 1)) out.push(`${path}: does not match an allowed shape`);
+      if ((variant === "anyOf" && passing === 0) || (variant === "oneOf" && passing !== 1)) out.push("invalid");
     }
   };
   check(schema, data, "$", errors);
@@ -89,20 +89,22 @@ function escapeScriptJSON(data: JsonObject): string {
 }
 
 /** Render one published Hub kit template with its stored data object. */
-export function renderKitTemplate(name: string, data: JsonObject | undefined): { html: string; error: string } {
-  if (!data) return { html: "", error: "This template has no data object." };
+export type KitTemplateError = "noData" | "unavailable" | "schemaUnreadable" | "dataInvalid" | "slotCount" | "tooLarge";
+
+export function renderKitTemplate(name: string, data: JsonObject | undefined): { html: string; error: KitTemplateError | "" } {
+  if (!data) return { html: "", error: "noData" };
   const path = Object.keys(templates).find((candidate) => candidate.endsWith(`/templates/${name}.html`));
   const schemaPath = Object.keys(schemas).find((candidate) => candidate.endsWith(`/schemas/${name}.schema.json`));
   const template = path ? templates[path] : undefined;
   const schemaText = schemaPath ? schemas[schemaPath] : undefined;
-  if (!template || !schemaText) return { html: "", error: `The ${name} template is not available in this Hub build.` };
+  if (!template || !schemaText) return { html: "", error: "unavailable" };
   let schema: Schema;
-  try { schema = JSON.parse(schemaText) as Schema; } catch { return { html: "", error: `The ${name} template schema could not be read.` }; }
+  try { schema = JSON.parse(schemaText) as Schema; } catch { return { html: "", error: "schemaUnreadable" }; }
   const errors = validateSchema(schema, data);
-  if (errors.length) return { html: "", error: `The ${name} template data is invalid: ${errors.slice(0, 3).join("; ")}` };
+  if (errors.length) return { html: "", error: "dataInvalid" };
   const slots = [...template.matchAll(/<script type="application\/json" id="hub-data">[\s\S]*?<\/script>/g)];
-  if (slots.length !== 1) return { html: "", error: `The ${name} template must contain exactly one data slot.` };
+  if (slots.length !== 1) return { html: "", error: "slotCount" };
   const html = template.replace(/(<script type="application\/json" id="hub-data">)[\s\S]*?(<\/script>)/, (_match, open: string, close: string) => `${open}${escapeScriptJSON(data)}${close}`);
-  if (new TextEncoder().encode(html).length > 2 * 1024 * 1024) return { html: "", error: `The rendered ${name} page exceeds the Hub page size limit.` };
+  if (new TextEncoder().encode(html).length > 2 * 1024 * 1024) return { html: "", error: "tooLarge" };
   return { html, error: "" };
 }

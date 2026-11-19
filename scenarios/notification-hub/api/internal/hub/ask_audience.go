@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 )
 
 // AskAudience says which asks a verified reader may see. The zero value sees
@@ -35,6 +36,9 @@ type AskAudience struct {
 	Subject string
 	// Source sees the event-sourced asks of this source scenario.
 	Source string
+	// DirectSubjectSource names a verified service whose exact direct asks may
+	// be recovered only through a durable ask/source/recipient attestation.
+	DirectSubjectSource string
 }
 
 // OwnerAudience is the audience of the verified owner.
@@ -66,11 +70,13 @@ func (a AskAudience) HoldsKey(ask AskRecord) bool {
 }
 
 // SeesByKey reports whether the audience may use ask after naming its subject key.
-func (a AskAudience) SeesByKey(ask AskRecord) bool { return a.Sees(ask) || a.HoldsKey(ask) }
+func (a AskAudience) SeesByKey(ask AskRecord) bool {
+	return a.Sees(ask) || a.HoldsKey(ask)
+}
 
 // empty reports an audience that can see nothing at all in a list.
 func (a AskAudience) empty() bool {
-	return !a.Owner && a.CreatedBy == "" && a.Conversation == "" && a.Source == ""
+	return !a.Owner && a.CreatedBy == "" && a.Conversation == "" && a.Source == "" && a.DirectSubjectSource == ""
 }
 
 // scopeKey names the audience inside a list cursor, so a cursor made for one
@@ -80,7 +86,7 @@ func (a AskAudience) scopeKey() string {
 	if a.Owner {
 		return "owner"
 	}
-	return strings.Join([]string{"created:" + a.CreatedBy, "conversation:" + a.Conversation, "source:" + a.Source}, "|")
+	return strings.Join([]string{"created:" + a.CreatedBy, "conversation:" + a.Conversation, "source:" + a.Source, "direct-subject-source:" + a.DirectSubjectSource}, "|")
 }
 
 // GetAskFor reads one ask addressed to recipient for a reader. An ask the
@@ -91,7 +97,7 @@ func (s *Service) GetAskFor(ctx context.Context, id, recipient string, audience 
 	if err != nil {
 		return AskRecord{}, err
 	}
-	if !audience.Sees(ask) {
+	if !audience.Sees(ask) && !s.hasSourceAttestation(ctx, ask, audience) {
 		return AskRecord{}, ErrNotFound
 	}
 	return ask, nil
@@ -120,8 +126,96 @@ func (s *Service) GetAskBySubjectKeyFor(ctx context.Context, subjectKey, recipie
 	if err != nil {
 		return AskRecord{}, err
 	}
-	if !audience.SeesByKey(ask) {
+	if !audience.SeesByKey(ask) && !s.hasSourceAttestation(ctx, ask, audience) {
 		return AskRecord{}, ErrNotFound
+	}
+	return ask, nil
+}
+
+func (s *Service) hasSourceAttestation(ctx context.Context, ask AskRecord, audience AskAudience) bool {
+	if audience.DirectSubjectSource != "portfolio-steward" || ask.SourceEventType != "" ||
+		ask.Recipient == "" || !validPortfolioSubjectKey(ask.SubjectKey) {
+		return false
+	}
+	var one int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM ask_source_attestations WHERE ask_id=? AND source=? AND recipient=?`, ask.ID, audience.DirectSubjectSource, ask.Recipient).Scan(&one)
+	return err == nil
+}
+
+func validPortfolioSubjectKey(key string) bool {
+	parts := strings.Split(key, ":")
+	if len(parts) != 3 || parts[0] != "portfolio-steward" || (parts[1] != "roadmap" && parts[1] != "daily") {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", parts[2])
+	return err == nil && len(parts[2]) == 10
+}
+
+// AttestPortfolioAsk records a verified same-owner authorization for
+// portfolio-steward to continue this one pending direct roadmap/daily ask.
+func (s *Service) AttestPortfolioAsk(ctx context.Context, askID, owner string) (AskRecord, error) {
+	owner = strings.TrimSpace(owner)
+	if owner == "" {
+		return AskRecord{}, ErrNotFound
+	}
+	return s.attestPortfolioAsk(ctx, askID, OwnerAudience(), owner)
+}
+
+// AttestPortfolioAskFromRun records the steward's exact association only when
+// the verified run already belongs to the stored ask's creator or conversation
+// audience. Subject-key capability alone is deliberately insufficient.
+func (s *Service) AttestPortfolioAskFromRun(ctx context.Context, askID string, audience AskAudience) (AskRecord, error) {
+	if audience.Owner || !strings.HasPrefix(strings.TrimSpace(audience.CreatedBy), "run:") {
+		return AskRecord{}, ErrNotFound
+	}
+	return s.attestPortfolioAsk(ctx, askID, audience, "")
+}
+
+func (s *Service) attestPortfolioAsk(ctx context.Context, askID string, audience AskAudience, expectedRecipient string) (AskRecord, error) {
+	tx, err := s.beginWriteTx(ctx)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	defer tx.Rollback()
+
+	ask, err := scanAsk(tx.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, strings.TrimSpace(askID)))
+	if err != nil || ask.Recipient == "" ||
+		(ask.Source != ask.Recipient && ask.Source != "operator" && ask.Source != "portfolio-steward") ||
+		ask.SourceEventType != "" || ask.State != AskPending || !validPortfolioSubjectKey(ask.SubjectKey) {
+		return AskRecord{}, ErrNotFound
+	}
+	if audience.Owner {
+		if expectedRecipient == "" || ask.Recipient != expectedRecipient {
+			return AskRecord{}, ErrNotFound
+		}
+	} else if !audience.Sees(ask) || (audience.Subject != "" && audience.Subject != ask.Recipient) {
+		return AskRecord{}, ErrNotFound
+	}
+
+	// The write lock was acquired before reading the ask, so an answer cannot
+	// race between the pending check and this exact ask/source/recipient proof.
+	now := storedTime(s.clock.Now())
+	result, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO ask_source_attestations(ask_id,source,recipient,attested_at)
+		SELECT a.id,'portfolio-steward',?,? FROM asks a
+		JOIN notifications n ON n.id=a.notification_id
+		WHERE a.id=? AND n.requested_by=? AND a.source_event_type=''
+		AND a.state='pending' AND a.subject_key=? AND a.source IN (?, 'operator', 'portfolio-steward')`,
+		ask.Recipient, now, ask.ID, ask.Recipient, ask.SubjectKey, ask.Recipient)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if changed != 1 {
+		var exists int
+		if err := tx.QueryRowContext(ctx, `SELECT 1 FROM ask_source_attestations WHERE ask_id=? AND source='portfolio-steward' AND recipient=?`, ask.ID, ask.Recipient).Scan(&exists); err != nil {
+			return AskRecord{}, ErrNotFound
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return AskRecord{}, err
 	}
 	return ask, nil
 }

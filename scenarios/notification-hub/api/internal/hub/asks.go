@@ -352,8 +352,11 @@ type AnswerInput struct {
 	AskID, Answer, Actor, Note string
 	// ExpectedRevision binds an authenticated decision to the version reviewed.
 	ExpectedRevision *int
-	Changes          map[string]any
-	Images           []AnswerImage
+	// RootEnrollmentOwners is non-nil when a password proof relies on a Hub
+	// association. Rechecked inside the answer transaction against revocation.
+	RootEnrollmentOwners []RootEnrollmentGrant
+	Changes              map[string]any
+	Images               []AnswerImage
 	// Responses answer the ask's Questions. An unknown question id or a response
 	// of the wrong shape is refused; required questions bind only when Answer is
 	// one of the requester's options.
@@ -589,6 +592,9 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	}
 	if spec.Source == "" {
 		spec.Source = spec.Recipient
+	}
+	if spec.TemplateName != "" && (strings.TrimSpace(spec.Title) == "" || spec.Title == "Status update" || spec.Title == "Decision required" || strings.HasPrefix(spec.Title, "Decision needed")) {
+		spec.Title = templateConversationTitle(spec.TemplateName, spec.TemplateData, spec.Question)
 	}
 	if spec.Title == "" {
 		spec.Title = "Decision required"
@@ -1227,7 +1233,7 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	return s.commitAnswer(ctx, record, answerPlan{
 		answer: answer, note: in.Note, late: late, responses: responses, notes: notes,
 		changes: in.Changes, images: images,
-		answeredBy: answeredBy, identityKind: identityKind, identitySource: identitySource,
+		answeredBy: answeredBy, identityKind: identityKind, identitySource: identitySource, enrollmentOwners: in.RootEnrollmentOwners,
 	})
 }
 
@@ -1321,6 +1327,7 @@ type answerPlan struct {
 	changes                                  map[string]any
 	images                                   []AnswerImage
 	answeredBy, identityKind, identitySource string
+	enrollmentOwners                         []RootEnrollmentGrant
 }
 
 // commitAnswer stores an answer that was validated against record. The ask must
@@ -1328,7 +1335,6 @@ type answerPlan struct {
 // it in between, the answers were checked against a form that is gone, so
 // nothing is stored and the caller gets ErrAskChanged.
 func (s *Service) commitAnswer(ctx context.Context, record AskRecord, plan answerPlan) (AskRecord, error) {
-	now := storedTime(s.clock.Now())
 	reason := "answered by the operator"
 	if plan.late {
 		reason = "operator answer after the default supersedes it"
@@ -1338,6 +1344,37 @@ func (s *Service) commitAnswer(ctx context.Context, record AskRecord, plan answe
 		return AskRecord{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// Root decisions are authority for a time-bounded transition. Lock the row
+	// before reading the clock so time spent waiting for another writer cannot
+	// turn a pre-deadline check into a late answer.
+	var decisionTime time.Time
+	if record.ProviderDecisionContext != nil && record.ProviderDecisionContext.Scope == ProviderDecisionScopeRootRebaseline {
+		if _, err := tx.ExecContext(ctx, `UPDATE asks SET updated_at=updated_at WHERE id=?`, record.ID); err != nil {
+			return AskRecord{}, err
+		}
+		if plan.enrollmentOwners != nil {
+			active, err := rootEnrollmentActive(ctx, tx, record.Recipient, plan.answeredBy, plan.enrollmentOwners)
+			if err != nil {
+				return AskRecord{}, err
+			}
+			if !active {
+				return AskRecord{}, ErrEnrollmentChanged
+			}
+		}
+		var deadlineText, state string
+		if err := tx.QueryRowContext(ctx, `SELECT deadline, state FROM asks WHERE id=?`, record.ID).Scan(&deadlineText, &state); err != nil {
+			return AskRecord{}, err
+		}
+		deadline, err := time.Parse(time.RFC3339Nano, deadlineText)
+		decisionTime = s.clock.Now()
+		if err != nil || !decisionTime.Before(deadline) || (state != AskPending && state != AskEscalated) {
+			return AskRecord{}, fmt.Errorf("%w: root decision is expired or closed", ErrAskResolved)
+		}
+	}
+	if decisionTime.IsZero() {
+		decisionTime = s.clock.Now()
+	}
+	now := storedTime(decisionTime)
 	result, err := tx.ExecContext(ctx, `UPDATE asks SET state='answered', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state=? AND revision_count=?`, reason, now, now, record.ID, record.State, record.RevisionCount)
 	if err != nil {
 		return AskRecord{}, err

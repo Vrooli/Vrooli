@@ -214,6 +214,115 @@ func TestSubject_ChangedTextUpdatesInPlaceWithoutANewPush(t *testing.T) {
 	require.Equal(t, "7", correlation["failures"])
 }
 
+func TestDirectSubjectSenderContinuityReadsAndRevisesOnlyPendingOwnKey(t *testing.T) {
+	service, db := testService(t)
+	registerSubscription(t, service, "alice")
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	key := "portfolio-steward:roadmap:2026-11-16"
+	oldAudience := hub.AskAudience{CreatedBy: "run:steward-pass", Subject: "alice"}
+	original := hub.AskSpec{
+		Recipient: "alice", Source: "alice", Kind: "status", SubjectKey: key,
+		Title: "Roadmap", Question: "What should change?", Body: "Earlier roadmap.",
+		SensitivityLabel: "private", IdempotencyKey: "old-request", VerifiedProducer: true,
+		CreatedBy: "run:steward-pass", CreatedSubject: "alice", RevisionAudience: &oldAudience,
+	}
+	first, err := service.AskDecision(context.Background(), original, "")
+	require.NoError(t, err)
+	require.Equal(t, hub.AskPending, first.Ask.State)
+
+	steward := hub.AskAudience{CreatedBy: "service:portfolio-steward", DirectSubjectSource: "portfolio-steward"}
+	_, err = service.GetAskBySubjectKeyFor(context.Background(), key, "alice", steward)
+	require.ErrorIs(t, err, hub.ErrNotFound, "a matching prefix is not an authorization record")
+	_, err = db.ExecContext(context.Background(), `INSERT INTO ask_source_attestations(ask_id,source,recipient,attested_at) VALUES(?,?,?,?)`, first.Ask.ID, "portfolio-steward", "bob", now.Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	_, err = service.GetAskFor(context.Background(), first.Ask.ID, "alice", steward)
+	require.ErrorIs(t, err, hub.ErrNotFound, "an attestation for another recipient cannot authorize this ask")
+	_, err = db.ExecContext(context.Background(), `DELETE FROM ask_source_attestations WHERE ask_id=?`, first.Ask.ID)
+	require.NoError(t, err)
+	_, err = service.GetAskFor(context.Background(), first.Ask.ID, "alice", steward)
+	require.ErrorIs(t, err, hub.ErrNotFound, "deleting the exact attestation removes service access")
+	unattestedRevision := original
+	unattestedRevision.Source = "portfolio-steward"
+	unattestedRevision.CreatedBy = "service:portfolio-steward"
+	unattestedRevision.CreatedSubject = ""
+	unattestedRevision.RevisionAudience = &steward
+	unattestedRevision.IdempotencyKey = "unattested-revision"
+	_, err = service.AskDecision(context.Background(), unattestedRevision, "")
+	require.ErrorIs(t, err, hub.ErrNotFound, "a missing or deleted attestation also blocks revision")
+
+	_, err = service.AttestPortfolioAsk(context.Background(), first.Ask.ID, "alice")
+	require.NoError(t, err, "the exact owner-authorized migration records the relationship")
+	got, err := service.GetAskBySubjectKeyFor(context.Background(), key, "alice", steward)
+	require.NoError(t, err)
+	require.Equal(t, first.Ask.ID, got.ID)
+	got, err = service.GetAskFor(context.Background(), first.Ask.ID, "alice", steward)
+	require.NoError(t, err)
+	require.Equal(t, first.Ask.ID, got.ID)
+	_, err = service.GetAskBySubjectKeyFor(context.Background(), key, "alice", hub.AskAudience{CreatedBy: "service:treasury", DirectSubjectSource: "treasury"})
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	revised := original
+	revised.Source = "portfolio-steward"
+	revised.CreatedBy = "service:portfolio-steward"
+	revised.CreatedSubject = ""
+	revised.RevisionAudience = &steward
+	revised.IdempotencyKey = "new-request"
+	revised.Title = "Opportunity roadmap"
+	revised.Body = "Roadmap with the current funnel and saved gate history."
+	revised.Question = "What should change in the opportunity roadmap?"
+	at(service, now.Add(time.Minute))
+	updated, err := service.AskDecision(context.Background(), revised, "")
+	require.NoError(t, err)
+	require.Equal(t, hub.AskUpdated, updated.Outcome)
+	require.Equal(t, first.Ask.ID, updated.Ask.ID, "continuity revises the existing ask rather than making a duplicate")
+	require.Equal(t, hub.AskPending, updated.Ask.State)
+	require.Equal(t, 1, updated.Ask.RevisionCount)
+	require.Equal(t, 1, countAsks(t, db, `subject_key = ?`, key))
+}
+
+func TestDirectSubjectSenderContinuityNeverRevisesAnsweredAsk(t *testing.T) {
+	service, db := testService(t)
+	registerSubscription(t, service, "alice")
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	at(service, now)
+	key := "portfolio-steward:daily:2026-11-16"
+	ownerRun := hub.AskAudience{CreatedBy: "run:steward-pass", Subject: "alice"}
+	original := hub.AskSpec{
+		Recipient: "alice", Source: "alice", SubjectKey: key,
+		Title: "Daily decision", Question: "Keep the current approach?", Body: "Earlier decision.",
+		Options:     []hub.AskOption{{Key: "keep", Label: "Keep"}, {Key: "change", Label: "Change"}},
+		Recommended: "keep", RecommendationReason: "the current approach is safe", Deadline: now.Add(time.Hour),
+		SensitivityLabel: "private", IdempotencyKey: "old-daily", VerifiedProducer: true,
+		CreatedBy: "run:steward-pass", CreatedSubject: "alice", RevisionAudience: &ownerRun,
+	}
+	first, err := service.AskDecision(context.Background(), original, "")
+	require.NoError(t, err)
+	steward := hub.AskAudience{CreatedBy: "service:portfolio-steward", DirectSubjectSource: "portfolio-steward"}
+	_, err = service.AttestPortfolioAsk(context.Background(), first.Ask.ID, "alice")
+	require.NoError(t, err)
+	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: first.Ask.ID, Answer: "keep", Actor: "alice"})
+	require.NoError(t, err)
+
+	revised := original
+	revised.Source = "portfolio-steward"
+	revised.CreatedBy = "service:portfolio-steward"
+	revised.CreatedSubject = ""
+	revised.RevisionAudience = &steward
+	revised.IdempotencyKey = "new-daily"
+	revised.Body = "Refreshed briefing."
+	_, err = service.AskDecision(context.Background(), revised, "")
+	require.ErrorIs(t, err, hub.ErrAskResolved)
+
+	stored, err := service.GetAsk(context.Background(), first.Ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskAnswered, stored.State)
+	require.Equal(t, "keep", stored.Answer)
+	answerReadback, err := service.GetAskFor(context.Background(), first.Ask.ID, "alice", steward)
+	require.NoError(t, err, "the attested producer can read the operator's actual answer")
+	require.Equal(t, "keep", answerReadback.Answer)
+	require.Equal(t, 1, countAsks(t, db, `subject_key = ?`, key))
+}
+
 func TestSubject_ChangedAnswerMenuReplacesAndDeliversTheNewDecision(t *testing.T) {
 	menus := map[string]func(*hub.AskSpec){
 		"option keys": func(s *hub.AskSpec) {

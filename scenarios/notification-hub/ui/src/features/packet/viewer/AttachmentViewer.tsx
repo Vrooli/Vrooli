@@ -75,9 +75,9 @@ export function AttachmentViewer({ askId, attachments, linkedArtifact, target, o
         if (contentLength > 1 << 20) throw new Error("region manifest exceeds 1 MiB");
         const content = await response.text();
         if (content.length > 1 << 20) throw new Error("region manifest exceeds 1 MiB");
-        const raw = JSON.parse(content);
+        const raw: unknown = JSON.parse(content);
         const parsed = parseRegionFeedbackBundle(raw);
-        if (!parsed || !regionFolder) throw new Error("invalid region feedback manifest");
+        if (!parsed) throw new Error("invalid region feedback manifest");
         parsed.issues.push(...validateRegionEntries(parsed.bundle, regionFolder));
         setRegionFeedback(parsed);
       })
@@ -98,12 +98,12 @@ export function AttachmentViewer({ askId, attachments, linkedArtifact, target, o
     />
   );
 
-  if (isRegionManifest) {
+  if (isRegionManifest && regionFolder) {
     return (
       <FileViewerProvider locale={i18n.resolvedLanguage} loaders={viewerLoaders} fileInfo="host">
         <RegionFeedbackCompare
           askId={askId}
-          attachment={regionFolder!}
+          attachment={regionFolder}
           parsed={regionFeedback}
           failed={regionFeedbackError}
           onClose={onClose}

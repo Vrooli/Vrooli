@@ -42,6 +42,8 @@ const (
 	// WaitSliceReason says why Wait returned although neither the answer nor the
 	// caller's deadline was reached.
 	WaitSliceReason = "wait_slice: the ask is still open and this wait reached its longest length; wait again"
+	// WaitYieldReason retains the resumable wait_slice prefix for existing clients.
+	WaitYieldReason = "wait_slice: the ask is still open and the service is preparing for maintenance; wait again"
 	// waitFallbackPoll is how often Wait re-reads an ask without a change
 	// notice. Notices cover every change this process makes; the poll covers a
 	// change made behind its back.
@@ -365,6 +367,8 @@ type WaitOptions struct {
 	// ReturnOnContextRequest also ends the wait while the ask is open and the
 	// recipient asked for context the requester has not addressed.
 	ReturnOnContextRequest bool
+	// Yield asks a resumable wait to return its current state without changing it.
+	Yield <-chan struct{}
 }
 
 // WaitResult is the state Wait returned for.
@@ -420,6 +424,9 @@ func (s *Service) Wait(ctx context.Context, askID string, opts WaitOptions) (Wai
 		case <-ctx.Done():
 			timer.Stop()
 			return WaitResult{}, ctx.Err()
+		case <-opts.Yield:
+			timer.Stop()
+			return WaitResult{Ask: record, Reason: WaitYieldReason}, nil
 		case <-changed:
 		case <-timer.C:
 		}

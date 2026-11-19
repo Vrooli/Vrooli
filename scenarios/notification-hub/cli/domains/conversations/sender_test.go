@@ -14,6 +14,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliutil"
+	agentapiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	agentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	agentdomainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
@@ -211,40 +214,44 @@ func TestARunThatCannotBeReadHasNoSender(t *testing.T) {
 }
 
 func TestTheRunReadTakesTheSessionIdAndLabelFromAgentManagersOpenRunRoute(t *testing.T) {
-	var path string
-	body := `{"run":{"id":"r1","web_console_session_id":"sess-1","label":"Portfolio steward","label_source":"manual"}}`
-	status := http.StatusOK
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		require.Empty(t, r.Header.Get(cliutil.HeaderAgentIdentityToken), "the run read needs no credential and is sent none")
-		w.WriteHeader(status)
-		_, _ = w.Write([]byte(body))
+	var runIDs []string
+	mux := http.NewServeMux()
+	mux.Handle(agentconnect.AgentManagerServiceGetRunProcedure, connect.NewUnaryHandler(agentconnect.AgentManagerServiceGetRunProcedure, func(_ context.Context, req *connect.Request[agentapiv1.GetRunRequest]) (*connect.Response[agentapiv1.GetRunResponse], error) {
+		runIDs = append(runIDs, req.Msg.GetRunId())
+		require.Empty(t, req.Header().Get(cliutil.HeaderAgentIdentityToken), "the run read needs no credential and is sent none")
+		require.Empty(t, req.Header().Get("Authorization"), "the convenience read keeps the open route's no-credential behavior")
+		if req.Msg.GetRunId() == "missing" {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("Run not found"))
+		}
+		return connect.NewResponse(&agentapiv1.GetRunResponse{Run: &agentdomainv1.Run{
+			Id: "r1", WebConsoleSessionId: "sess-1", Label: "Portfolio steward", LabelSource: "manual",
+		}}), nil
 	}))
+	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	run, err := readRun(context.Background(), "r1")
 	require.NoError(t, err)
 	require.Equal(t, runRecord{SessionID: "sess-1", Label: "Portfolio steward", LabelSource: "manual"}, run)
-	require.Equal(t, "/api/v1/runs/r1", path)
+	require.Equal(t, []string{"r1"}, runIDs)
 
-	body = `{"run":{"webConsoleSessionId":"sess-2","label":"x","labelSource":"harness"}}`
+	// A successful response without the optional run payload remains a blank
+	// result; this lookup is only a source for an optional default label.
+	noPayloadMux := http.NewServeMux()
+	noPayloadMux.Handle(agentconnect.AgentManagerServiceGetRunProcedure, connect.NewUnaryHandler(agentconnect.AgentManagerServiceGetRunProcedure, func(context.Context, *connect.Request[agentapiv1.GetRunRequest]) (*connect.Response[agentapiv1.GetRunResponse], error) {
+		return connect.NewResponse(&agentapiv1.GetRunResponse{}), nil
+	}))
+	noPayload := httptest.NewServer(noPayloadMux)
+	t.Cleanup(noPayload.Close)
+	t.Setenv("AGENT_MANAGER_API_BASE", noPayload.URL)
 	run, err = readRun(context.Background(), "r1")
 	require.NoError(t, err)
-	require.Equal(t, runRecord{SessionID: "sess-2", Label: "x", LabelSource: "harness"}, run, "the protojson spelling is read too")
+	require.Equal(t, runRecord{}, run)
 
-	body = `{"run":{"id":"r1"}}`
-	run, err = readRun(context.Background(), "r1")
-	require.NoError(t, err)
-	require.Equal(t, runRecord{}, run, "a run with nothing to name it is not an error here")
-
-	status, body = http.StatusNotFound, `not found`
-	_, err = readRun(context.Background(), "r1")
-	require.ErrorContains(t, err, "404")
-
-	status, body = http.StatusOK, `{not json`
-	_, err = readRun(context.Background(), "r1")
-	require.Error(t, err)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
+	_, err = readRun(context.Background(), "missing")
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestAControlCharacterInTheLabelNeverReachesTheHub(t *testing.T) {

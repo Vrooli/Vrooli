@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { CheckCircle2, Inbox, Search, SearchX, X } from "lucide-react";
@@ -19,6 +19,9 @@ import { useTranslation } from "../../i18n";
 import { isUnauthenticated } from "../../lib/apiError";
 import { formatAgo } from "../../lib/ago";
 import { preserveRoutedTestMode } from "../routedTestMode";
+import { useSession } from "../session/useSession";
+import { SignedOutCard } from "../session/SignedOutCard";
+import { SessionUnavailable } from "../session/SessionGate";
 import { closingHours as hoursOf, filterCount, groupByTier, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
 import { parseStateFilter, STATE_FILTERS, STATE_LABEL } from "./askState";
 import { DecisionRow } from "./DecisionRow";
@@ -43,6 +46,9 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   const { t } = useTranslation();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const session = useSession();
+  const signedIn = session.isSuccess && session.data.signedIn;
+  const subject = signedIn ? session.data.subject : "";
   const state = queue ? "awaiting" : parseStateFilter(params.get("state"));
   const search = params.get("q") ?? "";
   const view = readListView(params, queue);
@@ -62,7 +68,8 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   }, [queue, searchOpen]);
   const searching = query !== search.trim();
   const list = useInfiniteQuery({
-    queryKey: ["asks", queue ? "open" : "history", query, state, view],
+    queryKey: ["asks", subject, queue ? "open" : "history", query, state, view],
+    enabled: signedIn,
     initialPageParam: "",
     queryFn: async ({ pageParam, signal }) => conversationsClient.listAsks({
       limit: PAGE_SIZE, cursor: pageParam, query, stateFilter: state,
@@ -70,7 +77,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
     }, { signal }),
     // Changing a filter keeps the last answer's facets on screen, so the open
     // filter sheet does not vanish under the finger that just touched it.
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => previousQuery?.queryKey[1] === subject ? previousData : undefined,
     getNextPageParam: (page) => page.nextCursor || undefined,
     retry: false,
     staleTime: 30_000,
@@ -138,7 +145,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   const matching = (facets?.urgencies ?? [])
     .filter((facet) => view.urgencies.length === 0 || view.urgencies.some((urgency) => urgency === facet.value))
     .reduce((sum, facet) => sum + facet.count, 0);
-  const consents = useNativeConsents(query, queue);
+  const consents = useNativeConsents(query, queue && signedIn, subject);
   const consentsFailed = queue && consents.isError && !isUnauthenticated(consents.error);
   const reload = () => {
     returnFocusAfterReload.current = true;
@@ -150,6 +157,16 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   const refreshError = list.isError && Boolean(list.data) && !list.isFetchNextPageError;
   const settled = list.isSuccess && !list.isPlaceholderData && !searching;
   const needsYou = useNeedsYou();
+  const now = useNow();
+  if (session.isPending) {
+    return <Page testId={queue ? selectors.pages.asks : selectors.pages.history} headingId={HEADING_ID} title={queue ? t(strings.asks.list.title) : t(strings.pages.history.title)}><SkeletonRows /></Page>;
+  }
+  if (session.isError) {
+    return <Page testId={queue ? selectors.pages.asks : selectors.pages.history} headingId={HEADING_ID} title={queue ? t(strings.asks.list.title) : t(strings.pages.history.title)}><SessionUnavailable retry={() => { void session.refetch(); }} /></Page>;
+  }
+  if (!signedIn) {
+    return <Page testId={queue ? selectors.pages.asks : selectors.pages.history} headingId={HEADING_ID} title={queue ? t(strings.asks.list.title) : t(strings.pages.history.title)}><SignedOutCard /></Page>;
+  }
   const totalAwaiting = answered?.pages[0]?.totalAwaiting ?? 0;
   const description = queue && settled
     ? hasFilters
@@ -163,7 +180,6 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   // which is what makes the order explain itself; one group needs no heading.
   const groups = view.sort === "attention" ? groupByTier(rows) : [{ tier: "normal" as const, asks: rows }];
   const grouped = view.sort === "attention" && groups.length > 1;
-  const now = useNow();
   const updatedAgo = list.dataUpdatedAt > 0 ? formatAgo(new Date(list.dataUpdatedAt).toISOString(), now) : null;
 
   const searchField = showSearch && (

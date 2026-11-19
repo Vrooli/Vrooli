@@ -17,6 +17,7 @@ const TIMELINE_FAILURE = "private timeline failure";
 const RECOVERED_RECORD = "Recovered record";
 
 vi.mock("../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })), listNativeConsents: vi.fn(() => Promise.resolve({ consents: [] })) },
   notificationsClient: { get: vi.fn() },

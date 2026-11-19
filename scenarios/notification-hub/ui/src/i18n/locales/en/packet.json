@@ -30,7 +30,11 @@
     "recommended": "Recommended",
     "due": "Due",
     "answerQuestions": "Answer · {{count}} questions",
-    "answerQuestions_one": "Answer · 1 question"
+    "answerQuestions_one": "Answer · 1 question",
+    "history": "History",
+    "historyEmpty": "No earlier pages on this subject.",
+    "statusUpdate": "Status update",
+    "decision": "Decision"
   },
   "text": {
     "openLinkedArtifact": "Open file in Notification Hub",
@@ -105,7 +109,8 @@
     "reviewEdit": "Edit",
     "reviewNothing": "Nothing chosen yet",
     "reviewRequired": "Needs an answer",
-    "reviewSkipped": "No answer"
+    "reviewSkipped": "No answer",
+    "closeChoices": "Close choices"
   },
   "context": {
     "open": "I need more context",
@@ -176,8 +181,6 @@
   "regionFeedback": {
     "title": "Compare captures",
     "close": "Close comparison",
-    "before": "Before",
-    "after": "After",
     "fidelity": "Image type: {{label}}",
     "route": "Screen: {{route}}",
     "viewport": "{{width}} × {{height}} pixels",
@@ -192,10 +195,22 @@
     "noteSaved": "Note added to answer",
     "unavailable": "The capture compare could not be opened because its manifest or image evidence is incomplete.",
     "notAnswerable": "You can view this capture, but this decision does not accept comments.",
+    "before": "Before",
+    "after": "After",
     "captured": "Captured",
     "composited": "Composited",
     "rendered": "Rendered",
-    "sketch": "Sketch"
+    "sketch": "Sketch",
+    "issues": {
+      "routeMismatch": "The two captures use different routes.",
+      "stateMismatch": "The two captures use different interaction states.",
+      "dataMismatch": "The two captures use different data sets.",
+      "viewportMismatch": "The two captures use different viewport sizes.",
+      "sameBuild": "The before and after captures name the same build.",
+      "imageMismatch": "The {{fidelity}} image reference is missing or its digest does not match.",
+      "regionEntryMissing": "Region {{regionId}} has no answerable evidence entry.",
+      "regionCropMismatch": "Region {{regionId}} has no matching crop image."
+    }
   },
   "rootPassword": {
     "title": "Verify and answer this decision",
@@ -220,5 +235,78 @@
     "verify": "Verify and send answer",
     "cancel": "Return to decision",
     "openForm": "Verify with password instead"
+  },
+  "rootRead": {
+    "action": "Read with password",
+    "title": "Read this decision",
+    "intro": "Verify your authenticator account to read this decision. Answering requires a separate verification.",
+    "error": "Could not read the decision. Check your credentials and try again."
+  },
+  "statusBar": {
+    "label": "Status update response",
+    "read": "Marked as read.",
+    "review": "Review",
+    "notes_one": "{{count}} note",
+    "notes": "{{count}} notes",
+    "changes_one": "{{count}} change",
+    "changes": "{{count}} changes",
+    "verdicts_one": "{{count}} verdict",
+    "verdicts": "{{count}} verdicts",
+    "yourChanges": "Your changes",
+    "nothingToChoose": "Nothing to choose",
+    "hint": "Tap a choice or a note in the page. It shows up here.",
+    "note": "Note",
+    "notePlaceholder": "Add a note…",
+    "selectedChanges": "Selected page changes",
+    "noteChip": "Note · {{label}}",
+    "send": "Send",
+    "sendCount": "Send {{count}}",
+    "sending": "Sending…",
+    "markRead": "Mark read",
+    "clear": "Clear",
+    "addNote": "Add a note…",
+    "uploadError": "Your update was not confirmed. Check the status before sending again.",
+    "readError": "The update could not be marked read.",
+    "sentError": "Your steering was sent.",
+    "sentWithTime": "Your steering was sent at {{time}}.",
+    "recurrence": "Sent {{count}} times on this subject",
+    "skip": "Skip with › and come back later",
+    "signedOut": "Sign in to send steering or mark this update as read.",
+    "remove": "Remove {{label}}"
+  },
+  "noteSheet": {
+    "title": "Note · {{label}}",
+    "yourNote": "Your note",
+    "attach": "Attach image or file",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "uploading": "Uploading…",
+    "save": "Save note",
+    "fileTooLarge": "{{name}} must be no larger than 12 MiB.",
+    "fileError": "The file could not be attached.",
+    "ask": "Ask {{id}}"
+  },
+  "navigation": {
+    "previous": "Previous conversation",
+    "next": "Next conversation",
+    "label": "Conversation navigation",
+    "position": "{{current}} of {{total}}"
+  },
+  "images": {
+    "tooMany": "An answer can include at most 8 images.",
+    "tooLarge": "An answer can include at most 24 MiB of images.",
+    "singleTooLarge": "{{name}} must be an image no larger than 12 MiB.",
+    "failed": "The image could not be added.",
+    "attach": "Attach images",
+    "listLabel": "Images to send",
+    "remove": "Remove {{name}}"
+  },
+  "kitTemplate": {
+    "noData": "This template has no data object.",
+    "unavailable": "This template is not available in this Hub build.",
+    "schemaUnreadable": "The template schema could not be read.",
+    "dataInvalid": "The template data is invalid.",
+    "slotCount": "The template has an invalid data slot.",
+    "tooLarge": "The rendered template exceeds the Hub page size limit."
   }
 }

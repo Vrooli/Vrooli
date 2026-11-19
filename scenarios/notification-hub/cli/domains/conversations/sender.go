@@ -22,14 +22,10 @@ package conversations
 // names the sender itself. It must never fail or noticeably delay an ask.
 
 import (
-	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -38,6 +34,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	agentapiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	agentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
 )
@@ -146,45 +144,27 @@ type runReader func(ctx context.Context, runID string) (runRecord, error)
 
 type sessionReader func(context.Context, *connect.Request[sessionsv1.GetRequest]) (*connect.Response[sessionsv1.GetResponse], error)
 
-// readRun reads a run from Agent Manager's open run read, GET /api/v1/runs/{id}.
-// It decodes the few fields it needs instead of using the generated Agent
-// Manager client: that client pulls in protovalidate and genproto modules this
-// CLI does not otherwise carry, and a new dependency for a few strings is not
-// worth the governance it would need.
+// readRun reads a run through the generated Agent Manager contract. It sends no
+// identity header: this bounded convenience lookup historically used the open
+// run read, and failure only removes the optional default sender label.
 func readRun(ctx context.Context, runID string) (runRecord, error) {
 	base := scenarioBase("agent-manager", "AGENT_MANAGER_API_BASE", "AGENT_MANAGER_API_URL")
 	if base == "" {
 		return runRecord{}, errors.New("agent-manager is not reachable")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/api/v1/runs/"+url.PathEscape(runID), nil)
+	client := agentconnect.NewAgentManagerServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
+	response, err := client.GetRun(ctx, connect.NewRequest(&agentapiv1.GetRunRequest{RunId: runID}))
 	if err != nil {
-		return runRecord{}, err
+		return runRecord{}, fmt.Errorf("agent-manager run read: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return runRecord{}, err
+	if response.Msg.GetRun() == nil {
+		return runRecord{}, nil
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return runRecord{}, fmt.Errorf("agent-manager answered %d", resp.StatusCode)
-	}
-	var body struct {
-		Run struct {
-			SessionID      string `json:"web_console_session_id"`
-			SessionIDCamel string `json:"webConsoleSessionId"`
-			Label          string `json:"label"`
-			LabelSource    string `json:"label_source"`
-			LabelSourceCml string `json:"labelSource"`
-		} `json:"run"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
-		return runRecord{}, err
-	}
-	run := body.Run
+	run := response.Msg.GetRun()
 	return runRecord{
-		SessionID:   cmp.Or(run.SessionID, run.SessionIDCamel),
-		Label:       run.Label,
-		LabelSource: cmp.Or(run.LabelSource, run.LabelSourceCml),
+		SessionID:   run.GetWebConsoleSessionId(),
+		Label:       run.GetLabel(),
+		LabelSource: run.GetLabelSource(),
 	}, nil
 }
 

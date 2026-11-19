@@ -34,7 +34,7 @@ describe("Settings list", () => {
     renderSettings("/settings");
     await findPageHeading("Settings");
     await waitFor(() => expect(screen.getByTestId(selectors.settings.row({ key: "reach" }))).toHaveTextContent("2 devices"));
-    expect(screen.getByTestId(selectors.settings.row({ key: "quietHours" }))).toHaveTextContent("10:00 PM–11:30 PM, Weekdays");
+    await waitFor(() => expect(screen.getByTestId(selectors.settings.row({ key: "quietHours" }))).toHaveTextContent("10:00 PM–11:30 PM, Weekdays"));
     expect(screen.getByTestId(selectors.settings.row({ key: "escalation" }))).toHaveTextContent("Push notification, then Email");
     expect(screen.getByTestId(selectors.settings.row({ key: "appearance" }))).toHaveTextContent("System · English");
     expect(screen.getByTestId(selectors.settings.row({ key: "session" }))).toHaveTextContent("Signed in as owner@example.test");
@@ -62,17 +62,19 @@ describe("Settings list", () => {
     for (const [key, href] of Object.entries(expected)) expect(await row(key)).toHaveAttribute("href", href);
   });
 
-  it("stays usable while signed out: owner settings say so, appearance still works", async () => {
+  it("shows read-only settings summaries while signed out", async () => {
     hub.signOut();
     renderSettings("/settings");
     await findPageHeading("Settings");
     expect(await screen.findByText(en.settings.signedOut.title)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.settings.row({ key: "reach" }))).toHaveTextContent("Sign in to view");
-    expect(screen.getByTestId(selectors.settings.row({ key: "quietHours" }))).toHaveTextContent("Sign in to view");
+    expect(screen.getByTestId(selectors.settings.row({ key: "reach" }))).toHaveTextContent("2 devices");
+    expect(screen.getByTestId(selectors.settings.row({ key: "quietHours" }))).toHaveTextContent("10:00 PM–11:30 PM, Weekdays");
+    expect(screen.getByTestId(selectors.settings.row({ key: "escalation" }))).toHaveTextContent("Push notification, then Email");
     expect(screen.getByTestId(selectors.settings.row({ key: "session" }))).toHaveTextContent("Not signed in");
     expect(screen.getByTestId(selectors.settings.row({ key: "appearance" }))).toHaveTextContent("System");
-    expect(hub.recipientsClient.listDevices).not.toHaveBeenCalled();
-    expect(hub.recipientsClient.listQuietWindows).not.toHaveBeenCalled();
+    expect(hub.recipientsClient.listDevices).toHaveBeenCalled();
+    expect(hub.recipientsClient.listQuietWindows).toHaveBeenCalled();
+    expect(hub.recipientsClient.getEscalationChain).toHaveBeenCalled();
   });
 
   it("says a summary is unavailable instead of leaving it blank when its read fails", async () => {
@@ -236,7 +238,7 @@ describe("Event sources", () => {
     renderSettings("/settings/sources");
     await user.click(await screen.findByRole("switch", { name: "Allow Runs failed" }));
     await waitFor(() => expect(hub.updateNotificationPreference).toHaveBeenCalledTimes(1));
-    expect(hub.updateNotificationPreference).toHaveBeenCalledWith({ source_scenario: "agent-manager", category: "run-failed", enabled: true, min_urgency: "low", channel_override: "" });
+    expect(hub.updateNotificationPreference).toHaveBeenCalledWith({ source_scenario: "agent-manager", category: "run-failed", enabled: true, min_urgency: "low", channel_override: "", scope_key: "" });
     await waitFor(() => expect(screen.getByRole("switch", { name: "Allow Runs failed" })).toBeChecked());
   });
 

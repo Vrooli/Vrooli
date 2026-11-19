@@ -123,21 +123,35 @@ func attachmentError(err error) error {
 }
 
 // serveAttachment serves one stored file of an ask to its recipient: the
-// attachment itself, or ?path= inside a folder. Serving bytes is held to the
-// standard of answering, not of reading: the request must carry a verified owner
-// identity (the same path the Answer handler uses: a Cloudflare Access login,
-// the loopback owner in personal_local mode, or the owner's bearer or cookie),
-// and the ask must belong to that owner. Without one the answer is 401; an
-// unknown ask, another owner's ask, an unknown attachment and a bad ?path= are
-// all the same 404, so the route reveals nothing about what exists.
+// attachment itself, or ?path= inside a folder. Owner access keeps the existing
+// rule. The portfolio steward may also read bytes from an exact ask with a
+// stored continuity attestation, because its authenticated producer needs to
+// inspect and revise that same page. No other service audience gets this path.
 func (h *handler) serveAttachment(w http.ResponseWriter, r *http.Request) {
-	owner, err := identity.Subject(r.Context(), r.Header, h.verifier)
-	if err != nil || owner == "" {
-		http.Error(w, "verified owner identity is required", http.StatusUnauthorized)
-		return
-	}
 	vars := mux.Vars(r)
-	content, err := h.service.OpenAskAttachment(r.Context(), vars["ask_id"], owner, vars["name"], r.URL.Query().Get("path"))
+	entryPath := r.URL.Query().Get("path")
+	owner, ownerErr := identity.Subject(r.Context(), r.Header, h.verifier)
+	var content hub.AttachmentContent
+	var err error
+	if ownerErr == nil && owner != "" {
+		content, err = h.service.OpenAskAttachment(r.Context(), vars["ask_id"], owner, vars["name"], entryPath)
+	} else {
+		audience, audienceErr := identity.ReaderFor(r.Context(), r.Header, h.verifier, h.services)
+		if audienceErr != nil {
+			http.Error(w, "verified owner or portfolio steward identity is required", http.StatusUnauthorized)
+			return
+		}
+		if audience.DirectSubjectSource != "portfolio-steward" {
+			notFound(w)
+			return
+		}
+		recipient := h.service.ResolveRecipient(r.Context())
+		if recipient == "" {
+			notFound(w)
+			return
+		}
+		content, err = h.service.OpenAskAttachmentFor(r.Context(), vars["ask_id"], recipient, vars["name"], entryPath, audience)
+	}
 	switch {
 	case errors.Is(err, hub.ErrNotFound):
 		notFound(w)
@@ -206,11 +220,11 @@ var attachmentContentEndpoint = module.EndpointDescriptor{
 	Path:        attachmentContentPath,
 	Method:      http.MethodGet,
 	Summary:     "Open one attached file of an ask",
-	Description: "Streams the Hub's stored copy of an attachment (or ?path= inside a folder attachment) to the ask's recipient, with byte ranges for video and audio. Requires a verified owner identity like Answer (401 without one). Unknown asks, other owners' asks, attachments and paths are all 404.",
+	Description: "Streams the Hub's stored copy of an attachment (or ?path= inside a folder attachment) to the ask's recipient, with byte ranges for video and audio. Requires a verified owner identity or the registered portfolio-steward sender with an exact stored continuity attestation (401 without a supported identity). Unknown asks, foreign asks, attachments and paths are all 404.",
 	Category:    "conversations",
 	RESTException: &module.RESTException{
 		Reason: module.RESTReasonBrowserSurface,
-		Note:   "Raw file bytes with Range support for the Hub's viewer; a Connect procedure cannot stream or seek. Metadata for the same attachments is the proto AskAttachment on GetAsk. Errors are plain-text HTTP statuses (401, 404).",
+		Note:   "Raw file bytes with Range support for the Hub's viewer; a Connect procedure cannot stream or seek. Metadata for the same attachments is the proto AskAttachment on GetAsk. The portfolio-steward exception is scoped to an exact per-ask source attestation; other service identities remain denied. Errors are plain-text HTTP statuses (401, 404).",
 		ProtoPayloads: &module.RESTProtoPayloads{
 			Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
 			Response: module.RESTPayload{Transport: "none", Conformance: "none"},

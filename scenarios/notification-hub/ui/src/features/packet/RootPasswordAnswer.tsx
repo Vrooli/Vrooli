@@ -9,8 +9,8 @@ import { useTranslation } from "../../i18n";
 
 /** A decision-bound alternative to the normal verified-identity answer path.
  * Secrets and the MFA challenge exist only in this mounted component. */
-export function RootPasswordAnswer({ ask, email: initialEmail, onCancel, onRecorded, onChanged }: {
-  ask: Ask; email: string; onCancel: () => void; onRecorded: () => void; onChanged: () => void;
+export function RootPasswordAnswer({ ask, email: initialEmail, onCancel, onRecorded, onChanged, onUncertain }: {
+  ask: Ask; email: string; onCancel: () => void; onRecorded: () => void; onChanged: () => void; onUncertain?: () => void;
 }) {
   const { t } = useTranslation();
   const [answer, setAnswer] = useState("");
@@ -41,7 +41,7 @@ export function RootPasswordAnswer({ ask, email: initialEmail, onCancel, onRecor
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (window.isSecureContext !== true || busy || uncertain || !answer || !email.trim() || !password || (challenge && !code.trim())) return;
+    if (!window.isSecureContext || busy || uncertain || !answer || !email.trim() || !password || (challenge && !code.trim())) return;
     setBusy(true); setError("");
     try {
       const result = await conversationsClient.answerRootWithPassword({ askId: ask.id, revisionCount: ask.revisionCount, answer, email: email.trim(), password, mfaChallenge: challenge, totpCode: recovery ? "" : code.trim(), recoveryCode: recovery ? code.trim() : "" });
@@ -52,7 +52,7 @@ export function RootPasswordAnswer({ ask, email: initialEmail, onCancel, onRecor
         setPassword(""); setChallenge(""); setRecorded(true); onRecorded();
       } else {
         setPassword(""); setChallenge(""); setUncertain(true);
-        setError(t(strings.packet.rootPassword.unclear));
+        setError(t(strings.packet.rootPassword.unclear)); onUncertain?.();
       }
     } catch (cause) {
       setCode("");
@@ -62,11 +62,11 @@ export function RootPasswordAnswer({ ask, email: initialEmail, onCancel, onRecor
         setPassword(""); setChallenge(""); setError(t(strings.packet.rootPassword.unavailable)); onChanged();
       } else {
         setPassword(""); setChallenge(""); setUncertain(true);
-        setError(t(strings.packet.rootPassword.uncertain));
+        setError(t(strings.packet.rootPassword.uncertain)); onUncertain?.();
       }
     } finally { setBusy(false); }
   };
-  if (window.isSecureContext !== true) return <div className="flex flex-col gap-3"><p role="alert">{t(strings.session.secureRequired)}</p><Button type="button" variant="outline" onClick={onCancel}>{t(strings.packet.rootPassword.cancel)}</Button></div>;
+  if (!window.isSecureContext) return <div className="flex flex-col gap-3"><p role="alert">{t(strings.session.secureRequired)}</p><Button type="button" variant="outline" onClick={onCancel}>{t(strings.packet.rootPassword.cancel)}</Button></div>;
   if (recorded) return <p role="status">{t(strings.packet.rootPassword.recorded)}</p>;
   return (
     <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4 rounded-panel border border-app-border bg-app-surface p-4" aria-labelledby="root-password-heading">

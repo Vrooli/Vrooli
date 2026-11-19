@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/filekind"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/operatordecision"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
@@ -52,10 +53,11 @@ const ReasonContextNotAccepted = "context_not_accepted"
 const ReasonAskRefused = "ask_refused"
 
 type handler struct {
-	service         *hub.Service
-	verifier        identity.Verifier
-	stepUp          rootPasswordAuthenticator
-	linkedArtifacts *linkedartifact.Resolver
+	service                  *hub.Service
+	verifier                 identity.Verifier
+	stepUp                   rootPasswordAuthenticator
+	beforeRootReadDisclosure func() // test seam, immediately before final association check
+	linkedArtifacts          *linkedartifact.Resolver
 	// services verifies the service-principal roles: ask readers and senders. A
 	// nil verifier turns its role off.
 	services identity.ServiceVerifiers
@@ -101,10 +103,13 @@ func (h *handler) module() module.Module {
 		r.Handle(connectv1.ConversationsServicePutAttachmentBlobProcedure, upload).Methods(http.MethodPost)
 		r.Handle(connectv1.ConversationsServiceWaitProcedure, budgetWait(general)).Methods(http.MethodPost)
 		r.PathPrefix(path).Handler(general)
+		r.HandleFunc("/api/v1/identity/root-decision-read", h.rootDecisionRead).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/identity/root-enrollment", h.rootEnrollment).Methods(http.MethodPost, http.MethodDelete)
 		r.HandleFunc(attachmentContentPath, h.serveAttachment).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc(answerImageContentPath, h.serveAnswerImage).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc(linkedArtifactMetadataPath, h.linkedArtifactMetadata).Methods(http.MethodGet)
 		r.HandleFunc(linkedArtifactContentPath, h.serveLinkedArtifact).Methods(http.MethodGet, http.MethodHead)
+		r.HandleFunc("/api/v1/conversations/asks/{ask_id}/portfolio-continuity", h.attestPortfolioContinuity).Methods(http.MethodPost)
 	}, Endpoints: Endpoints}
 }
 
@@ -205,6 +210,13 @@ func (h *handler) directProducer(ctx context.Context, headers http.Header) (iden
 // other, and loopback reachability proves nothing about who is asking.
 func (h *handler) reader(ctx context.Context, headers http.Header) (hub.AskAudience, error) {
 	audience, err := identity.ReaderFor(ctx, headers, h.verifier, h.services)
+	if err == nil && audience.Owner {
+		subject, subjectErr := identity.Subject(ctx, headers, h.verifier)
+		recipient := h.service.ResolveRecipient(ctx)
+		if subjectErr != nil || subject == "" || (recipient != "" && subject != recipient) {
+			err = errors.New("owner does not match recipient")
+		}
+	}
 	if err != nil {
 		return hub.AskAudience{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified owner, agent run or service identity is required to read asks"))
 	}
@@ -374,6 +386,39 @@ func (h *handler) findAsk(ctx context.Context, askID, subjectKey string, audienc
 	return ask, nil
 }
 
+func (h *handler) attestPortfolioContinuity(w http.ResponseWriter, r *http.Request) {
+	owner, err := identity.Subject(r.Context(), r.Header, h.verifier)
+	if err != nil {
+		// A verified run may hand off only an ask that its existing creator or
+		// conversation lineage can already read. Do not turn an owner subject or
+		// a caller-selected ask ID into a broader migration capability.
+		audience, runErr := identity.ReaderFor(r.Context(), r.Header, h.verifier, h.services)
+		if runErr != nil || audience.Owner || !strings.HasPrefix(audience.CreatedBy, "run:") {
+			http.Error(w, "verified owner or agent run identity required", http.StatusUnauthorized)
+			return
+		}
+		ask, err := h.service.AttestPortfolioAskFromRun(r.Context(), mux.Vars(r)["ask_id"], audience)
+		if err != nil {
+			http.Error(w, "eligible pending ask not found", http.StatusNotFound)
+			return
+		}
+		writePortfolioContinuity(w, ask)
+		return
+	}
+	ask, err := h.service.AttestPortfolioAsk(r.Context(), mux.Vars(r)["ask_id"], owner)
+	if err != nil {
+		http.Error(w, "eligible pending ask not found", http.StatusNotFound)
+		return
+	}
+	writePortfolioContinuity(w, ask)
+}
+
+func writePortfolioContinuity(w http.ResponseWriter, ask hub.AskRecord) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]string{"ask_id": ask.ID, "source": "portfolio-steward", "recipient": ask.Recipient, "subject_key": ask.SubjectKey, "attested": "true"})
+}
+
 // logUnseenAsk records why a verified reader was told an ask does not exist,
 // without telling the reader: whether the ask exists for the recipient at all,
 // and which kind of reader asked. A scenario whose read-back of its own ask
@@ -431,7 +476,7 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 	if err != nil {
 		return nil, err
 	}
-	options := hub.WaitOptions{Deadline: deadline, ReturnOnContextRequest: req.Msg.GetReturnOnContextRequest()}
+	options := hub.WaitOptions{Deadline: deadline, ReturnOnContextRequest: req.Msg.GetReturnOnContextRequest(), Yield: apilifecycle.Closing(ctx)}
 	result, err := h.service.Wait(ctx, ask.ID, options)
 	for hops := 0; err == nil && req.Msg.GetSubjectKey() != "" && result.Ask.SupersededByAskID != "" && hops < maxKeyedWaitHops; hops++ {
 		if next, nextErr := h.findAsk(ctx, "", req.Msg.GetSubjectKey(), audience); nextErr == nil && next.ID != result.Ask.ID {

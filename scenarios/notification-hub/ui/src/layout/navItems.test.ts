@@ -9,8 +9,8 @@ describe("navigation sections", () => {
     expect(NAV_ITEMS.map((item) => item.key)).toEqual(["asks", "dashboard", "history", "settings"]);
   });
 
-  it("opens on Needs you at the index route and at a decision", () => {
-    expect(currentKeys("/")).toEqual(["asks"]);
+  it("opens on Updates at the index route and Needs you at a decision", () => {
+    expect(currentKeys("/")).toEqual(["dashboard"]);
     expect(currentKeys("/asks")).toEqual(["asks"]);
     expect(currentKeys("/asks/ask-1")).toEqual(["asks"]);
   });

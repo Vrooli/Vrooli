@@ -12,6 +12,7 @@ import { expectNoA11yViolations, listAsksFor, renderWithProviders } from "../../
 import { makeAsk } from "../packet/mocks/askFactory";
 
 vi.mock("../../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(), listNativeConsents: vi.fn() },
 }));

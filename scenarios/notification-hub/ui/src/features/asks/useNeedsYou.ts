@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { conversationsClient } from "../../api/notifications";
+import { useSession } from "../session/useSession";
 
 const REFRESH_MS = 60_000;
 
@@ -19,8 +20,11 @@ export interface NeedsYou {
  * is. Native permission requests are not in that total and are added here.
  */
 export function useNeedsYou(): NeedsYou {
+  const session = useSession();
+  const owner = session.isSuccess && session.data.signedIn;
+  const subject = owner ? session.data.subject : "";
   const asks = useQuery({
-    queryKey: ["asks", "needs-you-count"],
+    queryKey: ["asks", subject, "needs-you-count"],
     queryFn: async ({ signal }) => {
       const page = await conversationsClient.listAsks({ limit: 1, stateFilter: "awaiting" }, { signal });
       return page.totalAwaiting;
@@ -28,9 +32,10 @@ export function useNeedsYou(): NeedsYou {
     retry: false,
     staleTime: 30_000,
     refetchInterval: REFRESH_MS,
+    enabled: owner,
   });
   const consents = useQuery({
-    queryKey: ["native-consents", "needs-you-count"],
+    queryKey: ["native-consents", subject, "needs-you-count"],
     queryFn: async ({ signal }) => {
       const page = await conversationsClient.listNativeConsents({ limit: 25 }, { signal });
       return page.consents.filter((consent) => consent.state === "pending").length;
@@ -38,10 +43,11 @@ export function useNeedsYou(): NeedsYou {
     retry: false,
     staleTime: 30_000,
     refetchInterval: REFRESH_MS,
+    enabled: owner,
   });
-  const count = (asks.data ?? 0) + (consents.data ?? 0);
+  const count = owner ? (asks.data ?? 0) + (consents.data ?? 0) : 0;
   useAppBadge(count);
-  return { count, known: asks.data !== undefined || consents.data !== undefined };
+  return { count, known: owner && (asks.data !== undefined || consents.data !== undefined) };
 }
 
 /** Mirror the count on the installed app's icon where the platform allows it. */

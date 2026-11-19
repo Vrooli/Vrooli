@@ -29,7 +29,11 @@
     "more": "詳細",
     "recommended": "おすすめ",
     "due": "期限",
-    "answerQuestions": "回答する · 質問{{count}}件"
+    "answerQuestions": "回答する · 質問{{count}}件",
+    "history": "History",
+    "historyEmpty": "No earlier pages on this subject.",
+    "statusUpdate": "Status update",
+    "decision": "Decision"
   },
   "text": {
     "openLinkedArtifact": "Notification Hub でファイルを開く",
@@ -103,7 +107,8 @@
     "reviewEdit": "編集",
     "reviewNothing": "まだ選択されていません",
     "reviewRequired": "回答が必要です",
-    "reviewSkipped": "回答なし"
+    "reviewSkipped": "回答なし",
+    "closeChoices": "Close choices"
   },
   "context": {
     "open": "もっと情報が必要",
@@ -173,8 +178,6 @@
   "regionFeedback": {
     "title": "キャプチャを比較",
     "close": "比較を閉じる",
-    "before": "変更前",
-    "after": "変更後",
     "fidelity": "画像の種類: {{label}}",
     "route": "画面: {{route}}",
     "viewport": "{{width}} × {{height}} ピクセル",
@@ -189,10 +192,22 @@
     "noteSaved": "メモを回答に追加しました",
     "unavailable": "マニフェストまたは画像証拠が不足しているため、比較を開けません。",
     "notAnswerable": "キャプチャを表示できますが、この判断ではコメントを送れません。",
-    "captured": "実際のキャプチャ",
-    "composited": "実アプリ合成",
-    "rendered": "実コンポーネント表示",
-    "sketch": "スケッチ"
+    "before": "Before",
+    "after": "After",
+    "captured": "Captured",
+    "composited": "Composited",
+    "rendered": "Rendered",
+    "sketch": "Sketch",
+    "issues": {
+      "routeMismatch": "The two captures use different routes.",
+      "stateMismatch": "The two captures use different interaction states.",
+      "dataMismatch": "The two captures use different data sets.",
+      "viewportMismatch": "The two captures use different viewport sizes.",
+      "sameBuild": "The before and after captures name the same build.",
+      "imageMismatch": "The {{fidelity}} image reference is missing or its digest does not match.",
+      "regionEntryMissing": "Region {{regionId}} has no answerable evidence entry.",
+      "regionCropMismatch": "Region {{regionId}} has no matching crop image."
+    }
   },
   "rootPassword": {
     "title": "この判断を確認して回答",
@@ -217,5 +232,78 @@
     "verify": "確認して回答を送信",
     "cancel": "判断に戻る",
     "openForm": "代わりにパスワードで確認"
+  },
+  "rootRead": {
+    "action": "パスワードで読む",
+    "title": "この判断を読む",
+    "intro": "認証アカウントを確認して判断を読みます。回答には別途確認が必要です。",
+    "error": "判断を読めませんでした。認証情報を確認して再試行してください。"
+  },
+  "statusBar": {
+    "label": "Status update response",
+    "read": "Marked as read.",
+    "review": "Review",
+    "notes_one": "{{count}} note",
+    "notes": "{{count}} notes",
+    "changes_one": "{{count}} change",
+    "changes": "{{count}} changes",
+    "verdicts_one": "{{count}} verdict",
+    "verdicts": "{{count}} verdicts",
+    "yourChanges": "Your changes",
+    "nothingToChoose": "Nothing to choose",
+    "hint": "Tap a choice or a note in the page. It shows up here.",
+    "note": "Note",
+    "notePlaceholder": "Add a note…",
+    "selectedChanges": "Selected page changes",
+    "noteChip": "Note · {{label}}",
+    "send": "Send",
+    "sendCount": "Send {{count}}",
+    "sending": "Sending…",
+    "markRead": "Mark read",
+    "clear": "Clear",
+    "addNote": "Add a note…",
+    "uploadError": "Your update was not confirmed. Check the status before sending again.",
+    "readError": "The update could not be marked read.",
+    "sentError": "Your steering was sent.",
+    "sentWithTime": "Your steering was sent at {{time}}.",
+    "recurrence": "Sent {{count}} times on this subject",
+    "skip": "Skip with › and come back later",
+    "signedOut": "Sign in to send steering or mark this update as read.",
+    "remove": "Remove {{label}}"
+  },
+  "noteSheet": {
+    "title": "Note · {{label}}",
+    "yourNote": "Your note",
+    "attach": "Attach image or file",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "uploading": "Uploading…",
+    "save": "Save note",
+    "fileTooLarge": "{{name}} must be no larger than 12 MiB.",
+    "fileError": "The file could not be attached.",
+    "ask": "Ask {{id}}"
+  },
+  "navigation": {
+    "previous": "Previous conversation",
+    "next": "Next conversation",
+    "label": "Conversation navigation",
+    "position": "{{current}} of {{total}}"
+  },
+  "images": {
+    "tooMany": "An answer can include at most 8 images.",
+    "tooLarge": "An answer can include at most 24 MiB of images.",
+    "singleTooLarge": "{{name}} must be an image no larger than 12 MiB.",
+    "failed": "The image could not be added.",
+    "attach": "Attach images",
+    "listLabel": "Images to send",
+    "remove": "Remove {{name}}"
+  },
+  "kitTemplate": {
+    "noData": "This template has no data object.",
+    "unavailable": "This template is not available in this Hub build.",
+    "schemaUnreadable": "The template schema could not be read.",
+    "dataInvalid": "The template data is invalid.",
+    "slotCount": "The template has an invalid data slot.",
+    "tooLarge": "The rendered template exceeds the Hub page size limit."
   }
 }

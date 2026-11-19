@@ -102,7 +102,10 @@ check for it.
 | `hub.theme` | `"light"` or `"dark"`. The page root also gets `data-theme`, so CSS can use `:root[data-theme="dark"]`. |
 | `hub.answer.set(key, label, value)` | Records one choice made on the page; the Hub's answer bar shows `label` and sends `{changes: {key: value}}` with the answer. Check that `hub.answer` exists first. |
 | `hub.answer.remove(key)` | Takes that choice back out (for example when the operator returns to the starting state). |
-| `hub.context` | Read-only `{kind, recurrence: {count, dates, previousAnswers}}`: `count` includes this ask, `dates` lists every ask on the subject key with this one last, `previousAnswers` are `{answer, note, answeredAt}`. |
+| `hub.note(key, label)` | Opens a Hub-owned note sheet for one item. The saved `{label, text, attachments}` is sent under `changes.notes[key]`; attached image or file bytes are stored by the Hub and the report page never handles them directly. |
+| `hub.openAsk(id)` | Navigates to the named Hub ask at `/asks/<id>`. Ask ids must be included in the page data's `asks[]` list for live context. |
+| `await hub.asset("folder-name/relative/path")` | Resolves a file from an attached folder to a browser-loadable data URL. The Hub checks the folder entry and caps dynamic files at 12 MiB; a missing, invalid or larger file returns `null`. |
+| `hub.context` | Read-only `{kind, recurrence, asks, asksTruncated}`. `recurrence` has `{count, dates, previousAnswers}`. `asks` maps up to 20 distinct ids from page data `asks[]` to `{state, askedAt, answeredAt, question}`; inaccessible ids are present with `state: "unknown"`. `asksTruncated` is true when the page named more ids. |
 
 ```html
 <button type="button" id="pick">Choose B</button>

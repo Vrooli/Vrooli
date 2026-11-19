@@ -260,6 +260,19 @@ func latestSubjectAskTx(ctx context.Context, tx dbTx, source, eventType, subject
 	return scanAsk(tx.QueryRowContext(ctx, askSelect+askSubjectWhere+` ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, source, eventType, subject))
 }
 
+// latestDirectSubjectAskFromOtherSourceTx is used only for an exact-key
+// continuity read by a verified source owner. It never crosses into
+// event-sourced asks and callers must still prove SeesByKey before using the
+// result.
+func latestDirectSubjectAskFromOtherSourceTx(ctx context.Context, tx dbTx, recipient, source, subject string) (AskRecord, error) {
+	const where = ` WHERE a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?) AND a.source <> ? AND a.source_event_type = '' AND a.subject_key = ?`
+	ask, err := scanAsk(tx.QueryRowContext(ctx, askSelect+where+` AND a.state IN ('pending','escalated') ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, recipient, source, subject))
+	if errors.Is(err, ErrNotFound) {
+		return scanAsk(tx.QueryRowContext(ctx, askSelect+where+` ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, recipient, source, subject))
+	}
+	return ask, err
+}
+
 // askByEventIDTx finds the ask an event id belongs to: its current requester_ref
 // (the latest revision's event) or an id it carried before.
 func askByEventIDTx(ctx context.Context, tx dbTx, source, eventType, eventID string) (AskRecord, error) {
@@ -406,8 +419,23 @@ func (s *Service) askSubjectTx(ctx context.Context, spec AskSpec, pushSource str
 			if err != nil && !errors.Is(err, ErrNotFound) {
 				return fail(err)
 			}
+			if errors.Is(err, ErrNotFound) && spec.RevisionAudience.DirectSubjectSource != "" {
+				target, err = latestDirectSubjectAskFromOtherSourceTx(ctx, tx, spec.Recipient, spec.Source, spec.SubjectKey)
+				if err != nil && !errors.Is(err, ErrNotFound) {
+					return fail(err)
+				}
+				if err == nil {
+					if !spec.RevisionAudience.SeesByKey(target) && !s.hasSourceAttestationTx(ctx, tx, target, *spec.RevisionAudience) {
+						return AskResult{}, false, ErrNotFound
+					}
+					if target.State != AskPending {
+						return AskResult{}, false, fmt.Errorf("%w: the exact ask is %s", ErrAskResolved, target.State)
+					}
+					open, openErr = target, nil
+				}
+			}
 		}
-		if target.ID != "" && !spec.RevisionAudience.SeesByKey(target) {
+		if target.ID != "" && !spec.RevisionAudience.SeesByKey(target) && !s.hasSourceAttestationTx(ctx, tx, target, *spec.RevisionAudience) {
 			return AskResult{}, false, ErrNotFound
 		}
 	}
@@ -463,6 +491,14 @@ func (s *Service) askSubjectTx(ctx context.Context, spec AskSpec, pushSource str
 		return fail(err)
 	}
 	return s.createSubjectAsk(ctx, tx, nil, spec, pushSource, now, asserted, AskCreated)
+}
+
+func (s *Service) hasSourceAttestationTx(ctx context.Context, tx *sql.Tx, ask AskRecord, audience AskAudience) bool {
+	if audience.DirectSubjectSource != "portfolio-steward" || ask.SourceEventType != "" || !validPortfolioSubjectKey(ask.SubjectKey) || ask.Recipient == "" {
+		return false
+	}
+	var one int
+	return tx.QueryRowContext(ctx, `SELECT 1 FROM ask_source_attestations WHERE ask_id=? AND source=? AND recipient=?`, ask.ID, audience.DirectSubjectSource, ask.Recipient).Scan(&one) == nil
 }
 
 // explainNoOpenAskTx says why a revision found nothing to revise. The usual cause

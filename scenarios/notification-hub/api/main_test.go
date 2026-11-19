@@ -110,6 +110,21 @@ func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
 	t.Logf("lease_id=%s test_pool_requests=%d primary_during_test_mode_requests=%d primary_asks=%d primary_answers=%d", routed.ActiveLeaseID(), stats.TestPoolRequests, stats.PrimaryDuringTestModeRequests, primaryAsks, answers)
 }
 
+func TestInactiveRoutedTestLeaseReturnsRecoverySignalWithoutCallingHandler(t *testing.T) {
+	db := filedb.Open(t, "primary.db")
+	defer db.Close()
+	called := false
+	handler := requireRoutedTestLease(db, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req = req.WithContext(database.WithTestMode(req.Context()))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	require.Equal(t, "inactive", rec.Header().Get("X-Vrooli-Test-Lease-State"))
+	require.False(t, called, "a request with a missing lease must never fall through to production handlers")
+}
+
 func TestLeasedTestModeAcceptsAndReadsRealProducerNotification(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")

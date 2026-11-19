@@ -970,6 +970,28 @@ func TestSweepAttachmentBlobs_DeletesUnreferencedBlobsADayAfterTheirLastUse(t *t
 	require.Equal(t, "referenced", string(got), "a referenced blob is never swept, however old")
 }
 
+func TestSweepAttachmentBlobs_KeepsItemNoteFilesReferencedByAnswerChanges(t *testing.T) {
+	env := newAttachmentEnv(t)
+	ctx := context.Background()
+	hash := env.put(t, "note attachment")
+	ask := env.ask(t, "item-note", env.file(t, "brief.md", "brief"))
+	_, err := env.service.AnswerAsk(ctx, hub.AnswerInput{
+		AskID: ask.Ask.ID, Answer: "retry", Actor: "alice",
+		Changes: map[string]any{"notes": map[string]any{"measure.latency": map[string]any{"label": "Latency", "text": "See this plot", "attachments": []any{map[string]any{"name": "plot.csv", "sha256": hash, "mediaType": "text/csv", "sizeBytes": 14}}}}},
+	})
+	require.NoError(t, err)
+	answered, err := env.service.GetAsk(ctx, ask.Ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hash, answered.AnswerChanges["notes"].(map[string]any)["measure.latency"].(map[string]any)["attachments"].([]any)[0].(map[string]any)["sha256"])
+	env.advance(t, 25*time.Hour)
+	deleted, err := env.service.SweepAttachmentBlobs(ctx)
+	require.NoError(t, err)
+	require.Zero(t, deleted, "a note attachment referenced by the accepted answer remains available")
+	content, err := env.service.ReadAttachmentBlob(ctx, hash, 1<<10)
+	require.NoError(t, err)
+	require.Equal(t, "note attachment", string(content))
+}
+
 func TestSweepAttachmentBlobs_ConfirmingOrReferencingABlobRestartsItsGracePeriod(t *testing.T) {
 	env := newAttachmentEnv(t)
 	ctx := context.Background()

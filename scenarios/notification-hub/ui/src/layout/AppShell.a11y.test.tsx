@@ -13,6 +13,7 @@ import { TestAppRouter } from "../app/routes";
 import { selectors } from "../consts/selectors";
 
 vi.mock("../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   conversationsClient: { listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })), listNativeConsents: vi.fn(() => Promise.resolve({ consents: [] })) },
   deliveryClient: { getTimeline: vi.fn(() => Promise.resolve({ notifications: [] })) },
@@ -49,7 +50,7 @@ describe("AppShell accessibility", () => {
 
   it("renders the shell without axe violations in English", async () => {
     const { container } = renderWithProviders(
-      <TestAppRouter initialEntries={["/"]} />,
+      <TestAppRouter initialEntries={["/asks"]} />,
       { withoutRouter: true },
     );
     await screen.findByRole("heading", { name: "All caught up" });
@@ -62,7 +63,7 @@ describe("AppShell accessibility", () => {
       <>
         {/* jsdom does not evaluate the shared shell's viewport media queries. */}
         <style>{"[data-rcl-app-shell-sidebar] { display: none; }"}</style>
-        <TestAppRouter initialEntries={["/"]} />
+        <TestAppRouter initialEntries={["/asks"]} />
       </>,
       { withoutRouter: true },
     );

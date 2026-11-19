@@ -10,6 +10,7 @@
   "failed_precondition": "Cannot perform this action: {{message}}",
   "aborted": "Operation aborted.",
   "out_of_range": "Out of range.",
+  "routed_test_lease_expired": "انتهت جلسة الاختبار المؤقتة في علامة التبويب هذه. افتح Hub المباشر للمتابعة.",
   "unimplemented": "Not yet implemented.",
   "internal": "Something went wrong. Please try again.",
   "unavailable": "Service temporarily unavailable.",

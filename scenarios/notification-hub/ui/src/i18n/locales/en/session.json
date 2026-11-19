@@ -22,7 +22,18 @@
   "unavailable": "Sign-in is unavailable right now. Try again.",
   "totpCode": "Authentication code",
   "recoveryCode": "Recovery code",
+  "readOnlyBrowse": "You can still browse Updates and Delivery without signing in. Answering decisions and changing personal settings requires an owner session.",
   "useRecovery": "Use a recovery code",
   "useTotp": "Use an authentication code",
-  "secureRequired": "Password verification requires a secure connection. Open the Hub over HTTPS or from localhost on this machine."
+  "secureRequired": "Password verification requires a secure connection. Open the Hub over HTTPS or from localhost on this machine.",
+  "enrollmentTitle": "Connect an authenticator account",
+  "enrollmentIntro": "Connect your existing authenticator account to the owner signed in through Cloudflare Access.",
+  "enrollmentAction": "Connect account",
+  "enrollmentSuccess": "Account connected.",
+  "enrollmentError": "Could not confirm the connection. Check your credentials and try again.",
+  "revokeAction": "Disconnect all accounts",
+  "revokeTitle": "Disconnect all connected accounts?",
+  "revokeDescription": "This removes every authenticator account connected to your Cloudflare Access owner identity.",
+  "revokeSuccess": "Connected accounts disconnected.",
+  "revokeError": "Could not confirm that accounts were disconnected. Try again."
 }

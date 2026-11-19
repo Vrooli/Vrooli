@@ -45,3 +45,24 @@ func TestASubjectKeyIsNoCapabilityForAnAskWithoutAVerifiedOwnerOrAnEventAsk(t *t
 		t.Error("a reader with no verified owner must not match an ask with none")
 	}
 }
+
+func TestDirectSourceNamespaceIsNotAuthorizationWithoutStoredAttestation(t *testing.T) {
+	reader := hub.AskAudience{CreatedBy: "service:portfolio-steward", DirectSubjectSource: "portfolio-steward"}
+	ask := hub.AskRecord{CreatedBy: "run:steward-pass", CreatedSubject: "owner-a", Source: "operator", SubjectKey: "portfolio-steward:roadmap:2026-11-16"}
+	if reader.SeesByKey(ask) {
+		t.Fatal("a subject prefix and verified sender identity alone must not authorize a direct ask")
+	}
+	for name, denied := range map[string]hub.AskRecord{
+		"foreign subject":          {CreatedBy: "run:steward-pass", CreatedSubject: "owner-a", Source: "operator", SubjectKey: "treasury:approval:1"},
+		"unverified creator owner": {CreatedBy: "", SubjectKey: "portfolio-steward:roadmap:1"},
+		"event sourced ask":        {CreatedBy: "", CreatedSubject: "owner-a", Source: "portfolio-steward", SourceEventType: "portfolio_steward.decision_requested.v1", SubjectKey: "portfolio-steward:roadmap:1"},
+	} {
+		if reader.SeesByKey(denied) {
+			t.Errorf("%s must not be reachable through the direct source path", name)
+		}
+	}
+	other := hub.AskAudience{CreatedBy: "service:treasury", DirectSubjectSource: "treasury"}
+	if other.SeesByKey(ask) {
+		t.Fatal("a different verified sender must not read the steward ask")
+	}
+}

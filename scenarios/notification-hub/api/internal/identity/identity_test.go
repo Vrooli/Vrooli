@@ -169,7 +169,7 @@ func TestProducerForDirectAdmitsAVerifiedServiceSenderAsItsOwnSource(t *testing.
 	if producer.Anonymous() || producer.Creator() != "service:treasury" {
 		t.Fatalf("a sender is a verified producer: %+v", producer)
 	}
-	if got := producer.Audience(); got != (hub.AskAudience{CreatedBy: "service:treasury"}) {
+	if got := producer.Audience(); got != (hub.AskAudience{CreatedBy: "service:treasury", DirectSubjectSource: "treasury"}) {
 		t.Fatalf("a sender's audience is what it sent: %+v", got)
 	}
 
@@ -203,7 +203,7 @@ func TestReaderForAdmitsASenderOnlyToItsOwnAsks(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("Authorization", "Bearer treasury")
 	got, err := ReaderFor(context.Background(), headers, nil, services)
-	if err != nil || got != (hub.AskAudience{CreatedBy: "service:treasury"}) {
+	if err != nil || got != (hub.AskAudience{CreatedBy: "service:treasury", DirectSubjectSource: "treasury"}) {
 		t.Fatalf("sender reader = %+v, err=%v", got, err)
 	}
 	if _, err := ReaderFor(context.Background(), headers, nil, ServiceVerifiers{}); err == nil {

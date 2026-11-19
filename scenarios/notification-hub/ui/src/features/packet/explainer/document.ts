@@ -140,7 +140,7 @@ export interface ExplainerDocumentOptions {
   /** The references that stay placeholders and open the viewer instead. */
   deferred: readonly ReferenceTarget[];
   /** Read-only host context made available to the sealed page bridge. */
-  context?: { kind: string; recurrence: unknown };
+  context?: { kind: string; recurrence: unknown; asks?: Record<string, { state: string; askedAt?: string; answeredAt?: string; question?: string }>; asksTruncated?: boolean };
 }
 
 // A script or style body must not be able to close its own element.

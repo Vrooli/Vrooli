@@ -51,7 +51,7 @@ export function SettingsIndex() {
   const session = useSession();
   const path = useSettingsPath();
   if (wide) return <Navigate to={path(DEFAULT_SECTION)} replace />;
-  const signedOut = !session.isPending && !session.data?.signedIn;
+  const signedOut = session.isSuccess && !session.data.signedIn;
   return (
     <Page title={t(strings.pages.settings.title)} headingId="settings-heading">
       {signedOut && (

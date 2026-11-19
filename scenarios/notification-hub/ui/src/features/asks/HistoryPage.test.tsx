@@ -1,6 +1,6 @@
 import { en } from "../../i18n/catalog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import { AskSchema, type Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
@@ -12,6 +12,7 @@ import { setLocale } from "../../i18n";
 import { TestAppRouter } from "../../app/routes";
 
 vi.mock("../../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(), listNativeConsents: vi.fn() },
   notificationsClient: { get: vi.fn() },
@@ -85,6 +86,37 @@ describe("History request browser", () => {
     expect(screen.getByRole("searchbox")).toHaveFocus();
   });
 
+  it.each(["/asks", "/history"])("does not query identity-scoped decisions at %s when signed out", async (path) => {
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
+    listAsks.mockResolvedValue({ asks: [], nextCursor: "" } as never);
+
+    show(path);
+
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(conversationsClient.listNativeConsents).not.toHaveBeenCalled();
+  });
+
+  it("removes cached private decision rows when the owner session expires", async () => {
+    const privateAsk = ask("private-row");
+    listAsks.mockImplementation(listAsksFor(() => ({ asks: [privateAsk], nextCursor: "" })));
+    const { queryClient } = show("/history");
+    expect(await screen.findByText(privateAsk.question)).toBeInTheDocument();
+    const readsBeforeExpiry = listAsks.mock.calls.length;
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["asks", "owner-1"] }).length).toBeGreaterThan(0);
+    queryClient.setQueryData(["ask", "private-row", "owner-1"], { ask: privateAsk });
+    queryClient.setQueryData(["ask-explainer", "owner-1", "private-row", "fingerprint"], { html: "private attachment rendering" });
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
+    expect(screen.queryByText(privateAsk.question)).not.toBeInTheDocument();
+    await waitFor(() => expect(queryClient.getQueryCache().findAll({ queryKey: ["asks", "owner-1"] })).toHaveLength(0));
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["ask", "private-row", "owner-1"] })).toHaveLength(0);
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["ask-explainer", "owner-1"] })).toHaveLength(0);
+    expect(listAsks).toHaveBeenCalledTimes(readsBeforeExpiry);
+  });
+
   it("keeps the page title and reports a genuine server-query no-match", async () => {
     listAsks.mockImplementation(listAsksFor(() => ({ asks: [], nextCursor: "" })));
     show("/history?q=missing&state=awaiting");
@@ -131,7 +163,7 @@ describe("History request browser", () => {
     listAsks.mockImplementation(asksInOrder({ asks: [ask("saved")], nextCursor: "" }, new Error("offline"), { asks: [ask("fresh")], nextCursor: "" }));
     const user = userEvent.setup(); const { queryClient } = show();
     await screen.findByText(ask("saved").question);
-    await queryClient.invalidateQueries({ queryKey: ["asks", "history"] });
+    await queryClient.invalidateQueries({ queryKey: ["asks", "owner-1", "history"] });
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn’t load your history.");
     expect(screen.getByText(ask("saved").question)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Try again" }));

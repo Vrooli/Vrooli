@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { en } from "../../i18n/catalog";
 import { selectors } from "../../consts/selectors";
@@ -34,6 +34,22 @@ describe("Editing a channel", () => {
         { id: "a-push", deviceId: "phone", channel: "web_push", address: "https://push.example/secret-endpoint", approvedLabels: ["public", "private"] },
         { id: "a-mail", deviceId: "phone", channel: "email", address: "me@example.com", approvedLabels: ["public"] },
       ],
+    });
+  });
+
+  it("drops cached addresses and stops private reads when the session expires", async () => {
+    renderSettings(EDIT_EMAIL);
+    expect(await screen.findByLabelText(/Email address/)).toHaveValue("me@example.com");
+    const deviceReads = hub.recipientsClient.listDevices.mock.calls.length;
+    const addressReads = hub.recipientsClient.listChannelAddresses.mock.calls.length;
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByText(en.settings.sessionEnded.title)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Email address/)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(hub.recipientsClient.listDevices).toHaveBeenCalledTimes(deviceReads);
+      expect(hub.recipientsClient.listChannelAddresses).toHaveBeenCalledTimes(addressReads);
     });
   });
 

@@ -30,7 +30,7 @@ export function DevicePage() {
   const { t } = useTranslation();
   const { deviceId = "" } = useParams();
   const session = useSession();
-  const devices = useQuery({ ...devicesQuery, enabled: Boolean(session.data?.signedIn) });
+  const devices = useQuery({ ...devicesQuery, enabled: session.isSuccess });
   const device = devices.data?.devices.find((row) => row.id === deviceId);
   return (
     <SettingsScreen
@@ -38,20 +38,22 @@ export function DevicePage() {
       description={device?.machineId ? <><span>{t(strings.reach.device.machine)} </span><bdi dir="ltr">{device.machineId}</bdi></> : undefined}
       back={{ to: "/settings/reach", label: t(strings.reach.device.back) }}
     >
-      <OwnerGate><DeviceContent deviceId={deviceId} /></OwnerGate>
+      <OwnerGate readOnly={<DeviceContent deviceId={deviceId} readOnly />}><DeviceContent deviceId={deviceId} /></OwnerGate>
     </SettingsScreen>
   );
 }
 
-function DeviceContent({ deviceId }: { deviceId: string }) {
+function DeviceContent({ deviceId, readOnly = false }: { deviceId: string; readOnly?: boolean }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const path = useSettingsPath();
   const notice = useRouteNotice();
-  const devices = useQuery({ ...devicesQuery, refetchOnWindowFocus: true });
-  const addresses = useQuery({ ...channelAddressesQuery, refetchOnWindowFocus: true });
+  const session = useSession();
+  const owner = session.isSuccess && session.data.signedIn;
+  const devices = useQuery({ ...devicesQuery, enabled: session.isSuccess, refetchOnWindowFocus: true });
+  const addresses = useQuery({ ...channelAddressesQuery, enabled: owner, refetchOnWindowFocus: true });
   const [confirmRemove, setConfirmRemove] = useState(false);
   const device = devices.data?.devices.find((row) => row.id === deviceId);
 
@@ -91,6 +93,7 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
   const channelsHeading = t(strings.reach.device.channels);
   return (
     <>
+      {readOnly && <Notice>{t(strings.session.readOnlyBrowse)}</Notice>}
       {notice?.kind === "channelSaved" && (
         <Notice tone="success" testId={selectors.reach.channelSaved}>
           {t(notice.uncertain ? strings.reach.channel.savedUncertain : strings.reach.channel.saved, { channel: channelLabel(notice.channel, t) })}
@@ -110,11 +113,11 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
           <ListGroup aria-label={channelsHeading}>
             {device.channels.map((channel) => {
               const address = addresses.data?.addresses.find((row) => row.deviceId === device.id && row.channel === channel);
-              const editable = (EDITABLE_CHANNELS as readonly string[]).includes(channel) && address !== undefined && !addresses.isError;
+              const editable = !readOnly && (EDITABLE_CHANNELS as readonly string[]).includes(channel) && address !== undefined && !addresses.isError;
               const body = (
                 <span className="flex flex-col">
                   <span className="text-base font-semibold">{channelLabel(channel, t)}</span>
-                  {address ? (
+                  {readOnly ? null : address ? (
                     <>
                       <span className="text-sm text-app-muted-foreground [overflow-wrap:anywhere]">
                         {channel === "web_push" ? t(strings.reach.channel.thisBrowserPrivate) : <bdi dir="ltr">{address.address}</bdi>}
@@ -138,7 +141,7 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
             })}
           </ListGroup>
         )}
-        {!hasEmail && (
+        {!readOnly && !hasEmail && (
           <div>
             <Link
               to={path(`/settings/reach/devices/${encodeURIComponent(device.id)}/channels/email`)}
@@ -151,7 +154,7 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
         )}
       </section>
 
-      <section aria-labelledby="device-remove-heading" className="flex flex-col gap-2 border-t border-app-border pt-5">
+      {!readOnly && <section aria-labelledby="device-remove-heading" className="flex flex-col gap-2 border-t border-app-border pt-5">
         <h2 id="device-remove-heading" className="px-1 text-base font-semibold">{t(strings.reach.device.removeHeading)}</h2>
         <p className="px-1 text-sm text-app-muted-foreground">{t(strings.reach.device.removeBody)}</p>
         {remove.isError && <Notice tone="danger" title={t(strings.reach.device.removeFailed)}>{t(strings.reach.device.removeFailedDetail)}</Notice>}
@@ -160,9 +163,9 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
             {remove.isPending ? t(strings.reach.device.removing) : t(strings.reach.device.remove)}
           </Button>
         </div>
-      </section>
+      </section>}
 
-      <AlertDialog
+      {!readOnly && <AlertDialog
         testIdPrefix={dialogPrefixes.deviceRemoval}
         open={confirmRemove}
         title={t(strings.reach.device.confirmTitle, { name: device.name })}
@@ -173,7 +176,7 @@ function DeviceContent({ deviceId }: { deviceId: string }) {
         closeLabel={t(strings.settings.action.cancel)}
         onConfirm={() => { setConfirmRemove(false); remove.mutate(); }}
         onCancel={() => setConfirmRemove(false)}
-      />
+      />}
     </>
   );
 }

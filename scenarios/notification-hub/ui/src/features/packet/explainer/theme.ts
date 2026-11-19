@@ -186,7 +186,7 @@ function readStyles(doc: Document): Styles {
   const styles: Styles = { rules: [], declared: "", darkStyles: false };
   for (const node of doc.querySelectorAll("style")) {
     if (node.hasAttribute("data-hub")) continue;
-    styles.rules.push(...parseCSS(stripComments(node.textContent ?? ""), ""));
+    styles.rules.push(...parseCSS(stripComments(node.textContent), ""));
   }
   // Each style attribute is its own rule: two elements' attributes never pair up.
   let inline = 0;
@@ -203,7 +203,7 @@ function readStyles(doc: Document): Styles {
   }
   for (const node of doc.querySelectorAll("script")) {
     if (node.hasAttribute("data-hub")) continue;
-    if (/hubthemechange|prefers-color-scheme/.test(node.textContent ?? "")) styles.darkStyles = true;
+    if (/hubthemechange|prefers-color-scheme/.test(node.textContent)) styles.darkStyles = true;
   }
   return styles;
 }
@@ -212,7 +212,7 @@ function readStyles(doc: Document): Styles {
 
 function parseHex(text: string): Color | null {
   let hex = text.replace(/^#/, "");
-  if (hex.length === 3 || hex.length === 4) hex = [...hex].map((c) => c + c).join("");
+  if (hex.length === 3 || hex.length === 4) hex = hex.replace(/./g, "$&$&");
   if (hex.length !== 6 && hex.length !== 8) return null;
   const value = Number.parseInt(hex, 16);
   if (Number.isNaN(value)) return null;
@@ -300,7 +300,7 @@ function firstColor(value: string): Color | null {
   const blank = (s: string) => " ".repeat(s.length);
   const stripped = value.replace(/\b(rgba?|hsla?)\(([^()]*)\)/gi, blank).replace(/url\([^)]*\)/g, blank);
   for (const match of stripped.matchAll(/\b[a-z]+\b/gi)) {
-    if ((match.index ?? 0) >= at) break;
+    if (match.index >= at) break;
     const word = match[0].toLowerCase();
     if (word === "transparent") return { r: 0, g: 0, b: 0, alpha: 0 };
     if (NAMED[word]) return parseHex(NAMED[word]);
@@ -331,15 +331,16 @@ function themeVars(kit: Rule[], styles: Styles, scheme: "light" | "dark"): Map<s
 
 function resolve(value: string, vars: Map<string, string>): string | null {
   for (let depth = 0; depth < 4 && value.includes("var("); depth++) {
-    let ok = true;
+    const unresolved = [...value.matchAll(VAR_PATTERN)].some((match) => {
+      const name = match[1] ?? "";
+      return vars.get(name) === undefined && !match[2];
+    });
+    if (unresolved) return null;
     value = value.replace(VAR_PATTERN, (_match, name: string, fallback?: string) => {
       const found = vars.get(name);
       if (found !== undefined) return found;
-      if (fallback) return fallback;
-      ok = false;
-      return "";
+      return fallback ?? "";
     });
-    if (!ok) return null;
   }
   return value.includes("var(") ? null : value;
 }

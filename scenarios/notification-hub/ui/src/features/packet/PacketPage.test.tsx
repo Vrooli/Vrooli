@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { create } from "@bufbuild/protobuf";
-import { AskAttachmentNoteSchema, AskContextRequestSchema, AskQuestionResponseSchema, AskRevisionSchema, AskOptionSchema } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
+import { create, toJson } from "@bufbuild/protobuf";
+import { AskSchema, AskAttachmentNoteSchema, AskContextRequestSchema, AskQuestionResponseSchema, AskRevisionSchema, AskOptionSchema } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
 import { resolveLinkedArtifact } from "../../api/attachments";
 import { conversationsClient, identityClient } from "../../api/notifications";
@@ -17,8 +17,9 @@ import { emptyDraft, withAttachmentNote } from "./model/draft";
 import { clearAskDrafts, readAskAttempt, readAskDraft, writeAskDraft } from "./model/draftStore";
 
 vi.mock("../../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(), login: vi.fn() },
-  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), listAsks: vi.fn(), requestContext: vi.fn() },
+  conversationsClient: { getAsk: vi.fn(), answerRootWithPassword: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), listAsks: vi.fn(), requestContext: vi.fn() },
 }));
 vi.mock("../../api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/client")>()),
@@ -37,13 +38,11 @@ const TEXT_BACKUPS_ARE_BLOCKED = "Backups are blocked.";
 const TEXT_BACKUPS_HAVE_BEEN_BLOCKED = "Backups have been blocked for an hour.";
 const TEXT_BACKUPS_SUCCEEDED_AGAIN = "Backups succeeded again.";
 const TEXT_DOES_THE_GATE_PASS = "Does the gate pass?";
-const TEXT_OPEN_LOFT = "Open loft";
 const TEXT_PRIVATE_DRAFT_NOTE = "private draft note";
 const TEXT_REPLACED_BY_A_NEWER = "Replaced by a newer version of this decision";
 const TEXT_SET_B = "Set B";
 const TEXT_THIS_KEEPS_THE_QUALITY = "This keeps the quality goal useful.";
 const TEXT_TWO_REQUIRED_PLATFORM_CHECKS = "Two required platform checks still fail.";
-const TEXT_WARMER = "Warmer";
 const TEXT_WHAT_DOES_THE_GATE = "What does the gate mean?";
 
 const RAW_URGENCY = "high";
@@ -92,17 +91,63 @@ afterEach(() => {
 
 
 describe("root reauthentication entry", () => {
+  it("opens a password-read root decision and offers a fresh answer verification", async () => {
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
+    vi.mocked(conversationsClient.getAsk).mockRejectedValue(new ConnectError("sign in", Code.Unauthenticated));
+    const decision = makeAsk({ id: "ask-1", source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ mfaRequired: false, ask: toJson(AskSchema, decision) }))));
+    renderAsk();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: text.rootRead.action }));
+    const form = screen.getByRole("heading", { name: text.rootRead.title }).closest("form")!;
+    await user.type(within(form).getByLabelText(en.session.email), "owner@example.test");
+    await user.type(within(form).getByLabelText(en.session.password), "secret");
+    await user.click(within(form).getByRole("button", { name: text.rootRead.action }));
+    await user.click(await screen.findByRole("button", { name: text.rootPassword.openForm }));
+    expect(screen.getByRole("heading", { name: text.rootPassword.title })).toBeInTheDocument();
+    expect(within(screen.getByRole("heading", { name: text.rootPassword.title }).closest("form")!).getByLabelText(text.rootPassword.password)).toHaveValue("");
+    vi.unstubAllGlobals();
+  });
+  it.each(["recorded", "changed", "uncertain"] as const)("handles a %s password answer without leaving a stale decision actionable", async (outcome) => {
+    vi.mocked(identityClient.getSession).mockResolvedValue({ signedIn: false } as never);
+    vi.mocked(conversationsClient.getAsk).mockRejectedValue(new ConnectError("sign in", Code.Unauthenticated));
+    const decision = makeAsk({ id: "ask-1", source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1", options: [create(AskOptionSchema, { key: "approve", label: "Approve" })] });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ mfaRequired: false, ask: toJson(AskSchema, decision) }))));
+    if (outcome === "recorded") vi.mocked(conversationsClient.answerRootWithPassword).mockResolvedValue({ answeredAt: "now" } as never);
+    else vi.mocked(conversationsClient.answerRootWithPassword).mockRejectedValue(outcome === "changed" ? new ConnectError("changed", Code.FailedPrecondition) : new Error("lost response"));
+    renderAsk(); const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: text.rootRead.action }));
+    const readForm = screen.getByRole("heading", { name: text.rootRead.title }).closest("form")!;
+    await user.type(within(readForm).getByLabelText(en.session.email), "owner@example.test");
+    await user.type(within(readForm).getByLabelText(en.session.password), "secret");
+    await user.click(within(readForm).getByRole("button", { name: text.rootRead.action }));
+    await user.click(await screen.findByRole("button", { name: text.rootPassword.openForm }));
+    const answerForm = screen.getByRole("heading", { name: text.rootPassword.title }).closest("form")!;
+    await user.click(within(answerForm).getByRole("radio", { name: "Approve" }));
+    await user.type(within(answerForm).getByLabelText(text.rootPassword.email), "owner@example.test");
+    await user.type(within(answerForm).getByLabelText(text.rootPassword.password), "secret");
+    await user.click(within(answerForm).getByRole("button", { name: text.rootPassword.verify }));
+    if (outcome === "recorded") {
+      expect(await screen.findByRole("status")).toHaveTextContent(text.rootPassword.recorded);
+      expect(screen.queryByRole("button", { name: text.rootRead.action })).not.toBeInTheDocument();
+    } else {
+      expect(await screen.findByRole("alert")).toHaveTextContent(outcome === "changed" ? text.rootPassword.changed : text.rootPassword.uncertain);
+      expect(screen.getByRole("button", { name: text.rootRead.action })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("button", { name: text.rootPassword.openForm })).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
   it("opens a protected decision after cold sign-in and MFA", async () => {
     let signedIn = false;
-    vi.mocked(identityClient.getSession).mockImplementation(async () => (signedIn ? SIGNED_IN : { signedIn: false }) as never);
-    vi.mocked(identityClient.login).mockImplementation(async (request) => {
-      if (!request.mfaChallenge) return { mfaRequired: true, mfaChallenge: "challenge" } as never;
+    vi.mocked(identityClient.getSession).mockImplementation(() => Promise.resolve((signedIn ? SIGNED_IN : { signedIn: false }) as never));
+    vi.mocked(identityClient.login).mockImplementation((request) => {
+      if (!request.mfaChallenge) return Promise.resolve({ mfaRequired: true, mfaChallenge: "challenge" } as never);
       signedIn = true;
-      return { mfaRequired: false } as never;
+      return Promise.resolve({ mfaRequired: false } as never);
     });
-    vi.mocked(conversationsClient.getAsk).mockImplementation(async () => {
-      if (!signedIn) throw new ConnectError("sign in", Code.Unauthenticated);
-      return { ask: makeAsk({ source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1" }) } as never;
+    vi.mocked(conversationsClient.getAsk).mockImplementation(() => {
+      if (!signedIn) return Promise.reject(new ConnectError("sign in", Code.Unauthenticated));
+      return Promise.resolve({ ask: makeAsk({ source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1" }) } as never);
     });
     renderAsk();
     const user = userEvent.setup();
@@ -1076,53 +1121,37 @@ describe("a decision packet", () => {
   describe("on a phone with several questions", () => {
     beforeEach(() => setPhone(true));
 
-    it("shows the cover first, then one question at a time, ending in a review before sending", async () => {
+    it("keeps the packet visible and opens all questions in the choice drawer", async () => {
       const user = userEvent.setup();
       vi.mocked(conversationsClient.answer).mockResolvedValue({} as never);
       renderAsk();
 
       expect(await screen.findAllByTestId(selectors.packet.attachment)).toHaveLength(5);
       expect(screen.queryByTestId(selectors.packet.form)).not.toBeInTheDocument();
-      await user.click(screen.getByTestId(selectors.packet.startAnswer));
-
-      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
-      expect(screen.queryAllByTestId(selectors.packet.attachment)).toHaveLength(0);
+      await user.click(screen.getByRole("button", { name: en.packet.form.choose }));
+      expect(screen.getByRole("dialog", { name: en.packet.form.stepDecision })).toBeInTheDocument();
+      expect(screen.getAllByTestId(selectors.packet.question)).toHaveLength(4);
       await user.click(await optionByKey("set-b"));
-      await user.click(screen.getByRole("button", { name: text.form.next }));
-
-      expect(screen.getAllByTestId(selectors.packet.question)).toHaveLength(1);
-      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
       await user.click(screen.getByRole("radio", { name: /Open loft/ }));
-      await user.click(screen.getByRole("button", { name: text.form.next }));
       await user.click(screen.getByRole("checkbox", { name: /Intro/ }));
-      await user.click(screen.getByRole("button", { name: text.form.next }));
-      await user.click(screen.getByRole("button", { name: text.form.next }));
       await user.type(screen.getByRole("textbox", { name: "Anything about tone?" }), "Warmer");
-      await user.click(screen.getByRole("button", { name: text.form.next }));
-
-      const review = screen.getByRole("region", { name: text.form.reviewTitle });
-      expect(within(review).getByText(TEXT_SET_B)).toBeInTheDocument();
-      expect(within(review).getByText(TEXT_OPEN_LOFT)).toBeInTheDocument();
-      expect(within(review).getByText(TEXT_WARMER)).toBeInTheDocument();
-      await user.click(send());
+      await user.click(within(screen.getByRole("dialog", { name: en.packet.form.stepDecision })).getByRole("button", { name: en.packet.form.closeChoices }));
+      expect(screen.getByRole("button", { name: TEXT_SET_B })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Send" }));
       await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledTimes(1));
       expect(vi.mocked(conversationsClient.answer).mock.calls[0]?.[0]).toMatchObject({ answer: "set-b" });
     });
 
-    it("jumps to the review after Accept all recommended, and names an unanswered required question", async () => {
+    it("keeps sending disabled when recommended choices leave a required question unanswered", async () => {
       const user = userEvent.setup();
       vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: studioAsk({ questions: studioAsk().questions.map((question) => (question.id === "tone" ? makeQuestion({ id: "tone", type: "text", prompt: "Tone?", required: true }) : question)) }) } as never);
       renderAsk();
 
-      await user.click(await screen.findByTestId(selectors.packet.startAnswer));
+      await user.click(await screen.findByRole("button", { name: en.packet.form.choose }));
       await user.click(screen.getByTestId(selectors.packet.acceptRecommended));
-
-      expect(screen.getByRole("region", { name: text.form.reviewTitle })).toBeInTheDocument();
-      expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "6");
-      expect(send()).toBeDisabled();
-      expect(screen.getByRole("status")).toHaveTextContent("Tone?");
-      await user.click(within(screen.getByRole("region", { name: text.form.reviewTitle })).getAllByRole("button", { name: text.form.reviewEdit })[4]!);
-      expect(screen.getAllByTestId(selectors.packet.question)).toHaveLength(1);
+      expect(screen.getAllByTestId(selectors.packet.question)).toHaveLength(4);
+      await user.click(within(screen.getByRole("dialog", { name: en.packet.form.stepDecision })).getByRole("button", { name: en.packet.form.closeChoices }));
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     });
   });
 });

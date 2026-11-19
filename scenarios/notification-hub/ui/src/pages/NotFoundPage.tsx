@@ -14,7 +14,7 @@ export function NotFoundPage() {
   const { search } = useLocation();
   return (
     <Page title={t(strings.pages.notFound.title)} description={t(strings.pages.notFound.detail)} headingId={HEADING_ID} testId={selectors.pages.notFound}>
-      <Link to={preserveRoutedTestMode("/asks", search)} className="inline-flex min-h-11 items-center self-start font-medium text-app-primary underline-offset-4 hover:underline">
+      <Link to={preserveRoutedTestMode("/updates", search)} className="inline-flex min-h-11 items-center self-start font-medium text-app-primary underline-offset-4 hover:underline">
         {t(strings.pages.notFound.home)}
       </Link>
     </Page>

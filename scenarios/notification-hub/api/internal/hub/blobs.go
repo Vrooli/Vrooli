@@ -195,7 +195,8 @@ func (s *Service) checkUnreferencedQuota(ctx context.Context, cfg *attachmentCon
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(size_bytes), 0) FROM attachment_blobs b
 		WHERE NOT EXISTS (SELECT 1 FROM ask_attachments a WHERE a.sha256 = b.sha256)
 		AND NOT EXISTS (SELECT 1 FROM ask_attachment_entries e WHERE e.sha256 = b.sha256)
-		AND NOT EXISTS (SELECT 1 FROM answer_image_refs i WHERE i.sha256 = b.sha256)`).Scan(&held); err != nil {
+		AND NOT EXISTS (SELECT 1 FROM answer_image_refs i WHERE i.sha256 = b.sha256)
+		AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.changes_json LIKE '%"notes":%' AND a.changes_json LIKE '%"sha256":"' || b.sha256 || '"%')`).Scan(&held); err != nil {
 		return err
 	}
 	if held+incoming > cfg.unreferencedLimit {
@@ -337,6 +338,7 @@ func (s *Service) SweepAttachmentBlobs(ctx context.Context) (int, error) {
 		AND NOT EXISTS (SELECT 1 FROM ask_attachments a WHERE a.sha256 = b.sha256)
 		AND NOT EXISTS (SELECT 1 FROM ask_attachment_entries e WHERE e.sha256 = b.sha256)
 		AND NOT EXISTS (SELECT 1 FROM answer_image_refs i WHERE i.sha256 = b.sha256)
+		AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.changes_json LIKE '%"notes":%' AND a.changes_json LIKE '%"sha256":"' || b.sha256 || '"%')
 		ORDER BY b.last_touched_at LIMIT ?`, cutoff, sweepBlobBatch)
 	if err != nil {
 		return 0, err

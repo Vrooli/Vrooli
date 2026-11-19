@@ -6,6 +6,10 @@ const frame = {} as Window;
 const message = (data: unknown, source: Window | null = frame) => parseBridgeMessage({ data, source }, frame);
 
 describe("bridge message validation", () => {
+  it("accepts only known swipe directions from the frame", () => {
+    expect(message({ hub: 1, type: "swipe", direction: "next" })).toEqual({ type: "swipe", direction: "next" });
+    expect(message({ hub: 1, type: "swipe", direction: "elsewhere" })).toBeNull();
+  });
   it("ignores anything that did not come from the explainer's own window", () => {
     expect(message({ hub: BRIDGE_PROTOCOL, type: "height", height: 400 }, {} as Window)).toBeNull();
     expect(message({ hub: BRIDGE_PROTOCOL, type: "height", height: 400 }, null)).toBeNull();
@@ -50,5 +54,14 @@ describe("bridge message validation", () => {
     expect(message({ hub: 1, type: "answer", operation: "set", key: "pace", label: "", value: "fast" })).toBeNull();
     expect(message({ hub: 1, type: "answer", operation: "remove", key: "x".repeat(100) })).toBeNull();
     expect(message({ hub: 1, type: "answer", operation: "set", key: "pace", label: "Pace", value: "x".repeat(40_000) })).toBeNull();
+  });
+
+  it("validates Hub-owned item notes and ask navigation", () => {
+    expect(message({ hub: 1, type: "note", key: "evidence.image-a", label: "Image A" })).toEqual({ type: "note", key: "evidence.image-a", label: "Image A" });
+    expect(message({ hub: 1, type: "note", key: "", label: "Image A" })).toBeNull();
+    expect(message({ hub: 1, type: "open-ask", askId: "ask-123" })).toEqual({ type: "open-ask", askId: "ask-123" });
+    expect(message({ hub: 1, type: "open-ask", askId: "../private" })).toBeNull();
+    expect(message({ hub: 1, type: "asset", requestId: "a7", name: "evidence", path: "image/a.png" })).toEqual({ type: "asset", requestId: "a7", name: "evidence", path: "image/a.png" });
+    expect(message({ hub: 1, type: "asset", requestId: "a7", name: "evidence", path: "../secret" })).toBeNull();
   });
 });

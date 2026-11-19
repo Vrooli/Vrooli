@@ -21,6 +21,7 @@ import {
 } from "../features/delivery/deliveryView";
 import { UpdatesTabs } from "../features/delivery/UpdatesTabs";
 import { preserveRoutedTestMode } from "../features/routedTestMode";
+import { useSession } from "../features/session/useSession";
 
 const UPDATE_LIMIT = 20;
 const ASK_LOOKUP_LIMIT = 200;
@@ -35,26 +36,30 @@ const LINK = "inline-flex min-h-11 items-center rounded-control text-sm font-med
 export function DashboardPage() {
   const { t } = useTranslation();
   const { search } = useLocation();
+  const session = useSession();
+  const signedIn = session.isSuccess && session.data.signedIn;
+  const subject = signedIn ? session.data.subject : "";
   const updates = useQuery({
     queryKey: ["updates"],
     queryFn: () => deliveryClient.getTimeline({ limit: UPDATE_LIMIT }),
     refetchInterval: 60_000,
   });
   const asks = useQuery({
-    queryKey: ["updates", "linked-asks"],
+    queryKey: ["updates", "linked-asks", subject],
     queryFn: () => conversationsClient.listAsks({ openOnly: false, limit: ASK_LOOKUP_LIMIT }),
     refetchInterval: 60_000,
+    enabled: signedIn,
   });
   const askByNotification = useMemo(() => {
     const byNotification = new Map<string, string>();
-    if (asks.isError) return byNotification;
+    if (!signedIn || asks.isError) return byNotification;
     for (const ask of asks.data?.asks ?? []) {
       if (ask.notificationId && !byNotification.has(ask.notificationId)) {
         byNotification.set(ask.notificationId, ask.id);
       }
     }
     return byNotification;
-  }, [asks.data, asks.isError]);
+  }, [asks.data, asks.isError, signedIn]);
   const notifications = updates.data?.notifications ?? [];
   const failedWithoutData = updates.isError && !updates.data;
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
+import { History } from "lucide-react";
 
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -21,6 +22,9 @@ interface PacketCoverProps {
   outcome?: ReactNode;
   /** What belongs right under the question: the requester's page, and any open questions to it. */
   afterQuestion?: ReactNode;
+  navigation?: ReactNode;
+  /** The way back, drawn at the start of the title row. */
+  back?: ReactNode;
 }
 
 /**
@@ -28,7 +32,7 @@ interface PacketCoverProps {
  * requester recommends. A cold reader should have the whole decision from this
  * alone; technical details stay one tap away.
  */
-export function PacketCover({ ask, links, onOpenAttachment, outcome, afterQuestion }: PacketCoverProps) {
+export function PacketCover({ ask, links, onOpenAttachment, outcome, afterQuestion, navigation, back }: PacketCoverProps) {
   const { t } = useTranslation();
   const now = useNow();
   const contextRef = ask.contextUrl;
@@ -40,21 +44,36 @@ export function PacketCover({ ask, links, onOpenAttachment, outcome, afterQuesti
 
   return (
     <>
-      <div className="flex flex-col gap-2 md:gap-3">
-        {(sender || urgency || ask.deadline) && (
-          <p className="flex flex-wrap items-center gap-2 text-sm text-app-muted-foreground">
-            {sender && <span className="[overflow-wrap:anywhere]">{sender}</span>}
-            {urgency && <Chip tone="attention">{t(urgency)}</Chip>}
-            {ask.deadline && (
-              <Chip>
-                {t(strings.packet.cover.due)} <time dateTime={ask.deadline} title={formatExact(ask.deadline) ?? undefined}>{formatDueIn(ask.deadline, now) ?? ask.deadline}</time>
-              </Chip>
-            )}
-          </p>
-        )}
-        <h1 id="ask-heading" dir="auto" data-testid={selectors.asks.question} className="break-words text-xl font-semibold leading-snug md:text-2xl">
-          <DecisionText value={ask.question} inheritText dense links={links} />
-        </h1>
+      <div className="flex flex-col gap-2">
+        {/* One title row, as in the approved layout: back, the name with one quiet line under it, history, and ‹ › on desktop. */}
+        <div className="flex items-start gap-1 md:gap-2">
+          {back}
+          <div className="min-w-0 flex-1 pt-1.5">
+            <h1 id="ask-heading" dir="auto" data-testid={ask.title && ask.title !== ask.question ? undefined : selectors.asks.question} className="break-words text-lg font-semibold leading-snug md:text-2xl">
+              <DecisionText value={ask.title || ask.question} inheritText dense links={links} />
+            </h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-app-muted-foreground">
+              <span>{ask.kind === "status" ? t(strings.packet.cover.statusUpdate) : t(strings.packet.cover.decision)}</span>
+              {sender && <><span aria-hidden="true">·</span><span className="[overflow-wrap:anywhere]">{sender}</span></>}
+              {urgency && <Chip tone="attention">{t(urgency)}</Chip>}
+              {ask.deadline && (
+                <Chip>
+                  {t(strings.packet.cover.due)} <time dateTime={ask.deadline} title={formatExact(ask.deadline) ?? undefined}>{formatDueIn(ask.deadline, now) ?? ask.deadline}</time>
+                </Chip>
+              )}
+            </p>
+          </div>
+          <details className="relative flex-none">
+            <summary aria-label={t(strings.packet.cover.history)} title={t(strings.packet.cover.history)} className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><History size={19} aria-hidden="true" /></summary>
+            <div className="absolute end-0 z-10 w-72 rounded-panel border border-app-border bg-app-surface p-4 shadow-lg">
+              <h2 className="font-semibold">{t(strings.packet.cover.history)}</h2>
+              {ask.recurrence?.dates.length ? <ul className="mt-2 space-y-1 text-sm text-app-muted-foreground">{ask.recurrence.dates.map((date, index) => <li key={`${date}-${index}`}>{date}</li>)}</ul> : <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.packet.cover.historyEmpty)}</p>}
+              <p className="mt-3 border-t border-app-border pt-2 text-xs text-app-muted-foreground">{t(strings.packet.status.requestId)} <bdi dir="ltr" className="select-all break-all font-mono">{ask.id}</bdi></p>
+            </div>
+          </details>
+          <div className="hidden flex-none lg:block">{navigation}</div>
+        </div>
+        {ask.title && ask.title !== ask.question && <p dir="auto" data-testid={selectors.asks.question} className="line-clamp-2 break-words text-sm leading-relaxed text-app-muted-foreground md:text-base"><DecisionText value={ask.question} inheritText dense links={links} /></p>}
         {outcome}
         {attachedContext && (
           <button type="button" onClick={() => onOpenAttachment(attachedContext)} className="inline-flex min-h-11 items-center self-start text-sm underline">

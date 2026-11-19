@@ -15,12 +15,18 @@ import { setLocale } from "../i18n";
 import { en, ja, ar } from "../i18n/catalog";
 import { TestAppRouter } from "../app/routes";
 import { AppShell } from "./AppShell";
-import { conversationsClient, recipientsClient } from "../api/notifications";
+import { conversationsClient, identityClient, recipientsClient, ROUTED_TEST_LEASE_EXPIRED_EVENT } from "../api/notifications";
 import { makeAsk } from "../features/packet/mocks/askFactory";
 import { clearAskDrafts, readAskDraft } from "../features/packet/model/draftStore";
 
+const viewportState = vi.hoisted(() => ({ frameHeight: 844, layoutHeight: 785, visibleHeight: 500, keyboardVisible: false }));
+vi.mock("@vrooli/react-component-library/useViewportEnvironment/1", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vrooli/react-component-library/useViewportEnvironment/1")>()),
+  useViewportEnvironment: () => viewportState,
+}));
 
 vi.mock("../api/notifications", () => ({
+  ROUTED_TEST_LEASE_EXPIRED_EVENT: "notification-hub:routed-test-lease-expired",
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   recipientsClient: { listDevices: vi.fn(() => Promise.resolve({ devices: [], vapidPublicKey: "" })) },
   registerBrowserPushSubscription: vi.fn(),
@@ -74,6 +80,7 @@ describe("AppShell structure (cimode)", () => {
     clearAskDrafts();
     vi.restoreAllMocks();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth });
+    Object.assign(viewportState, { frameHeight: 844, layoutHeight: 785, visibleHeight: 500, keyboardVisible: false });
   });
 
   it("renders the sidebar and main outlet with the persistent mobile tab bar and no header chrome", () => {
@@ -82,19 +89,36 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "tabs");
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
-    expect(screen.getByTestId(`${selectors.layout.navLink({ key: "asks" })}-tab`)).toHaveAttribute("aria-current", "page");
+    expect(screen.getByTestId(`${selectors.layout.navLink({ key: "dashboard" })}-tab`)).toHaveAttribute("aria-current", "page");
     expect(screen.queryByTestId(`${selectors.layout.shell}-menu`)).not.toBeInTheDocument();
     expect(screen.queryByTestId(`${selectors.layout.shell}-header`)).not.toBeInTheDocument();
   });
+
+  it.each([["/asks/decision-1", true], ["/asks", false], ["/history", false]])(
+    "only hides phone tabs on a single conversation at %s", (path, conversation) => {
+      renderWithProviders(<AppShellWithRouterLocation initialEntry={path} />, { withoutRouter: true });
+      expect(screen.getByTestId(selectors.layout.shell).classList.contains("conversation-shell")).toBe(conversation);
+    },
+  );
 
   it("consumes the same top safe-area inset at the shell boundary while retaining viewport height", () => {
     const styles = readFileSync("src/styles.css", "utf8");
     const shellRule = styles.match(/\[data-rcl-app-shell\]\s*\{([^}]*)\}/)?.[1] ?? "";
 
-    expect(shellRule).toContain("--rcl-app-shell-block-size: calc(100dvh - var(--safe-area-inset-top))");
+    expect(shellRule).toContain("--rcl-app-shell-block-size: calc(var(--hub-viewport-height, 100dvh) - var(--safe-area-inset-top))");
     expect(shellRule).toContain("block-size: var(--rcl-app-shell-block-size)");
     expect(shellRule).toContain("margin-block-start: var(--safe-area-inset-top)");
     expect(styles).toContain("padding-bottom: var(--safe-area-inset-bottom)");
+  });
+
+  it("sizes the shell from the measured frame and the visible viewport when the keyboard opens", () => {
+    const view = renderWithProviders(<AppShellWithRouterLocation initialEntry="/" />, { withoutRouter: true });
+    expect(document.documentElement.style.getPropertyValue("--hub-viewport-height")).toBe("844px");
+    viewportState.keyboardVisible = true;
+    view.rerender(<AppShellWithRouterLocation initialEntry="/" />);
+    expect(document.documentElement.style.getPropertyValue("--hub-viewport-height")).toBe("500px");
+    view.unmount();
+    expect(document.documentElement.style.getPropertyValue("--hub-viewport-height")).toBe("");
   });
 
   it("keeps locale switching out of the header chrome", () => {
@@ -132,7 +156,7 @@ describe("AppShell structure (cimode)", () => {
   it("shows no count when nothing waits, and shows the Hub's exact total however long the queue is", async () => {
     await setLocale("en");
     renderShell();
-    await screen.findByTestId(selectors.pages.asks);
+    await screen.findByTestId(selectors.pages.dashboard);
     expect(screen.queryByRole("img", { name: /waiting/, hidden: true })).not.toBeInTheDocument();
     cleanup();
     vi.mocked(conversationsClient.listAsks).mockResolvedValue({ asks: [makeAsk({ id: "ask-1" })], nextCursor: "more", totalAwaiting: 120 } as never);
@@ -141,18 +165,30 @@ describe("AppShell structure (cimode)", () => {
     expect((await screen.findAllByText("120")).length).toBeGreaterThan(0);
   });
 
-  it("keeps ordinary recipient reads available when the owner session expires", async () => {
+  it("keeps the read-only Updates feed available when the owner session expires", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(await screen.findByTestId(selectors.pages.asks)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toBeInTheDocument();
     window.dispatchEvent(new Event("notification-hub:session-expired"));
-    expect(screen.getByTestId(selectors.pages.asks)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+  });
+
+  it("opens Updates signed out without querying owner-only decision or permission queues", async () => {
+    vi.mocked(identityClient.getSession).mockResolvedValueOnce({ signedIn: false } as never);
+    vi.mocked(conversationsClient.listAsks).mockClear();
+    vi.mocked(conversationsClient.listNativeConsents).mockClear();
+
+    renderShell();
+
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(conversationsClient.listAsks).not.toHaveBeenCalled();
+    expect(conversationsClient.listNativeConsents).not.toHaveBeenCalled();
   });
 
   it("keeps the visually hidden skip link as the first keyboard navigation target", async () => {
     const user = userEvent.setup();
     renderShell();
 
-    await screen.findByTestId(selectors.pages.asks);
+    await screen.findByTestId(selectors.pages.dashboard);
     expect(screen.getByTestId(selectors.layout.main).tagName).toBe("MAIN");
     const skipLink = screen.getByTestId(`${selectors.layout.shell}-skip`);
     expect(skipLink).not.toHaveFocus();
@@ -250,6 +286,16 @@ describe("AppShell structure (cimode)", () => {
       expect(screen.getByTestId("router-location")).toHaveTextContent("/updates?vrooli_test_mode=1");
       expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toHaveFocus();
     });
+  });
+
+  it("offers a live Hub recovery when a routed test lease has expired", async () => {
+    renderWithProviders(
+      <AppShellWithRouterLocation initialEntry="/settings/reach?vrooli_test_mode=1&e4_fixture=old" />,
+      { withoutRouter: true },
+    );
+    await act(() => Promise.resolve(window.dispatchEvent(new Event(ROUTED_TEST_LEASE_EXPIRED_EVENT))));
+    expect(await screen.findByRole("alert")).toHaveTextContent("errors.routed_test_lease_expired");
+    expect(screen.getByRole("button", { name: "common.open_live_hub" })).toBeInTheDocument();
   });
 
   it("keeps desktop navigation on the shared column with no open compact panel", async () => {

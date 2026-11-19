@@ -6,9 +6,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 
 import { identityClient } from "../../api/notifications";
+import { currentSessionGeneration } from "../../api/sessionGeneration";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { SignInForm, SessionPanel } from "./SessionGate";
+import { SignedOutCard } from "./SignedOutCard";
 import { sessionQueryKey, useSessionExpiryBoundary } from "./useSession";
 import { setLocale } from "../../i18n";
 import { en } from "../../i18n/catalog";
@@ -48,6 +50,7 @@ describe("SessionGate", () => {
 
   it("trims the login email, clears the password, and invalidates the session after success", async () => {
     const user = userEvent.setup();
+    const previousGeneration = currentSessionGeneration();
     vi.mocked(identityClient.login).mockResolvedValue({} as never);
     renderWithProviders(<SignInForm />);
 
@@ -57,6 +60,7 @@ describe("SessionGate", () => {
 
     await waitFor(() => expect(identityClient.login).toHaveBeenCalledWith({ email: "owner@example.test", password: "secret" }));
     await waitFor(() => expect(screen.getByTestId(selectors.session.password)).toHaveValue(""));
+    expect(currentSessionGeneration()).toBeGreaterThan(previousGeneration);
   });
 
   it("completes an MFA challenge before treating login as successful", async () => {
@@ -66,10 +70,29 @@ describe("SessionGate", () => {
     await user.type(screen.getByTestId(selectors.session.email), "owner@example.test");
     await user.type(screen.getByTestId(selectors.session.password), "secret");
     await user.click(screen.getByTestId(selectors.session.submit));
-    await user.type(await screen.findByLabelText("Authentication code"), "123456");
+    await user.type(await screen.findByLabelText(en.session.totpCode), "123456");
     await user.click(screen.getByTestId(selectors.session.submit));
     await waitFor(() => expect(identityClient.login).toHaveBeenLastCalledWith({ email: "owner@example.test", password: "secret", mfaChallenge: "challenge", totpCode: "123456" }));
     await waitFor(() => expect(screen.getByTestId(selectors.session.password)).toHaveValue(""));
+  });
+
+  it("requests a fresh MFA challenge after the previous challenge is rejected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(identityClient.login)
+      .mockResolvedValueOnce({ mfaRequired: true, mfaChallenge: "expired" } as never)
+      .mockRejectedValueOnce(new ConnectError("denied", Code.Unauthenticated))
+      .mockResolvedValueOnce({ mfaRequired: true, mfaChallenge: "fresh" } as never);
+    renderWithProviders(<SignInForm />);
+    await user.type(screen.getByTestId(selectors.session.email), "owner@example.test");
+    await user.type(screen.getByTestId(selectors.session.password), "secret");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await user.type(await screen.findByLabelText(en.session.totpCode), "123456");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await screen.findByRole("alert");
+    expect(screen.queryByLabelText(en.session.totpCode)).not.toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await waitFor(() => expect(identityClient.login).toHaveBeenLastCalledWith({ email: "owner@example.test", password: "secret" }));
+    expect(await screen.findByLabelText(en.session.totpCode)).toHaveValue("");
   });
 
   it("does not submit incomplete credentials and explains rejected credentials", async () => {
@@ -91,13 +114,36 @@ describe("SessionGate", () => {
     expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
   });
 
-  it("clears only the Hub session after cookie sign-out and refreshes verified identity", async () => {
+  it("does not mistake an unavailable session check for a signed-out owner", async () => {
+    vi.mocked(identityClient.getSession).mockRejectedValue(new ConnectError("service unavailable", Code.Unavailable));
+    renderWithProviders(<SessionPanel />);
+    expect(await screen.findByText(en.errors.unavailable)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.session.form)).not.toBeInTheDocument();
+  });
+
+  it("keeps read-only notification browsing available from an owner-only screen", () => {
+    renderWithProviders(<SignedOutCard />);
+    expect(screen.getByRole("region", { name: en.session.title })).toHaveTextContent(en.session.readOnlyBrowse);
+    expect(screen.getByRole("link", { name: en.layout.nav.dashboard })).toHaveAttribute("href", "/updates");
+    expect(screen.getByRole("link", { name: en.pages.delivery.title })).toHaveAttribute("href", "/delivery");
+  });
+
+  it("clears recipient data and ends the Hub session immediately after cookie sign-out", async () => {
     const user = userEvent.setup();
+    const previousGeneration = currentSessionGeneration();
     vi.mocked(identityClient.getSession)
       .mockResolvedValueOnce({ signedIn: true, subject: "owner-1", email: "owner@example.test" } as never)
-      .mockResolvedValueOnce({ signedIn: false, subject: "", email: "" } as never);
+      .mockImplementation(() => new Promise(() => undefined));
     vi.mocked(identityClient.logout).mockResolvedValue({} as never);
-    renderWithProviders(<SessionPanel />);
+    const { queryClient } = renderWithProviders(<SessionPanel />);
+    await waitFor(() => expect(queryClient.getQueryData(sessionQueryKey)).toMatchObject({ signedIn: true, subject: "owner-1" }));
+    queryClient.setQueryData(["asks", "owner-1", "history"], { pages: [{ asks: [{ id: "private-ask" }] }] });
+    queryClient.setQueryData(["ask", "private-ask", "owner-1"], { ask: { id: "private-ask" } });
+    queryClient.setQueryData(["ask-explainer", "owner-1", "private-ask", "fingerprint"], { html: "private attachment rendering" });
+    queryClient.setQueryData(["quiet-windows"], { windows: [{ id: "owner-private-window" }] });
+    queryClient.setQueryData(["escalation-chain"], { steps: [{ channel: "owner-private-channel" }] });
+    queryClient.setQueryData(["recipient-channel-addresses"], { addresses: [{ address: "private@example.test" }] });
+    queryClient.setQueryData(["device-apps", "owner-1"], { apps: [{ id: "private-app" }] });
     const signOut = await screen.findByTestId(selectors.session.signOut);
     await user.click(signOut);
     expect(identityClient.logout).not.toHaveBeenCalled();
@@ -110,7 +156,16 @@ describe("SessionGate", () => {
     await waitFor(() => expect(identityClient.logout).toHaveBeenCalledTimes(1));
     expect(identityClient.logout).toHaveBeenCalledWith({});
     expect(await screen.findByText(en.session.hubSessionInactive)).toBeInTheDocument();
-    await waitFor(() => expect(identityClient.getSession).toHaveBeenCalledTimes(2));
+    expect(identityClient.getSession).toHaveBeenCalledTimes(1);
+    expect(currentSessionGeneration()).toBeGreaterThan(previousGeneration);
+    expect(queryClient.getQueryData(sessionQueryKey)).toMatchObject({ signedIn: false, subject: "", email: "" });
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["asks"] })).toHaveLength(0);
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["ask", "private-ask", "owner-1"] })).toHaveLength(0);
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["ask-explainer", "owner-1"] })).toHaveLength(0);
+    expect(queryClient.getQueryData(["quiet-windows"])).toBeUndefined();
+    expect(queryClient.getQueryData(["escalation-chain"])).toBeUndefined();
+    expect(queryClient.getQueryData(["recipient-channel-addresses"])).toBeUndefined();
+    expect(queryClient.getQueryCache().findAll({ queryKey: ["device-apps"] })).toHaveLength(0);
     expect(screen.queryByTestId(selectors.session.signedIn)).not.toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });

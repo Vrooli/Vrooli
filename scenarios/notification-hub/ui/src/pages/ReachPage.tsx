@@ -17,23 +17,26 @@ import { OwnerGate } from "../features/settings/OwnerGate";
 import { devicesQuery } from "../features/settings/ownerQueries";
 import { SettingsScreen } from "../features/settings/SettingsScreen";
 import { useSettingsPath } from "../features/settings/testContext";
+import { useSession } from "../features/session/useSession";
 
 /** Devices and channels: where Chimesail can reach you, and what each may carry. */
 export function ReachPage() {
   const { t } = useTranslation();
   return (
     <SettingsScreen title={t(strings.settings.section.reach)} description={t(strings.reach.description)} backToSettings>
-      <OwnerGate><ReachContent /></OwnerGate>
+      <OwnerGate readOnly={<ReachContent readOnly />}><ReachContent /></OwnerGate>
     </SettingsScreen>
   );
 }
 
-function ReachContent() {
+function ReachContent({ readOnly = false }: { readOnly?: boolean }) {
   const { t } = useTranslation();
   const path = useSettingsPath();
   const notice = useRouteNotice();
+  const session = useSession();
   // Devices and registrations change elsewhere; never show cached rows as current on arrival.
-  const devices = useQuery({ ...devicesQuery, refetchOnWindowFocus: true, refetchOnMount: "always" });
+  const canRead = session.isSuccess;
+  const devices = useQuery({ ...devicesQuery, enabled: canRead, refetchOnWindowFocus: true, refetchOnMount: "always" });
   const rows = devices.data?.devices ?? [];
 
   return (
@@ -43,7 +46,7 @@ function ReachContent() {
           {t(notice.uncertain ? strings.reach.devices.removedUncertain : strings.reach.devices.removed, { name: notice.name })}
         </Notice>
       )}
-      <BrowserPushCard registeredHere={rows.some(isThisBrowser)} />
+      {!readOnly && <BrowserPushCard registeredHere={rows.some(isThisBrowser)} />}
       <section aria-labelledby="reach-devices-heading" className="mt-2 flex flex-col gap-2" data-testid={selectors.reach.root}>
         <div className="flex items-center justify-between gap-3">
           <h2 id="reach-devices-heading" className="px-1 text-base font-semibold">{t(strings.reach.devices.title)}</h2>
@@ -79,7 +82,7 @@ function ReachContent() {
           </>
         )}
       </section>
-      <DeviceAppsPanel />
+      {!readOnly && <DeviceAppsPanel />}
     </>
   );
 }

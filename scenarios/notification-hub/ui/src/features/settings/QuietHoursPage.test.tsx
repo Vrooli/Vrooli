@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { en } from "../../i18n/catalog";
 import { selectors } from "../../consts/selectors";
@@ -217,10 +217,33 @@ describe("Quiet hours", () => {
     expect(await screen.findByRole("button", { name: /Weekdays/ })).toBeInTheDocument();
   });
 
-  it("shows the sign-in card in place of the schedules when signed out, and reads nothing", async () => {
+  it("shows quiet hours read-only when signed out and exposes no write controls", async () => {
+    hub.reset({ windows: weekdays() });
     hub.signOut();
     renderSettings(PATH);
-    expect(await screen.findByRole("region", { name: "Sign in" })).toBeInTheDocument();
-    expect(hub.recipientsClient.listQuietWindows).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Answering decisions and changing personal settings requires an owner session/)).toBeInTheDocument();
+    expect(await screen.findByText(/Weekdays/)).toBeInTheDocument();
+    expect(screen.getByText(/12:00 PM–1:00 PM/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toEqual([screen.getByTestId(selectors.session.submit)]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(hub.recipientsClient.listQuietWindows).toHaveBeenCalledTimes(1);
+    expect(hub.recipientsClient.setQuietWindow).not.toHaveBeenCalled();
+    expect(hub.recipientsClient.deleteQuietWindow).not.toHaveBeenCalled();
+  });
+
+  it("keeps quiet hours readable without write controls after the owner session expires", async () => {
+    hub.reset({ windows: weekdays() });
+    renderSettings(PATH);
+    expect(await screen.findByRole("button", { name: /Weekdays/ })).toBeInTheDocument();
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByText(en.settings.sessionEnded.title)).toBeInTheDocument();
+    await waitFor(() => expect(hub.recipientsClient.listQuietWindows.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(within(await screen.findByRole("list", { name: en.settings.section.quietHours })).getByText(/Weekdays/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toEqual([screen.getByTestId(selectors.session.submit)]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(hub.recipientsClient.setQuietWindow).not.toHaveBeenCalled();
+    expect(hub.recipientsClient.deleteQuietWindow).not.toHaveBeenCalled();
   });
 });

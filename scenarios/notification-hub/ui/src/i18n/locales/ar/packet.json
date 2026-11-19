@@ -31,7 +31,11 @@
     "due": "الموعد النهائي",
     "answerQuestions": "إجابة · {{count}} أسئلة",
     "answerQuestions_one": "إجابة · سؤال واحد",
-    "answerQuestions_two": "إجابة · سؤالان"
+    "answerQuestions_two": "إجابة · سؤالان",
+    "history": "History",
+    "historyEmpty": "No earlier pages on this subject.",
+    "statusUpdate": "Status update",
+    "decision": "Decision"
   },
   "text": {
     "openLinkedArtifact": "فتح الملف في Notification Hub",
@@ -107,7 +111,8 @@
     "reviewEdit": "تعديل",
     "reviewNothing": "لم يتم اختيار شيء بعد",
     "reviewRequired": "يحتاج إلى إجابة",
-    "reviewSkipped": "بلا إجابة"
+    "reviewSkipped": "بلا إجابة",
+    "closeChoices": "Close choices"
   },
   "context": {
     "open": "أحتاج إلى مزيد من السياق",
@@ -179,8 +184,6 @@
   "regionFeedback": {
     "title": "مقارنة اللقطات",
     "close": "إغلاق المقارنة",
-    "before": "قبل",
-    "after": "بعد",
     "fidelity": "نوع الصورة: {{label}}",
     "route": "الشاشة: {{route}}",
     "viewport": "{{width}} × {{height}} بكسل",
@@ -195,10 +198,22 @@
     "noteSaved": "أُضيفت الملاحظة إلى الإجابة",
     "unavailable": "تعذر فتح المقارنة لأن ملفها أو صورها غير مكتملة.",
     "notAnswerable": "يمكنك مشاهدة الالتقاط، لكن هذا القرار لا يقبل التعليقات.",
-    "captured": "لقطة أصلية",
-    "composited": "مركّب",
-    "rendered": "معروض",
-    "sketch": "تصوّر أولي"
+    "before": "Before",
+    "after": "After",
+    "captured": "Captured",
+    "composited": "Composited",
+    "rendered": "Rendered",
+    "sketch": "Sketch",
+    "issues": {
+      "routeMismatch": "The two captures use different routes.",
+      "stateMismatch": "The two captures use different interaction states.",
+      "dataMismatch": "The two captures use different data sets.",
+      "viewportMismatch": "The two captures use different viewport sizes.",
+      "sameBuild": "The before and after captures name the same build.",
+      "imageMismatch": "The {{fidelity}} image reference is missing or its digest does not match.",
+      "regionEntryMissing": "Region {{regionId}} has no answerable evidence entry.",
+      "regionCropMismatch": "Region {{regionId}} has no matching crop image."
+    }
   },
   "rootPassword": {
     "title": "التحقق والإجابة عن هذا القرار",
@@ -223,5 +238,78 @@
     "verify": "تحقق وأرسل الإجابة",
     "cancel": "العودة إلى القرار",
     "openForm": "التحقق بكلمة المرور بدلًا من ذلك"
+  },
+  "rootRead": {
+    "action": "القراءة بكلمة المرور",
+    "title": "قراءة هذا القرار",
+    "intro": "تحقق من حساب المصادقة لقراءة القرار. تتطلب الإجابة تحققًا منفصلًا.",
+    "error": "تعذرت قراءة القرار. تحقق من بيانات الاعتماد وحاول مجددًا."
+  },
+  "statusBar": {
+    "label": "Status update response",
+    "read": "Marked as read.",
+    "review": "Review",
+    "notes_one": "{{count}} note",
+    "notes": "{{count}} notes",
+    "changes_one": "{{count}} change",
+    "changes": "{{count}} changes",
+    "verdicts_one": "{{count}} verdict",
+    "verdicts": "{{count}} verdicts",
+    "yourChanges": "Your changes",
+    "nothingToChoose": "Nothing to choose",
+    "hint": "Tap a choice or a note in the page. It shows up here.",
+    "note": "Note",
+    "notePlaceholder": "Add a note…",
+    "selectedChanges": "Selected page changes",
+    "noteChip": "Note · {{label}}",
+    "send": "Send",
+    "sendCount": "Send {{count}}",
+    "sending": "Sending…",
+    "markRead": "Mark read",
+    "clear": "Clear",
+    "addNote": "Add a note…",
+    "uploadError": "Your update was not confirmed. Check the status before sending again.",
+    "readError": "The update could not be marked read.",
+    "sentError": "Your steering was sent.",
+    "sentWithTime": "Your steering was sent at {{time}}.",
+    "recurrence": "Sent {{count}} times on this subject",
+    "skip": "Skip with › and come back later",
+    "signedOut": "Sign in to send steering or mark this update as read.",
+    "remove": "Remove {{label}}"
+  },
+  "noteSheet": {
+    "title": "Note · {{label}}",
+    "yourNote": "Your note",
+    "attach": "Attach image or file",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "uploading": "Uploading…",
+    "save": "Save note",
+    "fileTooLarge": "{{name}} must be no larger than 12 MiB.",
+    "fileError": "The file could not be attached.",
+    "ask": "Ask {{id}}"
+  },
+  "navigation": {
+    "previous": "Previous conversation",
+    "next": "Next conversation",
+    "label": "Conversation navigation",
+    "position": "{{current}} of {{total}}"
+  },
+  "images": {
+    "tooMany": "An answer can include at most 8 images.",
+    "tooLarge": "An answer can include at most 24 MiB of images.",
+    "singleTooLarge": "{{name}} must be an image no larger than 12 MiB.",
+    "failed": "The image could not be added.",
+    "attach": "Attach images",
+    "listLabel": "Images to send",
+    "remove": "Remove {{name}}"
+  },
+  "kitTemplate": {
+    "noData": "This template has no data object.",
+    "unavailable": "This template is not available in this Hub build.",
+    "schemaUnreadable": "The template schema could not be read.",
+    "dataInvalid": "The template data is invalid.",
+    "slotCount": "The template has an invalid data slot.",
+    "tooLarge": "The rendered template exceeds the Hub page size limit."
   }
 }

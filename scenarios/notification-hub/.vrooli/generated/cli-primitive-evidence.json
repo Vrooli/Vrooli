@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "640b142077640ec9b8fba8d341cad8a2bb9dd1027ab66e3ba1fd06b0abfdeb06",
+  "manifest_hash": "43d75f4aefd7bb08291c19578c1fb9d782ccd257ebdbf4d4db90293c0dea0d5b",
   "commands": [
     {
       "path": "channels status",
@@ -43,10 +43,22 @@
       "binding": "ConversationsService.ListAsks"
     },
     {
+      "path": "conversations portfolio-continuity",
+      "group": "conversations",
+      "command": "portfolio-continuity",
+      "binding": "."
+    },
+    {
       "path": "conversations request-context",
       "group": "conversations",
       "command": "request-context",
       "binding": "ConversationsService.RequestContext"
+    },
+    {
+      "path": "conversations stored-attachment",
+      "group": "conversations",
+      "command": "stored-attachment",
+      "binding": "."
     },
     {
       "path": "conversations wait",

@@ -8,7 +8,7 @@ import { renderWithProviders } from "../../../test-utils";
 import { makeAttachment } from "../mocks/askFactory";
 import { emptyDraft, type PacketDraft } from "../model/draft";
 import { RegionFeedbackCompare } from "./RegionFeedbackCompare";
-import { parseRegionFeedbackBundle, type ParsedRegionFeedback } from "./regionFeedback";
+import { parseRegionFeedbackBundle } from "./regionFeedback";
 
 const sha = (value: string) => value.repeat(64);
 const bundle = {
@@ -24,7 +24,7 @@ function Harness({ onClose = vi.fn() }: { onClose?: () => void }) {
     <RegionFeedbackCompare
       askId="ask-1"
       attachment={makeAttachment({ name: "capture-set", folder: true })}
-      parsed={parseRegionFeedbackBundle(bundle) as ParsedRegionFeedback}
+      parsed={parseRegionFeedbackBundle(bundle)}
       failed={false}
       onClose={onClose}
       draft={draft}
@@ -42,8 +42,8 @@ describe("RegionFeedbackCompare", () => {
     const fidelities = screen.getAllByText(strings.packet.regionFeedback.fidelity);
     expect(fidelities[0]?.closest("[data-fidelity]")).toHaveAttribute("data-fidelity", "captured");
     expect(fidelities[1]?.closest("[data-fidelity]")).toHaveAttribute("data-fidelity", "rendered");
-    expect(screen.getByText("/settings")).toBeInTheDocument();
-    await user.click(screen.getByTitle("Main navigation · BottomNav"));
+    expect(screen.getByText(bundle.route)).toBeInTheDocument();
+    await user.click(screen.getByText(strings.packet.regionFeedback.region));
     const note = screen.getByLabelText(strings.packet.regionFeedback.commentLabel);
     await user.type(note, "Keep the selected destination visible.");
     await user.click(screen.getByRole("button", { name: strings.packet.regionFeedback.save }));

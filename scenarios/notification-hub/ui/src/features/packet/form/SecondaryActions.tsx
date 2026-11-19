@@ -15,14 +15,14 @@ import { useTranslation } from "../../../i18n";
 export function SecondaryActions({ canRequestContext, onRequestContext, onDismiss, dismissing, disabled }: { canRequestContext: boolean; onRequestContext: () => void; onDismiss: () => void; dismissing: boolean; disabled: boolean }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-wrap gap-2 border-t border-app-border pt-4">
+    <div className="flex flex-col items-stretch gap-2 border-t border-app-border pt-4">
       {canRequestContext ? (
         <Button data-testid={selectors.packet.needContext} className="min-w-fit flex-1 border border-app-border bg-app-surface" type="button" variant="outline" disabled={disabled} onClick={onRequestContext}>
           <MessageCircleQuestion size={16} aria-hidden="true" className="me-1.5" />
           {t(strings.packet.context.open)}
         </Button>
       ) : (
-        <p data-testid={selectors.packet.contextUnavailable} className="flex-1 self-center text-sm text-app-muted-foreground">{t(strings.packet.context.unavailable)}</p>
+        <p data-testid={selectors.packet.contextUnavailable} className="text-sm text-app-muted-foreground">{t(strings.packet.context.unavailable)}</p>
       )}
       <Button className="min-w-fit flex-1 border border-app-border bg-app-surface" type="button" variant="outline" disabled={disabled} onClick={onDismiss}>
         {t(dismissing ? strings.packet.form.dismissing : strings.packet.form.dismiss)}

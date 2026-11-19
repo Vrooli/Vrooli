@@ -7,8 +7,7 @@ import { ActionBar } from "./ActionBar";
 const noop = () => undefined;
 
 // The bar is pinned over the page on a phone, so every pixel it takes is a pixel
-// the decision loses. One row, no second safe-area inset (the tab bar owns it),
-// and the reason sitting beside the button rather than above it.
+// the decision loses. Keep one row, with the reason beside the button.
 describe("ActionBar", () => {
   it("is one row: the reason beside a compact button while the action is unavailable", () => {
     renderWithProviders(<ActionBar primary={{ label: "Send answer", onClick: noop, disabled: true }} hint="Choose an answer to send." disabled={false} />);
@@ -38,11 +37,10 @@ describe("ActionBar", () => {
     expect(back?.parentElement).toBe(next?.parentElement);
   });
 
-  it("is a pinned dock that adds no safe-area inset of its own", () => {
+  it("uses the shared pinned dock", () => {
     renderWithProviders(<ActionBar primary={{ label: "Send answer", onClick: noop }} disabled={false} />);
 
     const dock = screen.getByRole("contentinfo");
     expect(dock).toHaveClass("packet-dock");
-    expect(dock.className).not.toContain("safe-area");
   });
 });

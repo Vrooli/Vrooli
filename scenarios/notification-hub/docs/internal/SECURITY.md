@@ -45,8 +45,14 @@ notifications continue to drain, because their recipient was resolved at
 acceptance time. Ordinary notification, delivery, routing,
 recipient/device metadata, and preference reads do not require an interactive
 login; ask reads (`GetAsk`, `ListAsks`, `Wait`) do require a verified identity and
-are scoped to the reader (see "Who reads an ask" below). Recipient data uses the Hub's configured recipient, and catalog reads
-return only source/category metadata. Recipient lookup does not create a row;
+are scoped to the reader (see "Who reads an ask" below). Recipient data uses
+the Hub's configured recipient. Catalog reads return source/category metadata
+and saved category preferences; anonymous recipient reads also include device
+names and machine IDs, quiet-hour windows and time zones, and escalation order.
+These fields are intentionally browseable without an interactive Hub session,
+so any process that can reach the API can read them. Keep API reachability
+inside the intended local or authenticated tunnel boundary. Channel address
+values remain identity-gated. Recipient lookup does not create a row;
 routing status retains its current status-snapshot refresh, with cache keys limited to configured target IDs or `local`. Notification detail receipts omit push provider IDs for every caller on this public configured-recipient projection. Reading an ask does not authorize
 answering it. Ask answers, subscription/credential operations, and the
 recipient/device/preferences writes covered here retain their existing checks.

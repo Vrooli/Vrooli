@@ -863,8 +863,25 @@ func (s *Service) OpenAskAttachment(ctx context.Context, askID, recipient, name,
 	if err != nil {
 		return AttachmentContent{}, err
 	}
+	return s.openAskAttachment(ctx, ask, name, entryPath)
+}
+
+// OpenAskAttachmentFor opens content for a reader audience that already has
+// exact ask visibility. The portfolio steward reaches only asks with its
+// stored per-ask source attestation; all other service audiences remain
+// constrained to their ordinary asks.
+func (s *Service) OpenAskAttachmentFor(ctx context.Context, askID, recipient, name, entryPath string, audience AskAudience) (AttachmentContent, error) {
+	ask, err := s.GetAskFor(ctx, askID, recipient, audience)
+	if err != nil {
+		return AttachmentContent{}, err
+	}
+	return s.openAskAttachment(ctx, ask, name, entryPath)
+}
+
+func (s *Service) openAskAttachment(ctx context.Context, ask AskRecord, name, entryPath string) (AttachmentContent, error) {
 	var kind, sha, sourcePath, mediaType string
 	var size int64
+	var err error
 	err = s.db.QueryRowContext(ctx, `SELECT kind, sha256, source_path, size_bytes, media_type FROM ask_attachments WHERE ask_id = ? AND name = ?`, ask.ID, name).Scan(&kind, &sha, &sourcePath, &size, &mediaType)
 	if errors.Is(err, sql.ErrNoRows) && name == CoverPageName && entryPath == "" {
 		return s.openCoverPage(ctx, ask)

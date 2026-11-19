@@ -67,12 +67,18 @@ export function validate(schema, value) {
   const root = schema;
   const typeOf = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : Number.isInteger(v) ? "integer" : typeof v);
   const isType = (v, t) => t === "number" ? typeof v === "number" && Number.isFinite(v) : t === "integer" ? Number.isInteger(v) : typeOf(v) === t;
-  function resolveRef(ref) {
-    if (!ref.startsWith("#/")) throw new Error(`unsupported $ref ${ref}`);
-    return ref.slice(2).split("/").reduce((node, key) => node[key], root);
+  function resolveRef(ref, base) {
+    let source = base || root;
+    if (ref.startsWith("./")) {
+      const [file, fragment] = ref.split("#");
+      source = JSON.parse(readFileSync(join(SCHEMAS_DIR, file), "utf8"));
+      ref = fragment || "";
+    }
+    if (ref && !ref.startsWith("#/")) throw new Error(`unsupported $ref ${ref}`);
+    return { schema: ref ? ref.slice(2).split("/").reduce((node, key) => node[key], source) : source, base: source };
   }
-  function check(s, v, path, out) {
-    if (s.$ref) return check(resolveRef(s.$ref), v, path, out);
+  function check(s, v, path, out, base = root) {
+    if (s.$ref) { const target = resolveRef(s.$ref, base); return check(target.schema, v, path, out, target.base); }
     if (s.type) {
       const types = Array.isArray(s.type) ? s.type : [s.type];
       if (!types.some((t) => isType(v, t))) { out.push(`${path}: expected ${types.join(" or ")}, got ${typeOf(v)}`); return; }
@@ -85,13 +91,14 @@ export function validate(schema, value) {
     }
     if (typeof v === "string") {
       if (typeof s.minLength === "number" && v.length < s.minLength) out.push(`${path}: must have at least ${s.minLength} characters`);
+      if (typeof s.maxLength === "number" && v.length > s.maxLength) out.push(`${path}: must have at most ${s.maxLength} characters`);
       if (s.pattern && !new RegExp(s.pattern).test(v)) out.push(`${path}: must match ${s.pattern}`);
       if (s.format === "date-time" && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) || Number.isNaN(Date.parse(v)))) out.push(`${path}: must be an ISO 8601 date-time with zone, like 2026-11-16T08:00:00Z`);
     }
     if (Array.isArray(v)) {
       if (typeof s.minItems === "number" && v.length < s.minItems) out.push(`${path}: needs at least ${s.minItems} items`);
       if (typeof s.maxItems === "number" && v.length > s.maxItems) out.push(`${path}: allows at most ${s.maxItems} items`);
-      if (s.items) v.forEach((item, i) => check(s.items, item, `${path}[${i}]`, out));
+      if (s.items) v.forEach((item, i) => check(s.items, item, `${path}[${i}]`, out, base));
     }
     if (typeOf(v) === "object") {
       for (const key of s.required || []) if (!(key in v)) out.push(`${path}: missing required field "${key}"`);
@@ -100,14 +107,14 @@ export function validate(schema, value) {
       }
       const props = s.properties || {};
       for (const [key, item] of Object.entries(v)) {
-        if (props[key]) check(props[key], item, `${path}.${key}`, out);
+        if (props[key]) check(props[key], item, `${path}.${key}`, out, base);
         else if (s.additionalProperties === false) out.push(`${path}: unknown field "${key}"`);
-        else if (s.additionalProperties && typeof s.additionalProperties === "object") check(s.additionalProperties, item, `${path}.${key}`, out);
+        else if (s.additionalProperties && typeof s.additionalProperties === "object") check(s.additionalProperties, item, `${path}.${key}`, out, base);
       }
     }
     for (const kw of ["anyOf", "oneOf"]) {
       if (!s[kw]) continue;
-      const results = s[kw].map((sub) => { const o = []; check(sub, v, path, o); return o; });
+      const results = s[kw].map((sub) => { const o = []; check(sub, v, path, o, base); return o; });
       const passing = results.filter((r) => r.length === 0).length;
       if (kw === "anyOf" && passing === 0) out.push(...results.sort((a, b) => a.length - b.length)[0]);
       if (kw === "oneOf" && passing !== 1) out.push(passing === 0 ? results.sort((a, b) => a.length - b.length)[0].join("; ") || `${path}: matches no allowed shape` : `${path}: matches ${passing} shapes, expected exactly one`);

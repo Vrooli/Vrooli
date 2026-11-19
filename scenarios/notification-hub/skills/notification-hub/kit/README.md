@@ -1,11 +1,12 @@
 # Notification Hub chart kit and page templates
 
-Five pages the operator reads on a phone are built from a template and one JSON
+Six pages the operator reads on a phone are built from a template and one JSON
 object, never from hand-written HTML. A producer sends the template name and the
 data; the Hub embeds the data and shows the page sealed above the answer bar.
 
 | Template | Kind | Producer | Schema | Sample data |
 |---|---|---|---|---|
+| `evidence-decision` | Decision: one reusable image, audio, video, text, fields, UI or measurement comparison | `schemas/evidence-decision.schema.json` |
 | `usage-mode` | decision | Agent Manager usage forecast | `schemas/usage-mode.schema.json` | `samples/usage-mode.json` |
 | `daily-briefing` | status | Portfolio steward, daily | `schemas/daily-briefing.schema.json` | `samples/daily-briefing.json` |
 | `opportunity-roadmap` | status | Portfolio steward, weekly | `schemas/opportunity-roadmap.schema.json` | `samples/opportunity-roadmap.json` |
@@ -63,6 +64,7 @@ every page still renders and says that nothing is sent.
 | `daily-briefing` | `pace` = tier key (removed when back at the current tier); `steer` = steer key (removed for "As planned"). A steer's `weights` are what the producer applies. |
 | `opportunity-roadmap` | `weight.<line id>` = weight key; `ask.<line id>` = `true` |
 | `structural-change` | `answer` = option key; `checks` = list of `guardId`s to loosen, set only when it differs from the recommended set. Hard stops and checks without a `guardId` can never be selected. |
+| `evidence-decision` | `answer` = selected option key (`hub.prefill`); evidence can be rendered with `window.HubCharts.evidence.render(el, records)` in other kit pages |
 | `research-report` | `weight.<workstream id>` = selected weight key (default choices `hold`, `normal`, `more`); selecting the recorded current weight removes the answer. If the current weight is omitted or unknown, every choice starts unselected; the page says so, and **Clear choice** removes a pending answer. The operator's note comes from the Hub's answer bar. |
 
 The research report's scorecard levels are the supervisor's judgment: every
@@ -107,6 +109,7 @@ forbids web fonts).
 | `measureCards(el, items)` | Measured results as before/after bar pairs coloured by verdict, with the change stated (`622× lower`) |
 | `progressRows(el, spec)` | Scorecard dimensions on a labelled scale: where it was, gain or loss, target, judged level; tap for reason and today |
 | `rangeBars(el, spec)` | Low-to-high estimate ranges on one axis, with a reference marker (e.g. this commission's hours) |
+| `HubCharts.evidence.uiViewer(spec)` | UI screenshot comparison with side-by-side, slider and pixel difference modes; fidelity labels on each side (`captured`, `composited`, `rendered`, `sketch`) |
 | `mountSource`, `unavailable`, `bindText` | Provenance badge per section, the unavailable notice, `data-text` binding |
 
 ## Change the kit

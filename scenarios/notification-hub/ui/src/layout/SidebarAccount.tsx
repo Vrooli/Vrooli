@@ -11,7 +11,7 @@ export function SidebarAccount() {
   const { search } = useLocation();
   const session = useSession();
   if (session.isPending) return null;
-  return session.data?.signedIn ? (
+  return session.isSuccess && session.data.signedIn ? (
     <p className="truncate px-2 py-1 text-xs text-app-muted-foreground" title={session.data.email || session.data.subject}>
       {t(strings.session.signedInAs, { email: session.data.email || session.data.subject })}
     </p>

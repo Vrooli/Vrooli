@@ -45,9 +45,10 @@ type ownerContext struct {
 	// recipient-only authorization check keys on. Attribution (answered_by) uses
 	// actor so a multi-human household records who really answered, while the
 	// authorization check keeps using the recipient subject.
-	actor   string
-	source  apiidentity.AuthSource
-	refused bool
+	actor           string
+	verifiedSubject string
+	source          apiidentity.AuthSource
+	refused         bool
 }
 
 // OwnerAuthenticator verifies the request-bound owner providers once per
@@ -101,9 +102,10 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 		actor = strings.TrimSpace(principal.Email)
 	}
 	return context.WithValue(ctx, ownerContextKey{}, ownerContext{
-		identity: owneridentity.Identity{Subject: subject, Email: principal.Email, ExpiresAt: principal.ExpiresAt},
-		actor:    actor,
-		source:   principal.Source,
+		identity:        owneridentity.Identity{Subject: subject, Email: principal.Email, ExpiresAt: principal.ExpiresAt},
+		actor:           actor,
+		verifiedSubject: strings.TrimSpace(principal.Subject),
+		source:          principal.Source,
 	})
 }
 
@@ -286,4 +288,13 @@ func isLoopback(remoteAddr string) bool {
 func Refused(ctx context.Context) bool {
 	owner, ok := ownerFromContext(ctx)
 	return ok && owner.refused
+}
+
+// CloudflareSubject returns only the verified provider subject, never email.
+func CloudflareSubject(ctx context.Context) string {
+	owner, ok := ownerFromContext(ctx)
+	if !ok || owner.refused || owner.source != apiidentity.SourceCloudflareAccess {
+		return ""
+	}
+	return owner.verifiedSubject
 }

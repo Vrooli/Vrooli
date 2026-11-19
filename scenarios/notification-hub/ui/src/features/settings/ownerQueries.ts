@@ -26,9 +26,6 @@ export const escalationChainQuery = {
   queryFn: () => recipientsClient.getEscalationChain({}),
 };
 
-/** Cache roots holding one owner's data; dropped when a different owner signs in. */
-export const OWNER_QUERY_ROOTS = ["recipient-devices", "recipient-channel-addresses", "quiet-windows", "escalation-chain", "notification-catalog", "device-apps"] as const;
-
 /**
  * Read what the Hub holds right now, ignoring the cache and any read already
  * in flight. A save trusts this read, not the write's own answer: a response

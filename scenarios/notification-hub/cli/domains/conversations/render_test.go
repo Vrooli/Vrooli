@@ -1,11 +1,13 @@
 package conversations
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func richAsk() *v1.Ask {
@@ -81,6 +83,33 @@ func TestGetOmitsPacketSectionsThatAreEmpty(t *testing.T) {
 		require.NotContains(t, stdout, heading)
 	}
 	require.Contains(t, stdout, "Options:")
+}
+
+func TestGetJSONUsesActualProtoAnswerFields(t *testing.T) {
+	changes, err := structpb.NewStruct(map[string]any{"pace": "use_by_wednesday", "steer": "more_self"})
+	require.NoError(t, err)
+	stub := &hubStub{getAsk: &v1.Ask{
+		Id: "ask-1", State: "answered", SubjectKey: "portfolio-steward:daily:2026-11-16", Kind: "status",
+		Answer: "send", AnswerLabel: "Send update", AnsweredAt: "2026-11-16T17:00:00Z",
+		AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "personal_local",
+		Note: "go faster", AnswerChanges: changes,
+		AnswerImages: []*v1.AnswerImage{{Name: "plan.png", Sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", MediaType: "image/png", SizeBytes: 128}},
+	}}
+	stdout, _, err := runCommand(t, newTestService(t, stub), "get", "ask-1", "--json")
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &payload), "GetAsk --json is pure proto JSON: %q", stdout)
+	ask, ok := payload["ask"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "send", ask["answer"], "the wire answer is a scalar")
+	require.Equal(t, "Send update", ask["answer_label"])
+	require.Equal(t, map[string]any{"pace": "use_by_wednesday", "steer": "more_self"}, ask["answer_changes"])
+	require.NotContains(t, ask, "changes")
+	require.Equal(t, "go faster", ask["note"])
+	images, ok := ask["answer_images"].([]any)
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"name": "plan.png", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "image/png", "size_bytes": "128"}, images[0])
+	require.NotContains(t, ask, "images")
 }
 
 func TestListSummariesCountPacketParts(t *testing.T) {

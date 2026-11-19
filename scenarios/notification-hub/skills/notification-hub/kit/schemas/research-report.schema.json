@@ -24,11 +24,13 @@
         "title": {
           "type": "string",
           "minLength": 1,
-          "description": "Headline: the commission's outcome in one sentence, e.g. 'GPU image work is live. Most of the rest waited on shared files and on you.'"
+          "description": "Headline: the commission's outcome in one sentence, e.g. 'GPU image work is live. Most of the rest waited on shared files and on you.'",
+          "maxLength": 80
         },
         "lede": {
           "type": "string",
-          "description": "Two or three sentences: why the commission ended, what landed, what the next one starts with."
+          "maxLength": 140,
+          "description": "A brief summary of why the commission ended and what landed."
         },
         "topic": {
           "type": "string",
@@ -64,7 +66,8 @@
         },
         "label": {
           "type": "string",
-          "description": "Short name, e.g. 'Commission 7'."
+          "description": "Short name, e.g. 'Commission 7'.",
+          "maxLength": 90
         },
         "startedAt": {
           "type": "string",
@@ -111,7 +114,8 @@
           },
           "label": {
             "type": "string",
-            "description": "Plain label, e.g. 'Parked until 17 Nov'."
+            "description": "Plain label, e.g. 'Parked until 17 Nov'.",
+            "maxLength": 90
           },
           "tone": {
             "$ref": "#/$defs/tone"
@@ -130,7 +134,8 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "tiles": {
           "type": "array",
@@ -153,7 +158,8 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "items": {
           "type": "array",
@@ -169,7 +175,8 @@
             "properties": {
               "title": {
                 "type": "string",
-                "description": "What was measured, e.g. 'Whisper idle GPU memory'."
+                "description": "What was measured, e.g. 'Whisper idle GPU memory'.",
+                "maxLength": 80
               },
               "unit": {
                 "type": "string",
@@ -190,7 +197,8 @@
                   "properties": {
                     "label": {
                       "type": "string",
-                      "description": "e.g. '11 Nov', 'Before', 'GPU'."
+                      "description": "e.g. '11 Nov', 'Before', 'GPU'.",
+                      "maxLength": 90
                     },
                     "value": {
                       "type": "number",
@@ -215,9 +223,19 @@
                 ],
                 "description": "The supervisor's verdict; colours the result bars green, amber or red."
               },
+              "headline": {
+                "type": "string",
+                "maxLength": 24,
+                "description": "The change in a few words, e.g. '54.9x faster' or '+14% growing'. When absent the page computes it from the first and last values and 'better'."
+              },
               "note": {
                 "type": "string",
-                "description": "One sentence on what it means."
+                "description": "One short line under the strip on what it means, e.g. 'Masks identical (IoU 1.0)'. Never truncate with an ellipsis; write it shorter.",
+                "maxLength": 90
+              },
+              "evidenceId": {
+                "type": "string",
+                "description": "Id of the evidence record that backs this row; adds an 'Evidence ›' link."
               },
               "workstream": {
                 "type": "string",
@@ -235,7 +253,7 @@
     "scorecard": {
       "type": "object",
       "additionalProperties": false,
-    "description": "Overall progress toward the topic's target, per scorecard dimension. The supervisor judges each level and records its reason. Include both was and now only when numeric progress is available; omit both when it is not.",
+      "description": "Overall progress toward the topic's target, per scorecard dimension. The supervisor judges each level and records its reason. Include both was and now only when numeric progress is available; omit both when it is not.",
       "required": [],
       "properties": {
         "source": {
@@ -243,12 +261,13 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "scale": {
           "type": "object",
           "additionalProperties": false,
-        "description": "Common scale for numeric was/now/target values. Omit when numeric progress is unavailable. Default 0-100 percent of target.",
+          "description": "Common scale for numeric was/now/target values. Omit when numeric progress is unavailable. Default 0-100 percent of target.",
           "properties": {
             "max": {
               "type": "number",
@@ -282,17 +301,24 @@
           "description": "One row per scorecard dimension, in the topic's order.",
           "items": {
             "type": "object",
-          "required": [
-            "key",
-            "title",
-            "level",
-            "reason"
-          ],
-          "dependentRequired": {
-            "was": ["now"],
-            "now": ["was"],
-            "target": ["was", "now"]
-          },
+            "required": [
+              "key",
+              "title",
+              "level",
+              "reason"
+            ],
+            "dependentRequired": {
+              "was": [
+                "now"
+              ],
+              "now": [
+                "was"
+              ],
+              "target": [
+                "was",
+                "now"
+              ]
+            },
             "additionalProperties": false,
             "properties": {
               "key": {
@@ -302,22 +328,23 @@
               },
               "title": {
                 "type": "string",
-                "description": "Plain name, e.g. 'Residency and placement'."
+                "description": "Plain name, e.g. 'Residency and placement'.",
+                "maxLength": 80
               },
               "was": {
                 "type": "number",
                 "minimum": 0,
-              "description": "Numeric progress on the scale when the commission started. Include together with now only when both values are recorded; omit both when unavailable."
+                "description": "Numeric progress on the scale when the commission started. Include together with now only when both values are recorded; omit both when unavailable."
               },
               "now": {
                 "type": "number",
                 "minimum": 0,
-              "description": "Numeric progress now. Include together with was only when both values are recorded; omit both when unavailable."
+                "description": "Numeric progress now. Include together with was only when both values are recorded; omit both when unavailable."
               },
               "target": {
                 "type": "number",
                 "minimum": 0,
-              "description": "Numeric target on the scale; only use with a recorded was/now pair. Default scale.max."
+                "description": "Numeric target on the scale; only use with a recorded was/now pair. Default scale.max."
               },
               "level": {
                 "type": "string",
@@ -325,11 +352,13 @@
               },
               "reason": {
                 "type": "string",
-                "description": "Why that level: the evidence the supervisor judged from."
+                "description": "Why that level: the evidence the supervisor judged from.",
+                "maxLength": 90
               },
               "today": {
                 "type": "string",
-                "description": "What is true today in plain words; revealed on tap."
+                "description": "What is true today in plain words; revealed on tap.",
+                "maxLength": 90
               }
             }
           }
@@ -347,7 +376,8 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "weights": {
           "type": "array",
@@ -368,7 +398,8 @@
               },
               "label": {
                 "type": "string",
-                "description": "e.g. 'Hold'."
+                "description": "e.g. 'Hold'.",
+                "maxLength": 90
               },
               "effect": {
                 "type": "string",
@@ -396,7 +427,8 @@
               },
               "title": {
                 "type": "string",
-                "description": "Plain name."
+                "description": "Plain name.",
+                "maxLength": 80
               },
               "state": {
                 "type": "string",
@@ -404,11 +436,12 @@
               },
               "note": {
                 "type": "string",
-                "description": "What happened and what it waits for, one or two sentences."
+                "description": "What happened and what it waits for, one or two sentences.",
+                "maxLength": 90
               },
               "weight": {
                 "type": "string",
-              "description": "Current recorded weight key. Omit when the current weight is unknown; the page then leaves all alternatives unselected and reports that no weight was recorded."
+                "description": "Current recorded weight key. Omit when the current weight is unknown; the page then leaves all alternatives unselected and reports that no weight was recorded."
               },
               "steerable": {
                 "type": "boolean",
@@ -430,7 +463,8 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "items": {
           "type": "array",
@@ -445,7 +479,8 @@
             "properties": {
               "said": {
                 "type": "string",
-                "description": "What the operator said, quoted or closely paraphrased."
+                "description": "What the operator said, quoted or closely paraphrased.",
+                "maxLength": 90
               },
               "when": {
                 "type": "string",
@@ -453,7 +488,8 @@
               },
               "changed": {
                 "type": "string",
-                "description": "What changed because of it."
+                "description": "What changed because of it.",
+                "maxLength": 90
               },
               "status": {
                 "enum": [
@@ -465,7 +501,8 @@
               },
               "why": {
                 "type": "string",
-                "description": "When partly or not yet: why."
+                "description": "When partly or not yet: why.",
+                "maxLength": 90
               }
             }
           }
@@ -483,7 +520,8 @@
         },
         "title": {
           "type": "string",
-          "description": "Section heading; a default is used when absent."
+          "description": "Section heading; a default is used when absent.",
+          "maxLength": 80
         },
         "unit": {
           "type": "string",
@@ -491,7 +529,8 @@
         },
         "note": {
           "type": "string",
-          "description": "One line under the bars, e.g. why this order."
+          "description": "One line under the bars, e.g. why this order.",
+          "maxLength": 90
         },
         "items": {
           "type": "array",
@@ -512,11 +551,13 @@
               },
               "title": {
                 "type": "string",
-                "description": "Plain name."
+                "description": "Plain name.",
+                "maxLength": 80
               },
               "why": {
                 "type": "string",
-                "description": "One line: why it is next or what it unlocks."
+                "description": "One line: why it is next or what it unlocks.",
+                "maxLength": 90
               },
               "low": {
                 "type": "number",
@@ -539,6 +580,161 @@
     },
     "technical": {
       "$ref": "#/$defs/technical"
+    },
+    "asks": {
+      "type": "array",
+      "description": "Hub asks this report waits on, linked by stable ask ID.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Notification Hub ask ID opened by the report."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Short question label."
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "One-line question summary."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "approved",
+              "declined",
+              "answered",
+              "unknown"
+            ],
+            "description": "Optional snapshot; live state is read from Hub context.asks."
+          },
+          "askedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the ask was opened."
+          },
+          "unblocks": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "What answering it unblocks, e.g. 'Unblocks LM2 evaluation'."
+          },
+          "answeredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the ask was answered."
+          },
+          "workstream": {
+            "type": "string",
+            "description": "Related workstream ID, when applicable."
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Reusable evidence records shown in the evidence tab.",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "feedbackReceipts": {
+      "type": "array",
+      "description": "Receipts describing how earlier feedback was handled.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "said",
+          "changed",
+          "progress"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Feedback receipt ID used for notes."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Short feedback title."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "planned",
+              "declined"
+            ],
+            "description": "How the feedback was handled."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "Short reason or next step."
+          },
+          "progress": {
+            "type": "object",
+            "required": [
+              "label",
+              "now",
+              "was",
+              "target"
+            ],
+            "additionalProperties": false,
+            "description": "Gauge progress for applying this feedback.",
+            "properties": {
+              "label": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Short gauge label."
+              },
+              "now": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Current completed amount."
+              },
+              "was": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Starting amount."
+              },
+              "target": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Completion target."
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 20,
+                "description": "Gauge unit, e.g. %."
+              }
+            }
+          },
+          "said": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "Short operator feedback summary."
+          },
+          "changed": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "One-line action taken or planned."
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -669,6 +865,488 @@
             "crit"
           ],
           "description": "Side bar colour; omit for neutral."
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "format",
+        "decidedBy",
+        "sides",
+        "verdict",
+        "method",
+        "limits"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable evidence identifier."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Short comparison title."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "image",
+            "audio",
+            "video",
+            "text",
+            "fields",
+            "ui",
+            "measure"
+          ],
+          "description": "Viewer format."
+        },
+        "decidedBy": {
+          "type": "string",
+          "enum": [
+            "automated",
+            "agent",
+            "needs-review",
+            "operator"
+          ],
+          "description": "Who made the verdict."
+        },
+        "workstream": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Workstream ID this evidence supports."
+        },
+        "sides": {
+          "type": "object",
+          "required": [
+            "a",
+            "b"
+          ],
+          "additionalProperties": false,
+          "description": "Compared inputs, keyed by side.",
+          "properties": {
+            "a": {
+              "type": "object",
+              "required": [
+                "label"
+              ],
+              "additionalProperties": false,
+              "description": "One side of a comparison.",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40,
+                  "description": "Side label."
+                },
+                "fidelity": {
+                  "type": "string",
+                  "enum": [
+                    "captured",
+                    "composited",
+                    "rendered",
+                    "sketch"
+                  ],
+                  "description": "How this UI image was produced; shown as a fidelity chip."
+                },
+                "src": {
+                  "type": "string",
+                  "maxLength": 240,
+                  "description": "Attachment-relative media path, including folder attachment name."
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 12000,
+                  "description": "Compared text."
+                },
+                "fields": {
+                  "type": "object",
+                  "description": "Compared structured fields.",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean",
+                      "null",
+                      "object",
+                      "array"
+                    ]
+                  }
+                },
+                "fps": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "description": "Video frame rate."
+                },
+                "duration": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Media duration in seconds."
+                },
+                "transcript": {
+                  "type": "array",
+                  "description": "Timed transcript words for audio follow.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "word",
+                      "start",
+                      "end"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "word": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "description": "Transcript word."
+                      },
+                      "start": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Word start in seconds."
+                      },
+                      "end": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Word end in seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "b": {
+              "type": "object",
+              "required": [
+                "label"
+              ],
+              "additionalProperties": false,
+              "description": "One side of a comparison.",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "maxLength": 40,
+                  "description": "Side label."
+                },
+                "fidelity": {
+                  "type": "string",
+                  "enum": [
+                    "captured",
+                    "composited",
+                    "rendered",
+                    "sketch"
+                  ],
+                  "description": "How this UI image was produced; shown as a fidelity chip."
+                },
+                "src": {
+                  "type": "string",
+                  "maxLength": 240,
+                  "description": "Attachment-relative media path, including folder attachment name."
+                },
+                "text": {
+                  "type": "string",
+                  "maxLength": 12000,
+                  "description": "Compared text."
+                },
+                "fields": {
+                  "type": "object",
+                  "description": "Compared structured fields.",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean",
+                      "null",
+                      "object",
+                      "array"
+                    ]
+                  }
+                },
+                "fps": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "description": "Video frame rate."
+                },
+                "duration": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Media duration in seconds."
+                },
+                "transcript": {
+                  "type": "array",
+                  "description": "Timed transcript words for audio follow.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "word",
+                      "start",
+                      "end"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "word": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "description": "Transcript word."
+                      },
+                      "start": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Word start in seconds."
+                      },
+                      "end": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Word end in seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "verdict": {
+          "type": "object",
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false,
+          "description": "Concise outcome.",
+          "properties": {
+            "headline": {
+              "type": "string",
+              "maxLength": 48,
+              "description": "The result in a few bold words, shown first, e.g. 'Same output.' or '83x faster.'"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 140,
+              "description": "One short verdict sentence. Follows the headline; do not repeat it."
+            },
+            "recommendation": {
+              "type": "string",
+              "maxLength": 90,
+              "description": "Optional recommended choice."
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "description": "Named comparison items (image and measurement inputs).",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "a",
+              "b"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "maxLength": 90,
+                "description": "Item label."
+              },
+              "a": {
+                "type": [
+                  "string",
+                  "number",
+                  "array"
+                ],
+                "description": "Side A value or attachment path.",
+                "items": {
+                  "type": "number",
+                  "description": "One observed measurement."
+                }
+              },
+              "b": {
+                "type": [
+                  "string",
+                  "number",
+                  "array"
+                ],
+                "description": "Side B value or attachment path.",
+                "items": {
+                  "type": "number",
+                  "description": "One observed measurement."
+                }
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 20,
+                "description": "Measurement unit."
+              },
+              "prompt": {
+                "type": "string",
+                "maxLength": 90,
+                "description": "Input prompt or case label."
+              }
+            }
+          }
+        },
+        "facts": {
+          "type": "array",
+          "description": "Supporting facts shown on demand.",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "a",
+              "b"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "maxLength": 90,
+                "description": "Fact label."
+              },
+              "a": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null",
+                  "object",
+                  "array"
+                ],
+                "description": "Side A fact."
+              },
+              "b": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null",
+                  "object",
+                  "array"
+                ],
+                "description": "Side B fact."
+              },
+              "win": {
+                "enum": [
+                  "a",
+                  "b"
+                ],
+                "description": "The side that is better on this fact; drawn in the success colour."
+              }
+            }
+          }
+        },
+        "method": {
+          "type": "array",
+          "maxItems": 8,
+          "description": "Short method notes.",
+          "items": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "One method step."
+          }
+        },
+        "limits": {
+          "type": "array",
+          "maxItems": 8,
+          "description": "Short limitations.",
+          "items": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "One limitation."
+          }
+        }
+      },
+      "description": "The reusable evidence record schema, embedded here so Hub template validators can compile it without external file references."
+    },
+    "side": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "One side of a comparison.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Side label."
+        },
+        "fidelity": {
+          "type": "string",
+          "enum": [
+            "captured",
+            "composited",
+            "rendered",
+            "sketch"
+          ],
+          "description": "How this UI image was produced; shown as a fidelity chip."
+        },
+        "src": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Attachment-relative media path, including folder attachment name."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 12000,
+          "description": "Compared text."
+        },
+        "fields": {
+          "type": "object",
+          "description": "Compared structured fields.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "object",
+              "array"
+            ]
+          }
+        },
+        "fps": {
+          "type": "number",
+          "minimum": 0.1,
+          "description": "Video frame rate."
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Media duration in seconds."
+        },
+        "transcript": {
+          "type": "array",
+          "description": "Timed transcript words for audio follow.",
+          "items": {
+            "type": "object",
+            "required": [
+              "word",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "word": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Transcript word."
+              },
+              "start": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Word start in seconds."
+              },
+              "end": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Word end in seconds."
+              }
+            }
+          }
         }
       }
     }

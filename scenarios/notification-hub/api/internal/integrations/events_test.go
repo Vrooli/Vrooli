@@ -124,11 +124,12 @@ func TestEnsureEventSubscriptionIsIdempotent(t *testing.T) {
 	var posts int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_, _ = w.Write([]byte(`[{"id":1,"event_pattern":"**","delivery_target":"https://hub.test/events","enabled":true}]`))
+			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","owner_scenario":"notification-hub","event_pattern":"**","delivery_type":"webhook","delivery_target":"https://hub.test/events","enabled":true}]`))
 			return
 		}
 		posts++
 		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
 	}))
 	defer server.Close()
 	require.NoError(t, EnsureEventSubscription(context.Background(), server.URL, "https://hub.test/events", "**"))
@@ -139,7 +140,7 @@ func TestEnsureEventSubscriptionReconcilesLegacyPatternWithFullUpdate(t *testing
 	var updateBody map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_, _ = w.Write([]byte(`[{"id":7,"event_pattern":"incident.*","delivery_target":"https://hub.test/events","enabled":true}]`))
+			_, _ = w.Write([]byte(`[{"id":7,"name":"notification-hub-events","owner_scenario":"notification-hub","event_pattern":"incident.*","delivery_type":"webhook","delivery_target":"https://hub.test/events","enabled":true}]`))
 			return
 		}
 		require.Equal(t, http.MethodPut, r.Method)
@@ -876,12 +877,13 @@ func TestEnsureDecisionSubscriptionAddsItsOwnSubscriptionBesideTheIncidentOne(t 
 	var created map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","event_pattern":"incident.**","delivery_target":"https://hub.test/events","enabled":true}]`))
+			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","owner_scenario":"notification-hub","event_pattern":"incident.**","delivery_type":"webhook","delivery_target":"https://hub.test/events","enabled":true}]`))
 			return
 		}
 		require.Equal(t, http.MethodPost, r.Method, "the incident subscription must not be rewritten")
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&created))
 		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
 	}))
 	defer server.Close()
 
@@ -894,7 +896,7 @@ func TestEnsureHeartbeatAttemptSubscriptionAddsExactPatternBesideExistingSubscri
 	var created []map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","event_pattern":"incident.**","delivery_target":"https://hub.test/events","enabled":true}]`))
+			_, _ = w.Write([]byte(`[{"id":1,"name":"notification-hub-events","owner_scenario":"notification-hub","event_pattern":"incident.**","delivery_type":"webhook","delivery_target":"https://hub.test/events","enabled":true}]`))
 			return
 		}
 		require.Equal(t, http.MethodPost, r.Method)
@@ -902,6 +904,7 @@ func TestEnsureHeartbeatAttemptSubscriptionAddsExactPatternBesideExistingSubscri
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&item))
 		created = append(created, item)
 		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
 	}))
 	defer server.Close()
 	require.NoError(t, EnsureHeartbeatAttemptSubscription(context.Background(), server.URL, "https://hub.test/events"))

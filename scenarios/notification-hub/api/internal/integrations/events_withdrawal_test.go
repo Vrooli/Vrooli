@@ -188,6 +188,7 @@ func TestEnsureDecisionWithdrawalSubscriptionRoutesEveryProducersWithdrawals(t *
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		created[body["name"].(string)] = body["event_pattern"].(string)
 		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
 	}))
 	defer server.Close()
 	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), server.URL, "https://hub.test/events"))
@@ -203,9 +204,9 @@ func TestEnsureDecisionWithdrawalSubscriptionReconcilesTheLegacyExactSubscriptio
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			_, _ = w.Write([]byte(`[
-				{"id": 11, "name": "notification-hub-decision-withdrawals", "event_pattern": "agent_manager.run.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true},
-				{"id": 12, "name": "notification-hub-investigation-withdrawals", "event_pattern": "agent_manager.investigation.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true},
-				{"id": 13, "name": "notification-hub-decisions", "event_pattern": "**.decision_requested.v1", "delivery_target": "https://hub.test/events", "enabled": true}
+				{"id": 11, "name": "notification-hub-decision-withdrawals", "owner_scenario": "notification-hub", "event_pattern": "agent_manager.run.decision_withdrawn.v1", "delivery_type": "webhook", "delivery_target": "https://hub.test/events", "enabled": true},
+				{"id": 12, "name": "notification-hub-investigation-withdrawals", "owner_scenario": "notification-hub", "event_pattern": "agent_manager.investigation.decision_withdrawn.v1", "delivery_type": "webhook", "delivery_target": "https://hub.test/events", "enabled": true},
+				{"id": 13, "name": "notification-hub-decisions", "owner_scenario": "notification-hub", "event_pattern": "**.decision_requested.v1", "delivery_type": "webhook", "delivery_target": "https://hub.test/events", "enabled": true}
 			]`))
 			return
 		}
@@ -229,7 +230,7 @@ func TestEnsureDecisionWithdrawalSubscriptionReconcilesTheLegacyExactSubscriptio
 	calls = nil
 	satisfied := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodGet, r.Method)
-		_, _ = w.Write([]byte(`[{"id": 11, "name": "notification-hub-decision-withdrawals", "event_pattern": "**.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true}]`))
+		_, _ = w.Write([]byte(`[{"id": 11, "name": "notification-hub-decision-withdrawals", "owner_scenario": "notification-hub", "event_pattern": "**.decision_withdrawn.v1", "delivery_type": "webhook", "delivery_target": "https://hub.test/events", "enabled": true}]`))
 	}))
 	defer satisfied.Close()
 	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), satisfied.URL, "https://hub.test/events"))

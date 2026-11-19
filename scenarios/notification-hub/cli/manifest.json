@@ -642,6 +642,59 @@
           }
         },
         {
+          "name": "portfolio-continuity",
+          "description": "Let the registered portfolio steward continue one pending roadmap or daily ask that your verified run can already read by creator or conversation lineage. The Hub checks the stored recipient and records a durable exact-ask association; this does not answer or revise the ask.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "The exact pending roadmap or daily ask ID already visible to this run."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stored-attachment",
+          "description": "Download one stored ask attachment through the authenticated Hub API and report its SHA-256.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "The exact ask ID."
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "The exact attachment name shown by conversations get."
+            }
+          ],
+          "flags": [
+            {
+              "name": "output",
+              "description": "File path for the downloaded bytes; output is created with private permissions."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "list",
           "aliases": [
             "list-asks"

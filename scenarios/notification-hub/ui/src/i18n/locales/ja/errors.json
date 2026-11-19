@@ -10,6 +10,7 @@
   "failed_precondition": "Cannot perform this action: {{message}}",
   "aborted": "Operation aborted.",
   "out_of_range": "Out of range.",
+  "routed_test_lease_expired": "このタブの一時テストセッションは終了しました。ライブ Hub を開いて続行してください。",
   "unimplemented": "Not yet implemented.",
   "internal": "Something went wrong. Please try again.",
   "unavailable": "Service temporarily unavailable.",

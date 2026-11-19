@@ -37,17 +37,18 @@ export function useSettingsSections(): SettingsSection[] {
   const lang = i18n.language;
   const { choice } = useTheme();
   const session = useSession();
-  const signedIn = Boolean(session.data?.signedIn);
+  const signedIn = session.isSuccess && session.data.signedIn;
   const owner = signedIn;
-  const devices = useQuery({ ...devicesQuery, enabled: owner });
-  const windows = useQuery({ ...quietWindowsQuery, enabled: owner });
-  const chain = useQuery({ ...escalationChainQuery, enabled: owner });
-  const catalog = useQuery({ queryKey: ["notification-catalog"], queryFn: () => fetchNotificationCatalog(), enabled: owner });
+  const devices = useQuery({ ...devicesQuery, enabled: session.isSuccess });
+  const windows = useQuery(quietWindowsQuery);
+  const chain = useQuery(escalationChainQuery);
+  const catalog = useQuery({ queryKey: ["notification-catalog"], queryFn: () => fetchNotificationCatalog() });
 
   /** A summary for a screen that needs the owner: sign-in prompt, failure, or the value. */
-  const ownerSummary = <T,>(query: { data: T | undefined; isError: boolean }, describe: (data: T) => string): string | undefined => {
+  const ownerSummary = <T,>(query: { data: T | undefined; isError: boolean }, describe: (data: T) => string, signedOutRead = false): string | undefined => {
     if (session.isPending) return undefined;
-    if (!owner) return t(strings.settings.summary.signInToView);
+    if (session.isError) return t(strings.settings.summary.unavailable);
+    if (!owner && !signedOutRead) return t(strings.settings.summary.signInToView);
     if (query.data !== undefined) return describe(query.data);
     return query.isError ? t(strings.settings.summary.unavailable) : undefined;
   };
@@ -61,7 +62,7 @@ export function useSettingsSections(): SettingsSection[] {
       icon: Smartphone,
       summary: ownerSummary(devices, (data) => data.devices.length === 0
         ? t(strings.settings.summary.noDevices)
-        : t(strings.settings.summary.devices, { count: data.devices.length })),
+        : t(strings.settings.summary.devices, { count: data.devices.length }), true),
     },
     {
       key: "quietHours",
@@ -76,7 +77,7 @@ export function useSettingsSections(): SettingsSection[] {
         return schedules.length === 1
           ? t(strings.settings.summary.quietOne, { hours: describeHours(only, lang), days: describeDays(only.days, lang, t) })
           : t(strings.settings.summary.quietMany, { count: schedules.length });
-      }),
+      }, true),
     },
     {
       key: "escalation",
@@ -86,7 +87,7 @@ export function useSettingsSections(): SettingsSection[] {
       icon: ListOrdered,
       summary: ownerSummary(chain, (data) => data.steps.length === 0
         ? t(strings.settings.summary.escalationNone)
-        : data.steps.map((step) => channelLabel(step.channel, t)).join(t(strings.settings.summary.then))),
+        : data.steps.map((step) => channelLabel(step.channel, t)).join(t(strings.settings.summary.then)), true),
     },
     {
       key: "appearance",
@@ -104,8 +105,10 @@ export function useSettingsSections(): SettingsSection[] {
       icon: UserRound,
       summary: session.isPending
         ? undefined
+        : session.isError
+          ? t(strings.settings.summary.unavailable)
         : signedIn
-          ? t(strings.session.signedInAs, { email: session.data?.email || session.data?.subject || "" })
+          ? t(strings.session.signedInAs, { email: session.data.email || session.data.subject })
           : t(strings.settings.summary.signedOut),
     },
     {
@@ -116,7 +119,7 @@ export function useSettingsSections(): SettingsSection[] {
       icon: Plug,
       summary: ownerSummary(catalog, (data) => data.sources.length === 0
         ? t(strings.settings.summary.noSources)
-        : t(strings.settings.summary.sources, { count: data.sources.length })),
+        : t(strings.settings.summary.sources, { count: data.sources.length }), true),
     },
   ];
 }

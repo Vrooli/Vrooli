@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { en } from "../i18n/catalog";
 import { selectors } from "../consts/selectors";
@@ -45,6 +45,24 @@ describe("Devices and channels", () => {
     expect(screen.getByTestId(selectors.reach.device({ id: "mac" }))).toHaveTextContent("No channels reported");
   });
 
+  it("keeps the read-only device list after expiry and clears device-app reads", async () => {
+    renderSettings(PATH);
+    expect(await screen.findByTestId(selectors.reach.device({ id: "phone" }))).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.deviceApps.root)).toBeInTheDocument();
+    const deviceReads = hub.recipientsClient.listDevices.mock.calls.length;
+    const appReads = hub.appDeliveryClient.listDeviceApps.mock.calls.length;
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByText(en.settings.sessionEnded.title)).toBeInTheDocument();
+    const visiblePhone = (await screen.findAllByTestId(selectors.reach.device({ id: "phone" }))).find((row) => !row.closest("[hidden]"));
+    expect(visiblePhone).toBeInTheDocument();
+    await waitFor(() => {
+      expect(hub.recipientsClient.listDevices.mock.calls.length).toBeGreaterThanOrEqual(deviceReads);
+      expect(hub.appDeliveryClient.listDeviceApps).toHaveBeenCalledTimes(appReads);
+    });
+  });
+
   it("marks the device that is this browser", async () => {
     hub.reset({ devices: [device({ id: "here", name: window.location.origin, channels: ["web_push"] })] });
     renderSettings(PATH);
@@ -88,11 +106,15 @@ describe("Devices and channels", () => {
     await waitFor(() => expect(screen.queryByTestId(selectors.reach.device({ id: "phone" }))).not.toBeInTheDocument());
   });
 
-  it("shows the sign-in card in place of the devices when signed out and reads nothing", async () => {
+  it("shows a read-only device list and sign-in card when signed out", async () => {
     hub.signOut();
     renderSettings(PATH);
-    expect(await screen.findByRole("region", { name: "Sign in" })).toBeInTheDocument();
-    expect(hub.recipientsClient.listDevices).not.toHaveBeenCalled();
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
+    const phoneRows = await screen.findAllByTestId(selectors.reach.device({ id: "phone" }));
+    expect(phoneRows.some((row) => !row.closest("[hidden]"))).toBe(true);
+    expect(screen.queryByRole("button", { name: "Turn on notifications" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.deviceApps.root)).not.toBeInTheDocument();
+    expect(hub.recipientsClient.removeDevice).not.toHaveBeenCalled();
   });
 });
 

@@ -9,7 +9,9 @@ import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { sessionQueryKey, useSession } from "./useSession";
+import { isRoutedTestMode, livePath } from "../routedTestMode";
+import { advanceSessionGeneration } from "../../api/sessionGeneration";
+import { clearRecipientContent, sessionQueryKey, useSession } from "./useSession";
 
 export function SignInForm() {
   const { t } = useTranslation();
@@ -27,6 +29,7 @@ export function SignInForm() {
         setCode("");
         return;
       }
+      advanceSessionGeneration();
       setChallenge("");
       setCode("");
       setPassword("");
@@ -36,10 +39,18 @@ export function SignInForm() {
       // back after they sign in, without a reload.
       await queryClient.invalidateQueries();
     },
+    onError: (cause) => {
+      // An expired or already-used challenge cannot be retried. Start a new
+      // challenge on the next submission, including after an invalid code.
+      if (cause instanceof ConnectError && cause.code === Code.Unauthenticated) {
+        setChallenge("");
+        setCode("");
+      }
+    },
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (window.isSecureContext === true && email.trim() && password && (!challenge || code.trim())) login.mutate();
+    if (window.isSecureContext && email.trim() && password && (!challenge || code.trim())) login.mutate();
   };
   const error = login.error
     ? login.error instanceof ConnectError &&
@@ -48,7 +59,7 @@ export function SignInForm() {
       : t(strings.session.unavailable)
     : null;
 
-  if (window.isSecureContext !== true) return <p role="alert">{t(strings.session.secureRequired)}</p>;
+  if (!window.isSecureContext) return <p role="alert">{t(strings.session.secureRequired)}</p>;
 
   return (
     <form
@@ -123,11 +134,15 @@ export function SessionPanel() {
     mutationFn: () => identityClient.logout({}),
     onSuccess: () => {
       setConfirmingLogout(false);
-      void queryClient.invalidateQueries({ queryKey: sessionQueryKey });
+      advanceSessionGeneration();
+      const subject = session.data?.signedIn ? session.data.subject : "";
+      queryClient.setQueryData(sessionQueryKey, { signedIn: false, subject: "", email: "" });
+      if (subject) clearRecipientContent(queryClient, subject);
     },
   });
   if (session.isPending) return null;
-  if (!session.data?.signedIn) return (
+  if (session.isError) return <SessionUnavailable retry={() => { void session.refetch(); }} />;
+  if (!session.data.signedIn) return (
     <div className="flex flex-col items-start gap-3">
       <p className="text-sm text-app-muted-foreground">{t(strings.session.hubSessionInactive)}</p>
       <SignInForm />
@@ -178,5 +193,23 @@ export function SessionPanel() {
         </div>
       </AlertDialog>
     </div>
+  );
+}
+
+/** A failed status check is not evidence that the owner is signed out. */
+export function SessionUnavailable({ retry }: { retry: () => void }) {
+  const { t } = useTranslation();
+  const retryOrOpenLive = () => {
+    if (typeof window !== "undefined" && isRoutedTestMode(window.location.search)) {
+      window.location.assign(livePath(`${window.location.pathname}${window.location.search}${window.location.hash}`));
+      return;
+    }
+    retry();
+  };
+  return (
+    <section role="alert" className="flex flex-col items-start gap-3 rounded-panel border border-app-border bg-app-surface p-4">
+      <p>{t(strings.errors.unavailable)}</p>
+      <Button type="button" variant="secondary" onClick={retryOrOpenLive}>{t(strings.common.retry)}</Button>
+    </section>
   );
 }

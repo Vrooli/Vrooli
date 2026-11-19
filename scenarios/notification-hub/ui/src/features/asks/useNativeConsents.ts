@@ -7,9 +7,9 @@ import { conversationsClient } from "../../api/notifications";
  * owns this read so that one failed-to-load message can speak for both the
  * decisions and the requests; `NativeConsents` only draws what was read.
  */
-export function useNativeConsents(query: string, enabled: boolean) {
+export function useNativeConsents(query: string, enabled: boolean, subject = "") {
   return useInfiniteQuery({
-    queryKey: ["native-consents", query], initialPageParam: "", enabled,
+    queryKey: ["native-consents", subject, query], initialPageParam: "", enabled,
     queryFn: ({ pageParam, signal }) => conversationsClient.listNativeConsents({ limit: 25, cursor: pageParam, query }, { signal }),
     getNextPageParam: (page) => page.nextCursor || undefined,
     retry: false, staleTime: 0, refetchInterval: 60_000,

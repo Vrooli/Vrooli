@@ -69,6 +69,19 @@ func (h *handler) configuredRecipient(ctx context.Context) string {
 	return strings.TrimSpace(h.recipient(ctx))
 }
 
+func (h *handler) authenticatedRecipient(w http.ResponseWriter, r *http.Request) (string, bool) {
+	subject, err := h.subject(r)
+	if err != nil {
+		http.Error(w, "unauthenticated", http.StatusUnauthorized)
+		return "", false
+	}
+	if recipient := h.configuredRecipient(r.Context()); recipient != "" && subject != recipient {
+		http.Error(w, "verified identity is not the configured notification recipient", http.StatusForbidden)
+		return "", false
+	}
+	return subject, true
+}
+
 // categoryView is one category under a source in the catalog response.
 type categoryView struct {
 	Category          string `json:"category"`
@@ -196,15 +209,11 @@ func (h *handler) getPreferences(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) putPreference(w http.ResponseWriter, r *http.Request) {
-	subject, err := h.subject(r)
-	if err != nil {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
+	subject, ok := h.authenticatedRecipient(w, r)
+	if !ok {
 		return
 	}
-	if recipient := h.configuredRecipient(r.Context()); recipient != "" && subject != recipient {
-		http.Error(w, "verified identity is not the configured notification recipient", http.StatusForbidden)
-		return
-	}
+	var err error
 	rawBody, err := io.ReadAll(io.LimitReader(r.Body, 64*1024+1))
 	if err != nil {
 		http.Error(w, "invalid preference body", http.StatusBadRequest)

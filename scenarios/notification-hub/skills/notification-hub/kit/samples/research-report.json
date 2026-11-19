@@ -2,7 +2,7 @@
   "template": "research-report",
   "meta": {
     "title": "GPU image work is live. Most of the rest waited on shared files and on you.",
-    "lede": "The 16-hour window ended when its allowance ran out. One workstream landed with a measured win, four measurements came back, and seven workstreams are parked until tomorrow. The next commission starts with residency and the host sentinel, and applies your feedback below.",
+    "lede": "GPU image work landed before the allowance ended; two asks wait on you and parked work resumes tomorrow.",
     "topic": "Local model performance",
     "producer": "Research supervisor",
     "sentAt": "2026-11-16T22:00:00Z",
@@ -211,7 +211,7 @@
         "key": "runtime",
         "title": "Runtime throughput and latency",
         "level": "Not started",
-        "reason": "The supervisor could not compare before and after values because no per-role latency has been measured; the judged level stays Not started.",
+        "reason": "No per-role latency data exists, so this remains Not started.",
         "today": "Ollama 0.30.10, one request at a time, uniform 8192 context; per-role latency unmeasured."
       },
       {
@@ -264,7 +264,7 @@
         "id": "LM17",
         "title": "GPU for GPU-capable work",
         "state": "landed",
-        "note": "Live. Background image 21.0 s and text-to-image 15.9 s on the GPU path; a fresh challenge found nothing left.",
+        "note": "Live. Background image 21.0 s and text-to-image 15.9 s on GPU; challenge passed.",
         "weight": "normal",
         "steerable": false
       },
@@ -272,7 +272,7 @@
         "id": "LM1",
         "title": "Residency and placement",
         "state": "parked",
-        "note": "Whisper residency proven; idle-unload, wake time and the 20-request mixed test are still to run.",
+        "note": "Whisper residency proven; idle unload, wake time and mixed test remain.",
         "weight": "normal"
       },
       {
@@ -320,14 +320,14 @@
         "id": "LM2",
         "title": "Evaluation and unattended optimization",
         "state": "waiting_on_you",
-        "note": "All 36 retrieval suites lack independent denominators; needs your call on how to build them.",
+        "note": "All 36 retrieval suites lack independent denominators; needs your call.",
         "weight": "normal"
       },
       {
         "id": "LM18",
         "title": "Non-model memory reclaim",
         "state": "waiting_on_you",
-        "note": "The 13 GB kernel slab is the biggest win; freeing it may need a reboot, which is your call.",
+        "note": "The 13 GB kernel slab is the biggest win; reboot requires your call.",
         "weight": "normal"
       }
     ]
@@ -336,13 +336,13 @@
     "source": {
       "status": "partial",
       "label": "topic feedback/",
-      "note": "Read back from feedback files; whether each change took effect is checked only for applied items"
+      "note": "Read from feedback files; applied status is checked against the work."
     },
     "items": [
       {
         "said": "Proceed with all recommendations please.",
         "when": "16 Nov, 05:54",
-        "changed": "Machine-wide performance (LM20) and multimodal proving grounds (LM19) were briefed and staffed in this commission.",
+        "changed": "LM20 and LM19 were briefed and staffed this commission.",
         "status": "applied"
       },
       {
@@ -367,7 +367,7 @@
     },
     "title": "The plan after these ten",
     "unit": "h",
-    "note": "Agent hours, low to high estimate. Each line moves a scorecard dimension no other line moves.",
+    "note": "Agent hours, low to high. Each line moves a different scorecard dimension.",
     "items": [
       {
         "id": "LM3",
@@ -411,6 +411,102 @@
     {
       "label": "Weights",
       "value": "answer keys weight.<workstream id> = hold|normal|more; written back to the topic work plan before the next commission"
+    }
+  ],
+  "asks": [
+    {
+      "id": "research-desk:local-models:retrieval-denominators",
+      "title": "Build independent retrieval denominators?",
+      "question": "Choose how to create denominators for 36 retrieval suites.",
+      "state": "open",
+      "workstream": "LM2"
+    },
+    {
+      "id": "research-desk:local-models:kernel-slab-reboot",
+      "title": "Approve reboot for kernel slab reclaim?",
+      "question": "Reboot may reclaim 13 GB of kernel slab memory.",
+      "state": "open",
+      "workstream": "LM18"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "lm17-gpu-path",
+      "title": "GPU path output and latency",
+      "format": "measure",
+      "decidedBy": "agent",
+      "sides": {
+        "a": {
+          "label": "CPU",
+          "fields": {
+            "backgroundImageSeconds": 21,
+            "textToImageSeconds": 15.9
+          }
+        },
+        "b": {
+          "label": "GPU",
+          "fields": {
+            "backgroundImageSeconds": 21,
+            "textToImageSeconds": 15.9
+          }
+        }
+      },
+      "verdict": {
+        "text": "GPU path is live and the fresh challenge found no remaining issue."
+      },
+      "items": [
+        {
+          "label": "Background image, seconds",
+          "a": 21,
+          "b": 21,
+          "unit": "s"
+        },
+        {
+          "label": "Text-to-image, seconds",
+          "a": 15.9,
+          "b": 15.9,
+          "unit": "s"
+        }
+      ],
+      "method": [
+        "Compared retained LM17 run timings."
+      ],
+      "limits": [
+        "Illustrative sample values; not a new measurement."
+      ],
+      "workstream": "LM17"
+    }
+  ],
+  "feedbackReceipts": [
+    {
+      "id": "fb-allow-recommendations",
+      "title": "Proceed with recommendations",
+      "said": "Proceed with all recommendations.",
+      "status": "applied",
+      "changed": "LM20 and LM19 received owners this commission.",
+      "reason": "Both recommendations were staffed.",
+      "progress": {
+        "label": "Applied",
+        "now": 2,
+        "was": 0,
+        "target": 2,
+        "unit": "items"
+      }
+    },
+    {
+      "id": "fb-live-checkpoints",
+      "title": "Challenge source-only checkpoints",
+      "said": "Owners fell back to source-only work.",
+      "status": "planned",
+      "changed": "Two source-only checkpoints remain to challenge.",
+      "reason": "Continue the challenge next commission.",
+      "progress": {
+        "label": "Resolved",
+        "now": 1,
+        "was": 0,
+        "target": 2,
+        "unit": "items"
+      }
     }
   ]
 }

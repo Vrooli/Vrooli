@@ -9,6 +9,7 @@
   "invalid_argument": "Invalid input: {{message}}",
   "not_found": "Resource not found.",
   "out_of_range": "Out of range.",
+  "routed_test_lease_expired": "This tab’s disposable test session has ended. Open the live Hub to continue.",
   "permission_denied": "Permission denied.",
   "resource_exhausted": "Resource limit reached.",
   "unauthenticated": "Please sign in to continue.",

@@ -20,6 +20,7 @@ import { SaveBar } from "./SaveBar";
 import { SettingsScreen } from "./SettingsScreen";
 import { useSettingsPath } from "./testContext";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard";
+import { useSession } from "../session/useSession";
 
 const sameOrder = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((channel, index) => channel === b[index]);
 
@@ -30,19 +31,20 @@ export function EscalationPage() {
   const { t } = useTranslation();
   return (
     <SettingsScreen title={t(strings.settings.section.escalation)} description={t(strings.settings.escalation.description)} backToSettings>
-      <OwnerGate><EscalationContent /></OwnerGate>
+      <OwnerGate readOnly={<EscalationContent readOnly />}><EscalationContent /></OwnerGate>
     </SettingsScreen>
   );
 }
 
 type Problem = { kind: "mismatch"; actual: string[] } | { kind: "unreadable" };
 
-function EscalationContent() {
+function EscalationContent({ readOnly = false }: { readOnly?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const session = useSession();
   const path = useSettingsPath();
   const chain = useQuery(escalationChainQuery);
-  const devices = useQuery(devicesQuery);
+  const devices = useQuery({ ...devicesQuery, enabled: session.isSuccess && session.data.signedIn });
   const saved = useMemo(() => chain.data?.steps.map((step) => step.channel) ?? [], [chain.data]);
   // Until the first edit the list simply follows what the Hub holds.
   const [draft, setDraft] = useState<string[] | null>(null);
@@ -57,7 +59,7 @@ function EscalationContent() {
   const offered = useMemo(() => [...new Set((devices.data?.devices ?? []).flatMap((device) => device.channels))], [devices.data]);
   const addable = offered.filter((channel) => !order.includes(channel));
 
-  const edit = (change: (current: string[]) => string[]) => { setProblem(null); setJustSaved(false); setDraft(change(order)); };
+  const edit = (change: (current: string[]) => string[]) => { if (readOnly) return; setProblem(null); setJustSaved(false); setDraft(change(order)); };
   const move = (index: number, by: -1 | 1) => edit((current) => {
     const next = [...current];
     const moved = next[index];
@@ -69,6 +71,7 @@ function EscalationContent() {
   });
 
   const save = async () => {
+    if (readOnly) return;
     setConfirmEmpty(false);
     setSaving(true);
     setProblem(null);
@@ -95,6 +98,7 @@ function EscalationContent() {
 
   return (
     <>
+      {readOnly && <Notice>{t(strings.session.readOnlyBrowse)}</Notice>}
       <UnsavedChangesGuard when={dirty} />
       {justSaved && <Notice tone="success" testId={selectors.escalation.message}>{t(strings.settings.escalation.saved)}</Notice>}
       {problem && (
@@ -115,27 +119,27 @@ function EscalationContent() {
                 <span className="font-semibold [overflow-wrap:anywhere]">{channelLabel(channel, t)}</span>
                 {devices.isSuccess && !offered.includes(channel) && <span className="text-sm text-app-warning">{t(strings.settings.escalation.notOffered)}</span>}
               </div>
-              <button type="button" className={ICON_BUTTON} disabled={index === 0 || saving} onClick={() => move(index, -1)} aria-label={t(strings.settings.escalation.moveUp, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.moveUp({ channel })}>
+              {!readOnly && <button type="button" className={ICON_BUTTON} disabled={index === 0 || saving} onClick={() => move(index, -1)} aria-label={t(strings.settings.escalation.moveUp, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.moveUp({ channel })}>
                 <ChevronUp size={20} aria-hidden="true" />
-              </button>
-              <button type="button" className={ICON_BUTTON} disabled={index === order.length - 1 || saving} onClick={() => move(index, 1)} aria-label={t(strings.settings.escalation.moveDown, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.moveDown({ channel })}>
+              </button>}
+              {!readOnly && <button type="button" className={ICON_BUTTON} disabled={index === order.length - 1 || saving} onClick={() => move(index, 1)} aria-label={t(strings.settings.escalation.moveDown, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.moveDown({ channel })}>
                 <ChevronDown size={20} aria-hidden="true" />
-              </button>
-              <button type="button" className={ICON_BUTTON} disabled={saving} onClick={() => edit((current) => current.filter((item) => item !== channel))} aria-label={t(strings.settings.escalation.remove, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.remove({ channel })}>
+              </button>}
+              {!readOnly && <button type="button" className={ICON_BUTTON} disabled={saving} onClick={() => edit((current) => current.filter((item) => item !== channel))} aria-label={t(strings.settings.escalation.remove, { channel: channelLabel(channel, t) })} data-testid={selectors.escalation.remove({ channel })}>
                 <X size={20} aria-hidden="true" />
-              </button>
+              </button>}
             </ListItem>
           ))}
         </ListGroup>
       )}
       <p className="text-sm text-app-muted-foreground">{t(strings.settings.escalation.timing)}</p>
-      <div>
+      {!readOnly && <div>
         <Button className="min-h-11" type="button" variant="outline" disabled={saving} onClick={() => setAdding(true)} data-testid={selectors.escalation.add}>
           <Plus size={18} aria-hidden="true" /> {t(strings.settings.escalation.add)}
         </Button>
-      </div>
+      </div>}
 
-      {dirty && (
+      {!readOnly && dirty && (
         <SaveBar>
           <Button className="min-h-11" type="button" variant="primary" disabled={saving} onClick={() => (order.length === 0 ? setConfirmEmpty(true) : void save())} data-testid={selectors.escalation.save}>
             {saving ? t(strings.settings.action.saving) : t(strings.settings.escalation.save)}

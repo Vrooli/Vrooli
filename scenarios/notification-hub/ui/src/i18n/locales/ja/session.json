@@ -22,7 +22,18 @@
   "signOutUnconfirmed": "Hub セッションが消去されたことを確認できませんでした。再試行する前に状態を確認してください。",
   "totpCode": "認証コード",
   "recoveryCode": "リカバリーコード",
+  "readOnlyBrowse": "サインインしなくても「更新」と「配信」を閲覧できます。判断への回答や個人設定の変更にはオーナーセッションが必要です。",
   "useRecovery": "リカバリーコードを使用",
   "useTotp": "認証コードを使用",
-  "secureRequired": "パスワード認証には安全な接続が必要です。HTTPS またはこのマシンの localhost で Hub を開いてください。"
+  "secureRequired": "パスワード認証には安全な接続が必要です。HTTPS またはこのマシンの localhost で Hub を開いてください。",
+  "enrollmentTitle": "認証アカウントを接続",
+  "enrollmentIntro": "既存の認証アカウントを Cloudflare Access でサインインした所有者に接続します。",
+  "enrollmentAction": "アカウントを接続",
+  "enrollmentSuccess": "アカウントを接続しました。",
+  "enrollmentError": "接続を確認できませんでした。認証情報を確認して再試行してください。",
+  "revokeAction": "すべてのアカウントを切断",
+  "revokeTitle": "接続済みアカウントをすべて切断しますか？",
+  "revokeDescription": "Cloudflare Access の所有者 ID に接続されたすべての認証アカウントを削除します。",
+  "revokeSuccess": "接続済みアカウントを切断しました。",
+  "revokeError": "アカウントの切断を確認できませんでした。再試行してください。"
 }

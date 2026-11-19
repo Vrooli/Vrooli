@@ -9,7 +9,7 @@ import (
 
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/vrooli.notification_hub.v1.identity.IdentityService/Login" || r.URL.Path == "/vrooli.notification_hub.v1.conversations.ConversationsService/AnswerRootWithPassword" {
+		if r.URL.Path == "/api/v1/identity/root-decision-read" || r.URL.Path == "/api/v1/identity/root-enrollment" || r.URL.Path == "/vrooli.notification_hub.v1.identity.IdentityService/Login" || r.URL.Path == "/vrooli.notification_hub.v1.conversations.ConversationsService/AnswerRootWithPassword" {
 			host, _, err := net.SplitHostPort(r.RemoteAddr)
 			ip := net.ParseIP(host)
 			if r.TLS == nil && (err != nil || ip == nil || !ip.IsLoopback()) {

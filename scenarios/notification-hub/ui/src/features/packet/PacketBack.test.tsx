@@ -50,6 +50,14 @@ describe("PacketBack", () => {
     await userEvent.click(screen.getByRole("link", { name: en.layout.nav.history }));
     expect(screen.getByTestId("where")).toHaveTextContent('/history?q=goal|{"restoreAskId":"ask-1"}');
   });
+
+  it("renders compact mode as an accessible arrow without a text label", () => {
+    renderIn("/asks/ask-1", <PacketBack returnTo="/asks" askId="ask-1" compact />);
+    const link = screen.getByRole("link", { name: en.layout.nav.asks });
+    expect(link).toHaveAttribute("title", en.layout.nav.asks);
+    expect(link).toHaveClass("min-w-11", "min-h-11");
+    expect(link.textContent).toBe("");
+  });
 });
 
 describe("where a decision sits", () => {

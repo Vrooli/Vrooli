@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { en } from "../../i18n/catalog";
 import { selectors } from "../../consts/selectors";
@@ -45,6 +45,26 @@ describe("A device", () => {
     const mail = screen.getByTestId(selectors.reach.channel({ channel: "email" }));
     expect(mail).toHaveTextContent("me@example.com");
     expect(mail).toHaveTextContent("Allowed in full: Public");
+  });
+
+  it("keeps device channel names but drops destination data when the session expires", async () => {
+    renderSettings(PATH);
+    const emailChannel = await screen.findByTestId(selectors.reach.channel({ channel: "email" }));
+    expect(emailChannel).toHaveTextContent("me@example.com");
+    const deviceReads = hub.recipientsClient.listDevices.mock.calls.length;
+    const addressReads = hub.recipientsClient.listChannelAddresses.mock.calls.length;
+
+    fireEvent(window, new Event("notification-hub:session-expired"));
+
+    expect(await screen.findByText(en.settings.sessionEnded.title)).toBeInTheDocument();
+    const emailRows = screen.getAllByTestId(selectors.reach.channel({ channel: "email" }));
+    const visibleEmail = emailRows.find((row) => !row.closest("[hidden]"));
+    expect(visibleEmail).toBeInTheDocument();
+    expect(visibleEmail).not.toHaveTextContent("me@example.com");
+    await waitFor(() => {
+      expect(hub.recipientsClient.listDevices.mock.calls.length).toBeGreaterThanOrEqual(deviceReads);
+      expect(hub.recipientsClient.listChannelAddresses).toHaveBeenCalledTimes(addressReads);
+    });
   });
 
   it("opens each editable channel at its own address", async () => {
@@ -111,9 +131,16 @@ describe("A device", () => {
     await waitFor(() => expect(screen.getAllByRole("link", { name: "Devices and channels" }).length).toBeGreaterThan(0));
   });
 
-  it("shows the sign-in card when signed out", async () => {
+  it("shows device channels read-only when signed out without revealing destination addresses", async () => {
     hub.signOut();
     renderSettings(PATH);
-    expect(await screen.findByRole("region", { name: "Sign in" })).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.session.form)).toBeInTheDocument();
+    const email = await screen.findByTestId(selectors.reach.channel({ channel: "email" }));
+    expect(email).toHaveTextContent("Email");
+    expect(email).not.toHaveTextContent("me@example.com");
+    expect(screen.queryByTestId(selectors.reach.removeDevice)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.reach.channelEdit({ channel: "email" }))).not.toBeInTheDocument();
+    expect(hub.recipientsClient.listChannelAddresses).not.toHaveBeenCalled();
+    expect(hub.recipientsClient.removeDevice).not.toHaveBeenCalled();
   });
 });

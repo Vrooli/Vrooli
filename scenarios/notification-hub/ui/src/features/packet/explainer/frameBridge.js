@@ -9,7 +9,10 @@
  *                                    operator still sends the answer)
  *   hub.answer.set(key,label,value)  put one decision in the Hub answer bar
  *   hub.answer.remove(key)           remove one decision from that bar
- *   hub.context                       read-only kind and recurrence history
+ *   hub.note(key, label)              open the Hub-owned note sheet for an item
+ *   hub.openAsk(id)                   navigate to another Hub ask
+ *   hub.asset("folder/file.png")     resolve a Hub attachment for a viewer
+ *   hub.context                       read-only kind, recurrence and named asks
  *   hub.theme                        "light" | "dark"
  *   [data-hub-open="name"]           tap = hub.open("name"); "name/path/in/folder" also works
  */
@@ -26,6 +29,21 @@
     window.parent.postMessage(message, "*");
   }
 
+  // Touch events in a sealed iframe do not bubble to the host document.
+  var swipeStart = null;
+  document.addEventListener("touchstart", function (event) {
+    var target = event.target;
+    if (event.touches.length !== 1 || (target && target.closest && target.closest("input, textarea, select, [contenteditable=true], [data-no-packet-swipe]"))) { swipeStart = null; return; }
+    swipeStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+  document.addEventListener("touchend", function (event) {
+    if (!swipeStart || event.changedTouches.length !== 1) return;
+    var dx = event.changedTouches[0].clientX - swipeStart.x;
+    var dy = event.changedTouches[0].clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.abs(dx) >= 80 && Math.abs(dx) >= Math.abs(dy) * 1.5) post({ type: "swipe", direction: dx > 0 ? "previous" : "next" });
+  }, { passive: true });
+
   function open(name, path) {
     if (typeof name !== "string" || !NAME.test(name)) return;
     var message = { type: "open", name: name };
@@ -36,6 +54,37 @@
   function prefill(questionId, value) {
     if (typeof questionId !== "string" || !questionId) return;
     post({ type: "prefill", questionId: questionId, value: value });
+  }
+
+  function note(key, label) {
+    if (typeof key !== "string" || !key.trim() || typeof label !== "string" || !label.trim()) return;
+    post({ type: "note", key: key, label: label });
+  }
+
+  function openAsk(askId) {
+    if (typeof askId !== "string" || !askId) return;
+    post({ type: "open-ask", askId: askId });
+  }
+
+  var assetSequence = 0;
+  var assetRequests = Object.create(null);
+  function asset(reference) {
+    if (typeof reference !== "string" || reference.length > 512) return Promise.resolve(null);
+    var slash = reference.indexOf("/");
+    if (slash < 1 || slash === reference.length - 1) return Promise.resolve(null);
+    var name = reference.slice(0, slash);
+    var path = reference.slice(slash + 1);
+    if (!NAME.test(name) || path.split("/").some(function (part) { return !part || part === "." || part === ".."; })) return Promise.resolve(null);
+    assetSequence = (assetSequence % 99999999) + 1;
+    var requestId = "a" + assetSequence;
+    return new Promise(function (resolve) {
+      var timeout = window.setTimeout(function () {
+        delete assetRequests[requestId];
+        resolve(null);
+      }, 15000);
+      assetRequests[requestId] = { resolve: resolve, timeout: timeout };
+      post({ type: "asset", requestId: requestId, name: name, path: path });
+    });
   }
 
   var answer = {
@@ -60,7 +109,11 @@
   }
   freeze(context);
 
-  var hub = { open: open, prefill: prefill, answer: Object.freeze(answer), context: context };
+  var hub = { open: open, openAsk: openAsk, note: note, asset: asset, prefill: prefill, answer: Object.freeze(answer), context: context,
+    choiceCapability: function (interactive) {
+      if (typeof interactive === "boolean") window.parent.postMessage({ type: "hub:answer-capability", interactive: interactive }, "*");
+    },
+  };
   Object.defineProperty(hub, "theme", {
     enumerable: true,
     get: function () {
@@ -103,6 +156,21 @@
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;
     var data = event.data;
+    if (data && data.hub === PROTOCOL && data.type === "asset-resolve" && typeof data.requestId === "string" && Object.prototype.hasOwnProperty.call(assetRequests, data.requestId)) {
+      var request = assetRequests[data.requestId];
+      delete assetRequests[data.requestId];
+      window.clearTimeout(request.timeout);
+      request.resolve(typeof data.dataUrl === "string" ? data.dataUrl : null);
+      return;
+    }
+    if (data && data.hub === PROTOCOL && data.type === "answer-restore" && data.changes && typeof data.changes === "object") {
+      window.dispatchEvent(new CustomEvent("hub:answer-restore", { detail: { changes: data.changes } }));
+      return;
+    }
+    if (data && data.hub === PROTOCOL && data.type === "answer-remove" && typeof data.key === "string") {
+      window.dispatchEvent(new CustomEvent("hub:answer-remove", { detail: { key: data.key } }));
+      return;
+    }
     if (!data || data.hub !== PROTOCOL || data.type !== "theme") return;
     if (root.hasAttribute("data-hub-scheme")) return;
     root.setAttribute("data-theme", data.theme === "dark" ? "dark" : "light");

@@ -127,6 +127,28 @@ first and then the ask. Push delivery itself does not depend on that session.
 The scenario-authenticator email and password sign-in remains for browsers
 without an Access login, such as `http://localhost:<UI_PORT>`.
 
+## Prepare a root decision password fallback
+
+While the Hub is reachable through its HTTPS Cloudflare Access route, open
+**Settings → Session → Connect account** and authenticate an existing
+scenario-authenticator account, including MFA when required. The verified
+Cloudflare subject must have a current owner binding for the Hub recipient
+with `root:rebaseline`; passing Access alone does not supply that policy.
+The Hub must have an enabled CORE public route in tunnel-manager. Email is
+used only to sign in, never to infer an owner mapping.
+
+This connection allows a fresh password/MFA proof to answer a root rebaseline
+decision for that recipient. It does not grant general Hub access, bypass the
+Cloudflare edge, or create an authenticator account. A browser that can reach the Hub can use the password option on a root
+decision link to read that one pending decision after fresh authentication;
+answering it requires fresh authentication again. Decisions with attachments
+or additional questions require normal owner access so that no evidence or
+answer fields are hidden. Prepare the connection
+before losing the Access route: enrollment itself cannot recover a lost
+Cloudflare owner session or missing owner policy. Use **Revoke connected
+accounts** on the same page to remove that Cloudflare owner's connections;
+removing its root capability from the shared policy also disables them.
+
 ## Documentation Map
 
 | Need | Start Here |

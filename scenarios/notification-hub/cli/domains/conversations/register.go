@@ -31,7 +31,11 @@ type service struct {
 	waitClient connectv1.ConversationsServiceClient
 	// uploadClient serves attachment blobs of up to 64 MiB.
 	uploadClient connectv1.ConversationsServiceClient
-	now          func() time.Time
+	// httpClient and apiBase also serve the narrow portfolio-continuity route,
+	// which is an HTTP owner operation rather than a Conversations RPC.
+	httpClient connect.HTTPClient
+	apiBase    string
+	now        func() time.Time
 	// senderSource resolves the label that names the sender of an ask with no
 	// --from (see sender.go); nil means there is none. senderOnce makes the
 	// resolution happen at most once per process.
@@ -68,6 +72,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		client:                    connectv1.NewConversationsServiceClient(h, base),
 		waitClient:                connectv1.NewConversationsServiceClient(waitHTTP, waitBase),
 		uploadClient:              connectv1.NewConversationsServiceClient(uploadHTTP, uploadBase),
+		httpClient:                h,
+		apiBase:                   base,
 		now:                       time.Now,
 		senderSource:              senderOfThisRun,
 		identityBrokerUnavailable: func() bool { return agentIdentityBrokerUnavailable(configuredToken) },
@@ -146,6 +152,8 @@ func register(s *service, manifest []byte) (cliapp.SubcommandGroup, error) {
 			}
 			return cliapp.RenderProtoList(ctx, resp.Msg, askDetailReport(resp.Msg.GetAsk()))
 		},
+		"portfolio-continuity":          s.portfolioContinuity,
+		"stored-attachment":             s.downloadStoredAttachment,
 		"ConversationsService.ListAsks": s.list,
 	})
 	if err != nil {
