@@ -69,13 +69,15 @@ func statLine(comm string, ppid int, utime, stime uint64, threads, rssPages int)
 func TestLinuxSampler_ParsesFieldsAndCmdlineCwd(t *testing.T) {
 	fs := &fakeProcFS{
 		pids: []int{10},
+		links: map[string]string{
+			"10/cwd": "/home/u/Vrooli/scenarios/system-monitor/api",
+			"10/exe": "/usr/bin/system-monitor-api",
+		},
 		files: map[string][]byte{
 			"10/stat":    []byte(statLine("system-monitor-api", 1, 100, 50, 7, 512)),
 			"10/status":  []byte("Name:\tsystem-monitor-api\nVmSwap:\t4096 kB\n"),
 			"10/cmdline": []byte("system-monitor-api\x00--port\x008080\x00"),
-		},
-		links: map[string]string{
-			"10/cwd": "/home/u/Vrooli/scenarios/system-monitor/api",
+			"10/cgroup":  []byte("2:cpu:/legacy/cpu\n0::/system.slice/system-monitor.service\n"),
 		},
 	}
 	s := newSamplerWithFS(fs, func() time.Time { return time.Unix(0, 0) })
@@ -98,6 +100,9 @@ func TestLinuxSampler_ParsesFieldsAndCmdlineCwd(t *testing.T) {
 	}
 	if got.Cwd != "/home/u/Vrooli/scenarios/system-monitor/api" {
 		t.Errorf("cwd = %q", got.Cwd)
+	}
+	if got.ExecutablePath != "/usr/bin/system-monitor-api" || got.CgroupPath != "/system.slice/system-monitor.service" {
+		t.Errorf("host identity = executable %q, cgroup %q", got.ExecutablePath, got.CgroupPath)
 	}
 	if got.Threads != 7 {
 		t.Errorf("threads = %d, want 7", got.Threads)

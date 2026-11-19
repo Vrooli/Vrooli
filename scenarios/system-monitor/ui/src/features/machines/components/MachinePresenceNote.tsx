@@ -22,6 +22,11 @@ interface MachinePresenceNoteProps {
   retryIntervalSeconds: number;
   /** When the loop last tried, used to count down to the next attempt. */
   lastAttemptAt: Date | null;
+  /** No successful metric response has arrived for this reachable subject. */
+  firstSamplePending?: boolean;
+  /** Pausing polling can leave the first sample waiting for an explicit read. */
+  paused?: boolean;
+  onRetry?: () => void;
 }
 
 const clockLabel = (date: Date): string =>
@@ -33,7 +38,10 @@ export const MachinePresenceNote = ({
   lastSuccessfulFetch,
   retryAttempt,
   retryIntervalSeconds,
-  lastAttemptAt
+  lastAttemptAt,
+  firstSamplePending = false,
+  paused = false,
+  onRetry
 }: MachinePresenceNoteProps) => {
   const presence = describeMachine(machine);
   const tone = machinePresenceTone(presence, isStale);
@@ -45,6 +53,24 @@ export const MachinePresenceNote = ({
     const id = setInterval(() => { setTick(value => value + 1); }, 1000);
     return () => { clearInterval(id); };
   }, [tone]);
+
+  if (firstSamplePending && tone !== 'unreachable') {
+    return (
+      <div className="card machine-note" data-tone="pending" data-testid="machine-presence-note">
+        <h2 className="machine-note__title">Waiting for the first reading from {machine.name}</h2>
+        <p>
+          No readings are available yet. {paused
+            ? 'Monitoring is paused, so automatic requests are stopped.'
+            : 'The request is still pending.'}
+          {' '}This computer’s readings are not shown under {machine.name}.
+        </p>
+        <div className="machine-note__actions">
+          {onRetry && <button type="button" className="btn btn-action" onClick={onRetry}>Request reading now</button>}
+          <span>Or use “Back to this computer” to deliberately switch subjects.</span>
+        </div>
+      </div>
+    );
+  }
 
   if (tone === 'live' || tone === 'local') {
     return null;

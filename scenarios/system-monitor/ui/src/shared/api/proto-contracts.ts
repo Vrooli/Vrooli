@@ -14,7 +14,7 @@ import { MetricsResponseSchema, MetricsTimelineResponseSchema, DetailedMetricsSc
 import { InvestigationSchema, CooldownStatusSchema, TriggerInvestigationResponseSchema, GetCooldownStatusResponseSchema, ListInvestigationsResponseSchema, StopAgentResponseSchema } from "@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb";
 import { SystemSettingsSchema, GetSettingsResponseSchema, UpdateSettingsResponseSchema, ResetSettingsResponseSchema, GetMaintenanceStateResponseSchema, SetMaintenanceStateResponseSchema } from "@vrooli/proto-types/system-monitor/v1/settings/settings_pb";
 import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema, ListRunsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
-import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
+import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema, GetReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
 import { ListAlertsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/alerts/alerts_pb";
 import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, ReconcileCapacityResponseSchema, GetCapacityPolicyResponseSchema, SetCapacityPolicyResponseSchema } from "@vrooli/proto-types/system-monitor/v1/capacity/capacity_pb";
 
@@ -167,6 +167,10 @@ export function parseListReportsResponse(data: unknown): MessageShape<typeof Lis
 
 export function parseGenerateReportResponse(data: unknown): MessageShape<typeof GenerateReportResponseSchema> {
   return parseProtoMessage(GenerateReportResponseSchema, data);
+}
+
+export function parseGetReportResponse(data: unknown): MessageShape<typeof GetReportResponseSchema> {
+  return parseProtoMessage(GetReportResponseSchema, data);
 }
 
 // ---------------------------------------------------------------------------

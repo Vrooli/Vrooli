@@ -37,6 +37,11 @@ type processRollup struct {
 	CPUSeconds              float64
 	AvgRSSKB                int64
 	MaxRSSKB                int64
+	AvgSwapKB               int64
+	MaxSwapKB               int64
+	SwapMeasuredSamples     int64
+	SwapUnknownSamples      int64
+	MaxGPUVRAMMB            float64
 	AvgMajorFaultsPerSecond float64
 	MaxMajorFaultsPerSecond float64
 	SampleCount             int64

@@ -53,6 +53,7 @@ func HydrateMetricObservation(response *models.MetricsResponse, cycleID string, 
 		}
 	case "gpu":
 		response.GPUState = state
+		response.GPUProcessesState = gpuProcessesMetricState(cycleID, observedAt, values)
 		if usage, measured := numericLookup(values, "total_usage_percent"); measured && state.Status == "measured" {
 			response.GPUUsage = &usage
 		}
@@ -61,6 +62,9 @@ func HydrateMetricObservation(response *models.MetricsResponse, cycleID string, 
 		if usage, ok := values["usage"].(map[string]interface{}); ok && state.Status == "measured" {
 			response.DiskUsage = numericValue(usage["percent"])
 		}
+	case "disk_io":
+		response.DiskReadRateState = diskRateMetricState(cycleID, observedAt, values, "read_rate")
+		response.DiskWriteRateState = diskRateMetricState(cycleID, observedAt, values, "write_rate")
 	case "pressure":
 		response.CPUStallSomeAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
 		response.CPUStallFullAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
@@ -68,6 +72,67 @@ func HydrateMetricObservation(response *models.MetricsResponse, cycleID string, 
 		response.MajorFaultsState = pressureMetricState(cycleID, observedAt, collector, values, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
 		response.FragmentationIndexState = pressureMetricState(cycleID, observedAt, collector, values, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
 	}
+}
+
+func gpuProcessesMetricState(cycleID string, cycleTime time.Time, values map[string]interface{}) models.MetricState {
+	state := models.MetricState{Status: "unsupported", Reason: "GPU process inventory was not reported", Provenance: "system-monitor/gpu", Units: "processes", CycleID: cycleID, ObservedAt: cycleTime}
+	if status, ok := values["processes_status"].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := values["processes_reason"].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if provenance, ok := values["processes_provenance"].(string); ok && provenance != "" {
+		state.Provenance = provenance
+	}
+	if raw, ok := values["processes_observed_at"].(string); ok && raw != "" {
+		if parsed, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+			state.ObservedAt = parsed
+		}
+	}
+	if state.Status == "ok" {
+		state.Status, state.Reason = "measured", ""
+	} else if state.Reason == "" {
+		state.Reason = "GPU process inventory probe status: " + state.Status
+	}
+	return state
+}
+
+func diskRateMetricState(cycleID string, cycleTime time.Time, values map[string]interface{}, key string) models.MetricState {
+	state := models.MetricState{
+		Status:     "not_yet_sampled",
+		Reason:     "disk throughput has not been sampled",
+		Provenance: "system-monitor/disk_io",
+		Units:      "MB/s",
+		CycleID:    cycleID,
+		ObservedAt: cycleTime,
+	}
+	if status, ok := values[key+"_status"].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := values[key+"_reason"].(string); ok && reason != "" {
+		state.Reason = reason
+	}
+	if source, ok := values[key+"_provenance"].(string); ok && source != "" {
+		state.Provenance = source
+	}
+	if units, ok := values[key+"_units"].(string); ok && units != "" {
+		state.Units = units
+	}
+	if rawTime, ok := values[key+"_observed_at"].(string); ok && rawTime != "" {
+		if parsed, err := time.Parse(time.RFC3339Nano, rawTime); err == nil {
+			state.ObservedAt = parsed
+		}
+	}
+	if state.Status == "measured" {
+		if value, measured := numericLookup(values, key); measured {
+			state.Value, state.Reason = value, ""
+		} else {
+			state.Status = "failed"
+			state.Reason = "disk throughput was marked measured without a value"
+		}
+	}
+	return state
 }
 
 func storedMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, Children, isValidElement, useId } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, Children, isValidElement, useId } from 'react';
 import type { ReactNode, ReactElement, CSSProperties } from 'react';
 import {
   ResponsiveContainer,
@@ -11,7 +11,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { formatTimeLabel, formatChartTime } from '../../../shared/utils/formatters';
 
@@ -221,7 +221,7 @@ interface MetricLineChartLineConfig {
 export type MetricChartStatus = 'loading' | 'ready' | 'error';
 
 export interface MetricLineChartProps {
-  data: Array<{ timestamp: string } & Record<string, number | string>>;
+  data: MetricChartPoint[];
   lines: MetricLineChartLineConfig[];
   unit?: string;
   height?: number;
@@ -238,6 +238,12 @@ export interface MetricLineChartProps {
   errorMessage?: string;
   /** Label used in the empty state, e.g. "memory". */
   seriesLabel?: string;
+}
+
+export interface MetricChartPoint {
+  timestamp: string;
+  gapBefore?: boolean;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 // ── Shared Components ───────────────────────────────────────────────────────
@@ -473,13 +479,79 @@ export const MetricLineChart = ({
 }: MetricLineChartProps) => {
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
   const [window, setWindow] = useState({ start: 0, end: Math.max(data.length - 1, 0) });
+  const previousDataLength = useRef(data.length);
   const chartId = useId().replace(/:/g, '');
+  const [selectedTimestamp, setSelectedTimestamp] = useState<string | undefined>(() => data.at(-1)?.timestamp);
 
   useEffect(() => {
-    setWindow({ start: 0, end: Math.max(data.length - 1, 0) });
+    const previousLength = previousDataLength.current;
+    previousDataLength.current = data.length;
+    setWindow(previous => {
+      if (data.length === 0) return { start: 0, end: 0 };
+      if (previousLength === 0) return { start: 0, end: data.length - 1 };
+
+      const span = Math.max(1, previous.end - previous.start + 1);
+      const wasFollowingNewest = previous.end >= previousLength - 1;
+      if (wasFollowingNewest) {
+        const end = data.length - 1;
+        return { start: Math.max(0, end - span + 1), end };
+      }
+
+      const end = Math.min(previous.end, data.length - 1);
+      const start = Math.min(previous.start, end);
+      return { start, end };
+    });
   }, [data.length]);
 
+  const selectedIndexFromTimestamp = selectedTimestamp === undefined
+    ? -1
+    : data.findIndex(point => point.timestamp === selectedTimestamp);
+  const selectedIndex = selectedIndexFromTimestamp >= 0 ? selectedIndexFromTimestamp : data.length - 1;
+  const selectedSample = selectedIndex >= 0 ? data[selectedIndex] : undefined;
+
+  // Keep sample navigation tied to dated observations as the live timeline is
+  // refreshed. If retention/range changes remove the selected observation,
+  // choose the newest observation that is still available.
+  useEffect(() => {
+    if (data.length === 0) {
+      setSelectedTimestamp(undefined);
+      return;
+    }
+    if (selectedIndexFromTimestamp < 0) {
+      setSelectedTimestamp(data.at(-1)?.timestamp);
+    }
+  }, [data, selectedIndexFromTimestamp]);
+
+  // A user can pan or zoom the graph independently from the selected sample.
+  // Keep the inspected sample visible whenever the graph window changes.
+  useEffect(() => {
+    if (selectedIndex < 0 || data.length === 0) return;
+    if (selectedIndex < window.start || selectedIndex > window.end) {
+      setSelectedTimestamp(data[window.end]?.timestamp);
+    }
+  }, [data, selectedIndex, window.end, window.start]);
+
   const visibleData = useMemo(() => data.slice(window.start, window.end + 1), [data, window]);
+  const chartData = useMemo(() => {
+    const result: MetricChartPoint[] = [];
+    visibleData.forEach((point, index) => {
+      if (index > 0 && point.gapBefore) {
+        const previous = visibleData[index - 1];
+        const previousMs = previous ? Date.parse(previous.timestamp) : Number.NaN;
+        const currentMs = Date.parse(point.timestamp);
+        const gapTimestamp = Number.isFinite(previousMs) && Number.isFinite(currentMs)
+          ? new Date(previousMs + (currentMs - previousMs) / 2).toISOString()
+          : point.timestamp;
+        const gapRow: MetricChartPoint = {
+          timestamp: gapTimestamp,
+          ...Object.fromEntries(lines.map(line => [line.dataKey, null])),
+        };
+        result.push(gapRow);
+      }
+      result.push(point);
+    });
+    return result;
+  }, [lines, visibleData]);
   const canZoomIn = visibleData.length >= 4;
   const canPan = visibleData.length > 1 && (window.start > 0 || window.end < data.length - 1);
   const zoom = (direction: 'in' | 'out') => {
@@ -500,6 +572,19 @@ export const MetricLineChart = ({
     const step = Math.max(1, Math.floor(span * 0.25));
     const start = Math.max(0, Math.min(data.length - span, window.start + direction * step));
     setWindow({ start, end: start + span - 1 });
+  };
+
+  const moveSample = (direction: -1 | 1) => {
+    const nextIndex = Math.max(0, Math.min(data.length - 1, selectedIndex + direction));
+    const nextSample = data[nextIndex];
+    if (!nextSample) return;
+    setSelectedTimestamp(nextSample.timestamp);
+    if (nextIndex < window.start) {
+      setWindow({ start: nextIndex, end: Math.min(data.length - 1, nextIndex + window.end - window.start) });
+    } else if (nextIndex > window.end) {
+      const span = window.end - window.start + 1;
+      setWindow({ start: Math.max(0, nextIndex - span + 1), end: nextIndex });
+    }
   };
 
   const gradientIds = useMemo(
@@ -525,12 +610,12 @@ export const MetricLineChart = ({
   const fmtr = valueFormatter ?? defaultValueFormatter(unit);
   const summary = data.length === 0
     ? `No ${seriesLabel ?? 'metric'} samples are available in the selected time range.`
-    : `${seriesLabel ?? 'Metric'} chart showing ${data.length} samples${visibleData.length !== data.length ? `, ${visibleData.length} currently visible` : ''}. Use the chart controls to zoom, pan, or reset the view.`;
+    : `${seriesLabel ?? 'Metric'} chart showing ${data.length} samples${visibleData.length !== data.length ? `, ${visibleData.length} currently visible` : ''}. Use the sample controls to inspect each dated value and the chart controls to zoom, pan, or reset the view.`;
 
   return (
     <div className={className} style={{ width: '100%', ...(style ?? {}) }}>
       <div className="metric-chart-toolbar" data-testid="metric-chart-controls" aria-label="Chart controls">
-        <span className="metric-chart-toolbar__label">{visibleData.length} of {data.length} samples</span>
+        <span className="metric-chart-toolbar__label" role="status" aria-live="polite">{visibleData.length} of {data.length} samples</span>
         <div className="metric-chart-toolbar__actions">
           <button type="button" className="btn btn-icon" aria-label="Zoom in" onClick={() => { zoom('in'); }} disabled={!canZoomIn}>+</button>
           <button type="button" className="btn btn-icon" aria-label="Zoom out" onClick={() => { zoom('out'); }} disabled={!canPan}>−</button>
@@ -539,10 +624,46 @@ export const MetricLineChart = ({
           <button type="button" className="btn btn-action metric-chart-toolbar__reset" aria-label="Reset chart view" onClick={() => { setWindow({ start: 0, end: Math.max(data.length - 1, 0) }); }} disabled={!canPan}>Reset view</button>
         </div>
       </div>
+      {selectedSample && status !== 'loading' && (
+        <div className="metric-chart-sample-navigator" aria-label={`${seriesLabel ?? 'Metric'} sample navigation`}>
+          <button
+            type="button"
+            className="btn btn-icon metric-chart-sample-navigator__button"
+            aria-label="Previous sample"
+            onClick={() => { moveSample(-1); }}
+            disabled={selectedIndex <= 0}
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+          <div className="metric-chart-sample-navigator__details" aria-live="polite">
+            <div className="metric-chart-sample-navigator__position">Sample {selectedIndex + 1} of {data.length}</div>
+            <time className="metric-chart-sample-navigator__time" dateTime={selectedSample.timestamp}>
+              {formatTimeLabel(selectedSample.timestamp)}
+            </time>
+            <div className="metric-chart-sample-navigator__values">
+              {lines.filter(line => !hiddenSeries.has(line.dataKey)).map(line => {
+                const value = selectedSample[line.dataKey];
+                return typeof value === 'number' && Number.isFinite(value)
+                  ? <span key={line.dataKey}><strong>{line.name}</strong> {fmtr(value)}</span>
+                  : null;
+              })}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-icon metric-chart-sample-navigator__button"
+            aria-label="Next sample"
+            onClick={() => { moveSample(1); }}
+            disabled={selectedIndex >= data.length - 1}
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <p className="sr-only" data-testid="metric-chart-summary">{summary}</p>
       {data.length > 0 ? (
         <ResponsiveContainer width="100%" height={height}>
-          <ComposedChart data={visibleData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               {lines.map(line => (
                 <linearGradient key={line.dataKey} id={gradientIds[line.dataKey]} x1="0" y1="0" x2="0" y2="1">

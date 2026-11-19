@@ -30,5 +30,4 @@ startScenarioServer({
   distDir: path.resolve(__dirname, 'dist'),
   serviceName: 'system-monitor',
   version: process.env.npm_package_version || '0.0.0',
-  corsOrigins: '*',
 });

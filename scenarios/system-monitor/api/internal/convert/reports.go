@@ -37,6 +37,34 @@ func EnhancedSystemReportToProto(r *models.EnhancedSystemReport) *reportspb.Enha
 		Memory:    metricStatsToProto(r.Performance.Memory),
 		TimeRange: r.Performance.TimeRange,
 	}
+	pb.OwnerResources = &reportspb.OwnerResourceReport{
+		WindowStart:           timestamppb.New(r.OwnerResources.WindowStart),
+		WindowEnd:             timestamppb.New(r.OwnerResources.WindowEnd),
+		SampleCoverageStart:   timestamppb.New(r.OwnerResources.SampleCoverageStart),
+		SampleCoverageEnd:     timestamppb.New(r.OwnerResources.SampleCoverageEnd),
+		SwapCoverageStart:     timestamppb.New(r.OwnerResources.SwapCoverageStart),
+		SwapCoverageEnd:       timestamppb.New(r.OwnerResources.SwapCoverageEnd),
+		Complete:              r.OwnerResources.Complete,
+		AttributionComplete:   r.OwnerResources.AttributionComplete,
+		SwapCoverageComplete:  r.OwnerResources.SwapCoverageComplete,
+		ReturnedProcessGroups: int32(r.OwnerResources.ReturnedProcessGroups),
+		SwapMeasuredSamples:   r.OwnerResources.SwapMeasuredSamples,
+		SwapUnknownSamples:    r.OwnerResources.SwapUnknownSamples,
+		Owners:                make([]*reportspb.OwnerResourceSummary, 0, len(r.OwnerResources.Owners)),
+	}
+	for _, owner := range r.OwnerResources.Owners {
+		pb.OwnerResources.Owners = append(pb.OwnerResources.Owners, &reportspb.OwnerResourceSummary{
+			Owner:                    owner.Owner,
+			ProcessGroups:            int32(owner.ProcessGroups),
+			Samples:                  owner.Samples,
+			CoreHours:                owner.CoreHours,
+			MeanRssGibProcessSum:     owner.MeanRSSGiBProcessSum,
+			MeanSwapGibProcessSum:    owner.MeanSwapGiBProcessSum,
+			PeakSingleProcessVramGib: owner.PeakSingleProcessVRAMGiB,
+			SwapMeasuredSamples:     owner.SwapMeasuredSamples,
+			SwapUnknownSamples:      owner.SwapUnknownSamples,
+		})
+	}
 	if len(r.Trends) > 0 {
 		pb.Trends = make([]*reportspb.Trend, len(r.Trends))
 		for i, t := range r.Trends {

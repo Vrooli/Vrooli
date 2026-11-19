@@ -29,7 +29,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "detailed", Description: "Get detailed system metrics", RunCtx: h.detailed},
 			{Name: "network-diagnostic", Description: "Run a bounded on-demand network ownership and endpoint snapshot", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "top", Description: "Maximum owners/endpoints", Default: "10"}, {Name: "timeout", Description: "Maximum diagnostic duration (e.g. 2s)", Default: "2s"}}}, RunCtx: h.networkDiagnostic},
 			{Name: "processes", Description: "Get process monitoring metrics", RunCtx: h.processes},
-			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}, {Name: "rank", Description: "Rank by cpu, cpu_seconds, rss, or gpu", Default: "cpu"}}}, RunCtx: h.processTimeline},
+			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}, {Name: "rank", Description: "Rank by cpu, cpu_seconds, rss, swap, or gpu", Default: "cpu"}}}, RunCtx: h.processTimeline},
 			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", RunCtx: h.infrastructure},
 			{Name: "devices", Description: "Show the graded hardware device graph: every enumerated device with its per-rung observability state", RunCtx: h.devices},
 			{Name: "timeline", Description: "Get recent metrics history", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Timeline window in seconds", Default: "120"}, {Name: "interval", Description: "Sample interval in seconds", Default: "5"}}}, RunCtx: h.timeline},
@@ -285,6 +285,7 @@ func (h *handlers) processTimeline(ctx cliapp.RunContext) error {
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Window: %ds", response.GetWindowSeconds()),
+			fmt.Sprintf("Rank: %s", response.GetRank()),
 			fmt.Sprintf("Owner filter: %s", ownerFilterLabel(response.GetOwner())),
 			fmt.Sprintf("Ranked consumers: %d", response.GetCount()),
 			fmt.Sprintf("Covered range: %s to %s", support.FormatTimestamp(response.GetCoveredStart()), support.FormatTimestamp(response.GetCoveredEnd())),
@@ -319,8 +320,8 @@ func processTimelineRows(entries []*metricspb.ProcessTimelineEntry) []string {
 		if !e.GetAggregated() && e.GetPid() > 0 {
 			pid = fmt.Sprintf("pid=%d", e.GetPid())
 		}
-		rows = append(rows, fmt.Sprintf("%s %s cpu=%s max_cpu=%s cpu_seconds=%.3f rss=%.1fMB samples=%d (%s)",
-			e.GetOwner(), e.GetComm(), support.FormatPercent(e.GetCpuPct()), support.FormatPercent(e.GetMaxCpuPct()), e.GetCpuSeconds(), float64(e.GetRssKb())/1024, e.GetSampleCount(), pid))
+		rows = append(rows, fmt.Sprintf("%s %s cpu=%s max_cpu=%s cpu_seconds=%.3f rss=%.1fMB mean_swap=%.1fMB swap_samples=%d measured/%d unknown samples=%d (%s)",
+			e.GetOwner(), e.GetComm(), support.FormatPercent(e.GetCpuPct()), support.FormatPercent(e.GetMaxCpuPct()), e.GetCpuSeconds(), float64(e.GetRssKb())/1024, float64(e.GetSwapKb())/1024, e.GetSwapMeasuredSamples(), e.GetSwapUnknownSamples(), e.GetSampleCount(), pid))
 	}
 	return rows
 }

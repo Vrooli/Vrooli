@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -32,7 +33,7 @@ export default defineConfig(({ mode }) => {
     // ║  DO NOT change to '/' or remove this setting.                ║
     // ╚══════════════════════════════════════════════════════════════╝
     base: './',
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     test: {
       globals: true,
       environment: 'jsdom',

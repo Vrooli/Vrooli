@@ -131,6 +131,12 @@ func (s *linuxSampler) readProcess(pid int) (ProcessSample, bool) {
 	if cmdRaw, err := s.fs.ReadFile(pid, "cmdline"); err == nil {
 		sample.Cmdline = renderCmdline(cmdRaw)
 	}
+	if executable, err := s.fs.Readlink(pid, "exe"); err == nil {
+		sample.ExecutablePath = executable
+	}
+	if cgroupRaw, err := s.fs.ReadFile(pid, "cgroup"); err == nil {
+		sample.CgroupPath = unifiedCgroupPath(string(cgroupRaw))
+	}
 	if statusRaw, err := s.fs.ReadFile(pid, "status"); err == nil {
 		sample.SwapKB = parseStatusKB(string(statusRaw), "VmSwap")
 		sample.SwapStatus = "measured"

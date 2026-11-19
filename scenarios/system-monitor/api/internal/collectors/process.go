@@ -65,7 +65,7 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 		}, nil
 	}
 	totalProcesses := len(samples)
-	zombieProcesses := zombieProcessesFromSamples(samples)
+	zombieProcesses, zombieCount := zombieProcessesFromSamples(samples)
 	highThreadProcesses := highThreadProcessesFromSamples(samples)
 	topProcesses, _ := GetTopProcessesByCPU(10)
 
@@ -75,7 +75,7 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 		"zombie_processes":  zombieProcesses,
 		"high_thread_count": highThreadProcesses,
 		"top_by_cpu":        topProcesses,
-		"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
+		"process_health":    c.processHealth(ctx, totalProcesses, zombieCount, highThreadProcesses),
 	}
 	// Process-creation rate. A fork storm is invisible in total_count because
 	// the processes are short-lived: the population stays flat while the host
@@ -98,22 +98,23 @@ func currentProcessSamples(ctx context.Context) ([]procsampler.ProcessSample, er
 	return topProcessSampler.Sample(ctx)
 }
 
-func zombieProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
+func zombieProcessesFromSamples(samples []procsampler.ProcessSample) ([]map[string]interface{}, int) {
 	zombies := make([]map[string]interface{}, 0)
+	count := 0
 	for _, sample := range samples {
 		if sample.State != "Z" && sample.State != "z" {
 			continue
 		}
-		zombies = append(zombies, map[string]interface{}{
-			"pid":    sample.PID,
-			"name":   sample.Comm,
-			"status": "zombie",
-		})
-		if len(zombies) >= 10 {
-			break
+		count++
+		if len(zombies) < 10 {
+			zombies = append(zombies, map[string]interface{}{
+				"pid":    sample.PID,
+				"name":   sample.Comm,
+				"status": "zombie",
+			})
 		}
 	}
-	return zombies
+	return zombies, count
 }
 
 func highThreadProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
@@ -139,16 +140,17 @@ func highThreadProcessesFromSamples(samples []procsampler.ProcessSample) []map[s
 // processHealth builds the health summary from the zombie and high-thread
 // results already computed in Collect (no re-shelling), plus a single
 // process-table scan for critical-process presence (replaces 4 pgrep forks).
-func (c *ProcessCollector) processHealth(ctx context.Context, zombies, highThread []map[string]interface{}) map[string]interface{} {
+func (c *ProcessCollector) processHealth(ctx context.Context, totalProcesses, zombieCount int, highThread []map[string]interface{}) map[string]interface{} {
 	health := map[string]interface{}{
 		"status":             "healthy",
-		"zombie_count":       len(zombies),
+		"total_count":        totalProcesses,
+		"zombie_count":       zombieCount,
 		"high_thread_count":  len(highThread),
 		"leak_candidates":    0,
 		"critical_processes": c.checkCriticalProcesses(ctx),
 	}
 
-	if len(zombies) > 5 || len(highThread) > 10 {
+	if zombieCount > 5 || len(highThread) > 10 {
 		health["status"] = "warning"
 	}
 

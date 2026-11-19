@@ -9,8 +9,9 @@ Connect procedure paths such as
 `/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics`. The
 `/api/v1/...` paths in the proto-owned sections below are HTTP annotation
 inventory and historical compatibility context; they are not mounted as manual
-REST routes after the bright-window cleanup. Runtime REST exceptions are health
-probes, development pprof, logs, and forensics.
+REST routes after the bright-window cleanup. Runtime REST exceptions include
+health probes, development pprof, logs, forensics, explicitly requested
+process read activity, and attached-session owner alert actions.
 
 ---
 
@@ -37,11 +38,13 @@ probes, development pprof, logs, and forensics.
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
 | GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
 | GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`); accepts a 24-hour max explicit `start_utc`/`end_utc` RFC3339 interval |
+| GET | `/api/v1/forensics/process-cpu-replay` | Read-only 15-minute historical replay of the sustained owner CPU alert rule; requires exact RFC3339 `start_utc` and `end_utc`, ends in the past, does not persist alerts or notify |
 | GET | `/api/v1/forensics/process-samples` | Timestamped raw process observations for one required `owner` and exact RFC3339 `start_utc`/`end_utc` interval (maximum 24 hours); `limit` defaults to 1000 and is capped at 5000. Returns `truncated` when the result limit omits rows and `raw_retention_seconds` for the configured raw-sample window. Older observations may already be rolled up and are not returned here. Command lines and working directories are excluded. |
 | GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
 | GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
 | GET | `/api/v1/metrics/disk` | Disk partition and usage detail through the generated Connect method |
+| GET | `/api/v1/metrics/disk/read-activity` | Explicit bounded two-sample host-wide process read activity; reports process identity, coverage and partial/unsupported states |
 
 ### GET /api/v1/metrics/current
 
@@ -69,6 +72,48 @@ Response:
 |-------------------|-----------------|-------------|
 | `AlertsService/ListAlerts` | `GET /api/v1/alerts` | Persisted alerts plus per-rule evaluation state. `status`: `active` (default), `resolved`, `all`; `include_events` adds point-in-time `threshold_violation` and `anomaly` records; `limit` (default 100, max 1000). The response carries `evaluated_at`, `sustain_seconds`, and `monitoring_active` so a client can tell "no alerts" from "not evaluated". |
 | `AlertsService/AcknowledgeAlert` | `POST /api/v1/alerts/{id}/acknowledge` | Records an acknowledgement; resolution still follows the condition. |
+| `GET` | `/api/v1/owner/alerts` | Lists active condition alerts for the caller's exact attached Agent Manager session. Requires one `X-Agent-Identity-Token`; Agent Manager verifies the token and persisted Web Console session binding. `complete=false` means the 1000-row global bound was reached before owner filtering. |
+| `POST` | `/api/v1/owner/alerts/{id}/acknowledge` | Acknowledges only an active condition alert whose owner matches the verified attached session. The server records `agent-run:<run-id>`; acknowledging does not resolve the alert or count as an owner fix receipt. |
+
+An attached coding session can use its injected `VROOLI_AGENT_IDENTITY_TOKEN` to
+read and acknowledge its own alerts. Keep the token in the header; do not print
+or copy it into logs. Resolve the local API port through the control plane:
+
+```sh
+export SYSTEM_MONITOR_API_URL="http://localhost:$(vrooli scenario port system-monitor --json | jq -r '.ports[] | select(.key == "API_PORT") | .port')"
+
+python3 - <<'PY'
+import os
+import urllib.request
+
+base = os.environ["SYSTEM_MONITOR_API_URL"].rstrip("/")
+token = os.environ["VROOLI_AGENT_IDENTITY_TOKEN"]
+request = urllib.request.Request(base + "/api/v1/owner/alerts")
+request.add_header("X-Agent-Identity-Token", token)
+with urllib.request.urlopen(request, timeout=5) as response:
+    print(response.read().decode())
+PY
+
+ALERT_ID="<alert-id>" python3 - <<'PY'
+import os
+import urllib.request
+
+base = os.environ["SYSTEM_MONITOR_API_URL"].rstrip("/")
+token = os.environ["VROOLI_AGENT_IDENTITY_TOKEN"]
+alert_id = os.environ["ALERT_ID"]
+request = urllib.request.Request(
+    base + "/api/v1/owner/alerts/" + alert_id + "/acknowledge",
+    method="POST",
+)
+request.add_header("X-Agent-Identity-Token", token)
+with urllib.request.urlopen(request, timeout=5) as response:
+    print(response.read().decode())
+PY
+```
+
+Acknowledgement records that the owner saw the condition. The owner still needs
+to change the owning workload and retain a fix receipt; acknowledgement alone
+does not mark the issue fixed.
 
 Condition alerts (`type=condition`) carry `rule_id`, `key`, `escalated`,
 `anomaly_id`, and rule evidence in `details` (for `memory_pressure`: level,

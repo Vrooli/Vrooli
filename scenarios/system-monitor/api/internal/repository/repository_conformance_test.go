@@ -52,6 +52,13 @@ func TestMetricProjectionMatchesAcrossStorageBackends(t *testing.T) {
 		{CollectorName: "disk", Values: map[string]interface{}{
 			"status": "measured", "usage": map[string]interface{}{"percent": 72.0},
 		}},
+		{CollectorName: "disk_io", Values: map[string]interface{}{
+			"read_rate_status": "measured", "read_rate": 0.0,
+			"read_rate_units": "MB/s", "read_rate_provenance": "physical disk counters",
+			"read_rate_observed_at": observedAt.Format(time.RFC3339Nano),
+			"write_rate_status":     "failed", "write_rate_reason": "counter reset",
+			"write_rate_units": "MB/s", "write_rate_observed_at": observedAt.Format(time.RFC3339Nano),
+		}},
 		{CollectorName: "pressure", Values: map[string]interface{}{
 			"cpu_psi_some_avg10": 0.5, "cpu_psi_status": "measured",
 			"fragmentation_max_free_order": 3.0, "fragmentation_status": "measured",
@@ -70,6 +77,12 @@ func TestMetricProjectionMatchesAcrossStorageBackends(t *testing.T) {
 			}
 			if len(actual) != 1 {
 				t.Fatalf("got %d samples, want one", len(actual))
+			}
+			if actual[0].DiskReadRateState.Status != "measured" || actual[0].DiskReadRateState.Value != 0 || !actual[0].DiskReadRateState.ObservedAt.Equal(observedAt) {
+				t.Errorf("disk read measured zero lost: %+v", actual[0].DiskReadRateState)
+			}
+			if actual[0].DiskWriteRateState.Status != "failed" || actual[0].DiskWriteRateState.Reason != "counter reset" {
+				t.Errorf("disk write failure lost: %+v", actual[0].DiskWriteRateState)
 			}
 			latest, err := backend.repo.GetLatestMetrics(context.Background())
 			if err != nil {
@@ -116,6 +129,10 @@ func TestFailedMetricValuesAreNotProjectedAsMeasurements(t *testing.T) {
 		{CollectorName: "disk", Values: map[string]interface{}{
 			"status": "failed", "usage": map[string]interface{}{"percent": 99.0},
 		}},
+		{CollectorName: "disk_io", Values: map[string]interface{}{
+			"read_rate_status": "failed", "read_rate_reason": "counter reset", "read_rate": 999.0,
+			"write_rate_status": "unsupported", "write_rate_reason": "physical counters unavailable",
+		}},
 	}
 	for _, backend := range backends {
 		t.Run(backend.name, func(t *testing.T) {
@@ -138,6 +155,9 @@ func TestFailedMetricValuesAreNotProjectedAsMeasurements(t *testing.T) {
 			}
 			if row.DiskState.Status != "failed" || row.DiskUsage != 0 || row.SwapUsage != nil {
 				t.Fatalf("failed disk/swap values were projected: %+v", row)
+			}
+			if row.DiskReadRateState.Status != "failed" || row.DiskReadRateState.Reason != "counter reset" || row.DiskReadRateState.Value != 0 || row.DiskWriteRateState.Status != "unsupported" {
+				t.Fatalf("failed disk I/O states were projected: %+v", row)
 			}
 		})
 	}

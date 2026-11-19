@@ -20,7 +20,7 @@ function investigationStatusLabel(status: InvestigationStatus): string {
 
 export interface TimelineEntry {
   id: string;
-  at: string;
+  at: string | null;
   severity: 'critical' | 'warning' | 'info';
   source: 'metrics' | 'investigation';
   title: string;
@@ -31,7 +31,7 @@ export interface TimelineEntry {
 interface IncidentTimelineProps {
   history: MetricHistory | null;
   investigations: Investigation[];
-  onOpenSource: (source: 'logs' | 'forensics') => void;
+  onOpenSource: (source: 'logs' | 'forensics', entry: TimelineEntry) => void;
   onInvestigate: (entry: TimelineEntry) => void;
 }
 
@@ -94,7 +94,7 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
     ...metricEntries(history),
     ...investigations.slice(0, 5).map((investigation) => ({
       id: `investigation-${investigation.id}`,
-      at: investigation.startTime ? timestampDate(investigation.startTime).toISOString() : new Date().toISOString(),
+      at: investigation.startTime ? timestampDate(investigation.startTime).toISOString() : null,
       severity: investigation.status === InvestigationStatus.FAILED ? 'critical' as const : 'info' as const,
       source: 'investigation' as const,
       // `investigation.status` is a numeric proto enum. Interpolating it
@@ -104,7 +104,7 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
       title: `Investigation ${investigationStatusLabel(investigation.status)}`,
       detail: investigation.findings || (investigation.details ? 'Investigation details attached' : 'Investigation activity recorded'),
     })),
-  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)), [history, investigations]);
+  ].sort((a, b) => (b.at ? Date.parse(b.at) : 0) - (a.at ? Date.parse(a.at) : 0)), [history, investigations]);
 
   return (
     <section className="card incident-timeline" aria-labelledby="incident-timeline-heading">
@@ -135,7 +135,7 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
                   <span className="incident-severity-rule" aria-hidden="true" />
                 </span>
                 <span className="incident-entry-body">
-                  <time className="incident-entry-time" dateTime={entry.at}>{new Date(entry.at).toLocaleString()}</time>
+                  {entry.at ? <time className="incident-entry-time" dateTime={entry.at}>{new Date(entry.at).toLocaleString()}</time> : <span className="incident-entry-time">Time not reported</span>}
                   <span className="incident-entry-title">{entry.title}</span>
                   {/* The row gets a flattened one-liner; the structured render
                       of the report lives in the correlated view below. */}
@@ -153,11 +153,11 @@ export function IncidentTimeline({ history, investigations, onOpenSource, onInve
             <h3 data-sm-style="sm-style-2a0ca8350a">Correlated view</h3>
             <button type="button" className="header-button" onClick={() => { setSelected(null); }}>Close</button>
           </div>
-          <p className="text-sm">{selected.title} · all sources scoped to {range.label} around {new Date(selected.at).toLocaleString()}.</p>
+          <p className="text-sm">{selected.title} · all sources scoped to {range.label}{selected.at ? ` around ${new Date(selected.at).toLocaleString()}` : ' · event time not reported'}.</p>
           <ReportBody text={selected.detail} className="report-body-scroll" />
           <div className="flex-row-center" data-sm-style="sm-style-2bec9ac048">
-            <button type="button" className="header-button" onClick={() => { onOpenSource('logs'); }}>Open logs</button>
-            <button type="button" className="header-button" onClick={() => { onOpenSource('forensics'); }}>Open forensics</button>
+            <button type="button" className="header-button" onClick={() => { onOpenSource('logs', selected); }}>Open logs</button>
+            <button type="button" className="header-button" onClick={() => { onOpenSource('forensics', selected); }}>Open forensics</button>
             <button type="button" className="btn btn-primary" onClick={() => { onInvestigate(selected); }}>Investigate this window</button>
           </div>
         </div>

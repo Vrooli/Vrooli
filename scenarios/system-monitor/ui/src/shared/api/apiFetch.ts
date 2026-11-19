@@ -305,6 +305,17 @@ function buildConnectCall(rawPath: string, options?: RequestInit): ConnectCall |
       return { procedure: `${metrics}/GetProcessMonitor`, body: {}, unwrap: field('data') };
     case '/metrics/infrastructure':
       return { procedure: `${metrics}/GetInfrastructureMonitor`, body: {}, unwrap: field('data') };
+    case '/metrics/disk/details':
+      return {
+        procedure: `${metrics}/GetDiskDetail`,
+        body: {
+          mount: url.searchParams.get('mount') ?? '',
+          depth: intParam(url.searchParams.get('depth')),
+          limit: intParam(url.searchParams.get('limit')),
+          includeFiles: boolParam(url.searchParams.get('include_files')),
+        },
+        unwrap: field('data'),
+      };
     case '/metrics/timeline':
       return {
         procedure: `${metrics}/GetMetricsTimeline`,

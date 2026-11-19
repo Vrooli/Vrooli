@@ -13,6 +13,8 @@ type MetricsResponse struct {
 	GPUUsage                    *float64             `json:"gpu_usage,omitempty"`
 	SwapUsage                   *float64             `json:"swap_usage,omitempty"`
 	DiskUsage                   float64              `json:"disk_usage"`
+	DiskReadRateState           MetricState          `json:"disk_read_rate_state"`
+	DiskWriteRateState          MetricState          `json:"disk_write_rate_state"`
 	CPUState                    MetricState          `json:"cpu_state"`
 	CPUContextSwitchesPerSecond MetricState          `json:"cpu_context_switches_per_second"`
 	CPUInterruptsPerSecond      MetricState          `json:"cpu_interrupts_per_second"`
@@ -31,6 +33,7 @@ type MetricsResponse struct {
 	NetworkTimeWaitRate         MetricState          `json:"network_time_wait_rate"`
 	NetworkCloseWaitRate        MetricState          `json:"network_close_wait_rate"`
 	GPUState                    MetricState          `json:"gpu_state"`
+	GPUProcessesState           MetricState          `json:"gpu_processes_state"`
 	SwapState                   MetricState          `json:"swap_state"`
 	SwapTrafficState            MetricState          `json:"swap_traffic_state"`
 	MajorFaultsState            MetricState          `json:"major_faults_state"`
@@ -98,6 +101,9 @@ type MetricTimelineSample struct {
 	TCPConnections              int                  `json:"tcp_connections"`
 	GPUUsage                    *float64             `json:"gpu_usage,omitempty"`
 	SwapUsage                   *float64             `json:"swap_usage,omitempty"`
+	DiskUsage                   float64              `json:"disk_usage"`
+	DiskReadRateState           MetricState          `json:"disk_read_rate_state"`
+	DiskWriteRateState          MetricState          `json:"disk_write_rate_state"`
 	CPUState                    MetricState          `json:"cpu_state"`
 	CPUContextSwitchesPerSecond MetricState          `json:"cpu_context_switches_per_second"`
 	CPUInterruptsPerSecond      MetricState          `json:"cpu_interrupts_per_second"`
@@ -110,6 +116,7 @@ type MetricTimelineSample struct {
 	CPUModeIowait               MetricState          `json:"cpu_mode_iowait"`
 	CPUModeSteal                MetricState          `json:"cpu_mode_steal"`
 	KernelMemory                *KernelMemoryMetrics `json:"kernel_memory,omitempty"`
+	DiskUsageState              MetricState          `json:"disk_usage_state"`
 	MemoryState                 MetricState          `json:"memory_state"`
 	ConnectionsState            MetricState          `json:"connections_state"`
 	GPUState                    MetricState          `json:"gpu_state"`
@@ -534,14 +541,15 @@ type FileDescriptorInfo struct {
 
 // ProcessMonitorData contains process monitoring information
 type ProcessMonitorData struct {
-	ProcessHealth  ProcessHealthInfo `json:"process_health"`
-	ResourceMatrix []ProcessInfo     `json:"resource_matrix"`
-	Timestamp      time.Time         `json:"timestamp"`
+	ProcessHealth  *ProcessHealthInfo `json:"process_health,omitempty"`
+	ResourceMatrix []ProcessInfo      `json:"resource_matrix"`
+	Timestamp      time.Time          `json:"timestamp"`
 }
 
 // ProcessHealthInfo summarizes process health
 type ProcessHealthInfo struct {
 	TotalProcesses  int           `json:"total_processes"`
+	ZombieCount     MetricState   `json:"zombie_count"`
 	ZombieProcesses []ProcessInfo `json:"zombie_processes"`
 	HighThreadCount []ProcessInfo `json:"high_thread_count"`
 	LeakCandidates  []ProcessInfo `json:"leak_candidates"`
@@ -592,10 +600,12 @@ type BackgroundJobsInfo struct {
 
 // StorageIOInfo contains storage I/O metrics
 type StorageIOInfo struct {
-	ReadRate       MetricState `json:"read_rate"`
-	WriteRate      MetricState `json:"write_rate"`
-	DiskQueueDepth float64     `json:"disk_queue_depth"`
-	IOWaitPercent  float64     `json:"io_wait_percent"`
-	ReadMBPerSec   float64     `json:"read_mb_per_sec"`
-	WriteMBPerSec  float64     `json:"write_mb_per_sec"`
+	ReadRate        MetricState `json:"read_rate"`
+	WriteRate       MetricState `json:"write_rate"`
+	QueueDepthState MetricState `json:"queue_depth_state"`
+	IOWaitState     MetricState `json:"io_wait_state"`
+	DiskQueueDepth  float64     `json:"disk_queue_depth"`
+	IOWaitPercent   float64     `json:"io_wait_percent"`
+	ReadMBPerSec    float64     `json:"read_mb_per_sec"`
+	WriteMBPerSec   float64     `json:"write_mb_per_sec"`
 }

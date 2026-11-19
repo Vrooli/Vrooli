@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS process_samples (
 	threads INTEGER NOT NULL,
 	gpu_vram_mb REAL NOT NULL DEFAULT 0,
 	swap_kb INTEGER NOT NULL DEFAULT 0,
+	swap_status TEXT NOT NULL DEFAULT 'unknown',
 	major_faults_per_second REAL NOT NULL DEFAULT 0,
 	metrics_status TEXT NOT NULL DEFAULT '',
 	metrics_reason TEXT NOT NULL DEFAULT ''
@@ -147,6 +148,11 @@ CREATE TABLE IF NOT EXISTS process_sample_rollups (
 	max_rss_kb INTEGER NOT NULL,
 	avg_major_faults_per_second REAL NOT NULL DEFAULT 0,
 	max_major_faults_per_second REAL NOT NULL DEFAULT 0,
+	avg_swap_kb INTEGER NOT NULL DEFAULT 0,
+	max_swap_kb INTEGER NOT NULL DEFAULT 0,
+	swap_measured_samples INTEGER NOT NULL DEFAULT 0,
+	swap_unknown_samples INTEGER NOT NULL DEFAULT 0,
+	max_gpu_vram_mb REAL NOT NULL DEFAULT 0,
 	sample_count INTEGER NOT NULL,
 	UNIQUE(minute, owner, comm)
 );
@@ -211,9 +217,90 @@ func NewRepository(dbPath string) (*Repository, error) {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
 	}
+	if err := ensureProcessSampleColumns(context.Background(), primary); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate process sample schema: %w", err)
+	}
+	if err := ensureProcessRollupColumns(context.Background(), primary); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate process rollup schema: %w", err)
+	}
 	repo := NewRepositoryFromDB(db)
 	repo.path = dbPath
 	return repo, nil
+}
+
+func ensureProcessRollupColumns(ctx context.Context, db *sql.DB) error {
+	columns := map[string]string{}
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(process_sample_rollups)")
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		columns[name] = columnType
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for name, definition := range map[string]string{
+		"avg_swap_kb":           "INTEGER NOT NULL DEFAULT 0",
+		"max_swap_kb":           "INTEGER NOT NULL DEFAULT 0",
+		"swap_measured_samples": "INTEGER NOT NULL DEFAULT 0",
+		"swap_unknown_samples":  "INTEGER NOT NULL DEFAULT 0",
+		"max_gpu_vram_mb":       "REAL NOT NULL DEFAULT 0",
+	} {
+		if _, exists := columns[name]; exists {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, "ALTER TABLE process_sample_rollups ADD COLUMN "+name+" "+definition); err != nil {
+			return fmt.Errorf("add %s: %w", name, err)
+		}
+	}
+	_, err = db.ExecContext(ctx, `UPDATE process_sample_rollups
+		SET swap_unknown_samples = sample_count
+		WHERE swap_measured_samples = 0 AND swap_unknown_samples = 0 AND sample_count > 0`)
+	return err
+}
+
+func ensureProcessSampleColumns(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(process_samples)")
+	if err != nil {
+		return err
+	}
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return err
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if columns["swap_status"] {
+		return nil
+	}
+	_, err = db.ExecContext(ctx, `ALTER TABLE process_samples ADD COLUMN swap_status TEXT NOT NULL DEFAULT 'unknown'`)
+	return err
 }
 
 // NewRepositoryFromDB wraps an already-open routed database.

@@ -277,6 +277,7 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	_ = repo.SaveMetricCycle(ctx, "timeline-cpu", time.Now(), []repository.MetricObservation{{CollectorName: "cpu", Values: map[string]interface{}{"usage_percent": 42.5}}})
 	_ = repo.SaveMetricCycle(ctx, "timeline-memory", time.Now(), []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{"usage_percent": 65.3}}})
 	_ = repo.SaveMetricCycle(ctx, "timeline-network", time.Now(), []repository.MetricObservation{{CollectorName: "network", Values: map[string]interface{}{"tcp_connections": 120}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-disk", time.Now(), []repository.MetricObservation{{CollectorName: "disk", Values: map[string]interface{}{"usage": map[string]interface{}{"percent": 73.2}}}})
 
 	timeline, err := svc.GetMetricsTimeline(ctx, 120, 5)
 	if err != nil {
@@ -287,6 +288,81 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	}
 	if len(timeline.Samples) == 0 {
 		t.Error("expected at least 1 sample after seeding metrics")
+	}
+	var foundDisk bool
+	for _, sample := range timeline.Samples {
+		if sample.DiskUsageState.Status == "measured" {
+			foundDisk = true
+			if sample.DiskUsage != 73.2 {
+				t.Errorf("disk usage = %v, want 73.2", sample.DiskUsage)
+			}
+		}
+	}
+	if !foundDisk {
+		t.Fatal("disk usage observation was omitted from timeline")
+	}
+}
+
+func TestMetricsTimelineIncludesPersistedDiskIORatesAndFailureGaps(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	repo := memory.NewRepository()
+	measuredAt := now.Add(-20 * time.Second)
+	failedAt := now.Add(-10 * time.Second)
+	if err := repo.SaveMetricCycle(ctx, "disk-io-measured", measuredAt, []repository.MetricObservation{{
+		CollectorName: "disk_io",
+		Values: map[string]interface{}{
+			"read_rate_status":      "measured",
+			"read_rate":             0.0,
+			"read_rate_units":       "MB/s",
+			"read_rate_observed_at": measuredAt.Format(time.RFC3339Nano),
+			"read_rate_provenance":  "physical disk counters",
+			"write_rate_status":     "not_yet_sampled",
+			"write_rate_reason":     "second counter sample is required",
+			"write_rate_units":      "MB/s",
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveMetricCycle(ctx, "disk-io-failed", failedAt, []repository.MetricObservation{{
+		CollectorName: "disk_io",
+		Values: map[string]interface{}{
+			"read_rate_status":  "failed",
+			"read_rate_reason":  "counter reset",
+			"read_rate_units":   "MB/s",
+			"write_rate_status": "unsupported",
+			"write_rate_reason": "physical counters unavailable",
+			"write_rate_units":  "MB/s",
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewMonitorService(&config.Config{}, repo, infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(ctx, 60, 5)
+	if err != nil {
+		t.Fatalf("GetMetricsTimeline: %v", err)
+	}
+	var measured, failed bool
+	for _, sample := range timeline.Samples {
+		if sample.DiskReadRateState.Status == "measured" {
+			measured = true
+			if sample.DiskReadRateState.Value != 0 || sample.DiskReadRateState.Units != "MB/s" || !sample.DiskReadRateState.ObservedAt.Equal(measuredAt) {
+				t.Errorf("measured zero lost its value or provenance: %+v", sample.DiskReadRateState)
+			}
+		}
+		if sample.DiskReadRateState.Status == "failed" {
+			failed = true
+			if sample.DiskReadRateState.Reason != "counter reset" {
+				t.Errorf("failure gap lost its reason: %+v", sample.DiskReadRateState)
+			}
+		}
+		if sample.DiskWriteRateState.Status == "unsupported" && sample.DiskWriteRateState.Reason != "physical counters unavailable" {
+			t.Errorf("unsupported rate lost its reason: %+v", sample.DiskWriteRateState)
+		}
+	}
+	if !measured || !failed {
+		t.Fatalf("disk I/O history states missing: measured=%v failed=%v", measured, failed)
 	}
 }
 
@@ -453,13 +529,17 @@ func TestMonitorServiceSelfMetricsRecordedAfterCollection(t *testing.T) {
 	}
 }
 
-func TestHighestDiskPressureUsesPeakPartitionUsage(t *testing.T) {
-	pressure := highestDiskPressure([]models.DiskPartitionInfo{
+func TestDiskPressureIsScopedToSelectedMount(t *testing.T) {
+	partitions := []models.DiskPartitionInfo{
 		{MountPoint: "/", UsePercent: 72.5},
 		{MountPoint: "/var", UsePercent: 91.25},
 		{MountPoint: "/tmp", UsePercent: 12},
-	})
-	if pressure != 91.25 {
-		t.Fatalf("pressure = %v, want 91.25", pressure)
+	}
+	pressure, ok := diskPressureForMount(partitions, "/")
+	if !ok || pressure != 72.5 {
+		t.Fatalf("root pressure = %v, found=%v, want 72.5", pressure, ok)
+	}
+	if _, ok := diskPressureForMount(partitions, "/missing"); ok {
+		t.Fatal("missing mount pressure was treated as a measurement")
 	}
 }

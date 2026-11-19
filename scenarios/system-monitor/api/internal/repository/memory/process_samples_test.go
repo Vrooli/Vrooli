@@ -35,8 +35,8 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	minute := time.Date(2026, 6, 24, 10, 30, 0, 0, time.UTC)
 
 	_ = repo.SaveProcessSamples(ctx, []repository.ProcessSample{
-		{Timestamp: minute.Add(5 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 60, RSSKB: 100},
-		{Timestamp: minute.Add(40 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 100, RSSKB: 300},
+		{Timestamp: minute.Add(5 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 60, RSSKB: 100, SwapKB: 50, SwapStatus: "measured", GPUVRAMMB: 40},
+		{Timestamp: minute.Add(40 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 100, RSSKB: 300, SwapKB: 150, SwapStatus: "measured", GPUVRAMMB: 80},
 		{Timestamp: minute.Add(2 * time.Second), PID: 2, Comm: "node", Owner: "web-console", CPUPct: 10, RSSKB: 5000},
 	})
 
@@ -52,6 +52,9 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	}
 	if entries[0].RSSKB != 200 {
 		t.Fatalf("pre-rollup rss = %d, want average 200", entries[0].RSSKB)
+	}
+	if entries[0].SwapKB != 100 {
+		t.Fatalf("pre-rollup swap = %d, want average 100", entries[0].SwapKB)
 	}
 	entries, err = repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
 		Start: minute.Add(-time.Minute), End: minute.Add(2 * time.Minute), Top: 10, Rank: "rss",
@@ -83,6 +86,12 @@ func TestMemoryProcessTimeline_RollupAndQuery(t *testing.T) {
 	}
 	if entries[0].RSSKB != 200 {
 		t.Fatalf("post-rollup rss = %d, want average 200", entries[0].RSSKB)
+	}
+	if entries[0].SwapKB != 100 {
+		t.Fatalf("post-rollup swap = %d, want average 100", entries[0].SwapKB)
+	}
+	if entries[0].GPUVRAMMB != 80 {
+		t.Fatalf("post-rollup GPU VRAM = %.1f, want peak 80", entries[0].GPUVRAMMB)
 	}
 }
 

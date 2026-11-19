@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
+import { AppNotificationSettings } from '@vrooli/react-component-library/AppNotificationSettings/1';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import { protoFetch } from '../../../shared/api/apiFetch';
 import {
@@ -100,6 +101,9 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
   const [settings, setSettings] = useState<ProtoSettings>(defaultSettings);
   const [originalSettings, setOriginalSettings] = useState<ProtoSettings>(defaultSettings);
   const [loading, setLoading] = useState(false);
+  const [settingsAvailable, setSettingsAvailable] = useState(false);
+  const [hasConfirmedSettings, setHasConfirmedSettings] = useState(false);
+  const [unknownWriteOutcome, setUnknownWriteOutcome] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -121,6 +125,21 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     successTimeoutRef.current = setTimeout(() => { setSuccessMessage(null); }, 3000);
   }, []);
 
+  const readSettingsFromHost = useCallback(async () => {
+    const data = await protoFetch('/settings', parseGetSettingsResponse);
+    if (!data.success || !data.settings) {
+      throw new Error(data.error || 'Failed to read settings back from the host');
+    }
+    return {
+      ...defaultSettings,
+      ...data.settings,
+      autoInvestigateCriticalRules: {
+        ...defaultSettings.autoInvestigateCriticalRules,
+        ...data.settings.autoInvestigateCriticalRules,
+      },
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       if (successTimeoutRef.current) {
@@ -137,28 +156,23 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
   const loadSettings = async () => {
     setLoading(true);
+    setSettingsAvailable(false);
     setError(null);
     try {
-      const data = await protoFetch('/settings', parseGetSettingsResponse);
-      if (data.success && data.settings) {
-        const loadedSettings = {
-          ...defaultSettings,
-          ...data.settings,
-          autoInvestigateCriticalRules: {
-            ...defaultSettings.autoInvestigateCriticalRules,
-            ...data.settings.autoInvestigateCriticalRules,
-          },
-        };
+      {
+        const loadedSettings = await readSettingsFromHost();
         setSettings(loadedSettings);
         setOriginalSettings(loadedSettings);
-      } else {
-        throw new Error(data.error || 'Failed to load settings');
+        setSettingsAvailable(true);
+        setHasConfirmedSettings(true);
+        setUnknownWriteOutcome(false);
       }
     } catch (err) {
       console.error('Failed to load settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to load settings');
-      setSettings(defaultSettings);
-      setOriginalSettings(defaultSettings);
+      // Defaults are only an initial placeholder while loading; they must
+      // never look like host settings after a failed read.
+      setSettingsAvailable(false);
     } finally {
       setLoading(false);
     }
@@ -175,29 +189,36 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         body: toJsonString(SystemSettingsSchema, settings),
       });
       if (data.success && data.settings) {
-        const updatedSettings = {
-          ...defaultSettings,
-          ...data.settings,
-          autoInvestigateCriticalRules: {
-            ...defaultSettings.autoInvestigateCriticalRules,
-            ...data.settings.autoInvestigateCriticalRules,
-          },
-        };
+        // A mutation response confirms acceptance, but the separate read is
+        // the source of truth for what the host now exposes as effective.
+        const updatedSettings = await readSettingsFromHost();
+        const matchesRequested = toJsonString(SystemSettingsSchema, updatedSettings)
+          === toJsonString(SystemSettingsSchema, settings);
         setSettings(updatedSettings);
         setOriginalSettings(updatedSettings);
-        showTemporarySuccess('Settings saved successfully!');
+        setSettingsAvailable(true);
+        setHasConfirmedSettings(true);
+        setUnknownWriteOutcome(false);
+        if (matchesRequested) {
+          showTemporarySuccess('Settings saved and confirmed from the host.');
+        } else {
+          setError('The host returned settings that differ from the submitted values. The current host settings are shown.');
+        }
       } else {
         throw new Error(data.error || 'Failed to save settings');
       }
     } catch (err) {
       console.error('Failed to save settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to save settings');
+      setSettingsAvailable(false);
+      setUnknownWriteOutcome(true);
     } finally {
       setSaving(false);
     }
   };
 
   const resetSettings = async () => {
+    if (!settingsAvailable) return;
     if (!confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
       return;
     }
@@ -212,23 +233,27 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
       });
 
       if (data.success && data.settings) {
-        const reset = {
-          ...defaultSettings,
-          ...data.settings,
-          autoInvestigateCriticalRules: {
-            ...defaultSettings.autoInvestigateCriticalRules,
-            ...data.settings.autoInvestigateCriticalRules,
-          },
-        };
+        const reset = await readSettingsFromHost();
+        const matchesDefaults = toJsonString(SystemSettingsSchema, reset)
+          === toJsonString(SystemSettingsSchema, defaultSettings);
         setSettings(reset);
         setOriginalSettings(reset);
-        showTemporarySuccess('Settings reset to defaults!');
+        setSettingsAvailable(true);
+        setHasConfirmedSettings(true);
+        setUnknownWriteOutcome(false);
+        if (matchesDefaults) {
+          showTemporarySuccess('Settings reset and confirmed from the host.');
+        } else {
+          setError('The host returned settings that differ from the defaults. The current host settings are shown.');
+        }
       } else {
         throw new Error(data.error || 'Failed to reset settings');
       }
     } catch (err) {
       console.error('Failed to reset settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to reset settings');
+      setSettingsAvailable(false);
+      setUnknownWriteOutcome(true);
     } finally {
       setLoading(false);
     }
@@ -276,8 +301,33 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           </div>
         )}
 
+        {!loading && !settingsAvailable && (
+          <div className="settings-unavailable-note" role="status">
+            {unknownWriteOutcome
+              ? 'The last write may or may not have applied. Values below show the submitted draft and are not confirmed host settings. The last confirmed settings remain available here; controls stay read-only until you check the host again.'
+              : hasConfirmedSettings
+              ? 'Current host settings could not be confirmed. Values below are the last confirmed settings and are read-only until a successful read.'
+              : 'Current host settings could not be loaded. Defaults below are for reference only and are not confirmed host settings.'}
+            {' '}Save and reset stay disabled until a successful read.
+            {unknownWriteOutcome && hasConfirmedSettings && (
+              <details className="settings-last-confirmed">
+                <summary>Show last confirmed settings</summary>
+                <pre>{toJsonString(SystemSettingsSchema, originalSettings)}</pre>
+              </details>
+            )}
+            <button
+              type="button"
+              className="settings-readback-button"
+              onClick={() => { void loadSettings(); }}
+              disabled={loading || saving}
+            >
+              {loading ? 'Checking current settings…' : 'Check current settings'}
+            </button>
+          </div>
+        )}
+
         {!loading && (
-          <div className="flex-col-gap-lg">
+          <fieldset className="settings-fields flex-col-gap-lg" disabled={!settingsAvailable || loading || saving}>
             {/* System Status Section */}
             <div>
               <h3 className="icon-text section-heading" data-sm-style="sm-style-aa254bd4d7">
@@ -520,16 +570,26 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                 </div>
               </div>
             </div>
-          </div>
+          </fieldset>
         )}
+
+        <section className="flex-col-gap-sm" aria-labelledby="app-notification-settings-heading">
+          <h3 id="app-notification-settings-heading" className="section-heading">
+            App notifications
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Choose where System Monitor alerts appear on this device and which alert categories are enabled.
+          </p>
+          <AppNotificationSettings />
+        </section>
       </div>
 
       {/* Footer */}
       <div data-sm-style="sm-style-e3e852fc99">
         <button
           onClick={() => { void resetSettings(); }}
-          disabled={saving || loading}
-          className={`btn btn-secondary icon-text icon-text-xs ${saving || loading ? 'is-disabled' : ''}`}
+          disabled={saving || loading || !settingsAvailable}
+          className={`btn btn-secondary icon-text icon-text-xs ${saving || loading || !settingsAvailable ? 'is-disabled' : ''}`}
         >
           <RotateCcw size={16} />
           Reset to Defaults
@@ -546,8 +606,8 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
 
           <button
             onClick={() => { void saveSettings(); }}
-            disabled={saving || loading || !hasChanges}
-            className={`btn btn-primary icon-text icon-text-xs ${saving || loading || !hasChanges ? 'is-disabled' : ''}`}
+            disabled={saving || loading || !settingsAvailable || !hasChanges}
+            className={`btn btn-primary icon-text icon-text-xs ${saving || loading || !settingsAvailable || !hasChanges ? 'is-disabled' : ''}`}
           >
             <Save size={16} />
             {saving ? 'Saving...' : 'Save Settings'}

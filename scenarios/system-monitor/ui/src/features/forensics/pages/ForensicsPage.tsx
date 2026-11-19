@@ -8,7 +8,7 @@ import { useTimeRange } from '../../../shared/time/TimeRangeContext';
 
 export const ForensicsPage = () => {
   const { range } = useTimeRange();
-  const { summary, isLoading, error, refresh } = useForensicsSummary();
+  const { summary, isLoading, error, lastReceivedAt, refresh } = useForensicsSummary();
 
   return (
     <section className="forensics-page">
@@ -32,12 +32,15 @@ export const ForensicsPage = () => {
       </p>
 
       {error && (
-        <div
-          className="card"
-          data-sm-style="sm-style-6a6075a1e3"
-          role="alert"
-        >
-          {error}
+        <div className="card" data-sm-style="sm-style-6a6075a1e3" role="alert">
+          <h3 className="section-heading">Forensics refresh failed</h3>
+          <p>{error}</p>
+          {lastReceivedAt
+            ? <p>Showing the last summary received at {new Date(lastReceivedAt).toLocaleString()}. Event timestamps shown in the evidence remain those reported by their sources.</p>
+            : <p>No successful summary has been received yet.</p>}
+          <button type="button" className="btn btn-action" onClick={() => { void refresh(); }} disabled={isLoading}>
+            {isLoading ? 'Refreshing…' : 'Retry Forensics'}
+          </button>
         </div>
       )}
 

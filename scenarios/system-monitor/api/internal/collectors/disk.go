@@ -431,8 +431,9 @@ func formatBytesHuman(bytesValue int64) string {
 	return fmt.Sprintf("%.1f %s", value, units[index])
 }
 
-// GetLargestDirectories returns the heaviest directories inside mount up to the specified depth.
-func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEntry, error) {
+// GetLargestDirectories returns the heaviest directories inside mount up to
+// the specified depth, excluding nested mounts and honoring cancellation.
+func GetLargestDirectories(ctx context.Context, mount string, depth, limit int, excludedMounts []string) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
 	if collectorOS != "linux" {
 		return entries, nil
@@ -448,23 +449,47 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 	}
 	sizes := map[string]int64{}
 	root := filepath.Clean(mount)
+	excluded := excludedMountSet(root, excludedMounts)
+	skipped := 0
+	var firstSkipped error
+	recordSkipped := func(err error) {
+		skipped++
+		if firstSkipped == nil {
+			firstSkipped = err
+		}
+	}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
-			return filepath.SkipDir
+			if path == root {
+				return walkErr
+			}
+			recordSkipped(walkErr)
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
+			if path != root && excluded[path] {
+				return filepath.SkipDir
+			}
 			if strings.Count(strings.TrimPrefix(path, root), string(filepath.Separator)) > depth {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		info, e := d.Info()
-		if e == nil {
-			for dir := filepath.Dir(path); strings.HasPrefix(dir, root); dir = filepath.Dir(dir) {
-				sizes[dir] += info.Size()
-				if dir == root {
-					break
-				}
+		if e != nil {
+			recordSkipped(e)
+			return nil
+		}
+		for dir := filepath.Dir(path); strings.HasPrefix(dir, root); dir = filepath.Dir(dir) {
+			sizes[dir] += info.Size()
+			if dir == root {
+				break
 			}
 		}
 		return nil
@@ -481,11 +506,15 @@ func GetLargestDirectories(mount string, depth, limit int) ([]models.DiskUsageEn
 	if len(entries) > limit {
 		entries = entries[:limit]
 	}
+	if skipped > 0 {
+		return entries, fmt.Errorf("directory attribution skipped %d unreadable paths: %w", skipped, firstSkipped)
+	}
 	return entries, nil
 }
 
-// GetLargestFiles returns the largest files within a mount point (size threshold 50MB).
-func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
+// GetLargestFiles returns the largest files within a mount point (size
+// threshold 50MB), excluding nested mounts and honoring cancellation.
+func GetLargestFiles(ctx context.Context, mount string, limit int, excludedMounts []string) ([]models.DiskUsageEntry, error) {
 	entries := []models.DiskUsageEntry{}
 	if collectorOS != "linux" {
 		return entries, nil
@@ -497,15 +526,41 @@ func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 		limit = 8
 	}
 	root := filepath.Clean(mount)
+	excluded := excludedMountSet(root, excludedMounts)
+	skipped := 0
+	var firstSkipped error
+	recordSkipped := func(err error) {
+		skipped++
+		if firstSkipped == nil {
+			firstSkipped = err
+		}
+	}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
-			return filepath.SkipDir
+			if path == root {
+				return walkErr
+			}
+			recordSkipped(walkErr)
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
+			if path != root && excluded[path] {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		info, e := d.Info()
-		if e == nil && info.Size() > 50*1024*1024 {
+		if e != nil {
+			recordSkipped(e)
+			return nil
+		}
+		if info.Size() > 50*1024*1024 {
 			entries = append(entries, models.DiskUsageEntry{Path: path, SizeBytes: info.Size(), SizeHuman: formatBytesHuman(info.Size()), Category: "file"})
 		}
 		return nil
@@ -517,5 +572,21 @@ func GetLargestFiles(mount string, limit int) ([]models.DiskUsageEntry, error) {
 	if len(entries) > limit {
 		entries = entries[:limit]
 	}
+	if skipped > 0 {
+		return entries, fmt.Errorf("largest-file attribution skipped %d unreadable paths: %w", skipped, firstSkipped)
+	}
 	return entries, nil
+}
+
+func excludedMountSet(root string, mounts []string) map[string]bool {
+	excluded := make(map[string]bool, len(mounts))
+	for _, mount := range mounts {
+		clean := filepath.Clean(mount)
+		rel, err := filepath.Rel(root, clean)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		excluded[clean] = true
+	}
+	return excluded
 }

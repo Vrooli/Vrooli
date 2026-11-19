@@ -70,10 +70,8 @@ func (p *StaticProvider) GetInfrastructureMonitorData(ctx context.Context) (*mod
 	}
 
 	result.StorageIO = models.StorageIOInfo{
-		DiskQueueDepth: 0.2,
-		IOWaitPercent:  2.5,
-		ReadMBPerSec:   15.0,
-		WriteMBPerSec:  8.0,
+		QueueDepthState: models.MetricState{Status: "unsupported", Reason: "Disk queue depth is not collected", Provenance: "system-monitor/infrastructure/storage_io", Units: "requests"},
+		IOWaitState:     models.MetricState{Status: "unsupported", Reason: "Disk I/O wait is not collected", Provenance: "system-monitor/infrastructure/storage_io", Units: "%"},
 	}
 
 	return result, nil
@@ -113,8 +111,8 @@ func (p *StaticProvider) CheckServiceDependencies() []models.ServiceHealth {
 }
 
 // MeasuredProvider preserves the existing infrastructure workspace while
-// replacing its placeholder disk throughput with native physical-device rates.
-// The first sample, counter resets and inventory changes are not measurements.
+// replacing placeholder disk signals with native physical-device counters.
+// Throughput rates require consecutive samples; queue depth is instantaneous.
 type MeasuredProvider struct {
 	*StaticProvider
 	mu         sync.Mutex
@@ -124,10 +122,11 @@ type MeasuredProvider struct {
 	previousAt time.Time
 	lastRead   models.MetricState
 	lastWrite  models.MetricState
+	lastQueue  models.MetricState
 }
 
 type (
-	diskCounter  struct{ readSectors, writeSectors uint64 }
+	diskCounter  struct{ readSectors, writeSectors, inFlight uint64 }
 	diskCounters map[string]diskCounter
 )
 
@@ -149,12 +148,15 @@ func (p *MeasuredProvider) GetInfrastructureMonitorData(ctx context.Context) (*m
 	// near-zero-duration rates from each other's requests.
 	if p.previous != nil && !now.Before(p.previousAt) && now.Sub(p.previousAt) < time.Second {
 		result.StorageIO.ReadRate, result.StorageIO.WriteRate = p.lastRead, p.lastWrite
+		result.StorageIO.QueueDepthState = p.lastQueue
 		result.StorageIO.ReadMBPerSec, result.StorageIO.WriteMBPerSec = p.lastRead.Value, p.lastWrite.Value
+		result.StorageIO.DiskQueueDepth = p.lastQueue.Value
 		return result, nil
 	}
 	counters, err := p.read()
 	state := models.MetricState{Status: "not_yet_sampled", Reason: "A second disk counter sample is required", Provenance: "Linux physical devices /proc/diskstats", Units: "MB/s", ObservedAt: now}
 	read, write := state, state
+	queue := models.MetricState{Status: "not_yet_sampled", Reason: "Disk queue depth is not yet sampled", Provenance: "Linux physical devices /proc/diskstats", Units: "requests", ObservedAt: now}
 	if err != nil {
 		state.Status = "failed"
 		if errors.Is(err, errDiskUnsupported) {
@@ -162,6 +164,7 @@ func (p *MeasuredProvider) GetInfrastructureMonitorData(ctx context.Context) (*m
 		}
 		state.Reason = err.Error()
 		read, write = state, state
+		queue.Status, queue.Reason = state.Status, err.Error()
 		p.previous = nil
 	} else if p.previous != nil && now.After(p.previousAt) {
 		readDelta, writeDelta, valid := diskCounterDeltas(*p.previous, counters)
@@ -178,13 +181,19 @@ func (p *MeasuredProvider) GetInfrastructureMonitorData(ctx context.Context) (*m
 		}
 	}
 	if err == nil {
+		if inFlight, ok := diskQueueDepth(counters); ok {
+			queue.Status, queue.Reason, queue.Value = "measured", "", inFlight
+		}
 		p.previous = &counters
 		p.previousAt = now
 	}
 	result.Timestamp = now
 	result.StorageIO.ReadRate, result.StorageIO.WriteRate = read, write
+	result.StorageIO.QueueDepthState = queue
 	p.lastRead, p.lastWrite = read, write
+	p.lastQueue = queue
 	result.StorageIO.ReadMBPerSec, result.StorageIO.WriteMBPerSec = read.Value, write.Value
+	result.StorageIO.DiskQueueDepth = queue.Value
 	return result, nil
 }
 
@@ -224,21 +233,36 @@ func parsePhysicalDiskCounters(data string, names map[string]bool) (diskCounters
 	result := diskCounters{}
 	for _, line := range strings.Split(data, "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 10 || !names[fields[2]] {
+		if len(fields) < 12 || !names[fields[2]] {
 			continue
 		}
 		read, err1 := strconv.ParseUint(fields[5], 10, 64)
 		write, err2 := strconv.ParseUint(fields[9], 10, 64)
-		if err1 != nil || err2 != nil {
+		inFlight, err3 := strconv.ParseUint(fields[11], 10, 64)
+		if err1 != nil || err2 != nil || err3 != nil {
 			return diskCounters{}, fmt.Errorf("invalid disk counters for %s", fields[2])
 		}
-		result[fields[2]] = diskCounter{readSectors: read, writeSectors: write}
+		result[fields[2]] = diskCounter{readSectors: read, writeSectors: write, inFlight: inFlight}
 	}
 	if len(result) != len(names) {
 		return nil, errors.New("disk counter inventory incomplete")
 	}
 
 	return result, nil
+}
+
+func diskQueueDepth(counters diskCounters) (float64, bool) {
+	if len(counters) == 0 {
+		return 0, false
+	}
+	var total uint64
+	for _, counter := range counters {
+		if ^uint64(0)-total < counter.inFlight {
+			return 0, false
+		}
+		total += counter.inFlight
+	}
+	return float64(total), true
 }
 
 func diskCounterDeltas(previous, current diskCounters) (uint64, uint64, bool) {

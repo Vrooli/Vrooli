@@ -28,6 +28,7 @@ func TestLoadWithEnvironmentCapturesRuntimeOverrides(t *testing.T) {
 		"SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD": "900",
 		"VROOLI_CLEANUP_MANAGER_API_URL":              "http://storage.local",
 		"VROOLI_AUTOHEAL_API_URL":                     "http://autoheal.local",
+		"IMAGE_TOOLS_API_URL":                         "http://image-tools.local",
 		"GOCACHE":                                     "/tmp/go-cache",
 		"PLAYWRIGHT_BROWSERS_PATH":                    "/tmp/playwright",
 		"VROOLI_HOME":                                 "/tmp/vrooli",
@@ -47,6 +48,9 @@ func TestLoadWithEnvironmentCapturesRuntimeOverrides(t *testing.T) {
 	}
 	if cfg.Resources.StorageManagerURL != "http://storage.local" || cfg.Resources.AutohealURL != "http://autoheal.local" {
 		t.Fatalf("integration URLs mismatch: %+v", cfg.Resources)
+	}
+	if cfg.Resources.ImageToolsURL != "http://image-tools.local" {
+		t.Fatalf("image-tools URL = %q, want configured override", cfg.Resources.ImageToolsURL)
 	}
 	if cfg.Monitoring.GoCachePath != "/tmp/go-cache" || cfg.Monitoring.PlaywrightCachePath != "/tmp/playwright" || cfg.Monitoring.RuntimeHome != "/tmp/vrooli" {
 		t.Fatalf("host path config mismatch: %+v", cfg.Monitoring)

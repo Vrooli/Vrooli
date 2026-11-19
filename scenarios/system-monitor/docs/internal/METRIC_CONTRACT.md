@@ -41,6 +41,29 @@ field name or collector metadata. Each state carries `provenance` and
 ## Consumer rules
 
 - Timeline rows are cycle-linked and may contain gaps for unavailable metrics.
+- The metrics timeline includes the persisted disk-utilization observation for
+  the system monitored path as a `MetricValue`; missing, failed and unsupported
+  samples remain gaps instead of becoming zero. This is not a per-mount history.
+  `/metrics/disk/details` analyzes the selected mount as a current scan, so the
+  UI keeps that scan separate from the system disk timeline.
+- The UI's `/metrics/disk/details` path maps to the typed `GetDiskDetail`
+  request. The API accepts only a mount present in the current mount inventory,
+  bounds depth and result count, scans large files only on request, and honors
+  request cancellation during filesystem walks. Attribution skips nested mount
+  roots so a parent scan does not count another mount's files.
+- Physical-disk read/write throughput observations are persisted in the same
+  cycle timeline. Their `MetricValue` state and `observed_at` preserve measured
+  zero, counter reset/failure, and unsupported-platform gaps across reloads.
+  These rates aggregate physical devices; they do not identify which mount or
+  process caused the traffic.
+- The current storage snapshot measures in-flight requests across physical
+  devices for queue depth. CPU I/O wait is not collected in this storage
+  snapshot and returns an explicit `unsupported` state; legacy scalar
+  placeholders must not be shown as measured values.
+- Process read activity is an explicit on-demand, host-wide two-sample
+  observation. The Disk detail surface keeps storage-layer bytes separate from
+  bytes returned to readers, exposes coverage and platform state, and does not
+  claim attribution to the selected mount. It is not part of steady collection.
 - Charts include only `measured` values. A measured zero remains a plotted zero.
 - Reports and alerts include only measured observations for the metric being
   evaluated. An unavailable CPU value cannot lower an average or suppress an

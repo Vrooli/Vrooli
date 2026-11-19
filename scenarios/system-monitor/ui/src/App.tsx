@@ -6,6 +6,7 @@ import { getProxyInfo } from '@vrooli/api-base';
 import { Database, FileText, Network, MemoryStick } from 'lucide-react';
 import { fetchMachines } from './features/machines/api';
 import { Header } from './shared/components/Header';
+import { MetricSourceFailureNotice } from './features/metrics/components/MetricSourceFailureNotice';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
 import type { ChartInspection } from './features/metrics/components/MetricSparkline';
 import { DeviceGraphPanel } from './features/metrics/components/DeviceGraphPanel';
@@ -22,6 +23,7 @@ import { useServerAlerts } from './features/monitoring/hooks/useServerAlerts';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
 import { IncidentTimeline, type TimelineEntry } from './features/monitoring/components/IncidentTimeline';
+import { incidentLogsSearch } from './features/monitoring/incidentSources';
 import { TimeRangeProvider, useTimeRange } from './shared/time/TimeRangeContext';
 import { MachineIdentityStrip } from './features/machines/components/MachineIdentityStrip';
 import { LocalOnlyPanels } from './features/machines/components/LocalOnlyPanels';
@@ -148,6 +150,7 @@ function AppContent() {
   const workspaceReveal = useRef<(() => void) | null>(null);
   const pendingWorkspace = useRef<string | null>(null);
   const [workspaceAnnouncement, setWorkspaceAnnouncement] = useState('');
+  const [incidentInvestigationNote, setIncidentInvestigationNote] = useState<string | null>(null);
   const workspaceMounted = useCallback((id: string) => {
     if (pendingWorkspace.current === id) {
       pendingWorkspace.current = null;
@@ -199,6 +202,11 @@ function AppContent() {
     });
     return () => { window.cancelAnimationFrame(frame); };
   }, [location.pathname, selectedMachineID]);
+  useEffect(() => {
+    if (!location.pathname.startsWith('/metrics/')) return;
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    return () => { window.cancelAnimationFrame(frame); };
+  }, [location.pathname]);
   useEffect(() => {
     const section = navigationState.overviewSection;
     if (!section || !location.pathname.startsWith('/metrics/')) return;
@@ -266,6 +274,24 @@ function AppContent() {
     refreshHealth,
     refresh
   } = useSystemMonitor(range.seconds, { enabled: !paused, node: selectedMachineID || undefined });
+  const metricSourceFailures: Array<{ source: string; message: string; hasPreviousData: boolean }> = [];
+  if (subsystemErrors.metrics) metricSourceFailures.push({
+    source: viewingRemote ? 'Remote readings' : 'Current readings',
+    message: subsystemErrors.metrics.error,
+    hasPreviousData: metrics !== null,
+  });
+  if (!viewingRemote && subsystemErrors.detailedMetrics) metricSourceFailures.push({
+    source: 'Detailed readings',
+    message: subsystemErrors.detailedMetrics.error,
+    hasPreviousData: detailedMetrics !== null,
+  });
+  const metricDetailFailures = !viewingRemote && subsystemErrors.history
+    ? [...metricSourceFailures, {
+      source: 'Metric history',
+      message: subsystemErrors.history.error,
+      hasPreviousData: Boolean(metricHistory?.windowStart),
+    }]
+    : metricSourceFailures;
   useEffect(() => {
     if (!isLoading && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
   }, [isLoading]);
@@ -284,12 +310,15 @@ function AppContent() {
     agents,
     isSpawningAgent,
     spawnAgentError,
+    unknownSpawnOutcome,
+    refreshSpawnStatus,
+    retryUnknownSpawn,
     stoppingAgentIds,
     agentErrors,
     refreshAgents,
     spawnAgent,
     stopAgent
-  } = useInvestigationAgents();
+  } = useInvestigationAgents({ onReceipt: refresh });
 
   const {
     modalState,
@@ -323,12 +352,31 @@ function AppContent() {
     </section>
   ) : content;
 
-  const handleOpenIncidentSource = (source: 'logs' | 'forensics') => {
-    void navigate(`/${source}`);
+  const handleOpenIncidentSource = (source: 'logs' | 'forensics', entry: TimelineEntry) => {
+    if (source === 'forensics') {
+      void navigate('/forensics');
+      return;
+    }
+    void navigate({ pathname: '/logs', search: incidentLogsSearch(window.location.search, entry.at, range) });
   };
 
   const handleInvestigateIncident = (entry: TimelineEntry) => {
-    void navigate('/scripts', { state: { incidentId: entry.id, since: range.since, until: range.until } });
+    const windowEnd = new Date();
+    const windowStart = new Date(windowEnd.getTime() - range.seconds * 1000);
+    const windowEndIso = windowEnd.toISOString();
+    const windowStartIso = windowStart.toISOString();
+    const eventTime = entry.at ? new Date(entry.at).toLocaleString() : 'time not reported';
+    setIncidentInvestigationNote([
+      'Review this dashboard event before starting an investigation.',
+      `Event: ${entry.title} (${eventTime})`,
+      `Evidence: ${entry.detail}`,
+      `Dashboard window: ${range.label} (${windowStartIso} to ${windowEndIso})`,
+      'This note does not start an investigation or enable auto-fix.'
+    ].join('\n'));
+    setShowDeferredDashboard(true);
+    workspaceReveal.current?.();
+    workspaceReveal.current = revealWorkspace(() => document.getElementById('investigations-workspace'));
+    if (location.pathname !== '/') void navigate('/', { state: { incidentId: entry.id, since: windowStartIso, until: windowEndIso } });
   };
 
   // Update online status based on successful API calls
@@ -509,6 +557,9 @@ function AppContent() {
                           retryAttempt={retryAttempt}
                           retryIntervalSeconds={retryIntervalSeconds}
                           lastAttemptAt={lastAttemptAt}
+                          firstSamplePending={selectedMachine.dispatchable && !isStale && !metrics && !subsystemErrors?.metrics}
+                          paused={paused}
+                          onRetry={refresh}
                         />
                       </section>
                     ) : null}
@@ -641,6 +692,10 @@ function AppContent() {
                                 agents={agents}
                                 isSpawningAgent={isSpawningAgent}
                                 spawnAgentError={spawnAgentError}
+                                incidentNote={incidentInvestigationNote}
+                                unknownSpawnOutcome={unknownSpawnOutcome}
+                                onRefreshSpawnStatus={() => { void refreshSpawnStatus(); }}
+                                onRetryUnknownSpawn={() => { void retryUnknownSpawn(); }}
                               />
                               <WorkspaceMounted id="investigations-workspace" onMounted={workspaceMounted} />
                             </Suspense>
@@ -678,13 +733,18 @@ function AppContent() {
                 path="/metrics/cpu"
                 element={(
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">CPU detail view failed to render.</div>}>
+                    <>
+                    <MetricSourceFailureNotice failures={metricSourceFailures} onRetry={() => { void refresh(); }} isRetrying={isLoading} />
                     <CpuDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
                       processMonitorData={processMonitorData}
                       metricHistory={metricHistory}
+                      historyError={subsystemErrors?.history ?? null}
+                      onRetryHistory={() => { void refresh(); }}
                       onBack={handleBackToDashboard}
                     />
+                    </>
                   </ErrorBoundary>
                 )}
               />
@@ -692,12 +752,15 @@ function AppContent() {
                 path="/metrics/memory"
                 element={(
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Memory detail view failed to render.</div>}>
+                    <>
+                    <MetricSourceFailureNotice failures={metricDetailFailures} onRetry={() => { void refresh(); }} isRetrying={isLoading} />
                     <MemoryDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
                       metricHistory={metricHistory}
                       onBack={handleBackToDashboard}
                     />
+                    </>
                   </ErrorBoundary>
                 )}
               />
@@ -705,12 +768,15 @@ function AppContent() {
                 path="/metrics/network"
                 element={(
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Network detail view failed to render.</div>}>
+                    <>
+                    <MetricSourceFailureNotice failures={metricDetailFailures} onRetry={() => { void refresh(); }} isRetrying={isLoading} />
                     <NetworkDetailView
                       metrics={metrics}
                       detailedMetrics={detailedMetrics}
                       metricHistory={metricHistory}
                       onBack={handleBackToDashboard}
                     />
+                    </>
                   </ErrorBoundary>
                 )}
               />
@@ -718,11 +784,14 @@ function AppContent() {
                 path="/metrics/gpu"
                 element={(
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">GPU detail view failed to render.</div>}>
+                    <>
+                    <MetricSourceFailureNotice failures={metricDetailFailures} onRetry={() => { void refresh(); }} isRetrying={isLoading} />
                     <GpuDetailView
                       detailedMetrics={detailedMetrics}
                       metricHistory={metricHistory}
                       onBack={handleBackToDashboard}
                     />
+                    </>
                   </ErrorBoundary>
                 )}
               />
@@ -754,13 +823,18 @@ function AppContent() {
                 path="/metrics/disk"
                 element={localOnlyRoute('Disk detail', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Disk detail view failed to render.</div>}>
+                    <>
+                    <MetricSourceFailureNotice failures={metricDetailFailures} onRetry={() => { void refresh(); }} isRetrying={isLoading} />
                     <DiskDetailView
                       detailedMetrics={detailedMetrics}
                       storageIO={infrastructureData?.storageIo}
                       metricHistory={metricHistory}
+                      historyError={subsystemErrors?.history ?? null}
+                      onRetryHistory={() => { void refresh(); }}
                       diskLastUpdated={infrastructureData?.timestamp ? timestampDate(infrastructureData.timestamp)?.toISOString() : undefined}
                       onBack={handleBackToDashboard}
                     />
+                    </>
                   </ErrorBoundary>
                 ))}
               />

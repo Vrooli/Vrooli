@@ -62,6 +62,7 @@ func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsRespons
 		KernelMemory:       kernelMemoryToProto(m.KernelMemory),
 		Connections:        metricValue(m.ConnectionsState, float64(m.TCPConnections)),
 		Gpu:                metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
+		GpuProcesses:       metricValue(m.GPUProcessesState, 0),
 		Disk:               metricValue(m.DiskState, m.DiskUsage),
 		SwapTraffic:        metricValue(m.SwapTrafficState, 0),
 		MajorFaults:        metricValue(m.MajorFaultsState, 0),
@@ -94,6 +95,17 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 		if s.GPUState.Status != "" || s.GPUUsage != nil {
 			gpu = metricValue(s.GPUState, dereferenceFloat(s.GPUUsage))
 		}
+		var diskUsage *metricspb.MetricValue
+		if s.DiskUsageState.Status != "" {
+			diskUsage = metricValue(s.DiskUsageState, s.DiskUsage)
+		}
+		var diskReadRate, diskWriteRate *metricspb.MetricValue
+		if s.DiskReadRateState.Status != "" {
+			diskReadRate = metricValue(s.DiskReadRateState, s.DiskReadRateState.Value)
+		}
+		if s.DiskWriteRateState.Status != "" {
+			diskWriteRate = metricValue(s.DiskWriteRateState, s.DiskWriteRateState.Value)
+		}
 		samples[i] = &metricspb.MetricTimelineSample{
 			CycleId:                     s.CycleID,
 			Timestamp:                   timestamppb.New(s.Timestamp),
@@ -108,6 +120,9 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			Connections:                 metricValue(s.ConnectionsState, float64(s.TCPConnections)),
 			Gpu:                         gpu,
 			Swap:                        metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
+			DiskUsage:                   diskUsage,
+			DiskReadRate:                diskReadRate,
+			DiskWriteRate:               diskWriteRate,
 			SwapTraffic:                 metricValue(s.SwapTrafficState, 0),
 			MajorFaults:                 metricValue(s.MajorFaultsState, 0),
 			FragmentationIndex:          metricValue(s.FragmentationIndexState, 0),
@@ -161,8 +176,12 @@ func ProcessMonitorDataToProto(m *models.ProcessMonitorData) *metricspb.ProcessM
 	if m == nil {
 		return nil
 	}
+	var processHealth *metricspb.ProcessHealthInfo
+	if m.ProcessHealth != nil {
+		processHealth = processHealthInfoToProto(*m.ProcessHealth)
+	}
 	return &metricspb.ProcessMonitorData{
-		ProcessHealth:  processHealthInfoToProto(m.ProcessHealth),
+		ProcessHealth:  processHealth,
 		ResourceMatrix: processInfoSliceToProto(m.ResourceMatrix),
 		Timestamp:      timestamppb.New(m.Timestamp),
 	}
@@ -196,25 +215,34 @@ func DiskDetailResponseToProto(m *models.DiskDetailResponse) *metricspb.DiskDeta
 	}
 }
 
-func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, entries []repository.ProcessTimelineEntry) *metricspb.ProcessTimelineResponse {
+func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, rank string, entries []repository.ProcessTimelineEntry) *metricspb.ProcessTimelineResponse {
 	pbEntries := make([]*metricspb.ProcessTimelineEntry, 0, len(entries))
 	for _, e := range entries {
 		row := &metricspb.ProcessTimelineEntry{
-			Owner:       e.Owner,
-			Comm:        e.Comm,
-			Pid:         int32(e.PID),
-			Aggregated:  e.Aggregated,
-			CpuPct:      e.CPUPct,
-			CpuSeconds:  e.CPUSeconds,
-			MaxCpuPct:   e.MaxCPUPct,
-			RssKb:       e.RSSKB,
-			SampleCount: e.SampleCount,
+			Owner:               e.Owner,
+			Comm:                e.Comm,
+			Pid:                 int32(e.PID),
+			Aggregated:          e.Aggregated,
+			CpuPct:              e.CPUPct,
+			CpuSeconds:          e.CPUSeconds,
+			MaxCpuPct:           e.MaxCPUPct,
+			RssKb:               e.RSSKB,
+			SwapKb:              e.SwapKB,
+			SwapMeasuredSamples: e.SwapMeasuredSamples,
+			SwapUnknownSamples:  e.SwapUnknownSamples,
+			SampleCount:         e.SampleCount,
 		}
 		if !e.FirstSeen.IsZero() {
 			row.FirstSeen = timestamppb.New(e.FirstSeen)
 		}
 		if !e.LastSeen.IsZero() {
 			row.LastSeen = timestamppb.New(e.LastSeen)
+		}
+		if !e.SwapCoverageStart.IsZero() {
+			row.SwapCoverageStart = timestamppb.New(e.SwapCoverageStart)
+		}
+		if !e.SwapCoverageEnd.IsZero() {
+			row.SwapCoverageEnd = timestamppb.New(e.SwapCoverageEnd)
 		}
 		pbEntries = append(pbEntries, row)
 	}
@@ -224,6 +252,7 @@ func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, en
 		Top:           int32(top),
 		Count:         int32(len(pbEntries)),
 		Entries:       pbEntries,
+		Rank:          rank,
 	}
 	for _, e := range entries {
 		if !e.FirstSeen.IsZero() && (response.CoveredStart == nil || e.FirstSeen.Before(response.CoveredStart.AsTime())) {
@@ -696,6 +725,7 @@ func processHealthInfoToProto(m models.ProcessHealthInfo) *metricspb.ProcessHeal
 		ZombieProcesses: processInfoSliceToProto(m.ZombieProcesses),
 		HighThreadCount: processInfoSliceToProto(m.HighThreadCount),
 		LeakCandidates:  processInfoSliceToProto(m.LeakCandidates),
+		ZombieCount:     metricValue(m.ZombieCount, m.ZombieCount.Value),
 	}
 }
 
@@ -720,12 +750,27 @@ func storageIOInfoToProto(m models.StorageIOInfo) *metricspb.StorageIOInfo {
 	if m.WriteRate.Status == "" {
 		m.WriteRate = models.MetricState{Status: "unsupported", Reason: "Disk write rate has no measured source"}
 	}
-	return &metricspb.StorageIOInfo{
-		ReadRate:       metricValue(m.ReadRate, m.ReadMBPerSec),
-		WriteRate:      metricValue(m.WriteRate, m.WriteMBPerSec),
-		DiskQueueDepth: m.DiskQueueDepth,
-		IoWaitPercent:  m.IOWaitPercent,
-		ReadMbPerSec:   m.ReadMBPerSec,
-		WriteMbPerSec:  m.WriteMBPerSec,
+	if m.QueueDepthState.Status == "" {
+		m.QueueDepthState = models.MetricState{Status: "unsupported", Reason: "Disk queue depth has no measured source", Units: "requests"}
 	}
+	if m.IOWaitState.Status == "" {
+		m.IOWaitState = models.MetricState{Status: "unsupported", Reason: "Disk I/O wait has no measured source", Units: "%"}
+	}
+	return &metricspb.StorageIOInfo{
+		ReadRate:            metricValue(m.ReadRate, m.ReadMBPerSec),
+		WriteRate:           metricValue(m.WriteRate, m.WriteMBPerSec),
+		DiskQueueDepthState: metricValue(m.QueueDepthState, m.DiskQueueDepth),
+		IoWaitState:         metricValue(m.IOWaitState, m.IOWaitPercent),
+		DiskQueueDepth:      measuredScalar(m.QueueDepthState),
+		IoWaitPercent:       measuredScalar(m.IOWaitState),
+		ReadMbPerSec:        measuredScalar(m.ReadRate),
+		WriteMbPerSec:       measuredScalar(m.WriteRate),
+	}
+}
+
+func measuredScalar(state models.MetricState) float64 {
+	if state.Status != "measured" {
+		return 0
+	}
+	return state.Value
 }

@@ -44,6 +44,8 @@ func TestSettingsProtoRoundTrip_PreservesDiskBands(t *testing.T) {
 			services.RuleGPUUsage:        true,
 			services.RuleMemoryPressure:  true,
 			services.RuleOrphanedAgents:  true,
+			services.RuleSustainedProcessCPU: true,
+			services.RuleGPUCapableWorkOnCPU: true,
 		},
 		DiskThreshold:                 72,
 		DiskHighPercent:               84,

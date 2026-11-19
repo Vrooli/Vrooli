@@ -8,9 +8,10 @@
 import type { ChartDataPoint } from '../../types';
 
 interface SingleSeriesPoint {
-  [key: string]: string | number;
+	[key: string]: string | number | boolean | undefined;
   timestamp: string;
   value: number;
+	gapBefore?: boolean;
 }
 
 /** Normalise a time series into sorted {timestamp, value} tuples. */
@@ -19,22 +20,24 @@ export const buildSingleSeriesData = (series?: ChartDataPoint[]): SingleSeriesPo
     return [];
   }
   return [...series]
-    .map(point => ({ timestamp: point.timestamp, value: Number(point.value) }))
+    .map(point => ({ timestamp: point.timestamp, value: Number(point.value), ...(point.gapBefore ? { gapBefore: true } : {}) }))
     .filter(point => !Number.isNaN(point.value))
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 };
 
-/** Merge read/write disk series into a single sorted array. */
+/** Merge read/write disk series without fabricating a zero for a missing rate. */
 export const combineDiskSeries = (readSeries?: ChartDataPoint[], writeSeries?: ChartDataPoint[]) => {
-  const combined = new Map<string, { timestamp: string; read: number; write: number }>();
+  const combined = new Map<string, { timestamp: string; read?: number; write?: number; gapBefore?: boolean }>();
   (readSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.read = Number(point.value) || 0;
+    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing.read = Number.isFinite(point.value) ? point.value : undefined;
+    existing.gapBefore = existing.gapBefore || point.gapBefore || undefined;
     combined.set(point.timestamp, existing);
   });
   (writeSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.write = Number(point.value) || 0;
+    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing.write = Number.isFinite(point.value) ? point.value : undefined;
+    existing.gapBefore = existing.gapBefore || point.gapBefore || undefined;
     combined.set(point.timestamp, existing);
   });
   return Array.from(combined.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());

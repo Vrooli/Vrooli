@@ -4,6 +4,9 @@ import type { CapacityFinding } from '../types';
 interface FindingsPanelProps {
   findings: CapacityFinding[];
   available: boolean;
+  error?: string | null;
+  hasPreviousRead: boolean;
+  onRetry: () => void;
 }
 
 const CLASS_LABEL: Record<string, string> = {
@@ -30,7 +33,16 @@ const findingKey = (finding: CapacityFinding) => JSON.stringify([
  * signal); claimed findings are informational. Surfaces sensing unavailability
  * honestly rather than implying "no consumers".
  */
-export const FindingsPanel = ({ findings, available }: FindingsPanelProps) => {
+export const FindingsPanel = ({ findings, available, error, hasPreviousRead, onRetry }: FindingsPanelProps) => {
+  if (error && !hasPreviousRead) {
+    return (
+      <div className="card" role="alert">
+        Consumer reconciliation could not be loaded: {error}. No successful read is available, so this page cannot say whether unclaimed consumers exist.
+        <p><button type="button" className="btn btn-action" onClick={onRetry}>Retry reconciliation</button></p>
+      </div>
+    );
+  }
+
   if (!available) {
     return (
       <div className="card" data-sm-style="sm-style-2dce25a9dc">
@@ -50,6 +62,8 @@ export const FindingsPanel = ({ findings, available }: FindingsPanelProps) => {
 
   return (
     <div className="card" data-sm-style="sm-style-7b635e08e2">
+      {error && <p role="status">The latest reconciliation failed. These are findings from the previous successful read. <button type="button" className="btn btn-action" onClick={onRetry}>Retry reconciliation</button></p>}
+      {error && findings.length === 0 ? <p>No findings were returned by the previous successful read.</p> : null}
       <ul data-sm-style="sm-style-5897a24ddc">
         {findings.map((finding) => {
           const isWarn = finding.severity === 'warn';

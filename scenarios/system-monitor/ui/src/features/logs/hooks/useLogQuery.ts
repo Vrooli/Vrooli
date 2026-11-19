@@ -36,7 +36,7 @@ export interface UseLogQueryResult extends LogQueryState {
   retryFailed: () => void;
 }
 
-export function useLogQuery(range?: Pick<TimeRange, 'since' | 'until'>, restored?: LogQueryState): UseLogQueryResult {
+export function useLogQuery(range?: Pick<TimeRange, 'since' | 'until'>, restored?: LogQueryState, skipRestoreRefresh = true): UseLogQueryResult {
   const initialQueryState = restored ? { ...restored, isLoading: false } : range
     ? {
         ...initialState,
@@ -51,7 +51,7 @@ export function useLogQuery(range?: Pick<TimeRange, 'since' | 'until'>, restored
   recoveryRequired.current = !!state.error || !state.available;
   const previousRange = useRef({ since: range?.since, until: range?.until });
   const skipCursorRefresh = useRef(false);
-  const skipRestoredRefresh = useRef(!!restored && !restored.isLoading);
+  const skipRestoredRefresh = useRef(skipRestoreRefresh && !!restored && !restored.isLoading);
   const rangeSince = range?.since;
   const rangeUntil = range?.until;
 

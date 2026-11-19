@@ -440,6 +440,22 @@
   --note-accent: var(--color-warning);
 }
 
+.machine-note[data-tone='pending'] {
+  --note-accent: var(--color-info, var(--color-accent));
+}
+
+.machine-note__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.machine-note__actions span {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
 .machine-note__title {
   margin: 0;
   color: var(--color-text-heading);

@@ -61,6 +61,8 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     const agentResource = str(details['agent_resource']);
     const userNote = str(details['user_note']);
     const autoFix = bool(details['auto_fix']) ?? false;
+    const runId = str(details['run_id']);
+    const agentError = str(details['agent_error']) ?? str(details['error']);
     const progress = typeof investigation.progress === 'number' ? investigation.progress : undefined;
     const confidenceScore = typeof investigation.confidenceScore === 'number' ? investigation.confidenceScore : undefined;
     const confidencePercent = confidenceScore !== undefined && Number.isFinite(confidenceScore)
@@ -112,8 +114,49 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           </div>
         )}
 
-        {investigation.findings && (
-          <ReportBody text={investigation.findings} className="report-body-inset mb-sm" />
+        {(investigation.findings || investigation.steps?.length || runId || agentError) && (
+          <details className="investigation-evidence">
+            <summary className="text-sm font-semibold">
+              Review findings and activity
+            </summary>
+            <div className="investigation-evidence__body">
+              {investigation.findings ? (
+                <ReportBody text={investigation.findings} className="report-body-inset mb-sm" />
+              ) : (
+                <p className="text-sm text-muted">No findings were returned for this investigation.</p>
+              )}
+
+              {investigation.steps && investigation.steps.length > 0 && (
+                <ol className="investigation-evidence__steps" aria-label="Investigation steps">
+                  {investigation.steps.map((step, index) => (
+                    <li key={`${investigation.id}-step-${index}`}>
+                      <strong>{step.name || `Step ${index + 1}`}</strong>
+                      <span className="text-muted"> — {String(step.status || 'status unavailable').replaceAll('_', ' ')}</span>
+                      {step.findings && <ReportBody text={step.findings} className="report-body-inset" />}
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {runId && <p className="text-xs text-muted">Agent run: <code>{runId}</code></p>}
+              {agentError && (
+                <p className="text-sm text-error" role="status">
+                  {agentError}
+                </p>
+              )}
+              {autoFix && (
+                <p className="text-xs text-muted">
+                  Automatic repair was enabled for this run. The status above describes the investigation run; check current system evidence before treating a condition as resolved.
+                </p>
+              )}
+            </div>
+          </details>
+        )}
+
+        {!investigation.findings && investigation.status === InvestigationStatus.FAILED && (
+          <p className="text-sm text-error" role="status">
+            This investigation failed before returning findings. Review any run error above, then start a new investigation only after checking whether its requested action already took effect.
+          </p>
         )}
 
         {userNote && (

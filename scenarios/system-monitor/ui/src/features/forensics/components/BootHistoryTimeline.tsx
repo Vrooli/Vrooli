@@ -42,7 +42,7 @@ export const BootHistoryTimeline = ({ envelope }: BootHistoryTimelineProps) => {
                 className={`boot-history-row ${shutdownClass(c)}`}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '4ch 1fr auto auto',
+                  gridTemplateColumns: '4ch minmax(0, 1fr) auto auto',
                   gap: '0.5rem',
                   alignItems: 'center',
                   padding: '0.25rem 0',

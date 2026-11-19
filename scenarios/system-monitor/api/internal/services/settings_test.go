@@ -48,6 +48,8 @@ func TestSettingsManager_RoundTrip(t *testing.T) {
 			RuleGPUUsage:        true,
 			RuleMemoryPressure:  true,
 			RuleOrphanedAgents:  true,
+			RuleSustainedProcessCPU: true,
+			RuleGPUCapableWorkOnCPU: true,
 		},
 		DiskThreshold:                 80,
 		DiskHighPercent:               90,

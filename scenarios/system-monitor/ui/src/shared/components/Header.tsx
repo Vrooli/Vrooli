@@ -179,6 +179,25 @@ export const Header = ({
           ))}
         </nav>
 
+        {onSelectMachine && (
+          <div className="app-header-machine">
+            {machines.length > 0 ? (
+              <MachinePicker
+                machines={machines}
+                selectedMachineID={selectedMachineID}
+                onSelectMachine={onSelectMachine}
+                onAddMachine={onAddMachine}
+              />
+            ) : (
+              <button type="button" className="header-button machine-discovery-fallback" onClick={() => { retryFocusPending.current = true; onRetryMachines?.(); }} disabled={machineDiscovery === 'loading'}
+                aria-label={`${selectedMachineID || 'This machine'}; ${machineDiscovery === 'loading' ? 'checking machine list' : machineDiscovery === 'error' ? 'machine list unavailable; retry' : 'machine list empty; retry'}`}>
+                <span className="machine-discovery-fallback__subject">{selectedMachineID || 'This machine'}</span>
+                <span>{machineDiscovery === 'loading' ? 'Checking' : 'Retry'}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {mobileNavOpen && (
           <>
             <button
@@ -220,20 +239,6 @@ export const Header = ({
         <div className="flex-row-center">
           {/* View-scope: these change WHAT THE PAGE SHOWS. */}
           <div className="header-group">
-            {machines.length > 0 && onSelectMachine ? (
-              <MachinePicker
-                machines={machines}
-                selectedMachineID={selectedMachineID}
-                onSelectMachine={onSelectMachine}
-                onAddMachine={onAddMachine}
-              />
-            ) : onSelectMachine ? (
-              <button type="button" className="header-button machine-discovery-fallback" onClick={() => { retryFocusPending.current = true; onRetryMachines?.(); }} disabled={machineDiscovery === 'loading'}
-                aria-label={`${selectedMachineID || 'This machine'}; ${machineDiscovery === 'loading' ? 'checking machine list' : machineDiscovery === 'error' ? 'machine list unavailable; retry' : 'machine list empty; retry'}`}>
-                <span className="machine-discovery-fallback__subject">{selectedMachineID || 'This machine'}</span>
-                <span>{machineDiscovery === 'loading' ? 'Checking' : 'Retry'}</span>
-              </button>
-            ) : null}
             <label className="history-window-control">
               <span className="sr-only">Shared time range</span>
               <select

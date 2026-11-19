@@ -60,6 +60,55 @@ func TestAttributor_PPIDWalkInheritsOwner(t *testing.T) {
 	}
 }
 
+func TestAttributor_ManagedResourceIdentityMatchesControlPlaneAliases(t *testing.T) {
+	a := NewAttributor(nil)
+	samples := []ProcessSample{
+		{PID: 250, PPID: 1, Comm: "llama-server", Cmdline: "/home/u/.vrooli/artifacts/ollama/0.30.10/ollama/llama-server"},
+		{PID: 251, PPID: 1, Comm: "reranker_linux_amd64", Cmdline: "/home/u/.vrooli/artifacts/reranker/1.7.4/reranker_linux_amd64"},
+		{PID: 252, PPID: 1, Comm: "python", Cmdline: "python /home/u/.vrooli/artifacts/whisper/1.2.0/server.py"},
+	}
+	a.Attribute(context.Background(), samples)
+	for i, want := range []string{"ollama", "reranker", "whisper"} {
+		if samples[i].Owner != want {
+			t.Fatalf("pid %d: got owner %q, want control-plane resource owner %q", samples[i].PID, samples[i].Owner, want)
+		}
+	}
+}
+
+func TestAttributor_ExplicitHostCgroupsNameDesktopAndAgentOwners(t *testing.T) {
+	a := NewAttributor(nil)
+	samples := []ProcessSample{
+		{PID: 260, PPID: 1, Comm: "gnome-system-mo", ExecutablePath: "/usr/bin/gnome-system-monitor", CgroupPath: "/user.slice/user-1000.slice/user@1000.service/app.slice/app-gnome-org.gnome.SystemMonitor-260.scope"},
+		{PID: 261, PPID: 1, Comm: "ChatGPT", ExecutablePath: "/usr/lib/chatgpt/ChatGPT", CgroupPath: "/user.slice/user-1000.slice/user@1000.service/app.slice/app-gnome-chatgpt-261.scope"},
+		{PID: 262, PPID: 1, Comm: "codex", Cwd: "/home/u/Vrooli/scenarios/foo", CgroupPath: "/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-agents.slice/vrooli-agent-codex-abc123.scope"},
+		{PID: 263, PPID: 1, Comm: "dbus-daemon", CgroupPath: "/system.slice/dbus.service"},
+		{PID: 264, PPID: 1, Comm: "resource-ollama", CgroupPath: "/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-services.slice/vrooli-service-resource-ollama-companion-capacity-sync-cd196e9afe7832b9.scope"},
+		{PID: 265, PPID: 1, Comm: "worker", CgroupPath: "/user.slice/user-1000.slice/user@1000.service"},
+	}
+
+	a.Attribute(context.Background(), samples)
+	want := []string{
+		"desktop-app:gnome-system-monitor",
+		"desktop-app:chatgpt",
+		"agent-scope:vrooli-agent-codex-abc123",
+		"systemd-unit:system.slice/dbus.service",
+		"vrooli-service:resource-ollama-companion-capacity-sync",
+		OwnerUnknown,
+	}
+	for i := range samples {
+		if samples[i].Owner != want[i] {
+			t.Errorf("pid %d: owner = %q, want %q", samples[i].PID, samples[i].Owner, want[i])
+		}
+	}
+}
+
+func TestUnifiedCgroupPathPrefersCgroupV2(t *testing.T) {
+	got := unifiedCgroupPath("2:cpu:/legacy/cpu\n0::/user.slice/app.scope\n1:name=systemd:/legacy/systemd\n")
+	if got != "/user.slice/app.scope" {
+		t.Fatalf("unified cgroup path = %q", got)
+	}
+}
+
 func TestAttributor_UnknownFallbackAndDockerBranch(t *testing.T) {
 	docker := fakeDocker{byPID: map[int]string{402: "whisper"}}
 	a := NewAttributor(docker)

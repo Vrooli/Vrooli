@@ -1,6 +1,7 @@
 import { Profiler, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { installChunkReloadGuard } from '@vrooli/api-base'
+import { initAppNotifications } from '@vrooli/react-component-library/AppNotificationSettings/1'
 import App from './App.tsx'
 import { onProfilerRender } from './lib/profiler'
 
@@ -49,6 +50,7 @@ const initBridge = async () => {
 // gone, so a tab opened before the deploy would crash on its next
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
+initAppNotifications();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

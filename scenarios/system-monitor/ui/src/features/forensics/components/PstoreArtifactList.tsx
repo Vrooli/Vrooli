@@ -23,26 +23,28 @@ export const PstoreArtifactList = ({ envelope }: PstoreArtifactListProps) => {
           No artifacts. (No panic captured since last boot — this is the healthy state.)
         </div>
       ) : (
-        <table className="data-table" data-sm-style="sm-style-edba66b80f">
-          <thead>
-            <tr>
-              <th data-sm-style="sm-style-90a773519e">Name</th>
-              <th data-sm-style="sm-style-90a773519e">Kind</th>
-              <th data-sm-style="sm-style-905bfede49">Size</th>
-              <th data-sm-style="sm-style-90a773519e">Modified</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.name}>
-                <td>{e.name}</td>
-                <td>{e.kind}</td>
-                <td data-sm-style="sm-style-905bfede49">{e.size}</td>
-                <td>{e.modified ? new Date(e.modified).toLocaleString() : '—'}</td>
+        <div className="forensics-table-scroll" role="region" aria-label="Pstore artifact details" tabIndex={0}>
+          <table className="data-table" data-sm-style="sm-style-edba66b80f">
+            <thead>
+              <tr>
+                <th data-sm-style="sm-style-90a773519e">Name</th>
+                <th data-sm-style="sm-style-90a773519e">Kind</th>
+                <th data-sm-style="sm-style-905bfede49">Size</th>
+                <th data-sm-style="sm-style-90a773519e">Modified</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.name}>
+                  <td>{e.name}</td>
+                  <td>{e.kind}</td>
+                  <td data-sm-style="sm-style-905bfede49">{e.size}</td>
+                  <td>{e.modified ? new Date(e.modified).toLocaleString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

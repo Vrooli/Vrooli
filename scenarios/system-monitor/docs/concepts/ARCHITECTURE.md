@@ -68,6 +68,12 @@ Coordination and orchestration layer. Five core services:
 
 All dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTTPDoer`, `Clock`, `ConfigStore`, `CommandRunner`), enabling isolated unit testing.
 
+Agent Manager calls use its generated Connect client for profile reconciliation,
+task/run creation, run reads/listing, and event pages. `EnsureProfile`, task
+reads, tag-based operations, and stop operations still use owner REST routes
+without service RPCs; this is pending fleet migration work, not a reviewed
+transport exception. See `docs/internal/SEAMS.md` for the caller list.
+
 `[CODE: api/internal/services/]`
 
 ### Repository (Persistence)

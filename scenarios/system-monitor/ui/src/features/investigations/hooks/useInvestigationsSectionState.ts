@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Investigation, InvestigationAgentState } from '../../../types';
 import { InvestigationStatus, INVESTIGATION_TERMINAL_STATUSES } from '../../../types';
+import type { UnknownSpawnOutcome } from './useInvestigationAgents';
 
 interface UseInvestigationsSectionStateParams {
   investigations: Investigation[];
   agents: InvestigationAgentState[];
   spawnAgentError?: string | null;
+  incidentNote?: string | null;
+  unknownSpawnOutcome?: UnknownSpawnOutcome | null;
   onSpawnAgent: (options: { autoFix: boolean; note?: string }) => Promise<unknown>;
 }
 
@@ -13,6 +16,8 @@ export const useInvestigationsSectionState = ({
   investigations,
   agents,
   spawnAgentError,
+  incidentNote,
+  unknownSpawnOutcome,
   onSpawnAgent,
 }: UseInvestigationsSectionStateParams) => {
   const [autoFixEnabled, setAutoFixEnabled] = useState(false);
@@ -21,6 +26,12 @@ export const useInvestigationsSectionState = ({
   const [agentNote, setAgentNote] = useState('');
   const [showNoteField, setShowNoteField] = useState(false);
   const [localSpawnError, setLocalSpawnError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!incidentNote) return;
+    setAgentNote(incidentNote);
+    setShowNoteField(true);
+  }, [incidentNote]);
 
   const filteredInvestigations = useMemo(() => investigations.filter(inv => {
     if (!reportsSearch) return true;
@@ -31,7 +42,11 @@ export const useInvestigationsSectionState = ({
            statusLabel.includes(searchLower);
   }), [investigations, reportsSearch]);
 
-  const combinedSpawnError = localSpawnError ?? spawnAgentError ?? null;
+  const combinedSpawnError = unknownSpawnOutcome ? null : localSpawnError ?? spawnAgentError ?? null;
+
+  useEffect(() => {
+    if (!unknownSpawnOutcome) setLocalSpawnError(null);
+  }, [unknownSpawnOutcome]);
 
   const activeAgentSummary = useMemo(() => {
     if (agents.length === 0) {
@@ -95,6 +110,7 @@ export const useInvestigationsSectionState = ({
     showNoteField,
     setShowNoteField,
     combinedSpawnError,
+    unknownSpawnOutcome: unknownSpawnOutcome ?? null,
     activeAgentSummary,
     handleSpawnAgent,
   };

@@ -6,7 +6,6 @@ interface ProcessAlertItemProps {
   variant: 'zombie' | 'high_thread' | 'leak_candidate';
   /** Extra info displayed before the kill button (e.g. thread count, memory) */
   detail?: string;
-  onKill: (pid: number, name: string, variant: 'zombie' | 'high_thread' | 'leak_candidate') => void;
 }
 
 const variantClass: Record<ProcessAlertItemProps['variant'], string> = {
@@ -21,7 +20,7 @@ const killButtonClass: Record<ProcessAlertItemProps['variant'], string> = {
   leak_candidate: 'btn-kill-warning',
 };
 
-export const ProcessAlertItem = ({ pid, name, variant, detail, onKill }: ProcessAlertItemProps) => (
+export const ProcessAlertItem = ({ pid, name, variant, detail }: ProcessAlertItemProps) => (
   <div className={`pool-item ${variantClass[variant]}`}>
     <span>{name} (PID: {pid})</span>
     <div data-sm-style="sm-style-67bc078b69">
@@ -32,8 +31,9 @@ export const ProcessAlertItem = ({ pid, name, variant, detail, onKill }: Process
       )}
       <button
         className={`btn-kill ${killButtonClass[variant]}`}
-        onClick={() => { onKill(pid, name, variant); }}
-        title={`Kill ${variant.replace('_', ' ')} process`}
+        disabled
+        aria-label="Process termination unavailable"
+        title="Process termination is unavailable because no supported service endpoint is mounted."
       >
         <X size={16} />
       </button>

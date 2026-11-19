@@ -61,14 +61,14 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 		if !processSampleMatchesQuery(s, q) {
 			continue
 		}
-		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.CPUSeconds, s.RSSKB, s.GPUVRAMMB, s.Timestamp)
+		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.CPUSeconds, s.RSSKB, s.SwapKB, s.SwapStatus == "measured", s.GPUVRAMMB, s.Timestamp)
 	}
 
 	for _, ru := range r.processRollups {
 		if !processRollupMatchesQuery(ru, q) {
 			continue
 		}
-		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.CPUSeconds, ru.AvgRSSKB, ru.SampleCount, ru.Minute)
+		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.CPUSeconds, ru.AvgRSSKB, ru.AvgSwapKB, ru.SampleCount, ru.SwapMeasuredSamples, ru.SwapUnknownSamples, ru.MaxGPUVRAMMB, ru.Minute)
 	}
 
 	return acc.Entries(q.Top, q.Rank), nil
@@ -79,7 +79,8 @@ func processSampleMatchesQuery(s repository.ProcessSample, q repository.ProcessT
 }
 
 func processRollupMatchesQuery(ru processRollup, q repository.ProcessTimelineQuery) bool {
-	return !ru.Minute.Before(q.Start) && ru.Minute.Before(q.End) && (q.Owner == "" || ru.Owner == q.Owner)
+	start, end := repository.CompleteProcessRollupRange(q)
+	return !ru.Minute.Before(start) && ru.Minute.Before(end) && (q.Owner == "" || ru.Owner == q.Owner)
 }
 
 // PruneProcessSamplesBefore drops raw rows older than cutoff.
@@ -125,17 +126,22 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 	result := repository.RollupResult{From: from, To: to}
 
 	type bucket struct {
-		minute     time.Time
-		owner      string
-		comm       string
-		cpuSum     float64
-		cpuMax     float64
-		rssSum     int64
-		rssMax     int64
-		faultSum   float64
-		faultMax   float64
-		cpuSeconds float64
-		count      int64
+		minute       time.Time
+		owner        string
+		comm         string
+		cpuSum       float64
+		cpuMax       float64
+		rssSum       int64
+		rssMax       int64
+		swapSum      int64
+		swapMax      int64
+		swapMeasured int64
+		swapUnknown  int64
+		gpuMax       float64
+		faultSum     float64
+		faultMax     float64
+		cpuSeconds   float64
+		count        int64
 	}
 	buckets := map[string]*bucket{}
 	kept := r.processSamples[:0]
@@ -157,8 +163,20 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 			b.cpuMax = s.CPUPct
 		}
 		b.rssSum += s.RSSKB
+		if s.SwapStatus == "measured" {
+			b.swapSum += s.SwapKB
+			b.swapMeasured++
+		} else {
+			b.swapUnknown++
+		}
 		if s.RSSKB > b.rssMax {
 			b.rssMax = s.RSSKB
+		}
+		if s.SwapKB > b.swapMax {
+			b.swapMax = s.SwapKB
+		}
+		if s.GPUVRAMMB > b.gpuMax {
+			b.gpuMax = s.GPUVRAMMB
 		}
 		b.faultSum += s.MajorFaultsPerSecond
 		if s.MajorFaultsPerSecond > b.faultMax {
@@ -173,6 +191,10 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 	r.processSamples = kept
 
 	for _, b := range buckets {
+		avgSwap := int64(0)
+		if b.swapMeasured > 0 {
+			avgSwap = b.swapSum / b.swapMeasured
+		}
 		r.mergeRollup(processRollup{
 			Minute:                  b.minute,
 			Owner:                   b.owner,
@@ -182,6 +204,11 @@ func (r *MemoryRepository) RollupProcessSamples(_ context.Context, from, to time
 			CPUSeconds:              b.cpuSeconds,
 			AvgRSSKB:                b.rssSum / b.count,
 			MaxRSSKB:                b.rssMax,
+			AvgSwapKB:               avgSwap,
+			MaxSwapKB:               b.swapMax,
+			SwapMeasuredSamples:     b.swapMeasured,
+			SwapUnknownSamples:      b.swapUnknown,
+			MaxGPUVRAMMB:            b.gpuMax,
 			AvgMajorFaultsPerSecond: b.faultSum / float64(b.count),
 			MaxMajorFaultsPerSecond: b.faultMax,
 			SampleCount:             b.count,
@@ -200,6 +227,12 @@ func (r *MemoryRepository) mergeRollup(in processRollup) {
 			total := ex.SampleCount + in.SampleCount
 			ex.AvgCPUPct = (ex.AvgCPUPct*float64(ex.SampleCount) + in.AvgCPUPct*float64(in.SampleCount)) / float64(total)
 			ex.AvgRSSKB = (ex.AvgRSSKB*ex.SampleCount + in.AvgRSSKB*in.SampleCount) / total
+			measuredSwap := ex.SwapMeasuredSamples + in.SwapMeasuredSamples
+			if measuredSwap > 0 {
+				ex.AvgSwapKB = (ex.AvgSwapKB*ex.SwapMeasuredSamples + in.AvgSwapKB*in.SwapMeasuredSamples) / measuredSwap
+			} else {
+				ex.AvgSwapKB = 0
+			}
 			ex.CPUSeconds += in.CPUSeconds
 			if in.MaxCPUPct > ex.MaxCPUPct {
 				ex.MaxCPUPct = in.MaxCPUPct
@@ -207,7 +240,15 @@ func (r *MemoryRepository) mergeRollup(in processRollup) {
 			if in.MaxRSSKB > ex.MaxRSSKB {
 				ex.MaxRSSKB = in.MaxRSSKB
 			}
+			if in.MaxSwapKB > ex.MaxSwapKB {
+				ex.MaxSwapKB = in.MaxSwapKB
+			}
+			if in.MaxGPUVRAMMB > ex.MaxGPUVRAMMB {
+				ex.MaxGPUVRAMMB = in.MaxGPUVRAMMB
+			}
 			ex.SampleCount = total
+			ex.SwapMeasuredSamples += in.SwapMeasuredSamples
+			ex.SwapUnknownSamples += in.SwapUnknownSamples
 			return
 		}
 	}

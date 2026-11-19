@@ -230,7 +230,7 @@ func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsRespo
 	resp := &models.MetricsResponse{}
 	seen := false
 
-	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk", "pressure"} {
+	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk", "disk_io", "pressure"} {
 		row := r.db.QueryRowContext(ctx, latestMetricForCollectorSQL, collector)
 		var data string
 		var cycleID string

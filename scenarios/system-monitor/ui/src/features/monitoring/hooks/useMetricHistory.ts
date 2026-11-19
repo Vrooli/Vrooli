@@ -115,6 +115,35 @@ export const useMetricHistory = (
         return result;
       };
 
+      // Disk rates are read from physical-device counters at their own
+      // observation time. Keep that timestamp (and the failure/reset breaks)
+      // instead of relabeling them with the surrounding collection cycle.
+      const diskRateSeries = (pick: (sample: typeof ordered[number]) => { state: { case: string | undefined; value?: unknown }; observedAt?: Timestamp } | undefined): ChartDataPoint[] => {
+        let missed = false;
+        let previousTime: number | undefined;
+        const result: ChartDataPoint[] = [];
+        for (const sample of ordered) {
+          const metric = pick(sample);
+          const value = metric?.state;
+          if (value?.case !== 'measured' || typeof value.value !== 'number' || !Number.isFinite(value.value)) {
+            missed = true;
+            continue;
+          }
+          const observed = metric.observedAt ? timestampDate(metric.observedAt) : timestampDate(sample.timestamp);
+          const time = observed.getTime();
+          if (!Number.isFinite(time)) { missed = true; continue; }
+          if (previousTime !== undefined && time <= previousTime) {
+            if (time < previousTime) missed = true;
+            continue;
+          }
+          const gapBefore = result.length > 0 && (missed || Boolean(cadenceMs && previousTime !== undefined && time - previousTime > cadenceMs * 1.5));
+          result.push({ timestamp: observed.toISOString(), value: value.value, ...(gapBefore ? { gapBefore: true } : {}) });
+          missed = false;
+          previousTime = time;
+        }
+        return result;
+      };
+
       // GPU observations have their own, slower cadence. A cycle timestamp
       // cannot establish when an absent or repeated GPU reading was measured.
       const gpuSeries = (): ChartDataPoint[] => {
@@ -192,7 +221,10 @@ export const useMetricHistory = (
           kernelReclaimable: samples.filter(sample => sample.kernelMemory?.reclaimableBytes?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.kernelMemory?.reclaimableBytes?.state.value) })),
           kernelUnreclaimable: samples.filter(sample => sample.kernelMemory?.unreclaimableBytes?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.kernelMemory?.unreclaimableBytes?.state.value) })),
           network: series(sample => sample.connections),
-          gpu: gpuSeries()
+          gpu: gpuSeries(),
+          diskUsage: series(sample => sample.diskUsage),
+          diskRead: diskRateSeries(sample => sample.diskReadRate),
+          diskWrite: diskRateSeries(sample => sample.diskWriteRate)
         };
       });
     } catch (err) {

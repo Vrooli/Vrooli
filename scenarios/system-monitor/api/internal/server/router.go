@@ -21,10 +21,13 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 )
 
-func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, diskPressure *handlers.DiskPressureHandler, deviceGraph *handlers.DeviceGraphHandler, alerts *handlers.AlertsHandler) http.Handler {
+func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, diskPressure *handlers.DiskPressureHandler, deviceGraph *handlers.DeviceGraphHandler, alerts *handlers.AlertsHandler, ownerAlerts *handlers.OwnerAlertsHandler) http.Handler {
 	r := http.NewServeMux()
 	mountDebugRoutes(cfg, r)
 	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation, deviceGraph, alerts)
+	if ownerAlerts != nil {
+		ownerAlerts.Register(r)
+	}
 
 	// Keep the unprefixed probe literal explicit for lifecycle validators and
 	// external supervisors; the versioned route remains an API alias.
@@ -41,6 +44,7 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	// HandleGetMetricsTimeline, but never mounted — the endpoint 404'd while
 	// the handler sat unreachable. The typed Connect route stays canonical.
 	r.HandleFunc("GET /api/v1/metrics/timeline", metrics.HandleGetMetricsTimeline)
+	r.HandleFunc("GET /api/v1/metrics/disk/read-activity", metrics.HandleGetDiskReadActivity)
 	r.HandleFunc("GET /api/v1/forensics/processes", metrics.HandleGetProcessTimeline)
 	r.HandleFunc("GET /api/v1/forensics/process-samples", metrics.HandleGetProcessSamples)
 	r.HandleFunc("GET /api/v1/forensics/gpu", metrics.HandleGetGPUHistory)

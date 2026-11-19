@@ -213,6 +213,13 @@
             {
               "name": "top",
               "description": "Maximum ranked consumers to return"
+            },
+            {
+              "name": "rank",
+              "description": "Rank by cpu, cpu_seconds, rss, swap, or gpu",
+              "bind": {
+                "field": "rank"
+              }
             }
           ],
           "binding": {

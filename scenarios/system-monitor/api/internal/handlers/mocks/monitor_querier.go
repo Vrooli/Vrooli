@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
@@ -18,6 +19,8 @@ type MonitorQuerier struct {
 	detailedMetrics    *models.DetailedMetrics
 	networkDiagnostic  *models.NetworkDiagnosticSnapshot
 	diskDetail         *models.DiskDetailResponse
+	diskReadActivity   procsampler.ReadActivity
+	diskDetailRequest  DiskDetailRequest
 	timelineResponse   *models.MetricsTimelineResponse
 	processData        *models.ProcessMonitorData
 	processTimeline    []repository.ProcessTimelineEntry
@@ -30,6 +33,24 @@ type MonitorQuerier struct {
 	active             bool
 	err                error
 }
+
+func (m *MonitorQuerier) WithDiskReadActivity(activity procsampler.ReadActivity) *MonitorQuerier {
+	m.diskReadActivity = activity
+	return m
+}
+
+func (m *MonitorQuerier) GetDiskReadActivity(_ context.Context) (procsampler.ReadActivity, error) {
+	return m.diskReadActivity, m.err
+}
+
+type DiskDetailRequest struct {
+	Mount        string
+	Depth        int
+	Limit        int
+	IncludeFiles bool
+}
+
+func (m *MonitorQuerier) LastDiskDetailRequest() DiskDetailRequest { return m.diskDetailRequest }
 
 func (m *MonitorQuerier) WithPressureSnapshot(snapshot *models.PressureSnapshot) *MonitorQuerier {
 	m.pressureSnapshot = snapshot
@@ -127,7 +148,8 @@ func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.Detailed
 	return m.detailedMetrics, m.err
 }
 
-func (m *MonitorQuerier) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
+func (m *MonitorQuerier) GetDiskDetail(_ context.Context, mount string, depth, limit int, includeFiles bool) (*models.DiskDetailResponse, error) {
+	m.diskDetailRequest = DiskDetailRequest{Mount: mount, Depth: depth, Limit: limit, IncludeFiles: includeFiles}
 	return m.diskDetail, m.err
 }
 

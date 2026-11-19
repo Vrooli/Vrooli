@@ -14,21 +14,25 @@ import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDeta
 import { formatProtoTimestamp } from '../../../shared/utils/formatters';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 import { renderProcessTable } from './MetricRenderHelpers';
+import type { APIError } from '../../../types';
 
 export interface CpuDetailViewProps {
   metrics: MetricsResponse | null;
   detailedMetrics: DetailedMetrics | null;
   processMonitorData: ProcessMonitorData | null;
   metricHistory: MetricHistory | null;
+  historyError?: APIError | null;
+  onRetryHistory?: () => void;
   onBack: () => void;
 }
 
-export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, metricHistory, onBack }: CpuDetailViewProps) => {
+export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, metricHistory, historyError, onRetryHistory, onBack }: CpuDetailViewProps) => {
   const cpuUsage = detailedMetrics?.cpuDetails?.usage ?? (metrics?.cpu?.state?.case === 'measured' ? metrics.cpu.state.value : undefined);
   const cpuData = useMemo(() => buildSingleSeriesData(metricHistory?.cpu), [metricHistory?.cpu]);
   const topProcesses = detailedMetrics?.cpuDetails?.topProcesses;
   const topCPUSecondsProcesses = detailedMetrics?.cpuDetails?.topCpuSecondsProcesses;
   const cpuDetails = detailedMetrics?.cpuDetails;
+  const historyStatus = historyError && !metricHistory?.windowStart ? 'error' : metricHistory === null ? 'loading' : 'ready';
   const modeHistory = useMemo(() => mergeSeries(metricHistory?.cpuModeIowait, metricHistory?.cpuModeSteal), [metricHistory?.cpuModeIowait, metricHistory?.cpuModeSteal]);
   const stallHistory = useMemo(() => mergeSeries(metricHistory?.cpuStallSome, metricHistory?.cpuStallFull), [metricHistory?.cpuStallSome, metricHistory?.cpuStallFull]);
 
@@ -45,8 +49,14 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
       subhead={subhead}
       onBack={onBack}
     >
+      {historyError && <section className="card mb-lg" role="alert" aria-label="CPU history refresh failed">
+        <h2 className="section-heading">CPU history unavailable</h2>
+        <p>History could not be refreshed: {historyError.error}. {metricHistory?.windowStart ? 'The previous dated history remains visible.' : 'No history has been received for this time range.'}</p>
+        {onRetryHistory && <button type="button" className="btn btn-action" onClick={onRetryHistory}>Retry CPU history</button>}
+      </section>}
       <DetailSection id="usage-history" title="Usage history"><MetricLineChart
-        status={metricHistory === null ? 'loading' : 'ready'}
+        status={historyStatus}
+        errorMessage={historyError?.error}
         seriesLabel="CPU"
         className="card"
         data-sm-style="sm-style-a796e75e8f"
@@ -61,7 +71,8 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         <div className="card" data-testid="cpu-mode-chart">
           <h3 className="section-heading">Mode Breakdown History</h3>
           <MetricLineChart
-            status={metricHistory === null ? 'loading' : 'ready'}
+            status={historyStatus}
+            errorMessage={historyError?.error}
             seriesLabel="CPU modes"
             data={modeHistory}
             lines={[
@@ -75,7 +86,8 @@ export const CpuDetailView = ({ metrics, detailedMetrics, processMonitorData, me
         <div className="card" data-testid="cpu-stall-chart">
           <h3 className="section-heading">Stall History</h3>
           <MetricLineChart
-            status={metricHistory === null ? 'loading' : 'ready'}
+            status={historyStatus}
+            errorMessage={historyError?.error}
             seriesLabel="CPU stall"
             data={stallHistory}
             lines={[

@@ -9,6 +9,7 @@ export interface UseForensicsSummaryResult {
   summary: ForensicsSummary | null;
   isLoading: boolean;
   error: string | null;
+  lastReceivedAt: string | null;
   refresh: () => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ export function useForensicsSummary(intervalMs = 60_000): UseForensicsSummaryRes
   const [summary, setSummary] = useState<ForensicsSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastReceivedAt, setLastReceivedAt] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
@@ -31,6 +33,7 @@ export function useForensicsSummary(intervalMs = 60_000): UseForensicsSummaryRes
       const data = await fetchForensicsSummary(controller.signal);
       if (controller.signal.aborted) return;
       setSummary(data);
+      setLastReceivedAt(new Date().toISOString());
       setError(null);
     } catch (err) {
       if (isAbortError(err)) return;
@@ -47,5 +50,5 @@ export function useForensicsSummary(intervalMs = 60_000): UseForensicsSummaryRes
 
   usePolling(refresh, intervalMs, true);
 
-  return { summary, isLoading, error, refresh };
+  return { summary, isLoading, error, lastReceivedAt, refresh };
 }

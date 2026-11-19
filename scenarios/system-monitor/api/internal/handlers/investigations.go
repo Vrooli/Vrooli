@@ -170,19 +170,42 @@ func (h *InvestigationHandler) TriggerInvestigation(ctx context.Context, req *co
 		return nil, connect.NewError(connect.CodeUnauthenticated, authErr)
 	}
 	ctx = callerCtx
-	investigation, err := h.investigationSvc.TriggerInvestigation(ctx, req.Msg.GetAutoFix(), req.Msg.GetNote())
+	requestKey := req.Header().Get("Idempotency-Key")
+	investigation, err := h.triggerInvestigation(ctx, req.Msg.GetAutoFix(), req.Msg.GetNote(), requestKey)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
 	return connect.NewResponse(&investigationspb.TriggerInvestigationResponse{
-		Status:          models.StatusQueued,
+		Status:          investigation.Status,
 		InvestigationId: investigation.ID,
 		ApiBaseUrl:      h.configuredAPIBaseURL(),
-		Message:         "Investigation queued for processing",
+		Message:         investigationReceiptMessage(investigation.Status),
 		AutoFix:         req.Msg.GetAutoFix(),
 		Note:            req.Msg.GetNote(),
 	}), nil
+}
+
+type idempotentInvestigationTrigger interface {
+	TriggerInvestigationWithRequestKey(context.Context, bool, string, string) (*models.Investigation, error)
+}
+
+func (h *InvestigationHandler) triggerInvestigation(ctx context.Context, autoFix bool, note, requestKey string) (*models.Investigation, error) {
+	if requestKey == "" {
+		return h.investigationSvc.TriggerInvestigation(ctx, autoFix, note)
+	}
+	trigger, ok := h.investigationSvc.(idempotentInvestigationTrigger)
+	if !ok {
+		return nil, apierrors.Unavailable("idempotent investigation request handling")
+	}
+	return trigger.TriggerInvestigationWithRequestKey(ctx, autoFix, note, requestKey)
+}
+
+func investigationReceiptMessage(status string) string {
+	if status == models.StatusQueued {
+		return "Investigation queued for processing"
+	}
+	return "Existing investigation request found; no duplicate run was started"
 }
 
 // GetInvestigation retrieves an investigation by ID via Connect-RPC.
@@ -404,7 +427,8 @@ func (h *InvestigationHandler) HandleTriggerInvestigation(w http.ResponseWriter,
 		}
 	}
 
-	investigation, err := h.investigationSvc.TriggerInvestigation(ctx, pbReq.AutoFix, pbReq.Note)
+	requestKey := r.Header.Get("Idempotency-Key")
+	investigation, err := h.triggerInvestigation(ctx, pbReq.AutoFix, pbReq.Note, requestKey)
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return
@@ -412,10 +436,10 @@ func (h *InvestigationHandler) HandleTriggerInvestigation(w http.ResponseWriter,
 
 	// Return immediate response with API info
 	resp := &investigationspb.TriggerInvestigationResponse{
-		Status:          models.StatusQueued,
+		Status:          investigation.Status,
 		InvestigationId: investigation.ID,
 		ApiBaseUrl:      h.resolveAPIBaseURL(r),
-		Message:         "Investigation queued for processing",
+		Message:         investigationReceiptMessage(investigation.Status),
 		AutoFix:         pbReq.AutoFix,
 		Note:            pbReq.Note,
 	}
@@ -656,8 +680,8 @@ func (h *InvestigationHandler) UpdateTriggerThreshold(w http.ResponseWriter, r *
 
 func (h *InvestigationHandler) resolveAPIBaseURL(r *http.Request) string {
 	// Prefer forwarded headers for correct addressing behind proxies
-	if host := r.Header.Get("X-Forwarded-Host"); host != "" {
-		scheme := r.Header.Get("X-Forwarded-Proto")
+	if host := discovery.ExternalHost(r); host != "" {
+		scheme := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0])
 		if scheme == "" {
 			scheme = "http"
 		}

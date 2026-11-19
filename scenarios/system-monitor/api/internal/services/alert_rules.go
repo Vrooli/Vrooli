@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // Alert-condition severities. Condition alerts use two levels; legacy
@@ -30,13 +31,16 @@ const (
 
 // Built-in rule identifiers.
 const (
-	RuleMetricsSnapshot = "metrics_snapshot"
-	RuleCPUUsage        = "cpu_usage"
-	RuleMemoryUsage     = "memory_usage"
-	RuleTCPConnections  = "tcp_connections"
-	RuleGPUUsage        = "gpu_usage"
-	RuleMemoryPressure  = "memory_pressure"
-	RuleOrphanedAgents  = "orphaned_agents"
+	RuleMetricsSnapshot     = "metrics_snapshot"
+	RuleCPUUsage            = "cpu_usage"
+	RuleMemoryUsage         = "memory_usage"
+	RuleTCPConnections      = "tcp_connections"
+	RuleGPUUsage            = "gpu_usage"
+	RuleMemoryPressure      = "memory_pressure"
+	RuleOrphanedAgents      = "orphaned_agents"
+	RuleSustainedProcessCPU = "sustained_process_cpu"
+	RuleGPUCapableWorkOnCPU = "gpu_capable_work_on_cpu"
+	RuleOwnerActionAge      = "owner_action_age"
 )
 
 // hostKey is the dedup key for host-wide rules.
@@ -118,6 +122,95 @@ func DefaultAlertRules() []AlertRule {
 		gpuUsageRule{},
 		memoryPressureRule{},
 	}
+}
+
+// ProcessTimelineSource supplies bounded, owner-attributed process history.
+// *MonitorService satisfies it using the existing process-sample store.
+type ProcessTimelineSource interface {
+	GetProcessTimelineRanked(ctx context.Context, window time.Duration, owner string, top int, rank string) ([]repository.ProcessTimelineEntry, error)
+}
+
+const (
+	sustainedProcessCPUWindow = 15 * time.Minute
+	// Leave time for the evaluator's independent sustain window while keeping
+	// the end-to-end detection bound within the 15-minute incident objective.
+	// Eight minutes leaves room for a completed-minute replay to suppress the
+	// current partial rollup minute while retaining the five-minute evaluator
+	// sustain and the 15-minute incident detection objective.
+	sustainedProcessCPUMinimumAge   = 8 * time.Minute
+	sustainedProcessCPUMaximumStale = time.Minute
+	sustainedProcessCPUPercent      = 90.0
+	sustainedProcessCPUTop          = repository.MaxProcessTimelineGroups
+)
+
+type sustainedProcessCPURule struct {
+	source ProcessTimelineSource
+}
+
+// NewSustainedProcessCPURule detects a continuously observed owner/command
+// group that consumes at least one CPU core on average. It reports only; host
+// remediation remains in the control plane, and it never stops a process.
+func NewSustainedProcessCPURule(source ProcessTimelineSource) AlertRule {
+	return sustainedProcessCPURule{source: source}
+}
+
+func (sustainedProcessCPURule) ID() string { return RuleSustainedProcessCPU }
+
+func (r sustainedProcessCPURule) Evaluate(ctx context.Context, snap AlertSnapshot) RuleEvaluation {
+	if r.source == nil {
+		return unsupportedRule("owner-attributed process timeline is not configured")
+	}
+	entries, err := r.source.GetProcessTimelineRanked(ctx, sustainedProcessCPUWindow, "", sustainedProcessCPUTop, "cpu_seconds")
+	if err != nil {
+		return failedRule("read owner-attributed process timeline: " + err.Error())
+	}
+	if len(entries) == 0 {
+		return unsupportedRule("no owner-attributed process samples are available")
+	}
+	possiblyTruncated := len(entries) == sustainedProcessCPUTop
+
+	var conditions []AlertCondition
+	for _, entry := range entries {
+		if entry.Owner == "" || entry.Comm == "" || entry.FirstSeen.IsZero() || entry.LastSeen.IsZero() {
+			continue
+		}
+		if entry.FirstSeen.After(entry.LastSeen) || entry.LastSeen.After(snap.Now) || entry.LastSeen.Sub(entry.FirstSeen) < sustainedProcessCPUMinimumAge || snap.Now.Sub(entry.LastSeen) > sustainedProcessCPUMaximumStale || entry.SampleCount < 10 || entry.CPUPct < sustainedProcessCPUPercent {
+			continue
+		}
+		owner := entry.Owner
+		messageOwner := owner
+		if owner == "unknown" {
+			messageOwner = "unattributed"
+		}
+		message := fmt.Sprintf("%s process group %s averaged %.1f%% CPU for at least %s; last observed %s ago.", messageOwner, entry.Comm, entry.CPUPct, sustainedProcessCPUMinimumAge, snap.Now.Sub(entry.LastSeen).Round(time.Second))
+		conditions = append(conditions, AlertCondition{
+			Key:        owner + ":" + entry.Comm,
+			Severity:   SeverityCritical,
+			Message:    message,
+			MetricName: "process_cpu_percent",
+			Value:      entry.CPUPct,
+			Threshold:  sustainedProcessCPUPercent,
+			Details: map[string]interface{}{
+				"owner":              owner,
+				"command":            entry.Comm,
+				"sample_count":       entry.SampleCount,
+				"first_seen":         entry.FirstSeen.UTC().Format(time.RFC3339Nano),
+				"last_seen":          entry.LastSeen.UTC().Format(time.RFC3339Nano),
+				"cpu_percent":        entry.CPUPct,
+				"max_cpu_pct":        entry.MaxCPUPct,
+				"cpu_seconds":        entry.CPUSeconds,
+				"rss_kb":             entry.RSSKB,
+				"possibly_truncated": possiblyTruncated,
+			},
+		})
+	}
+	if len(conditions) == 0 {
+		if possiblyTruncated {
+			return unsupportedRule("owner-attributed process timeline reached its bounded result limit")
+		}
+		return clearRule()
+	}
+	return activeRule(conditions...)
 }
 
 // measuredMetric returns a primary metric's value only when it was measured.

@@ -154,6 +154,16 @@ func WithAdditionalAlertRules(rules ...AlertRule) AlertEvaluatorOption {
 	return func(e *AlertEvaluator) { e.rules = append(e.rules, rules...) }
 }
 
+// WithHeavyJobSource registers the owner-supplied unattended-heavy-job rule.
+// The owner remains authoritative for waiter counts; this rule only reports.
+func WithHeavyJobSource(source HeavyJobSource) AlertEvaluatorOption {
+	return func(e *AlertEvaluator) {
+		if source != nil {
+			e.rules = append(e.rules, NewUnattendedHeavyJobRule(source))
+		}
+	}
+}
+
 // WithAlertEscalator sets the sustained-critical escalation target.
 func WithAlertEscalator(esc AlertEscalator) AlertEvaluatorOption {
 	return func(e *AlertEvaluator) { e.escalator = esc }
@@ -181,6 +191,11 @@ func NewAlertEvaluator(settings *SettingsManager, source AlertSnapshotSource, re
 		states:     make(map[string]*conditionState),
 		ruleStatus: make(map[string]RuleStatus),
 	}
+	if processSource, ok := source.(ProcessTimelineSource); ok {
+		e.rules = append(e.rules, NewSustainedProcessCPURule(processSource))
+		e.rules = append(e.rules, NewGPUOnCPURule(processSource))
+	}
+	e.rules = append(e.rules, NewOwnerActionAgeRule(repo))
 	for _, opt := range opts {
 		opt(e)
 	}

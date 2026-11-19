@@ -8,6 +8,7 @@ import (
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/investigations"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
@@ -21,7 +22,8 @@ type MonitorQuerier interface {
 	GetPressureHistory(ctx context.Context, window time.Duration) (*models.PressureHistory, error)
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
 	GetNetworkDiagnostic(ctx context.Context, topN int, maxDuration time.Duration, includeAddresses bool) (*models.NetworkDiagnosticSnapshot, error)
-	GetDiskDetail(ctx context.Context) (*models.DiskDetailResponse, error)
+	GetDiskDetail(ctx context.Context, mount string, depth, limit int, includeFiles bool) (*models.DiskDetailResponse, error)
+	GetDiskReadActivity(ctx context.Context) (procsampler.ReadActivity, error)
 	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
 	GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error)

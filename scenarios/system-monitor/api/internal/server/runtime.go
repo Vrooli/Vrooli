@@ -129,9 +129,25 @@ func Run(cfg *config.Config) error {
 	// Server-owned alert state: every rule (CPU, memory, TCP, GPU, memory
 	// pressure, orphaned agents) is evaluated here and persisted with
 	// sustain/dedup/auto-resolve. Clients read it; none derive alerts.
-	alertEvaluator := services.NewAlertEvaluator(settingsMgr, monitorSvc, repo, alertSvc, apiLog.With("service", "alerts"),
+	var heavyJobSource services.HeavyJobSource
+	if cfg.Resources.ImageToolsURL != "" {
+		configuredSource, err := services.NewHTTPHeavyJobSource(cfg.Resources.ImageToolsURL, nil)
+		if err != nil {
+			apiLog.Warn("image-tools heavy-job reporting disabled: invalid IMAGE_TOOLS_API_URL", "error", err)
+		} else {
+			heavyJobSource = configuredSource
+		}
+	} else {
+		heavyJobSource = services.NewDiscoveryImageToolsHeavyJobSource(nil, nil)
+	}
+	alertOptions := []services.AlertEvaluatorOption{
 		services.WithAdditionalAlertRules(services.NewOrphanedAgentsRule(services.NewCLIAgentInventory(nil, nil), nil)),
-		services.WithAlertEscalator(services.NewAnomalyEscalator(alertSvc, scriptSvc, nil)))
+		services.WithAlertEscalator(services.NewAnomalyEscalator(alertSvc, scriptSvc, nil)),
+	}
+	if heavyJobSource != nil {
+		alertOptions = append(alertOptions, services.WithHeavyJobSource(heavyJobSource))
+	}
+	alertEvaluator := services.NewAlertEvaluator(settingsMgr, monitorSvc, repo, alertSvc, apiLog.With("service", "alerts"), alertOptions...)
 	alertEvaluator.Start()
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
@@ -157,11 +173,15 @@ func Run(cfg *config.Config) error {
 	// The device-graph read verb serves from the monitor service's shared
 	// cached provider, the same one the 60s collector uses.
 	alertsHandler := handlers.NewAlertsHandler(alertEvaluator, repo, apiLog.With("handler", "alerts"))
+	ownerAlertsHandler := handlers.NewOwnerAlertsHandler(alertEvaluator, repo, agentmanager.NewClient(cfg.AgentManager.Timeout))
 
 	deviceGraphHandler := handlers.NewDeviceGraphHandler(monitorSvc.DeviceGraphs(), apiLog.With("handler", "device-graph"), cfg)
 
-	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler, alertsHandler)
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler, deviceGraphHandler, alertsHandler, ownerAlertsHandler)
 	rootMux := http.NewServeMux()
+	// This operator-invoked diagnostic runs a bounded historical replay without
+	// writing alert rows or invoking notification, escalation, or remediation.
+	rootMux.Handle("GET /api/v1/forensics/process-cpu-replay", handlers.NewProcessCPUReplayHandler(monitorSvc))
 	if routedDB != nil && fileRoots != nil {
 		devrouting.RegisterWithFileRoots(rootMux, routedDB, fileRoots)
 	}

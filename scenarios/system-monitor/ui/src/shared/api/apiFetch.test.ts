@@ -64,6 +64,7 @@ describe('apiFetch and protoFetch', () => {
   it('maps Connect routes and query/body variants to typed procedures', async () => {
     const routes: Array<[string, RequestInit | undefined, string, Record<string, unknown>]> = [
       ['/metrics/detailed', undefined, 'GetDetailedMetrics', {}],
+      ['/metrics/disk/details?mount=%2Fdata&depth=3&limit=8&include_files=true', undefined, 'GetDiskDetail', { mount: '/data', depth: 3, limit: 8, includeFiles: true }],
       ['/metrics/timeline?window=10&interval=2', undefined, 'GetMetricsTimeline', { windowSeconds: 10, sampleIntervalSeconds: 2 }],
       ['/metrics/processes/timeline?window=2m&owner=alice&top=5', undefined, 'GetProcessTimeline', { windowSeconds: 120, owner: 'alice', top: 5 }],
       ['/settings', undefined, 'GetSettings', {}],

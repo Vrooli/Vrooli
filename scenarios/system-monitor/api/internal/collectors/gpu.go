@@ -74,6 +74,13 @@ func (c *GPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 		"used_memory_mb":        summary.UsedMemoryMB,
 		"average_temperature_c": summary.AverageTemperatureC,
 	}
+	// Zero per-process VRAM proves absence only when this inventory probe
+	// completed successfully. Carry its provenance into the persisted metric.
+	values["processes_status"] = snapshot.ProbeStatuses["nvidia_gpu_processes"]
+	values["processes_provenance"] = "hostinventory/nvidia_gpu_processes"
+	if observed, ok := snapshot.FieldProvenance["gpu_processes"]; ok {
+		values["processes_observed_at"] = observed.ObservedAt.UTC().Format(time.RFC3339Nano)
+	}
 	if len(warnings) > 0 {
 		values["warnings"] = warnings
 	}

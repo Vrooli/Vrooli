@@ -34,7 +34,9 @@ type ProcessSample struct {
 	State                string  // native process state when the platform exposes it
 	Cmdline              string  // full command line (nul-joined args rendered with spaces)
 	Cwd                  string  // resolved /proc/<pid>/cwd target ("" when unreadable)
-	Owner                string  // attributed scenario name or "unknown" (filled by the attributor)
+	ExecutablePath       string  // resolved executable identity ("" when unavailable)
+	CgroupPath           string  // unified cgroup path ("" when unavailable)
+	Owner                string  // attributed scenario/resource/host identity or "unknown" (filled by the attributor)
 	CPUPct               float64 // CPU% over the inter-sample interval
 	CPUSeconds           float64 // CPU seconds consumed during the inter-sample interval
 	CPUSecondsStatus     string  // measured, not_yet_sampled, or refused

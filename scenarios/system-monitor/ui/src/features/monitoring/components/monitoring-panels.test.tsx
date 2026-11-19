@@ -1,17 +1,13 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { describe, expect, it, vi } from 'vitest';
 import { ProcessMonitor } from './ProcessMonitor';
 import { InfrastructureMonitor } from './InfrastructureMonitor';
 import type { ProcessMonitorData, InfrastructureMonitorData, SystemHealth } from '../../../types';
 
-const mocks = vi.hoisted(() => ({ apiFetch: vi.fn() }));
-vi.mock('../../../shared/api/apiFetch', () => ({ apiFetch: mocks.apiFetch }));
-
 describe('monitoring panels', () => {
-  it('expands process data, confirms termination, and handles cancellation', async () => {
+  it('expands process data and keeps unavailable termination controls disabled', () => {
     const toggle = vi.fn();
-    mocks.apiFetch.mockResolvedValueOnce({ message: 'killed' });
     const data = { processHealth: {
       totalProcesses: 4,
       zombieProcesses: [{ pid: 11, name: 'zombie' }],
@@ -21,18 +17,57 @@ describe('monitoring panels', () => {
     render(<ProcessMonitor data={data} isExpanded onToggle={toggle} />);
     expect(screen.getByText('Total Processes:')).toBeInTheDocument();
     expect(screen.getByText(/worker \(PID: 12\)/)).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Kill zombie process'));
-    expect(screen.getByText('CONFIRM PROCESS TERMINATION')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
-    expect(screen.queryByText('CONFIRM PROCESS TERMINATION')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Kill zombie process'));
-    fireEvent.click(screen.getByRole('button', { name: 'TERMINATE PROCESS' }));
-    await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/processes/11/kill', expect.objectContaining({ method: 'POST' })); });
+    expect(screen.getByText(/Process termination is unavailable because this service/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Process termination unavailable' })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: 'Process termination unavailable' }).every(button => (button as HTMLButtonElement).disabled)).toBe(true);
     fireEvent.click(screen.getByText('PROCESS MONITOR'));
     expect(toggle).toHaveBeenCalledOnce();
     cleanup();
     render(<ProcessMonitor data={null} collapsible={false} />);
     expect(screen.getByText('SCANNING SYSTEM...')).toBeInTheDocument();
+  });
+
+  it('distinguishes a measured zero zombie count from unavailable health data', () => {
+    const renderMonitor = (processHealth?: unknown) => render(
+      <ProcessMonitor data={{ processHealth } as unknown as ProcessMonitorData} isExpanded />,
+    );
+
+    renderMonitor(undefined);
+    expect(screen.getByText('Process health is unavailable; the latest collection did not return a health summary.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Zombie process count')).toHaveTextContent('—');
+    cleanup();
+
+    renderMonitor({
+      totalProcesses: 2,
+      zombieProcesses: [],
+      highThreadCount: [],
+      leakCandidates: [],
+      zombieCount: { state: { case: 'measured', value: 0 } },
+    });
+    expect(screen.getByLabelText('Zombie process count')).toHaveTextContent('0');
+    expect(screen.getByText('No zombie processes in the latest scan.')).toBeInTheDocument();
+    cleanup();
+
+    renderMonitor({
+      totalProcesses: 2,
+      zombieProcesses: [],
+      highThreadCount: [],
+      leakCandidates: [],
+      zombieCount: { state: { case: 'failedError', value: 'permission denied' } },
+    });
+    expect(screen.getByLabelText('Zombie process count')).toHaveTextContent('—');
+    expect(screen.getByText('Count unavailable: permission denied')).toBeInTheDocument();
+    cleanup();
+
+    renderMonitor({
+      totalProcesses: 2,
+      zombieProcesses: [],
+      highThreadCount: [],
+      leakCandidates: [],
+      zombieCount: { state: { case: 'measured', value: 3 } },
+    });
+    expect(screen.getByLabelText('Zombie process count')).toHaveTextContent('3');
+    expect(screen.getByText('Zombie details were not returned for this count.')).toBeInTheDocument();
   });
 
   it('renders infrastructure pools, queues, kernel limits, dependencies, and certificate states', () => {

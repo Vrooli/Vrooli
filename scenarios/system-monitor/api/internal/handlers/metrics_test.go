@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -268,7 +269,7 @@ func TestGetMetricsTimeline_Error(t *testing.T) {
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
 }
 
-func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
+func TestGetDiskDetailConnectReturnsCleanupManagerHandoffAndPassesScanScope(t *testing.T) {
 	mock := handlermocks.NewMonitorQuerier().
 		WithDiskDetail(&models.DiskDetailResponse{
 			Partitions: []models.DiskPartitionInfo{
@@ -288,7 +289,9 @@ func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
 		})
 	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
 
-	res, err := handler.GetDiskDetail(context.Background(), connect.NewRequest(&metricspb.GetDiskDetailRequest{}))
+	res, err := handler.GetDiskDetail(context.Background(), connect.NewRequest(&metricspb.GetDiskDetailRequest{
+		Mount: "/data", Depth: 3, Limit: 8, IncludeFiles: true,
+	}))
 	if err != nil {
 		t.Fatalf("GetDiskDetail returned error: %v", err)
 	}
@@ -298,6 +301,25 @@ func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
 	notes := res.Msg.GetData().GetNotes()
 	if len(notes) != 1 || notes[0] != "Suggested handoff: storage-manager cleanup plan --profile conservative" {
 		t.Fatalf("notes = %v, want storage-manager handoff", notes)
+	}
+	request := mock.LastDiskDetailRequest()
+	if request.Mount != "/data" || request.Depth != 3 || request.Limit != 8 || !request.IncludeFiles {
+		t.Fatalf("scan request did not reach monitor service: %+v", request)
+	}
+}
+
+func TestGetDiskReadActivityReturnsBoundedCoverageAndRows(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().WithDiskReadActivity(procsampler.ReadActivity{
+		Status: "partial", Platform: "linux", Matched: 2, PermissionDenied: 3, Semantics: "host-wide bounded process read sample",
+		StorageRows: []procsampler.ReadActivityRow{{PID: 42, Name: "writer", Owner: "scenario-a", StorageBytesPerSecond: 2_000_000, ReturnedBytesPerSecond: 5_000_000}},
+	})
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/disk/read-activity", nil)
+	handler.HandleGetDiskReadActivity(w, r)
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+	if !strings.Contains(w.Body.String(), `"status":"partial"`) || !strings.Contains(w.Body.String(), `"storage_bytes_per_second":2000000`) || !strings.Contains(w.Body.String(), `"permission_denied_observations":3`) {
+		t.Fatalf("read activity response lost status, coverage, or rate: %s", w.Body.String())
 	}
 }
 

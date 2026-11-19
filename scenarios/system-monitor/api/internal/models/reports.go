@@ -200,6 +200,38 @@ type EnhancedSystemReport struct {
 	AlertsCount         int                      `json:"alerts_count"`
 	InvestigationsCount int                      `json:"investigations_count"`
 	Warnings            []string                 `json:"warnings,omitempty"`
+	OwnerResources      OwnerResourceReport      `json:"owner_resources"`
+}
+
+// OwnerResourceReport summarizes measured process CPU, RSS, swap and GPU
+// residency by owner over a report window. Memory columns sum process-group
+// sample means; they are not a simultaneous host snapshot.
+type OwnerResourceReport struct {
+	WindowStart           time.Time              `json:"window_start"`
+	WindowEnd             time.Time              `json:"window_end"`
+	SampleCoverageStart   time.Time              `json:"sample_coverage_start"`
+	SampleCoverageEnd     time.Time              `json:"sample_coverage_end"`
+	SwapCoverageStart     time.Time              `json:"swap_coverage_start"`
+	SwapCoverageEnd       time.Time              `json:"swap_coverage_end"`
+	Complete              bool                   `json:"complete"`
+	AttributionComplete   bool                   `json:"attribution_complete"`
+	SwapCoverageComplete  bool                   `json:"swap_coverage_complete"`
+	ReturnedProcessGroups int                    `json:"returned_process_groups"`
+	SwapMeasuredSamples   int64                  `json:"swap_measured_samples"`
+	SwapUnknownSamples    int64                  `json:"swap_unknown_samples"`
+	Owners                []OwnerResourceSummary `json:"owners"`
+}
+
+type OwnerResourceSummary struct {
+	Owner                    string  `json:"owner"`
+	ProcessGroups            int     `json:"process_groups"`
+	Samples                  int64   `json:"samples"`
+	CoreHours                float64 `json:"core_hours"`
+	MeanRSSGiBProcessSum     float64 `json:"mean_rss_gib_process_sum"`
+	MeanSwapGiBProcessSum    float64 `json:"mean_swap_gib_process_sum"`
+	PeakSingleProcessVRAMGiB float64 `json:"peak_single_process_vram_gib"`
+	SwapMeasuredSamples      int64   `json:"swap_measured_samples"`
+	SwapUnknownSamples       int64   `json:"swap_unknown_samples"`
 }
 
 // Update ExecutiveSummary to include new fields

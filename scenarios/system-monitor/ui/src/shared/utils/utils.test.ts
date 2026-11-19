@@ -10,20 +10,20 @@ describe('shared UI utility functions', () => {
   it('builds sorted and merged chart series while dropping invalid values', () => {
     expect(buildSingleSeriesData()).toEqual([]);
     expect(buildSingleSeriesData([
-      { timestamp: '2026-01-02T00:00:00Z', value: 2 },
+      { timestamp: '2026-01-02T00:00:00Z', value: 2, gapBefore: true },
       { timestamp: 'bad', value: Number.NaN },
       { timestamp: '2026-01-01T00:00:00Z', value: 1 },
     ])).toEqual([
       { timestamp: '2026-01-01T00:00:00Z', value: 1 },
-      { timestamp: '2026-01-02T00:00:00Z', value: 2 },
+      { timestamp: '2026-01-02T00:00:00Z', value: 2, gapBefore: true },
     ]);
     expect(combineDiskSeries(
-      [{ timestamp: '2026-01-02T00:00:00Z', value: 3 }, { timestamp: '2026-01-01T00:00:00Z', value: 1 }],
-      [{ timestamp: '2026-01-02T00:00:00Z', value: 4 }, { timestamp: '2026-01-03T00:00:00Z', value: 5 }],
+      [{ timestamp: '2026-01-02T00:00:00Z', value: 3, gapBefore: true }, { timestamp: '2026-01-01T00:00:00Z', value: 1 }],
+      [{ timestamp: '2026-01-02T00:00:00Z', value: 4, gapBefore: true }, { timestamp: '2026-01-03T00:00:00Z', value: 5 }],
     )).toEqual([
-      { timestamp: '2026-01-01T00:00:00Z', read: 1, write: 0 },
-      { timestamp: '2026-01-02T00:00:00Z', read: 3, write: 4 },
-      { timestamp: '2026-01-03T00:00:00Z', read: 0, write: 5 },
+      { timestamp: '2026-01-01T00:00:00Z', read: 1 },
+      { timestamp: '2026-01-02T00:00:00Z', read: 3, write: 4, gapBefore: true },
+      { timestamp: '2026-01-03T00:00:00Z', write: 5 },
     ]);
   });
 

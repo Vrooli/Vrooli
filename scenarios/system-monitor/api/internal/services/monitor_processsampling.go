@@ -80,6 +80,7 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time, gpu
 			CPUSecondsReason:     ps.CPUSecondsReason,
 			RSSKB:                ps.RSSKB,
 			SwapKB:               ps.SwapKB,
+			SwapStatus:           ps.SwapStatus,
 			MajorFaultsPerSecond: ps.MajorFaultsPerSecond,
 			MetricsStatus:        ps.MetricsStatus,
 			MetricsReason:        ps.MetricsReason,

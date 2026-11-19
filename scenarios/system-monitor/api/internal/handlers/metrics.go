@@ -132,7 +132,7 @@ func (h *MetricsHandler) GetProcessTimeline(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&metricspb.GetProcessTimelineResponse{
-		Timeline: convert.ProcessTimelineResponseToProto(int(window.Seconds()), owner, top, entries),
+		Timeline: convert.ProcessTimelineResponseToProto(int(window.Seconds()), owner, top, rank, entries),
 	}), nil
 }
 
@@ -168,14 +168,29 @@ func (h *MetricsHandler) GetMetricsTimeline(ctx context.Context, req *connect.Re
 }
 
 // GetDiskDetail handles the typed Connect-RPC disk detail contract.
-func (h *MetricsHandler) GetDiskDetail(ctx context.Context, _ *connect.Request[metricspb.GetDiskDetailRequest]) (*connect.Response[metricspb.GetDiskDetailResponse], error) {
-	detail, err := h.monitorSvc.GetDiskDetail(ctx)
+func (h *MetricsHandler) GetDiskDetail(ctx context.Context, req *connect.Request[metricspb.GetDiskDetailRequest]) (*connect.Response[metricspb.GetDiskDetailResponse], error) {
+	detail, err := h.monitorSvc.GetDiskDetail(ctx, req.Msg.GetMount(), int(req.Msg.GetDepth()), int(req.Msg.GetLimit()), req.Msg.GetIncludeFiles())
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&metricspb.GetDiskDetailResponse{
 		Data: convert.DiskDetailResponseToProto(detail),
 	}), nil
+}
+
+// HandleGetDiskReadActivity runs a bounded, explicit host-wide process I/O
+// observation for the Disk detail's hot-writer inspection.
+func (h *MetricsHandler) HandleGetDiskReadActivity(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	activity, err := h.monitorSvc.GetDiskReadActivity(ctx)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+	if err := httputil.JSON(w, activity); err != nil {
+		h.log.Error("failed to encode process read activity", "error", err, "path", r.URL.Path)
+	}
 }
 
 // HandleGetCurrentMetrics handles GET /api/v1/metrics/current.
@@ -450,23 +465,26 @@ func (h *MetricsHandler) HandleGetProcessMonitor(w http.ResponseWriter, r *http.
 	httputil.SafeProtoJSON(w, h.log, r, convert.ProcessMonitorDataToProto(data))
 }
 
-// processTimelineEntryJSON is the wire shape for one ranked consumer. Plain
-// JSON (not proto) following the forensics/logs precedent in this scenario:
-// the attribution timeline has no cross-scenario clients, so adding ~2 proto
-// messages + a convert layer would be disproportionate. See forensics.go.
+// processTimelineEntryJSON is the wire shape for one ranked consumer. The
+// Connect response exposes the same swap evidence to typed callers.
 type processTimelineEntryJSON struct {
-	Owner       string  `json:"owner"`
-	Comm        string  `json:"comm"`
-	PID         int     `json:"pid,omitempty"`
-	Aggregated  bool    `json:"aggregated"`
-	CPUPct      float64 `json:"cpu_pct"`
-	CPUSeconds  float64 `json:"cpu_seconds"`
-	MaxCPUPct   float64 `json:"max_cpu_pct"`
-	RSSKB       int64   `json:"rss_kb"`
-	GPUVRAMMB   float64 `json:"gpu_vram_mb"`
-	SampleCount int64   `json:"sample_count"`
-	FirstSeen   string  `json:"first_seen,omitempty"`
-	LastSeen    string  `json:"last_seen,omitempty"`
+	Owner               string  `json:"owner"`
+	Comm                string  `json:"comm"`
+	PID                 int     `json:"pid,omitempty"`
+	Aggregated          bool    `json:"aggregated"`
+	CPUPct              float64 `json:"cpu_pct"`
+	CPUSeconds          float64 `json:"cpu_seconds"`
+	MaxCPUPct           float64 `json:"max_cpu_pct"`
+	RSSKB               int64   `json:"rss_kb"`
+	SwapKB              int64   `json:"swap_kb"`
+	SwapMeasuredSamples int64   `json:"swap_measured_samples"`
+	SwapUnknownSamples  int64   `json:"swap_unknown_samples"`
+	GPUVRAMMB           float64 `json:"gpu_vram_mb"`
+	SampleCount         int64   `json:"sample_count"`
+	FirstSeen           string  `json:"first_seen,omitempty"`
+	LastSeen            string  `json:"last_seen,omitempty"`
+	SwapCoverageStart   string  `json:"swap_coverage_start,omitempty"`
+	SwapCoverageEnd     string  `json:"swap_coverage_end,omitempty"`
 }
 
 type processTimelineResponseJSON struct {
@@ -543,7 +561,7 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 	}
 
 	rank := query.Get("rank")
-	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
+	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" && rank != "swap" {
 		rank = "cpu"
 	}
 	var entries []repository.ProcessTimelineEntry
@@ -570,22 +588,31 @@ func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http
 	out := make([]processTimelineEntryJSON, 0, len(entries))
 	for _, e := range entries {
 		row := processTimelineEntryJSON{
-			Owner:       e.Owner,
-			Comm:        e.Comm,
-			PID:         e.PID,
-			Aggregated:  e.Aggregated,
-			CPUPct:      e.CPUPct,
-			CPUSeconds:  e.CPUSeconds,
-			MaxCPUPct:   e.MaxCPUPct,
-			RSSKB:       e.RSSKB,
-			GPUVRAMMB:   e.GPUVRAMMB,
-			SampleCount: e.SampleCount,
+			Owner:               e.Owner,
+			Comm:                e.Comm,
+			PID:                 e.PID,
+			Aggregated:          e.Aggregated,
+			CPUPct:              e.CPUPct,
+			CPUSeconds:          e.CPUSeconds,
+			MaxCPUPct:           e.MaxCPUPct,
+			RSSKB:               e.RSSKB,
+			SwapKB:              e.SwapKB,
+			SwapMeasuredSamples: e.SwapMeasuredSamples,
+			SwapUnknownSamples:  e.SwapUnknownSamples,
+			GPUVRAMMB:           e.GPUVRAMMB,
+			SampleCount:         e.SampleCount,
 		}
 		if !e.FirstSeen.IsZero() {
 			row.FirstSeen = e.FirstSeen.UTC().Format(time.RFC3339)
 		}
 		if !e.LastSeen.IsZero() {
 			row.LastSeen = e.LastSeen.UTC().Format(time.RFC3339)
+		}
+		if !e.SwapCoverageStart.IsZero() {
+			row.SwapCoverageStart = e.SwapCoverageStart.UTC().Format(time.RFC3339)
+		}
+		if !e.SwapCoverageEnd.IsZero() {
+			row.SwapCoverageEnd = e.SwapCoverageEnd.UTC().Format(time.RFC3339)
 		}
 		out = append(out, row)
 	}

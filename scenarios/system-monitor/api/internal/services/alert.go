@@ -187,6 +187,20 @@ func (s *AlertService) NotifyTransition(ctx context.Context, alert *models.Alert
 	if ruleID, ok := alert.Details["rule_id"].(string); ok && ruleID != "" {
 		correlation["rule_id"] = ruleID
 	}
+	// Preserve the attributed workload identity in Notification Hub so the
+	// operator can route a finding to its owner without reverse-parsing prose.
+	owner, _ := alert.Details["owner_id"].(string)
+	if owner == "" {
+		owner, _ = alert.Details["owner"].(string)
+	}
+	if owner != "" && owner != "unknown" {
+		correlation["owner_id"] = owner
+	}
+	for _, field := range []string{"command", "job_id", "operation", "source_alert_id", "source_rule_id"} {
+		if value, ok := alert.Details[field].(string); ok && value != "" {
+			correlation[field] = value
+		}
+	}
 	s.publishNotification(ctx, title, body, category, urgency, alert.ID+":"+string(transition), correlation)
 }
 
@@ -287,7 +301,8 @@ func alertNotificationCategory(alert *models.Alert) string {
 	}
 	switch ruleID {
 	case RuleMetricsSnapshot, RuleCPUUsage, RuleMemoryUsage, RuleTCPConnections,
-		RuleGPUUsage, RuleMemoryPressure, RuleOrphanedAgents:
+		RuleGPUUsage, RuleMemoryPressure, RuleOrphanedAgents, RuleSustainedProcessCPU,
+		RuleGPUCapableWorkOnCPU, RuleUnattendedHeavyJob, RuleOwnerActionAge:
 		return "alert." + ruleID
 	case "storage_writer_hot", "storage_writer_cool":
 		return "alert.storage_writer"

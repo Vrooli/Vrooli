@@ -7,14 +7,15 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "axe-core": "4.10.2",
     "clsx": "^2.1.1",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "lucide-react": "^0.543.0",
     "monaco-editor": "0.56.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.18.0",
+    "react-router-dom": "^7.18.5",
     "react-syntax-highlighter": "^15.6.6",
     "react-window": "^1.8.10",
     "recharts": "^3.2.0",
@@ -40,11 +41,11 @@
     "jsdom": "^28.1.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
-    "vite": "^7.1.2",
-    "vitest": "^4.0.18"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "name": "system-monitor-ui-react",
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
   "pnpm": {
     "overrides": {
       "dompurify": "3.4.17"

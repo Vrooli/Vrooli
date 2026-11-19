@@ -23,6 +23,29 @@ type fakeSnapshotSource struct {
 	pressure *models.MemoryPressure
 }
 
+type fakeProcessSnapshotSource struct{ *fakeSnapshotSource }
+
+func (fakeProcessSnapshotSource) GetProcessTimelineRanked(context.Context, time.Duration, string, int, string) ([]repository.ProcessTimelineEntry, error) {
+	return nil, nil
+}
+
+func TestNewAlertEvaluatorRegistersOwnerProcessRules(t *testing.T) {
+	settings := NewSettingsManager(WithSettingsConfigStore(NewMemoryConfigStore()))
+	repo := memory.NewRepository()
+	source := fakeProcessSnapshotSource{fakeSnapshotSource: &fakeSnapshotSource{}}
+	evaluator := NewAlertEvaluator(settings, source, repo, NewAlertService(&config.Config{}, repo), nil)
+
+	got := make(map[string]bool, len(evaluator.rules))
+	for _, rule := range evaluator.rules {
+		got[rule.ID()] = true
+	}
+	for _, id := range []string{RuleSustainedProcessCPU, RuleGPUCapableWorkOnCPU, RuleOwnerActionAge} {
+		if !got[id] {
+			t.Errorf("default evaluator rules do not include %q", id)
+		}
+	}
+}
+
 func (f *fakeSnapshotSource) GetCurrentMetricsFresh(context.Context) (*models.MetricsResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

@@ -1,173 +1,98 @@
-# Vega (system-monitor scenario)
+# Vega (System Monitor)
 
-## Purpose
-Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a governed, responsive Vrooli Operational Console dashboard.
+Vega is Vrooli's local operations monitor. It brings machine health, metric
+history, investigations, reports, logs, storage analysis and capacity evidence
+into one responsive dashboard. Its records can include private host metrics,
+process details, logs and investigation notes.
 
-## Features
-- **Real-time Metrics**: CPU, memory, disk, network, GPU, process monitoring via 6 pluggable collectors
-- **Threshold-based Anomaly Detection**: Configurable warning/critical thresholds with sustained per-rule investigation policy
-- **AI Investigation**: Automated investigation via agent-manager integration (spawns AI agents)
-- **Investigation Scripts**: A typed catalog of native and explicitly shell-gated investigations (CPU, memory, network, container, process analysis)
-- **Process Monitoring**: Zombie detection, high-thread monitoring, and memory-leak candidates; process termination remains outside the current API contract
-- **Infrastructure Monitoring**: Database pools, HTTP pools, message queues, storage I/O
-- **Automated Reports**: Daily/weekly report generation with executive summaries and trend analysis
-- **Governed UI**: Responsive React dashboard using the vrooli-default / Vrooli Operational Console design system
+## Privacy and deployment
+
+The API has no authentication middleware. Run Vega only in a trusted local or
+private deployment; do not expose its API to a public or untrusted network.
+Metrics and investigation records use the scenario-owned SQLite store by
+default. In-memory storage is a development mode and is not accepted for
+production.
+
+## Open the app
+
+Start and inspect Vega through the scenario lifecycle:
+
+```bash
+make start
+vrooli scenario status system-monitor --json
+system-monitor --help
+```
+
+The lifecycle assigns the API and UI ports. The CLI is manifest-backed and
+offers `overview`, `metrics`, `investigations`, `reports`, `settings`,
+`maintenance` and `capacity` command groups. Use `system-monitor <group>
+--help` for the current command contract.
+
+## Dashboard and routes
+
+The dashboard is designed for desktop and phone. Its main workspaces cover
+alerts and metric cards; machine and collection state; process ownership;
+infrastructure and capacity; investigation history and scripts; reports; and
+settings. The five metric detail routes, logs, forensics, capacity and scripts
+are directly addressable:
+
+| Route | Purpose |
+|---|---|
+| `/` | Dashboard, alerts, machine state and monitoring workspaces |
+| `/metrics/cpu` | CPU history, load and process evidence |
+| `/metrics/memory` | Memory, swap and pressure evidence |
+| `/metrics/network` | Network state and connection detail |
+| `/metrics/disk` | System disk history and read-only mount analysis |
+| `/metrics/gpu` | GPU utilization and device detail |
+| `/forensics` | Boot, hardware-error and persistent-store evidence |
+| `/logs` | Filterable host log records |
+| `/capacity` | Resource findings and policy state |
+| `/scripts` | Read-only investigation catalog and supported scripts |
+
+The dashboard uses HTTP polling. Metric values keep measured, failed,
+unsupported, stale and not-yet-sampled states distinct. Timeline charts preserve
+gaps instead of turning missing observations into zero. Disk usage history
+represents the system-monitored path; a selected mount's directory scan is a
+current snapshot, not a per-mount historical series.
+
+## Investigation and safety boundaries
+
+Vega can create investigation records and use agent-manager where configured.
+Investigation admission, cooldown, selected profile and record status are shown
+separately; a timeout does not mean an investigation was accepted. Script
+execution is gated by the script's declared capabilities. Terminal output is a
+simulated example, not a host shell.
+
+Process termination is not available through Vega's API and remains disabled
+in the UI. Disk analysis is read-only. A remediation action, when supported,
+belongs to its native owner rather than a private host-repair path in Vega.
+Alert delivery and channel routing belong to Notification Hub.
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  UI (React + Vite)          │  CLI (Go)                         │
-│  Port: 36232 (lifecycle)    │  system-monitor (manifest-backed) │
-│  HTTP polling (5s/60s/4s)   │  generated Connect clients         │
-└──────────┬──────────────────┴──────────┬────────────────────────┘
-           │                             │
-           ▼                             ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  API (Go)   Port: dynamic (lifecycle)                            │
-│  Handlers → Services → Repository (in-memory / PostgreSQL)       │
-│  6 Metric Collectors │ Agent-Manager Integration                 │
-│  Settings Manager                                            │
-└──────┬──────┬────────┬──────┬────────┬──────────────────────────┘
-       │      │        │      │        │
-       ▼      ▼        ▼      ▼        ▼
-   Postgres  Redis  Ollama  agent-manager
-```
+- **UI:** React, Vite and TypeScript.
+- **API:** Go with a proto-first Connect contract and a small set of REST
+  exceptions.
+- **Storage:** scenario-owned SQLite by default; development memory mode is
+  non-durable.
+- **CLI:** Go, generated from `cli/manifest.json` and backed by Connect clients.
+- **Related scenario:** agent-manager for configured investigation work.
 
-## Dependencies
+The selected dashboard composition and its preservation boundaries are recorded
+in [`docs/internal/DESIGN-ADOPTION.md`](docs/internal/DESIGN-ADOPTION.md). The
+metric state and timeline contract is in
+[`docs/internal/METRIC_CONTRACT.md`](docs/internal/METRIC_CONTRACT.md).
 
-### Resources (active runtime)
-| Resource | Purpose | Config |
-|----------|---------|--------|
-| PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `api/internal/<domain>/schema.sql` |
-| Redis | Real-time alerts queue, metrics caching, session data | `api/internal/<domain>/redis/redis.conf` |
-| Ollama | AI analysis model (llama3.2:3b) | Pulled during setup |
+## Development
 
-### Scenario Dependencies
-| Scenario | Purpose |
-|----------|---------|
-| agent-manager | Orchestrates AI-driven investigations |
-
-## Components
-
-### API (Go)
-REST API with 40+ endpoints across these groups:
-- **Health**: `/health`, `/api/v1/health`
-- **Metrics**: current, detailed, processes, infrastructure
-- **Investigations**: CRUD, agent spawn/stop/status, cooldown, triggers, scripts
-- **Reports**: generate (daily/weekly), list, get by ID
-- **Settings**: get/update/reset
-- **Maintenance**: state get/set
-- **Agent Config**: config, runners, status
-
-### UI (React + Vite + TypeScript)
-Vrooli Operational Console dashboard with 7 routes:
-| Route | View |
-|-------|------|
-| `/` | Main dashboard with all monitoring panels |
-| `/metrics/cpu` | CPU detail view |
-| `/metrics/memory` | Memory detail view |
-| `/metrics/network` | Network detail view |
-| `/metrics/disk` | Disk detail view |
-| `/metrics/gpu` | GPU detail view |
-| `/scripts` | Investigation script browser and executor |
-
-Key features: MetricsGrid (5-column), sparkline charts (recharts), process monitor with kill dialog, infrastructure monitor, investigation agent management, script editor/executor, report generation panel.
-
-Styling: semantic vrooli-default tokens, responsive layout, 44px interaction targets, and accessible live metric states.
-
-### CLI (Go, manifest-backed)
-Entry point: `system-monitor`
-
-| Command | Description | API Endpoint |
-|---------|-------------|-------------|
-| `health` | Check API health | `GET /health` |
-| `metrics` | Current CPU/memory/TCP metrics | `GET /api/v1/metrics/current` |
-| `status` | System status (HEALTHY/WARNING/CRITICAL/OFFLINE) | `GET /api/v1/metrics/current` |
-| `alerts` | List active alerts based on thresholds | `GET /api/v1/metrics/current` |
-| `investigate` | Fetch latest investigation results | `GET /api/v1/investigations/latest` |
-| `report <type>` | Generate daily/weekly report | `POST /api/v1/reports/generate` (CLI bug: calls `/api/reports/generate`) |
-| `watch` | Live monitoring with ASCII progress bars (2s refresh) | `GET /api/v1/metrics/current` |
-| `dashboard` | Open UI in browser | None (xdg-open) |
-| `simulate` | Simulate CPU anomaly (test endpoint not implemented) | `GET /api/test/anomaly/cpu` |
-| `version` | Show CLI version | None |
-
-Global flags: `--help`, `--version`, `--port <port>`, `--json`, `--quiet`
-
-## Investigations
-
-30 investigation scripts in `investigations/active/` covering:
-- **CPU**: high-cpu-analysis, go-busy-loop-detector, cpu-usage-comprehensive
-- **Memory**: memory-leak-detector, swap-memory-pressure-analyzer, swap-heavy-processes
-- **Process**: enhanced-zombie-analyzer, container-zombie-analyzer, process-genealogy
-- **Container**: container-resource-optimizer, container-health-comprehensive, docker-health-analyzer
-- **Network**: network-anomaly-detector, service-health-monitor
-- **System**: comprehensive-system-analyzer, resource-exhaustion-detector, master-system-sweep
-- **Service-specific**: chrome-cpu-analyzer
-
-Sustained critical conditions can start their associated native investigation.
-Detection thresholds, sustain durations, and per-rule investigation switches are
-managed in System Settings. Alert delivery channels and routing are managed by
-Notification Hub. The retired `investigation-triggers.json` file is no longer
-read or written.
-
-## Usage
 ```bash
-# Start (preferred)
-cd scenarios/system-monitor && make start
-
-# Alternative
-vrooli scenario start system-monitor
-
-# CLI
-system-monitor health
-system-monitor metrics current --json
-system-monitor status
-system-monitor alerts
-system-monitor investigate
-system-monitor report daily
-system-monitor watch
-system-monitor dashboard
-
-# Other Makefile targets
-make test      # Run tests via test-genie
-make logs      # View logs
-make stop      # Stop scenario
-make build     # Build API + UI
-make fmt       # Format Go code
-make lint      # Lint Go code
-make check     # Full quality gates (fmt + lint + test)
+make start
+make status
+make logs
+make test
+make stop
 ```
 
-## Configuration
-
-### Environment Variables (`.env`)
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_PORT` | 8080 | API server port |
-| `UI_PORT` | 3003 | UI dashboard port |
-| `DATABASE_URL` | postgres://vrooli@localhost:5433/... | PostgreSQL connection |
-| `REDIS_URL` | redis://localhost:6380 | Redis connection |
-| `ENABLE_CLAUDE_INVESTIGATIONS` | true | Enable AI investigations |
-| `CPU_WARNING_THRESHOLD` | 70 | CPU warning % |
-| `CPU_CRITICAL_THRESHOLD` | 90 | CPU critical % |
-| `MEMORY_WARNING_THRESHOLD` | 80 | Memory warning % |
-| `MEMORY_CRITICAL_THRESHOLD` | 95 | Memory critical % |
-
-See `.env` for full configuration including logging, health checks, and agent-manager settings.
-
-## Integration Points
-Other scenarios can leverage system-monitor for:
-- Real-time system metrics (via API endpoints)
-- Anomaly detection and investigation (via investigation triggers)
-- System health checks (via `/health` endpoint)
-- Process monitoring and health insight
-- Infrastructure monitoring (database pools, queues, storage)
-
-## Known Limitations
-- **No WebSocket**: UI uses HTTP polling (5s current+detailed metrics, 60s process/infrastructure/investigations, 4s agent status when active), not real-time streaming
-- **No Authentication**: API endpoints have no auth middleware
-- **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
-- **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
-- **Disk remediation boundary**: Disk detail is read-only; bounded recovery routes through storage-manager rather than system-monitor deletion paths
-- **UI coverage**: The full production-source denominator remains below the platform's 85% unit policy and is tracked as an open quality gap
+Use `make test` for the scenario-owned Test Genie suite. Do not start the API
+binary or Vite server directly; lifecycle commands own process names, ports and
+health checks.

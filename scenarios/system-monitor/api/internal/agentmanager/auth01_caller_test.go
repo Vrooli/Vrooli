@@ -9,8 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/owneridentity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 type auth01FixtureVerifier struct{}
@@ -28,18 +31,30 @@ func auth01FixtureCaller(t *testing.T, ctx context.Context) context.Context {
 	return out
 }
 
+type auth01AgentManagerConnect struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	t *testing.T
+}
+
+func (h auth01AgentManagerConnect) CreateRun(_ context.Context, req *connect.Request[apipb.CreateRunRequest]) (*connect.Response[apipb.CreateRunResponse], error) {
+	h.t.Helper()
+	if req.Header().Get("Authorization") != "Bearer fixture-owner" || req.Header().Get("X-Agent-Identity-Token") != "" {
+		h.t.Error("Connect create-run lost or replaced caller proof")
+	}
+	if strings.Contains(req.Msg.String(), "fixture-owner") {
+		h.t.Error("caller proof persisted in protobuf request")
+	}
+	return connect.NewResponse(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "fixture-run"}}), nil
+}
+
 func TestAuth01CallerTransportPositiveAndZeroEffect(t *testing.T) {
 	calls := 0
+	path, handler := apiconnect.NewAgentManagerServiceHandler(auth01AgentManagerConnect{t: t})
+	router := http.NewServeMux()
+	router.Handle(path, handler)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		if r.Header.Get("Authorization") != "Bearer fixture-owner" || r.Header.Get("X-Agent-Identity-Token") != "" {
-			t.Error("proof lost or replaced")
-		}
-		body, _ := io.ReadAll(r.Body)
-		if strings.Contains(string(body), "fixture-owner") {
-			t.Error("proof persisted")
-		}
-		_, _ = io.WriteString(w, `{"run":{"id":"fixture-run"}}`)
+		router.ServeHTTP(w, r)
 	}))
 	defer server.Close()
 	c := &Client{httpClient: server.Client(), baseURLResolver: func(context.Context) (string, error) { return server.URL, nil }}

@@ -6,6 +6,7 @@ import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { CollapsibleSection } from '../../../shared/components/CollapsibleSection';
 import { useInvestigationsSectionState } from '../hooks/useInvestigationsSectionState';
 import type { Investigation, InvestigationScript, InvestigationAgentState } from '../../../types';
+import type { UnknownSpawnOutcome } from '../hooks/useInvestigationAgents';
 
 interface InvestigationsSectionProps {
   investigations: Investigation[];
@@ -14,6 +15,10 @@ interface InvestigationsSectionProps {
   agents: InvestigationAgentState[];
   isSpawningAgent: boolean;
   spawnAgentError?: string | null;
+  incidentNote?: string | null;
+  unknownSpawnOutcome?: UnknownSpawnOutcome | null;
+  onRefreshSpawnStatus?: () => void;
+  onRetryUnknownSpawn?: () => void;
 }
 
 export const InvestigationsSection = ({
@@ -22,7 +27,11 @@ export const InvestigationsSection = ({
   onSpawnAgent,
   agents,
   isSpawningAgent,
-  spawnAgentError
+  spawnAgentError,
+  incidentNote,
+  unknownSpawnOutcome,
+  onRefreshSpawnStatus,
+  onRetryUnknownSpawn,
 }: InvestigationsSectionProps) => {
   const navigate = useNavigate();
   const {
@@ -38,6 +47,7 @@ export const InvestigationsSection = ({
     showNoteField,
     setShowNoteField,
     combinedSpawnError,
+    unknownSpawnOutcome: spawnOutcome,
     activeAgentSummary,
     handleSpawnAgent,
   } = useInvestigationsSectionState({
@@ -45,6 +55,8 @@ export const InvestigationsSection = ({
     agents,
     spawnAgentError,
     onSpawnAgent,
+    incidentNote,
+    unknownSpawnOutcome,
   });
 
   const statusBadgeClass = activeAgentSummary.tone === 'error'
@@ -81,6 +93,7 @@ export const InvestigationsSection = ({
                   checked={autoFixEnabled}
                   onChange={() => { setAutoFixEnabled(!autoFixEnabled); }}
                   size="sm"
+                  disabled={Boolean(spawnOutcome) || isSpawningAgent}
                 />
                 Auto-fix
               </label>
@@ -89,6 +102,7 @@ export const InvestigationsSection = ({
                 className="btn-icon"
                 onClick={() => { setShowNoteField(!showNoteField); }}
                 title="Add note for agent context"
+                disabled={Boolean(spawnOutcome) || isSpawningAgent}
               >
                 <MessageCircle size={16} />
               </button>
@@ -96,10 +110,10 @@ export const InvestigationsSection = ({
               <button
                 className="btn btn-primary text-xs"
                 onClick={() => { void handleSpawnAgent(); }}
-                disabled={isSpawningAgent}
+                disabled={isSpawningAgent || Boolean(spawnOutcome)}
               >
                 <Play size={14} className={isSpawningAgent ? 'animate-spin' : ''} />
-                {isSpawningAgent ? 'Spawning...' : 'Spawn Agent'}
+                {isSpawningAgent ? 'Sending request…' : spawnOutcome ? 'Request needs receipt' : 'Spawn Agent'}
               </button>
             </div>
           </div>
@@ -109,6 +123,30 @@ export const InvestigationsSection = ({
               {combinedSpawnError}
             </div>
           )}
+
+          {spawnOutcome && (
+            <div className="card" role="alert" aria-label="Investigation request needs review">
+              <h4 className="section-heading">Investigation request needs a receipt</h4>
+              <p>The response was not received, so the request may or may not have been accepted. Saved request key: <code>{spawnOutcome.requestId}</code>.</p>
+              {spawnOutcome.message && <p role="status">Latest request result: {spawnOutcome.message}</p>}
+              <p>Retrying uses this same key and the original settings. The System Monitor service returns the original investigation if it already accepted the request, instead of starting a second run.</p>
+              {spawnOutcome.readback === 'checking' && <p role="status">Checking current agent status…</p>}
+              {spawnOutcome.readback === 'failed' && <p>Current agent status could not be read: {spawnOutcome.readbackError}</p>}
+              {spawnOutcome.readback === 'ready' && (spawnOutcome.currentAgent
+                ? <p>Current active agent status: {spawnOutcome.currentAgent.status || 'active'}. Its presence does not prove it is this request.</p>
+                : <p>No active agent was reported at this check. This does not prove whether this request was accepted or is waiting.</p>)}
+              <div className="flex-row-center gap-sm">
+                <button type="button" className="btn btn-action" onClick={onRefreshSpawnStatus} disabled={isSpawningAgent || !onRefreshSpawnStatus}>
+                  Refresh current agent status
+                </button>
+                <button type="button" className="btn btn-primary" onClick={onRetryUnknownSpawn} disabled={isSpawningAgent || !onRetryUnknownSpawn}>
+                  Retry same request safely
+                </button>
+              </div>
+            </div>
+          )}
+
+          {autoFixEnabled && <p className="text-sm text-warning" role="status">Auto-fix allows the agent to apply changes. Leave it off for a read-only investigation.</p>}
 
           {showNoteField && (
             <div className="flex-col-gap-sm" data-sm-style="sm-style-9ed1054ccd">
@@ -124,6 +162,7 @@ export const InvestigationsSection = ({
                 onChange={(event) => { setAgentNote(event.target.value); }}
                 rows={3}
                 className="agent-note-textarea"
+                disabled={Boolean(spawnOutcome) || isSpawningAgent}
               />
             </div>
           )}

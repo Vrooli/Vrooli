@@ -47,8 +47,8 @@ func TestProcessTimeline_RanksByCPUAcrossRawRows(t *testing.T) {
 	base := time.Now().UTC().Truncate(time.Second)
 
 	samples := []repository.ProcessSample{
-		{Timestamp: base, PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 80, RSSKB: 1000, Threads: 4},
-		{Timestamp: base.Add(time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 120, RSSKB: 1200, Threads: 4},
+		{Timestamp: base, PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 80, RSSKB: 1000, SwapKB: 200, SwapStatus: "measured", Threads: 4},
+		{Timestamp: base.Add(time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 120, RSSKB: 1200, SwapKB: 400, SwapStatus: "measured", Threads: 4},
 		{Timestamp: base, PID: 2, Comm: "node", Owner: "web-console", CPUPct: 10, RSSKB: 5000, Threads: 8},
 	}
 	if err := repo.SaveProcessSamples(ctx, samples); err != nil {
@@ -76,6 +76,9 @@ func TestProcessTimeline_RanksByCPUAcrossRawRows(t *testing.T) {
 	}
 	if entries[0].RSSKB != 1100 {
 		t.Fatalf("rss = %d, want average 1100", entries[0].RSSKB)
+	}
+	if entries[0].SwapKB != 300 {
+		t.Fatalf("swap = %d, want average 300", entries[0].SwapKB)
 	}
 }
 
@@ -109,8 +112,8 @@ func TestRollupProcessSamples_AggregatesAndPrunesRaw(t *testing.T) {
 	// Two raw rows in the same minute for the same owner+comm.
 	minute := time.Date(2026, 6, 24, 10, 30, 0, 0, time.UTC)
 	_ = repo.SaveProcessSamples(ctx, []repository.ProcessSample{
-		{Timestamp: minute.Add(5 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 60, RSSKB: 100},
-		{Timestamp: minute.Add(40 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 100, RSSKB: 300},
+		{Timestamp: minute.Add(5 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 60, RSSKB: 100, SwapKB: 50, SwapStatus: "measured", GPUVRAMMB: 40},
+		{Timestamp: minute.Add(40 * time.Second), PID: 1, Comm: "osv-scanner", Owner: "security-health", CPUPct: 100, RSSKB: 300, SwapKB: 150, SwapStatus: "measured", GPUVRAMMB: 80},
 	})
 
 	res, err := repo.RollupProcessSamples(ctx, time.Time{}, minute.Add(2*time.Minute))
@@ -144,6 +147,45 @@ func TestRollupProcessSamples_AggregatesAndPrunesRaw(t *testing.T) {
 	}
 	if e.RSSKB != 200 {
 		t.Fatalf("rollup average rss = %d, want 200", e.RSSKB)
+	}
+	if e.SwapKB != 100 {
+		t.Fatalf("rollup average swap = %d, want 100", e.SwapKB)
+	}
+	if e.GPUVRAMMB != 80 {
+		t.Fatalf("rollup max GPU VRAM = %.1f, want 80", e.GPUVRAMMB)
+	}
+}
+
+func TestProcessTimelineIncludesOnlyFullyContainedRollupMinutes(t *testing.T) {
+	repo, err := NewInMemoryRepository()
+	if err != nil {
+		t.Fatalf("repo: %v", err)
+	}
+	defer repo.Close()
+	ctx := context.Background()
+	start := time.Date(2026, 11, 12, 22, 22, 0, 0, time.UTC)
+	var samples []repository.ProcessSample
+	for minute := start; minute.Before(start.Add(3 * time.Minute)); minute = minute.Add(time.Minute) {
+		for _, offset := range []time.Duration{10 * time.Second, 40 * time.Second} {
+			samples = append(samples, repository.ProcessSample{
+				Timestamp: minute.Add(offset), PID: 7, Owner: "image-tools", Comm: "sd-cli", CPUPct: 100,
+			})
+		}
+	}
+	if err := repo.SaveProcessSamples(ctx, samples); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	if _, err := repo.RollupProcessSamples(ctx, start, start.Add(3*time.Minute)); err != nil {
+		t.Fatalf("rollup: %v", err)
+	}
+	entries, err := repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
+		Start: start.Add(10 * time.Second), End: start.Add(2*time.Minute + 10*time.Second), Top: 10, Rank: "cpu_seconds",
+	})
+	if err != nil {
+		t.Fatalf("query timeline: %v", err)
+	}
+	if len(entries) != 1 || entries[0].SampleCount != 2 || !entries[0].FirstSeen.Equal(start.Add(time.Minute)) || !entries[0].LastSeen.Equal(start.Add(2*time.Minute)) {
+		t.Fatalf("timeline = %+v, want only the fully contained middle-minute rollup", entries)
 	}
 }
 

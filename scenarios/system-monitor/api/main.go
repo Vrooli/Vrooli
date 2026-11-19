@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"github.com/vrooli/api-core/preflight"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
@@ -14,6 +16,7 @@ import (
 )
 
 func main() {
+	eventpublishing.Register()
 	// preflight.Run performs the staleness/rebuild check and the lifecycle
 	// guard (direct execution outside `vrooli scenario start` is rejected).
 	if preflight.Run(preflight.Config{

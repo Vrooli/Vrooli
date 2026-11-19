@@ -83,11 +83,19 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		alerts = []*models.Alert{}
 	}
 
+	ownerResources, ownerResourceErr := s.ownerResourceReport(ctx, timeRange)
+	if ownerResourceErr != nil {
+		warnings = append(warnings, fmt.Sprintf("Owner resource data unavailable: %v", ownerResourceErr))
+	}
+
 	// Analyze the data
 	executiveSummary := s.generateExecutiveSummary(historicalMetrics, investigations, alerts, reportType)
 	performanceAnalysis := s.analyzePerformance(historicalMetrics, timeRange)
 	trends := s.analyzeTrends(historicalMetrics)
 	recommendations := s.generateRecommendations(performanceAnalysis, trends, alerts)
+	if ownerResourceErr == nil {
+		recommendations = append(recommendations, ownerResourceFollowUps(ownerResources)...)
+	}
 	highlights := s.generateHighlights(historicalMetrics, investigations, alerts, reportType)
 
 	// Calculate actual duration and date range display
@@ -113,6 +121,7 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		AlertsCount:         len(alerts),
 		InvestigationsCount: len(investigations),
 		Warnings:            warnings,
+		OwnerResources:      ownerResources,
 	}
 
 	// Store the report
@@ -121,6 +130,131 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		return nil, apierrors.Internal("Report was generated but could not be saved", err)
 	}
 
+	return report, nil
+}
+
+// ownerResourceFollowUps turns incomplete accounting into bounded, runnable
+// next steps. It deliberately does not describe sampled process sums as host
+// swap or reclaimed bytes.
+func ownerResourceFollowUps(report models.OwnerResourceReport) []string {
+	if report.SwapCoverageComplete && report.AttributionComplete {
+		return nil
+	}
+	actions := make([]string, 0, 2)
+	if !report.SwapCoverageComplete {
+		actions = append(actions, fmt.Sprintf(
+			"Swap coverage is partial (%d measured samples, %d unknown). These process-group readings are not a host-wide swap total. Collect a fresh 15-minute window with `system-monitor metrics process-timeline --window 15m --rank swap --top 100`; preserve the measured/unknown counts and compare the coverage timestamps before making reclaim decisions.",
+			report.SwapMeasuredSamples, report.SwapUnknownSamples,
+		))
+	}
+	if !report.AttributionComplete {
+		unknownGroups := 0
+		for _, owner := range report.Owners {
+			if owner.Owner == "unknown" {
+				unknownGroups = owner.ProcessGroups
+				break
+			}
+		}
+		actions = append(actions, fmt.Sprintf(
+			"Owner attribution is incomplete across this retained report window (%d unknown process groups). Historical samples keep the owner label captured at collection time and may predate current host-identity rules. Inspect a fresh tail with `system-monitor metrics process-timeline --window 15m --owner unknown --rank swap --top 100`; repair the resolver only if current user, app, service, or agent processes still appear unknown. Preserve legacy rows and do not assign their bytes to a scenario by inference.",
+			unknownGroups,
+		))
+	}
+	return actions
+}
+
+const ownerResourceReportTop = repository.MaxProcessTimelineGroups
+
+// Process sampling is configured at 20 seconds by default. Two minutes allows
+// a few delayed cycles while still exposing a truncated weekly history.
+const ownerResourceCoverageEdgeTolerance = 2 * time.Minute
+
+func (s *ReportService) ownerResourceReport(ctx context.Context, timeRange repository.TimeRange) (models.OwnerResourceReport, error) {
+	report := models.OwnerResourceReport{
+		WindowStart: timeRange.StartTime,
+		WindowEnd:   timeRange.EndTime,
+		Owners:      []models.OwnerResourceSummary{},
+	}
+	entries, err := s.repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
+		Start: timeRange.StartTime,
+		End:   timeRange.EndTime.Add(time.Nanosecond),
+		Top:   ownerResourceReportTop,
+		Rank:  "swap",
+	})
+	if err != nil {
+		return report, err
+	}
+	report.ReturnedProcessGroups = len(entries)
+	if len(entries) > 0 {
+		report.SampleCoverageStart = entries[0].FirstSeen
+		report.SampleCoverageEnd = entries[0].LastSeen
+		for _, entry := range entries[1:] {
+			if !entry.FirstSeen.IsZero() && (report.SampleCoverageStart.IsZero() || entry.FirstSeen.Before(report.SampleCoverageStart)) {
+				report.SampleCoverageStart = entry.FirstSeen
+			}
+			if entry.LastSeen.After(report.SampleCoverageEnd) {
+				report.SampleCoverageEnd = entry.LastSeen
+			}
+		}
+	}
+	coverageComplete := !report.SampleCoverageStart.IsZero() && !report.SampleCoverageEnd.IsZero() &&
+		!report.SampleCoverageStart.After(timeRange.StartTime.Add(ownerResourceCoverageEdgeTolerance)) &&
+		!report.SampleCoverageEnd.Before(timeRange.EndTime.Add(-ownerResourceCoverageEdgeTolerance))
+	report.Complete = len(entries) > 0 && len(entries) < ownerResourceReportTop && coverageComplete
+	report.AttributionComplete = len(entries) > 0
+	report.SwapCoverageComplete = len(entries) > 0
+	byOwner := make(map[string]*models.OwnerResourceSummary)
+	for _, entry := range entries {
+		owner := entry.Owner
+		if owner == "" {
+			owner = "unknown"
+		}
+		if owner == "unknown" {
+			report.AttributionComplete = false
+		}
+		summary := byOwner[owner]
+		if summary == nil {
+			summary = &models.OwnerResourceSummary{Owner: owner}
+			byOwner[owner] = summary
+		}
+		summary.ProcessGroups++
+		summary.Samples += entry.SampleCount
+		summary.SwapMeasuredSamples += entry.SwapMeasuredSamples
+		summary.SwapUnknownSamples += entry.SwapUnknownSamples
+		summary.CoreHours += entry.CPUSeconds / 3600
+		summary.MeanRSSGiBProcessSum += float64(entry.RSSKB) / 1024 / 1024
+		summary.MeanSwapGiBProcessSum += float64(entry.SwapKB) / 1024 / 1024
+		report.SwapMeasuredSamples += entry.SwapMeasuredSamples
+		report.SwapUnknownSamples += entry.SwapUnknownSamples
+		if entry.SwapMeasuredSamples > 0 {
+			if report.SwapCoverageStart.IsZero() || entry.SwapCoverageStart.Before(report.SwapCoverageStart) {
+				report.SwapCoverageStart = entry.SwapCoverageStart
+			}
+			if entry.SwapCoverageEnd.After(report.SwapCoverageEnd) {
+				report.SwapCoverageEnd = entry.SwapCoverageEnd
+			}
+		}
+		if entry.SwapUnknownSamples > 0 || entry.SwapMeasuredSamples == 0 {
+			report.SwapCoverageComplete = false
+		}
+		vramGiB := entry.GPUVRAMMB / 1024
+		if vramGiB > summary.PeakSingleProcessVRAMGiB {
+			summary.PeakSingleProcessVRAMGiB = vramGiB
+		}
+	}
+	for _, summary := range byOwner {
+		report.Owners = append(report.Owners, *summary)
+	}
+	report.SwapCoverageComplete = report.SwapCoverageComplete && report.SwapMeasuredSamples > 0 &&
+		!report.SwapCoverageStart.IsZero() && !report.SwapCoverageEnd.IsZero() &&
+		!report.SwapCoverageStart.After(timeRange.StartTime.Add(ownerResourceCoverageEdgeTolerance)) &&
+		!report.SwapCoverageEnd.Before(timeRange.EndTime.Add(-ownerResourceCoverageEdgeTolerance))
+	sort.Slice(report.Owners, func(i, j int) bool {
+		if report.Owners[i].CoreHours != report.Owners[j].CoreHours {
+			return report.Owners[i].CoreHours > report.Owners[j].CoreHours
+		}
+		return report.Owners[i].Owner < report.Owners[j].Owner
+	})
 	return report, nil
 }
 

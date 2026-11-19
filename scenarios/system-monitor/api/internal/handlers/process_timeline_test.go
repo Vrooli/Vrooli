@@ -74,6 +74,31 @@ func TestGetProcessTimelineAcceptsRSSRank(t *testing.T) {
 	}
 }
 
+func TestGetProcessTimelineSwapRankReturnsSwapCoverageEvidence(t *testing.T) {
+	now := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
+	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline([]repository.ProcessTimelineEntry{{
+		Owner: "unknown", Comm: "worker", PID: 42, SwapKB: 2048,
+		SwapMeasuredSamples: 4, SwapUnknownSamples: 1,
+		SwapCoverageStart: now, SwapCoverageEnd: now.Add(time.Minute),
+	}})
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+	w := httptest.NewRecorder()
+	handler.HandleGetProcessTimeline(w, httptest.NewRequest(http.MethodGet, "/api/v1/forensics/processes?rank=swap", nil))
+	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
+	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
+	if body["rank"] != "swap" {
+		t.Fatalf("rank = %v, want swap", body["rank"])
+	}
+	entries := body["entries"].([]interface{})
+	entry := entries[0].(map[string]interface{})
+	if entry["swap_kb"].(float64) != 2048 || entry["swap_measured_samples"].(float64) != 4 || entry["swap_unknown_samples"].(float64) != 1 {
+		t.Fatalf("swap evidence = %+v", entry)
+	}
+	if entry["swap_coverage_start"] == nil || entry["swap_coverage_end"] == nil {
+		t.Fatalf("swap coverage timestamps missing: %+v", entry)
+	}
+}
+
 func TestGetProcessTimeline_BareSecondsWindow(t *testing.T) {
 	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline(nil)
 	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
@@ -205,6 +230,7 @@ func TestGetProcessTimelineConnect_RankedWindow(t *testing.T) {
 		WindowSeconds: ptrInt32(300),
 		Owner:         "security-health",
 		Top:           ptrInt32(10),
+		Rank:          "swap",
 	}))
 	if err != nil {
 		t.Fatalf("GetProcessTimeline returned error: %v", err)
@@ -216,6 +242,9 @@ func TestGetProcessTimelineConnect_RankedWindow(t *testing.T) {
 	}
 	if timeline.GetOwner() != "security-health" {
 		t.Fatalf("owner = %q, want security-health", timeline.GetOwner())
+	}
+	if timeline.GetRank() != "swap" {
+		t.Fatalf("rank = %q, want swap", timeline.GetRank())
 	}
 	if timeline.GetCount() != 1 {
 		t.Fatalf("count = %d, want 1", timeline.GetCount())

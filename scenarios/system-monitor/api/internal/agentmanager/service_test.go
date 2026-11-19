@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scenario"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -43,7 +44,10 @@ type fakeAgentManager struct {
 func newFakeAgentManager(t *testing.T) *fakeAgentManager {
 	t.Helper()
 	f := &fakeAgentManager{t: t, routes: map[string]func(http.ResponseWriter, fakeRequest){}}
-	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	path, connectHandler := apiconnect.NewAgentManagerServiceHandler(fakeAgentManagerConnect{fake: f})
+	router := http.NewServeMux()
+	router.Handle(path, connectHandler)
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		req := fakeRequest{Method: r.Method, Path: r.URL.Path, Query: r.URL.RawQuery, Auth: r.Header.Get("Authorization"), Body: body}
 		f.mu.Lock()
@@ -56,7 +60,8 @@ func newFakeAgentManager(t *testing.T) *fakeAgentManager {
 			return
 		}
 		handler(w, req)
-	}))
+	})
+	f.server = httptest.NewServer(router)
 	t.Cleanup(f.server.Close)
 	return f
 }

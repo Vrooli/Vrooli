@@ -188,6 +188,75 @@ func TestNotifyTransitionPublishesNotificationHubContract(t *testing.T) {
 	}
 }
 
+func TestNotifyTransitionCarriesOwnerIdentityForOwnerRoutedAlerts(t *testing.T) {
+	publisher := &recordingDomainPublisher{}
+	svc := NewAlertService(&config.Config{}, memory.NewRepository(), WithAlertEventPublisher(publisher))
+	alert := &models.Alert{
+		ID: "cond_gpu_cpu_image-tools_sd-cli_1", Type: ConditionAlertType, Severity: SeverityCritical,
+		MetricName: RuleGPUCapableWorkOnCPU, Message: "Stable Diffusion is using CPU while GPU is available.",
+		Details: map[string]interface{}{"rule_id": RuleGPUCapableWorkOnCPU, "owner": "image-tools", "command": "sd-cli"},
+	}
+	svc.NotifyTransition(context.Background(), alert, AlertTransitionOpened)
+	if len(publisher.events) != 1 {
+		t.Fatalf("published events = %d, want 1", len(publisher.events))
+	}
+	payload := publisher.events[0].Payload
+	if payload["category"] != "alert.gpu_capable_work_on_cpu" {
+		t.Fatalf("category = %v", payload["category"])
+	}
+	correlation, ok := payload["correlation"].(map[string]string)
+	if !ok || correlation["owner_id"] != "image-tools" || correlation["command"] != "sd-cli" {
+		t.Fatalf("owner routing correlation = %#v", payload["correlation"])
+	}
+}
+
+func TestNotifyTransitionRoutesUnattendedHeavyJobToOwner(t *testing.T) {
+	publisher := &recordingDomainPublisher{}
+	svc := NewAlertService(&config.Config{}, memory.NewRepository(), WithAlertEventPublisher(publisher))
+	alert := &models.Alert{
+		ID: "cond_unattended_image-tools_job-17_1", Type: ConditionAlertType, Severity: SeverityWarning,
+		MetricName: RuleUnattendedHeavyJob, Message: "Heavy image-tools job has no live waiter.",
+		Details: map[string]interface{}{"rule_id": RuleUnattendedHeavyJob, "owner_id": "image-tools", "job_id": "job-17", "operation": "text_to_image", "report_only": true},
+	}
+	svc.NotifyTransition(context.Background(), alert, AlertTransitionOpened)
+	if len(publisher.events) != 1 {
+		t.Fatalf("published events = %d, want 1", len(publisher.events))
+	}
+	payload := publisher.events[0].Payload
+	if payload["category"] != "alert.unattended_heavy_job" {
+		t.Fatalf("category = %v", payload["category"])
+	}
+	correlation, ok := payload["correlation"].(map[string]string)
+	if !ok || correlation["owner_id"] != "image-tools" || correlation["job_id"] != "job-17" || correlation["operation"] != "text_to_image" {
+		t.Fatalf("heavy-job routing correlation = %#v", payload["correlation"])
+	}
+}
+
+func TestNotifyTransitionRoutesOverdueOwnerActionWithSourceAlert(t *testing.T) {
+	publisher := &recordingDomainPublisher{}
+	svc := NewAlertService(&config.Config{}, memory.NewRepository(), WithAlertEventPublisher(publisher))
+	alert := &models.Alert{
+		ID: "cond_owner_action_image-tools_cpu-alert_1", Type: ConditionAlertType, Severity: SeverityWarning,
+		MetricName: RuleOwnerActionAge, Message: "Owner action response window elapsed.",
+		Details: map[string]interface{}{
+			"rule_id": RuleOwnerActionAge, "owner_id": "image-tools", "source_alert_id": "cpu-alert",
+			"source_rule_id": RuleSustainedProcessCPU, "report_only": true,
+		},
+	}
+	svc.NotifyTransition(context.Background(), alert, AlertTransitionOpened)
+	if len(publisher.events) != 1 {
+		t.Fatalf("published events = %d, want 1", len(publisher.events))
+	}
+	payload := publisher.events[0].Payload
+	if payload["category"] != "alert.owner_action_age" {
+		t.Fatalf("category = %v", payload["category"])
+	}
+	correlation, ok := payload["correlation"].(map[string]string)
+	if !ok || correlation["owner_id"] != "image-tools" || correlation["source_alert_id"] != "cpu-alert" {
+		t.Fatalf("owner/source correlation = %#v", payload["correlation"])
+	}
+}
+
 func TestNotifyTransitionDoesNothingWithoutPublisher(t *testing.T) {
 	service := NewAlertService(&config.Config{}, memory.NewRepository())
 	service.NotifyTransition(context.Background(), &models.Alert{ID: "a", MetricName: RuleCPUUsage}, AlertTransitionOpened)

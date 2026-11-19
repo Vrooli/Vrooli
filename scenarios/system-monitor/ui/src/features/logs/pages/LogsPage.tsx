@@ -5,9 +5,10 @@ import { LogTable } from '../components/LogTable';
 import { PriorityBadge } from '../components/PriorityBadge';
 import { RefreshControl } from '../components/RefreshControl';
 import { useLogQuery } from '../hooks/useLogQuery';
-import type { LogQueryState } from '../hooks/logQueryReducer';
+import { initialState, type LogQueryState } from '../hooks/logQueryReducer';
+import { filtersFromLogUrl, logUrlWithFilters } from '../urlState';
 import { useLogStream } from '../hooks/useLogStream';
-import type { BootRecord, LogEntry } from '../types';
+import { emptyFilters, type BootRecord, type LogEntry } from '../types';
 import { useTimeRange } from '../../../shared/time/TimeRangeContext';
 import '../logs.css';
 
@@ -36,9 +37,15 @@ export const clearLogsRouteSnapshot = () => { routeSnapshot = undefined; };
 export const LogsPage = () => {
   const { range, paused: globalPaused } = useTimeRange();
   const [restored] = useState(() => routeSnapshot?.range.since === range.since && routeSnapshot.range.until === range.until ? routeSnapshot : undefined);
+  const [urlQuery] = useState<LogQueryState>(() => ({
+    ...initialState,
+    filters: routeSnapshot && !restored
+      ? { ...emptyFilters, since: range.since, until: range.until }
+      : filtersFromLogUrl(window.location.search),
+  }));
   const [rangeReset] = useState(() => !!routeSnapshot && !restored);
   const [previousPause] = useState(() => routeSnapshot?.paused ?? false);
-  const query = useLogQuery(range, restored?.query);
+  const query = useLogQuery(range, restored?.query ?? urlQuery, !!restored?.query);
   const [units, setUnits] = useState<string[]>([]);
   const [boots, setBoots] = useState<BootRecord[]>([]);
   const [selected, setSelected] = useState<LogEntry | null>(restored?.selected ?? null);
@@ -144,6 +151,11 @@ export const LogsPage = () => {
   }, [globalPaused, cancel, atTop, stream.paused, query.refreshBackground]);
 
   const { filters, cursorStack, currentCursor, nextCursor, entries, isLoading, error, available, reason, loadedPage, retryFilters, retryCursorStack } = query;
+  useEffect(() => {
+    const target = logUrlWithFilters(window.location.pathname, window.location.search, filters);
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (target !== current) window.history.replaceState(window.history.state, '', target);
+  }, [filters]);
   snapshotRef.current = { range: { since: range.since, until: range.until }, query: { filters, cursorStack, currentCursor, nextCursor, entries, isLoading, error, available, reason, loadedPage, retryFilters, retryCursorStack }, selected, paused: stream.paused, atTop, readerOpen, pageScroll: pageScroll.current, readerListScroll: listScroll.current, tableScroll: tableScroll.current };
   useEffect(() => () => {
     if (snapshotRef.current) routeSnapshot = { ...snapshotRef.current, pageScroll: pageScroll.current, readerListScroll: listScroll.current, tableScroll: tableScroll.current };

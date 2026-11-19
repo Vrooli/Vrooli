@@ -101,7 +101,10 @@ describe('Header mobile navigation', () => {
 
     // The trigger names the subject without being opened; a reader must never
     // have to open a menu to learn which machine they are looking at.
-    expect(screen.getByTestId('machine-picker')).toHaveTextContent('Mac mini');
+    const machinePicker = screen.getByTestId('machine-picker');
+    expect(machinePicker).toHaveTextContent('Mac mini');
+    expect(machinePicker.closest('.app-header-machine')).toBeInTheDocument();
+    expect(machinePicker.closest('#vega-shell-controls')).toBeNull();
     expect(screen.getByText('Agent and collection controls are local to this computer')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Settings are local to this computer' })).toBeDisabled();
     expect(screen.getByRole('link', { name: 'Logs' })).toHaveAttribute('href', '/logs?machine=mac-node');

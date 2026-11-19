@@ -74,6 +74,7 @@ type ProcessSample struct {
 	CPUSecondsReason     string
 	RSSKB                int64
 	SwapKB               int64
+	SwapStatus           string
 	MajorFaultsPerSecond float64
 	MetricsStatus        string
 	MetricsReason        string
@@ -87,24 +88,29 @@ type ProcessTimelineQuery struct {
 	End   time.Time
 	Owner string // optional scenario filter; "" means all owners
 	Top   int    // optional cap on ranked rows returned; <=0 means a default
-	Rank  string // "cpu" (default), "cpu_seconds", "rss", or "gpu"
+	Rank  string // "cpu" (default), "cpu_seconds", "rss", "swap", or "gpu"
 }
 
 // ProcessTimelineEntry is one ranked consumer over the queried window,
 // aggregated across the samples that fell inside it.
 type ProcessTimelineEntry struct {
-	Owner       string
-	Comm        string
-	PID         int  // representative pid; 0 when aggregated across rollups
-	Aggregated  bool // true when the entry spans rollup (per-minute) rows
-	CPUPct      float64
-	MaxCPUPct   float64
-	CPUSeconds  float64
-	RSSKB       int64
-	GPUVRAMMB   float64
-	SampleCount int64
-	FirstSeen   time.Time
-	LastSeen    time.Time
+	Owner               string
+	Comm                string
+	PID                 int  // representative pid; 0 when aggregated across rollups
+	Aggregated          bool // true when the entry spans rollup (per-minute) rows
+	CPUPct              float64
+	MaxCPUPct           float64
+	CPUSeconds          float64
+	RSSKB               int64
+	SwapKB              int64
+	SwapMeasuredSamples int64
+	SwapUnknownSamples  int64
+	SwapCoverageStart   time.Time
+	SwapCoverageEnd     time.Time
+	GPUVRAMMB           float64
+	SampleCount         int64
+	FirstSeen           time.Time
+	LastSeen            time.Time
 }
 
 // RollupResult reports the outcome of a downsampling pass.

@@ -21,11 +21,17 @@ export const CapacityPage = () => {
     reconciliation,
     policy,
     isLoading,
+    isPolicyLoading,
     error,
+    reconciliationError,
+    policyLoadError,
     policyError,
+    policyOutcomeUnknown,
     isSavingPolicy,
     refresh,
+    refreshPolicy,
     savePolicy,
+    acknowledgePolicyReadback,
   } = useCapacity();
 
   const sensingAvailable = overview?.sensingAvailable ?? false;
@@ -34,8 +40,8 @@ export const CapacityPage = () => {
     <section className="capacity-page">
       <header className="flex-row-center" data-sm-style="sm-style-740d1580c7">
         <h2 data-sm-style="sm-style-2a0ca8350a">Capacity</h2>
-        <button type="button" className="header-button" onClick={() => void refresh()} disabled={isLoading}>
-          {isLoading ? 'Refreshing…' : 'Refresh'}
+        <button type="button" className="header-button" onClick={() => { void refresh(); void refreshPolicy(); }} disabled={isLoading || isPolicyLoading}>
+          {isLoading || isPolicyLoading ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
 
@@ -47,6 +53,14 @@ export const CapacityPage = () => {
         <div className="card card--excursion" role="alert">
           <p className="eyebrow card--excursion__label">Capacity request failed</p>
           <p className="capacity-blind__body">{error}</p>
+          <p className="capacity-blind__body">{overview ? 'The last successful capacity snapshot remains visible; this refresh did not replace it.' : 'No successful capacity snapshot is available yet.'}</p>
+        </div>
+      )}
+      {policyLoadError && !policyOutcomeUnknown && (
+        <div className="card card--excursion" role="alert">
+          <p className="eyebrow card--excursion__label">Policy refresh failed</p>
+          <p className="capacity-blind__body">{policyLoadError}{policy ? ' The last received policy values remain visible.' : ' No successful policy read is available.'}</p>
+          <button type="button" className="btn btn-action" onClick={() => { void refreshPolicy(); }} disabled={isPolicyLoading}>Retry policy read</button>
         </div>
       )}
 
@@ -68,6 +82,9 @@ export const CapacityPage = () => {
 
       {!overview && isLoading && (
         <div className="card" data-sm-style="sm-style-7b635e08e2">Loading capacity state…</div>
+      )}
+      {!policy && isPolicyLoading && (
+        <div className="card" role="status">Loading policy values…</div>
       )}
 
       {overview && (
@@ -117,14 +134,28 @@ export const CapacityPage = () => {
           <ClaimsTable claims={overview.claims} />
 
           {sectionHeading('Unclaimed consumers')}
-          <FindingsPanel findings={reconciliation?.findings ?? []} available={sensingAvailable} />
+          <FindingsPanel
+            findings={reconciliation?.findings ?? []}
+            available={sensingAvailable}
+            error={reconciliationError}
+            hasPreviousRead={reconciliation !== null}
+            onRetry={() => { void refresh(); }}
+          />
         </>
       )}
 
       {policy && (
         <>
           {sectionHeading('Policy levers')}
-          <PolicyPanel levers={policy} isSaving={isSavingPolicy} error={policyError} onSave={(key, value) => { void savePolicy(key, value); }} />
+          <PolicyPanel
+            levers={policy}
+            isSaving={isSavingPolicy || isPolicyLoading}
+            error={policyError}
+            outcomeUnknown={policyOutcomeUnknown}
+            onSave={(key, value) => { void savePolicy(key, value); }}
+            onRefresh={() => { void refresh(); }}
+            onAcknowledgeReadback={acknowledgePolicyReadback}
+          />
         </>
       )}
     </section>

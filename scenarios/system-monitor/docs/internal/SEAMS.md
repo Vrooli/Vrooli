@@ -50,7 +50,7 @@
 
 - **Collector Interface** (`api/internal/collectors/interface.go`): All 6 collectors (CPU, memory, disk, network, process, GPU) implement a common interface. New collectors can be added without touching existing code. `MonitorService` accepts `WithCollectors(...)` option to inject test doubles, skipping real OS collectors. Testability: high — mock collectors for unit tests. Disk collectors are observational only: they may expose pressure and attribution signals, but broad cleanup/remediation belongs to storage-manager policy and audit, not system-monitor mutation paths. [CODE: api/internal/collectors/interface.go]
 
-- **Agent-Manager Client** (`api/internal/agentmanager/client.go`): HTTP client for agent-manager API. `AgentExecutor` interface (`api/internal/services/interfaces.go`) abstracts all agent-manager operations used by InvestigationService. Testability: high — mock `AgentExecutor` for unit tests. [CODE: api/internal/agentmanager/client.go]
+- **Agent-Manager Client** (`api/internal/agentmanager/client.go`): generated Connect client for profile reconciliation, task/run creation, run reads/listing, and bounded run-event reads. A small REST compatibility path remains for `EnsureProfile`, `GetTask`, tag-based run reads/stops, and lifecycle stop calls because the current service has no corresponding RPCs; those routes are still open E04 work, not approved exceptions. `AgentExecutor` (`api/internal/services/interfaces.go`) keeps service tests independent of the remote transport. [CODE: api/internal/agentmanager/client.go]
 
 - **MetricsSource** (`api/internal/services/interfaces.go`): `MetricsSource` interface provides on-demand metrics to InvestigationService via `GetCurrentMetricsFresh()`. `*MonitorService` satisfies it. Testability: high — mock for unit tests. [CODE: api/internal/services/interfaces.go]
 
@@ -154,6 +154,15 @@ history, freshness, and pressure projections live in
 `api/internal/services/monitor_metricqueries.go`. Linux per-core baseline,
 counter-reset, and core-set behavior lives in `api/internal/collectors/platform_cpu_linux.go`
 so those observation rules can be tested without reading host procfs files.
+
+Process identity attribution lives in `api/internal/procsampler`: scenario API
+ancestry and the control-plane resource normalizer have priority, followed by
+explicit local cgroup identities, then the cwd fallback. Linux samples retain
+the executable path and unified cgroup path for this decision. Host owner keys
+use `desktop-app:`, `agent-scope:`, `vrooli-service:`, `systemd-unit:`, or
+`systemd-session:` prefixes; these are reporting identities, not stop/reap
+authority. Resolve an agent scope through `vrooli agent list` before preparing
+any session decision. Kernel threads without a userspace owner remain unknown.
 
 ## Persistence projection seam
 

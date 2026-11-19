@@ -41,7 +41,7 @@ export const MCESummaryCard = ({ envelope }: MCESummaryCardProps) => {
             Raw summary
           </summary>
           <pre
-            className="text-xs"
+            className="text-xs forensics-raw-summary"
             data-sm-style="sm-style-4abf2fa839"
           >
             {rawSummary}

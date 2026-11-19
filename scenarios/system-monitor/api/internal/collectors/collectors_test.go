@@ -397,6 +397,30 @@ func TestProcessCollector_Collect(t *testing.T) {
 				t.Errorf("Expected at least 1 process, got %d", processCount)
 			}
 		}
+
+		// The process monitor service reads the count from process_health,
+		// while the collector also exposes it at the top level. Keep both
+		// contracts populated from the same sample count.
+		totalCount, ok := metrics.Values["total_count"].(int)
+		if !ok || totalCount < 1 {
+			t.Fatalf("expected positive top-level total_count, got %#v", metrics.Values["total_count"])
+		}
+		health, ok := metrics.Values["process_health"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected process_health map, got %#v", metrics.Values["process_health"])
+		}
+		healthTotal, ok := health["total_count"].(int)
+		if !ok || healthTotal != totalCount {
+			t.Errorf("expected process_health.total_count %d to match top-level total_count, got %#v", totalCount, health["total_count"])
+		}
+		zombieCount, ok := health["zombie_count"].(int)
+		if !ok || zombieCount < 0 {
+			t.Fatalf("expected a nonnegative measured zombie count, got %#v", health["zombie_count"])
+		}
+		zombieDetails, ok := metrics.Values["zombie_processes"].([]map[string]interface{})
+		if !ok || len(zombieDetails) > 10 || zombieCount < len(zombieDetails) {
+			t.Errorf("zombie count/details contract violated: total=%d details=%#v", zombieCount, metrics.Values["zombie_processes"])
+		}
 	})
 }
 

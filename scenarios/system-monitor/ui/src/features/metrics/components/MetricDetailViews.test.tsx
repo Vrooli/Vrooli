@@ -8,7 +8,7 @@ vi.mock('recharts', () => {
   const Box = ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => <div {...props}>{children}</div>;
   return {
     ResponsiveContainer: Box,
-    ComposedChart: Box,
+    ComposedChart: ({ children, data }: { children?: React.ReactNode; data?: unknown[] }) => <div data-testid="composed-chart" data-points={JSON.stringify(data)}>{children}</div>,
     CartesianGrid: () => <div data-testid="grid" />,
     XAxis: () => <div data-testid="x-axis" />,
     Area: ({ dataKey, hide }: { dataKey: string; hide?: boolean }) => <div data-testid={`area-${dataKey}`} data-hidden={String(hide)} />,
@@ -160,10 +160,73 @@ describe('MetricDetailViews', () => {
     expect(screen.getByText('8 of 8 samples')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     expect(screen.getByText('6 of 8 samples')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('6 of 8 samples');
     expect(screen.getByRole('button', { name: 'Pan chart right' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Pan chart right' }));
     expect(screen.getByText('6 of 8 samples')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reset chart view' }));
     expect(screen.getByText('8 of 8 samples')).toBeInTheDocument();
+  });
+
+  it('lets touch and keyboard users inspect dated samples and moves the graph window with selection', () => {
+    const data = [
+      { timestamp: '2026-01-01T00:00:00Z', value: 62 },
+      { timestamp: '2026-01-01T00:01:00Z', value: 63.5 },
+      { timestamp: '2026-01-01T00:02:00Z', value: 65 },
+    ];
+    render(
+      <MetricLineChart
+        data={data}
+        lines={[{ dataKey: 'value', name: 'Disk usage', color: 'blue' }]}
+        unit="%"
+        valueFormatter={value => `${value.toFixed(1)}%`}
+        seriesLabel="Disk usage"
+      />,
+    );
+
+    expect(screen.getByText('Sample 3 of 3')).toBeInTheDocument();
+    expect(screen.getByText('65.0%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next sample' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous sample' }));
+    expect(screen.getByText('Sample 2 of 3')).toBeInTheDocument();
+    expect(screen.getByText('63.5%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next sample' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous sample' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous sample' }));
+    expect(screen.getByText('Sample 1 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous sample' })).toBeDisabled();
+  });
+
+  it('renders an actual break between samples after an unavailable interval', () => {
+    render(<MetricLineChart
+      data={[
+        { timestamp: '2026-01-01T00:00:00Z', value: 1 },
+        { timestamp: '2026-01-01T00:00:10Z', value: 2, gapBefore: true },
+      ]}
+      lines={[{ dataKey: 'value', name: 'Disk usage', color: 'blue' }]}
+      unit="%"
+    />);
+    const points = JSON.parse(screen.getByTestId('composed-chart').getAttribute('data-points') ?? '[]') as Array<Record<string, unknown>>;
+    expect(points).toEqual([
+      { timestamp: '2026-01-01T00:00:00Z', value: 1 },
+      { timestamp: '2026-01-01T00:00:05.000Z', value: null },
+      { timestamp: '2026-01-01T00:00:10Z', value: 2, gapBefore: true },
+    ]);
+  });
+
+  it('keeps the chosen chart window when a timeline refresh adds samples', () => {
+    const makeData = (count: number) => Array.from({ length: count }, (_, index) => ({
+      timestamp: `2026-01-01T00:${String(index).padStart(2, '0')}:00Z`,
+      cpu: index + 1,
+    }));
+    const view = render(<MetricLineChart data={makeData(8)} lines={[{ dataKey: 'cpu', name: 'CPU', color: 'red' }]} unit="%" seriesLabel="CPU" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(screen.getByText('6 of 8 samples')).toBeInTheDocument();
+
+    view.rerender(<MetricLineChart data={makeData(10)} lines={[{ dataKey: 'cpu', name: 'CPU', color: 'red' }]} unit="%" seriesLabel="CPU" />);
+    expect(screen.getByText('6 of 10 samples')).toBeInTheDocument();
   });
 });

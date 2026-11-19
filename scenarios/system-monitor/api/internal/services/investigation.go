@@ -4,6 +4,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -192,8 +194,32 @@ func (s *InvestigationService) initializeAgentProfile(agentSvc AgentExecutor) {
 
 // TriggerInvestigation starts a new investigation
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
+	return s.TriggerInvestigationWithRequestKey(ctx, autoFix, note, "")
+}
+
+// TriggerInvestigationWithRequestKey makes retries of an accepted UI request
+// return the original investigation instead of starting a second agent run.
+// The key is caller-generated and must remain stable until a receipt is read.
+func (s *InvestigationService) TriggerInvestigationWithRequestKey(ctx context.Context, autoFix bool, note, requestKey string) (*models.Investigation, error) {
 	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
 		return nil, err
+	}
+	requestKey = strings.TrimSpace(requestKey)
+	if len(requestKey) > 256 {
+		return nil, apierrors.Validation("Idempotency-Key", "must not exceed 256 characters")
+	}
+	requestID := ""
+	fingerprint := ""
+	if requestKey != "" {
+		requestHash := sha256.Sum256([]byte(requestKey))
+		requestID = "inv_req_" + hex.EncodeToString(requestHash[:])
+		payloadHash := sha256.Sum256([]byte(fmt.Sprintf("%t\x00%s", autoFix, note)))
+		fingerprint = hex.EncodeToString(payloadHash[:])
+		if existing, err := s.repo.GetInvestigation(ctx, requestID); err == nil {
+			return investigationForRequest(existing, fingerprint)
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return nil, apierrors.Internal("Unable to reconcile investigation request", err)
+		}
 	}
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
 		return nil, apierrors.Unavailable("agent-manager")
@@ -206,6 +232,15 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// A second read under the service lock covers concurrent retries in this
+	// process before cooldown/admission can create another worker.
+	if requestID != "" {
+		if existing, err := s.repo.GetInvestigation(ctx, requestID); err == nil {
+			return investigationForRequest(existing, fingerprint)
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return nil, apierrors.Internal("Unable to reconcile investigation request", err)
+		}
+	}
 
 	// Check cooldown
 	cooldownPeriod := s.currentCooldownPeriod()
@@ -231,7 +266,10 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	now := s.clock.Now()
 
 	// Generate investigation ID
-	investigationID := fmt.Sprintf("inv_%d", now.Unix())
+	investigationID := requestID
+	if investigationID == "" {
+		investigationID = fmt.Sprintf("inv_%d", now.Unix())
+	}
 
 	// Create investigation
 	investigation := &models.Investigation{
@@ -252,11 +290,19 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	if note != "" {
 		investigation.Details["note"] = note
 	}
+	if fingerprint != "" {
+		investigation.Details["request_fingerprint"] = fingerprint
+	}
 
 	// Save to repository
 	if err := s.repo.CreateInvestigation(ctx, investigation); err != nil {
 		cancelJob()
 		s.jobMu.Unlock()
+		if requestID != "" {
+			if existing, readErr := s.repo.GetInvestigation(ctx, requestID); readErr == nil {
+				return investigationForRequest(existing, fingerprint)
+			}
+		}
 		return nil, apierrors.Internal("failed to create investigation", err)
 	}
 
@@ -292,6 +338,13 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	s.jobMu.Unlock()
 
 	return investigation, nil
+}
+
+func investigationForRequest(existing *models.Investigation, fingerprint string) (*models.Investigation, error) {
+	if existing == nil || existing.Details["request_fingerprint"] != fingerprint {
+		return nil, apierrors.Conflict("This investigation request key was already used with different options. Review the existing investigation before starting another.")
+	}
+	return existing, nil
 }
 
 // GetInvestigation retrieves an investigation by ID

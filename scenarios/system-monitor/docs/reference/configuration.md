@@ -15,6 +15,7 @@ Set these in `.env` or export them before starting the scenario.
 | `SYSTEM_MONITOR_RAW_RETENTION` | `6h` | How long raw per-process rows are kept before they are downsampled into per-minute rollups. Go duration string. |
 | `SYSTEM_MONITOR_ROLLUP_RETENTION` | `720h` | How long per-owner/per-minute rollups are kept (default 30 days). Go duration string. |
 | `SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD` | `5000` | Established-TCP-connection count at or above which the network collector walks `/proc/<pid>/fd` to name the processes holding those sockets. Below it, only the aggregate count is collected. Set to `0` to disable attribution entirely. |
+| `IMAGE_TOOLS_API_URL` | empty | Optional explicit base URL for image-tools owner job telemetry. When empty, the evaluator uses `api-core/discovery` (lifecycle peer, runtime registry, then bounded CLI recovery): successful addresses are cached for 2 seconds and confirmed stopped targets for 500 ms; transient failures are not cached. It does not start image-tools. A configured URL bypasses local scenario discovery for static/deployed addressing. |
 
 `[CODE: api/internal/config/config.go]`
 
@@ -239,6 +240,7 @@ curl 'http://localhost:8080/api/v1/metrics/pressure'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=rss&top=20'
 curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=gpu&top=20'
 curl 'http://localhost:8080/api/v1/forensics/processes?start_utc=2026-11-03T03:49:15Z&end_utc=2026-11-03T03:49:48Z&owner=device-control&rank=cpu_seconds'
+curl 'http://localhost:8080/api/v1/forensics/process-cpu-replay?start_utc=2026-11-12T22:22:00Z&end_utc=2026-11-12T22:37:00Z'
 curl 'http://localhost:8080/api/v1/forensics/process-samples?start_utc=2026-11-03T03:49:15Z&end_utc=2026-11-03T03:49:48Z&owner=device-control&limit=1000'
 curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
 curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'

@@ -167,6 +167,7 @@ type ResourcesConfig struct {
 	GrafanaURL        string
 	StorageManagerURL string
 	AutohealURL       string
+	ImageToolsURL     string
 }
 
 // AlertConfig contains alerting configuration
@@ -299,6 +300,7 @@ func LoadWithEnvironmentAndLogger(environment Environment, logger logx.Logger) (
 			GrafanaURL:        env(lookup, "GRAFANA_URL", "http://localhost:3004"),
 			StorageManagerURL: env(lookup, "VROOLI_CLEANUP_MANAGER_API_URL", ""),
 			AutohealURL:       env(lookup, "VROOLI_AUTOHEAL_API_URL", ""),
+			ImageToolsURL:     env(lookup, "IMAGE_TOOLS_API_URL", ""),
 		},
 		Alerts: AlertConfig{
 			WebhookURL:      env(lookup, "ALERT_WEBHOOK_URL", ""),

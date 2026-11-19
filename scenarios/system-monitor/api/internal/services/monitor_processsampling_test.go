@@ -108,6 +108,39 @@ func TestMonitorService_ProcessTimelineInRangeUsesExplicitHalfOpenBounds(t *test
 	}
 }
 
+func TestMonitorService_ProcessTimelineCanRankByMeasuredSwap(t *testing.T) {
+	repo := memory.NewRepository()
+	start := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
+	if err := repo.SaveProcessSamples(context.Background(), []repository.ProcessSample{
+		{Timestamp: start, Owner: "unknown", Comm: "small-swap", PID: 1, CPUPct: 90, SwapKB: 128, SwapStatus: "measured"},
+		{Timestamp: start, Owner: "unknown", Comm: "large-swap", PID: 2, CPUPct: 1, SwapKB: 8192, SwapStatus: "measured"},
+	}); err != nil {
+		t.Fatalf("save samples: %v", err)
+	}
+	svc := newSamplingService(t, nil, repo, &StubClock{current: start.Add(time.Minute)})
+	for _, query := range []struct {
+		name string
+		read func() ([]repository.ProcessTimelineEntry, error)
+	}{
+		{name: "rolling window", read: func() ([]repository.ProcessTimelineEntry, error) {
+			return svc.GetProcessTimelineRanked(context.Background(), 2*time.Minute, "unknown", 10, "swap")
+		}},
+		{name: "explicit range", read: func() ([]repository.ProcessTimelineEntry, error) {
+			return svc.GetProcessTimelineInRange(context.Background(), start.Add(-time.Second), start.Add(time.Second), "unknown", 10, "swap")
+		}},
+	} {
+		t.Run(query.name, func(t *testing.T) {
+			entries, err := query.read()
+			if err != nil {
+				t.Fatalf("read timeline: %v", err)
+			}
+			if len(entries) != 2 || entries[0].Comm != "large-swap" || entries[0].SwapKB != 8192 {
+				t.Fatalf("swap-ranked entries = %+v", entries)
+			}
+		})
+	}
+}
+
 func TestMonitorService_ProcessTimelineInRangeRejectsUnboundedInterval(t *testing.T) {
 	svc := newSamplingService(t, nil, memory.NewRepository(), &StubClock{current: time.Now()})
 	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)

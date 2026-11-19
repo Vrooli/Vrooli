@@ -123,6 +123,8 @@ func buildStatusReport(metrics *metricspb.MetricsResponse, settings *settingspb.
 						fmt.Sprintf("Anomaly interval: %ds", settings.GetAnomalyDetectionInterval()),
 						fmt.Sprintf("Cooldown: %ds", settings.GetCooldownPeriodSeconds()),
 						fmt.Sprintf("Alert sustain: %ds", alerts.GetSustainSeconds()),
+						"Auto escalation runs native catalog investigations only for sustained critical alerts; inspect them with `system-monitor investigations runs`.",
+						"`system-monitor investigations list` shows operator-triggered agent investigations.",
 					},
 				},
 				{
@@ -140,8 +142,9 @@ func buildStatusReport(metrics *metricspb.MetricsResponse, settings *settingspb.
 			NextSteps: []string{
 				"system-monitor metrics detailed",
 				"system-monitor alerts",
+				"system-monitor investigations runs --limit 5",
 				"system-monitor dashboard",
-				"system-monitor --auto-start investigations trigger --note \"describe the issue\"",
+				"system-monitor investigations list --limit 5",
 			},
 		},
 		OverallStatus:    overall,

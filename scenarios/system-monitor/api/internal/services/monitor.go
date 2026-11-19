@@ -5,11 +5,13 @@ package services
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
@@ -40,6 +42,7 @@ type MonitorService struct {
 	loopDone       chan struct{}
 	loopRunning    bool
 	loopStopping   bool
+	readActivityMu sync.Mutex
 
 	// Per-process sampling seams (3b/3c/3d). sampler walks /proc once per cycle;
 	// attributor maps each pid to its owning scenario; both are nil-safe so a
@@ -431,6 +434,13 @@ func (s *MonitorService) collectMetrics() {
 	cycleStarted := time.Now()
 	cycleForksBefore := collectors.CommandForkCount()
 	batch := s.collectEnabledMetrics(ctx, now)
+	infraData, infraErr := s.infra.GetInfrastructureMonitorData(ctx)
+	if infraErr != nil {
+		batch.errors = append(batch.errors, fmt.Errorf("collect disk I/O history: %w", infraErr))
+		batch.metrics = append(batch.metrics, failedDiskIOHistoryObservation(infraErr, now))
+	} else if diskIO := diskIOHistoryObservation(infraData, now); diskIO != nil {
+		batch.metrics = append(batch.metrics, diskIO)
+	}
 
 	for _, err := range batch.errors {
 		s.logger.Warn("metric collection failed", "error", err)
@@ -656,7 +666,7 @@ func (s *MonitorService) GetProcessTimeline(ctx context.Context, window time.Dur
 }
 
 // GetProcessTimelineRanked returns bounded scenario attribution ranked by CPU,
-// cumulative CPU seconds, RSS, or GPU. Invalid rank values fail closed to CPU.
+// cumulative CPU seconds, RSS, swap, or GPU. Invalid rank values fail closed to CPU.
 func (s *MonitorService) GetProcessTimelineRanked(ctx context.Context, window time.Duration, owner string, top int, rank string) ([]repository.ProcessTimelineEntry, error) {
 	if s.procRepo == nil {
 		return nil, nil
@@ -664,7 +674,7 @@ func (s *MonitorService) GetProcessTimelineRanked(ctx context.Context, window ti
 	if window <= 0 {
 		window = 5 * time.Minute
 	}
-	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
+	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" && rank != "swap" {
 		rank = "cpu"
 	}
 	now := s.clock.Now()
@@ -690,7 +700,7 @@ func (s *MonitorService) GetProcessTimelineInRange(ctx context.Context, start, e
 	if start.IsZero() || end.IsZero() || !end.After(start) || end.Sub(start) > 24*time.Hour {
 		return nil, fmt.Errorf("process timeline range must be positive and no longer than 24 hours")
 	}
-	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" {
+	if rank != "rss" && rank != "gpu" && rank != "cpu_seconds" && rank != "swap" {
 		rank = "cpu"
 	}
 	return s.procRepo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
@@ -872,43 +882,108 @@ func (s *MonitorService) latestCollectorSnapshot() map[string]*collectors.Metric
 	return result
 }
 
-// GetDiskDetail returns read-only disk usage detail plus storage-manager
-// remediation guidance. It observes pressure and attribution only; cleanup
-// execution remains owned by storage-manager policy/audit.
-func (s *MonitorService) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
+// GetDiskDetail returns a bounded, read-only inspection for a currently
+// mounted path plus storage-manager remediation guidance. Cleanup execution
+// remains owned by storage-manager policy/audit.
+func (s *MonitorService) GetDiskDetail(ctx context.Context, mount string, depth, limit int, includeFiles bool) (*models.DiskDetailResponse, error) {
+	if mount == "" {
+		mount = "/"
+	}
+	if depth < 1 {
+		depth = 2
+	} else if depth > 4 {
+		depth = 4
+	}
+	if limit < 1 {
+		limit = 8
+	} else if limit > 50 {
+		limit = 50
+	}
 	partitions, err := collectors.GetDiskPartitions()
 	if err != nil {
 		return nil, err
 	}
+	diskPartitions := diskPartitionsFromMaps(partitions)
+	knownMount := false
+	for _, partition := range diskPartitions {
+		if partition.MountPoint == mount {
+			knownMount = true
+			break
+		}
+	}
+	if !knownMount {
+		return nil, apierrors.NotFound("disk mount", mount)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	detail := &models.DiskDetailResponse{
-		Partitions:  diskPartitionsFromMaps(partitions),
-		ActiveMount: "/",
-		Depth:       2,
+		Partitions:  diskPartitions,
+		ActiveMount: mount,
+		Depth:       depth,
 		Timestamp:   s.clock.Now(),
 		Notes: []string{
 			"Disk detail is observational only; broad cleanup is delegated to storage-manager plan/apply.",
 			"Suggested handoff: storage-manager cleanup plan --profile conservative",
 		},
 	}
-	if highestDiskPressure(detail.Partitions) >= 85 {
-		detail.Notes = append(detail.Notes, "High disk pressure detected; storage-manager starts bounded autonomous recovery.")
+	if pressure, ok := diskPressureForMount(detail.Partitions, mount); ok && pressure >= 85 {
+		detail.Notes = append(detail.Notes, fmt.Sprintf("High disk pressure on %s; preview cleanup options in storage-manager before any apply.", mount))
 	}
 
-	topDirs, dirErr := collectors.GetLargestDirectories(detail.ActiveMount, detail.Depth, 8)
-	if dirErr != nil {
-		detail.Notes = append(detail.Notes, "Directory attribution unavailable: "+dirErr.Error())
-	} else {
-		detail.TopDirectories = topDirs
+	excludedMounts := nestedMountPaths(detail.ActiveMount, detail.Partitions)
+	topDirs, dirErr := collectors.GetLargestDirectories(ctx, detail.ActiveMount, detail.Depth, limit, excludedMounts)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	largestFiles, fileErr := collectors.GetLargestFiles(detail.ActiveMount, 8)
-	if fileErr != nil {
-		detail.Notes = append(detail.Notes, "Largest-file attribution unavailable: "+fileErr.Error())
-	} else {
+	detail.TopDirectories = topDirs
+	if dirErr != nil {
+		state := "partial"
+		if len(topDirs) == 0 {
+			state = "unavailable"
+		}
+		detail.Notes = append(detail.Notes, "Directory attribution is "+state+": "+dirErr.Error())
+	}
+	if includeFiles {
+		largestFiles, fileErr := collectors.GetLargestFiles(ctx, detail.ActiveMount, limit, excludedMounts)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		detail.LargestFiles = largestFiles
+		if fileErr != nil {
+			state := "partial"
+			if len(largestFiles) == 0 {
+				state = "unavailable"
+			}
+			detail.Notes = append(detail.Notes, "Largest-file attribution is "+state+": "+fileErr.Error())
+		}
 	}
 
 	return detail, nil
+}
+
+// GetDiskReadActivity runs one explicitly requested, bounded host-wide process
+// read sample. It is not part of the steady collection cycle or mount-specific.
+func (s *MonitorService) GetDiskReadActivity(ctx context.Context) (procsampler.ReadActivity, error) {
+	if !s.readActivityMu.TryLock() {
+		return procsampler.ReadActivity{}, apierrors.Conflict("A process read activity sample is already in progress")
+	}
+	defer s.readActivityMu.Unlock()
+	return procsampler.InvestigateReadActivity(ctx)
+}
+
+func nestedMountPaths(root string, partitions []models.DiskPartitionInfo) []string {
+	root = filepath.Clean(root)
+	var nested []string
+	for _, partition := range partitions {
+		mount := filepath.Clean(partition.MountPoint)
+		rel, err := filepath.Rel(root, mount)
+		if err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			nested = append(nested, mount)
+		}
+	}
+	return nested
 }
 
 func diskPartitionsFromMaps(rows []map[string]interface{}) []models.DiskPartitionInfo {
@@ -929,14 +1004,13 @@ func diskPartitionsFromMaps(rows []map[string]interface{}) []models.DiskPartitio
 	return partitions
 }
 
-func highestDiskPressure(partitions []models.DiskPartitionInfo) float64 {
-	var highest float64
+func diskPressureForMount(partitions []models.DiskPartitionInfo, mount string) (float64, bool) {
 	for _, partition := range partitions {
-		if partition.UsePercent > highest {
-			highest = partition.UsePercent
+		if partition.MountPoint == mount {
+			return partition.UsePercent, true
 		}
 	}
-	return highest
+	return 0, false
 }
 
 // populateCPUDetails fills the CPU section of detailed from the cpu collector data.
@@ -957,8 +1031,25 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 
 	// Extract process health information
 	if healthData, ok := data.Values["process_health"].(map[string]interface{}); ok {
-		result.ProcessHealth = models.ProcessHealthInfo{
+		zombieCount := models.MetricState{
+			Status:     "not_yet_sampled",
+			Reason:     "the process collector did not report a zombie count",
+			Provenance: "system-monitor/process",
+			Units:      "count",
+			ObservedAt: data.Timestamp,
+		}
+		if _, ok := healthData["zombie_count"]; ok {
+			zombieCount = models.MetricState{
+				Status:     "measured",
+				Value:      float64(getIntValue(healthData, "zombie_count")),
+				Provenance: "system-monitor/process",
+				Units:      "count",
+				ObservedAt: data.Timestamp,
+			}
+		}
+		result.ProcessHealth = &models.ProcessHealthInfo{
 			TotalProcesses: getIntValue(healthData, "total_count"),
+			ZombieCount:    zombieCount,
 		}
 
 		// Add zombie processes
@@ -976,7 +1067,9 @@ func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.Pro
 		}
 	}
 
-	result.ProcessHealth.ForkRate = forkRateFromValues(data.Values)
+	if result.ProcessHealth != nil {
+		result.ProcessHealth.ForkRate = forkRateFromValues(data.Values)
+	}
 
 	// Add top processes as resource matrix
 	if topProcs, ok := data.Values["top_by_cpu"].([]map[string]interface{}); ok {

@@ -189,7 +189,7 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
             {fragmentation.compactionFailureRatio?.state?.case === 'measured' && (
               <DetailRow label="Compaction failure ratio" value={`${(Number(fragmentation.compactionFailureRatio.state.value) * 100).toFixed(1)}%`} />
             )}
-            {fragmentation.buddyinfo && <pre className="text-muted">{JSON.stringify(fragmentation.buddyinfo, null, 2)}</pre>}
+            {fragmentation.buddyinfo && <pre className="text-muted memory-buddyinfo">{JSON.stringify(fragmentation.buddyinfo, null, 2)}</pre>}
           </>
         }
       </div></DetailSection>

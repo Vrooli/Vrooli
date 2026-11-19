@@ -45,8 +45,8 @@ describe('IncidentTimeline', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open logs' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open forensics' }));
     fireEvent.click(screen.getByRole('button', { name: 'Investigate this window' }));
-    expect(onSource).toHaveBeenNthCalledWith(1, 'logs');
-    expect(onSource).toHaveBeenNthCalledWith(2, 'forensics');
+    expect(onSource).toHaveBeenNthCalledWith(1, 'logs', expect.objectContaining({ id: 'metric-CPU-2026-01-01T00:00:00Z', at: '2026-01-01T00:00:00Z' }));
+    expect(onSource).toHaveBeenNthCalledWith(2, 'forensics', expect.objectContaining({ id: 'metric-CPU-2026-01-01T00:00:00Z' }));
     expect(onInvestigate).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

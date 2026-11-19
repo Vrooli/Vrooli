@@ -168,13 +168,15 @@ var defaultSettings = Settings{
 	OrphanedAgentAgeSeconds:       3600,
 	OrphanedAgentMemoryBytes:      2 * 1024 * 1024 * 1024,
 	AutoInvestigateCriticalRules: map[string]bool{
-		RuleMetricsSnapshot: true,
-		RuleCPUUsage:        true,
-		RuleMemoryUsage:     true,
-		RuleTCPConnections:  true,
-		RuleGPUUsage:        true,
-		RuleMemoryPressure:  true,
-		RuleOrphanedAgents:  true,
+		RuleMetricsSnapshot:     true,
+		RuleCPUUsage:            true,
+		RuleMemoryUsage:         true,
+		RuleTCPConnections:      true,
+		RuleGPUUsage:            true,
+		RuleMemoryPressure:      true,
+		RuleOrphanedAgents:      true,
+		RuleSustainedProcessCPU: true,
+		RuleGPUCapableWorkOnCPU: true,
 	},
 	DiskThreshold: 80.0, // warning band
 

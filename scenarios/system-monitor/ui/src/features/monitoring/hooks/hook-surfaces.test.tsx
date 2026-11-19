@@ -34,6 +34,7 @@ describe('monitoring hook surfaces', () => {
           cpu: { state: { case: 'measured', value: 1 } },
           memory: { state: { case: 'measured', value: 2 } },
           connections: { state: { case: 'measured', value: 3 } },
+          diskUsage: { state: { case: 'measured', value: 77 } },
           gpu: { observedAt: pointTime, state: { case: 'measured', value: 4 } }
         },
         {
@@ -51,6 +52,7 @@ describe('monitoring hook surfaces', () => {
     await act(async () => { await result.current.fetchMetricsTimeline(120); });
     expect(result.current.metricHistory?.cpu).toHaveLength(1);
     expect(result.current.metricHistory?.gpu).toHaveLength(1);
+    expect(result.current.metricHistory?.diskUsage).toEqual([{ timestamp: '2026-02-02T00:00:00.000Z', value: 77 }]);
 
     act(() => {
       result.current.appendGpuPoint('now', 9);
@@ -122,6 +124,41 @@ describe('monitoring hook surfaces', () => {
     await act(async () => { await result.current.fetchMetricsTimeline(); });
     expect(result.current.metricHistory?.sampleIntervalSeconds).toBe(10);
     expect(result.current.metricHistory?.cpu.map(point => point.gapBefore ?? false)).toEqual([false, false, true]);
+  });
+
+  it('keeps disk measured zero and leaves unavailable samples as gaps', async () => {
+    const at = (seconds: number) => timestampFromDate(new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)));
+    mocks.protoFetch.mockResolvedValue({ windowSeconds: 60, samples: [
+      { timestamp: at(0), diskUsage: { state: { case: 'measured', value: 0 } } },
+      { timestamp: at(10), diskUsage: { state: { case: 'failedError', value: 'statfs failed' } } },
+      { timestamp: at(20), diskUsage: { state: { case: 'measured', value: 6 } } },
+    ] });
+    const { result } = renderHook(() => useMetricHistory(vi.fn()));
+    await act(async () => { await result.current.fetchMetricsTimeline(); });
+    expect(result.current.metricHistory?.diskUsage).toEqual([
+      { timestamp: '2026-01-01T00:00:00.000Z', value: 0 },
+      { timestamp: '2026-01-01T00:00:20.000Z', value: 6, gapBefore: true },
+    ]);
+  });
+
+  it('hydrates persisted disk throughput at its observation time and preserves failed intervals as gaps', async () => {
+    const cycleAt = (seconds: number) => timestampFromDate(new Date(Date.UTC(2026, 0, 1, 0, 0, seconds)));
+    const diskAt = (seconds: number) => timestampFromDate(new Date(Date.UTC(2026, 0, 1, 0, 1, seconds)));
+    mocks.protoFetch.mockResolvedValue({ windowSeconds: 60, sampleIntervalSeconds: 10, samples: [
+      { timestamp: cycleAt(0), diskReadRate: { observedAt: diskAt(0), state: { case: 'measured', value: 0 } }, diskWriteRate: { observedAt: diskAt(0), state: { case: 'measured', value: 1 } } },
+      { timestamp: cycleAt(10), diskReadRate: { observedAt: diskAt(10), state: { case: 'failedError', value: 'counter reset' } }, diskWriteRate: { observedAt: diskAt(10), state: { case: 'unsupportedReason', value: 'counter unavailable' } } },
+      { timestamp: cycleAt(20), diskReadRate: { observedAt: diskAt(20), state: { case: 'measured', value: 2 } }, diskWriteRate: { observedAt: diskAt(20), state: { case: 'measured', value: 3 } } },
+    ] });
+    const { result } = renderHook(() => useMetricHistory(vi.fn()));
+    await act(async () => { await result.current.fetchMetricsTimeline(60); });
+    expect(result.current.metricHistory?.diskRead).toEqual([
+      { timestamp: '2026-01-01T00:01:00.000Z', value: 0 },
+      { timestamp: '2026-01-01T00:01:20.000Z', value: 2, gapBefore: true },
+    ]);
+    expect(result.current.metricHistory?.diskWrite).toEqual([
+      { timestamp: '2026-01-01T00:01:00.000Z', value: 1 },
+      { timestamp: '2026-01-01T00:01:20.000Z', value: 3, gapBefore: true },
+    ]);
   });
 
   it('uses GPU observation times and never invents missing or repeated readings', async () => {

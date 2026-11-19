@@ -7,8 +7,50 @@ import type { InvestigationAgentState } from '../../../types';
 import { INVESTIGATION_TERMINAL_STATUSES } from '../../../types/api';
 
 const AGENT_POLL_INTERVAL_MS = 4000;
+const PENDING_INVESTIGATION_STORAGE_KEY = 'system-monitor.pending-investigation-request.v1';
 
-export const useInvestigationAgents = () => {
+interface PendingInvestigationRequest {
+  requestKey: string;
+  autoFix: boolean;
+  note: string;
+}
+
+const readPendingInvestigationRequest = (): PendingInvestigationRequest | null => {
+  try {
+    const raw = window.localStorage.getItem(PENDING_INVESTIGATION_STORAGE_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') return null;
+    const request = value as Partial<PendingInvestigationRequest>;
+    if (typeof request.requestKey !== 'string' || typeof request.autoFix !== 'boolean' || typeof request.note !== 'string') return null;
+    return { requestKey: request.requestKey, autoFix: request.autoFix, note: request.note };
+  } catch {
+    return null;
+  }
+};
+
+const persistPendingInvestigationRequest = (request: PendingInvestigationRequest | null): boolean => {
+  try {
+    if (request) window.localStorage.setItem(PENDING_INVESTIGATION_STORAGE_KEY, JSON.stringify(request));
+    else window.localStorage.removeItem(PENDING_INVESTIGATION_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export interface UnknownSpawnOutcome {
+  requestId: string;
+  message: string;
+  readback: 'checking' | 'ready' | 'failed';
+  currentAgent: InvestigationAgentState | null;
+  readbackError?: string;
+}
+
+export const useInvestigationAgents = (options?: { onReceipt?: () => void }) => {
+  const onReceiptRef = useRef(options?.onReceipt);
+  onReceiptRef.current = options?.onReceipt;
+  const pendingRequestRef = useRef<PendingInvestigationRequest | null>(readPendingInvestigationRequest());
   const [agents, setAgents] = useState<InvestigationAgentState[]>([]);
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
@@ -17,6 +59,17 @@ export const useInvestigationAgents = () => {
   const [stoppingAgents, setStoppingAgents] = useState<Set<string>>(() => new Set());
   const [agentErrors, setAgentErrors] = useState<Record<string, string>>({});
   const [spawnAgentError, setSpawnAgentError] = useState<string | null>(null);
+  const [unknownSpawnOutcome, setUnknownSpawnOutcome] = useState<UnknownSpawnOutcome | null>(() => {
+    const pending = pendingRequestRef.current;
+    return pending ? {
+      requestId: pending.requestKey,
+      message: 'A previous investigation request has no receipt yet. Retry the same request safely to recover its original receipt.',
+      readback: 'checking',
+      currentAgent: null,
+    } : null;
+  });
+  const unknownSpawnRef = useRef<UnknownSpawnOutcome | null>(null);
+  unknownSpawnRef.current = unknownSpawnOutcome;
 
   const fetchActiveAgents = useCallback(async () => {
     try {
@@ -25,23 +78,25 @@ export const useInvestigationAgents = () => {
       // Server returns null JSON when no active agent
       if (!inv.id) {
         setAgents([]);
-        return;
+        return [];
       }
       const mapped = protoToAgentState(inv);
-      setAgents(mapped ? [mapped] : []);
+      const next = mapped ? [mapped] : [];
+      setAgents(next);
+      return next;
     } catch (err) {
-      // Parse failures or empty responses mean no active agent
-      if (err instanceof SyntaxError || (isApiError(err) && err.detail?.code === 'not_found')) {
+      // Only the endpoint's explicit not-found result proves no active agent.
+      if (isApiError(err) && err.detail?.code === 'not_found') {
         setAgents([]);
-        return;
+        return [];
       }
       // Re-throw server/network errors so callers can handle them
       throw err;
     }
   }, []);
 
-  const spawnInvestigationAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
-    if (isSpawningRef.current) return undefined;
+  const submitInvestigationRequest = useCallback(async (pending: PendingInvestigationRequest, allowUnknownOutcome: boolean) => {
+    if (isSpawningRef.current || (unknownSpawnRef.current && !allowUnknownOutcome)) return undefined;
     isSpawningRef.current = true;
     setSpawnAgentError(null);
     setIsSpawningAgent(true);
@@ -49,16 +104,17 @@ export const useInvestigationAgents = () => {
       const { parseTriggerInvestigationResponse } = await import('../../../shared/api/proto-contracts');
       const resp = await protoFetch('/investigations/agent/spawn', parseTriggerInvestigationResponse, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auto_fix: autoFix, note }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': pending.requestKey },
+        body: JSON.stringify({ auto_fix: pending.autoFix, note: pending.note || undefined }),
       });
+      if (!resp.investigationId) throw new Error('The server response did not include an investigation ID. Retry the saved request to recover its receipt.');
 
       const mapped: InvestigationAgentState = {
         id: resp.investigationId,
-        status: 'queued',
-        startTime: new Date().toISOString(),
+        status: resp.status || 'queued',
+        startTime: '',
         autoFix: resp.autoFix,
-        note: resp.note || note,
+        note: resp.note || pending.note,
       };
 
       setAgents(prev => {
@@ -71,16 +127,95 @@ export const useInvestigationAgents = () => {
         return next;
       });
 
+      pendingRequestRef.current = null;
+      persistPendingInvestigationRequest(null);
+      unknownSpawnRef.current = null;
+      setUnknownSpawnOutcome(null);
+      onReceiptRef.current?.();
+
       return mapped;
     } catch (spawnError) {
       const message = extractErrorMessage(spawnError, 'Unknown error spawning investigation agent');
       setSpawnAgentError(message);
+      const knownRejection = isApiError(spawnError) && spawnError.detail?.code === 'validation';
+      if (knownRejection) {
+        pendingRequestRef.current = null;
+        persistPendingInvestigationRequest(null);
+        unknownSpawnRef.current = null;
+        setUnknownSpawnOutcome(null);
+      } else {
+        const unknown: UnknownSpawnOutcome = {
+          requestId: pending.requestKey,
+          message,
+          readback: 'checking',
+          currentAgent: null,
+        };
+        unknownSpawnRef.current = unknown;
+        setUnknownSpawnOutcome(unknown);
+        try {
+          const current = await fetchActiveAgents();
+          const reconciled = { ...unknown, readback: 'ready' as const, currentAgent: current[0] ?? null };
+          unknownSpawnRef.current = reconciled;
+          setUnknownSpawnOutcome(reconciled);
+        } catch (readbackError) {
+          const unreconciled = {
+            ...unknown,
+            readback: 'failed' as const,
+            readbackError: extractErrorMessage(readbackError, 'Could not read current agent status.'),
+          };
+          unknownSpawnRef.current = unreconciled;
+          setUnknownSpawnOutcome(unreconciled);
+        }
+      }
       throw spawnError;
     } finally {
       setIsSpawningAgent(false);
       isSpawningRef.current = false;
     }
-  }, []);
+  }, [fetchActiveAgents]);
+
+  const spawnInvestigationAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
+    if (isSpawningRef.current || unknownSpawnRef.current) return undefined;
+    const pending = {
+      requestKey: crypto.randomUUID(),
+      autoFix,
+      note: note ?? '',
+    };
+    if (!persistPendingInvestigationRequest(pending)) {
+      setSpawnAgentError('This browser could not save a safe retry reference, so the investigation was not sent. Check browser storage access and try again.');
+      return undefined;
+    }
+    pendingRequestRef.current = pending;
+    return submitInvestigationRequest(pending, false);
+  }, [submitInvestigationRequest]);
+
+  const retryUnknownSpawn = useCallback(async () => {
+    const pending = pendingRequestRef.current;
+    if (!pending || isSpawningRef.current) return undefined;
+    return submitInvestigationRequest(pending, true);
+  }, [submitInvestigationRequest]);
+
+  const refreshSpawnStatus = useCallback(async () => {
+    const currentOutcome = unknownSpawnRef.current;
+    if (!currentOutcome) return;
+    const checking = { ...currentOutcome, readback: 'checking' as const, readbackError: undefined };
+    unknownSpawnRef.current = checking;
+    setUnknownSpawnOutcome(checking);
+    try {
+      const current = await fetchActiveAgents();
+      const reconciled = { ...checking, readback: 'ready' as const, currentAgent: current[0] ?? null };
+      unknownSpawnRef.current = reconciled;
+      setUnknownSpawnOutcome(reconciled);
+    } catch (readbackError) {
+      const failed = {
+        ...checking,
+        readback: 'failed' as const,
+        readbackError: extractErrorMessage(readbackError, 'Could not read current agent status.'),
+      };
+      unknownSpawnRef.current = failed;
+      setUnknownSpawnOutcome(failed);
+    }
+  }, [fetchActiveAgents]);
 
   const spawnAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
     const agent = await spawnInvestigationAgent({ autoFix, note });
@@ -131,6 +266,10 @@ export const useInvestigationAgents = () => {
       window.clearTimeout(timeoutID);
     };
   }, [fetchActiveAgents]);
+
+  useEffect(() => {
+    if (pendingRequestRef.current) void refreshSpawnStatus();
+  }, [refreshSpawnStatus]);
 
   const hasActiveAgents = agents.some(agent => {
     const status = agent.status?.toLowerCase?.();
@@ -198,6 +337,9 @@ export const useInvestigationAgents = () => {
     agents,
     isSpawningAgent,
     spawnAgentError,
+    unknownSpawnOutcome,
+    refreshSpawnStatus,
+    retryUnknownSpawn,
     stoppingAgentIds: stoppingAgents,
     agentErrors,
     refreshAgents: fetchActiveAgents,
