@@ -4,7 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCodeCopy } from "@vrooli/react-component-library/markdown-renderer/0.4.2";
 
 describe("useCodeCopy", () => {
-  afterEach(() => vi.restoreAllMocks());
+  // Restore the whole `navigator` object, not just mocks: replacing it with a
+  // clipboard-only stub would otherwise leak into every later file in the
+  // single-threaded test run.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it("reports a copied state after a successful clipboard write", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);

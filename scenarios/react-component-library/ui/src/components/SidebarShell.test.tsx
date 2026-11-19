@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
@@ -9,23 +10,26 @@ describe("SidebarShell", () => {
   afterEach(() => cleanup());
 
   it("renders a persistent desktop sidebar and applies the supplied width", () => {
+    const containerRef = createRef<HTMLDivElement>();
     renderWithProviders(
-      <SidebarShell
-        mobileOpen={false}
-        onMobileClose={() => {}}
-        mobileLabel="Navigation drawer"
-        desktopLabel="Primary navigation"
-        closeLabel="Close navigation"
-        width={320}
-      >
-        <nav data-testid="shell-child" />
-      </SidebarShell>,
+      <div ref={containerRef}>
+        <SidebarShell
+          mobileOpen={false}
+          onMobileClose={() => {}}
+          mobileLabel="Navigation drawer"
+          desktopLabel="Primary navigation"
+          closeLabel="Close navigation"
+          resizable={{ containerRef, min: 240, max: 480, defaultSize: 320 }}
+        >
+          <nav data-testid="shell-child" />
+        </SidebarShell>
+      </div>,
     );
 
     const shell = screen.getByTestId("navigation.sidebar");
     expect(shell).toBeInTheDocument();
     expect(shell).toHaveAttribute("aria-label", "Primary navigation");
-    expect(shell).toHaveStyle({ width: "320px" });
+    expect(shell.style.getPropertyValue("--rcl-panel-size")).toBe("320px");
     expect(shell).not.toHaveAttribute("role", "dialog");
     expect(screen.getByTestId("shell-child")).toBeInTheDocument();
     expect(screen.queryByTestId("navigation.sidebar-backdrop")).not.toBeInTheDocument();
@@ -75,20 +79,19 @@ describe("SidebarShell", () => {
   });
 
   it("renders resize handle props on desktop", () => {
+    const containerRef = createRef<HTMLDivElement>();
     renderWithProviders(
-      <SidebarShell
-        mobileOpen={false}
-        onMobileClose={() => {}}
-        mobileLabel="Navigation drawer"
-        closeLabel="Close navigation"
-        resizeHandleProps={{
-          role: "separator",
-          "aria-orientation": "vertical",
-          tabIndex: 0,
-        }}
-      >
-        <nav />
-      </SidebarShell>,
+      <div ref={containerRef}>
+        <SidebarShell
+          mobileOpen={false}
+          onMobileClose={() => {}}
+          mobileLabel="Navigation drawer"
+          closeLabel="Close navigation"
+          resizable={{ containerRef, min: 240, max: 480, defaultSize: 320 }}
+        >
+          <nav />
+        </SidebarShell>
+      </div>,
     );
 
     const handle = screen.getByTestId("navigation.sidebar-resize-handle");
@@ -124,20 +127,22 @@ describe("SidebarShell", () => {
 
   it("can force persistent mode and suppress mobile drawer chrome", () => {
     const onMobileClose = vi.fn();
+    const containerRef = createRef<HTMLDivElement>();
     renderWithProviders(
-      <SidebarShell
-        mode="persistent"
-        mobileOpen
-        onMobileClose={onMobileClose}
-        mobileLabel="Navigation drawer"
-        desktopLabel="Primary navigation"
-        closeLabel="Close navigation"
-        mobileHeader={<span data-testid="mobile-shell-title" />}
-        width={360}
-        resizeHandleProps={{ role: "separator" }}
-      >
-        <nav />
-      </SidebarShell>,
+      <div ref={containerRef}>
+        <SidebarShell
+          mode="persistent"
+          mobileOpen
+          onMobileClose={onMobileClose}
+          mobileLabel="Navigation drawer"
+          desktopLabel="Primary navigation"
+          closeLabel="Close navigation"
+          mobileHeader={<span data-testid="mobile-shell-title" />}
+          resizable={{ containerRef, min: 240, max: 520, defaultSize: 360 }}
+        >
+          <nav />
+        </SidebarShell>
+      </div>,
     );
 
     const shell = screen.getByTestId("navigation.sidebar");
@@ -145,7 +150,7 @@ describe("SidebarShell", () => {
     expect(shell).toHaveAttribute("role", "complementary");
     expect(shell).toHaveAttribute("aria-label", "Primary navigation");
     expect(shell).not.toHaveAttribute("aria-modal");
-    expect(shell).toHaveStyle({ width: "360px" });
+    expect(shell.style.getPropertyValue("--rcl-panel-size")).toBe("360px");
     expect(screen.queryByTestId("navigation.sidebar-backdrop")).not.toBeInTheDocument();
     expect(screen.queryByTestId("navigation.sidebar-close")).not.toBeInTheDocument();
     expect(screen.getByTestId("navigation.sidebar-resize-handle").className).not.toContain(

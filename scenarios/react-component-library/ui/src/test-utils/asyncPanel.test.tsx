@@ -7,6 +7,13 @@ import { AsyncPanel as InspectorAsyncPanel } from "@vrooli/react-component-libra
 import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1";
 import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1";
 
+// Fixture children and authored fallbacks, named once so the queries match
+// the fixture instead of restating its copy.
+const loadedContent = "Loaded content";
+const emptyFallback = "No history yet";
+const partialFallback = "Partial history";
+const errorFallback = "Unavailable";
+
 describe("AsyncPanel", () => {
   it.each([
     ["loading", "Loading…"],
@@ -19,10 +26,10 @@ describe("AsyncPanel", () => {
   it.each(["ready", "static"] as const)("renders children for the %s state", (state) => {
     renderWithProviders(
       <AsyncPanel surfaceId="history" state={state}>
-        <strong>Loaded content</strong>
+        <strong>{loadedContent}</strong>
       </AsyncPanel>,
     );
-    expect(screen.getByText("Loaded content")).toBeVisible();
+    expect(screen.getByText(loadedContent)).toBeVisible();
   });
 
   it("uses authored content for empty and partial states", () => {
@@ -30,20 +37,20 @@ describe("AsyncPanel", () => {
       <AsyncPanel
         surfaceId="history"
         state="empty"
-        empty={<strong>No history yet</strong>}
-        partial={<strong>Partial history</strong>}
+        empty={<strong>{emptyFallback}</strong>}
+        partial={<strong>{partialFallback}</strong>}
       />,
     );
-    expect(screen.getByText("No history yet")).toBeVisible();
+    expect(screen.getByText(emptyFallback)).toBeVisible();
     rerender(
       <AsyncPanel
         surfaceId="history"
         state="partial"
-        empty={<strong>No history yet</strong>}
-        partial={<strong>Partial history</strong>}
+        empty={<strong>{emptyFallback}</strong>}
+        partial={<strong>{partialFallback}</strong>}
       />,
     );
-    expect(screen.getByText("Partial history")).toBeVisible();
+    expect(screen.getByText(partialFallback)).toBeVisible();
   });
 
   it("preserves semantic lifecycle telemetry for partial content", () => {
@@ -64,9 +71,9 @@ describe("AsyncPanel", () => {
 
   it("renders authored error content without a retry button", () => {
     renderWithProviders(
-      <AsyncPanel surfaceId="history" state="error" error={<strong>Unavailable</strong>} />,
+      <AsyncPanel surfaceId="history" state="error" error={<strong>{errorFallback}</strong>} />,
     );
-    expect(screen.getByText("Unavailable")).toBeVisible();
+    expect(screen.getByText(errorFallback)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 

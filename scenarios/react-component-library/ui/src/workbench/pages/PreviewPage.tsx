@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Copy, Monitor, Smartphone, Tablet } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
 import { assetVersion, useComponentBundle } from "../data";
+import { DeviceFrame } from "../component/DeviceFrame";
 import { FixtureFrame } from "../component/FixtureFrame";
+import { presetFor, type DeviceKind } from "../component/viewports";
 import { Chip, Segmented, Select, Skeleton } from "../primitives";
 
-type Device = "desktop" | "tablet" | "phone";
-const WIDTH: Record<Device, number> = { desktop: 1180, tablet: 834, phone: 390 };
+type Device = DeviceKind;
 
 export function PreviewPage() {
   const { t } = useTranslation();
@@ -27,6 +28,24 @@ export function PreviewPage() {
     return "desktop";
   });
   const [copied, setCopied] = useState(false);
+  const stageRef = useRef<HTMLElement>(null);
+  const preset = presetFor(device);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const fit = () => {
+      const available = stage.clientWidth - 48;
+      const next = Math.max(0.28, Math.min(1, available / Math.max(280, preset.width)));
+      setScale((current) => (Math.abs(current - next) < 0.005 ? current : next));
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [preset.width]);
 
   const stories = bundle.data?.stories ?? [];
   const selectedStoryId = searchParams.get("story") ?? stories[0]?.id ?? "";
@@ -134,7 +153,7 @@ export function PreviewPage() {
           </div>
         </header>
 
-        <main className="wb-preview-stage">
+        <main className="wb-preview-stage" ref={stageRef}>
           {bundle.isLoading ? (
             <Skeleton height={480} width="min(1180px, 90vw)" />
           ) : bundle.isError || !bundle.data ? (
@@ -144,27 +163,32 @@ export function PreviewPage() {
               })}
             </div>
           ) : selectedStory ? (
-            <div className="wb-device" style={{ width: WIDTH[device], maxWidth: "100%" }}>
-              <div className="wb-device-bar">
-                <span className="wb-device-dot" />
-                <span className="wb-device-dot" />
-                <span className="wb-device-dot" />
-                <span className="wb-device-url">{`preview/${bundle.data.asset.libraryId}`}</span>
-                <span className="wb-tag">{device}</span>
-              </div>
-              <div className="wb-device-host" style={{ height: device === "phone" ? 720 : 760 }}>
+            <DeviceFrame
+              device={device}
+              width={preset.width}
+              height={preset.height}
+              scale={scale}
+              label={t("workbench.preview.frameLabel", {
+                defaultValue: "{{name}} at {{width}} pixels in a {{device}} frame",
+                name: selectedStory.name || selectedStory.id,
+                width: preset.width,
+                device,
+              })}
+              url={`preview/${bundle.data.asset.libraryId}`}
+            >
+              <div style={{ position: "absolute", inset: 0 }}>
                 <FixtureFrame
                   assetId={id}
                   storyId={selectedStory.id}
                   version={assetVersion(bundle.data.asset)}
-                  height={device === "phone" ? 720 : 760}
+                  height={preset.height}
                   title={t("workbench.preview.title", {
                     defaultValue: "{{name}} preview",
                     name: selectedStory.name || selectedStory.id,
                   })}
                 />
               </div>
-            </div>
+            </DeviceFrame>
           ) : (
             <div className="wb-empty">
               <div className="wb-empty-title">

@@ -22,7 +22,7 @@ describe("LiveAnnouncer", () => {
     vi.useRealTimers();
   });
 
-  it("queues announcements, exposes priority, and clears the queue", async () => {
+  it("queues announcements, exposes priority, and clears the queue", () => {
     vi.useFakeTimers();
     renderWithProviders(
       <LiveAnnouncer>

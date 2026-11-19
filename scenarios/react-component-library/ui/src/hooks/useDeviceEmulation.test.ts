@@ -140,13 +140,12 @@ describe("useDeviceEmulation", () => {
   it("fits the preview to the available pane while preserving its aspect ratio", () => {
     const { result } = renderHook(() => useDeviceEmulation());
     const frame = { clientWidth: 652, clientHeight: 744 };
-    const target = {
-      querySelector: vi.fn().mockReturnValue(frame),
-    } as unknown as HTMLElement;
+    const querySelector = vi.fn().mockReturnValue(frame);
+    const target = { querySelector } as unknown as HTMLElement;
 
     act(() => result.current.fitToPane(target));
 
-    expect(target.querySelector).toHaveBeenCalledWith("[data-emulator-viewport-frame]");
+    expect(querySelector).toHaveBeenCalledWith("[data-emulator-viewport-frame]");
     expect(result.current.zoom).toBe(0.49);
   });
 

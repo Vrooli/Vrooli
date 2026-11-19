@@ -2,7 +2,11 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import type { ButtonProps } from "@vrooli/react-component-library/Button/2";
 import {
   type CSSProperties,
+  type ReactElement,
   type ReactNode,
+  cloneElement,
+  isValidElement,
+  useId,
   useRef,
   type SelectHTMLAttributes,
   type InputHTMLAttributes,
@@ -232,10 +236,20 @@ export function Field({
   children: ReactNode;
   htmlFor?: string;
 }) {
+  // Associate the label with the control even when a callsite did not think
+  // about ids. A generated id is stable across renders, and an id the child
+  // already carries wins so the caller keeps control of it.
+  const generated = useId();
+  const existing = isValidElement<{ id?: string }>(children) ? children.props.id : undefined;
+  const id = htmlFor ?? existing ?? generated;
+  const control: ReactNode =
+    isValidElement<{ id?: string }>(children) && !existing
+      ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+      : children;
   return (
     <div className="wb-field">
-      <label htmlFor={htmlFor}>{label}</label>
-      {children}
+      <label htmlFor={id}>{label}</label>
+      {control}
       {hint ? <span className="wb-muted-2 wb-small">{hint}</span> : null}
     </div>
   );

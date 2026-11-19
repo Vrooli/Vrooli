@@ -13,6 +13,7 @@ vi.mock("../api/adoptions", () => ({ adoptionsClient: { listScenarios } }));
 vi.mock("../api/components", () => ({ listCatalogAssets }));
 
 import { ActionLauncher } from "./ActionLauncher";
+import { strings } from "../consts/strings";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 
 function renderLauncher(action: "menu" | "extract" | "adopt" = "menu") {
@@ -41,7 +42,7 @@ describe("ActionLauncher", () => {
     renderLauncher("extract");
     await user.click(screen.getByRole("button", { name: "catalog.sourceScenario" }));
     await user.click(await screen.findByRole("option", { name: "demo" }));
-    await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/src/Panel.tsx");
+    await user.type(screen.getByLabelText(strings.catalog.sourcePath), "ui/src/Panel.tsx");
     await user.click(screen.getByRole("button", { name: "launcher.startExtract" }));
     await waitFor(() =>
       expect(startWorkflow).toHaveBeenCalledWith(
@@ -103,7 +104,7 @@ describe("ActionLauncher", () => {
     renderLauncher("extract");
     await user.click(screen.getByRole("button", { name: "catalog.sourceScenario" }));
     await user.click(await screen.findByRole("option", { name: "demo" }));
-    await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/Button.tsx");
+    await user.type(screen.getByLabelText(strings.catalog.sourcePath), "ui/Button.tsx");
     await user.click(screen.getByRole("button", { name: "launcher.startExtract" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("launcher.startError");
   });

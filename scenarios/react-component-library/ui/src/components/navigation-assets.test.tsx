@@ -6,6 +6,9 @@ import { AppNavigation } from "@vrooli/react-component-library/AppNavigation/1";
 import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
 import { NavLink } from "@vrooli/react-component-library/NavLink/1";
 
+// Caller-supplied brand copy for the mobile fixture.
+const mobileBrand = "Workspace";
+
 describe("adopted navigation assets", () => {
   afterEach(() => cleanup());
 
@@ -22,7 +25,7 @@ describe("adopted navigation assets", () => {
 
   it("supports mobile mode and caller-owned navigation content", () => {
     renderWithProviders(
-      <AppNavigation mode="mobile" brand="Workspace">
+      <AppNavigation mode="mobile" brand={mobileBrand}>
         <ul data-testid="custom-navigation">
           <li>
             <a href="/custom">Custom</a>
@@ -31,7 +34,7 @@ describe("adopted navigation assets", () => {
       </AppNavigation>,
     );
 
-    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByText(mobileBrand)).toBeInTheDocument();
     expect(screen.getByTestId("custom-navigation")).toBeInTheDocument();
     expect(document.querySelector("[data-rcl-app-navigation]")).toHaveAttribute(
       "data-viewport-mode",

@@ -1,54 +1,28 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { pluralDefault } from "../plural";
-import { Link, useSearchParams } from "react-router-dom";
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Copy,
-  Eye,
-  FilePlus2,
-  Layers,
-  Monitor,
-  Plus,
-  RotateCcw,
-  SlidersHorizontal,
-  Smartphone,
-  Sparkles,
-  Tablet,
-  Trash2,
-  X,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Check, Image, Layers, Palette, SlidersHorizontal, X } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import { appRoutes } from "../../routes";
-import { formatRelative, useComponentBundle, useDesignPages, useDesignScenarios } from "../data";
+import { designPath } from "../../routes";
+import { useComponentBundle, useDesignPages, useDesignScenarios } from "../data";
 import { FixtureFrame } from "../component/FixtureFrame";
 import { TemplateRenderer } from "../templates/TemplateRenderer";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import {
-  TEMPLATE_PALETTES,
   blankTemplate,
-  cloneTemplate,
   localTemplateId,
-  readLocalTemplates,
   removeLocalTemplate,
   resolveTemplate,
   templateShelf,
   upsertLocalTemplate,
   useLocalTemplates,
-  withPalette,
 } from "../templates/local";
 import { readWorkbenchPreferences } from "../preferences";
 import {
   appendChild,
-  clearSlotPlacement,
   duplicateNode,
   findSlot,
-  layerLabel,
-  layerRows,
+  findNode,
   moveNode,
   node,
   removeNode,
@@ -58,208 +32,322 @@ import {
   walk,
   type Template,
   type TemplateNode,
-  type TemplateNodeType,
 } from "../templates/spec";
-import {
-  Banner,
-  Empty,
-  Field,
-  Segmented,
-  Select,
-  Skeleton,
-  Tabs,
-  TextInput,
-  Toggle,
-  WbButton,
-} from "../primitives";
+import { Select, Skeleton, Tabs } from "../primitives";
 import { cx } from "../cx";
 import { useFocusTrap } from "../useFocusTrap";
+import { AssetImportError, useStudio } from "../studio/useStudio";
+import { CONTAINER_TYPES } from "../studio/model";
+import { historyShortcut } from "../studio/shortcuts";
+import { TEMPLATE_ERROR_EVENT } from "../templates/local";
+import type { DesignAsset } from "../designs";
+import { StudioTopBar } from "../studio/StudioTopBar";
+import { HtmlImport } from "../studio/HtmlImport";
+import { StudioLayers } from "../studio/StudioLayers";
+import type { AddableNode } from "../studio/model";
+import { StudioSystem } from "../studio/StudioSystem";
+import { StudioAssets } from "../studio/StudioAssets";
+import { StudioCanvas } from "../studio/StudioCanvas";
+import {
+  StudioInspector,
+  type AiScope,
+  type InspectorTab,
+  type StudioClaim,
+} from "../studio/StudioInspector";
+import { StudioStatusBar } from "../studio/StudioStatusBar";
+import {
+  DEVICE_KEY,
+  DEVICE_NAME,
+  FRAME_SIZE,
+  docSignature,
+  frameTemplate,
+  visibleLayerRows,
+} from "../studio/model";
+import { designCoverage, frameCoverage, type Coverage } from "../studio/rcl";
+import { captureEvidenceVerdict, primaryActionVerdict, stateAudit } from "../studio/checks";
+import { useElementWidth, useFrameAudit } from "../studio/useFrameAudit";
+import type { DesignDevice } from "../designs";
+import type { TemplatePalette } from "../templates/spec";
+import "../studio/studio.css";
 
-type Device = "desktop" | "tablet" | "phone";
-type InspectorTab = "props" | "theme" | "contract" | "compare";
+type LeftTab = "layers" | "system" | "assets";
 
-const DEVICE_WIDTH: Record<Device, number> = { desktop: 1180, tablet: 834, phone: 390 };
-const CONTAINERS = new Set<TemplateNode["type"]>([
-  "page",
-  "stack",
-  "row",
-  "grid",
-  "card",
-  "surface",
-]);
-const DEVICE_HEIGHT: Record<Device, number> = { desktop: 760, tablet: 900, phone: 760 };
+const EMPTY_FRAMES: never[] = [];
+const EMPTY_COVERAGE: Coverage = { rcl: 0, custom: 0, total: 0, ratio: 0 };
 
-interface Revision {
-  at: number;
-  hash: string;
-  spec: TemplateNode;
+function isDevice(value: string | null): value is DesignDevice {
+  return value === "desktop" || value === "tablet" || value === "phone";
 }
 
-/** Presentation fields a draft may customize without cloning the composition. */
-type TemplatePresentation = Pick<
-  Template,
-  "name" | "tagline" | "slotHint" | "idea" | "palette" | "display" | "radius"
->;
-
-function presentationOf(template: Template): TemplatePresentation {
-  return {
-    name: template.name,
-    tagline: template.tagline,
-    slotHint: template.slotHint,
-    idea: template.idea,
-    palette: template.palette,
-    display: template.display,
-    radius: template.radius,
-  };
-}
-
-function storageKey(templateId: string): string {
-  return `rcl.workbench.design.${templateId}.v1`;
-}
-
-function readDraft(
-  templateId: string,
-): { spec: TemplateNode; revisions: Revision[]; template?: TemplatePresentation } | null {
-  try {
-    const raw = window.localStorage.getItem(storageKey(templateId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as {
-      spec?: TemplateNode;
-      revisions?: Revision[];
-      template?: TemplatePresentation;
-    };
-    if (!parsed.spec || !parsed.spec.id.startsWith(templateId)) return null;
-    return { spec: parsed.spec, revisions: parsed.revisions ?? [], template: parsed.template };
-  } catch {
-    return null;
-  }
-}
-
-function applyPresentation(base: Template, saved?: TemplatePresentation): Template {
-  if (!saved) return base;
-  return {
-    ...base,
-    ...saved,
-    palette: { ...base.palette, ...saved.palette },
-    spec: base.spec,
-  };
-}
-
-interface AddableNode {
-  type: TemplateNodeType;
-  label: string;
-  props: Record<string, string | number | boolean>;
-}
-
-const ADDABLE: AddableNode[] = [
-  {
-    type: "text",
-    label: "Text",
-    props: { text: "New line of copy", variant: "body", tone: "muted" },
-  },
-  { type: "text", label: "Heading", props: { text: "A stronger headline", variant: "display" } },
-  { type: "card", label: "Card", props: { pad: 18, elevated: true } },
-  { type: "stack", label: "Stack", props: { gap: 14 } },
-  { type: "row", label: "Row", props: { gap: 10, wrap: true } },
-  { type: "grid", label: "Grid", props: { gap: 14, cols: 2 } },
-  { type: "button", label: "Action", props: { text: "Action", variant: "ghost", size: "sm" } },
-  { type: "input", label: "Input", props: { placeholder: "Field" } },
-  { type: "chip", label: "Chip", props: { text: "New" } },
-  { type: "stat", label: "Stat", props: { label: "Measure", value: "0", detail: "sample" } },
-  { type: "meter", label: "Meter", props: { label: "Progress", value: 42 } },
-  { type: "divider", label: "Divider", props: {} },
-  { type: "spacer", label: "Spacer", props: { h: 24 } },
-  { type: "swatch", label: "Block", props: { h: 120, shape: "arch", tone: "accent" } },
-];
-
-function hashSpec(spec: TemplateNode): string {
-  const text = JSON.stringify(spec);
-  let hash = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    hash = (hash * 31 + text.charCodeAt(index)) | 0;
-  }
-  return Math.abs(hash).toString(16).padStart(8, "0");
-}
-
+/**
+ * The Design studio shell: rail, design tabs, docked layers/system/assets,
+ * device frames, inspector and status bar. State and history live in
+ * `useStudio`; pure maths live beside it; this file composes them.
+ */
 export function DesignStudioPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeParams = useParams<{ scenario?: string; page?: string }>();
+  const navigate = useNavigate();
   const scenarios = useDesignScenarios();
-  const initialScenario = searchParams.get("scenario");
-  const [scenario, setScenario] = useState<string | null>(initialScenario);
+  const scenario = routeParams.scenario ?? searchParams.get("scenario");
   const pages = useDesignPages(scenario);
-  const [page, setPage] = useState<string | null>(searchParams.get("page"));
-  const [templateId, setTemplateId] = useState(searchParams.get("template") ?? DEFAULT_TEMPLATE.id);
-  const [device, setDevice] = useState<Device>(() => {
-    const requested = searchParams.get("device");
-    if (requested === "desktop" || requested === "tablet" || requested === "phone")
-      return requested;
-    return readWorkbenchPreferences().defaultDevice;
-  });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("props");
-  const [presenting, setPresenting] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<"layers" | "inspector" | null>(null);
-  const leftSheetRef = useFocusTrap<HTMLElement>(mobilePanel === "layers", () =>
-    setMobilePanel(null),
-  );
-  const rightSheetRef = useFocusTrap<HTMLElement>(mobilePanel === "inspector", () =>
-    setMobilePanel(null),
-  );
-  const presentRef = useFocusTrap<HTMLDivElement>(presenting, () => setPresenting(false));
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const locals = useLocalTemplates();
-  const shelf = useMemo(() => templateShelf(locals), [locals]);
-  const base = resolveTemplate(templateId, locals) ?? DEFAULT_TEMPLATE;
-  const [template, setTemplate] = useState<Template>(() =>
-    applyPresentation(base, readDraft(base.id)?.template),
-  );
-  const [spec, setSpec] = useState<TemplateNode>(() => readDraft(base.id)?.spec ?? base.spec);
-  const [revisions, setRevisions] = useState<Revision[]>(() => readDraft(base.id)?.revisions ?? []);
-
-  useEffect(() => {
-    const found = resolveTemplate(templateId, readLocalTemplates()) ?? DEFAULT_TEMPLATE;
-    const saved = readDraft(found.id);
-    setSpec(saved?.spec ?? found.spec);
-    setRevisions(saved?.revisions ?? []);
-    setTemplate(applyPresentation(found, saved?.template));
-    setSelectedId(null);
-  }, [templateId]);
-
-  useEffect(() => {
-    if (!scenario && scenarios.data && scenarios.data.length > 0) {
-      const preferred = scenarios.data.find(
-        (entry) => entry.scenario === "react-component-library",
-      );
-      const first = scenarios.data[0];
-      if (first) setScenario(preferred?.scenario ?? first.scenario);
-    }
-  }, [scenario, scenarios.data]);
-
-  useEffect(() => {
-    const first = pages.data?.[0];
-    if (!page && first) setPage(first.page);
-  }, [page, pages.data]);
-
-  const rows = useMemo(() => layerRows(spec), [spec]);
-  const selected = useMemo(
-    () => rows.find((row) => row.node.id === selectedId)?.node,
-    [rows, selectedId],
-  );
+  const page = routeParams.page ?? searchParams.get("page");
+  const studio = useStudio({ scenario, page });
   const componentId = searchParams.get("component") ?? "";
   const storyId = searchParams.get("story") ?? "";
-  const currentPage = pages.data?.find((entry) => entry.page === page);
-  const slotNode = useMemo(() => findSlot(spec), [spec]);
+  const locals = useLocalTemplates();
+  const shelf = useMemo(() => templateShelf(locals), [locals]);
+
+  const [leftTab, setLeftTab] = useState<LeftTab>("layers");
+  const [rightTab, setRightTab] = useState<InspectorTab>("inspect");
+  const [sheet, setSheet] = useState<"left" | "right" | null>(null);
+  const [presenting, setPresenting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [htmlImportOpen, setHtmlImportOpen] = useState(false);
+  const [zoomOverride, setZoomOverride] = useState<number | null>(null);
+  const [guides, setGuides] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [token, setToken] = useState<keyof TemplatePalette | null>(null);
+  const [aiScope, setAiScope] = useState<AiScope>("layer");
+  const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE.id);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1440 : window.innerWidth,
+  );
+  const noticeTimer = useRef<number | null>(null);
+
+  const design = studio.activeDoc;
+  const frames = design?.frames ?? EMPTY_FRAMES;
+  const frame = studio.activeFrame;
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasWidth = useElementWidth(canvasRef);
+  const narrow = canvasWidth > 0 && canvasWidth < 420;
+  const fitScale =
+    canvasWidth > 0
+      ? Math.min(
+          1,
+          Math.max(
+            0.1,
+            Math.min(
+              (canvasWidth - 44) / FRAME_SIZE.desktop.width,
+              (canvasWidth - 104) / (FRAME_SIZE.tablet.width + FRAME_SIZE.phone.width + 40),
+            ),
+          ),
+        )
+      : 0.4;
+
+  const scales = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const entry of frames) {
+      const base = narrow
+        ? Math.min(1, Math.max(0.1, (canvasWidth - 28) / FRAME_SIZE[entry.device].width))
+        : fitScale;
+      map[entry.id] = Math.min(1, Math.max(0.1, zoomOverride ?? base));
+    }
+    return map;
+  }, [canvasWidth, fitScale, frames, narrow, zoomOverride]);
+
+  const audits = useFrameAudit(canvasRef, frames, scales);
+  const frameScale = frame ? (scales[frame.id] ?? fitScale) : fitScale;
+
+  const rows = useMemo(
+    () => (frame ? visibleLayerRows(frame.spec, collapsed) : []),
+    [collapsed, frame],
+  );
+  const coverage = useMemo(
+    () => (design ? designCoverage(design.frames) : EMPTY_COVERAGE),
+    [design],
+  );
+  const frameCoverageValue = useMemo(
+    () => (frame ? frameCoverage(frame.spec) : EMPTY_COVERAGE),
+    [frame],
+  );
+  const selected = useMemo(
+    () => (frame && studio.selectedId ? findNode(frame.spec, studio.selectedId) : undefined),
+    [frame, studio.selectedId],
+  );
+  const stateGap = useMemo(() => (frame ? stateAudit(frame.spec) : { total: 0, covered: 0, missing: [] }), [frame]);
+  const assets = design ? studio.assetsFor(design.id) : [];
+  const slotNode = frame ? findSlot(frame.spec) : undefined;
   const placement = slotPlacement(slotNode);
 
-  const checks = useMemo(() => {
+  const updateURL = (next: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams);
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const selectScenario = (next: string) => {
+    if (routeParams.scenario) {
+      void navigate(designPath(next));
+      return;
+    }
+    updateURL({ scenario: next, page: undefined });
+  };
+
+  const selectPage = (next: string) => {
+    if (routeParams.page) {
+      void navigate(designPath(scenario ?? undefined, next));
+      return;
+    }
+    updateURL({ page: next });
+  };
+
+  const flash = (message: string) => {
+    setNotice(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 2600);
+  };
+
+  const placeAsset = (asset: DesignAsset) => {
+    if (!frame) return;
+    const parentId =
+      selected && CONTAINER_TYPES.has(selected.type) ? selected.id : frame.spec.id;
+    const src = `/api/designs/${asset.designId}/assets/${asset.id}`;
+    commitFrame(
+      (spec) =>
+        appendChild(
+          spec,
+          parentId,
+          node(`image-${asset.id}`, "image", {
+            src,
+            alt: asset.name,
+            label: asset.name,
+            fit: "cover",
+            h: 220,
+          }),
+        ),
+      t("workbench.studio.placeAssetAction", {
+        defaultValue: "Place {{name}} on the page",
+        name: asset.name,
+      }),
+    );
+    flash(
+      t("workbench.studio.placeAssetDone", {
+        defaultValue: "Placed {{name}} as a reference layer.",
+        name: asset.name,
+      }),
+    );
+  };
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    };
+  }, []);
+
+  // A shelf write that fell back to this browser must not look saved. The
+  // template module emits the failure after the optimistic cache update.
+  useEffect(() => {
+    const onShelfError = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string } | undefined>).detail;
+      flash(
+        detail?.message
+          ? t("workbench.studio.templateLocalOnly", {
+              defaultValue: "{{message}} The template still exists in this browser only.",
+              message: detail.message,
+            })
+          : t("workbench.studio.templateLocalOnlyShort", {
+              defaultValue:
+                "The template could not be saved to the server. It still exists in this browser only.",
+            }),
+      );
+    };
+    window.addEventListener(TEMPLATE_ERROR_EVENT, onShelfError);
+    return () => window.removeEventListener(TEMPLATE_ERROR_EVENT, onShelfError);
+    // `flash` only touches a ref and state setters; the listener is registered once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A design tool without Cmd/Ctrl+Z would be the only one. The shortcut never
+  // fires while a field has focus, so text editing keeps its own undo.
+  const undoHistory = studio.undo;
+  const redoHistory = studio.redo;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      const editable =
+        target instanceof HTMLElement &&
+        Boolean(target.closest("input, textarea, select, [contenteditable=true]"));
+      const action = historyShortcut({
+        key: event.key,
+        meta: event.metaKey,
+        ctrl: event.ctrlKey,
+        shift: event.shiftKey,
+        editable,
+      });
+      if (!action) return;
+      event.preventDefault();
+      if (action === "undo") undoHistory();
+      else redoHistory();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undoHistory, redoHistory]);
+
+  // A page owns at most one design. Opening a page selects that design, and
+  // creates one from the current template when the page has none yet. The ref
+  // guard makes the creation happen once per page even though the effect sees
+  // every edit.
+  const boundRequest = useRef<string | null>(null);
+  useEffect(() => {
+    if (!studio.ready || !scenario || !page) return;
+    const bound = studio.docs.find((doc) => doc.scenario === scenario && doc.page === page);
+    if (bound) {
+      if (bound.id !== studio.activeDoc?.id) studio.selectDesign(bound.id);
+      return;
+    }
+    const key = `${scenario}/${page}`;
+    if (boundRequest.current === key) return;
+    boundRequest.current = key;
+    const title = pages.data?.find((entry) => entry.page === page)?.title || page;
+    // A page-bound design starts blank: seeding it with the Aperture sample
+    // would present an unrelated composition as this page's design.
+    void studio
+      .createFromTemplate(blankTemplate(title), title, { scenario, page })
+      .then(() =>
+        flash(
+          t("workbench.studio.boundCreated", {
+            defaultValue: "Created a design for {{page}}",
+            page: title,
+          }),
+        ),
+      )
+      .catch(() => {
+        boundRequest.current = null;
+      });
+    // `flash` is stable in behaviour; the ref guard is what prevents repeats.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studio.ready, studio.docs, studio.activeDoc?.id, scenario, page, pages.data]);
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!studio.ready || !design) return;
+    const requested = searchParams.get("device") ?? readWorkbenchPreferences().defaultDevice;
+    if (!isDevice(requested)) return;
+    const target = design.frames.find((entry) => entry.device === requested);
+    if (target && target.id !== frame?.id) studio.selectFrame(target.id);
+    // Only the stored preference should move the first frame, not every
+    // selection the person makes afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [design?.id, studio.ready]);
+
+  const claims = useMemo<StudioClaim[]>(() => {
+    if (!frame) return [];
     let primary = 0;
     let displays = 0;
     let titles = 0;
     let bodies = 0;
     let slots = 0;
-    walk(spec, (current) => {
+    walk(frame.spec, (current) => {
       if (current.type === "button" && current.props.variant === "primary") primary += 1;
       if (current.type === "slot") slots += 1;
       if (current.type === "text" && current.props.variant === "display") displays += 1;
@@ -267,14 +355,6 @@ export function DesignStudioPage() {
       if (current.type === "text" && current.props.variant === "body") bodies += 1;
     });
     return [
-      {
-        id: "route",
-        label: t("workbench.studio.checkRoute", { defaultValue: "Page route is declared" }),
-        verdict: currentPage?.route ? "pass" : "unmeasured",
-        detail:
-          currentPage?.route ??
-          t("workbench.studio.noPage", { defaultValue: "No design page selected" }),
-      },
       {
         id: "slot",
         label: t("workbench.studio.checkSlot", {
@@ -292,14 +372,13 @@ export function DesignStudioPage() {
                 defaultValue: "Live component sits in the designed slot",
               })
           : t("workbench.studio.slotCount", {
-              defaultValue: pluralDefault(slots, "{{count}} slot", "{{count}} slots"),
               count: slots,
             }),
       },
       {
         id: "primary",
         label: t("workbench.studio.checkPrimary", { defaultValue: "A primary action is declared" }),
-        verdict: primary + slots > 0 ? "pass" : "warn",
+        verdict: primaryActionVerdict(primary),
         detail: t("workbench.studio.primaryCount", {
           defaultValue: "{{buttons}} primary buttons · {{slots}} component slots",
           buttons: primary,
@@ -312,17 +391,26 @@ export function DesignStudioPage() {
           defaultValue: "Display, title and body hierarchy exists",
         }),
         verdict: displays > 0 && titles > 0 && bodies > 0 ? "pass" : "warn",
-        detail: `${displays} display · ${titles} title · ${bodies} body`,
+        detail: t("workbench.studio.hierarchyCount", {
+          defaultValue: "{{display}} display · {{title}} title · {{body}} body",
+          display: displays,
+          title: titles,
+          body: bodies,
+        }),
       },
       {
         id: "evidence",
         label: t("workbench.studio.checkEvidence", {
-          defaultValue: "Component evidence is attached",
+          defaultValue: "Capture evidence is attached",
         }),
-        verdict: componentId ? "pass" : "unmeasured",
+        verdict: captureEvidenceVerdict(false),
         detail: componentId
-          ? t("workbench.studio.evidenceAttached", { defaultValue: "Live component attached" })
-          : t("workbench.studio.noComponent", { defaultValue: "No component attached" }),
+          ? t("workbench.studio.evidenceLiveOnly", {
+              defaultValue: "Live component attached · no capture for this revision",
+            })
+          : t("workbench.studio.evidenceNone", {
+              defaultValue: "No captured evidence for this revision",
+            }),
       },
       {
         id: "contrast",
@@ -333,115 +421,78 @@ export function DesignStudioPage() {
         }),
       },
     ];
-  }, [componentId, currentPage?.route, placement, spec, t]);
+  }, [componentId, frame, placement, t]);
 
-  const updateURL = (next: Record<string, string | undefined>) => {
-    const params = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(next)) {
-      if (value) params.set(key, value);
-      else params.delete(key);
+  const claimIssues = claims.filter(
+    (claim) => claim.verdict === "warn" || claim.verdict === "fail",
+  ).length;
+  const overflowFrames = frames.filter((entry) => {
+    const audit = audits[entry.id];
+    return Boolean(audit?.measured && audit.overflow > 0);
+  }).length;
+  const targetsUnder = frames.some((entry) => (audits[entry.id]?.buttons?.under ?? 0) > 0);
+  const issueCount =
+    claimIssues + (overflowFrames > 0 ? 1 : 0) + (targetsUnder ? 1 : 0) + (stateGap.missing.length > 0 ? 1 : 0);
+  const dirty = Boolean(design && studio.saved[design.id]?.signature !== docSignature(design));
+
+  const leftSheetRef = useFocusTrap<HTMLElement>(sheet === "left", () => setSheet(null));
+  const rightSheetRef = useFocusTrap<HTMLElement>(sheet === "right", () => setSheet(null));
+  const presentRef = useFocusTrap<HTMLDivElement>(presenting, () => setPresenting(false));
+
+  if (!design || !frame) {
+    return (
+      <div className="studio" data-experience-surface="design-overview">
+        <div className="studio-loading">
+          <Skeleton height={24} />
+          <Skeleton height={240} />
+        </div>
+      </div>
+    );
+  }
+
+  const selectedLayer = selected;
+  const presentScale = Math.min(
+    1,
+    Math.max(0.1, (viewportWidth - 48) / FRAME_SIZE[frame.device].width),
+  );
+
+  const selectNode = (frameId: string, id: string) => {
+    if (frameId !== frame.id) studio.selectFrame(frameId);
+    studio.selectNode(id);
+  };
+
+  const selectFrame = (id: string) => {
+    const target = frames.find((entry) => entry.id === id);
+    studio.selectFrame(id);
+    if (target) updateURL({ device: target.device });
+  };
+
+  const handleDevice = (next: DesignDevice) => {
+    const target = frames.find((entry) => entry.device === next);
+    if (target) {
+      selectFrame(target.id);
+      return;
     }
-    setSearchParams(params, { replace: true });
-  };
-
-  const flash = (message: string) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(null), 2400);
-  };
-
-  const save = (specToSave: TemplateNode, message: string) => {
-    const revision: Revision = { at: Date.now(), hash: hashSpec(specToSave), spec: specToSave };
-    const nextRevisions = [revision, ...revisions].slice(0, 10);
-    setRevisions(nextRevisions);
-    try {
-      window.localStorage.setItem(
-        storageKey(template.id),
-        JSON.stringify({
-          spec: specToSave,
-          revisions: nextRevisions,
-          template: presentationOf(template),
-        }),
-      );
-    } catch {
-      /* local draft only */
-    }
-    if (template.local) {
-      upsertLocalTemplate({ ...template, spec: specToSave });
-    }
-    flash(message);
-  };
-
-  const reset = () => {
-    const found = resolveTemplate(templateId, readLocalTemplates()) ?? DEFAULT_TEMPLATE;
-    setSpec(found.spec);
-    setRevisions([]);
-    setTemplate(found);
-    try {
-      window.localStorage.removeItem(storageKey(found.id));
-    } catch {
-      /* ignore */
-    }
-    flash(t("workbench.studio.resetDone", { defaultValue: "Restored the template baseline." }));
-  };
-
-  const selectTemplate = (id: string) => {
-    setTemplateId(id);
-    updateURL({ template: id });
-  };
-
-  const duplicateTemplate = () => {
-    const copy = cloneTemplate(template, `${template.name} copy`);
-    upsertLocalTemplate(copy);
-    selectTemplate(copy.id);
-    flash(
-      t("workbench.studio.duplicated", {
-        defaultValue: "Created {{name}} as a browser-local template.",
-        name: copy.name,
+    studio.addFrame(
+      next,
+      DEVICE_NAME[next],
+      t("workbench.studio.addFrameAction", {
+        defaultValue: "Add {{device}} frame",
+        device: t(DEVICE_KEY[next], { defaultValue: DEVICE_NAME[next] }),
       }),
     );
+    updateURL({ device: next });
   };
 
-  const createTemplate = () => {
-    const fresh = blankTemplate();
-    upsertLocalTemplate(fresh);
-    selectTemplate(fresh.id);
-    flash(t("workbench.studio.created", { defaultValue: "Created a blank template." }));
+  const commitFrame = (
+    mutate: (spec: TemplateNode) => TemplateNode,
+    label: string,
+    mergeKey?: string,
+  ) => {
+    studio.updateFrame(frame.id, mutate, label, mergeKey);
   };
 
-  const deleteTemplate = () => {
-    if (!template.local) return;
-    removeLocalTemplate(template.id);
-    selectTemplate(DEFAULT_TEMPLATE.id);
-    flash(t("workbench.studio.deleted", { defaultValue: "Deleted the local template." }));
-  };
-
-  const saveAsTemplate = () => {
-    const name = t("workbench.studio.copyName", {
-      defaultValue: "{{name}} study",
-      name: template.name,
-    });
-    const copy: Template = {
-      ...template,
-      id: localTemplateId(name),
-      name,
-      spec,
-      local: true,
-    };
-    upsertLocalTemplate(copy);
-    selectTemplate(copy.id);
-    flash(
-      t("workbench.studio.savedAs", {
-        defaultValue: "Saved {{name}} as a new template.",
-        name,
-      }),
-    );
-  };
-
-  const updateTemplate = (patch: Partial<Template>) => {
-    setTemplate((current) => ({ ...current, ...patch }));
-  };
-
-  const addNodeOfType = (parentId: string, entry: AddableNode) => {
+  const addLayer = (entry: AddableNode, parentId: string) => {
     const id = `${parentId}.${entry.type}-${Date.now().toString(36)}`;
     const children =
       entry.type === "card"
@@ -454,696 +505,653 @@ export function DesignStudioPage() {
             }),
           ]
         : undefined;
-    setSpec(appendChild(spec, parentId, node(id, entry.type, { ...entry.props }, children)));
+    commitFrame(
+      (spec) => appendChild(spec, parentId, node(id, entry.type, { ...entry.props }, children)),
+      t("workbench.studio.addLayerAction", {
+        defaultValue: "Add {{type}}",
+        type: t(entry.labelKey, { defaultValue: entry.label }),
+      }),
+    );
   };
 
-  const width = DEVICE_WIDTH[device];
-  const height = DEVICE_HEIGHT[device];
-  const areaRef = useRef<HTMLDivElement>(null);
-  const artboardRef = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState(1);
-  const [contentHeight, setContentHeight] = useState(height);
+  const moveLayer = (direction: -1 | 1) => {
+    if (!selectedLayer || selectedLayer.id === frame.spec.id) return;
+    commitFrame(
+      (spec) => moveNode(spec, selectedLayer.id, direction),
+      t("workbench.studio.moveLayer", { defaultValue: "Move layer" }),
+    );
+  };
 
-  useEffect(() => {
-    const area = areaRef.current;
-    if (!area) return;
-    const update = () => {
-      const available = Math.max(240, area.clientWidth - 56);
-      setFit(Math.min(1, available / width));
+  const duplicateLayer = () => {
+    if (!selectedLayer || selectedLayer.id === frame.spec.id) return;
+    commitFrame(
+      (spec) => duplicateNode(spec, selectedLayer.id),
+      t("workbench.studio.duplicateLayerAction", { defaultValue: "Duplicate layer" }),
+    );
+  };
+
+  const removeLayer = () => {
+    if (!selectedLayer || selectedLayer.id === frame.spec.id) return;
+    commitFrame(
+      (spec) => removeNode(spec, selectedLayer.id),
+      t("workbench.studio.removeLayerAction", { defaultValue: "Remove layer" }),
+    );
+    studio.selectNode(null);
+  };
+
+  const applyTemplate = (id: string) => {
+    const found = resolveTemplate(id, locals);
+    if (!found) return;
+    setTemplateId(id);
+    updateURL({ template: id });
+    studio.applyTemplate(
+      found,
+      t("workbench.studio.applyTemplate", {
+        defaultValue: "Apply template {{name}}",
+        name: found.name,
+      }),
+    );
+    flash(
+      t("workbench.studio.appliedTemplate", { defaultValue: "Applied {{name}}.", name: found.name }),
+    );
+  };
+
+  const saveFrameAsTemplate = () => {
+    const source = frameTemplate(design, frame);
+    const name = t("workbench.studio.frameTemplateName", {
+      defaultValue: "{{design}} · {{frame}}",
+      design: design.name,
+      frame: frame.name,
+    });
+    const copy: Template = {
+      ...source,
+      id: localTemplateId(name),
+      name,
+      tagline: design.name,
+      local: true,
     };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(area);
-    return () => observer.disconnect();
-  }, [width]);
+    upsertLocalTemplate(copy);
+    setTemplateId(copy.id);
+    flash(
+      t("workbench.studio.savedTemplate", {
+        defaultValue: "Saved {{name}} to the template shelf.",
+        name,
+      }),
+    );
+  };
 
-  useEffect(() => {
-    const artboard = artboardRef.current;
-    if (!artboard) return;
-    const update = () => setContentHeight(Math.max(height, artboard.scrollHeight));
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(artboard);
-    return () => observer.disconnect();
-  }, [height, spec, width]);
+  const newTemplate = () => {
+    const fresh = blankTemplate();
+    upsertLocalTemplate(fresh);
+    setTemplateId(fresh.id);
+    void studio.createFromTemplate(fresh).then(() => {
+      flash(t("workbench.studio.createdTemplate", { defaultValue: "Created a blank template." }));
+    });
+  };
+
+  const deleteTemplate = () => {
+    const found = resolveTemplate(templateId, locals);
+    if (!found?.local) return;
+    removeLocalTemplate(templateId);
+    setTemplateId(DEFAULT_TEMPLATE.id);
+    updateURL({ template: DEFAULT_TEMPLATE.id });
+    flash(t("workbench.studio.deletedTemplate", { defaultValue: "Deleted the template." }));
+  };
+
+  const share = () => {
+    const url = window.location.href;
+    try {
+      void navigator.clipboard
+        .writeText(url)
+        .then(() => flash(t("workbench.studio.shareCopied", { defaultValue: "Link copied." })))
+        .catch(() =>
+          flash(
+            t("workbench.studio.shareManual", {
+              defaultValue: "Copy the address bar to share this design.",
+            }),
+          ),
+        );
+    } catch {
+      flash(
+        t("workbench.studio.shareManual", {
+          defaultValue: "Copy the address bar to share this design.",
+        }),
+      );
+    }
+  };
+
+  const openAssets = () => {
+    setLeftTab("assets");
+    setSheet("left");
+  };
+
+  const openEvidence = () => {
+    setRightTab("checks");
+    setSheet("right");
+  };
+
+  const importHtmlDesign = (template: Template, name: string) => {
+    setHtmlImportOpen(false);
+    // An imported page is its own design. Leaving a page route first prevents
+    // the binding effect from immediately selecting that page's design.
+    if (scenario || page) void navigate(designPath());
+    void studio
+      .createFromTemplate(template, name, { scenario: null, page: null })
+      .then(() =>
+        flash(
+          t("workbench.studio.htmlImported", {
+            defaultValue: "Imported {{name}} as a new design.",
+            name,
+          }),
+        ),
+      )
+      .catch(() =>
+        flash(
+          t("workbench.studio.htmlImportFailed", {
+            defaultValue: "The HTML page could not be imported. Nothing was changed.",
+          }),
+        ),
+      );
+  };
 
   return (
-    <div
-      className={mobilePanel ? `wb-studio is-mobile-${mobilePanel}` : "wb-studio"}
-      data-experience-surface="design-overview"
-    >
-      {mobilePanel ? (
+    <div className={cx("studio", sheet && `is-sheet-${sheet}`)} data-experience-surface="design-overview">
+      {sheet ? (
         <button
           type="button"
-          className="wb-studio-backdrop"
+          className="studio-backdrop"
           aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
-          onClick={() => setMobilePanel(null)}
+          onClick={() => setSheet(null)}
         />
       ) : null}
-      <aside
-        ref={leftSheetRef}
-        className="wb-studio-left"
-        aria-label={t("workbench.studio.layersPanel", { defaultValue: "Pages and layers" })}
-      >
-        <button
-          type="button"
-          className="wb-studio-sheet-close"
-          aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
-          onClick={() => setMobilePanel(null)}
-        >
-          <X aria-hidden size={15} />
-        </button>
-        <div className="wb-studio-section">
-          <span className="wb-caption">
-            {t("workbench.studio.scenario", { defaultValue: "Scenario" })}
-          </span>
-          {scenarios.isLoading ? <Skeleton height={34} /> : null}
-          {scenarios.isError ? (
-            <Banner tone="amber" icon={<CircleAlert aria-hidden size={14} />}>
-              {t("workbench.studio.scenariosDown", { defaultValue: "Page inventory unavailable." })}
-            </Banner>
-          ) : null}
-          <Select
-            aria-label={t("workbench.studio.scenario", { defaultValue: "Scenario" })}
-            value={scenario ?? ""}
-            onChange={(event) => {
-              setScenario(event.target.value);
-              setPage(null);
-              updateURL({ scenario: event.target.value, page: undefined });
-            }}
-          >
-            {(scenarios.data ?? []).map((entry) => (
-              <option key={entry.scenario} value={entry.scenario}>
-                {entry.scenario} {entry.pageCount ? `(${entry.pageCount})` : ""}
-              </option>
-            ))}
-          </Select>
-        </div>
 
-        <div className="wb-studio-section">
-          <span className="wb-caption">
-            {t("workbench.studio.pages", { defaultValue: "Pages" })}
-          </span>
-          {pages.isLoading ? <Skeleton height={80} /> : null}
-          <div className="wb-page-list">
-            {(pages.data ?? []).map((entry) => (
-              <button
-                key={entry.page}
-                type="button"
-                className="wb-page-item"
-                aria-current={page === entry.page ? "true" : undefined}
-                onClick={() => {
-                  setPage(entry.page);
-                  updateURL({ page: entry.page });
-                }}
-              >
-                <ChevronRight aria-hidden size={12} />
-                <span
-                  style={{
-                    minWidth: 0,
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {entry.title || entry.page}
-                </span>
-                <span className="wb-count">{entry.regionCount}</span>
-              </button>
-            ))}
-            {(pages.data ?? []).length === 0 && !pages.isLoading ? (
-              <p className="wb-muted-2 wb-small">
-                {t("workbench.studio.noPages", {
-                  defaultValue: "No declared pages for this scenario.",
+      <div className="studio-main">
+        {studio.conflict ? (
+          <div className="studio-conflict" role="alert">
+            <div>
+              <b>
+                {t("workbench.studio.conflictTitle", {
+                  defaultValue: "This design changed in another tab",
                 })}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="wb-studio-section" style={{ flex: 1 }}>
-          <span className="wb-caption">
-            {t("workbench.studio.layers", { defaultValue: "Layers" })}
-          </span>
-          <div className="wb-page-list">
-            {rows.map((row) => (
+              </b>
+              <span>
+                {t("workbench.studio.conflictBody", {
+                  defaultValue:
+                    "Saving is paused so neither version is overwritten. Choose which one to keep.",
+                })}
+              </span>
+            </div>
+            <div className="studio-conflict-actions">
               <button
-                key={row.node.id}
                 type="button"
-                className="wb-layer"
-                aria-current={selectedId === row.node.id ? "true" : undefined}
-                onClick={() => {
-                  setSelectedId(row.node.id);
-                  // On a phone the tree and inspector are separate sheets.
-                  // Selecting a layer is a request to edit it, so hand the
-                  // person straight to its properties.
-                  if (mobilePanel === "layers") setMobilePanel("inspector");
-                }}
+                className="studio-conflict-btn"
+                onClick={() => studio.resolveConflict("take-theirs")}
               >
-                <span
-                  className="wb-layer-depth"
-                  style={{ "--depth": row.depth } as CSSProperties}
-                />
-                <span
-                  style={{
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {layerLabel(row.node)}
-                </span>
-                <span className="wb-layer-type">{row.node.type}</span>
+                {t("workbench.studio.conflictTheirs", { defaultValue: "Load the other version" })}
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="wb-studio-section">
-          <span className="wb-caption">
-            {t("workbench.studio.template", { defaultValue: "Template" })}
-          </span>
-          <Select
-            aria-label={t("workbench.studio.template", { defaultValue: "Template" })}
-            value={template.id}
-            onChange={(event) => selectTemplate(event.target.value)}
-          >
-            {shelf.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.name}
-                {entry.local ? " · local" : ""} — {entry.tagline}
-              </option>
-            ))}
-          </Select>
-          <div className="wb-row" style={{ marginTop: 6, flexWrap: "wrap", gap: 4 }}>
-            <button type="button" className="wb-btn quiet sm" onClick={duplicateTemplate}>
-              <Copy aria-hidden size={12} />
-              {t("workbench.studio.duplicate", { defaultValue: "Duplicate template" })}
-            </button>
-            <button type="button" className="wb-btn quiet sm" onClick={createTemplate}>
-              <FilePlus2 aria-hidden size={12} />
-              {t("workbench.studio.newTemplate", { defaultValue: "New template" })}
-            </button>
-            {template.local ? (
-              <button type="button" className="wb-btn quiet sm" onClick={deleteTemplate}>
-                <Trash2 aria-hidden size={12} />
-                {t("workbench.studio.deleteTemplate", { defaultValue: "Delete template" })}
+              <button
+                type="button"
+                className="studio-conflict-btn is-primary"
+                onClick={() => studio.resolveConflict("keep-mine")}
+              >
+                {t("workbench.studio.conflictMine", { defaultValue: "Keep mine" })}
               </button>
-            ) : null}
-          </div>
-          <p className="wb-muted-2 wb-small" style={{ marginTop: 6 }}>
-            {t("workbench.studio.templateNote", {
-              defaultValue:
-                "Local templates stay in this browser until promoted through the governed asset flow.",
-            })}
-          </p>
-        </div>
-      </aside>
-
-      <div className="wb-studio-center" data-experience-surface="design-workspace">
-        <div className="wb-studio-top">
-          <div className="wb-studio-title">
-            <h1>{template.name}</h1>
-            <small>
-              {scenario ?? t("workbench.studio.noScenario", { defaultValue: "no scenario" })} ·{" "}
-              {currentPage?.page ??
-                t("workbench.studio.workingDraft", { defaultValue: "working draft" })}
-            </small>
-          </div>
-          <div className="wb-row" style={{ flexWrap: "wrap" }}>
-            <Segmented
-              label={t("workbench.studio.device", { defaultValue: "Device" })}
-              value={device}
-              onChange={(next) => {
-                setDevice(next);
-                updateURL({ device: next });
-              }}
-              items={[
-                {
-                  id: "desktop",
-                  label: <Monitor aria-hidden size={13} />,
-                  ariaLabel: t("workbench.studio.desktop", { defaultValue: "Desktop" }),
-                },
-                {
-                  id: "tablet",
-                  label: <Tablet aria-hidden size={13} />,
-                  ariaLabel: t("workbench.studio.tablet", { defaultValue: "Tablet" }),
-                },
-                {
-                  id: "phone",
-                  label: <Smartphone aria-hidden size={13} />,
-                  ariaLabel: t("workbench.studio.phone", { defaultValue: "Phone" }),
-                },
-              ]}
-            />
-            <WbButton variant="ghost" size="sm" onClick={() => setPresenting(true)}>
-              <Eye aria-hidden size={13} />
-              {t("workbench.studio.present", { defaultValue: "Present" })}
-            </WbButton>
-          </div>
-        </div>
-
-        <div className="wb-studio-mobilebar">
-          <button
-            type="button"
-            className="wb-btn ghost sm"
-            onClick={() => setMobilePanel("layers")}
-          >
-            <Layers aria-hidden size={13} />
-            {t("workbench.studio.layers", { defaultValue: "Layers" })}
-          </button>
-          <button
-            type="button"
-            className="wb-btn ghost sm"
-            onClick={() => setMobilePanel("inspector")}
-          >
-            <SlidersHorizontal aria-hidden size={13} />
-            {selected
-              ? t("workbench.studio.inspect", { defaultValue: "Inspect" })
-              : t("workbench.studio.openInspector", { defaultValue: "Inspect page" })}
-          </button>
-        </div>
-
-        <div className="wb-brief">
-          <Sparkles
-            aria-hidden
-            size={14}
-            style={{ color: "var(--wb-signal)", flex: "none", marginTop: 2 }}
-          />
-          <span>
-            <b>{t("workbench.studio.brief", { defaultValue: "Brief" })}:</b>{" "}
-            {t("workbench.studio.briefBody", {
-              defaultValue:
-                "Make this page feel considered at a glance: one clear action, editorial hierarchy, and evidence the composition can actually hold.",
-            })}
-          </span>
-        </div>
-
-        {notice ? (
-          <div style={{ padding: "8px 14px" }}>
-            <Banner tone="ice" icon={<Check aria-hidden size={14} />}>
-              {notice}
-            </Banner>
+            </div>
           </div>
         ) : null}
 
-        <div className="wb-artboard-area" ref={areaRef}>
-          <div className="wb-artboard-bar">
-            <span>{`${template.name} · ${device} · ${width}px · ${Math.round(fit * 100)}%`}</span>
-            <span>
-              {t("workbench.studio.revision", {
-                defaultValue: "Revision {{hash}}",
-                hash: hashSpec(spec),
-              })}
-            </span>
-          </div>
-          <div style={{ width: width * fit, height: contentHeight * fit, margin: "0 auto" }}>
-            <div
-              ref={artboardRef}
-              className="wb-artboard"
-              style={{
-                width,
-                minHeight: height,
-                margin: 0,
-                transform: `scale(${fit})`,
-                transformOrigin: "top left",
-                overflow: "visible",
-              }}
+        <StudioTopBar
+          designs={studio.docs}
+          openIds={studio.openDocs.map((entry) => entry.id)}
+          activeId={design.id}
+          onSelect={studio.selectDesign}
+          onClose={studio.closeDesign}
+          onNew={() => {
+            void studio.createFromTemplate(blankTemplate()).then(() => {
+              flash(t("workbench.studio.createdTemplate", { defaultValue: "Created a blank template." }));
+            });
+          }}
+          onOpen={(id) => {
+            studio.openDesign(id);
+          }}
+          onImportHtml={() => setHtmlImportOpen(true)}
+          onDelete={() => void studio.deleteActive()}
+          onDuplicate={() => {
+            void studio.duplicateActive(
+              t("workbench.studio.duplicateName", {
+                defaultValue: "{{name}} copy",
+                name: design.name,
+              }),
+            );
+          }}
+          canUndo={studio.history.index > 0}
+          canRedo={studio.history.index < studio.history.entries.length}
+          onUndo={studio.undo}
+          onRedo={studio.redo}
+          history={studio.history}
+          onJump={studio.jump}
+          device={frame.device}
+          onDevice={handleDevice}
+          onShare={share}
+          onPresent={() => setPresenting(true)}
+          dirty={dirty}
+        />
+
+        <div className="studio-body">
+          <aside
+            ref={leftSheetRef}
+            className="studio-pane studio-left"
+            aria-label={t("workbench.studio.layersPanel", {
+              defaultValue: "Layers, system and assets",
+            })}
+          >
+            <button
+              type="button"
+              className="studio-sheet-close"
+              aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
+              onClick={() => setSheet(null)}
             >
-              <TemplateRenderer
-                template={template}
-                spec={spec}
-                mode="canvas"
-                selectedId={selectedId ?? undefined}
-                onSelect={setSelectedId}
-                slotEditable={Boolean(componentId)}
-                slotPlacement={placement}
-                onSlotPlacementChange={(nodeId, next) =>
-                  setSpec(setSlotPlacement(spec, nodeId, next))
-                }
-                slot={
-                  componentId ? (
-                    <StudioSlot
-                      componentId={componentId}
-                      storyId={storyId}
-                      template={template}
-                      height={placement?.h ?? 56}
-                    />
-                  ) : undefined
-                }
-              />
-            </div>
-          </div>
-          <div style={{ height: 24 }} />
-        </div>
-
-        <div className="wb-studio-foot">
-          <span>
-            {t("workbench.studio.localDraft", {
-              defaultValue: pluralDefault(
-                revisions.length,
-                "Local draft · single user · {{count}} revision",
-                "Local draft · single user · {{count}} revisions",
-              ),
-              count: revisions.length,
-            })}
-          </span>
-          <span className="wb-row">
-            <button type="button" className="wb-btn quiet sm" onClick={reset}>
-              <RotateCcw aria-hidden size={12} />
-              {t("workbench.studio.reset", { defaultValue: "Reset" })}
+              <X aria-hidden size={15} />
             </button>
-            <Link to={appRoutes.review} className="wb-btn ghost sm">
-              {t("workbench.studio.requestReview", { defaultValue: "Request review" })}
-            </Link>
-          </span>
-        </div>
-      </div>
-
-      <aside
-        ref={rightSheetRef}
-        className="wb-studio-right"
-        aria-label={t("workbench.studio.inspector", { defaultValue: "Inspector" })}
-      >
-        <button
-          type="button"
-          className="wb-studio-sheet-close"
-          aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
-          onClick={() => setMobilePanel(null)}
-        >
-          <X aria-hidden size={15} />
-        </button>
-        <div className="wb-inspector-section">
-          <span className="wb-caption">
-            {t("workbench.studio.selection", { defaultValue: "Selection" })}
-          </span>
-          <div className="wb-row-between">
-            <b className="wb-small">
-              {selected
-                ? layerLabel(selected)
-                : t("workbench.studio.nothing", { defaultValue: "Nothing selected" })}
-            </b>
-            {selected ? <span className="wb-tag">{selected.type}</span> : null}
-          </div>
-          {selected ? (
-            <div className="wb-stack tight" style={{ marginTop: 8 }}>
-              {CONTAINERS.has(selected.type) ? (
-                <div className="wb-row" style={{ flexWrap: "wrap", gap: 4 }}>
-                  <Select
-                    aria-label={t("workbench.studio.addLayer", { defaultValue: "Add a layer" })}
-                    defaultValue=""
-                    onChange={(event) => {
-                      const entry = ADDABLE.find((item) => item.label === event.target.value);
-                      if (entry) addNodeOfType(selected.id, entry);
-                      event.target.value = "";
-                    }}
-                    style={{ width: "auto", minWidth: 130 }}
-                  >
-                    <option value="" disabled>
-                      {t("workbench.studio.addLayer", { defaultValue: "Add a layer" })}
-                    </option>
-                    {ADDABLE.map((entry) => (
-                      <option key={entry.label} value={entry.label}>
-                        {entry.label}
-                      </option>
-                    ))}
-                  </Select>
-                  <span className="wb-tag">
-                    <Plus aria-hidden size={11} /> {selected.type}
-                  </span>
-                </div>
-              ) : (
-                <p className="wb-muted-2 wb-small">
-                  {t("workbench.studio.containerOnly", {
-                    defaultValue: "Select a layout, card or the page to add children.",
-                  })}
-                </p>
-              )}
-              {selected.type === "slot" ? (
-                <div className="wb-row" style={{ flexWrap: "wrap", gap: 4 }}>
-                  <WbButton
-                    variant="ghost"
-                    size="sm"
-                    disabled={!placement}
-                    onClick={() => setSpec(clearSlotPlacement(spec, selected.id))}
-                  >
-                    <RotateCcw aria-hidden size={12} />
-                    {t("workbench.studio.resetSlot", { defaultValue: "Reset slot position" })}
-                  </WbButton>
-                  <span className="wb-small wb-muted-2">
-                    {placement
-                      ? t("workbench.studio.slotPlacedAt", {
-                          defaultValue: "x {{x}} · y {{y}} · {{w}} × {{h}}",
-                          x: Math.round(placement.x),
-                          y: Math.round(placement.y),
-                          w: Math.round(placement.w),
-                          h: Math.round(placement.h),
-                        })
-                      : t("workbench.studio.slotInFlowShort", { defaultValue: "Designed slot" })}
-                  </span>
-                </div>
-              ) : null}
-              {selected.id !== spec.id ? (
-                <div className="wb-row" style={{ flexWrap: "wrap", gap: 4 }}>
-                  <WbButton
-                    variant="ghost"
-                    size="sm"
-                    aria-label={t("workbench.studio.moveUp", { defaultValue: "Move up" })}
-                    onClick={() => setSpec(moveNode(spec, selected.id, -1))}
-                  >
-                    <ArrowUp aria-hidden size={12} />
-                  </WbButton>
-                  <WbButton
-                    variant="ghost"
-                    size="sm"
-                    aria-label={t("workbench.studio.moveDown", { defaultValue: "Move down" })}
-                    onClick={() => setSpec(moveNode(spec, selected.id, 1))}
-                  >
-                    <ArrowDown aria-hidden size={12} />
-                  </WbButton>
-                  <WbButton
-                    variant="ghost"
-                    size="sm"
-                    aria-label={t("workbench.studio.duplicateLayer", {
-                      defaultValue: "Duplicate layer",
-                    })}
-                    onClick={() => {
-                      const next = duplicateNode(spec, selected.id);
-                      setSpec(next);
-                    }}
-                  >
-                    <Copy aria-hidden size={12} />
-                  </WbButton>
-                  <WbButton
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      const next = removeNode(spec, selected.id);
-                      setSpec(next);
-                      setSelectedId(null);
-                    }}
-                  >
-                    <Trash2 aria-hidden size={12} />
-                    {t("workbench.studio.remove", { defaultValue: "Remove" })}
-                  </WbButton>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="wb-inspector-tabs">
-          <Tabs
-            label={t("workbench.studio.inspectorTabs", {
-              defaultValue: "Inspector sections",
-            })}
-            value={inspectorTab}
-            onChange={setInspectorTab}
-            items={[
-              {
-                id: "props",
-                label: t("workbench.studio.props", { defaultValue: "Props" }),
-              },
-              {
-                id: "theme",
-                label: t("workbench.studio.theme", { defaultValue: "Theme" }),
-              },
-              {
-                id: "contract",
-                label: t("workbench.studio.contract", { defaultValue: "Contract" }),
-              },
-              {
-                id: "compare",
-                label: t("workbench.studio.compare", { defaultValue: "Compare" }),
-              },
-            ]}
-          />
-        </div>
-
-        <div className="wb-inspector-section">
-          {inspectorTab === "props" ? (
-            selected ? (
-              <NodeInspector
-                node={selected}
-                onChange={(key, value) => setSpec(setProp(spec, selected.id, key, value))}
+            <div className="studio-pane-tabs">
+              <Tabs
+                label={t("workbench.studio.leftTabs", { defaultValue: "Design panes" })}
+                value={leftTab}
+                onChange={setLeftTab}
+                items={[
+                  {
+                    id: "layers",
+                    label: t("workbench.studio.layers", { defaultValue: "Layers" }),
+                    count: rows.length,
+                  },
+                  {
+                    id: "system",
+                    label: t("workbench.studio.system", { defaultValue: "System" }),
+                  },
+                  {
+                    id: "assets",
+                    label: t("workbench.studio.assets", { defaultValue: "Assets" }),
+                    count: assets.length,
+                  },
+                ]}
               />
-            ) : (
-              <Empty title={t("workbench.studio.selectLayer", { defaultValue: "Select a layer" })}>
-                {t("workbench.studio.selectLayerBody", {
-                  defaultValue: "Choose a layer in the tree or click an element in the artboard.",
-                })}
-              </Empty>
-            )
-          ) : null}
-
-          {inspectorTab === "theme" ? (
-            <ThemePanel template={template} onChange={updateTemplate} onSaveAs={saveAsTemplate} />
-          ) : null}
-
-          {inspectorTab === "contract" ? (
-            <div>
-              {checks.map((check) => (
-                <div
-                  key={check.id}
-                  className={cx(
-                    "wb-contract-row",
-                    check.verdict === "pass" && "is-pass",
-                    check.verdict === "warn" && "is-warn",
-                    check.verdict === "fail" && "is-fail",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      color:
-                        check.verdict === "pass"
-                          ? "var(--wb-green)"
-                          : check.verdict === "fail"
-                            ? "var(--wb-red)"
-                            : check.verdict === "warn"
-                              ? "var(--wb-amber)"
-                              : "var(--wb-muted-2)",
-                    }}
-                  >
-                    {check.verdict === "pass" ? <Check size={11} /> : <CircleAlert size={11} />}
-                  </span>
-                  <span>
-                    {check.label}
-                    <small className="wb-muted-2 wb-small" style={{ display: "block" }}>
-                      {check.detail}
-                    </small>
-                  </span>
-                  <b>{check.verdict.toUpperCase()}</b>
-                </div>
-              ))}
-              <p className="wb-muted-2 wb-small" style={{ marginTop: 10 }}>
-                {t("workbench.studio.contractNote", {
-                  defaultValue:
-                    "Contract checks are computed from this composition. Contrast and capture evidence stay unmeasured until a real capture exists.",
-                })}
-              </p>
             </div>
-          ) : null}
 
-          {inspectorTab === "compare" ? (
-            <div className="wb-stack tight">
-              <span className="wb-caption">
-                {t("workbench.studio.baseline", { defaultValue: "Baseline vs draft" })}
-              </span>
-              <div className="wb-compare">
-                <div>
-                  <span className="wb-tag">
-                    {t("workbench.studio.baseline", { defaultValue: "Baseline" })}
-                  </span>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      height: 120,
-                      overflow: "hidden",
-                      borderRadius: 6,
-                      border: "1px solid var(--wb-line)",
-                    }}
-                  >
-                    <TemplateRenderer template={template} spec={template.spec} mode="thumb" />
-                  </div>
-                </div>
-                <div>
-                  <span className="wb-tag">
-                    {t("workbench.studio.draft", { defaultValue: "Draft" })}
-                  </span>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      height: 120,
-                      overflow: "hidden",
-                      borderRadius: 6,
-                      border: "1px solid var(--wb-line)",
-                    }}
-                  >
-                    <TemplateRenderer template={template} spec={spec} mode="thumb" />
-                  </div>
-                </div>
-              </div>
-              <div className="wb-divider" />
-              <span className="wb-caption">
-                {t("workbench.studio.history", { defaultValue: "Revisions" })}
-              </span>
-              {revisions.length === 0 ? (
-                <p className="wb-muted-2 wb-small">
-                  {t("workbench.studio.noHistory", { defaultValue: "No accepted revisions yet." })}
-                </p>
-              ) : (
-                revisions.map((revision) => (
-                  <button
-                    key={revision.at}
-                    type="button"
-                    className="wb-row-between"
-                    style={{ background: "none", border: 0, padding: "4px 0", cursor: "pointer" }}
-                    onClick={() => setSpec(revision.spec)}
-                  >
-                    <span className="wb-mono wb-small">{revision.hash}</span>
-                    <span className="wb-small wb-muted-2">
-                      {formatRelative(new Date(revision.at))}
-                    </span>
-                  </button>
-                ))
-              )}
+            <div className={cx("studio-pane-scroll", leftTab === "layers" && "is-tight")}>
+              {leftTab === "layers" ? (
+                <StudioLayers
+                  design={design}
+                  frame={frame}
+                  rows={rows}
+                  selectedId={selectedLayer?.id ?? null}
+                  coverage={frameCoverageValue}
+                  onToggleCollapse={(id) =>
+                    setCollapsed((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    })
+                  }
+                  onSelect={(id) => selectNode(frame.id, id)}
+                  onMove={moveLayer}
+                  onDuplicate={duplicateLayer}
+                  onRemove={removeLayer}
+                  onAdd={addLayer}
+                  onRename={(name) =>
+                    studio.renameDesign(
+                      name,
+                      t("workbench.studio.renameDesign", { defaultValue: "Rename design" }),
+                    )
+                  }
+                  footer={
+                    <div className="studio-shelf">
+                      <span className="wb-caption">
+                        {t("workbench.studio.templates", { defaultValue: "Templates" })}
+                      </span>
+                      <Select
+                        aria-label={t("workbench.studio.templates", { defaultValue: "Templates" })}
+                        value={templateId}
+                        onChange={(event) => setTemplateId(event.target.value)}
+                      >
+                        {shelf.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name}
+                            {entry.local
+                              ? t("workbench.studio.shelfDraftSuffix", { defaultValue: " · draft" })
+                              : ""}{" "}
+                            — {entry.tagline}
+                          </option>
+                        ))}
+                      </Select>
+                      <div className="studio-shelf-actions">
+                        <button
+                          type="button"
+                          className="studio-chip-btn"
+                          title={t("workbench.studio.applyTemplateHint", {
+                            defaultValue:
+                              "Replaces the frames in this design. Undo restores the previous composition.",
+                          })}
+                          onClick={() => applyTemplate(templateId)}
+                        >
+                          {t("workbench.studio.applyTemplateAction", { defaultValue: "Apply template" })}
+                        </button>
+                        <button type="button" className="studio-chip-btn" onClick={saveFrameAsTemplate}>
+                          {t("workbench.studio.saveFrameTemplate", {
+                            defaultValue: "Save frame as template",
+                          })}
+                        </button>
+                        <button type="button" className="studio-chip-btn" onClick={newTemplate}>
+                          {t("workbench.studio.newTemplate", { defaultValue: "New template" })}
+                        </button>
+                        {resolveTemplate(templateId, locals)?.local ? (
+                          <button
+                            type="button"
+                            className="studio-chip-btn is-danger"
+                            onClick={deleteTemplate}
+                          >
+                            {t("workbench.studio.deleteTemplate", { defaultValue: "Delete template" })}
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <details className="studio-context-details">
+                        <summary className="wb-caption">
+                          {t("workbench.studio.context", { defaultValue: "Page context" })}
+                        </summary>
+                        <div className="studio-context">
+                          <label>
+                            <span className="wb-label">
+                              {t("workbench.studio.scenario", { defaultValue: "Scenario" })}
+                            </span>
+                            <Select
+                              aria-label={t("workbench.studio.scenario", { defaultValue: "Scenario" })}
+                              value={scenario ?? ""}
+                              onChange={(event) => selectScenario(event.target.value)}
+                            >
+                              <option value="">
+                                {t("workbench.studio.noScenario", { defaultValue: "None" })}
+                              </option>
+                              {(scenarios.data ?? []).map((entry) => (
+                                <option key={entry.scenario} value={entry.scenario}>
+                                  {entry.scenario}
+                                </option>
+                              ))}
+                              {scenario &&
+                              !(scenarios.data ?? []).some((entry) => entry.scenario === scenario) ? (
+                                <option value={scenario}>{scenario}</option>
+                              ) : null}
+                            </Select>
+                          </label>
+                          <label>
+                            <span className="wb-label">
+                              {t("workbench.studio.page", { defaultValue: "Page" })}
+                            </span>
+                            <Select
+                              aria-label={t("workbench.studio.page", { defaultValue: "Page" })}
+                              value={page ?? ""}
+                              onChange={(event) => selectPage(event.target.value)}
+                            >
+                              <option value="">
+                                {t("workbench.studio.noPageShort", { defaultValue: "None" })}
+                              </option>
+                              {(pages.data ?? []).map((entry) => (
+                                <option key={entry.page} value={entry.page}>
+                                  {entry.title || entry.page}
+                                </option>
+                              ))}
+                              {page && !(pages.data ?? []).some((entry) => entry.page === page) ? (
+                                <option value={page}>{page}</option>
+                              ) : null}
+                            </Select>
+                          </label>
+                          <p className="studio-note">
+                            {page
+                              ? t("workbench.studio.contextBound", {
+                                  defaultValue:
+                                    "Bound to {{page}}. Choosing another page opens or creates that page's design.",
+                                  page,
+                                })
+                              : t("workbench.studio.contextNote", {
+                                  defaultValue:
+                                    "Choose a page to bind this design. Each page keeps its own design.",
+                                })}
+                          </p>
+                        </div>
+                      </details>
+                    </div>
+                  }
+                />
+              ) : null}
+
+              {leftTab === "system" ? (
+                <StudioSystem
+                  theme={design.theme}
+                  frames={frames}
+                  activeFrame={frame}
+                  token={token}
+                  onSelectToken={setToken}
+                  onTokenChange={(key, value) =>
+                    studio.updateTheme(
+                      { [key]: value },
+                      t("workbench.studio.editTokenAction", {
+                        defaultValue: "Edit {{token}} token",
+                        token: key,
+                      }),
+                      `theme:${key}`,
+                    )
+                  }
+                  onSelectNode={(id) => selectNode(frame.id, id)}
+                  onSelectFrame={selectFrame}
+                  coverage={frameCoverageValue}
+                  options={design.options}
+                  onOptionsChange={(patch, label) => studio.updateOptions(patch, label)}
+                />
+              ) : null}
+
+              {leftTab === "assets" ? (
+                <StudioAssets
+                  designId={design.id}
+                  assets={assets}
+                  onImport={(file, fidelity) => {
+                    void studio
+                      .importAsset(file, fidelity)
+                      .catch((error: unknown) => {
+                        if (error instanceof AssetImportError) {
+                          flash(
+                            error.reason === "type"
+                              ? t("workbench.studio.assetType", {
+                                  defaultValue: "Only image files can be imported as references.",
+                                })
+                              : t("workbench.studio.assetTooBig", {
+                                  defaultValue: "That image is too large. Import one under 8 MB.",
+                                }),
+                          );
+                          return;
+                        }
+                        flash(
+                          t("workbench.studio.assetFailed", {
+                            defaultValue: "The image could not be uploaded. Try again.",
+                          }),
+                        );
+                      });
+                  }}
+                  onPlace={placeAsset}
+                  onRemove={(assetId) => {
+                    void studio.removeAsset(assetId).catch(() =>
+                      flash(
+                        t("workbench.studio.assetRemoveFailed", {
+                          defaultValue: "That reference could not be removed. Try again.",
+                        }),
+                      ),
+                    );
+                  }}
+                />
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </aside>
 
-        <div className="wb-inspector-section">
-          <span className="wb-caption">
-            {t("workbench.studio.actions", { defaultValue: "Actions" })}
-          </span>
-          <div className="wb-stack tight">
-            <WbButton
-              variant="primary"
-              size="md"
-              onClick={() =>
-                save(
-                  spec,
-                  t("workbench.studio.accepted", {
-                    defaultValue: "Composition accepted as a local revision.",
+          <StudioCanvas
+            design={design}
+            frames={frames}
+            activeFrameId={frame.id}
+            selectedId={selectedLayer?.id ?? null}
+            scales={scales}
+            guides={guides}
+            onToggleGuides={() => setGuides((value) => !value)}
+            zoomOverride={zoomOverride}
+            onZoomChange={setZoomOverride}
+            fitScale={narrow ? frameScale : fitScale}
+            audit={audits}
+            slot={
+              componentId ? (
+                <StudioSlot
+                  componentId={componentId}
+                  storyId={storyId}
+                  template={frameTemplate(design, frame)}
+                  height={placement?.h ?? 56}
+                />
+              ) : undefined
+            }
+            slotEditable={Boolean(componentId)}
+            onPlacementChange={(frameId, nodeId, next) =>
+              studio.updateFrame(
+                frameId,
+                (spec) => setSlotPlacement(spec, nodeId, next),
+                t("workbench.studio.moveSlot", { defaultValue: "Move component slot" }),
+                `slot:${frameId}:${nodeId}`,
+              )
+            }
+            onSelectFrame={selectFrame}
+            onSelectNode={selectNode}
+            onAddFrame={handleDevice}
+            onRemoveFrame={(id) =>
+              studio.removeFrame(id, t("workbench.studio.removeFrameAction", { defaultValue: "Remove frame" }))
+            }
+            scrollRef={canvasRef}
+            saving={studio.saving}
+          />
+
+          <aside
+            ref={rightSheetRef}
+            className="studio-pane studio-right"
+            aria-label={t("workbench.studio.inspector", { defaultValue: "Inspector" })}
+          >
+            <button
+              type="button"
+              className="studio-sheet-close"
+              aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
+              onClick={() => setSheet(null)}
+            >
+              <X aria-hidden size={15} />
+            </button>
+            <StudioInspector
+              tab={rightTab}
+              onTab={setRightTab}
+              design={design}
+              frame={frame}
+              theme={design.theme}
+              selected={selectedLayer ?? null}
+              onPropChange={(key, value) => {
+                if (!selectedLayer) return;
+                commitFrame(
+                  (spec) => setProp(spec, selectedLayer.id, key, value),
+                  t("workbench.studio.editProp", { defaultValue: "Edit {{key}}", key }),
+                  `prop:${frame.id}:${selectedLayer.id}:${key}`,
+                );
+              }}
+              coverage={coverage}
+              claims={claims}
+              frames={frames}
+              audits={audits}
+              stateGap={stateGap}
+              aiScope={aiScope}
+              onAiScope={setAiScope}
+              onSelectFrame={selectFrame}
+              onApplyProposal={studio.applyProposal}
+              onApplied={(summary) =>
+                flash(
+                  t("workbench.studio.aiApplied", {
+                    defaultValue: "Applied “{{summary}}” as one undoable step.",
+                    summary,
                   }),
                 )
               }
-            >
-              <Check aria-hidden size={13} />
-              {t("workbench.studio.accept", { defaultValue: "Accept composition" })}
-            </WbButton>
-            <Link to={appRoutes.review} className="wb-btn ghost sm wide">
-              {t("workbench.studio.requestReview", { defaultValue: "Request review" })}
-            </Link>
-            <WbButton variant="ghost" size="sm" onClick={reset}>
-              <RotateCcw aria-hidden size={12} />
-              {t("workbench.studio.reset", { defaultValue: "Reset" })}
-            </WbButton>
-          </div>
+            />
+          </aside>
         </div>
-      </aside>
+
+        <div className="studio-mobile-bar">
+          <button
+            type="button"
+            className="studio-mobile-btn"
+            onClick={() => {
+              setLeftTab("layers");
+              setSheet("left");
+            }}
+          >
+            <Layers aria-hidden size={14} />
+            {t("workbench.studio.layers", { defaultValue: "Layers" })}
+          </button>
+          <button
+            type="button"
+            className="studio-mobile-btn"
+            onClick={() => {
+              setLeftTab("system");
+              setSheet("left");
+            }}
+          >
+            <Palette aria-hidden size={14} />
+            {t("workbench.studio.system", { defaultValue: "System" })}
+          </button>
+          <button type="button" className="studio-mobile-btn" onClick={openAssets}>
+            <Image aria-hidden size={14} />
+            {t("workbench.studio.assets", { defaultValue: "Assets" })}
+          </button>
+          <button
+            type="button"
+            className="studio-mobile-btn"
+            onClick={() => {
+              setRightTab("inspect");
+              setSheet("right");
+            }}
+          >
+            <SlidersHorizontal aria-hidden size={14} />
+            {t("workbench.studio.inspect", { defaultValue: "Inspect" })}
+          </button>
+          <button type="button" className="studio-mobile-btn" onClick={openEvidence}>
+            <Check aria-hidden size={14} />
+            {t("workbench.studio.checks", { defaultValue: "Checks" })}
+          </button>
+        </div>
+
+        <StudioStatusBar
+          doc={design}
+          coverage={coverage}
+          audits={audits}
+          saved={studio.saved[design.id]}
+          dirty={dirty}
+          saving={studio.saving}
+          saveFailed={studio.saveFailed}
+          onRetrySave={studio.retrySave}
+          unavailable={studio.unavailable}
+          fallback={studio.fallback}
+          openCount={studio.openDocs.length}
+          issueCount={issueCount}
+          zoom={zoomOverride ?? (narrow ? frameScale : fitScale)}
+        />
+      </div>
+
+      {htmlImportOpen ? (
+        <HtmlImport onClose={() => setHtmlImportOpen(false)} onImport={importHtmlDesign} />
+      ) : null}
+
+      {notice ? (
+        <div className="studio-toast" role="status">
+          <Check aria-hidden size={13} />
+          {notice}
+        </div>
+      ) : null}
 
       {presenting ? (
         <div
@@ -1151,20 +1159,12 @@ export function DesignStudioPage() {
           role="dialog"
           aria-modal="true"
           aria-label={t("workbench.studio.presentLabel", { defaultValue: "Present composition" })}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 90,
-            display: "grid",
-            placeItems: "center",
-            padding: 24,
-            background: "rgba(4,3,7,.92)",
-          }}
+          className="studio-present"
         >
-          <div style={{ position: "absolute", top: 16, right: 16 }}>
+          <div className="studio-present-close">
             <button
               type="button"
-              className="wb-iconbtn"
+              className="studio-iconbtn"
               aria-label={t("workbench.studio.closePresent", {
                 defaultValue: "Close presentation",
               })}
@@ -1174,24 +1174,22 @@ export function DesignStudioPage() {
             </button>
           </div>
           <div
+            className="studio-present-frame"
             style={{
-              width,
-              maxHeight: "92dvh",
-              overflow: "auto",
-              borderRadius: 10,
-              boxShadow: "0 40px 120px rgba(0,0,0,.6)",
+              width: FRAME_SIZE[frame.device].width,
+              zoom: presentScale,
             }}
           >
             <TemplateRenderer
-              template={template}
-              spec={spec}
+              template={frameTemplate(design, frame)}
+              spec={frame.spec}
               mode="preview"
               slot={
                 componentId ? (
                   <StudioSlot
                     componentId={componentId}
                     storyId={storyId}
-                    template={template}
+                    template={frameTemplate(design, frame)}
                     height={placement?.h ?? 56}
                   />
                 ) : undefined
@@ -1244,356 +1242,5 @@ function StudioSlot({
         template: template.name,
       })}
     />
-  );
-}
-
-function ThemePanel({
-  template,
-  onChange,
-  onSaveAs,
-}: {
-  template: Template;
-  onChange: (patch: Partial<Template>) => void;
-  onSaveAs: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="wb-stack tight">
-      <Field label={t("workbench.studio.name", { defaultValue: "Name" })}>
-        <TextInput
-          value={template.name}
-          onChange={(event) => onChange({ name: event.target.value })}
-        />
-      </Field>
-      <Field label={t("workbench.studio.tagline", { defaultValue: "Tagline" })}>
-        <TextInput
-          value={template.tagline}
-          onChange={(event) => onChange({ tagline: event.target.value })}
-        />
-      </Field>
-      <Field label={t("workbench.studio.slotHint", { defaultValue: "Component slot hint" })}>
-        <TextInput
-          value={template.slotHint}
-          onChange={(event) => onChange({ slotHint: event.target.value })}
-        />
-      </Field>
-      <div className="wb-field">
-        <span className="wb-label">
-          {t("workbench.studio.palette", { defaultValue: "Palette" })}
-        </span>
-        <div className="wb-swatches">
-          {TEMPLATE_PALETTES.map((entry) => {
-            const selected = entry.palette.bg === template.palette.bg;
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                className={cx("wb-swatch", selected && "is-selected")}
-                aria-pressed={selected}
-                title={entry.label}
-                onClick={() => onChange(withPalette(template, entry.palette))}
-              >
-                <span style={{ background: entry.palette.bg }} />
-                <span style={{ background: entry.palette.accent }} />
-                <span style={{ background: entry.palette.ink }} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="wb-row" style={{ gap: 8 }}>
-        <Field label={t("workbench.studio.accent", { defaultValue: "Accent" })}>
-          <input
-            type="color"
-            className="wb-color"
-            value={template.palette.accent}
-            onChange={(event) =>
-              onChange({ palette: { ...template.palette, accent: event.target.value } })
-            }
-            aria-label={t("workbench.studio.accent", { defaultValue: "Accent" })}
-          />
-        </Field>
-        <Field label={t("workbench.studio.background", { defaultValue: "Background" })}>
-          <input
-            type="color"
-            className="wb-color"
-            value={template.palette.bg}
-            onChange={(event) =>
-              onChange({ palette: { ...template.palette, bg: event.target.value } })
-            }
-            aria-label={t("workbench.studio.background", { defaultValue: "Background" })}
-          />
-        </Field>
-      </div>
-      <div className="wb-field">
-        <span className="wb-label">
-          {t("workbench.studio.display", { defaultValue: "Display type" })}
-        </span>
-        <Segmented
-          label={t("workbench.studio.display", { defaultValue: "Display type" })}
-          value={template.display}
-          onChange={(next) => onChange({ display: next })}
-          items={[
-            { id: "serif", label: t("workbench.studio.serif", { defaultValue: "Serif" }) },
-            { id: "sans", label: t("workbench.studio.sans", { defaultValue: "Sans" }) },
-          ]}
-        />
-      </div>
-      <Field label={t("workbench.studio.radius", { defaultValue: "Corner radius" })}>
-        <input
-          type="range"
-          min={0}
-          max={28}
-          value={template.radius}
-          onChange={(event) => onChange({ radius: Number(event.target.value) })}
-          aria-label={t("workbench.studio.radius", { defaultValue: "Corner radius" })}
-        />
-      </Field>
-      <WbButton variant="ghost" size="sm" onClick={onSaveAs}>
-        <Copy aria-hidden size={12} />
-        {t("workbench.studio.saveAsTemplate", { defaultValue: "Save as new template" })}
-      </WbButton>
-      <p className="wb-muted-2 wb-small">
-        {t("workbench.studio.themeNote", {
-          defaultValue:
-            "Theme edits are a browser-local draft until Accept composition. Duplicate the template to keep a named copy.",
-        })}
-      </p>
-    </div>
-  );
-}
-
-function NodeInspector({
-  node: selectedNode,
-  onChange,
-}: {
-  node: TemplateNode;
-  onChange: (key: string, value: string | number | boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const props = selectedNode.props;
-  const stringValue = (key: string): string => (typeof props[key] === "string" ? props[key] : "");
-  const numberValue = (key: string, fallback = 0): number =>
-    typeof props[key] === "number" ? props[key] : fallback;
-  const has = (key: string): boolean => key in props;
-  const isButton = selectedNode.type === "button";
-  const textVariants = [
-    "display",
-    "title",
-    "subtitle",
-    "body",
-    "label",
-    "caption",
-    "eyebrow",
-    "mono",
-    "price",
-  ];
-
-  return (
-    <div className="wb-stack tight">
-      <span className="wb-caption">{selectedNode.type}</span>
-
-      {has("text") ? (
-        <Field label={t("workbench.studio.text", { defaultValue: "Text" })}>
-          <TextInput
-            value={stringValue("text")}
-            onChange={(event) => onChange("text", event.target.value)}
-          />
-        </Field>
-      ) : null}
-
-      {has("placeholder") ? (
-        <Field label={t("workbench.studio.placeholder", { defaultValue: "Placeholder" })}>
-          <TextInput
-            value={stringValue("placeholder")}
-            onChange={(event) => onChange("placeholder", event.target.value)}
-          />
-        </Field>
-      ) : null}
-
-      {has("name") ? (
-        <Field label={t("workbench.studio.name", { defaultValue: "Name" })}>
-          <TextInput
-            value={stringValue("name")}
-            onChange={(event) => onChange("name", event.target.value)}
-          />
-        </Field>
-      ) : null}
-
-      {has("label") ? (
-        <Field label={t("workbench.studio.label", { defaultValue: "Label" })}>
-          <TextInput
-            value={stringValue("label")}
-            onChange={(event) => onChange("label", event.target.value)}
-          />
-        </Field>
-      ) : null}
-
-      {has("hint") ? (
-        <Field label={t("workbench.studio.hint", { defaultValue: "Slot hint" })}>
-          <TextInput
-            value={stringValue("hint")}
-            onChange={(event) => onChange("hint", event.target.value)}
-          />
-        </Field>
-      ) : null}
-
-      {selectedNode.type === "stat" ? (
-        <>
-          <Field label={t("workbench.studio.value", { defaultValue: "Value" })}>
-            <TextInput
-              value={stringValue("value")}
-              onChange={(event) => onChange("value", event.target.value)}
-            />
-          </Field>
-          <Field label={t("workbench.studio.detail", { defaultValue: "Detail" })}>
-            <TextInput
-              value={stringValue("detail")}
-              onChange={(event) => onChange("detail", event.target.value)}
-            />
-          </Field>
-        </>
-      ) : null}
-
-      {selectedNode.type === "meter" ? (
-        <Field label={t("workbench.studio.value", { defaultValue: "Value" })}>
-          <TextInput
-            type="number"
-            min={0}
-            max={100}
-            value={numberValue("value")}
-            onChange={(event) =>
-              onChange("value", Math.max(0, Math.min(100, Number(event.target.value))))
-            }
-          />
-        </Field>
-      ) : null}
-
-      {has("variant") ? (
-        <Field label={t("workbench.studio.variant", { defaultValue: "Variant" })}>
-          <Select
-            value={stringValue("variant")}
-            onChange={(event) => onChange("variant", event.target.value)}
-          >
-            {(isButton ? ["primary", "secondary", "ghost"] : textVariants).map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      ) : null}
-
-      {has("tone") ? (
-        <Field label={t("workbench.studio.tone", { defaultValue: "Tone" })}>
-          <Select
-            value={stringValue("tone")}
-            onChange={(event) => onChange("tone", event.target.value)}
-          >
-            {["ink", "muted", "accent", "secondary", "green", "amber", "red", "ice"].map(
-              (value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ),
-            )}
-          </Select>
-        </Field>
-      ) : null}
-
-      {has("shape") ? (
-        <Field label={t("workbench.studio.shape", { defaultValue: "Art shape" })}>
-          <Select
-            value={stringValue("shape")}
-            onChange={(event) => onChange("shape", event.target.value)}
-          >
-            {["none", "orb", "vase", "arch", "rings", "wave", "grid", "portrait"].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      ) : null}
-
-      {has("align") ? (
-        <Field label={t("workbench.studio.align", { defaultValue: "Align" })}>
-          <Select
-            value={stringValue("align")}
-            onChange={(event) => onChange("align", event.target.value)}
-          >
-            {["left", "center", "right", "start", "end"].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      ) : null}
-
-      {has("gap") ? (
-        <Field label={t("workbench.studio.gap", { defaultValue: "Gap" })}>
-          <TextInput
-            type="number"
-            value={numberValue("gap")}
-            onChange={(event) => onChange("gap", Number(event.target.value))}
-          />
-        </Field>
-      ) : null}
-
-      {has("cols") ? (
-        <Field label={t("workbench.studio.cols", { defaultValue: "Columns" })}>
-          <TextInput
-            type="number"
-            min={1}
-            max={6}
-            value={numberValue("cols", 1)}
-            onChange={(event) =>
-              onChange("cols", Math.max(1, Math.min(6, Number(event.target.value))))
-            }
-          />
-        </Field>
-      ) : null}
-
-      {has("pad") ? (
-        <Field label={t("workbench.studio.pad", { defaultValue: "Padding" })}>
-          <TextInput
-            type="number"
-            value={numberValue("pad")}
-            onChange={(event) => onChange("pad", Number(event.target.value))}
-          />
-        </Field>
-      ) : null}
-
-      {has("h") ? (
-        <Field label={t("workbench.studio.height", { defaultValue: "Height" })}>
-          <TextInput
-            type="number"
-            value={numberValue("h")}
-            onChange={(event) => onChange("h", Number(event.target.value))}
-          />
-        </Field>
-      ) : null}
-
-      {has("elevated") ? (
-        <div className="wb-row-between">
-          <span className="wb-label">
-            {t("workbench.studio.elevated", { defaultValue: "Elevated" })}
-          </span>
-          <Toggle
-            checked={Boolean(props.elevated)}
-            onChange={(next) => onChange("elevated", next)}
-            label={t("workbench.studio.elevated", { defaultValue: "Elevated" })}
-          />
-        </div>
-      ) : null}
-
-      <p className="wb-muted-2 wb-small">
-        {t("workbench.studio.editNote", {
-          defaultValue:
-            "Edits update the local composition immediately. Accept creates a revision; it does not publish a library release.",
-        })}
-      </p>
-    </div>
   );
 }

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+import { i18n } from "../i18n";
 import type { CoverageReport } from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
 
 import {
@@ -131,7 +133,11 @@ describe("timestamp normalization", () => {
   });
 
   it("never formats an invalid date as a relative value", () => {
-    expect(formatRelative(new Date(Number.NaN))).toBe("unknown");
-    expect(formatRelative(undefined)).toBe("unknown");
+    // The helper goes through the catalog, so the assertion follows the
+    // active locale (cimode in tests) instead of pinning English copy.
+    const unknown = i18n.t("common.relativeUnknown");
+    expect(formatRelative(new Date(Number.NaN))).toBe(unknown);
+    expect(formatRelative(undefined)).toBe(unknown);
+    expect(formatRelative(new Date(Number.NaN))).not.toMatch(/\d/);
   });
 });

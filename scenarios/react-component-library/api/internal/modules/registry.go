@@ -30,15 +30,18 @@ import (
 	localdb "react-component-library/internal/database"
 
 	adoptionsH "react-component-library/handlers/adoptions"
+	brandH "react-component-library/handlers/brand"
 	catalogH "react-component-library/handlers/catalog"
 	componentsH "react-component-library/handlers/components"
 	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
+	designsH "react-component-library/handlers/designs"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
 	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
 	sketchH "react-component-library/handlers/sketch"
+	templatesH "react-component-library/handlers/templates"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
@@ -64,15 +67,18 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, adoptionsH.Endpoints...)
+	out = append(out, brandH.Endpoints...)
 	out = append(out, catalogH.Endpoints...)
 	out = append(out, componentsH.Endpoints...)
 	out = append(out, componentTestsH.Endpoints...)
 	out = append(out, depsH.Endpoints...)
+	out = append(out, designsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
 	out = append(out, pageH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
 	out = append(out, sketchH.Endpoints...)
+	out = append(out, templatesH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
 	out = append(out, workflowsH.Endpoints...)
@@ -123,11 +129,13 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(designcapture.Schema),
 		apidb.SchemaProviderFunc(designcritique.Schema),
 		apidb.SchemaProviderFunc(designinference.Schema),
+		apidb.SchemaProviderFunc(designsH.Schema),
 		apidb.SchemaProviderFunc(versionledger.Schema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
 		apidb.SchemaProviderFunc(depsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(templatesH.Schema),
 		apidb.SchemaProviderFunc(themesH.Schema),
 		apidb.SchemaProviderFunc(workflowsH.Schema),
 	}

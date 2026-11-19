@@ -15,21 +15,22 @@ import {
 import {
   describeCapabilities,
   getCatalogCoverage,
-  getCatalogHealthOverview,
   listCatalogNextWork,
   type CapabilityDescription,
-  type GetHealthOverviewResponse,
   type ListNextWorkResponse,
 } from "../api/catalog";
 import { listComponentTestReports, type ComponentTestReport } from "../api/componentTests";
 import { API_BASE, boundedFetch } from "../api/client";
+import { getCurrentLocale, i18n } from "../i18n";
+import { timestampToDate } from "../lib/timestamp";
+
+export { timestampToDate } from "../lib/timestamp";
 
 export type { CatalogAsset, Component, ComponentExperience, ComponentStory, ComponentTestReport, ComponentVersion, CoverageReport, CoverageRow };
 
 export const wbKeys = {
   catalog: ["wb", "catalog"] as const,
   coverage: ["wb", "coverage"] as const,
-  health: ["wb", "health"] as const,
   capabilities: ["wb", "capabilities"] as const,
   designScenarios: ["wb", "design-scenarios"] as const,
   designPages: (scenario: string) => ["wb", "design-pages", scenario] as const,
@@ -66,15 +67,6 @@ export function useCoverage(): UseQueryResult<CoverageReport> {
     // guess when to refresh.
     retry: (count, error) => count < 2 && !isCoverageWarming(error),
     refetchInterval: (query) => (isCoverageWarming(query.state.error) ? 8_000 : false),
-  });
-}
-
-export function useHealthOverview(): UseQueryResult<GetHealthOverviewResponse> {
-  return useQuery({
-    queryKey: wbKeys.health,
-    queryFn: getCatalogHealthOverview,
-    staleTime: 60_000,
-    retry: 0,
   });
 }
 
@@ -450,37 +442,10 @@ function parseTime(value: unknown): Date | undefined {
  * exposing `toDate`. Returning undefined keeps "no timestamp" distinct from
  * "1970".
  */
-export function timestampToDate(value: unknown): Date | undefined {
-  if (!value) return undefined;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? undefined : value;
-  if (typeof value === "string") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? undefined : date;
-  }
-  if (typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? undefined : date;
-  }
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    if (typeof record.toDate === "function") {
-      const date = (record.toDate as () => Date).call(value);
-      return Number.isNaN(date.getTime()) ? undefined : date;
-    }
-    if (typeof record.seconds === "number" || typeof record.seconds === "bigint") {
-      const seconds = Number(record.seconds);
-      if (!Number.isFinite(seconds)) return undefined;
-      const date = new Date(seconds * 1000);
-      return Number.isNaN(date.getTime()) ? undefined : date;
-    }
-  }
-  return undefined;
-}
-
 /* ── Formatting ───────────────────────────────────────────────────────────── */
 
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat(getCurrentLocale()).format(value);
 }
 
 export function formatPercent(value: number, digits = 1): string {
@@ -488,12 +453,20 @@ export function formatPercent(value: number, digits = 1): string {
 }
 
 export function formatRelative(date: Date | undefined): string {
-  if (!date) return "unknown";
-  if (Number.isNaN(date.getTime())) return "unknown";
+  if (!date || Number.isNaN(date.getTime())) {
+    // Non-component copy: use the singleton when it is live, else the literal.
+    return i18n.isInitialized
+      ? i18n.t("common.relativeUnknown", { defaultValue: "unknown" })
+      : "unknown";
+  }
   const seconds = Math.round((date.getTime() - Date.now()) / 1000);
   // API timestamps can be a few seconds ahead of the browser clock. "in 6
   // seconds" reads as a bug; treat the near future as now.
-  if (seconds > -60 && seconds < 60) return "just now";
+  if (seconds > -60 && seconds < 60) {
+    return i18n.isInitialized
+      ? i18n.t("common.justNow", { defaultValue: "just now" })
+      : "just now";
+  }
   const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["year", 31_536_000],
     ["month", 2_592_000],
@@ -502,7 +475,7 @@ export function formatRelative(date: Date | undefined): string {
     ["hour", 3_600],
     ["minute", 60],
   ];
-  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(getCurrentLocale(), { numeric: "auto" });
   for (const [unit, size] of units) {
     if (Math.abs(seconds) >= size) return formatter.format(Math.round(seconds / size), unit);
   }
@@ -510,17 +483,24 @@ export function formatRelative(date: Date | undefined): string {
 }
 
 export function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  return new Intl.DateTimeFormat(getCurrentLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 export function formatDay(date: Date): string {
-  const today = new Date();
-  const sameDay = date.toDateString() === today.toDateString();
-  if (sameDay) return "Today";
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+  const locale = getCurrentLocale();
+  const startOfDay = (value: Date) =>
+    Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+  const days = Math.round((startOfDay(date) - startOfDay(new Date())) / 86_400_000);
+  if (days === 0 || days === -1) {
+    // `numeric: "auto"` yields the locale's "today"/"yesterday" instead of
+    // shipping English words from this module.
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(days, "day");
+  }
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
 }
 
 /* ── Catalog helpers ──────────────────────────────────────────────────────── */
@@ -551,12 +531,4 @@ export function assetHasDraft(asset: CatalogAsset): boolean {
 
 export function assetAdoptions(asset: CatalogAsset): number {
   return asset.metrics?.directAdoptionCount ?? 0;
-}
-
-export function assetEffectiveAdoptions(asset: CatalogAsset): number {
-  return asset.metrics?.effectiveAdoptionCount ?? 0;
-}
-
-export function isRenderable(asset: CatalogAsset): boolean {
-  return assetGroup(asset) !== "hooks" && asset.assetKind !== AssetKind.HOOK;
 }

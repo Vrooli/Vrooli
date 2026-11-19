@@ -4,15 +4,10 @@
  * chrome surrounds them; it never restyles them.
  */
 
-.tpl-host {
-  container-type: inline-size;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background: var(--t-bg, #fff);
-}
-
 .tpl {
+  /* The composition is the query container: a template responds to the device
+     frame it is mounted in, not to the browser window. */
+  container-type: inline-size;
   position: relative;
   min-height: 100%;
   background: var(--t-bg);
@@ -229,6 +224,17 @@
 
 .tpl-slot.is-empty {
   border: 1px dashed var(--t-accent);
+}
+
+.tpl-slot.is-fallback {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .tpl-slot.is-filled {
@@ -600,4 +606,45 @@
     radial-gradient(circle at 50% 30%, var(--t-surface) 0 18%, transparent 19%),
     radial-gradient(60% 46% at 50% 100%, var(--t-surface-alt) 0 70%, transparent 71%);
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Unknown layer: visible on the canvas, harmless in a published build. */
+.tpl-unknown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px dashed var(--t-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--t-muted);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.02em;
+}
+
+.tpl-unknown-copy {
+  color: var(--t-ink);
+  font-family: var(--wb-sans);
+  font-size: 12px;
+}
+
+/* A reference image is a real layer, but it never claims RCL provenance. */
+.tpl-image {
+  margin: 0;
+  overflow: hidden;
+  border-radius: calc(var(--t-radius) - 4px);
+  background: var(--t-surface);
+}
+
+.tpl-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tpl-image-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--t-muted);
+  font: 10px/1.4 var(--wb-mono);
 }

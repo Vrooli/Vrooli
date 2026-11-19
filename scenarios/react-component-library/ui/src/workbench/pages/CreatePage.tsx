@@ -525,7 +525,7 @@ export function CreatePage() {
                   </Select>
                 </Field>
                 <Field
-                  label={t("workbench.create.version", { defaultValue: "Version" })}
+                  label={t("workbench.create.versionLabel", { defaultValue: "Version" })}
                   htmlFor="adopt-version"
                 >
                   <Select

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TemplateRenderer } from "./TemplateRenderer";
 import { DEFAULT_TEMPLATE, TEMPLATES } from "./library";
+import { node, slotNode } from "./spec";
 
 describe("TemplateRenderer", () => {
   it("renders every template's page root and component slot", () => {
@@ -28,6 +29,35 @@ describe("TemplateRenderer", () => {
     );
     expect(screen.getByRole("button", { name: "Live action" })).toBeInTheDocument();
     expect(container.querySelector(".tpl-slot")?.className).toContain("is-filled");
+  });
+
+  it("shows a slot's authored fallback until a live component replaces it", () => {
+    const fallbackCopy = "Authored fallback";
+    const liveCopy = "Live metric";
+    const spec = node("page", "page", {}, [
+      slotNode("metric", {
+        hint: "KPI card",
+        minH: 96,
+        role: "metric",
+        children: [node("metric.fallback", "text", { text: fallbackCopy })],
+      }),
+    ]);
+    const { container, rerender } = render(
+      <TemplateRenderer template={DEFAULT_TEMPLATE} spec={spec} mode="preview" />,
+    );
+    expect(screen.getByText(fallbackCopy)).toBeInTheDocument();
+    expect(container.querySelector(".tpl-slot")?.className).toContain("is-fallback");
+
+    rerender(
+      <TemplateRenderer
+        template={DEFAULT_TEMPLATE}
+        spec={spec}
+        mode="preview"
+        slot={<span>{liveCopy}</span>}
+      />,
+    );
+    expect(screen.queryByText(fallbackCopy)).toBeNull();
+    expect(screen.getByText(liveCopy)).toBeInTheDocument();
   });
 
   it("floats a placed component above the authored page and keeps the anchor", () => {

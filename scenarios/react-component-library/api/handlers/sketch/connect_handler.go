@@ -428,6 +428,13 @@ func requestTarget(value *sketchv1.SketchTarget) (target, error) {
 }
 
 func (h *connectHandler) connectError(operation string, err error) error {
+	// A coded error already carries an intentional classification from the
+	// call site (validation, unavailable, and so on). Preserve it instead of
+	// reclassifying below.
+	var coded *connect.Error
+	if errors.As(err, &coded) {
+		return coded
+	}
 	if errors.Is(err, designinference.ErrConflict) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
@@ -453,8 +460,12 @@ func (h *connectHandler) connectError(operation string, err error) error {
 	if errors.Is(err, os.ErrNotExist) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
+	// Everything else is a server-side failure: a disk/permission/parse fault
+	// or an unavailable dependency. Labelling it InvalidArgument told the
+	// client its request was malformed and made retry policies fire on the
+	// wrong class.
 	h.deps.Logger.Printf("sketch.%s: %v", operation, err)
-	return connect.NewError(connect.CodeInvalidArgument, err)
+	return connect.NewError(connect.CodeInternal, err)
 }
 
 func (h *connectHandler) save(ctx context.Context, target target, expected string, doc internal.Document) (*connect.Response[sketchv1.PutSketchResponse], error) {

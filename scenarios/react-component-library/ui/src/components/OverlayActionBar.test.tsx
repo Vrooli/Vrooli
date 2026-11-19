@@ -10,6 +10,9 @@ import {
   missingIDOverlayActions,
 } from "../../../library/usage-contracts/adversarial-fixtures";
 
+// Default chrome copy owned by the published OverlayActionBar release.
+const defaultMoreLabel = "More";
+
 const unsafeFiveGermanActions = fiveGermanOverlayActions as unknown as OverlayActionList;
 const unsafeMissingIDActions = missingIDOverlayActions as unknown as OverlayActionList;
 const typePrimary = {
@@ -118,7 +121,7 @@ describe("OverlayActionBar usage contract", () => {
       const group = screen.getByRole("group", { name: "Acciones" });
       expect(within(group).getByRole("button", { name: "Más 3 acciones" })).toBeInTheDocument();
       expect(screen.queryByRole("group", { name: "Actions" })).toBeNull();
-      expect(screen.queryByText("More")).toBeNull();
+      expect(screen.queryByText(defaultMoreLabel)).toBeNull();
     });
 
     it("lets a caller's explicit label win over the translated default", () => {

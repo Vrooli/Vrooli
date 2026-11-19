@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
   ArrowUpRight,
-  Check,
   CircleAlert,
   Layers,
   Play,
@@ -12,7 +11,6 @@ import {
   Share2,
   SlidersHorizontal,
   Sparkles,
-  X,
 } from "lucide-react";
 
 import { runComponentTest } from "../../api/componentTests";
@@ -26,9 +24,12 @@ import {
   wbKeys,
   type WorkbenchStory,
 } from "../data";
+import { cx } from "../cx";
 import { AssetDataDrawer, type DrawerTab } from "../component/AssetDataDrawer";
 import { FixtureCanvas, type FixturePosition } from "../component/FixtureCanvas";
-import { InContextStage, type Device } from "../component/InContextStage";
+import { InContextChecksPanel } from "../component/InContextChecks";
+import { VERDICT_ICON, VERDICT_KEY, asVerdict } from "../verdicts";
+import { InContextStage, type Device, type InContextReport } from "../component/InContextStage";
 import { readWorkbenchPreferences } from "../preferences";
 import { DEFAULT_TEMPLATE } from "../templates/library";
 import { resolveTemplate, useLocalTemplates } from "../templates/local";
@@ -111,8 +112,8 @@ export function ComponentPage() {
   const [overrides, setOverrides] = useState<Record<string, Record<string, unknown> | null>>({});
   const [reloads, setReloads] = useState<Record<string, number>>({});
   const [statuses, setStatuses] = useState<Record<string, "loading" | "ready" | "error" | "applied">>({});
-  const [overflow, setOverflow] = useState(false);
-  const [placed, setPlaced] = useState(false);
+  const [contextReport, setContextReport] = useState<InContextReport | null>(null);
+  const [contextSlot, setContextSlot] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const locals = useLocalTemplates();
 
@@ -172,49 +173,22 @@ export function ComponentPage() {
   const passed = checks.filter((check) => check.verdict === "pass").length;
   const checkRatio = checks.length === 0 ? 0 : passed / checks.length;
 
-  const contextChecks = [
-    {
-      id: "slot",
-      label: t("workbench.component.checkSlot", { defaultValue: "Page declares a component slot" }),
-      verdict: "pass" as const,
-      detail: template.slotHint,
-    },
-    {
-      id: "overflow",
-      label: t("workbench.component.checkOverflow", { defaultValue: "No horizontal overflow in the page" }),
-      verdict: overflow ? ("fail" as const) : ("pass" as const),
-      detail: overflow ? "The template is wider than the frame." : "Measured in the frame.",
-    },
-    {
-      id: "evidence",
-      label: t("workbench.component.checkEvidence", { defaultValue: "Component evidence is available" }),
-      verdict: checks.length === 0 ? ("unmeasured" as const) : checkRatio === 1 ? ("pass" as const) : ("warn" as const),
-      detail:
-        checks.length === 0
-          ? t("workbench.component.noEvidence", { defaultValue: "No experience contract" })
-          : `${passed}/${checks.length} claims pass`,
-    },
-    {
-      id: "placement",
-      label: t("workbench.component.checkPlacement", {
-        defaultValue: "Component is placed inside the page",
-      }),
-      verdict: placed ? ("pass" as const) : ("unmeasured" as const),
-      detail: placed
-        ? t("workbench.component.checkPlacementDetail", {
-            defaultValue: "Moved or resized in this local composition.",
-          })
-        : t("workbench.component.checkPlacementFlow", {
-            defaultValue: "Sitting in the slot the template designed.",
-          }),
-    },
-    {
-      id: "states",
-      label: t("workbench.component.checkStates", { defaultValue: "Declared states are covered" }),
-      verdict: bundle.data?.experience?.evidenceStatus === "fresh" ? "pass" : "unmeasured",
-      detail: bundle.data?.experience?.evidenceStatus ?? "unknown",
-    },
-  ];
+  // State coverage is the one check that comes from the experience contract
+  // rather than from a canvas instrument: a state counts as covered only when
+  // a capture names it.
+  const contextStates = useMemo(() => {
+    const experience = bundle.data?.experience;
+    if (!experience || experience.states.length === 0) return null;
+    const covered = experience.states.filter((state) =>
+      experience.evidence.some((row) => row.stateId === state.id),
+    ).length;
+    return { total: experience.states.length, covered, status: experience.evidenceStatus };
+  }, [bundle.data?.experience]);
+
+  const contextRows = contextReport?.rows ?? [];
+  const contextPassed = contextReport?.passed ?? 0;
+  const contextScored = contextReport?.scored ?? 0;
+  const contextRatio = contextScored === 0 ? 0 : contextPassed / contextScored;
 
   const updateURL = (next: Record<string, string | undefined>) => {
     const params = new URLSearchParams(searchParams);
@@ -439,7 +413,7 @@ export function ComponentPage() {
         </div>
       ) : null}
 
-      <div className="wb-comp-layout">
+      <div className={cx("wb-comp-layout", mode === "context" && "is-context")}>
         {mode === "fixtures" ? (
           <FixtureCanvas
             asset={asset}
@@ -466,6 +440,7 @@ export function ComponentPage() {
             templateId={templateId}
             onTemplateChange={(next) => {
               setTemplateId(next);
+              setContextReport(null);
               updateURL({ template: next });
             }}
             device={device}
@@ -473,8 +448,10 @@ export function ComponentPage() {
               setDevice(next);
               updateURL({ device: next });
             }}
-            onOverflowChange={setOverflow}
-            onPlacementChange={setPlaced}
+            slotChoice={contextSlot}
+            onSlotChoice={setContextSlot}
+            onReport={setContextReport}
+            states={contextStates}
           />
         )}
 
@@ -486,12 +463,17 @@ export function ComponentPage() {
                   ? t("workbench.component.selectedFixture", { defaultValue: "Selected fixture" })
                   : t("workbench.component.inContextSettings", { defaultValue: "In-context settings" })}
               </span>
-              <h2>{mode === "fixtures" ? selectedStory?.name || selectedStory?.id || "—" : template.name}</h2>
+              <h2>{mode === "fixtures" ? selectedStory?.name || selectedStory?.id || "—" : asset.displayName}</h2>
             </div>
             <Ring
-              value={mode === "fixtures" ? checkRatio * 100 : (contextChecks.filter((check) => check.verdict === "pass").length / contextChecks.length) * 100}
+              value={mode === "fixtures" ? checkRatio * 100 : contextRatio * 100}
               size={58}
-              tone={checkRatio === 1 && checks.length > 0 ? "green" : "amber"}
+              tone={
+                (mode === "fixtures" ? checkRatio : contextRatio) >= 1 &&
+                (mode === "fixtures" ? checks.length : contextScored) > 0
+                  ? "green"
+                  : "amber"
+              }
             />
           </div>
           <div className="wb-inspector-tabs">
@@ -502,7 +484,13 @@ export function ComponentPage() {
               items={[
                 { id: "checks", label: t("workbench.component.checks", { defaultValue: "Checks" }) },
                 { id: "props", label: t("workbench.component.props", { defaultValue: "Props" }) },
-                { id: "usage", label: t("workbench.component.usage", { defaultValue: mode === "fixtures" ? "Usage" : "Page" }) },
+                {
+                  id: "usage",
+                  label:
+                    mode === "fixtures"
+                      ? t("workbench.component.usageTab", { defaultValue: "Usage" })
+                      : t("workbench.component.pageTab", { defaultValue: "Page" }),
+                },
               ]}
             />
           </div>
@@ -522,15 +510,7 @@ export function ComponentPage() {
                   })}
                 />
               ) : (
-                <ChecksList
-                  rows={contextChecks.map((check) => ({
-                    id: check.id,
-                    label: check.label,
-                    verdict: check.verdict,
-                    detail: check.detail,
-                  }))}
-                  empty=""
-                />
+                <InContextChecksPanel rows={contextRows} />
               )
             ) : null}
 
@@ -579,6 +559,38 @@ export function ComponentPage() {
                   <p className="wb-small wb-muted">{template.idea}</p>
                   <span className="wb-caption">{t("workbench.component.slotHint", { defaultValue: "Slot" })}</span>
                   <p className="wb-small wb-muted">{template.slotHint}</p>
+                  <div className="wb-divider" />
+                  <span className="wb-caption">{t("workbench.component.placement", { defaultValue: "Placement" })}</span>
+                  {contextReport?.decision.chosen ? (
+                    <>
+                      <div className="wb-row-between">
+                        <span className="wb-small wb-muted">{t("workbench.component.ctxChosenSlot", { defaultValue: "Chosen slot" })}</span>
+                        <span className="wb-small">{contextReport.decision.chosen.label}</span>
+                      </div>
+                      <div className="wb-row-between">
+                        <span className="wb-small wb-muted">{t("workbench.component.ctxSlotRole", { defaultValue: "Role" })}</span>
+                        <span className="wb-small wb-mono">{contextReport.decision.chosen.role ?? "open"}</span>
+                      </div>
+                      <div className="wb-row-between">
+                        <span className="wb-small wb-muted">{t("workbench.component.ctxAssetKind", { defaultValue: "Asset kind" })}</span>
+                        <span className="wb-small wb-mono">{contextReport.decision.profile.kind}</span>
+                      </div>
+                      <div className="wb-row-between">
+                        <span className="wb-small wb-muted">{t("workbench.component.ctxScore", { defaultValue: "Affinity" })}</span>
+                        <span className="wb-small wb-mono">{contextReport.decision.chosen.score}%</span>
+                      </div>
+                      <div className="wb-row-between">
+                        <span className="wb-small wb-muted">{t("workbench.component.ctxViewport", { defaultValue: "Viewport" })}</span>
+                        <span className="wb-small wb-mono">
+                          {contextReport.viewport} · {contextReport.device}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="wb-small wb-muted">
+                      {t("workbench.component.ctxPlacementPending", { defaultValue: "Placing the component…" })}
+                    </p>
+                  )}
                   <div className="wb-divider" />
                   <WbButton
                     variant="primary"
@@ -634,40 +646,21 @@ function ChecksList({
   }
   return (
     <div>
-      {rows.map((row) => (
-        <div key={row.id} className="wb-checkrow">
-          <span
-            aria-hidden
-            style={{
-              color:
-                row.verdict === "pass"
-                  ? "var(--wb-green)"
-                  : row.verdict === "fail"
-                    ? "var(--wb-red)"
-                    : row.verdict === "warn"
-                      ? "var(--wb-amber)"
-                      : "var(--wb-muted-2)",
-            }}
-          >
-            {row.verdict === "pass" ? <Check size={12} /> : row.verdict === "fail" ? <X size={12} /> : <CircleAlert size={12} />}
-          </span>
-          <span title={row.label}>{row.label}</span>
-          <b
-            style={{
-              color:
-                row.verdict === "pass"
-                  ? "var(--wb-green)"
-                  : row.verdict === "fail"
-                    ? "var(--wb-red)"
-                    : row.verdict === "warn"
-                      ? "var(--wb-amber)"
-                      : "var(--wb-muted-2)",
-            }}
-          >
-            {row.verdict.toUpperCase()}
-          </b>
-        </div>
-      ))}
+      {rows.map((row) => {
+        const verdict = asVerdict(row.verdict);
+        const Icon = VERDICT_ICON[verdict];
+        return (
+          <div key={row.id} className={`wb-checkrow is-${verdict}`}>
+            <span aria-hidden className="wb-checkrow-icon">
+              <Icon size={12} />
+            </span>
+            <span title={row.label}>{row.label}</span>
+            <b className="wb-checkrow-verdict">
+              {t(VERDICT_KEY[verdict], { defaultValue: verdict })}
+            </b>
+          </div>
+        );
+      })}
       <p className="wb-muted-2 wb-small" style={{ marginTop: 10 }}>
         {t("workbench.component.checksNote", {
           defaultValue:

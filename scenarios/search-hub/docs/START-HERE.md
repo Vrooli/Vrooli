@@ -1,10 +1,10 @@
 # Start Here — Search Hub
 
-This is the operator and contributor orientation for Search Hub. It records
-the lifecycle, architecture, quality gates, and handoff evidence for the
-federated retrieval control plane. The scenario is already implemented; use
-the gates below as maintenance and certification checks, not as instructions
-to replace a starter application.
+For a search or routing question, start with the
+[CLI reference](reference/cli-commands.md) and the result you need to explain.
+For a focused code change, start with the owning domain and verify the
+affected behavior. Use the certification checks below when validating a
+scaffold or certifying the scenario.
 
 Run the scenario lifecycle through `make setup`, `make start`, `make test`,
 and `make stop`. Use `search-hub maturity scan --json` for the current search
@@ -21,7 +21,7 @@ routing/eval policy, and lifecycle commands are authoritative. UI copy,
 layout details, and examples are replaceable as long as they preserve
 accessible degraded/error states and the documented ownership boundaries.
 
-## Initialization Protocol
+## Scaffold and certification checks
 
 ### Gate 0 — Scaffold Health
 

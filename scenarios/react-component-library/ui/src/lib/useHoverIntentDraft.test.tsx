@@ -59,13 +59,19 @@ describe("useHoverIntent draft story behavior", () => {
     const trigger = screen.getByRole("button", { name: "Preview submenu" });
 
     fireEvent.pointerEnter(trigger, { pointerType: "mouse", clientX: 10, clientY: 20 });
-    act(() => vi.advanceTimersByTime(99));
+    act(() => {
+      vi.advanceTimersByTime(99);
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Submenu closed");
-    act(() => vi.advanceTimersByTime(1));
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Submenu open");
 
     fireEvent.pointerLeave(trigger);
-    act(() => vi.advanceTimersByTime(80));
+    act(() => {
+      vi.advanceTimersByTime(80);
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Submenu closed");
   });
 
@@ -78,7 +84,9 @@ describe("useHoverIntent draft story behavior", () => {
       clientX: 10,
       clientY: 20,
     });
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(screen.getByRole("status")).toHaveTextContent("Submenu closed");
   });
 });

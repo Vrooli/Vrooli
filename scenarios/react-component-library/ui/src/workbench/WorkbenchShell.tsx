@@ -22,6 +22,8 @@ import { useCatalog, useDesignScenarios, useCoverage, findingsFromCoverage } fro
 import { cx } from "./cx";
 import { useFocusTrap } from "./useFocusTrap";
 import { applyWorkbenchPreferences, readWorkbenchPreferences } from "./preferences";
+import { useBrand } from "./useBrand";
+import "./brand.css";
 
 interface NavItem {
   id: string;
@@ -74,6 +76,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   const catalog = useCatalog();
   const coverage = useCoverage();
   const scenarios = useDesignScenarios();
+  const brand = useBrand().data ?? null;
 
   const findings = useMemo(() => findingsFromCoverage(coverage.data), [coverage.data]);
   const openFindings = findings.length;
@@ -188,13 +191,28 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
           className="wb-rail"
           aria-label={t("workbench.nav.rail", { defaultValue: "Library navigation" })}
         >
-          <Link to={appRoutes.home} className="wb-brand">
-            <span className="wb-brand-mark" aria-hidden>
-              <LayoutGrid size={16} />
+          <Link
+            to={appRoutes.home}
+            className="wb-brand"
+            aria-label={brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
+          >
+            <span className={`wb-brand-mark${brand?.assigned ? "" : " is-fallback"}`} aria-hidden>
+              {brand?.assigned && brand.mark ? (
+                <img src={brand.mark} alt="" />
+              ) : (
+                <span className="wb-brand-mono">{t("workbench.identity.initials", { defaultValue: "RCL" })}</span>
+              )}
             </span>
-            <span>
-              {t("workbench.brand", { defaultValue: "Library" })}
-              <small>{t("workbench.brandMeta", { defaultValue: "RCL · Nocturne" })}</small>
+            <span className="wb-brand-text">
+              <span className="wb-brand-name">
+                {brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
+              </span>
+              <small className="wb-brand-meta">
+                <i className={`wb-brand-dot${brand?.assigned ? " is-assigned" : ""}`} aria-hidden />
+                {brand?.assigned
+                  ? t("workbench.brandSource", { defaultValue: "Brand Manager" })
+                  : t("workbench.brandUnassigned", { defaultValue: "Brand not assigned" })}
+              </small>
             </span>
           </Link>
 
@@ -259,7 +277,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
         <div className="wb-main">
           <header className="wb-topbar">
             <div className="wb-crumb">
-              <Link to={appRoutes.home}>{t("workbench.brand", { defaultValue: "Library" })}</Link>
+              <Link to={appRoutes.home}>{t("workbench.brand", { defaultValue: "React Component Library" })}</Link>
               <span aria-hidden>/</span>
               <b>{t(crumb.key, { defaultValue: crumb.fallback })}</b>
             </div>

@@ -648,7 +648,7 @@ export function SourceWorkbench({
             <Empty
               title={t("workbench.component.noChecksTitle", { defaultValue: "No checks declared" })}
             >
-              {t("workbench.component.noChecksBody", {
+              {t("workbench.component.draftNoChecksBody", {
                 defaultValue: "The check owner returned no stages for this draft.",
               })}
             </Empty>

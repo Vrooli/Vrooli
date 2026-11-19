@@ -20,7 +20,7 @@ func (c showAllResultsContext) BoolFlag(name string) bool {
 }
 
 func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
-	msg := &routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{
 		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},
 	}}
 	hint := strings.Join(operationHints(msg), "\n")
@@ -33,6 +33,13 @@ func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
 			t.Fatal("unsafe command suggestion", unsafe)
 		}
 	}
+	msg.Ranked = []*routingv1.SearchHit{
+		{ProviderId: "cli-health.commands", Id: "device-control device screenshot"},
+		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},
+	}
+	if hint := operationHints(msg); len(hint) != 0 {
+		t.Fatalf("lower-ranked program received a default suggestion: %v", hint)
+	}
 }
 
 func TestOperationHintPrintsLibraryUsage(t *testing.T) {
@@ -40,7 +47,7 @@ func TestOperationHintPrintsLibraryUsage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg := &routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{{
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{{
 		ProviderId: "program-runtime.library",
 		Id:         "program-runtime.setpoint-read",
 		Metadata:   metadata,
@@ -133,7 +140,7 @@ func TestRerankedQueryReportRendersHitPayloadOnceAndKeepsProviderSummary(t *test
 		Title:      "Agent run",
 		Snippet:    "A distinctive result snippet",
 	}
-	report := (&handlers{}).queryReport(nil, &routingv1.QueryResponse{
+	msg := &routingv1.QueryResponse{
 		Reranked:  true,
 		OrderedBy: "rerank_score",
 		Ranked:    []*routingv1.SearchHit{hit},
@@ -142,13 +149,18 @@ func TestRerankedQueryReportRendersHitPayloadOnceAndKeepsProviderSummary(t *test
 			Count:      1,
 			Hits:       []*routingv1.SearchHit{hit}, // Simulate a pre-projection response.
 		}},
-	})
+	}
+	report := (&handlers{}).queryReport(nil, msg)
 	joined := strings.Join(report.Results, "\n")
 	if strings.Count(joined, "A distinctive result snippet") != 1 {
 		t.Fatalf("result snippet appears more than once in report:\n%s", joined)
 	}
-	if !strings.Contains(joined, "agent-manager.runs (1)") {
-		t.Fatalf("provider summary is missing:\n%s", joined)
+	if strings.Contains(joined, "agent-manager.runs (1)") {
+		t.Fatalf("default output includes the provider inventory:\n%s", joined)
+	}
+	detailed := (&handlers{}).queryReport(showAllResultsContext{enabled: true}, msg)
+	if !strings.Contains(strings.Join(detailed.Results, "\n"), "agent-manager.runs (1)") {
+		t.Fatalf("detailed output lost provider provenance: %v", detailed.Results)
 	}
 	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
 		t.Fatalf("provider hit count is missing from summary: %v", report.Summary)

@@ -5,6 +5,12 @@
  * ships, plus the related "added a `{{count}}` placeholder to one catalog
  * but not the others" silent runtime failure. Three wrinkles:
  *
+ *   0. English is the canonical, complete catalog. Other locales are
+ *      **incremental**: a translation may lag behind en and falls back to
+ *      English at runtime (`fallbackLng: "en"` in i18n/index.ts). The test
+ *      therefore requires every translated key to exist in en, but does not
+ *      require every en key to be translated — otherwise every new string
+ *      would have to ship a fake English "translation" in ja/ar.
  *   1. CLDR plural forms differ between languages (English has `_one` +
  *      base, Japanese has only the base), so we strip plural suffixes
  *      before comparing key shapes. Each *logical* key must exist in
@@ -107,16 +113,12 @@ describe("locale catalogs", () => {
     );
   });
 
-  it("every locale shares the same logical key shape (plural variants stripped)", () => {
+  it("every locale only declares keys that exist in en.json", () => {
     const referenceKeys = logicalKeys(reference);
     for (const [locale, catalog] of Object.entries(catalogs)) {
       if (locale === "en") continue;
       const candidate = logicalKeys(catalog);
-
-      const missing = [...referenceKeys].filter((k) => !candidate.has(k));
       const extra = [...candidate].filter((k) => !referenceKeys.has(k));
-
-      expect(missing, `${locale}.json is missing keys present in en.json`).toEqual([]);
       expect(extra, `${locale}.json has keys not in en.json`).toEqual([]);
     }
   });
@@ -131,6 +133,7 @@ describe("locale catalogs", () => {
       const candidateTokens = tokensPerBase(catalog);
 
       for (const [base, refTokens] of referenceTokens) {
+        if (!candidateTokens.has(base)) continue; // untranslated: falls back to en
         const localTokens = candidateTokens.get(base) ?? new Set<string>();
         expect(
           [...localTokens].sort(),

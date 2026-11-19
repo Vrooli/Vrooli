@@ -23,12 +23,43 @@ export type TemplateNodeType =
   | "divider"
   | "spacer"
   | "slot"
-  | "swatch";
+  | "swatch"
+  | "image";
+
+/**
+ * The role a component slot plays on its page. A slot's role is a property of
+ * the page, not of the component: the same KPI strip is a hero region in an
+ * editorial layout and a metric region in an operations console.
+ */
+export type SlotRole = "hero" | "metric" | "chart" | "list" | "action" | "nav" | "text";
+
+export const SLOT_ROLES: readonly SlotRole[] = [
+  "hero",
+  "metric",
+  "chart",
+  "list",
+  "action",
+  "nav",
+  "text",
+];
+
+const SLOT_ROLE_SET: ReadonlySet<string> = new Set(SLOT_ROLES);
 
 export interface TemplateNode {
   id: string;
   type: TemplateNodeType;
   props: Record<string, string | number | boolean>;
+  /**
+   * Slot-only, optional: the role this region plays in the page. Templates
+   * authored before typed slots simply omit it and keep rendering.
+   */
+  role?: SlotRole;
+  /**
+   * Slot-only, optional: the asset kinds this region accepts (`metric`,
+   * `chart`, `table`, `button`…). An absent or empty list means the slot
+   * declares no constraint, so any asset is allowed but unproven.
+   */
+  accepts?: string[];
   children?: TemplateNode[];
 }
 
@@ -141,6 +172,54 @@ export function findSlot(root: TemplateNode): TemplateNode | undefined {
     if (found) return found;
   }
   return undefined;
+}
+
+/** Every slot on a page, in document order. Auto-placement scores this list. */
+export function slotsOf(root: TemplateNode): TemplateNode[] {
+  const slots: TemplateNode[] = [];
+  const visit = (current: TemplateNode) => {
+    if (current.type === "slot") slots.push(current);
+    for (const child of current.children ?? []) visit(child);
+  };
+  visit(root);
+  return slots;
+}
+
+export function slotRole(node: TemplateNode | undefined): SlotRole | undefined {
+  if (!node || node.type !== "slot" || typeof node.role !== "string") return undefined;
+  return SLOT_ROLE_SET.has(node.role) ? node.role : undefined;
+}
+
+export function slotAccepts(node: TemplateNode | undefined): string[] {
+  if (!node || node.type !== "slot" || !Array.isArray(node.accepts)) return [];
+  return node.accepts.filter((kind): kind is string => typeof kind === "string" && kind.trim().length > 0);
+}
+
+/**
+ * Builds a typed slot without forcing every template to know the extra fields.
+ * `node()` stays the general constructor so existing specs keep working.
+ */
+export function slotNode(
+  id: string,
+  options: {
+    hint?: string;
+    minH?: number;
+    role?: SlotRole;
+    accepts?: string[];
+    /**
+     * Authored content shown when no live component is placed. A slot is a
+     * replaceable region, not a hole: the design must look finished on its own.
+     */
+    children?: TemplateNode[];
+  } = {},
+): TemplateNode {
+  const { hint, minH = 40, role, accepts, children } = options;
+  const slot = node(id, "slot", hint ? { hint, minH } : { minH }, children);
+  return {
+    ...slot,
+    ...(role ? { role } : {}),
+    ...(accepts && accepts.length > 0 ? { accepts: [...accepts] } : {}),
+  };
 }
 
 export function slotPlacement(node: TemplateNode | undefined): SlotPlacement | undefined {
@@ -257,6 +336,7 @@ const LAYER_NAMES: Record<TemplateNodeType, string> = {
   spacer: "Spacer",
   slot: "Component slot",
   swatch: "Block",
+  image: "Image",
 };
 
 export function layerLabel(current: TemplateNode): string {

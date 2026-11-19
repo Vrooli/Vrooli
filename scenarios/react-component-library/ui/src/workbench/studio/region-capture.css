@@ -1,0 +1,313 @@
+/* Region capture dialog — scoped to the studio Assets pane. */
+
+.studio-asset-crop {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: start;
+}
+
+.studio-asset-crop:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.studio-asset-fidelity[data-fidelity="captured"] {
+  color: var(--wb-green);
+}
+
+.rc-layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  padding: 16px;
+  place-items: center;
+}
+
+.rc-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--wb-bg);
+  opacity: 0.82;
+}
+
+.rc-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  overflow: hidden;
+  width: min(720px, 100%);
+  max-height: 100%;
+  flex-direction: column;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r);
+  background: var(--wb-panel);
+  box-shadow: var(--wb-shadow);
+}
+
+.rc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.rc-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--wb-ink);
+  font-family: var(--wb-serif);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rc-close {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--wb-r-xs);
+  background: transparent;
+  color: var(--wb-muted);
+  cursor: pointer;
+  place-items: center;
+}
+
+.rc-close:hover {
+  border-color: var(--wb-line-2);
+  color: var(--wb-ink);
+}
+
+.rc-close:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.rc-body {
+  display: grid;
+  overflow: auto;
+  gap: 10px;
+  padding: 12px;
+}
+
+.rc-intro {
+  margin: 0;
+  color: var(--wb-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.rc-stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  justify-self: center;
+  background: var(--wb-bg-2);
+  line-height: 0;
+  touch-action: none;
+}
+
+.rc-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 58vh;
+  border-radius: var(--wb-r-xs);
+  user-select: none;
+}
+
+.rc-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.04em;
+  place-items: center;
+  text-transform: uppercase;
+}
+
+.rc-marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--wb-signal);
+  background: var(--wb-signal-soft);
+  cursor: move;
+  touch-action: none;
+}
+
+.rc-marquee:focus-visible {
+  outline: 2px solid var(--wb-ice);
+  outline-offset: 2px;
+}
+
+.rc-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--wb-signal-ink);
+  border-radius: 2px;
+  background: var(--wb-signal);
+  touch-action: none;
+}
+
+.rc-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.rc-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.rc-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.rc-handle-se {
+  right: -5px;
+  bottom: -5px;
+  cursor: nwse-resize;
+}
+
+.rc-error {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--wb-red-soft);
+  border-radius: var(--wb-r-xs);
+  background: var(--wb-red-soft);
+  color: var(--wb-red);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.rc-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.rc-aspect-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rc-aspect {
+  padding: 4px 10px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-pill);
+  background: var(--wb-panel-2);
+  color: var(--wb-muted);
+  cursor: pointer;
+  font: 10px/1.4 var(--wb-mono);
+}
+
+.rc-aspect:hover:not(:disabled) {
+  border-color: var(--wb-line-3);
+  color: var(--wb-ink-2);
+}
+
+.rc-aspect[aria-pressed="true"] {
+  border-color: var(--wb-signal-line);
+  background: var(--wb-signal-soft);
+  color: var(--wb-signal-strong);
+}
+
+.rc-aspect:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rc-aspect:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.rc-fields {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.rc-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rc-field span {
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rc-field input {
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-xs);
+  background: var(--wb-bg-2);
+  color: var(--wb-ink);
+  font: 12px/1.4 var(--wb-mono);
+}
+
+.rc-field input:focus-visible {
+  border-color: var(--wb-signal);
+  outline: 1px solid var(--wb-signal);
+  outline-offset: 1px;
+}
+
+.rc-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--wb-line);
+}
+
+.rc-hint {
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+}
+
+.rc-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 520px) {
+  .rc-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rc-foot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rc-actions {
+    justify-content: flex-end;
+  }
+}

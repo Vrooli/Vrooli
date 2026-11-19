@@ -871,6 +871,30 @@
   letter-spacing: 0.06em;
 }
 
+.wb-checkrow-icon,
+.wb-checkrow-verdict {
+  color: var(--wb-muted-2);
+}
+
+.wb-checkrow-verdict {
+  text-transform: uppercase;
+}
+
+.wb-checkrow.is-pass .wb-checkrow-icon,
+.wb-checkrow.is-pass .wb-checkrow-verdict {
+  color: var(--wb-green);
+}
+
+.wb-checkrow.is-warn .wb-checkrow-icon,
+.wb-checkrow.is-warn .wb-checkrow-verdict {
+  color: var(--wb-amber);
+}
+
+.wb-checkrow.is-fail .wb-checkrow-icon,
+.wb-checkrow.is-fail .wb-checkrow-verdict {
+  color: var(--wb-red);
+}
+
 .wb-drawer {
   border-top: 1px solid var(--wb-line);
   background: var(--wb-panel);
@@ -1044,57 +1068,6 @@
   padding: 22px;
 }
 
-.wb-device {
-  position: relative;
-  max-width: 100%;
-  overflow: hidden;
-  border: 1px solid var(--wb-line-2);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-}
-
-.wb-device-bar {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--wb-line);
-  background: #141219;
-}
-
-.wb-device-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #3a3340;
-}
-
-.wb-device-url {
-  flex: 1;
-  overflow: hidden;
-  margin-left: 6px;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: #0d0b11;
-  color: var(--wb-muted-2);
-  font: 9px/1.4 var(--wb-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-device-host {
-  position: relative;
-  overflow: auto;
-  background: #fff;
-  container-type: inline-size;
-}
-
-.wb-device-host .tpl {
-  min-height: 100%;
-}
-
 .wb-template-picker {
   display: grid;
   gap: 8px;
@@ -1134,314 +1107,11 @@
   font: 9px/1.4 var(--wb-mono);
 }
 
-/* ── Design studio ────────────────────────────────────────────────────────── */
+/* ── Design studio lives in workbench/studio/studio.css ──────────────────── */
 
-.wb-studio {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 300px;
-  height: calc(100dvh - var(--wb-topbar));
-  min-height: 0;
-  background: var(--wb-bg);
-}
-
-.wb-studio-left,
-.wb-studio-right {
-  min-width: 0;
-  height: 100%;
-  overflow: auto;
-  border-right: 1px solid var(--wb-line);
-  background: var(--wb-panel);
-}
-
-.wb-studio-right {
-  border-right: 0;
-  border-left: 1px solid var(--wb-line);
-}
-
-.wb-studio-mobilebar,
-.wb-studio-sheet-close,
-.wb-studio-backdrop {
-  display: none;
-}
-
-.wb-studio-center {
-  display: flex;
-  min-width: 0;
-  height: 100%;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.wb-studio-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--wb-line);
-  background: rgba(20, 18, 25, 0.7);
-}
-
-.wb-studio-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.wb-studio-title h1 {
-  margin: 0;
-  overflow: hidden;
-  font-family: var(--wb-serif);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-studio-title small {
+.wb-count {
   color: var(--wb-muted-2);
-  font: 9px/1.4 var(--wb-mono);
-}
-
-.wb-studio-section {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--wb-line);
-}
-
-.wb-studio-section > .wb-caption {
-  display: block;
-  margin-bottom: 8px;
-}
-
-.wb-page-list {
-  display: grid;
-  gap: 2px;
-}
-
-.wb-page-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 5px 8px;
-  border-radius: 7px;
-  color: var(--wb-muted);
-  font-size: 12px;
-}
-
-.wb-page-item:hover {
-  background: rgba(255, 255, 255, 0.035);
-  color: var(--wb-ink);
-}
-
-.wb-page-item[aria-current="true"] {
-  background: var(--wb-signal-soft);
-  color: var(--wb-ink);
-  box-shadow: inset 0 0 0 1px var(--wb-signal-line);
-}
-
-.wb-page-item .wb-count {
-  margin-left: auto;
-  color: var(--wb-muted-2);
-  font: 9px/1 var(--wb-mono);
-}
-
-.wb-layer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 28px;
-  padding: 3px 7px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--wb-muted);
-  font-size: 11px;
-  text-align: left;
-}
-
-.wb-layer:hover {
-  background: rgba(255, 255, 255, 0.035);
-  color: var(--wb-ink);
-}
-
-.wb-layer[aria-current="true"] {
-  background: var(--wb-signal-soft);
-  color: var(--wb-signal);
-}
-
-.wb-layer-depth {
-  width: calc(var(--depth, 0) * 11px);
-  flex: none;
-}
-
-.wb-layer-type {
-  margin-left: auto;
-  color: var(--wb-muted-2);
-  font: 8px/1 var(--wb-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.wb-artboard-area {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 26px;
-  background:
-    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 20px 20px,
-    #0a090c;
-}
-
-.wb-artboard {
-  position: relative;
-  margin: 0 auto;
-  overflow: hidden;
-  container-type: inline-size;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
-}
-
-.wb-artboard-scale {
-  transform-origin: top center;
-}
-
-.wb-artboard-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  max-width: 1180px;
-  margin: 0 auto 10px;
-  color: var(--wb-muted-2);
-  font: 9px/1.4 var(--wb-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.wb-brief {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--wb-line);
-  background: rgba(255, 179, 92, 0.04);
-  color: var(--wb-ink-2);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.wb-brief b {
-  color: var(--wb-signal);
-  font-weight: 600;
-}
-
-.wb-inspector-section {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--wb-line);
-}
-
-.wb-inspector-section > .wb-caption {
-  display: block;
-  margin-bottom: 8px;
-}
-
-.wb-contract-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 0;
-  font-size: 11px;
-}
-
-.wb-contract-row span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-}
-
-.wb-contract-row b {
-  font: 9px/1.4 var(--wb-mono);
-  letter-spacing: 0.05em;
-}
-
-.wb-contract-row.is-pass b {
-  color: var(--wb-green);
-}
-
-.wb-contract-row.is-warn b {
-  color: var(--wb-amber);
-}
-
-.wb-contract-row.is-fail b {
-  color: var(--wb-red);
-}
-
-.wb-studio-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 9px 14px;
-  border-top: 1px solid var(--wb-line);
-  background: rgba(20, 18, 25, 0.8);
-  color: var(--wb-muted-2);
-  font: 9px/1.4 var(--wb-mono);
-}
-
-.wb-compare {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.wb-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.wb-swatch {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  width: 58px;
-  height: 30px;
-  padding: 3px;
-  gap: 2px;
-  border: 1px solid var(--wb-line);
-  border-radius: 6px;
-  background: var(--wb-panel);
-  cursor: pointer;
-}
-
-.wb-swatch span {
-  border-radius: 2px;
-}
-
-.wb-swatch.is-selected {
-  border-color: var(--wb-signal);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--wb-signal) 30%, transparent);
-}
-
-.wb-swatch:focus-visible {
-  outline: 2px solid var(--wb-signal);
-  outline-offset: 2px;
-}
-
-.wb-color {
-  width: 100%;
-  height: 32px;
-  padding: 2px;
-  border: 1px solid var(--wb-line);
-  border-radius: 6px;
-  background: var(--wb-panel);
-  cursor: pointer;
+  font: 10px/1 var(--wb-mono);
 }
 
 /* ── Review ───────────────────────────────────────────────────────────────── */
@@ -2108,24 +1778,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .wb-studio {
-    grid-template-columns: 210px minmax(0, 1fr);
-  }
-
-  .wb-studio-right {
-    display: none;
-  }
-
   .wb-comp-layout {
     grid-template-columns: minmax(0, 1fr) 300px;
   }
 }
 
 @media (max-width: 980px) {
-  .wb-studio {
-    height: auto;
-  }
-
   .wb-home-grid,
   .wb-review-layout,
   .wb-coverage-layout,
@@ -2149,86 +1807,6 @@
   .wb-inspector {
     border-top: 1px solid var(--wb-line);
     border-left: 0;
-  }
-
-  .wb-studio {
-    grid-template-columns: minmax(0, 1fr);
-    position: relative;
-  }
-
-  .wb-studio-left {
-    display: none;
-  }
-
-  /* A phone cannot host three columns, but it must still author. The layer
-     tree and inspector become bottom sheets instead of disappearing. */
-  .wb-studio-mobilebar {
-    display: flex;
-    gap: 8px;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--wb-line);
-    background: rgba(20, 18, 25, 0.7);
-  }
-
-  .wb-studio-sheet-close {
-    display: inline-flex;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 2;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border: 1px solid var(--wb-line-2);
-    border-radius: 9px;
-    background: var(--wb-panel);
-    color: var(--wb-ink-2);
-    cursor: pointer;
-  }
-
-  .wb-studio-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 65;
-    border: 0;
-    padding: 0;
-    background: rgba(5, 4, 8, 0.62);
-    cursor: pointer;
-  }
-
-  .wb-studio.is-mobile-layers .wb-studio-left,
-  .wb-studio.is-mobile-inspector .wb-studio-right {
-    display: flex;
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 70;
-    flex-direction: column;
-    height: auto;
-    max-height: 78dvh;
-    overflow: auto;
-    border: 1px solid var(--wb-line-2);
-    border-bottom: 0;
-    border-radius: 16px 16px 0 0;
-    background: var(--wb-panel);
-    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.55);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  .wb-studio.is-mobile-layers .wb-studio-left {
-    border-right: 0;
-  }
-
-  .wb-studio.is-mobile-inspector .wb-studio-right {
-    border-left: 0;
-  }
-
-  .wb-studio.is-mobile-layers .wb-studio-left > .wb-studio-section:first-of-type,
-  .wb-studio.is-mobile-inspector .wb-studio-right > .wb-inspector-section:first-of-type {
-    padding-right: 48px;
   }
 
   .wb-selected {

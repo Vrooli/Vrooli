@@ -1,4 +1,4 @@
-import { node, type Template } from "./spec";
+import { node, slotNode, type Template } from "./spec";
 
 /**
  * The template shelf. Every template is a real page composition made from RCL
@@ -52,11 +52,31 @@ export const TEMPLATES: Template[] = [
             tone: "muted",
           }),
         ]),
-        node("aperture.slot", "slot", { hint: "Primary action in the workspace header", minH: 40 }),
+        slotNode("aperture.slot", {
+          hint: "Primary action in the workspace header",
+          minH: 40,
+          role: "action",
+          accepts: ["action", "button", "input", "search", "metric", "stat", "number", "card"],
+        }),
       ]),
       node("aperture.stats", "grid", { cols: 4, gap: 12 }, [
         node("aperture.stat1", "stat", { label: "Active accounts", value: "12,480", detail: "+8.4% vs last week", tone: "green" }),
-        node("aperture.stat2", "stat", { label: "Expansion", value: "31.2%", detail: "+2.1 pts", tone: "green" }),
+        slotNode("aperture.stat2", {
+          hint: "KPI card in the stats grid",
+          minH: 96,
+          role: "metric",
+          accepts: ["metric", "stat", "number", "card"],
+          // Authored fallback: the studio shows a finished KPI card, and
+          // in-context replaces this exact region with the live component.
+          children: [
+            node("aperture.stat2.fallback", "stat", {
+              label: "Expansion",
+              value: "31.2%",
+              detail: "+2.1 pts",
+              tone: "green",
+            }),
+          ],
+        }),
         node("aperture.stat3", "stat", { label: "At risk", value: "184", detail: "12 need review", tone: "amber" }),
         node("aperture.stat4", "stat", { label: "Time to value", value: "4.2d", detail: "−0.6d", tone: "green" }),
       ]),
@@ -196,7 +216,12 @@ export const TEMPLATES: Template[] = [
             node("marlow.featuredDesc", "text", { text: "Hand-thrown stoneware · 1.2L · Oat glaze", variant: "body", tone: "muted" }),
           ]),
           node("marlow.price", "text", { text: "$86", variant: "price" }),
-          node("marlow.slot", "slot", { hint: "Add-to-bag action on the featured product", minH: 40 }),
+          slotNode("marlow.slot", {
+            hint: "Add-to-bag action on the featured product",
+            minH: 40,
+            role: "action",
+            accepts: ["button", "action", "form", "input"],
+          }),
         ]),
       ]),
       node("marlow.grid", "grid", { cols: 3, gap: 16 }, [
@@ -274,7 +299,12 @@ export const TEMPLATES: Template[] = [
             node("solstice.c2", "chip", { text: "Draft a brief", tone: "muted" }),
             node("solstice.c3", "chip", { text: "Find evidence", tone: "muted" }),
           ]),
-          node("solstice.slot", "slot", { hint: "Send action in the composer", minH: 40 }),
+          slotNode("solstice.slot", {
+            hint: "Send action in the composer",
+            minH: 40,
+            role: "action",
+            accepts: ["button", "action", "form", "input", "text"],
+          }),
         ]),
       ]),
       node("solstice.answer", "card", { pad: 20, elevated: true }, [
@@ -375,7 +405,12 @@ export const TEMPLATES: Template[] = [
           node("verdant.p1name", "text", { text: "Mangrove restoration", variant: "title" }),
           node("verdant.p1desc", "text", { text: "Sundarbans · 2,400 t verified", variant: "caption", tone: "muted" }),
           node("verdant.p1meter", "meter", { label: "Funded", value: 78, tone: "green" }),
-          node("verdant.p1slot", "slot", { hint: "Support action on the project card", minH: 40 }),
+          slotNode("verdant.p1slot", {
+            hint: "Support action on the project card",
+            minH: 40,
+            role: "metric",
+            accepts: ["metric", "stat", "number", "chart", "button", "action"],
+          }),
         ]),
         node("verdant.p2", "card", { pad: 16 }, [
           node("verdant.p2art", "swatch", { h: 120, tone: "secondary", radius: 8, shape: "grid" }),
@@ -442,7 +477,12 @@ export const TEMPLATES: Template[] = [
             variant: "body",
             tone: "muted",
           }),
-          node("atelier.f2slot", "slot", { hint: "Case-study action in the project index", minH: 40 }),
+          slotNode("atelier.f2slot", {
+            hint: "Case-study action in the project index",
+            minH: 40,
+            role: "list",
+            accepts: ["list", "table", "card", "button", "action"],
+          }),
         ]),
       ]),
       node("atelier.index", "stack", { gap: 0, pad: "22px 0 0" }, [
@@ -516,7 +556,12 @@ export const TEMPLATES: Template[] = [
             node("pulse.s4", "swatch", { h: 34, grow: true, tone: "surfaceAlt", radius: 10 }),
             node("pulse.s5", "swatch", { h: 34, grow: true, tone: "surfaceAlt", radius: 10 }),
           ]),
-          node("pulse.slot", "slot", { hint: "Log-today action in the daily card", minH: 40 }),
+          slotNode("pulse.slot", {
+            hint: "Log-today action in the daily card",
+            minH: 40,
+            role: "list",
+            accepts: ["list", "table", "metric", "stat", "button", "action"],
+          }),
         ]),
         node("pulse.week", "card", { pad: 18 }, [
           node("pulse.weekHead", "row", { justify: "space-between", align: "center" }, [
@@ -608,7 +653,12 @@ export const TEMPLATES: Template[] = [
             node("harbor.roleLabel", "text", { text: "Role", variant: "caption", tone: "muted" }),
             node("harbor.roleChip", "chip", { text: "Editor", tone: "accent" }),
           ]),
-          node("harbor.slot", "slot", { hint: "Continue action in the onboarding step", minH: 40 }),
+          slotNode("harbor.slot", {
+            hint: "Continue action in the onboarding step",
+            minH: 40,
+            role: "action",
+            accepts: ["button", "action", "form", "input"],
+          }),
           node("harbor.skip", "text", { text: "Skip for now", variant: "caption", tone: "muted", align: "center" }),
         ]),
       ]),
@@ -664,7 +714,12 @@ export const TEMPLATES: Template[] = [
           node("ops.title", "text", { text: "Checkout latency is climbing.", variant: "title" }),
           node("ops.sub", "text", { text: "p95 1.8s · 4 regions · started 18m ago", variant: "mono", tone: "muted" }),
         ]),
-        node("ops.slot", "slot", { hint: "Run-check action in the incident header", minH: 40 }),
+        slotNode("ops.slot", {
+          hint: "Run-check action in the incident header",
+          minH: 40,
+          role: "action",
+          accepts: ["button", "action", "status", "metric", "stat"],
+        }),
       ]),
       node("ops.kpis", "grid", { cols: 4, gap: 10 }, [
         node("ops.k1", "stat", { label: "Error rate", value: "0.42%", detail: "▲ 0.11", tone: "amber" }),

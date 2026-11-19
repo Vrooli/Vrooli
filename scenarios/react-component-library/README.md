@@ -38,6 +38,8 @@ These rules are enforced at the boundaries named in the checked behavior registe
 ## Further reading
 
 - [Workbench redesign plan](docs/concepts/WORKBENCH-REDESIGN.md)
+- [Search and composition proposal](docs/concepts/SEARCH-AND-COMPOSITION.md) and [visual options](docs/mockups/search-options.html)
+- [Workbench maturation: five destinations + workspace model](docs/concepts/WORKBENCH-MATURATION.md) and [full prototype](docs/mockups/workbench-maturation.html)
 - [Edit, rebuild and look](docs/guides/asset-update-flow.md#edit-rebuild-and-look)
 - [Architecture and owners](docs/concepts/ARCHITECTURE.md)
 - [Tokens](docs/reference/token-contract.md) and [stamps/capture](docs/reference/cli-commands.md#inspect-a-running-page)

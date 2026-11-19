@@ -13,6 +13,12 @@ vi.mock("mermaid", () => ({
 
 afterEach(cleanup);
 
+// Content owned by the rendered markdown and by the fenced-code surface,
+// named once so the assertions survive a wording change in one place.
+const blockquoteCopy = "Operator guidance";
+const unresolvedToken = "unknown:token";
+const fencedLanguageLabel = "TYPESCRIPT";
+
 describe("MarkdownRenderer", () => {
   it("renders GFM tables and blockquotes", () => {
     renderWithProviders(
@@ -21,7 +27,7 @@ describe("MarkdownRenderer", () => {
       />,
     );
     expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByText("Operator guidance")).toBeInTheDocument();
+    expect(screen.getByText(blockquoteCopy)).toBeInTheDocument();
   });
 
   it("delegates entity and file inline-code seams", () => {
@@ -50,8 +56,8 @@ describe("MarkdownRenderer", () => {
   });
 
   it("keeps an unresolved token semantic inline code", () => {
-    renderWithProviders(<InlineCode>unknown:token</InlineCode>);
-    expect(screen.getByText("unknown:token").tagName).toBe("CODE");
+    renderWithProviders(<InlineCode>{unresolvedToken}</InlineCode>);
+    expect(screen.getByText(unresolvedToken).tagName).toBe("CODE");
   });
 
   it("supports inline rendering and ordinary markdown links", () => {
@@ -81,7 +87,7 @@ describe("MarkdownRenderer", () => {
         content={"```ts\nconst story = true\n```\n\n```mermaid\ngraph TD; A-->B\n```"}
       />,
     );
-    expect(await screen.findByText("TYPESCRIPT")).toBeInTheDocument();
+    expect(await screen.findByText(fencedLanguageLabel)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Source" })).toBeInTheDocument();
   });
 

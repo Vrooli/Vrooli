@@ -38,7 +38,8 @@ export interface ComponentTestReport {
   verdict: string;
   results: ComponentTestResult[];
   artifacts?: ComponentTestArtifact[];
-  createdAt?: { toDate(): Date };
+  /** Connect JSON sends an ISO string; keep this permissive instead of lying. */
+  createdAt?: unknown;
 }
 
 export async function runComponentTest(input: {

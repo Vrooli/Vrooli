@@ -9,6 +9,12 @@ import {
 import { ComposerAttachmentTray } from "@vrooli/react-component-library/ComposerAttachmentTray/1.0.4";
 
 afterEach(cleanup);
+// Fixture attachment names and the library's own status copy, named once here
+// so the assertions survive a wording change in one place.
+const notesName = "Notes.md";
+const briefName = "Brief.pdf";
+const reorderStatus = "Notes.md moved to position 1 of 2.";
+const unresolvedStatus = "Resolve unfinished attachments before sending.";
 function Harness(props: Omit<PromptComposerProps, "value" | "onValueChange">) {
   const [value, setValue] = useState("Please review the rollout.");
   return <PromptComposer {...props} value={value} onValueChange={setValue} />;
@@ -19,7 +25,7 @@ describe("conversation send contract", () => {
     renderWithProviders(<ComposerAttachmentTray items={[{ id: "first", name: "Brief.pdf" }, { id: "second", name: "Notes.md" }]} onReorder={onReorder} />);
     fireEvent.click(screen.getByRole("button", { name: "Move Notes.md earlier" }));
     expect(onReorder).toHaveBeenCalledWith(["second", "first"]);
-    expect(screen.getByText("Notes.md moved to position 1 of 2.")).toHaveAttribute("role", "status");
+    expect(screen.getByText(reorderStatus)).toHaveAttribute("role", "status");
   });
   it("retains the draft after failure and clears it only after an accepted retry", async () => {
     const onSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
@@ -40,7 +46,10 @@ describe("conversation send contract", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
     fireEvent.change(input, { target: { value: "A follow-up thought." } });
-    await act(async () => resolve(true));
+    await act(async () => {
+      resolve(true);
+      await Promise.resolve();
+    });
     expect(input).toHaveValue("A follow-up thought.");
   });
   it("keeps IME confirmation and newline entry separate from submission", () => {
@@ -63,10 +72,10 @@ describe("conversation send contract", () => {
   });
   it("keeps failed and healthy attachments until the caller resolves them", () => {
     renderWithProviders(<Harness onSend={vi.fn()} attachments={[{ id: "ok", name: "Brief.pdf", status: "success" }, { id: "failed", name: "Notes.md", status: "error" }]} onAttachmentRetry={vi.fn()} />);
-    expect(screen.getByText("Brief.pdf")).toBeVisible();
-    expect(screen.getByText("Notes.md")).toBeVisible();
+    expect(screen.getByText(briefName)).toBeVisible();
+    expect(screen.getByText(notesName)).toBeVisible();
     expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled();
-    expect(screen.getByText("Resolve unfinished attachments before sending.")).toBeVisible();
+    expect(screen.getByText(unresolvedStatus)).toBeVisible();
   });
   it("provides a named drop region and preserves both file attachment paths", () => {
     const onFiles = vi.fn();

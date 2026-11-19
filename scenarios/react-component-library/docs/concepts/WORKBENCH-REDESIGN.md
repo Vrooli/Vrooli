@@ -2,6 +2,8 @@
 
 > **Status: implemented in source and served on 2026-11-19; governed capture evidence and full phone certification remain pending.** This document is not a current-behavior claim. Current behavior is asserted only in the [behavior claim register](../internal/TESTING.md#behavior-claim-register). The workbench implementation is in `ui/src/workbench/`. See [Implementation record](#implementation-record-2026-11-19) for what was proven and what is still blocked.
 
+> **2026-11-19 maturation direction — supersedes the seven-destination IA below.** The operator selected a five-destination workbench (**Start, Library, Design, Review, Stats**), a unified Stats page absorbing Coverage/Activity/Capabilities, and a **Workspace → Page → Display → State** design model. The implementation record and behavior claims in this document remain current; the IA and model changes are proposals in [WORKBENCH-MATURATION.md](WORKBENCH-MATURATION.md), with the prototype at [workbench-maturation.html](../mockups/workbench-maturation.html).
+
 ## Decision
 
 The operator selected **D · Nocturne** for every page of the React Component Library workbench after reviewing three initial directions (A · Atelier, B · Obsidian, C · Porcelain) and a two-theme expansion (B and D).

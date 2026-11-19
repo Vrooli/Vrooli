@@ -23,6 +23,7 @@ import { Chip } from "@vrooli/react-component-library/Chip/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Stat } from "@vrooli/react-component-library/Stat/1";
 
+import { API_BASE } from "../../api/client";
 import { cx } from "../cx";
 import { useTranslation } from "../../i18n";
 import {
@@ -277,6 +278,7 @@ export function TemplateRenderer({
           interactive,
           mode,
           slotContext,
+          activeSlotId: slotNode?.id,
           labels: {
             move: t("workbench.template.move", { defaultValue: "Move" }),
             moveAria: t("workbench.template.moveComponent", {
@@ -286,6 +288,12 @@ export function TemplateRenderer({
               defaultValue: "Component placed on the page",
             }),
             slot: t("workbench.template.componentSlot", { defaultValue: "Component slot" }),
+            unknownType: t("workbench.template.unknownLayer", {
+              defaultValue: "Unsupported layer type: {{type}}",
+            }),
+            imageEmpty: t("workbench.template.imageEmpty", {
+              defaultValue: "Image unavailable",
+            }),
           },
         },
         anchorRef,
@@ -355,7 +363,16 @@ interface NodeContext {
   interactive: boolean;
   mode: "canvas" | "preview" | "thumb";
   slotContext?: SlotContext;
-  labels: { move: string; moveAria: string; placed: string; slot: string };
+  /** The one slot that receives the live component; others show a placeholder. */
+  activeSlotId?: string;
+  labels: {
+    move: string;
+    moveAria: string;
+    placed: string;
+    slot: string;
+    unknownType: string;
+    imageEmpty: string;
+  };
 }
 
 function nodeAttrs(node: TemplateNode, ctx: NodeContext) {
@@ -662,14 +679,16 @@ function renderNode(
       const slotState = ctx.slotContext;
       const placed = slotState?.placed ?? false;
       const editing = slotState?.editing ?? false;
+      const activeSlot = !ctx.activeSlotId || ctx.activeSlotId === node.id;
+      const hasFallback = Boolean(children && children.length > 0);
       return (
         <div
           key={node.id}
-          ref={anchorRef}
+          ref={activeSlot ? anchorRef : undefined}
           {...attrs}
           className={cx(
             "tpl-slot",
-            ctx.slot ? "is-filled" : "is-empty",
+            activeSlot && ctx.slot ? "is-filled" : hasFallback ? "is-fallback" : "is-empty",
             placed && "is-placed-anchor",
             editing && !placed && "is-editable",
             attrs.className,
@@ -680,12 +699,21 @@ function renderNode(
             editing || ctx.mode === "canvas" ? (
               <span className="tpl-slot-hint">{ctx.labels.placed}</span>
             ) : null
+          ) : activeSlot ? (
+            (ctx.slot ??
+              (hasFallback ? (
+                children
+              ) : (
+                <span className="tpl-slot-hint">
+                  {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
+                </span>
+              )))
+          ) : hasFallback ? (
+            children
           ) : (
-            (ctx.slot ?? (
-              <span className="tpl-slot-hint">
-                {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
-              </span>
-            ))
+            <span className="tpl-slot-hint">
+              {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
+            </span>
           )}
           {editing && !placed && slotState ? (
             <button
@@ -703,7 +731,41 @@ function renderNode(
       );
     }
 
-    default:
-      return null;
+    case "image": {
+      const raw = typeof props.src === "string" ? props.src : "";
+      const src = raw.startsWith("/") ? `${API_BASE.replace(/\/$/, "")}${raw}` : raw;
+      const fit = props.fit === "contain" ? "contain" : "cover";
+      return (
+        <figure
+          key={node.id}
+          {...attrs}
+          className={cx("tpl-image", attrs.className)}
+          style={{ height: typeof props.h === "number" ? props.h : 220 }}
+        >
+          {src ? (
+            <img
+              src={src}
+              alt={typeof props.alt === "string" ? props.alt : ""}
+              loading="lazy"
+              style={{ objectFit: fit }}
+            />
+          ) : (
+            <span className="tpl-image-empty">{ctx.labels.imageEmpty}</span>
+          )}
+        </figure>
+      );
+    }
+
+    default: {
+      // A typo or an imported node type must be visible, not silently dropped:
+      // a blank region is much harder to diagnose than a labelled placeholder.
+      const copy = typeof props.text === "string" ? props.text : "";
+      return (
+        <div key={node.id} {...attrs} className={cx("tpl-unknown", attrs.className)} role="note">
+          <span>{ctx.labels.unknownType.replace("{{type}}", String(node.type))}</span>
+          {copy ? <span className="tpl-unknown-copy">{copy}</span> : null}
+        </div>
+      );
+    }
   }
 }

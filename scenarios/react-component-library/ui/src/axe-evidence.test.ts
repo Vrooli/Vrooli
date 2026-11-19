@@ -9,6 +9,7 @@ const helperSource = readFileSync(
 );
 
 function installAxeEvidence(target: typeof globalThis) {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- test evaluates the shipped browser helper source verbatim to prove what it returns
   const install = new Function(
     "globalThis",
     `${helperSource}; return globalThis.__rclRunAxeEvidence;`,

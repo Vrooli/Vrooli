@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { pluralDefault } from "../plural";
 import { CircleAlert, FileCode2, GitBranch, Play, RotateCw } from "lucide-react";
 
 import { ComponentVersionStatus } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
@@ -103,7 +102,7 @@ function OverviewTab({ bundle }: { bundle: ComponentBundle }) {
     [t("workbench.component.sourcePath", { defaultValue: "Source path" }), asset.sourcePath || "—"],
     [t("workbench.component.manifest", { defaultValue: "Manifest" }), asset.manifestPath || "—"],
     [
-      t("workbench.component.adoptions", { defaultValue: "Direct adoptions" }),
+      t("workbench.component.directAdoptions", { defaultValue: "Direct adoptions" }),
       String(assetAdoptions(asset)),
     ],
     [
@@ -237,11 +236,6 @@ function VersionsTab({
           </Chip>
           <span className="wb-small wb-muted-2">
             {t("workbench.component.fileCount", {
-              defaultValue: pluralDefault(
-                row.files.length,
-                "{{count}} file",
-                "{{count}} files",
-              ),
               count: row.files.length,
             })}
           </span>
@@ -351,7 +345,7 @@ function TestsTab({ bundle, version }: { bundle: ComponentBundle; version: strin
                 {report.verdict}
               </Chip>
               <span className="wb-small wb-muted-2">
-                {report.createdAt ? formatRelative(report.createdAt.toDate()) : ""}
+                {formatRelative(timestampToDate(report.createdAt))}
               </span>
             </div>
             <div className="wb-stack tight" style={{ marginTop: 8 }}>

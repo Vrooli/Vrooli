@@ -16,6 +16,12 @@ interface Row {
   active: boolean;
 }
 
+// Library-owned permission surface copy plus the fixture message this file
+// passes in, named once so the assertions match the fixture.
+const permissionTitle = "Access is limited";
+const permissionMessage = "Ask an administrator for access.";
+const cardsLabel = "People cards";
+
 const rows: Row[] = [
   { id: "a", name: "Charlie", score: 30, active: true },
   { id: "b", name: "alice", score: 10, active: false },
@@ -247,11 +253,11 @@ describe("DataTable", () => {
     const onRetry = vi.fn();
     renderTable({
       status: "permission-denied",
-      permissionMessage: "Ask an administrator for access.",
+      permissionMessage,
       onRetry,
     });
-    expect(screen.getByText("Access is limited")).toBeInTheDocument();
-    expect(screen.getByText("Ask an administrator for access.")).toBeInTheDocument();
+    expect(screen.getByText(permissionTitle)).toBeInTheDocument();
+    expect(screen.getByText(permissionMessage)).toBeInTheDocument();
 
     cleanup();
     renderTable({ status: "retry", onRetry });
@@ -292,7 +298,7 @@ describe("DataTable", () => {
       enableSelection: true,
       rowActions: [{ id: "inspect", label: "Inspect", onSelect: vi.fn() }],
     });
-    expect(screen.getByLabelText("People cards")).toBeInTheDocument();
+    expect(screen.getByLabelText(cardsLabel)).toBeInTheDocument();
     expect(screen.queryByTestId("people-table")).not.toBeInTheDocument();
   });
 });

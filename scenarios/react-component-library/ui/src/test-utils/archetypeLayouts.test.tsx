@@ -4,6 +4,9 @@ import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1";
 import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1";
 
+// Empty-state copy owned by the published InspectorLayout release.
+const emptyInspectorCopy = "Nothing to show yet.";
+
 describe("archetype lifecycle layouts", () => {
   it("keeps asset preview and metadata usable when supporting activity is partial", () => {
     renderWithProviders(
@@ -42,7 +45,7 @@ describe("archetype lifecycle layouts", () => {
     expect(screen.getByRole("region", { name: "Workflow editor canvas" })).toHaveTextContent(
       "Workflow canvas",
     );
-    expect(screen.getByText("Nothing to show yet.")).toBeVisible();
+    expect(screen.getByText(emptyInspectorCopy)).toBeVisible();
     expect(document.querySelector('[data-experience-surface="inspector"]')).toHaveAttribute(
       "data-experience-state",
       "empty",

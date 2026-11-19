@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { pluralDefault } from "../plural";
 import { Link } from "react-router-dom";
 import { Activity, ArrowUpRight, Boxes, CircleAlert, Filter } from "lucide-react";
 
@@ -139,7 +138,6 @@ export function ActivityPage() {
           <PanelHead
             title={t("workbench.activity.trail", { defaultValue: "Change trail" })}
             meta={t("workbench.activity.trailMeta", {
-              defaultValue: pluralDefault(filtered.length, "{{count}} event", "{{count}} events"),
               count: filtered.length,
             })}
             actions={

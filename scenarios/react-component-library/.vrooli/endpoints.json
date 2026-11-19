@@ -606,6 +606,28 @@
       ]
     },
     {
+      "id": "brand_get",
+      "path": "/api/brand",
+      "method": "GET",
+      "summary": "Read the assigned brand",
+      "description": "Projects the RCL brand assigned in Brand Manager into the shell identity. Returns assigned=false with null fields when Brand Manager is unavailable or has no RCL record.",
+      "category": "brand",
+      "response": {
+        "type": "object",
+        "properties": {
+          "accent": "string|null (CSS colour)",
+          "assigned": "boolean",
+          "mark": "string|null (data URI or absolute URL)",
+          "name": "string",
+          "wordmark": "string|null"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The workbench shell fetches a small UI projection with a plain GET; the aggregate is owned and served by Brand Manager over Connect-RPC."
+      }
+    },
+    {
       "id": "catalog_coverage",
       "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCoverage",
       "method": "POST",
@@ -1661,6 +1683,330 @@
       ]
     },
     {
+      "id": "designs_list",
+      "path": "/api/designs",
+      "method": "GET",
+      "summary": "List designs",
+      "description": "Returns design summaries newest-updated first, including frame counts and the optional scenario/page binding. Optional scenario and page query params filter by exact binding.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "designs": "array<DesignSummary>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_create",
+      "path": "/api/designs",
+      "method": "POST",
+      "summary": "Create a design",
+      "description": "Persists a design at revision 1. The server assigns id, revision and updatedAt. name, frames and theme are required; frames:null means [] and theme:null means {}. options is optional design chrome: {radius?: number 0-48, display?: \"sans\"|\"serif\"}; absent or null means {}.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "frames": "array<Frame> (required; null means [])",
+          "name": "string (required)",
+          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null means {})",
+          "page": "string|null",
+          "scenario": "string|null",
+          "theme": "Theme (required; null means {})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_get",
+      "path": "/api/designs/{id}",
+      "method": "GET",
+      "summary": "Get a design",
+      "description": "Returns the full design document, including opaque frame specs, theme, validated chrome options (always an object) and the optional scenario/page binding.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_save",
+      "path": "/api/designs/{id}",
+      "method": "PUT",
+      "summary": "Save a design",
+      "description": "Replaces the design document and bumps revision and updatedAt. name, frames and theme are required. options replaces the stored chrome and absent/null means {} (old clients keep working). Sending revision makes the save conditional: a stale revision returns 409 with the current document and writes nothing; omitting revision is last-write-wins.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "frames": "array<Frame> (required; null means [])",
+          "name": "string (required)",
+          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null or absent means {})",
+          "page": "string|null",
+          "revision": "integer (optional; enables optimistic concurrency)",
+          "scenario": "string|null",
+          "theme": "Theme (required; null means {})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_delete",
+      "path": "/api/designs/{id}",
+      "method": "DELETE",
+      "summary": "Delete a design",
+      "description": "Hard-deletes the design and its assets in one transaction. Deleting a missing design is success.",
+      "category": "designs",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assist",
+      "path": "/api/designs/{id}/assist",
+      "method": "POST",
+      "summary": "Propose a design patch",
+      "description": "Sends the scoped design context through the durable design-inference service to the AI gateway and returns a validated, inert patch. Nothing is written: the studio applies the patch as one undoable command or discards it. The current revision is required so a proposal cannot be made against a stale document; a stale revision returns 409 with the current design. 422 means the model produced a patch this document cannot apply.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": "string (required, 8-200 chars)",
+          "prompt": "string (required, 1-2000 chars)",
+          "revision": "integer (required)",
+          "scope": "{kind: design|frame|layer, frameId?, nodeId?}"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "{id,state,provider?,model?,detail?,inputTokens?,outputTokens?}",
+          "proposal": "{summary,operations[]}",
+          "revision": "integer"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed prompt, scope, revision or idempotency key"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
+        },
+        {
+          "status": 422,
+          "code": "invalid_proposal",
+          "description": "The model returned a patch that is not applicable to this document"
+        },
+        {
+          "status": 502,
+          "code": "ai_failed",
+          "description": "The gateway refused or failed the request"
+        },
+        {
+          "status": 503,
+          "code": "ai_unavailable",
+          "description": "No assistant is configured or the gateway could not be reached"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_list",
+      "path": "/api/designs/{id}/assets",
+      "method": "GET",
+      "summary": "List a design's assets",
+      "description": "Returns upload metadata for one design, oldest first. Bytes are served by the per-asset route.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<AssetMeta>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_create",
+      "path": "/api/designs/{id}/assets",
+      "method": "POST",
+      "summary": "Upload a design asset",
+      "description": "Accepts a base64 image (png/jpeg/webp/gif/svg+xml, <=8 MiB decoded), stores the bytes in SQLite and returns the metadata with a byte-route url. Width/height are read from the image header; SVG and unknown formats report 0.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dataBase64": "string (required)",
+          "fidelity": "reference|captured (optional, default reference)",
+          "mime": "string (required image/*)",
+          "name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "AssetMeta"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Empty name, non-image mime, invalid base64, decoded bytes over 8 MiB, or bad fidelity"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_get",
+      "path": "/api/designs/{id}/assets/{assetId}",
+      "method": "GET",
+      "summary": "Read design asset bytes",
+      "description": "Serves the raw image with its stored Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
+      "category": "designs",
+      "response": {
+        "type": "binary",
+        "properties": {
+          "body": "raw image bytes"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id for that design"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The studio renders uploaded reference images directly in <img>/CSS; the byte route is browser-native and sets Content-Type, Cache-Control and ETag rather than returning a JSON envelope."
+      }
+    },
+    {
+      "id": "designs_assets_delete",
+      "path": "/api/designs/{id}/assets/{assetId}",
+      "method": "DELETE",
+      "summary": "Delete a design asset",
+      "description": "Deletes the asset scoped to that design. Idempotent; an asset belonging to another design is untouched.",
+      "category": "designs",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_list_all",
+      "path": "/api/design-assets",
+      "method": "GET",
+      "summary": "List every design asset",
+      "description": "Returns metadata for every upload across designs, newest first, for the studio's 'view uploads from other designs' surface.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<AssetMeta>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -2082,6 +2428,128 @@
       "summary": "Build an ordered implementation brief",
       "description": "",
       "category": "sketch"
+    },
+    {
+      "id": "templates_list",
+      "path": "/api/templates",
+      "method": "GET",
+      "summary": "List templates",
+      "description": "Returns the studio's template shelf newest-updated first. palette and spec are opaque JSON objects; local on the client still means authoring draft, not a published asset.",
+      "category": "templates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "templates": "array<Template>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_create",
+      "path": "/api/templates",
+      "method": "POST",
+      "summary": "Create a template",
+      "description": "Persists a shelf template. id is client-assigned and must match ^[a-z0-9][a-z0-9._-]{0,127}$; a duplicate id returns 409. name is required. tagline/category/palette/spec/display/radius default to '', {}, 'sans' and 14.",
+      "category": "templates",
+      "request": {
+        "type": "object",
+        "properties": {
+          "category": "string (<=80 chars)",
+          "display": "sans|serif",
+          "id": "string (required)",
+          "idea": "string",
+          "name": "string (required, 1-120 chars)",
+          "palette": "JSON object (<=8 KiB)",
+          "radius": "integer 0-48",
+          "slotHint": "string",
+          "spec": "JSON object (<=1 MiB)",
+          "tagline": "string (<=240 chars)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id/name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "A template with that id already exists"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_update",
+      "path": "/api/templates/{id}",
+      "method": "PUT",
+      "summary": "Replace a template",
+      "description": "Replaces every field of an existing template and bumps updatedAt. The path id is authoritative; a body id is ignored. Same validation and defaults as create.",
+      "category": "templates",
+      "request": {
+        "type": "object",
+        "properties": {
+          "category": "string (<=80 chars)",
+          "display": "sans|serif",
+          "idea": "string",
+          "name": "string (required, 1-120 chars)",
+          "palette": "JSON object (<=8 KiB)",
+          "radius": "integer 0-48",
+          "slotHint": "string",
+          "spec": "JSON object (<=1 MiB)",
+          "tagline": "string (<=240 chars)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No template with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_delete",
+      "path": "/api/templates/{id}",
+      "method": "DELETE",
+      "summary": "Delete a template",
+      "description": "Hard-deletes the shelf template. Deleting a missing template is success, so a retried or cross-tab delete does not fail.",
+      "category": "templates",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
     },
     {
       "id": "themes_list_builtin",

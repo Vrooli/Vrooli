@@ -63,7 +63,7 @@ describe("governed component draft specimens", () => {
     expect(screen.getByTestId("card-shell-story-content")).toHaveTextContent(overflowText);
   });
 
-  it("resolves and opens the declared empty, loading, error, and overflow drawer specimens", async () => {
+  it("resolves and opens the declared empty, loading, error, and overflow drawer specimens", () => {
     const renderSpecimen = (storyID: string) =>
       composedStory<Record<string, never>>(drawerStoryRaw, drawerStoryModule, storyID);
 

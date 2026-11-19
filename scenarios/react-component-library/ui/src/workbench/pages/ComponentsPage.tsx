@@ -1,5 +1,4 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { pluralDefault } from "../plural";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Boxes,
@@ -375,11 +374,6 @@ export function ComponentsPage() {
                   : t("workbench.components.supportAssets", { defaultValue: "Support assets" })
             }
             meta={t("workbench.components.resultMeta", {
-              defaultValue: pluralDefault(
-                filtered.length,
-                "{{count}} result · sorted by {{sort}}",
-                "{{count}} results · sorted by {{sort}}",
-              ),
               count: filtered.length,
               sort,
             })}
@@ -467,7 +461,7 @@ export function ComponentsPage() {
 
         <aside
           className="wb-side-rail"
-          aria-label={t("workbench.components.filters", { defaultValue: "Catalog filters" })}
+          aria-label={t("workbench.components.filtersAria", { defaultValue: "Catalog filters" })}
         >
           <Panel>
             <PanelHead

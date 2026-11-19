@@ -30,15 +30,18 @@ import (
 	_ "modernc.org/sqlite"
 
 	adoptionsH "react-component-library/handlers/adoptions"
+	brandH "react-component-library/handlers/brand"
 	catalogH "react-component-library/handlers/catalog"
 	componentsH "react-component-library/handlers/components"
 	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
+	designsH "react-component-library/handlers/designs"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
 	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
 	sketchH "react-component-library/handlers/sketch"
+	templatesH "react-component-library/handlers/templates"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
@@ -48,11 +51,14 @@ import (
 	"react-component-library/internal/availability"
 
 	adoptionsInternal "react-component-library/internal/adoptions"
+	brandInternal "react-component-library/internal/brand"
 	catalogcoverageInternal "react-component-library/internal/catalogcoverage"
 	componentsInternal "react-component-library/internal/components"
 	componenttestsInternal "react-component-library/internal/componenttests"
 	depsInternal "react-component-library/internal/deps"
+	designsInternal "react-component-library/internal/designs"
 	experienceInternal "react-component-library/internal/experience"
+	templatesInternal "react-component-library/internal/templates"
 	themesInternal "react-component-library/internal/themes"
 	versionledgerInternal "react-component-library/internal/versionledger"
 	workflowsInternal "react-component-library/internal/workflows"
@@ -197,6 +203,12 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), primaryDB, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	if err := designsInternal.Migrate(context.Background(), primaryDB); err != nil {
+		log.Fatalf("designs schema migration failed: %v", err)
+	}
+	if err := templatesInternal.Migrate(context.Background(), primaryDB); err != nil {
+		log.Fatalf("templates schema migration failed: %v", err)
+	}
 	if err := componentsInternal.EnsureMigrations(context.Background(), primaryDB); err != nil {
 		log.Fatalf("components schema migration failed: %v", err)
 	}
@@ -325,6 +337,9 @@ func main() {
 		componentTestsH.ModuleWithGeneratedFixture(primaryDB, componentsSvc, adoptionsSvc, sourceRoot, log.Default()),
 		catalogH.ModuleWithCapture(filepath.Dir(scenariosRoot), jobDB.Primary(), componentsSvc, componentTestsH.NewBASCaptureExecutor(), compileAsset),
 		depsH.ModuleFromService(depsSvc, log.Default()),
+		brandH.Module(brandInternal.NewClient()),
+		designsH.Module(primaryDB),
+		templatesH.Module(primaryDB),
 		healthH.Module(healthDB.Primary(), "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
 		previewH.ModuleFromService(previewSvc, componentsSvc, log.Default(), filepath.Dir(scenariosRoot)),

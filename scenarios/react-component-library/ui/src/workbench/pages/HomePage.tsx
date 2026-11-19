@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { pluralDefault } from "../plural";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -238,11 +237,6 @@ export function HomePage() {
           label={t("workbench.home.kpiAssets", { defaultValue: "Indexed assets" })}
           value={catalog.isLoading ? "—" : formatNumber(assets.length)}
           detail={t("workbench.home.kpiAssetsDetail", {
-            defaultValue: pluralDefault(
-              draftCount,
-              "{{count}} draft in flight",
-              "{{count}} drafts in flight",
-            ),
             count: draftCount,
           })}
         />
@@ -261,11 +255,6 @@ export function HomePage() {
           detail={
             report
               ? t("workbench.home.kpiEvidenceDetail", {
-                  defaultValue: pluralDefault(
-                    readyCount,
-                    "{{count}} asset at target",
-                    "{{count}} assets at target",
-                  ),
                   count: readyCount,
                 })
               : t("workbench.home.kpiEvidenceUnavailable", { defaultValue: "Coverage unavailable" })
@@ -359,7 +348,6 @@ export function HomePage() {
             <PanelHead
               title={t("workbench.home.continue", { defaultValue: "Continue designing" })}
               meta={t("workbench.home.continueMeta", {
-                defaultValue: pluralDefault(pageCount, "{{count}} page", "{{count}} pages"),
                 count: pageCount,
               })}
             />
@@ -503,11 +491,6 @@ export function HomePage() {
                   <span>
                     <b>
                       {t("workbench.home.signalDrafts", {
-                        defaultValue: pluralDefault(
-                          draftCount,
-                          "{{count}} asset has a draft version",
-                          "{{count}} assets have a draft version",
-                        ),
                         count: draftCount,
                       })}
                     </b>
@@ -525,11 +508,6 @@ export function HomePage() {
                   <span>
                     <b>
                       {t("workbench.home.signalRecent", {
-                        defaultValue: pluralDefault(
-                          recent.length,
-                          "{{count}} asset touched recently",
-                          "{{count}} assets touched recently",
-                        ),
                         count: recent.length,
                       })}
                     </b>

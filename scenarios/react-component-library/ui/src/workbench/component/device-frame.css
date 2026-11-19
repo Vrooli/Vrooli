@@ -1,0 +1,206 @@
+/* Device frame: browser, iPad, iPhone. Owns chrome, never page layout. */
+
+.df {
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  border-radius: 14px;
+  outline: none;
+}
+
+.df-select {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.df-select:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+.df-select:hover {
+  box-shadow: inset 0 0 0 1px rgba(255, 179, 92, 0.22);
+}
+
+/* browser chrome */
+.df-browser {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--wb-line-2);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background: var(--wb-panel-2);
+}
+.df-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--wb-line-3);
+}
+.df-url {
+  margin-left: 8px;
+  overflow: hidden;
+  font-family: var(--wb-mono);
+  font-size: 9px;
+  color: var(--wb-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* bezel */
+.df-bezel {
+  position: relative;
+  background: #0a0a0c;
+}
+.df--desktop .df-bezel {
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 0 0 1px var(--wb-line-2);
+}
+.df--tablet .df-bezel {
+  border-radius: 22px;
+  box-shadow:
+    0 0 0 7px #14151a,
+    0 0 0 8px var(--wb-line-2),
+    0 20px 44px -24px rgba(0, 0, 0, 0.85);
+}
+.df--phone .df-bezel {
+  border-radius: 38px;
+  box-shadow:
+    0 0 0 9px #14151a,
+    0 0 0 10px var(--wb-line-2),
+    0 20px 44px -24px rgba(0, 0, 0, 0.85);
+}
+.df.is-selected .df-bezel {
+  box-shadow:
+    0 0 0 2px var(--wb-signal),
+    0 0 0 3px rgba(255, 179, 92, 0.25),
+    0 20px 44px -24px rgba(0, 0, 0, 0.85);
+}
+
+.df-viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--wb-panel);
+  isolation: isolate;
+}
+.df--tablet .df-viewport {
+  border-radius: 14px;
+}
+.df--phone .df-viewport {
+  border-radius: 28px;
+}
+.df-browser + .df-bezel .df-viewport {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.df-content {
+  position: absolute;
+  inset: 0 auto auto 0;
+  overflow: hidden;
+}
+
+/* status bar is drawn at logical size so it scales with the page */
+.df-status {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+.df--tablet .df-status {
+  padding: 0 12px;
+}
+.df-sb {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.92;
+}
+
+/* hardware details */
+.df-island {
+  position: absolute;
+  z-index: 3;
+  top: 9px;
+  left: 50%;
+  width: 31%;
+  height: 4.6%;
+  min-height: 16px;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: #000;
+}
+.df-camera {
+  position: absolute;
+  z-index: 3;
+  top: 5px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #1d1f26;
+}
+.df-home {
+  position: absolute;
+  z-index: 3;
+  bottom: 6px;
+  left: 50%;
+  width: 34%;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* instruments */
+.df-guides {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+}
+.df-safe {
+  position: absolute;
+  inset: var(--df-safe-top) 0 22px;
+  border: 1px dashed rgba(255, 179, 92, 0.55);
+}
+.df-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  border-top: 1px dashed rgba(255, 179, 92, 0.5);
+  background: linear-gradient(to top, rgba(255, 179, 92, 0.12), transparent);
+}
+.df-guide-label {
+  position: absolute;
+  right: 5px;
+  bottom: calc(34% + 4px);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(8, 8, 10, 0.82);
+  color: var(--wb-signal-strong);
+  font-family: var(--wb-mono);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

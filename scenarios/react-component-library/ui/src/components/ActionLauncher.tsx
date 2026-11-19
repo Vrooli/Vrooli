@@ -33,6 +33,7 @@ function SearchablePicker({
   multiple?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const { t } = useTranslation();
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = options.filter(
     (option) =>
@@ -45,13 +46,16 @@ function SearchablePicker({
     <div className="mt-space-3xs grid gap-space-3xs">
       <Input
         type="search"
-        aria-label="Filter available choices"
+        aria-label={t("launcher.filterChoices", { defaultValue: "Filter available choices" })}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={`Search ${label}`}
+        placeholder={t("launcher.searchPlaceholder", {
+          defaultValue: "Search {{label}}",
+          label,
+        })}
       />
       {multiple ? (
-        <div className="grid max-h-48 gap-space-3xs overflow-y-auto rounded-control border border-app-border bg-app-surface p-space-2xs">
+        <div className="grid max-h-content-short gap-space-3xs overflow-y-auto rounded-control border border-app-border bg-app-surface p-space-2xs">
           {visible.map((option) => (
             <Checkbox
               key={option.value}
@@ -69,7 +73,7 @@ function SearchablePicker({
           ))}
           {visible.length === 0 && (
             <p className="px-space-2xs py-space-3xs text-xs text-app-muted-foreground">
-              No matching choices.
+              {t("launcher.noMatches", { defaultValue: "No matching choices." })}
             </p>
           )}
         </div>
@@ -77,9 +81,9 @@ function SearchablePicker({
         <Select
           aria-label={label}
           required
-          value={value as string}
+          value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Select an option"
+          placeholder={t("launcher.selectOption", { defaultValue: "Select an option" })}
           options={visible}
         />
       )}

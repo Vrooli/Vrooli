@@ -19,6 +19,13 @@
       ]
     },
     {
+      "id": "browser-agent-session",
+      "owner": "browser-automation-studio",
+      "query": "let a coding agent open a browser session, inspect pages, take actions, and save the successful steps as a reusable workflow",
+      "expect_types": ["skill"],
+      "tags": ["browser", "agent-access"]
+    },
+    {
       "id": "run-scenario-tests",
       "owner": "test-genie",
       "query": "run the tests for a scenario",

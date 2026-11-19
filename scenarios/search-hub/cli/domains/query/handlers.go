@@ -84,6 +84,7 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 	// degradation) we show the honest grouping alone.
 	resultsHeading := "Results by provider"
 	showAllResults := ctx != nil && ctx.BoolFlag("show-all-results")
+	showDiagnostics := showAllResults || (ctx != nil && ctx.BoolFlag("explain"))
 	visibleLimit := defaultVisibleHits
 	if showAllResults {
 		visibleLimit = 0
@@ -92,8 +93,10 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
 		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
 		results = renderRankedLimit(msg.GetRanked(), visibleLimit)
-		results = append(results, "", "Provenance by provider:")
-		results = append(results, renderGroupSummaries(msg.GetGroups())...)
+		if showDiagnostics {
+			results = append(results, "", "Provenance by provider:")
+			results = append(results, renderGroupSummaries(msg.GetGroups())...)
+		}
 	}
 	results = append(results, operationHints(msg)...)
 
@@ -102,7 +105,7 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 		ResultsHeading: resultsHeading,
 		Results:        results,
 		RetrievalHints: []string{
-			"Tune retrieval with `--type`, `--group`, `--scope`, `--all`, or `--limit` (default 5 per provider); use `--explain` for routing and `--show-all-results` to expand the 10-hit human view. `providers list` shows available providers.",
+			"Use `--explain` for routing and provider detail.",
 		},
 	}
 }
@@ -113,21 +116,18 @@ var programName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$`)
 // to execute a retrieved program. Validate identifiers before printing shell text.
 func operationHints(msg *routingv1.QueryResponse) []string {
 	hits := msg.GetRanked()
-	if len(hits) == 0 {
-		for _, group := range msg.GetGroups() {
-			hits = append(hits, group.GetHits()...)
-		}
+	if !msg.GetReranked() || len(hits) == 0 {
+		return nil
 	}
-	for _, hit := range hits {
-		if hit.GetProviderId() == "program-runtime.library" && programName.MatchString(hit.GetId()) {
-			lines := []string{"", "Read program and owning skill together:"}
-			if usage, ok := libraryUsage(hit); ok {
-				lines = append(lines, fmt.Sprintf("  recorded usage: %d", usage))
-			}
-			return append(lines, "  program-runtime library run program-runtime.prepare-operation --input name="+hit.GetId())
-		}
+	hit := hits[0]
+	if hit.GetProviderId() != "program-runtime.library" || !programName.MatchString(hit.GetId()) {
+		return nil
 	}
-	return nil
+	lines := []string{"", "Read the top program and its owning skill:"}
+	if usage, ok := libraryUsage(hit); ok {
+		lines = append(lines, fmt.Sprintf("  recorded usage: %d", usage))
+	}
+	return append(lines, "  program-runtime library run program-runtime.prepare-operation --input name="+hit.GetId())
 }
 
 func libraryUsage(hit *routingv1.SearchHit) (int64, bool) {

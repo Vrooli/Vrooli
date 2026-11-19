@@ -20,6 +20,7 @@ function installHarnessRuntime(root: HTMLElement): HarnessRuntime {
     sourceDeclaration("const setHarnessState = (state) => {", "const showPreviewError ="),
     sourceDeclaration("const syncPortalCaptureBoundary = () => {", "const measurePaintedContent ="),
   ].join("\n");
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- test constructs a function to prove the boundary rejects it
   const createRuntime = new Function(
     "document",
     "harnessRoot",

@@ -3,6 +3,12 @@ import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApprovalPrompt } from "@vrooli/react-component-library/ApprovalPrompt/1.2.0";
 const request = { action: "publish", target: "production", scope: "one release" };
+// Copy owned by the published ApprovalPrompt release, not this app's catalog.
+const copy = {
+  declined: "Request declined",
+  recorded: "Approval recorded",
+  expired: "Request expired",
+} as const;
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("approval decisions", () => {
   it("preserves readable consent text in compact mode", () => {
@@ -21,8 +27,11 @@ describe("approval decisions", () => {
     const deny = screen.getByRole("button", { name: "Not now" });
     fireEvent.click(deny); fireEvent.click(deny);
     expect(onDeny).toHaveBeenCalledTimes(1);
-    await act(async () => resolve());
-    expect(screen.getByText("Request declined")).toBeVisible();
+    await act(async () => {
+      resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByText(copy.declined)).toBeVisible();
     expect(screen.queryByRole("button")).toBeNull();
   });
   it("retries the failed decline without granting permission", async () => {
@@ -31,7 +40,7 @@ describe("approval decisions", () => {
     renderWithProviders(<ApprovalPrompt {...request} onApprove={onApprove} onDeny={onDeny} />);
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry approval" }));
-    await screen.findByText("Request declined");
+    await screen.findByText(copy.declined);
     expect(onDeny).toHaveBeenCalledTimes(2);
     expect(onApprove).not.toHaveBeenCalled();
   });
@@ -41,12 +50,12 @@ describe("approval decisions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Request access" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Request access" })).toBeEnabled());
     expect(onRetry).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText("Approval recorded")).toBeNull();
+    expect(screen.queryByText(copy.recorded)).toBeNull();
     expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
   });
   it("rejects an expired request on first render", () => {
     renderWithProviders(<ApprovalPrompt {...request} expiresAt={Date.now() - 1} onApprove={vi.fn()} />);
-    expect(screen.getByText("Request expired")).toBeVisible();
+    expect(screen.getByText(copy.expired)).toBeVisible();
     expect(screen.queryByRole("button")).toBeNull();
   });
   it("checks the deadline at activation between refresh ticks", () => {
@@ -56,11 +65,11 @@ describe("approval decisions", () => {
     clock.mockReturnValue(2001);
     fireEvent.click(screen.getByRole("button", { name: "Approve publish" }));
     expect(onApprove).not.toHaveBeenCalled();
-    expect(screen.getByText("Request expired")).toBeVisible();
+    expect(screen.getByText(copy.expired)).toBeVisible();
   });
   it("keeps recorded decisions after the request deadline", () => {
     renderWithProviders(<ApprovalPrompt {...request} status="success" expiresAt={Date.now() - 1} />);
-    expect(screen.getByText("Approval recorded")).toBeVisible();
-    expect(screen.queryByText("Request expired")).toBeNull();
+    expect(screen.getByText(copy.recorded)).toBeVisible();
+    expect(screen.queryByText(copy.expired)).toBeNull();
   });
 });

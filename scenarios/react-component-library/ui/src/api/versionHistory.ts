@@ -2,6 +2,7 @@ import type { Adoption } from "./adoptions";
 import { adoptionsClient } from "./adoptions";
 import { listComponentTestReports, type ComponentTestReport } from "./componentTests";
 import { listVersionLedger, type VersionLedgerRow } from "./versionLedger";
+import { timestampToDate } from "../lib/timestamp";
 import { versionsClient, type Version } from "./versions";
 
 export interface VersionHistoryRow {
@@ -12,8 +13,7 @@ export interface VersionHistoryRow {
 }
 
 function reportTime(report: ComponentTestReport): number {
-  const createdAt = report.createdAt;
-  return createdAt ? createdAt.toDate().getTime() : 0;
+  return timestampToDate(report.createdAt)?.getTime() ?? 0;
 }
 
 /**

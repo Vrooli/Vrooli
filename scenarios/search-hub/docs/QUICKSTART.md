@@ -1,17 +1,19 @@
 # Quickstart — Search Hub
 
+If Search Hub is already running, start with the query or operation you need.
+For flags and examples, use the [CLI reference](reference/cli-commands.md).
+
 Get this scenario running locally in under five minutes. The lifecycle
 handles ports, environment variables, and dependencies — you should
 not need to set anything by hand.
 
 ## Prerequisites
 
-- **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
+- **Vrooli CLI** installed and on `PATH`
 - **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
 - **Node 20+ and pnpm 9+** for the UI bundle
 
-If `vrooli` is not on your `PATH`, run `make setup` from the workspace
-root (one level above this directory) once.
+If the Vrooli CLI is missing, run `make setup` from the Vrooli repository root.
 
 ## 1 — Setup
 
@@ -26,7 +28,8 @@ the API/CLI/UI are built as needed, and the scenario CLI is installed.
 Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
 only the user-facing path.
 
-Run this once after generation, and again whenever dependencies change.
+Use setup for a fresh scaffold or when the lifecycle or dependency gateway
+reports that setup is needed.
 
 ## 2 — Start
 
@@ -59,20 +62,23 @@ Through the scenario CLI (preferred — uses the resolved port and token
 automatically):
 
 ```bash
-search-hub status
-search-hub providers list
-search-hub query "what does the storage-manager scenario do" --explain
+search-hub query "what does the storage-manager scenario do"
 ```
+
+Use `--explain` when you need routing or provider detail.
 
 Or directly via HTTP:
 
 ```bash
 API_PORT=$(vrooli scenario port search-hub API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s "http://localhost:${API_PORT}/health"
 ```
 
 ## 5 — Run the tests
+
+Run the full suite for scaffold validation or when your change warrants it.
+For a focused change, select the relevant phases with
+`vrooli scenario test <name> --phases <relevant-phases>`.
 
 ```bash
 make test

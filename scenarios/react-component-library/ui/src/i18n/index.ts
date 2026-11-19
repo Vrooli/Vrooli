@@ -61,7 +61,7 @@ const detectInitialLocale = (): Locale => {
   if (typeof window === "undefined") return "en";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (isSupported(stored)) return stored;
-  const primary = (window.navigator.language ?? "").split("-")[0]?.toLowerCase();
+  const primary = window.navigator.language.split("-")[0]?.toLowerCase();
   return isSupported(primary) ? primary : "en";
 };
 

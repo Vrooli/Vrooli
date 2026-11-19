@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent, type Pointer
 import { createPortal } from "react-dom";
 import { getLayerPortalContainer, layerManager } from "@vrooli/react-component-library/LayerManager/2.0.2";
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
+import { useTranslation } from "../i18n";
 
 export const REGION_CORRECTION_SCHEMA = "ux-region-feedback/v1" as const;
 export const REGION_LONG_PRESS_MS = 650;
@@ -84,24 +85,70 @@ const stableId = (value: string): boolean => /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}
 const digest = (value: string): boolean => /^[0-9a-f]{64}$/.test(value);
 const bundlePath = (value: string): boolean => Boolean(value && /^[A-Za-z0-9._~!$&'()*+,;=@%/-]+$/.test(value) && value.split("/").every((part) => part !== "" && part !== "." && part !== ".."));
 
-function validEvidence(value: ResolvedRegionCorrection | null): value is ResolvedRegionCorrection {
-  const evidence = value?.evidence;
-  if (!value || !evidence || typeof value.cropPreviewUrl !== "string" || !/^\/(?!\/)[^?#\s]+$/.test(value.cropPreviewUrl)) return false;
-  if (evidence.schema !== REGION_CORRECTION_SCHEMA || evidence.kind !== "correction" || evidence.storage !== "local" || evidence.private !== true) return false;
-  if (!stableId(evidence.correction_id) || !stableId(evidence.owner_scenario) || !stableId(evidence.corpus)) return false;
+/**
+ * Evidence arrives from host instrumentation, which sits outside this module's
+ * type boundary: a host can be older than the panel, wired to the wrong
+ * scenario, or simply broken. `validEvidence` is therefore a runtime contract,
+ * not a restatement of `RegionCorrectionEvidence` — every field is re-read
+ * through a narrowing helper so each check can actually fail.
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+const asString = (value: unknown): string => (typeof value === "string" ? value : "");
+const asNumber = (value: unknown): number => (typeof value === "number" ? value : Number.NaN);
+
+const FIDELITIES = ["captured", "composited", "rendered", "sketch"] as const;
+const ORIGIN_KINDS = ["served-page", "hub-packet"] as const;
+
+const arrayIncludes = (values: readonly string[], candidate: string): boolean => values.includes(candidate);
+
+function validEvidence(value: unknown): value is ResolvedRegionCorrection {
+  if (!isRecord(value)) return false;
+  const cropPreviewUrl = value.cropPreviewUrl;
+  if (typeof cropPreviewUrl !== "string" || !/^\/(?!\/)[^?#\s]+$/.test(cropPreviewUrl)) return false;
+  const evidence = value.evidence;
+  if (!isRecord(evidence)) return false;
+  if (asString(evidence.schema) !== REGION_CORRECTION_SCHEMA) return false;
+  if (asString(evidence.kind) !== "correction") return false;
+  if (asString(evidence.storage) !== "local") return false;
+  if (evidence.private !== true) return false;
+  if (!stableId(asString(evidence.correction_id)) || !stableId(asString(evidence.owner_scenario)) || !stableId(asString(evidence.corpus))) return false;
   const capture = evidence.capture;
-  if (!capture || !stableId(capture.id) || !/^sha256:[0-9a-f]{64}$/.test(capture.build_id) || !/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{0,1023}$/.test(capture.route) || !stableId(capture.state_id) || !stableId(capture.data_id)) return false;
-  if (!evidence.origin || (evidence.origin.kind === "served-page" && (!stableId(evidence.origin.id) || evidence.origin.id !== capture.id)) || (evidence.origin.kind === "hub-packet" && (!stableId(evidence.origin.id) || !stableId(evidence.origin.attachment))) || !["served-page", "hub-packet"].includes(evidence.origin.kind)) return false;
-  if (!["captured", "composited", "rendered", "sketch"].includes(capture.fidelity) || !bundlePath(capture.image.path) || !digest(capture.image.sha256)) return false;
-  if (!Number.isInteger(capture.viewport.width) || capture.viewport.width < 1 || !Number.isInteger(capture.viewport.height) || capture.viewport.height < 1) return false;
+  if (!isRecord(capture)) return false;
+  const captureID = asString(capture.id);
+  if (!stableId(captureID) || !/^sha256:[0-9a-f]{64}$/.test(asString(capture.build_id)) || !/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{0,1023}$/.test(asString(capture.route)) || !stableId(asString(capture.state_id)) || !stableId(asString(capture.data_id))) return false;
+  const origin = evidence.origin;
+  if (!isRecord(origin)) return false;
+  const originKind = asString(origin.kind);
+  if (!arrayIncludes(ORIGIN_KINDS, originKind)) return false;
+  if (!stableId(asString(origin.id))) return false;
+  if (originKind === "served-page" && asString(origin.id) !== captureID) return false;
+  if (originKind === "hub-packet" && !stableId(asString(origin.attachment))) return false;
+  const image = capture.image;
+  if (!isRecord(image)) return false;
+  if (!arrayIncludes(FIDELITIES, asString(capture.fidelity)) || !bundlePath(asString(image.path)) || !digest(asString(image.sha256))) return false;
+  const viewport = capture.viewport;
+  if (!isRecord(viewport)) return false;
+  const viewportWidth = asNumber(viewport.width);
+  const viewportHeight = asNumber(viewport.height);
+  if (!Number.isInteger(viewportWidth) || viewportWidth < 1 || !Number.isInteger(viewportHeight) || viewportHeight < 1) return false;
   const region = evidence.region;
-  if (!region || !stableId(region.id) || !stableId(region.node_id) || !region.label.trim() || region.label.length > 256 || !stableId(region.component) || !stableId(region.evidence_id)) return false;
-  if (!bundlePath(region.crop.path) || !digest(region.crop.sha256)) return false;
-  const { x, y, width, height } = region.bounds;
+  if (!isRecord(region)) return false;
+  const label = asString(region.label);
+  if (!stableId(asString(region.id)) || !stableId(asString(region.node_id)) || !label.trim() || label.length > 256 || !stableId(asString(region.component)) || !stableId(asString(region.evidence_id))) return false;
+  const crop = region.crop;
+  if (!isRecord(crop)) return false;
+  if (!bundlePath(asString(crop.path)) || !digest(asString(crop.sha256))) return false;
+  const bounds = region.bounds;
+  if (!isRecord(bounds)) return false;
+  const x = asNumber(bounds.x);
+  const y = asNumber(bounds.y);
+  const width = asNumber(bounds.width);
+  const height = asNumber(bounds.height);
   return [x, y, width, height].every(Number.isFinite) && x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1;
 }
 
 export function RegionCorrectionProvider({ children, resolveEvidence, submitCorrection, shortcut = "u", disabled = false }: RegionCorrectionProviderProps) {
+  const { t } = useTranslation();
   const [resolvedCorrection, setResolvedCorrection] = useState<ResolvedRegionCorrection | null>(null);
   const evidence = resolvedCorrection?.evidence ?? null;
   const [message, setMessage] = useState("");
@@ -215,34 +262,165 @@ export function RegionCorrectionProvider({ children, resolveEvidence, submitCorr
     }
   };
 
-  return <div data-rcl-region-correction-root onClickCapture={onClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={clearTimer} onPointerCancel={clearTimer} onContextMenu={(event) => { if (point.current) event.preventDefault(); }}>
-    {children}
-    <StyleSheet libraryId="react-component-library:RegionCorrectionProvider" version="0.1.0-draft.1" css={correctionStyles} />
-    {portal && createPortal(<div data-ux-provider-ui data-rcl-region-correction-launcher>
-      {selecting && <p data-rcl-region-correction-instruction role="status">Tap a marked page region to attach its evidence.</p>}
-      {status && !evidence && <p data-rcl-region-correction-feedback role="status">{status}</p>}
-      {notice && !evidence && <p data-rcl-region-correction-feedback role="status">{notice}</p>}
-      {!evidence && <button type="button" aria-pressed={selecting} aria-keyshortcuts={`Alt+Shift+${shortcut.toUpperCase()}`} onClick={() => { setSelecting((value) => !value); setStatus(""); setNotice(""); }}>
-        {selecting ? "Cancel region choice" : "Report a page issue"}
-      </button>}
-    </div>, portal)}
-    {evidence && portal && createPortal(
-      <div role="dialog" aria-modal="true" aria-labelledby="region-correction-title" data-rcl-region-correction-backdrop onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-        <section data-rcl-region-correction-panel aria-describedby="region-correction-description">
-          <div data-rcl-region-correction-header>
-            <div><h2 id="region-correction-title">Point out what needs fixing</h2><p id="region-correction-description">This note is queued locally for {evidence.owner_scenario} with the selected component, route, build, viewport and saved crop.</p></div>
-            <button data-rcl-region-correction-close type="button" onClick={close} aria-label="Close correction">Close</button>
-          </div>
-          <figure data-rcl-region-correction-crop><img src={resolvedCorrection?.cropPreviewUrl ?? ""} alt={`Evidence crop for ${evidence.region.component}`} /><figcaption>Saved crop · {evidence.region.evidence_id}</figcaption></figure>
-          <dl id="region-correction-context" data-rcl-region-correction-context><dt>Region</dt><dd>{evidence.region.id}</dd><dt>Component</dt><dd>{evidence.region.component}</dd><dt>Route</dt><dd>{evidence.capture.route}</dd><dt>Viewport</dt><dd>{evidence.capture.viewport.width} × {evidence.capture.viewport.height}</dd></dl>
-          <label htmlFor="region-correction-text">One sentence about the problem</label>
-          <textarea id="region-correction-text" value={message} maxLength={500} onChange={(event) => setMessage(event.target.value)} placeholder="What should change here?" />
-          <p data-rcl-region-correction-status role="status">{status}</p>
-          <button data-rcl-region-correction-submit type="button" disabled={message.trim().length < 3 || message.trim().length > 500} onClick={() => void submit()}>Send correction</button>
-          <p data-rcl-region-correction-shortcut>Shortcut: Shift + Alt + {shortcut.toUpperCase()} when a page region is focused.</p>
-        </section>
-      </div>, portal)}
-  </div>;
+  // Capture-phase pointer handlers only observe gestures for long-press
+  // detection; the wrapper is not an interactive control of its own.
+  return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- pointer capture observes gestures, it does not make the wrapper interactive
+    <div
+      data-rcl-region-correction-root
+      onClickCapture={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={clearTimer}
+      onPointerCancel={clearTimer}
+      onContextMenu={(event) => {
+        if (point.current) event.preventDefault();
+      }}
+    >
+      {children}
+      <StyleSheet libraryId="react-component-library:RegionCorrectionProvider" version="0.1.0-draft.1" css={correctionStyles} />
+      {portal &&
+        createPortal(
+          <div data-ux-provider-ui data-rcl-region-correction-launcher>
+            {selecting && (
+              <p data-rcl-region-correction-instruction role="status">
+                {t("regionCorrection.tapInstruction", {
+                  defaultValue: "Tap a marked page region to attach its evidence.",
+                })}
+              </p>
+            )}
+            {status && !evidence && (
+              <p data-rcl-region-correction-feedback role="status">
+                {status}
+              </p>
+            )}
+            {notice && !evidence && (
+              <p data-rcl-region-correction-feedback role="status">
+                {notice}
+              </p>
+            )}
+            {!evidence && (
+              <button
+                type="button"
+                aria-pressed={selecting}
+                aria-keyshortcuts={`Alt+Shift+${shortcut.toUpperCase()}`}
+                onClick={() => {
+                  setSelecting((value) => !value);
+                  setStatus("");
+                  setNotice("");
+                }}
+              >
+                {selecting
+                  ? t("regionCorrection.cancelSelection", { defaultValue: "Cancel region choice" })
+                  : t("regionCorrection.report", { defaultValue: "Report a page issue" })}
+              </button>
+            )}
+          </div>,
+          portal,
+        )}
+      {evidence &&
+        portal &&
+        createPortal(
+          // The backdrop dismisses on press; the panel inside is the
+          // interactive surface, so a button role here would be wrong.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- overlay backdrop dismissal, not element interaction
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="region-correction-title"
+            data-rcl-region-correction-backdrop
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) close();
+            }}
+          >
+            <section data-rcl-region-correction-panel aria-describedby="region-correction-description">
+              <div data-rcl-region-correction-header>
+                <div>
+                  <h2 id="region-correction-title">
+                    {t("regionCorrection.title", { defaultValue: "Point out what needs fixing" })}
+                  </h2>
+                  <p id="region-correction-description">
+                    {t("regionCorrection.description", {
+                      defaultValue:
+                        "This note is queued locally for {{ownerScenario}} with the selected component, route, build, viewport and saved crop.",
+                      ownerScenario: evidence.owner_scenario,
+                    })}
+                  </p>
+                </div>
+                <button
+                  data-rcl-region-correction-close
+                  type="button"
+                  onClick={close}
+                  aria-label={t("regionCorrection.closeLabel", { defaultValue: "Close correction" })}
+                >
+                  {t("regionCorrection.close", { defaultValue: "Close" })}
+                </button>
+              </div>
+              <figure data-rcl-region-correction-crop>
+                <img
+                  src={resolvedCorrection?.cropPreviewUrl ?? ""}
+                  alt={t("regionCorrection.cropAlt", {
+                    defaultValue: "Evidence crop for {{component}}",
+                    component: evidence.region.component,
+                  })}
+                />
+                <figcaption>
+                  {t("regionCorrection.cropCaption", {
+                    defaultValue: "Saved crop · {{evidenceId}}",
+                    evidenceId: evidence.region.evidence_id,
+                  })}
+                </figcaption>
+              </figure>
+              <dl id="region-correction-context" data-rcl-region-correction-context>
+                <dt>{t("regionCorrection.region", { defaultValue: "Region" })}</dt>
+                <dd>{evidence.region.id}</dd>
+                <dt>{t("regionCorrection.component", { defaultValue: "Component" })}</dt>
+                <dd>{evidence.region.component}</dd>
+                <dt>{t("regionCorrection.route", { defaultValue: "Route" })}</dt>
+                <dd>{evidence.capture.route}</dd>
+                <dt>{t("regionCorrection.viewport", { defaultValue: "Viewport" })}</dt>
+                <dd>
+                  {evidence.capture.viewport.width} × {evidence.capture.viewport.height}
+                </dd>
+              </dl>
+              <label htmlFor="region-correction-text">
+                {t("regionCorrection.messageLabel", {
+                  defaultValue: "One sentence about the problem",
+                })}
+              </label>
+              <textarea
+                id="region-correction-text"
+                value={message}
+                maxLength={500}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder={t("regionCorrection.messagePlaceholder", {
+                  defaultValue: "What should change here?",
+                })}
+              />
+              <p data-rcl-region-correction-status role="status">
+                {status}
+              </p>
+              <button
+                data-rcl-region-correction-submit
+                type="button"
+                disabled={message.trim().length < 3 || message.trim().length > 500}
+                onClick={() => void submit()}
+              >
+                {t("regionCorrection.submit", { defaultValue: "Send correction" })}
+              </button>
+              <p data-rcl-region-correction-shortcut>
+                {t("regionCorrection.shortcut", {
+                  defaultValue:
+                    "Shortcut: Shift + Alt + {{key}} when a page region is focused.",
+                  key: shortcut.toUpperCase(),
+                })}
+              </p>
+            </section>
+          </div>,
+          portal,
+        )}
+    </div>
+  );
 }
 
 export default RegionCorrectionProvider;

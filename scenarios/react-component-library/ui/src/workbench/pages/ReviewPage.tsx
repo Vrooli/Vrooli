@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { pluralDefault } from "../plural";
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, CircleAlert, Copy, Filter, Inbox } from "lucide-react";
 
@@ -126,11 +125,6 @@ export function ReviewPage() {
           label={t("workbench.review.kpiOpen", { defaultValue: "Open findings" })}
           value={findings.length}
           detail={t("workbench.review.kpiOpenDetail", {
-            defaultValue: pluralDefault(
-              stats.affectedAssets,
-              "Across {{count}} asset",
-              "Across {{count}} assets",
-            ),
             count: stats.affectedAssets,
           })}
         />
@@ -229,11 +223,6 @@ export function ReviewPage() {
             {findings.length > 60 ? (
               <p className="wb-muted-2 wb-small" style={{ padding: "0 14px 12px" }}>
                 {t("workbench.review.truncated", {
-                  defaultValue: pluralDefault(
-                    findings.length,
-                    "Showing the first 30 findings per column. {{count}} finding is in the current report.",
-                    "Showing the first 30 findings per column. {{count}} findings are in the current report.",
-                  ),
                   count: findings.length,
                 })}
               </p>

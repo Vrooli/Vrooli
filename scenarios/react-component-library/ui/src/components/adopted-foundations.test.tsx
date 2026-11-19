@@ -139,6 +139,9 @@ describe("adopted foundation entry points", () => {
   });
 
   it("keeps the drawer content available for minimal consumers", () => {
+    const metadataCopy = "Styled metadata";
+    const stringStyleCopy = "String style";
+    const actionLabel = "Create";
     renderWithProviders(
       <>
         <FullPageDrawer open title="Drawer" closeLabel="Close drawer">
@@ -147,23 +150,23 @@ describe("adopted foundation entry points", () => {
         <Text textStyle="caption" truncate balance numeric>
           Styled metadata
         </Text>
-        <Text textStyle="body">String style</Text>
+        <Text textStyle="body">{stringStyleCopy}</Text>
         <Icon name="close" size="lg" tone="danger" />
         <EmptyState
           title="Actionable empty"
           icon={<Icon name="plus" aria-hidden />}
-          action={<button type="button">Create</button>}
+          action={<button type="button">{actionLabel}</button>}
         />
       </>,
     );
 
     expect(screen.getByRole("dialog", { name: "Drawer" })).toHaveTextContent("Drawer content");
-    expect(screen.getByText("Styled metadata")).toHaveAttribute("data-text-truncate", "true");
-    expect(screen.getByText("String style")).toHaveAttribute("data-text-style", "body");
+    expect(screen.getByText(metadataCopy)).toHaveAttribute("data-text-truncate", "true");
+    expect(screen.getByText(stringStyleCopy)).toHaveAttribute("data-text-style", "body");
     // The open modal correctly makes background siblings inert; this assertion
     // checks that the sibling composition remains mounted without pretending it
     // should be exposed in the accessibility tree while the drawer is open.
-    expect(screen.getByText("Create")).toBeInTheDocument();
+    expect(screen.getByText(actionLabel)).toBeInTheDocument();
   });
 
   it("collapses an expanded drawer before a second downward swipe dismisses it", async () => {

@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CommandCenterShell } from "@vrooli/react-component-library/CommandCenterShell/1";
 
+// Fixture copy the shell is asked to display, named once so the queries match
+// the fixture instead of restating its copy.
+const metricDetail = "Across all environments";
+const regionContent = "Recent activity";
+
 describe("CommandCenterShell", () => {
   it("keeps operational context visible while its primary region reports a partial lifecycle", () => {
     // The authored usage contract now requires `metrics[].id`, while the
@@ -38,16 +43,16 @@ describe("CommandCenterShell", () => {
         title="Operations"
         navigation={<a href="#runs">Runs</a>}
         controls={<button type="button">Refresh</button>}
-        metrics={[{ label: "Active runs", value: "12", detail: "Across all environments" }]}
+        metrics={[{ label: "Active runs", value: "12", detail: metricDetail }]}
         regionState="ready"
       >
-        <p>Recent activity</p>
+        <p>{regionContent}</p>
       </CommandCenterShell>,
     );
 
     expect(screen.getByRole("button", { name: "Refresh" })).toBeVisible();
-    expect(screen.getByText("Across all environments")).toBeVisible();
-    expect(screen.getByText("Recent activity")).toBeVisible();
+    expect(screen.getByText(metricDetail)).toBeVisible();
+    expect(screen.getByText(regionContent)).toBeVisible();
     expect(warning).toHaveBeenCalledWith(expect.stringContaining("stable non-empty identifier"));
   });
 });
