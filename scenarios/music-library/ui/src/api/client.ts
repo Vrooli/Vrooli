@@ -59,5 +59,9 @@ export async function uploadFile(path: string, formData: FormData): Promise<Resp
   });
 }
 
+export function apiUrl(path: string): string {
+  return buildApiUrl(path, { baseUrl: REST_API_BASE });
+}
+
 export { fromJson, PROTO_READ_OPTIONS };
 export type { ErrorEnvelope, JsonValue };

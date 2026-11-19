@@ -5,7 +5,6 @@ the scenario. Use it when behavior depends on ordered states, retries,
 cancellation, stale completion, background jobs, polling, or mutually
 exclusive UI modes.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -29,9 +28,10 @@ outcome, statefulness, and validation level.
 | Library scan | library | Source root added, or rescan | Track index updated | Incremental and resumable; distinguishes moved, missing, and deleted | Level 4 |
 | Decomposition batch | decomposition | New or changed tracks | Attributes cached locally | Resumable, per-track partial, tolerates upstream unavailability | Level 4 |
 | Playback session | playback | Listener starts playback | Audio output plus interaction events | Queue and transport states, gapless boundaries, transcode cache miss | Level 5 |
-| Comparison round | elicitation | Listener opens the compare surface | Comparisons recorded, profile refit | Informative pair selection, undo, ordering effects | Level 4 |
-| Preference refit | preference | New comparison, new signal, or reset | Updated profile | Background; never blocks playback; versioned and reversible | Level 4 |
-| Ranking with explanation | ranking | The queue needs a next track | Ranked track plus its reason | Single pass; exploration and exploitation distinguished | Level 4 |
+| Comparison round | elicitation | Listener opens Taste and requests a pair | Exact catalog pair, then an append-only judgment and profile revision | Distinct left/right/tie/neither/skip, provenance snapshots, reversals, repeated-pair suppression | Level 1 partial |
+| Preference refit | preference | New pairwise judgment or explicit control | Versioned profile snapshot | Replays only operator labels from a fixed broad prior; explicit controls remain separate; calibration and background refit are future work | Level 1 partial |
+| Ranking with explanation | ranking | Listener selects a seed in Taste | Catalog shortlist with mean, uncertainty, exploration bonus, score contributions, evidence source and MQ2 brief | One score pass emits its explanation; unavailable fields stay absent; no offers enter the ranker | Level 1 partial |
+| Release draft, rights, eligibility, and batch review | releases | Operator saves or loads one edition | Immutable revision, exact recording and rights evidence, property-level proof report, ordered exact-hash listening room, and digest-pinned decision | Draft claims do not qualify as proof; every use right points to its exact catalog receipt; approval requires owner evidence and operator confirmation; no publishing transition exists | Level 1 partial |
 | Generation loop | generation | Background schedule or directed request | Candidate tracks | Queue, budget eviction, retention on confirmation | Level 5 |
 
 ## Flow Details
@@ -70,12 +70,24 @@ generated subpackages. The worked example below shows the expected shape.
 ### Comparison round — `elicitation`
 
 - Trigger: listener opens the compare surface.
-- Steps: select the pair that most reduces model uncertainty, present, record the
-  judgment, trigger a background refit.
-- Statefulness: undo is supported; deleting a comparison refits rather than leaving
-  a stale profile.
-- Known confound: presentation order affects choice, so ordering is randomised and
-  recorded.
+- Steps: select a fresh pair by approximate expected posterior log-volume reduction
+  (or the explicit random-baseline mode), present, record the exact track hashes,
+  choice, context, reason/scope, and source-tag snapshots, then append a new profile
+  revision. Catalog tags are taste features; explicit `genre:<name>` tags are separate
+  genre features. Duration, tempo and key descriptors enter as score features only
+  after operator confirmation of the exact latest decomposition job. Source artist
+  metadata drives diversity only and never contributes to preference score.
+- Statefulness: corrections append a row linked to the earlier judgment; replay
+  excludes the superseded row. Stored judgments are not deleted or rewritten.
+- Order control: the UI randomizes left/right presentation. The chosen side's exact
+  hashes are persisted as the judgment's left/right IDs, so order is reconstructable;
+  a separate random seed is not stored.
+- Current evidence limit: scored dimensions come from exact catalog tags and explicit
+  `genre:<name>` tags. Artist diversity uses only exact-hash matched decomposition
+  source metadata and excludes the seed artist; known artist/genre groups are capped
+  at two. Missing metadata is not inferred, and unreviewed or superseded acoustic
+  decomposition fields are omitted. Candidate without sourced scored features or a near-duplicate pair is not
+  offered. Fixture tests prove ten-row plumbing only, not quality on the live catalog.
 
 ### Preference refit — `preference`
 
@@ -166,6 +178,46 @@ These example state machines belong in the State Machines table below:
 | notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
 | notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
 <!-- EXAMPLE-DOMAIN:notes END -->
+
+### Release draft, eligibility, and batch review — releases
+
+- Trigger: an operator saves one JSON edition through the release workbench or CLI,
+  or loads a known release id.
+- Inputs: release id and revision, ordered exact catalog hashes, localized titles,
+  pinned external artist subject reference, credits, asset references, track rights
+  decisions, and exact source/derived hashes plus operation evidence.
+- Steps: validate the edition; save its version, exact catalog occurrences, pinned
+  take/receipt provenance, credits, assets, proposed rights and derivations in one
+  transaction. Track provenance is read from the catalog inside the save transaction;
+  caller-supplied take or receipt data is discarded. Later reads independently
+  assess each showcase property.
+- Invariants: every track hash must already exist in the local catalog; source
+  audio is not copied or changed; artist and cover proof must be resolved by their
+  owners; derived rights cannot exceed source rights; a readiness report is not an
+  operator judgment.
+- Failure modes: invalid revision returns conflict; missing catalog hash is rejected
+  by validation/foreign key; absent canonical artist or artwork verification remains
+  blocked; approval before readiness returns a failed precondition.
+- Rights: each track requires a separate append-only operator decision bound to the
+  revision, exact hash, use scope, source license and the exact receipt reference
+  pinned from the catalog. Draft fields cannot assert an operator decision. The
+  derivation verifier must resolve the Music Tools operation before lineage is
+  supported; metadata ids or nonempty evidence strings are insufficient.
+- Review: once every non-judgment property is owner-verified, the page exposes one
+  batch listening room in pinned order. It streams each catalog track by exact
+  SHA-256 only after explicit play and records one operator decision against that
+  immutable revision after the operator confirms all tracks were heard. The request
+  includes the complete ordered SHA-256 list; the server verifies it matches the
+  pinned revision and stores it with the hearing attestation and canonical edition
+  digest. Later edits or rights evidence changes do not inherit the prior approval.
+  Release rows and review/evidence records are protected by database append-only
+  triggers.
+- Current evidence: domain and REST contract tests cover transactions, exact-hash
+  catalog binding, eligibility blockers, and review gating. Existing six judged
+  instrumental records support individual liked evidence and exact-hash track
+  identity only; they do not meet full-song, cover, artist continuity, lineage or
+  commercial-rights requirements. The actual EP showcase remains gated on MQ1/MQ2
+  and external owner evidence.
 
 ## State Machines
 

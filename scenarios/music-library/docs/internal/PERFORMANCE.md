@@ -2,7 +2,6 @@
 
 Budgets for a listener-facing application, and the constraints behind them.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

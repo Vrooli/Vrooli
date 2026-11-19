@@ -9,6 +9,9 @@ import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { TastePage } from "../pages/TastePage";
+import { ReleasesPage } from "../pages/ReleasesPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -23,6 +26,9 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "review", element: <ReviewPage /> },
+      { path: "taste", element: <TastePage /> },
+      { path: "releases", element: <ReleasesPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

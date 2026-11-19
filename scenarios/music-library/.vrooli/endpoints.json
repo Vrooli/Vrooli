@@ -95,6 +95,198 @@
       "category": "catalog"
     },
     {
+      "id": "catalog_reserve",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/ReserveTrack",
+      "method": "POST",
+      "summary": "Reserve an approved bank track",
+      "description": "Atomically reserve a liked track with the requested purpose for one consumer and film revision. Supply a SHA-256 to intentionally reuse a known track.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_release_reservation",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/ReleaseReservation",
+      "method": "POST",
+      "summary": "Release a bank reservation",
+      "description": "Release a reservation owned by the specified consumer so another project can select the track.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_commit_reservation",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/CommitReservation",
+      "method": "POST",
+      "summary": "Commit a bank reservation",
+      "description": "Atomically bind a reserved track to its project revision as draft or accepted and retain its use purpose.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_rollback_reservation",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/RollbackReservation",
+      "method": "POST",
+      "summary": "Roll back a draft bank use",
+      "description": "Release a committed draft when its film is abandoned; accepted uses remain immutable and delivered refill events receive a cancellation request.",
+      "category": "catalog"
+    },
+    {
+      "id": "decomposition_list",
+      "path": "/api/v1/decompositions",
+      "method": "GET",
+      "summary": "List analyzed tracks for review",
+      "description": "Return stable newest-first pages of track/job summaries, source title/artist and review counts without loading result blobs; use the opaque next cursor to continue.",
+      "category": "decomposition",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "A browser review queue needs paginated JSON discovery and has no generated Connect RPC counterpart."
+      }
+    },
+    {
+      "id": "decomposition_put",
+      "path": "/api/v1/decompositions/{track_sha256}",
+      "method": "POST",
+      "summary": "Save Music Tools analysis",
+      "description": "Store the exact Music Tools result envelope and local source title/artist by verified source SHA-256 and analysis job identity; no audio is copied.",
+      "category": "decomposition",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "A JSON envelope carries Music Tools' preserved result document; it has no generated Connect RPC counterpart."
+      }
+    },
+    {
+      "id": "decomposition_get",
+      "path": "/api/v1/decompositions/{track_sha256}",
+      "method": "GET",
+      "summary": "Read a track decomposition",
+      "description": "Read the latest stored Music Tools result and its human review history, or select a prior analysis job.",
+      "category": "decomposition",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The review workbench reads the JSON decomposition envelope; it has no generated Connect RPC counterpart."
+      }
+    },
+    {
+      "id": "decomposition_review",
+      "path": "/api/v1/decompositions/{track_sha256}/reviews",
+      "method": "POST",
+      "summary": "Review a decomposition",
+      "description": "Persist a human verdict, note, and timestamped section corrections against one immutable analysis job.",
+      "category": "decomposition",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "A listener-authored review submission is a JSON workbench action without a generated Connect RPC counterpart."
+      }
+    },
+    {
+      "id": "decomposition_audio",
+      "path": "/api/v1/decompositions/{track_sha256}/audio",
+      "method": "GET",
+      "summary": "Stream local source audio for private review.",
+      "description": "Proxy Music Tools source audio using loopback-only service discovery and byte-range support; the audio remains in Music Tools storage.",
+      "category": "decomposition",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser needs an audio stream at the Library origin; this pass-through does not copy source bytes into Library."
+      }
+    },
+    {
+      "id": "release_list",
+      "path": "/api/v1/releases",
+      "method": "GET",
+      "summary": "List latest immutable release revisions",
+      "description": "Return bounded newest-first release summaries and track counts without loading proof JSON or audio; use the opaque cursor to continue.",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The release catalog UI needs keyset-paged JSON summaries with no generated Connect counterpart."
+      }
+    },
+    {
+      "id": "release_create",
+      "path": "/api/v1/releases",
+      "method": "POST",
+      "summary": "Save immutable release draft",
+      "description": "Create a versioned album or EP draft with exact catalog hashes, credits, artwork references, rights and derivation evidence; no audio is copied or published.",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The release editor submits a structured edition with external asset and rights provenance; there is no generated Connect request for this evolving owner-bound payload."
+      }
+    },
+    {
+      "id": "release_get",
+      "path": "/api/v1/releases/{release_id}",
+      "method": "GET",
+      "summary": "Read edition and eligibility",
+      "description": "Read one immutable release revision and property-by-property evidence status, including unresolved canonical artist and artwork ownership proofs.",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The editor reads a nested proof report with owner-resolved status that has no generated Connect counterpart."
+      }
+    },
+    {
+      "id": "release_rights_decision",
+      "path": "/api/v1/releases/{release_id}/rights-decisions",
+      "method": "POST",
+      "summary": "Record exact-hash operator rights decision",
+      "description": "Append a rights decision pinned to a track hash, release revision and the catalog receipt provenance; draft claims alone never satisfy rights readiness.",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "This operator rights attestation is a browser workbench action without a generated Connect counterpart."
+      }
+    },
+    {
+      "id": "release_review",
+      "path": "/api/v1/releases/{release_id}/reviews",
+      "method": "POST",
+      "summary": "Record one-batch EP review",
+      "description": "Append an operator decision against a pinned edition revision after evidence eligibility checks; the decision is not a publish action.",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "A listener-authored release review is a browser workbench action without a generated Connect counterpart."
+      }
+    },
+    {
+      "id": "taste_profile_get",
+      "path": "/vrooli.music_library.v1.taste.TasteService/GetProfile",
+      "method": "POST",
+      "summary": "Read the editable taste profile",
+      "description": "Return versioned operator controls, learned estimates, uncertainty and provenance-bound pairwise judgments for one context.",
+      "category": "taste"
+    },
+    {
+      "id": "taste_control_set",
+      "path": "/vrooli.music_library.v1.taste.TasteService/SetControl",
+      "method": "POST",
+      "summary": "Set an explicit taste control",
+      "description": "Append a profile revision with an operator-authored boost, suppression, pin or ban separate from learned weights.",
+      "category": "taste"
+    },
+    {
+      "id": "taste_pair_select",
+      "path": "/vrooli.music_library.v1.taste.TasteService/SelectPair",
+      "method": "POST",
+      "summary": "Select an informative pair",
+      "description": "Offer a fresh catalog comparison using uncertainty-aware selection or a measurable random baseline.",
+      "category": "taste"
+    },
+    {
+      "id": "taste_judgment_record",
+      "path": "/vrooli.music_library.v1.taste.TasteService/RecordJudgment",
+      "method": "POST",
+      "summary": "Record a provenance-bound comparison",
+      "description": "Append an operator choice against two exact catalog track hashes with their source-tag evidence snapshots.",
+      "category": "taste"
+    },
+    {
+      "id": "taste_recommend",
+      "path": "/vrooli.music_library.v1.taste.TasteService/Recommend",
+      "method": "POST",
+      "summary": "Find recommendations from a liked track",
+      "description": "Rank candidates from hash-bound catalog tags, explicit genre tags, and only exact-job acoustic descriptors confirmed by the operator; use matched decomposition artist metadata for diversity, and emit score-derived explanations, uncertainty, and an MQ2 planning brief.",
+      "category": "taste"
+    },
+    {
       "id": "notes_list",
       "path": "/vrooli.music_library.v1.notes.NotesService/ListNotes",
       "method": "POST",

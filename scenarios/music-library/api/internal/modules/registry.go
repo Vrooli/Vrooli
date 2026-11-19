@@ -20,8 +20,12 @@ import (
 	"music-library/internal/module"
 
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/music-library/v1/catalog"
+	tastev1 "github.com/vrooli/vrooli/packages/proto/gen/go/music-library/v1/taste"
 	capsH "music-library/handlers/capabilities"
 	catalogH "music-library/handlers/catalog"
+	decompositionH "music-library/handlers/decomposition"
+	releasesH "music-library/handlers/releases"
+	tasteH "music-library/handlers/taste"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -42,6 +46,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, catalogH.Endpoints...)
+	out = append(out, decompositionH.Endpoints...)
+	out = append(out, releasesH.Endpoints...)
+	out = append(out, tasteH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
@@ -70,6 +77,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "catalog", File: catalogv1.File_music_library_v1_catalog_catalog_proto},
+		{Module: "taste", File: tastev1.File_music_library_v1_taste_taste_proto},
 		{Module: "notes", File: notesv1.File_music_library_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 	}
 }
@@ -86,6 +94,9 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(catalogH.Schema),
+		apidb.SchemaProviderFunc(decompositionH.Schema),
+		apidb.SchemaProviderFunc(releasesH.Schema),
+		apidb.SchemaProviderFunc(tasteH.Schema),
 		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

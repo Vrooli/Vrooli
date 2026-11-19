@@ -2,7 +2,6 @@
 
 Canonical map of product capabilities, bounded contexts, and ownership.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -33,6 +32,7 @@ embedding, segment boundary, tempo, key, tag, and generated waveform comes from
 | ranking | Scoring, calibration, exploration policy, and the derived explanation. **Structurally blind to monetisation.** | Policy | No | API, UI | MLIB-P0-015 … MLIB-P1-006 |
 | generation | Background queue conditioned on the profile, directed requests, retention and eviction. | Lifecycle | Candidate state | API, CLI, UI | MLIB-P1-008 … MLIB-P1-011 |
 | provenance | Generated-content disclosure and complete generation lineage. | Reporting | Lineage records | API, UI | MLIB-P0-018 … MLIB-P0-019 |
+| releases | Versioned album/EP editions, ordered exact-hash occurrences with catalog take/receipt snapshots, versioned external artist-subject credits, cover provenance, append-only rights attestations and verified derivation lineage. | Registry | Release drafts, immutable editions, operator rights decisions and digest-pinned reviews | API, CLI, UI | MQ6; `requirements/09-release-catalog` |
 | offers | Post-processing decoration of an already-final ranking. Cannot reorder or filter. | Post-process | Offer state | API, UI | MLIB-P0-020 |
 
 ## Domain Details
@@ -71,6 +71,19 @@ embedding, segment boundary, tempo, key, tag, and generated waveform comes from
   Generated audio is always disclosed as generated.
 - **`offers`** decorates an already-final ranking. It is the only domain defined
   primarily by what it may **not** do.
+
+### Release catalog
+
+- **`releases`** owns versioned local release editions and ordered track occurrences.
+  Each occurrence points to an existing catalog SHA-256; it never copies audio or
+  treats a title as identity.
+- Artist profiles remain with their canonical subject owner. Music Library stores a
+  pinned external subject reference and rendered credit, never a duplicate artist
+  profile. Until the owner resolves that version, artist continuity remains blocked.
+- Cover assets stay with their image owner. Release rows retain exact asset hashes,
+  owner references, operation/model/license provenance, and rights state. Remix and
+  sample edges bind exact source and derived hashes, time spans, operation receipts,
+  and inherited rights. A draft is not an operator approval or publish action.
 
 ## Shared Concepts
 

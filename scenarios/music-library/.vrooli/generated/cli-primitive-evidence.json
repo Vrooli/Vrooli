@@ -4,8 +4,16 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "music-library",
   "generator": "v1.0.0",
-  "manifest_hash": "a62c4b159cf0efb741beb55897ea74cefe67e92db666e4d64febdf73398405d2",
+  "manifest_hash": "4aa72866df10dfd051813c1eb94e9fba7da409c911e8bbc21bdb3960889523a0",
   "commands": [
+    {
+      "path": "catalog commit",
+      "group": "catalog",
+      "command": "commit",
+      "binding": "CatalogService.CommitReservation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "catalog list",
       "group": "catalog",
@@ -19,6 +27,30 @@
       "group": "catalog",
       "command": "put",
       "binding": "CatalogService.PutTrack",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "catalog release",
+      "group": "catalog",
+      "command": "release",
+      "binding": "CatalogService.ReleaseReservation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "catalog reserve",
+      "group": "catalog",
+      "command": "reserve",
+      "binding": "CatalogService.ReserveTrack",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "catalog rollback",
+      "group": "catalog",
+      "command": "rollback",
+      "binding": "CatalogService.RollbackReservation",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

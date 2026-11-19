@@ -137,6 +137,10 @@
       "testId": "page-notes",
       "selector": "[data-testid=\"page-notes\"]"
     },
+    "pages.review": {
+      "testId": "page-review",
+      "selector": "[data-testid=\"page-review\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -222,6 +226,9 @@
           "values": [
             "dashboard",
             "notes",
+            "review",
+            "taste",
+            "releases",
             "settings"
           ]
         }
@@ -262,7 +269,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "94db3b1232aa684e439be4cbb54cd50a01676335c2833669bdd3e0a7a2b07402",
-    "ui/src/consts/selectors.ts": "e923bd309066b5a6865666e94c0c083a9a347940fd984bc184d44ca6a5ffb94d",
+    "ui/src/consts/selectors.ts": "5cf99e278ecb04405f64b723f01b0f5d5a768fe0443a9b27257454605841ab8b",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -1,6 +1,9 @@
 import {
   BarChart3, // EXAMPLE-DOMAIN:notes
+  Headphones,
   Home,
+  Disc3,
+  Sparkles,
   Settings,
 } from "lucide-react";
 import { strings } from "../consts/strings";
@@ -16,6 +19,9 @@ export interface NavItem {
   key:
     | "dashboard"
     | "notes" // EXAMPLE-DOMAIN:notes
+    | "review"
+    | "taste"
+    | "releases"
     | "settings";
   /** Router path. */
   path: string;
@@ -28,6 +34,9 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "review", path: "/review", labelKey: strings.layout.nav.review },
+  { key: "taste", path: "/taste", labelKey: strings.layout.nav.taste },
+  { key: "releases", path: "/releases", labelKey: strings.layout.nav.releases },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];
 
@@ -37,6 +46,12 @@ export function iconForItem(item: NavItem) {
     // EXAMPLE-DOMAIN:notes START
     case "notes":
       return <BarChart3 aria-hidden className={iconClass} />;
+    case "review":
+      return <Headphones aria-hidden className={iconClass} />;
+    case "taste":
+      return <Sparkles aria-hidden className={iconClass} />;
+    case "releases":
+      return <Disc3 aria-hidden className={iconClass} />;
     // EXAMPLE-DOMAIN:notes END
     case "settings":
       return <Settings aria-hidden className={iconClass} />;

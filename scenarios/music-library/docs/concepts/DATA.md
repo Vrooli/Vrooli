@@ -3,7 +3,6 @@
 Storage ownership, schemas, retention, and privacy. Domain ownership is in
 [`DOMAINS.md`](DOMAINS.md); system structure is in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -72,11 +71,25 @@ which is part of what makes the blindness boundary enforceable.
 |---|---|---|
 | `source_roots` | library | path, scan mode, last scanned |
 | `tracks` | library | content id, current path, duration, embedded metadata, missing-since |
-| `attributes` | decomposition | track id, kind, value, model, model version, computed at |
-| `segments` | decomposition | track id, start, end, label |
-| `profiles` | preference | id, context label, model state, updated at |
-| `constraints` | preference | profile id, attribute, direction, strength, listener-authored |
-| `comparisons` | elicitation | profile id, track a, track b, winner, scope, shown at |
+| `music_decompositions` | decomposition | track SHA-256, Music Tools job id, exact result envelope, receive time |
+| `music_decomposition_reviews` | decomposition | track/job identity, human verdict and timestamped corrections |
+| `music_decomposition_taste_features` | decomposition | compact bounded feature projection, exact track/job/review provenance, confidence |
+| `music_taste_profile_versions` | preference | context, monotonic revision, full readable profile snapshot, created time |
+| `music_taste_judgments` | elicitation | append-only judgment id, context, exact left/right SHA-256, distinct choice, evidence snapshots, source time |
+| `music_taste_audit_events` | preference | append-only explicit-control or judgment event and JSON payload |
+| `music_releases` | releases | stable local release identity and creation time |
+| `music_release_versions` | releases | immutable album/EP metadata revision and pinned external artist-subject reference |
+| `music_release_track_occurrences` | releases | ordered occurrence bound to an exact catalog SHA-256 |
+| `music_release_recording_provenance` | releases | immutable take, receipt path and existing track judgment snapshotted for each exact occurrence |
+| `music_release_credits` | releases | role, credited spelling, optional external subject reference, revision scope |
+| `music_release_credit_identity_versions` | releases | pinned external subject version for each credited artist identity |
+| `music_release_assets` | releases | owner-issued asset ref/hash and image-operation/model/license/rights provenance |
+| `music_release_track_rights` | releases | exact-hash license lane, usage scope, operator decision and evidence ref |
+| `music_release_rights_decisions` | releases | append-only operator use-right attestation bound to revision, exact hash and recording receipt |
+| `music_release_derivations` | releases | exact source/derived hashes, remix/sample spans, operation receipt, inherited rights |
+| `music_release_reviews` | releases | append-only operator review decision for one immutable edition revision |
+| `music_release_review_pins` | releases | edition digest pinned by each durable operator review |
+| `music_release_review_attestations` | releases | ordered exact hashes the operator confirmed hearing in that batch |
 | `events` | signals | track id, session id, kind, position, timestamp |
 | `candidates` | generation | id, profile id, caption, params, blob ref, state |
 | `lineage` | provenance | blob ref, model, model version, licence lane, seed, params, source refs |
@@ -85,7 +98,51 @@ which is part of what makes the blindness boundary enforceable.
 without losing ratings, comparisons, or history. A track whose path disappears is
 marked missing rather than deleted, and re-links by content when it reappears.
 
+The preference feature space consumes explicit tags stored on the exact catalog row;
+a tag with the explicit `genre:<name>` prefix is exposed as a genre attribute without
+classifying generic tags. Each value carries the catalog SHA-256 as evidence provenance.
+Hash-matched decomposition source metadata supplies artist labels for diversification
+only, never as a taste score. Duration, tempo and key enter the taste feature space
+only as compact projections from the latest exact-hash analysis job explicitly
+confirmed by the operator; a newer job or later non-confirming review hides them.
+Unreviewed analysis is omitted. No reference analysis is performed here. Taste controls are stored
+separately from learned weights. Pairwise choice, reason, attribute scope, context,
+correction link, and exact feature snapshots remain append-only; a reversal adds a
+new judgment instead of rewriting the old event. A profile version is a recoverable
+snapshot, not the label source of truth.
+
+Release editions use a separate immutable version chain: localized metadata, track
+order, credits, assets, rights and derivations are saved together as one revision.
+Exact track foreign keys prevent a release from pointing at a hash absent from the
+catalog. Artwork bytes stay with the image owner; Library records only exact asset
+refs/hashes and the source operation/license/rights provenance. Artist IDs remain
+opaque until their canonical subject owner verifies the pinned version. An approval
+is append-only and must be refused while any eligibility proof is missing. Release
+storage holds no audio and adds no publishing or distribution action.
+
 ## Migrations And Compatibility
+
+Music Tools results are cached as immutable job-addressed records rather than
+flattened into assumptions about one analysis model. `POST
+/api/v1/decompositions/{track_sha256}` accepts the complete Music Tools result
+envelope and verifies its source digest, job id, and `music-mir` provenance.
+The source digest must match the track key. `GET` returns the latest result and
+its review history; `?analysis_job_id=...` retrieves a specific run. Music
+Library stores only this JSON and the listener's feedback. Music Tools remains
+the owner of analysis and stem blobs, so this path does not copy source audio or
+stem files.
+`GET /api/v1/decompositions?limit=20&cursor=...` provides stable, newest-first
+pages of track/job summaries and review counts for a review queue. It does not
+load the potentially large result envelopes; callers fetch one selected track
+with the detail route above. The cursor is opaque and page size is capped at 50.
+
+Reviews are append-only and tied to one analysis job. A verdict can be
+`confirmed`, `corrected`, or `needs_work`; timestamped corrections carry an
+exclusive start/end range in seconds, a section label, and an optional note.
+This provides durable evidence for the MQ1 listening review. The responsive review
+page now selects an exact analysis job, privately streams source audio from Music
+Tools, and appends verdicts and timestamped corrections; the topic taste-register
+reconciliation is still outstanding.
 
 Attribute records carry the model and model version that produced them. When
 `music-tools` changes a model, existing attributes are not silently reinterpreted —

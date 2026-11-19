@@ -3,6 +3,8 @@ package domains
 import (
 	"music-library/cli/domains/catalog"
 	"music-library/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"music-library/cli/domains/releases"
+	"music-library/cli/domains/taste"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -43,6 +45,16 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, catalogGroup)
+	tasteGroup, err := taste.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, tasteGroup)
+	releasesGroup, err := releases.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, releasesGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {

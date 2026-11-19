@@ -7,7 +7,6 @@ How this scenario relates to what Vrooli sells.
 > This document records intent and scenario-local obligations; it does not set
 > prices and does not claim a membership the catalogue has not recorded.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

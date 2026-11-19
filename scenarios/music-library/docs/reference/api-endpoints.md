@@ -52,6 +52,72 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## Decomposition review API
+
+### `GET /api/v1/decompositions`
+
+List analyzed tracks in stable newest-first order for a review queue. The
+response contains track SHA-256, analysis job id, received timestamp, title,
+artist/uploader when source provenance is available, and review count; it never
+includes full result blobs. Use the opaque `next_cursor` from one page to
+request the next. `limit` defaults to 20 and accepts 1–50.
+
+```bash
+curl "http://localhost:${API_PORT}/api/v1/decompositions?limit=20"
+```
+
+### `GET /api/v1/decompositions/{track_sha256}`
+
+Read the latest analysis result and review history for one track. Supply
+`analysis_job_id` to select a specific run when a track has been re-analyzed.
+Music Library keeps the exact Music Tools result document; Music Tools remains
+the owner of audio and stem artifacts.
+
+### `POST /api/v1/decompositions/{track_sha256}`
+
+Store a Music Tools result. The source SHA must match the path identity and the
+embedded job id, source digest, and producer (`music-mir`) must match the
+request. The envelope is `{ "analysis_job_id": "...", "source_sha256": "...",
+"source": { ... }, "tool_result": { ... } }`. `source` holds local display
+provenance and never contains the external URL or source audio bytes. Repeating
+the same track/job/result is idempotent;
+reusing that job id with different result bytes returns HTTP 409.
+
+### `GET /api/v1/decompositions/{track_sha256}/audio`
+
+Stream the private source audio for review with HTTP byte-range support. Music
+Library resolves Music Tools over loopback and proxies the bytes; it does not
+store a second copy. Responses are private/no-store and only local Music Tools
+URLs are allowed.
+
+### `POST /api/v1/decompositions/{track_sha256}/reviews`
+
+Append a human review tied to one analysis job. Verdicts are `confirmed`,
+`corrected`, or `needs_work`; `timestamped_corrections` is an array of
+`{ "start_seconds": 1.2, "end_seconds": 4.5, "label": "chorus",
+"comment": "..." }`. Times are seconds from the track start and end is
+exclusive. Reviews do not modify the preserved analysis output.
+
+---
+
+## Release catalog (REST)
+
+The release catalog exposes `GET /api/v1/releases` for bounded latest-revision
+summaries, `POST /api/v1/releases` for an immutable draft revision,
+`GET /api/v1/releases/{release_id}` for the edition and property-by-property
+eligibility, `POST /api/v1/releases/{release_id}/rights-decisions` for an
+append-only exact-hash operator rights decision, and
+`POST /api/v1/releases/{release_id}/reviews` for a one-batch operator review.
+Draft assertions do not establish rights, cover ownership or derivation proof.
+
+At assessment, Music Library verifies cover provenance through Image Tools and
+remix/sample operation receipts through Music Tools' owner route
+`GET /api/v1/jobs/{id}/derivation-receipt`. The release stores the exact hashes,
+operation id, time ranges and rights decision. An unavailable owner or a missing,
+mismatched, nonterminal or invalid receipt keeps that property blocked.
+Fictional-artist identity remains blocked until the canonical `subjects` view API
+is served; Music Library stores only the pinned external subject reference.
+
 ## Domain endpoints — `<domain>`
 
 Each product domain exposes its endpoints under

@@ -31,7 +31,7 @@ func TestCatalogConnectRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	r, err := c.ListTracks(ctx, connect.NewRequest(&pb.ListTracksRequest{Tag: "ambient", UnusedOnly: true}))
 	require.NoError(t, err)
-	require.Len(t, r.Msg.Tracks, 1)
+	require.Empty(t, r.Msg.Tracks, "a draft binding removes the track from the unused bank")
 	_, err = c.RecordUse(ctx, connect.NewRequest(&pb.RecordUseRequest{Sha256: id, Use: &pb.TrackUse{Project: "podcast", Revision: "episode-2", Status: "accepted"}}))
 	require.NoError(t, err)
 	r, err = c.ListTracks(ctx, connect.NewRequest(&pb.ListTracksRequest{UnusedOnly: true}))

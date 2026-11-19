@@ -60,6 +60,7 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    review: "page-review",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -79,6 +80,9 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
+            "review",
+            "taste",
+            "releases",
             "settings",
           ] as const,
         },

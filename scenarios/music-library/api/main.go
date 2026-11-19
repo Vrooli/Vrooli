@@ -9,6 +9,7 @@ import (
 
 	"music-library/internal/capabilities"
 	"music-library/internal/modules"
+	"music-library/internal/replenishment"
 	"music-library/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -24,8 +25,11 @@ import (
 
 	capsH "music-library/handlers/capabilities"
 	catalogH "music-library/handlers/catalog"
+	decompositionH "music-library/handlers/decomposition"
 	healthH "music-library/handlers/health"
 	notesH "music-library/handlers/notes" // EXAMPLE-DOMAIN:notes
+	releasesH "music-library/handlers/releases"
+	tasteH "music-library/handlers/taste"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -77,6 +81,13 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	replenisher, err := replenishment.New(db.Primary(), log.Default())
+	if err != nil {
+		log.Fatalf("candidate replenishment outbox initialization failed: %v", err)
+	}
+	if err := replenisher.Start(context.Background()); err != nil {
+		log.Fatalf("candidate replenishment outbox start failed: %v", err)
+	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)
@@ -88,6 +99,9 @@ func main() {
 		healthH.Module(db, "music-library-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		catalogH.Module(db),
+		decompositionH.Module(db),
+		releasesH.Module(db),
+		tasteH.Module(db),
 		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 
@@ -119,7 +133,7 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error { replenisher.Stop(); return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

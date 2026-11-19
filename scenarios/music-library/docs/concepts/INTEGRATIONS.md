@@ -2,7 +2,6 @@
 
 Everything this scenario depends on, and what happens when it is missing.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -92,6 +91,33 @@ host because there is nowhere for it to go.
 | Preference model not yet fitted | Ranking states plainly that it is unfitted and routes to comparison, rather than presenting arbitrary output as recommendation |
 | Generation backlog exceeds budget | Oldest unconfirmed candidates evicted first |
 | Offer surface unavailable | Ranking is unaffected — offers are strictly downstream decoration |
+
+### Decomposition handoff
+
+After a successful Music Tools analysis, a caller can save the complete result
+document using `POST /api/v1/decompositions/{track_sha256}` with
+`analysis_job_id`, `source_sha256`, and `tool_result`. The API requires the
+track digest to equal the result's source digest and verifies that the result
+identifies its Music Tools job and `music-mir` producer. Results are keyed by
+track and job so re-analysis does not erase earlier provenance. A review client
+can fetch the newest result (or select a job) and append a human verdict plus
+timestamped section corrections at
+`POST /api/v1/decompositions/{track_sha256}/reviews`.
+Review clients discover available analyses with the paginated
+`GET /api/v1/decompositions?limit=20&cursor=...` endpoint and fetch one result
+at a time, so they need no hard-coded reference-track identities.
+
+Music Tools' durable outbox forwards successful analysis jobs with source title,
+artist, uploader, filename, media type, size, and acquisition timestamp. It does
+not forward the external source URL or audio bytes. The private playback route
+`GET /api/v1/decompositions/{track_sha256}/audio` proxies to Music Tools using
+local-only service discovery and preserves HTTP byte ranges; the source stays
+in Music Tools storage. Stem retrieval remains through
+`/api/v1/analysis/{id}/stems/{name}`. The phone-friendly `Listen & review`
+page at `/review` lists analyses, selects a specific job, streams private source
+audio, seeks from timestamped cues, and saves verdicts and corrections. Acoustic
+cut candidates and transcript hypotheses are explicitly labeled as uncertain;
+semantic section labels and hook descriptions remain unimplemented.
 
 That last row is the blindness boundary showing up as a failure mode: because
 `offers` sits downstream of a final ranking, it cannot take recommendation down

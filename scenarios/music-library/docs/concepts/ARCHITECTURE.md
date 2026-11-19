@@ -2,7 +2,6 @@
 
 How the scenario is put together, and why.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -33,10 +32,9 @@ can rank it. One mechanism therefore serves both halves of the product.
 
 ### The preference model
 
-A Bayesian preference model over frozen embeddings supplied by `music-tools`,
-trained on pairwise comparisons. The essential property is that it returns **both
-an expected preference and an uncertainty** at any point in the space. Three
-requirements depend on that second output:
+The intended model is Bayesian over frozen embeddings supplied by `music-tools`,
+trained on pairwise comparisons. It returns **both an expected preference and an
+uncertainty** for any candidate. Three requirements depend on that second output:
 
 - **Informative elicitation** — choose the next comparison that most reduces
   posterior uncertainty, so few judgements go a long way. This matters acutely
@@ -48,8 +46,18 @@ requirements depend on that second output:
   applies.
 
 A point-estimate rating scheme cannot supply any of these. The embedding backbone
-stays frozen: personalisation lives in the light head, which trains in minutes on
-commodity hardware, rather than in a fine-tune the reference machine cannot hold.
+stays frozen: personalisation lives in the light head, rather than in a fine-tune
+the reference machine cannot hold. The initial code slice does not implement that
+posterior or consume embeddings. It stores provenance-bound operator comparisons
+and replays a bounded logistic MAP fit over explicit catalog tags and
+`genre:<name>` tags with a diagonal Laplace uncertainty approximation; hash-matched
+decomposition source artist metadata is used only for result diversity, not as a
+taste feature. A compact projection of bounded duration, tempo and key descriptors
+can join that feature space only after the operator explicitly confirms the exact
+analysis job. Projections are tied to the track hash and job, and disappear when a
+newer job or a later non-confirming review supersedes them. This is a provenance
+gate, not evidence that the descriptors predict human taste. The uncertainty
+estimate has not been calibrated.
 
 ### Why generation protects the recommender
 
@@ -64,6 +72,17 @@ feature — which is the strongest argument for pairing the two capabilities at 
 Alongside it, ranking is **calibrated** to the listener's own distribution rather
 than always serving the peak, and served diversity is monitored so persistent
 contraction raises a warning.
+
+### Release editions and rights lineage
+
+The releases domain records immutable local editions, not distribution. Each
+revision pins ordered catalog hashes, localized metadata, credits, exact-hash
+rights decisions and operation-backed derivation edges. Cover bytes and fictional
+artist identities remain with their canonical owners; a release can cite and verify
+their versioned evidence, but it cannot create either identity. Without those owner
+adapters the readiness response says that continuity or artwork is blocked. A
+successful save is still only a draft; only the operator can judge the complete
+assembled EP, and this scenario exposes no publish action.
 
 ## System Boundaries
 
@@ -157,10 +176,11 @@ keeping few is intended behaviour.
 | Aspect | State |
 |---|---|
 | Documented | Yes — this document, `DOMAINS.md`, `FLOWS.md`, `DATA.md` |
-| Implemented | **No.** No domain exists in code; the template example domain is still present |
-| Dependencies declared | **No.** `.vrooli/service.json` declares none |
+| Implemented | Partial: durable versioned taste snapshots, append-only judgments and controls, a Connect service, CLI primitives, and a responsive taste workbench exist. Taste features come from exact catalog tags, explicit `genre:<name>` tags, and bounded acoustic descriptors materialized from the latest operator-confirmed analysis. Artist metadata is read from lightweight, hash-matched decomposition source rows and only drives diversification; it is not scored as a preference feature. |
+| Dependencies declared | Generated proto contract is consumed by API, CLI, and UI; no new model/runtime dependency |
 | Blindness boundary enforced | **No.** Designed and documented; no package boundary or test exists |
-| Core assumption validated | **No.** Whether generated music survives repeat listening is untested |
+| Release catalog | Partial: immutable versions, exact catalog hash FKs, catalog-derived take/receipt snapshots, versioned artist credits, append-only revision-bound rights decisions, owner-verification seams for artwork/lineage, operator approval pinned to an edition digest, REST/CLI/UI workflow and batch listening room exist. Canonical artist and derivation adapters remain absent in production; artwork verification is implemented but not exercised against its owner. No complete EP has operator approval. |
+| Core assumption validated | No. The estimator is not fitted on enough operator judgments; complete-song held-out evaluation awaits MQ2 and the MQ1 gate. |
 
 This scenario is at `generated`. See
 [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).

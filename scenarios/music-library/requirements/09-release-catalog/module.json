@@ -1,0 +1,51 @@
+{
+  "_metadata": {
+    "module": "release-catalog",
+    "description": "Immutable exact-hash release editions, owner-resolved provenance, rights and review evidence.",
+    "prd_ref": "MQ6",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P1-012",
+      "title": "Release tracks pin exact catalog recording provenance",
+      "status": "planned",
+      "prd_ref": "MQ6",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Every ordered release occurrence references an existing exact SHA-256 and pins the catalog take, source receipt reference, and existing operator track judgment into that immutable edition revision. Caller-supplied provenance is ignored, and a missing, rejected, or unreviewed catalog record cannot qualify for operator release review.",
+      "tags": ["release", "provenance", "hash"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/releases/release_test.go", "phase": "unit", "status": "planned", "notes": "Test fixture builds an eligible multi-track revision from exact liked catalog hashes; forged provenance is discarded and unliked/missing hashes cannot pass." }
+      ]
+    },
+    {
+      "id": "MLIB-P1-013",
+      "title": "Rights and lineage evidence cannot be asserted by draft fields",
+      "status": "planned",
+      "prd_ref": "MQ6",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Operator rights decisions are durable append-only records bound to the exact release revision, track hash, catalog receipt, license, and usage scope. Derived-work readiness requires exact source and included derived hashes, verified owner operation evidence, and rights no wider than the most restrictive input.",
+      "tags": ["release", "rights", "lineage"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/releases/release_test.go", "phase": "unit", "status": "planned", "notes": "Free-form rights fields, mismatched receipt refs, and unverified operation IDs fail; matching exact-hash decisions and verified owner evidence qualify the fixture." },
+        { "type": "test", "ref": "api/handlers/releases/module_test.go", "phase": "unit", "status": "planned", "notes": "REST rights decisions reject missing proof with precondition failure." }
+      ]
+    },
+    {
+      "id": "MLIB-P1-014",
+      "title": "Operator release judgment is append-only and edition-pinned",
+      "status": "planned",
+      "prd_ref": "MQ6",
+      "category": "core",
+      "criticality": "P1",
+      "description": "A one-batch operator decision records the SHA-256 digest of the exact immutable release revision. Later edits create a new revision; no prior approval transfers, and database constraints prevent rewriting the reviewed edition, provenance, rights, or decision records.",
+      "tags": ["release", "review", "audit"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/releases/release_test.go", "phase": "unit", "status": "planned", "notes": "Review digest round-trips; edits do not inherit approval; updates to release, rights, provenance, and review rows are rejected." }
+      ]
+    }
+  ]
+}

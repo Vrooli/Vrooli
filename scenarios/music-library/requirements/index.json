@@ -12,6 +12,7 @@
     "05-ranking-explanation/module.json",
     "06-exploration/module.json",
     "07-generation-loop/module.json",
-    "08-provenance-blindness/module.json"
+    "08-provenance-blindness/module.json",
+    "09-release-catalog/module.json"
   ]
 }
