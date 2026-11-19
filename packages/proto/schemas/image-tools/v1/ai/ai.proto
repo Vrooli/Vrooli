@@ -4,6 +4,7 @@ package vrooli.image_tools.v1.ai;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1";
 
+import "google/protobuf/struct.proto";
 import "image-tools/v1/selection/selection.proto";
 
 // =============================================================================
@@ -58,7 +59,13 @@ service AIService {
 message AIOperationInfo {
   // Canonical operation name (e.g. "text_to_image"); the {operation} segment.
   string name = 1;
-  // Grouping for UIs: "generation" or "enhancement".
+  // Application family: generate | edit | enhance | restore | extract |
+  // compose. This is what the operation *does*. Where a UI groups it is a
+  // separate, presentation-only decision (`panel` in the capability manifest),
+  // because the two genuinely differ — removing a background is an extraction
+  // that a person finds under enhancement.
+  //
+  // The field keeps its original name for wire compatibility.
   string category = 2;
   // One-line human summary.
   string summary = 3;
@@ -159,25 +166,44 @@ message AIParams {
   string openrouter_role = 22;
   // Explicit normalized SAM point/box prompts. Required for model-backed
   // segment; distinct from automatic heuristic subject selection.
-  SegmentationPrompt segmentation = 23;
   // Optional normalized region of interest for fitted support-plane output.
   // Plane scale and residuals remain monocular estimates, not measurements.
-  SceneGeometryParams scene_geometry = 24;
   // Optional mesh extraction settings for a single-image prop reconstruction.
-  ImageToObjectParams image_to_object = 25;
   // Explicit additions to a supplied object-removal mask. Empty preserves the
   // mask exactly; these controls never infer or silently alter removal regions.
-  BackgroundRepairParams background_repair = 26;
   // Explicit mask-aware contextual crop for native diffusion inpainting.
-  InpaintParams inpaint = 27;
   // Require a local GPU provider and reject CPU degradation after capacity
   // denial. This is an opt-in execution constraint; the default may use CPU.
   bool require_gpu = 28;
   // Force CPU-only model selection and execution even when a local GPU is
   // available. The selected model must declare a CPU execution path.
   bool force_cpu = 29;
+  // Operation-specific parameters, validated against the operation's
+  // `params_schema` in api/internal/capability/manifests.seed.json and threaded
+  // to the backend as typed request params. This is the forward path: a new
+  // operation's knobs are declared as data (a JSON Schema in its capability
+  // manifest) instead of growing this message with another typed sub-message.
+  //
+  // Shared controls above stay authoritative; op_params is for knobs that only
+  // one operation understands. Example (object_removal):
+  //   {"grow_px": 12, "halo_threshold": 40}
+  google.protobuf.Struct op_params = 30;
+
+  // 25 and 27 were the image_to_object / inpaint typed sub-messages. Those knobs
+  // now travel through op_params. Keep the numbers and names reserved.
+  // 23, 24, 25, 26 and 27 were the segmentation / scene_geometry /
+  // image_to_object / background_repair / inpaint typed sub-messages. Those
+  // knobs now travel through op_params and are validated by each operation's
+  // capability params_schema. Keep the numbers and names reserved.
+  reserved 23, 24, 25, 26, 27;
+  reserved "segmentation", "scene_geometry", "image_to_object", "background_repair", "inpaint";
 }
 
+
+// InpaintParams is the mask-aware crop contract shared with the preparation
+// domain (preparation.AssessRepairRequest.inpaint). AI submissions carry these
+// knobs through AIParams.op_params and validate them against the inpaint
+// capability params_schema; the message remains for preparation's typed use.
 message InpaintParams {
   // Unset/false preserves the existing full-source inpaint path.
   bool crop_to_mask = 1;
@@ -191,31 +217,9 @@ message InpaintParams {
   bool neutralize_masked_pixels = 4;
 }
 
-message BackgroundRepairParams {
-  // Dilate the uploaded removal mask by this many oriented source pixels.
-  // Bounded by the API to prevent accidental scene-wide removal.
-  uint32 mask_expansion_pixels = 1;
-  // Additional normalized image-space rectangles to remove, for example
-  // superseded shadows/reflections. Coordinates use the oriented source raster.
-  repeated vrooli.image_tools.v1.selection.Box removal_regions = 2;
-}
 
-message SceneGeometryParams {
-  // If present, fit a robust support plane inside this normalized image-space
-  // rectangle. Other pixels remain outside the fit; no automatic ROI is chosen.
-  vrooli.image_tools.v1.selection.Box support_roi = 1;
-}
 
-message ImageToObjectParams {
-  // Marching-cubes grid resolution. 0 selects the model default (256); the
-  // implementation currently accepts only 128 or 256 to bound memory use.
-  uint32 mesh_resolution = 1;
-}
 
-message SegmentationPrompt {
-  repeated vrooli.image_tools.v1.selection.Point points = 1;
-  vrooli.image_tools.v1.selection.Box box = 2;
-}
 
 // AdapterRef is one requested conditioning modifier on a generation.
 message AdapterRef {

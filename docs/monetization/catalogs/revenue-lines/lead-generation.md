@@ -20,7 +20,7 @@ Local service businesses (power washing, landscaping, flippers, solar installers
 
 ## Activation discipline (from REVENUE_LINES.md)
 
-On promotion to `active`, this line must have all four:
+Apply the [shared services-line standing discipline](README.md#standing-discipline-applies-to-all-services-based-lines) with these line-specific values:
 
 1. **Validation hypothesis** — which vertical within property-services is this proving (power washing ≠ roofing ≠ solar)?
 2. **Fixed-duration pilot** — concrete end date, not "ongoing."

@@ -4,15 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Box, Point } from "../selection/selection_pb";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import { file_image_tools_v1_selection_selection } from "../selection/selection_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file image-tools/v1/ai/ai.proto.
  */
 export const file_image_tools_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyL+BgoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIEjYKCGFkYXB0ZXJzGBEgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFkYXB0ZXJSZWYSFgoOcXVhbGl0eV9wb2xpY3kYEiABKAkSFwoPZmFsbGJhY2tfcG9saWN5GBMgASgJEhAKCHByaW9yaXR5GBQgASgJEhoKDWFsbG93X3JlY2xhaW0YFSABKAhIAIgBARIXCg9vcGVucm91dGVyX3JvbGUYFiABKAkSQgoMc2VnbWVudGF0aW9uGBcgASgLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLlNlZ21lbnRhdGlvblByb21wdBJFCg5zY2VuZV9nZW9tZXRyeRgYIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5haS5TY2VuZUdlb21ldHJ5UGFyYW1zEkYKD2ltYWdlX3RvX29iamVjdBgZIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5haS5JbWFnZVRvT2JqZWN0UGFyYW1zEksKEWJhY2tncm91bmRfcmVwYWlyGBogASgLMjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkJhY2tncm91bmRSZXBhaXJQYXJhbXMSOAoHaW5wYWludBgbIAEoCzInLnZyb29saS5pbWFnZV90b29scy52MS5haS5JbnBhaW50UGFyYW1zEhMKC3JlcXVpcmVfZ3B1GBwgASgIEhEKCWZvcmNlX2NwdRgdIAEoCEIQCg5fYWxsb3dfcmVjbGFpbSJ0Cg1JbnBhaW50UGFyYW1zEhQKDGNyb3BfdG9fbWFzaxgBIAEoCBIWCg5jb250ZXh0X3BpeGVscxgCIAEoDRITCgttYXhfZWRnZV9weBgDIAEoDRIgChhuZXV0cmFsaXplX21hc2tlZF9waXhlbHMYBCABKAgidgoWQmFja2dyb3VuZFJlcGFpclBhcmFtcxIdChVtYXNrX2V4cGFuc2lvbl9waXhlbHMYASABKA0SPQoPcmVtb3ZhbF9yZWdpb25zGAIgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLnNlbGVjdGlvbi5Cb3giUAoTU2NlbmVHZW9tZXRyeVBhcmFtcxI5CgtzdXBwb3J0X3JvaRgBIAEoCzIkLnZyb29saS5pbWFnZV90b29scy52MS5zZWxlY3Rpb24uQm94Ii4KE0ltYWdlVG9PYmplY3RQYXJhbXMSFwoPbWVzaF9yZXNvbHV0aW9uGAEgASgNIn8KElNlZ21lbnRhdGlvblByb21wdBI2CgZwb2ludHMYASADKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuc2VsZWN0aW9uLlBvaW50EjEKA2JveBgCIAEoCzIkLnZyb29saS5pbWFnZV90b29scy52MS5zZWxlY3Rpb24uQm94Io4BCgpBZGFwdGVyUmVmEhIKCmFkYXB0ZXJfaWQYASABKAkSDQoFc2NhbGUYAiABKAESHgoWY29uZGl0aW9uaW5nX2ltYWdlX2tleRgDIAEoCRIdChVwcmVwcm9jZXNzb3Jfb3ZlcnJpZGUYBCABKAkSHgoWbGljZW5zZV90ZXJtc19hY2NlcHRlZBgFIAEoCCJvChBTdWJtaXRBSVJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIZChFlc3RpbWF0ZWRfc2Vjb25kcxgCIAEoBRIQCghtb2RlbF9pZBgDIAEoCRIMCgR0aWVyGAQgASgJEhAKCHdhcm5pbmdzGAUgAygJIpkBChVTdWJtaXRTdG9yZWRBSVJlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJEjIKBnBhcmFtcxgCIAEoCzIiLnZyb29saS5pbWFnZV90b29scy52MS5haS5BSVBhcmFtcxIRCglpbnB1dF9yZWYYAyABKAkSEAoIbWFza19yZWYYBCABKAkSFAoMb3BlcmF0aW9uX2lkGAUgASgJMvUBCglBSVNlcnZpY2USeQoQTGlzdEFJT3BlcmF0aW9ucxIxLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVzcG9uc2USbQoOU3VibWl0U3RvcmVkQUkSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYWkuU3VibWl0U3RvcmVkQUlSZXF1ZXN0GioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLlN1Ym1pdEFJUmVzcG9uc2VCSFpGZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9haTthaV92MWIGcHJvdG8z", [file_image_tools_v1_selection_selection]);
+  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyK5BQoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIEjYKCGFkYXB0ZXJzGBEgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFkYXB0ZXJSZWYSFgoOcXVhbGl0eV9wb2xpY3kYEiABKAkSFwoPZmFsbGJhY2tfcG9saWN5GBMgASgJEhAKCHByaW9yaXR5GBQgASgJEhoKDWFsbG93X3JlY2xhaW0YFSABKAhIAIgBARIXCg9vcGVucm91dGVyX3JvbGUYFiABKAkSEwoLcmVxdWlyZV9ncHUYHCABKAgSEQoJZm9yY2VfY3B1GB0gASgIEioKCW9wX3BhcmFtcxgeIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RCEAoOX2FsbG93X3JlY2xhaW1KBAgXEBhKBAgYEBlKBAgZEBpKBAgaEBtKBAgbEBxSDHNlZ21lbnRhdGlvblIOc2NlbmVfZ2VvbWV0cnlSD2ltYWdlX3RvX29iamVjdFIRYmFja2dyb3VuZF9yZXBhaXJSB2lucGFpbnQidAoNSW5wYWludFBhcmFtcxIUCgxjcm9wX3RvX21hc2sYASABKAgSFgoOY29udGV4dF9waXhlbHMYAiABKA0SEwoLbWF4X2VkZ2VfcHgYAyABKA0SIAoYbmV1dHJhbGl6ZV9tYXNrZWRfcGl4ZWxzGAQgASgIIo4BCgpBZGFwdGVyUmVmEhIKCmFkYXB0ZXJfaWQYASABKAkSDQoFc2NhbGUYAiABKAESHgoWY29uZGl0aW9uaW5nX2ltYWdlX2tleRgDIAEoCRIdChVwcmVwcm9jZXNzb3Jfb3ZlcnJpZGUYBCABKAkSHgoWbGljZW5zZV90ZXJtc19hY2NlcHRlZBgFIAEoCCJvChBTdWJtaXRBSVJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIZChFlc3RpbWF0ZWRfc2Vjb25kcxgCIAEoBRIQCghtb2RlbF9pZBgDIAEoCRIMCgR0aWVyGAQgASgJEhAKCHdhcm5pbmdzGAUgAygJIpkBChVTdWJtaXRTdG9yZWRBSVJlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJEjIKBnBhcmFtcxgCIAEoCzIiLnZyb29saS5pbWFnZV90b29scy52MS5haS5BSVBhcmFtcxIRCglpbnB1dF9yZWYYAyABKAkSEAoIbWFza19yZWYYBCABKAkSFAoMb3BlcmF0aW9uX2lkGAUgASgJMvUBCglBSVNlcnZpY2USeQoQTGlzdEFJT3BlcmF0aW9ucxIxLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVzcG9uc2USbQoOU3VibWl0U3RvcmVkQUkSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYWkuU3VibWl0U3RvcmVkQUlSZXF1ZXN0GioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLlN1Ym1pdEFJUmVzcG9uc2VCSFpGZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9haTthaV92MWIGcHJvdG8z", [file_google_protobuf_struct, file_image_tools_v1_selection_selection]);
 
 /**
  * AIOperationInfo describes one model-backed operation for discovery.
@@ -28,7 +28,13 @@ export type AIOperationInfo = Message<"vrooli.image_tools.v1.ai.AIOperationInfo"
   name: string;
 
   /**
-   * Grouping for UIs: "generation" or "enhancement".
+   * Application family: generate | edit | enhance | restore | extract |
+   * compose. This is what the operation *does*. Where a UI groups it is a
+   * separate, presentation-only decision (`panel` in the capability manifest),
+   * because the two genuinely differ — removing a background is an extraction
+   * that a person finds under enhancement.
+   *
+   * The field keeps its original name for wire compatibility.
    *
    * @generated from field: string category = 2;
    */
@@ -298,42 +304,12 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
   /**
    * Explicit normalized SAM point/box prompts. Required for model-backed
    * segment; distinct from automatic heuristic subject selection.
-   *
-   * @generated from field: vrooli.image_tools.v1.ai.SegmentationPrompt segmentation = 23;
-   */
-  segmentation?: SegmentationPrompt | undefined;
-
-  /**
    * Optional normalized region of interest for fitted support-plane output.
    * Plane scale and residuals remain monocular estimates, not measurements.
-   *
-   * @generated from field: vrooli.image_tools.v1.ai.SceneGeometryParams scene_geometry = 24;
-   */
-  sceneGeometry?: SceneGeometryParams | undefined;
-
-  /**
    * Optional mesh extraction settings for a single-image prop reconstruction.
-   *
-   * @generated from field: vrooli.image_tools.v1.ai.ImageToObjectParams image_to_object = 25;
-   */
-  imageToObject?: ImageToObjectParams | undefined;
-
-  /**
    * Explicit additions to a supplied object-removal mask. Empty preserves the
    * mask exactly; these controls never infer or silently alter removal regions.
-   *
-   * @generated from field: vrooli.image_tools.v1.ai.BackgroundRepairParams background_repair = 26;
-   */
-  backgroundRepair?: BackgroundRepairParams | undefined;
-
-  /**
    * Explicit mask-aware contextual crop for native diffusion inpainting.
-   *
-   * @generated from field: vrooli.image_tools.v1.ai.InpaintParams inpaint = 27;
-   */
-  inpaint?: InpaintParams | undefined;
-
-  /**
    * Require a local GPU provider and reject CPU degradation after capacity
    * denial. This is an opt-in execution constraint; the default may use CPU.
    *
@@ -348,6 +324,21 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
    * @generated from field: bool force_cpu = 29;
    */
   forceCpu: boolean;
+
+  /**
+   * Operation-specific parameters, validated against the operation's
+   * `params_schema` in api/internal/capability/manifests.seed.json and threaded
+   * to the backend as typed request params. This is the forward path: a new
+   * operation's knobs are declared as data (a JSON Schema in its capability
+   * manifest) instead of growing this message with another typed sub-message.
+   *
+   * Shared controls above stay authoritative; op_params is for knobs that only
+   * one operation understands. Example (object_removal):
+   *   {"grow_px": 12, "halo_threshold": 40}
+   *
+   * @generated from field: google.protobuf.Struct op_params = 30;
+   */
+  opParams?: JsonObject | undefined;
 };
 
 /**
@@ -358,6 +349,11 @@ export const AIParamsSchema: GenMessage<AIParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ai_ai, 3);
 
 /**
+ * InpaintParams is the mask-aware crop contract shared with the preparation
+ * domain (preparation.AssessRepairRequest.inpaint). AI submissions carry these
+ * knobs through AIParams.op_params and validate them against the inpaint
+ * capability params_schema; the message remains for preparation's typed use.
+ *
  * @generated from message vrooli.image_tools.v1.ai.InpaintParams
  */
 export type InpaintParams = Message<"vrooli.image_tools.v1.ai.InpaintParams"> & {
@@ -398,96 +394,6 @@ export type InpaintParams = Message<"vrooli.image_tools.v1.ai.InpaintParams"> & 
  */
 export const InpaintParamsSchema: GenMessage<InpaintParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ai_ai, 4);
-
-/**
- * @generated from message vrooli.image_tools.v1.ai.BackgroundRepairParams
- */
-export type BackgroundRepairParams = Message<"vrooli.image_tools.v1.ai.BackgroundRepairParams"> & {
-  /**
-   * Dilate the uploaded removal mask by this many oriented source pixels.
-   * Bounded by the API to prevent accidental scene-wide removal.
-   *
-   * @generated from field: uint32 mask_expansion_pixels = 1;
-   */
-  maskExpansionPixels: number;
-
-  /**
-   * Additional normalized image-space rectangles to remove, for example
-   * superseded shadows/reflections. Coordinates use the oriented source raster.
-   *
-   * @generated from field: repeated vrooli.image_tools.v1.selection.Box removal_regions = 2;
-   */
-  removalRegions: Box[];
-};
-
-/**
- * Describes the message vrooli.image_tools.v1.ai.BackgroundRepairParams.
- * Use `create(BackgroundRepairParamsSchema)` to create a new message.
- */
-export const BackgroundRepairParamsSchema: GenMessage<BackgroundRepairParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 5);
-
-/**
- * @generated from message vrooli.image_tools.v1.ai.SceneGeometryParams
- */
-export type SceneGeometryParams = Message<"vrooli.image_tools.v1.ai.SceneGeometryParams"> & {
-  /**
-   * If present, fit a robust support plane inside this normalized image-space
-   * rectangle. Other pixels remain outside the fit; no automatic ROI is chosen.
-   *
-   * @generated from field: vrooli.image_tools.v1.selection.Box support_roi = 1;
-   */
-  supportRoi?: Box | undefined;
-};
-
-/**
- * Describes the message vrooli.image_tools.v1.ai.SceneGeometryParams.
- * Use `create(SceneGeometryParamsSchema)` to create a new message.
- */
-export const SceneGeometryParamsSchema: GenMessage<SceneGeometryParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 6);
-
-/**
- * @generated from message vrooli.image_tools.v1.ai.ImageToObjectParams
- */
-export type ImageToObjectParams = Message<"vrooli.image_tools.v1.ai.ImageToObjectParams"> & {
-  /**
-   * Marching-cubes grid resolution. 0 selects the model default (256); the
-   * implementation currently accepts only 128 or 256 to bound memory use.
-   *
-   * @generated from field: uint32 mesh_resolution = 1;
-   */
-  meshResolution: number;
-};
-
-/**
- * Describes the message vrooli.image_tools.v1.ai.ImageToObjectParams.
- * Use `create(ImageToObjectParamsSchema)` to create a new message.
- */
-export const ImageToObjectParamsSchema: GenMessage<ImageToObjectParams> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 7);
-
-/**
- * @generated from message vrooli.image_tools.v1.ai.SegmentationPrompt
- */
-export type SegmentationPrompt = Message<"vrooli.image_tools.v1.ai.SegmentationPrompt"> & {
-  /**
-   * @generated from field: repeated vrooli.image_tools.v1.selection.Point points = 1;
-   */
-  points: Point[];
-
-  /**
-   * @generated from field: vrooli.image_tools.v1.selection.Box box = 2;
-   */
-  box?: Box | undefined;
-};
-
-/**
- * Describes the message vrooli.image_tools.v1.ai.SegmentationPrompt.
- * Use `create(SegmentationPromptSchema)` to create a new message.
- */
-export const SegmentationPromptSchema: GenMessage<SegmentationPrompt> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 8);
 
 /**
  * AdapterRef is one requested conditioning modifier on a generation.
@@ -542,7 +448,7 @@ export type AdapterRef = Message<"vrooli.image_tools.v1.ai.AdapterRef"> & {
  * Use `create(AdapterRefSchema)` to create a new message.
  */
 export const AdapterRefSchema: GenMessage<AdapterRef> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 9);
+  messageDesc(file_image_tools_v1_ai_ai, 5);
 
 /**
  * SubmitAIResponse is the protojson body returned by the REST submit edge. The
@@ -595,7 +501,7 @@ export type SubmitAIResponse = Message<"vrooli.image_tools.v1.ai.SubmitAIRespons
  * Use `create(SubmitAIResponseSchema)` to create a new message.
  */
 export const SubmitAIResponseSchema: GenMessage<SubmitAIResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 10);
+  messageDesc(file_image_tools_v1_ai_ai, 6);
 
 /**
  * References are opaque Image Tools blob identities, never paths or URLs.
@@ -635,7 +541,7 @@ export type SubmitStoredAIRequest = Message<"vrooli.image_tools.v1.ai.SubmitStor
  * Use `create(SubmitStoredAIRequestSchema)` to create a new message.
  */
 export const SubmitStoredAIRequestSchema: GenMessage<SubmitStoredAIRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 11);
+  messageDesc(file_image_tools_v1_ai_ai, 7);
 
 /**
  * @generated from service vrooli.image_tools.v1.ai.AIService

@@ -25,7 +25,7 @@ If Vrooli can make flipping viable for someone with limited time and limited spe
 
 ## Activation discipline (from REVENUE_LINES.md)
 
-On promotion to `active`, this line must have all four:
+Apply the [shared services-line standing discipline](README.md#standing-discipline-applies-to-all-services-based-lines) with these line-specific values:
 
 1. **Validation hypothesis** — which item category proves the loop first (electronics? furniture? small appliances? garage-clearance lots?)? Vertical-specific because price-points, refurb skills, and repeat-buyer profiles differ.
 2. **Fixed-duration pilot** — concrete end date, not "ongoing." Suggested 90-day pilot with explicit revenue target (e.g., $X net profit over 90 days, with ≥N items moved).

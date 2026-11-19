@@ -7,9 +7,10 @@
 package ai_v1
 
 import (
-	selection "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -27,7 +28,13 @@ type AIOperationInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Canonical operation name (e.g. "text_to_image"); the {operation} segment.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Grouping for UIs: "generation" or "enhancement".
+	// Application family: generate | edit | enhance | restore | extract |
+	// compose. This is what the operation *does*. Where a UI groups it is a
+	// separate, presentation-only decision (`panel` in the capability manifest),
+	// because the two genuinely differ — removing a background is an extraction
+	// that a person finds under enhancement.
+	//
+	// The field keeps its original name for wire compatibility.
 	Category string `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
 	// One-line human summary.
 	Summary string `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
@@ -280,23 +287,29 @@ type AIParams struct {
 	OpenrouterRole string `protobuf:"bytes,22,opt,name=openrouter_role,json=openrouterRole,proto3" json:"openrouter_role,omitempty"`
 	// Explicit normalized SAM point/box prompts. Required for model-backed
 	// segment; distinct from automatic heuristic subject selection.
-	Segmentation *SegmentationPrompt `protobuf:"bytes,23,opt,name=segmentation,proto3" json:"segmentation,omitempty"`
 	// Optional normalized region of interest for fitted support-plane output.
 	// Plane scale and residuals remain monocular estimates, not measurements.
-	SceneGeometry *SceneGeometryParams `protobuf:"bytes,24,opt,name=scene_geometry,json=sceneGeometry,proto3" json:"scene_geometry,omitempty"`
 	// Optional mesh extraction settings for a single-image prop reconstruction.
-	ImageToObject *ImageToObjectParams `protobuf:"bytes,25,opt,name=image_to_object,json=imageToObject,proto3" json:"image_to_object,omitempty"`
 	// Explicit additions to a supplied object-removal mask. Empty preserves the
 	// mask exactly; these controls never infer or silently alter removal regions.
-	BackgroundRepair *BackgroundRepairParams `protobuf:"bytes,26,opt,name=background_repair,json=backgroundRepair,proto3" json:"background_repair,omitempty"`
 	// Explicit mask-aware contextual crop for native diffusion inpainting.
-	Inpaint *InpaintParams `protobuf:"bytes,27,opt,name=inpaint,proto3" json:"inpaint,omitempty"`
 	// Require a local GPU provider and reject CPU degradation after capacity
 	// denial. This is an opt-in execution constraint; the default may use CPU.
 	RequireGpu bool `protobuf:"varint,28,opt,name=require_gpu,json=requireGpu,proto3" json:"require_gpu,omitempty"`
 	// Force CPU-only model selection and execution even when a local GPU is
 	// available. The selected model must declare a CPU execution path.
-	ForceCpu      bool `protobuf:"varint,29,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
+	ForceCpu bool `protobuf:"varint,29,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
+	// Operation-specific parameters, validated against the operation's
+	// `params_schema` in api/internal/capability/manifests.seed.json and threaded
+	// to the backend as typed request params. This is the forward path: a new
+	// operation's knobs are declared as data (a JSON Schema in its capability
+	// manifest) instead of growing this message with another typed sub-message.
+	//
+	// Shared controls above stay authoritative; op_params is for knobs that only
+	// one operation understands. Example (object_removal):
+	//
+	//	{"grow_px": 12, "halo_threshold": 40}
+	OpParams      *structpb.Struct `protobuf:"bytes,30,opt,name=op_params,json=opParams,proto3" json:"op_params,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -485,41 +498,6 @@ func (x *AIParams) GetOpenrouterRole() string {
 	return ""
 }
 
-func (x *AIParams) GetSegmentation() *SegmentationPrompt {
-	if x != nil {
-		return x.Segmentation
-	}
-	return nil
-}
-
-func (x *AIParams) GetSceneGeometry() *SceneGeometryParams {
-	if x != nil {
-		return x.SceneGeometry
-	}
-	return nil
-}
-
-func (x *AIParams) GetImageToObject() *ImageToObjectParams {
-	if x != nil {
-		return x.ImageToObject
-	}
-	return nil
-}
-
-func (x *AIParams) GetBackgroundRepair() *BackgroundRepairParams {
-	if x != nil {
-		return x.BackgroundRepair
-	}
-	return nil
-}
-
-func (x *AIParams) GetInpaint() *InpaintParams {
-	if x != nil {
-		return x.Inpaint
-	}
-	return nil
-}
-
 func (x *AIParams) GetRequireGpu() bool {
 	if x != nil {
 		return x.RequireGpu
@@ -534,6 +512,17 @@ func (x *AIParams) GetForceCpu() bool {
 	return false
 }
 
+func (x *AIParams) GetOpParams() *structpb.Struct {
+	if x != nil {
+		return x.OpParams
+	}
+	return nil
+}
+
+// InpaintParams is the mask-aware crop contract shared with the preparation
+// domain (preparation.AssessRepairRequest.inpaint). AI submissions carry these
+// knobs through AIParams.op_params and validate them against the inpaint
+// capability params_schema; the message remains for preparation's typed use.
 type InpaintParams struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset/false preserves the existing full-source inpaint path.
@@ -608,206 +597,6 @@ func (x *InpaintParams) GetNeutralizeMaskedPixels() bool {
 	return false
 }
 
-type BackgroundRepairParams struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Dilate the uploaded removal mask by this many oriented source pixels.
-	// Bounded by the API to prevent accidental scene-wide removal.
-	MaskExpansionPixels uint32 `protobuf:"varint,1,opt,name=mask_expansion_pixels,json=maskExpansionPixels,proto3" json:"mask_expansion_pixels,omitempty"`
-	// Additional normalized image-space rectangles to remove, for example
-	// superseded shadows/reflections. Coordinates use the oriented source raster.
-	RemovalRegions []*selection.Box `protobuf:"bytes,2,rep,name=removal_regions,json=removalRegions,proto3" json:"removal_regions,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *BackgroundRepairParams) Reset() {
-	*x = BackgroundRepairParams{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BackgroundRepairParams) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BackgroundRepairParams) ProtoMessage() {}
-
-func (x *BackgroundRepairParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BackgroundRepairParams.ProtoReflect.Descriptor instead.
-func (*BackgroundRepairParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *BackgroundRepairParams) GetMaskExpansionPixels() uint32 {
-	if x != nil {
-		return x.MaskExpansionPixels
-	}
-	return 0
-}
-
-func (x *BackgroundRepairParams) GetRemovalRegions() []*selection.Box {
-	if x != nil {
-		return x.RemovalRegions
-	}
-	return nil
-}
-
-type SceneGeometryParams struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// If present, fit a robust support plane inside this normalized image-space
-	// rectangle. Other pixels remain outside the fit; no automatic ROI is chosen.
-	SupportRoi    *selection.Box `protobuf:"bytes,1,opt,name=support_roi,json=supportRoi,proto3" json:"support_roi,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SceneGeometryParams) Reset() {
-	*x = SceneGeometryParams{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SceneGeometryParams) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SceneGeometryParams) ProtoMessage() {}
-
-func (x *SceneGeometryParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SceneGeometryParams.ProtoReflect.Descriptor instead.
-func (*SceneGeometryParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *SceneGeometryParams) GetSupportRoi() *selection.Box {
-	if x != nil {
-		return x.SupportRoi
-	}
-	return nil
-}
-
-type ImageToObjectParams struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Marching-cubes grid resolution. 0 selects the model default (256); the
-	// implementation currently accepts only 128 or 256 to bound memory use.
-	MeshResolution uint32 `protobuf:"varint,1,opt,name=mesh_resolution,json=meshResolution,proto3" json:"mesh_resolution,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *ImageToObjectParams) Reset() {
-	*x = ImageToObjectParams{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ImageToObjectParams) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ImageToObjectParams) ProtoMessage() {}
-
-func (x *ImageToObjectParams) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ImageToObjectParams.ProtoReflect.Descriptor instead.
-func (*ImageToObjectParams) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ImageToObjectParams) GetMeshResolution() uint32 {
-	if x != nil {
-		return x.MeshResolution
-	}
-	return 0
-}
-
-type SegmentationPrompt struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Points        []*selection.Point     `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
-	Box           *selection.Box         `protobuf:"bytes,2,opt,name=box,proto3" json:"box,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SegmentationPrompt) Reset() {
-	*x = SegmentationPrompt{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SegmentationPrompt) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SegmentationPrompt) ProtoMessage() {}
-
-func (x *SegmentationPrompt) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SegmentationPrompt.ProtoReflect.Descriptor instead.
-func (*SegmentationPrompt) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *SegmentationPrompt) GetPoints() []*selection.Point {
-	if x != nil {
-		return x.Points
-	}
-	return nil
-}
-
-func (x *SegmentationPrompt) GetBox() *selection.Box {
-	if x != nil {
-		return x.Box
-	}
-	return nil
-}
-
 // AdapterRef is one requested conditioning modifier on a generation.
 type AdapterRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -833,7 +622,7 @@ type AdapterRef struct {
 
 func (x *AdapterRef) Reset() {
 	*x = AdapterRef{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[9]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -845,7 +634,7 @@ func (x *AdapterRef) String() string {
 func (*AdapterRef) ProtoMessage() {}
 
 func (x *AdapterRef) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[9]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -858,7 +647,7 @@ func (x *AdapterRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdapterRef.ProtoReflect.Descriptor instead.
 func (*AdapterRef) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{9}
+	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AdapterRef) GetAdapterId() string {
@@ -919,7 +708,7 @@ type SubmitAIResponse struct {
 
 func (x *SubmitAIResponse) Reset() {
 	*x = SubmitAIResponse{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[10]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -931,7 +720,7 @@ func (x *SubmitAIResponse) String() string {
 func (*SubmitAIResponse) ProtoMessage() {}
 
 func (x *SubmitAIResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[10]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -944,7 +733,7 @@ func (x *SubmitAIResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitAIResponse.ProtoReflect.Descriptor instead.
 func (*SubmitAIResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{10}
+	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SubmitAIResponse) GetJobId() string {
@@ -997,7 +786,7 @@ type SubmitStoredAIRequest struct {
 
 func (x *SubmitStoredAIRequest) Reset() {
 	*x = SubmitStoredAIRequest{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[11]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1009,7 +798,7 @@ func (x *SubmitStoredAIRequest) String() string {
 func (*SubmitStoredAIRequest) ProtoMessage() {}
 
 func (x *SubmitStoredAIRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[11]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1022,7 +811,7 @@ func (x *SubmitStoredAIRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitStoredAIRequest.ProtoReflect.Descriptor instead.
 func (*SubmitStoredAIRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{11}
+	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SubmitStoredAIRequest) GetOperation() string {
@@ -1064,7 +853,7 @@ var File_image_tools_v1_ai_ai_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\n" +
-	"\x1aimage-tools/v1/ai/ai.proto\x12\x18vrooli.image_tools.v1.ai\x1a(image-tools/v1/selection/selection.proto\"\xf6\x01\n" +
+	"\x1aimage-tools/v1/ai/ai.proto\x12\x18vrooli.image_tools.v1.ai\x1a\x1cgoogle/protobuf/struct.proto\x1a(image-tools/v1/selection/selection.proto\"\xf6\x01\n" +
 	"\x0fAIOperationInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x18\n" +
@@ -1077,7 +866,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\xd4\t\n" +
+	"operations\"\xd2\a\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -1105,33 +894,18 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x0ffallback_policy\x18\x13 \x01(\tR\x0efallbackPolicy\x12\x1a\n" +
 	"\bpriority\x18\x14 \x01(\tR\bpriority\x12(\n" +
 	"\rallow_reclaim\x18\x15 \x01(\bH\x00R\fallowReclaim\x88\x01\x01\x12'\n" +
-	"\x0fopenrouter_role\x18\x16 \x01(\tR\x0eopenrouterRole\x12P\n" +
-	"\fsegmentation\x18\x17 \x01(\v2,.vrooli.image_tools.v1.ai.SegmentationPromptR\fsegmentation\x12T\n" +
-	"\x0escene_geometry\x18\x18 \x01(\v2-.vrooli.image_tools.v1.ai.SceneGeometryParamsR\rsceneGeometry\x12U\n" +
-	"\x0fimage_to_object\x18\x19 \x01(\v2-.vrooli.image_tools.v1.ai.ImageToObjectParamsR\rimageToObject\x12]\n" +
-	"\x11background_repair\x18\x1a \x01(\v20.vrooli.image_tools.v1.ai.BackgroundRepairParamsR\x10backgroundRepair\x12A\n" +
-	"\ainpaint\x18\x1b \x01(\v2'.vrooli.image_tools.v1.ai.InpaintParamsR\ainpaint\x12\x1f\n" +
+	"\x0fopenrouter_role\x18\x16 \x01(\tR\x0eopenrouterRole\x12\x1f\n" +
 	"\vrequire_gpu\x18\x1c \x01(\bR\n" +
 	"requireGpu\x12\x1b\n" +
-	"\tforce_cpu\x18\x1d \x01(\bR\bforceCpuB\x10\n" +
-	"\x0e_allow_reclaim\"\xb2\x01\n" +
+	"\tforce_cpu\x18\x1d \x01(\bR\bforceCpu\x124\n" +
+	"\top_params\x18\x1e \x01(\v2\x17.google.protobuf.StructR\bopParamsB\x10\n" +
+	"\x0e_allow_reclaimJ\x04\b\x17\x10\x18J\x04\b\x18\x10\x19J\x04\b\x19\x10\x1aJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cR\fsegmentationR\x0escene_geometryR\x0fimage_to_objectR\x11background_repairR\ainpaint\"\xb2\x01\n" +
 	"\rInpaintParams\x12 \n" +
 	"\fcrop_to_mask\x18\x01 \x01(\bR\n" +
 	"cropToMask\x12%\n" +
 	"\x0econtext_pixels\x18\x02 \x01(\rR\rcontextPixels\x12\x1e\n" +
 	"\vmax_edge_px\x18\x03 \x01(\rR\tmaxEdgePx\x128\n" +
-	"\x18neutralize_masked_pixels\x18\x04 \x01(\bR\x16neutralizeMaskedPixels\"\x9b\x01\n" +
-	"\x16BackgroundRepairParams\x122\n" +
-	"\x15mask_expansion_pixels\x18\x01 \x01(\rR\x13maskExpansionPixels\x12M\n" +
-	"\x0fremoval_regions\x18\x02 \x03(\v2$.vrooli.image_tools.v1.selection.BoxR\x0eremovalRegions\"\\\n" +
-	"\x13SceneGeometryParams\x12E\n" +
-	"\vsupport_roi\x18\x01 \x01(\v2$.vrooli.image_tools.v1.selection.BoxR\n" +
-	"supportRoi\">\n" +
-	"\x13ImageToObjectParams\x12'\n" +
-	"\x0fmesh_resolution\x18\x01 \x01(\rR\x0emeshResolution\"\x8c\x01\n" +
-	"\x12SegmentationPrompt\x12>\n" +
-	"\x06points\x18\x01 \x03(\v2&.vrooli.image_tools.v1.selection.PointR\x06points\x126\n" +
-	"\x03box\x18\x02 \x01(\v2$.vrooli.image_tools.v1.selection.BoxR\x03box\"\xe2\x01\n" +
+	"\x18neutralize_masked_pixels\x18\x04 \x01(\bR\x16neutralizeMaskedPixels\"\xe2\x01\n" +
 	"\n" +
 	"AdapterRef\x12\x1d\n" +
 	"\n" +
@@ -1168,45 +942,32 @@ func file_image_tools_v1_ai_ai_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ai_ai_proto_rawDescData
 }
 
-var file_image_tools_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_image_tools_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_image_tools_v1_ai_ai_proto_goTypes = []any{
 	(*AIOperationInfo)(nil),          // 0: vrooli.image_tools.v1.ai.AIOperationInfo
 	(*ListAIOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ai.ListAIOperationsRequest
 	(*ListAIOperationsResponse)(nil), // 2: vrooli.image_tools.v1.ai.ListAIOperationsResponse
 	(*AIParams)(nil),                 // 3: vrooli.image_tools.v1.ai.AIParams
 	(*InpaintParams)(nil),            // 4: vrooli.image_tools.v1.ai.InpaintParams
-	(*BackgroundRepairParams)(nil),   // 5: vrooli.image_tools.v1.ai.BackgroundRepairParams
-	(*SceneGeometryParams)(nil),      // 6: vrooli.image_tools.v1.ai.SceneGeometryParams
-	(*ImageToObjectParams)(nil),      // 7: vrooli.image_tools.v1.ai.ImageToObjectParams
-	(*SegmentationPrompt)(nil),       // 8: vrooli.image_tools.v1.ai.SegmentationPrompt
-	(*AdapterRef)(nil),               // 9: vrooli.image_tools.v1.ai.AdapterRef
-	(*SubmitAIResponse)(nil),         // 10: vrooli.image_tools.v1.ai.SubmitAIResponse
-	(*SubmitStoredAIRequest)(nil),    // 11: vrooli.image_tools.v1.ai.SubmitStoredAIRequest
-	(*selection.Box)(nil),            // 12: vrooli.image_tools.v1.selection.Box
-	(*selection.Point)(nil),          // 13: vrooli.image_tools.v1.selection.Point
+	(*AdapterRef)(nil),               // 5: vrooli.image_tools.v1.ai.AdapterRef
+	(*SubmitAIResponse)(nil),         // 6: vrooli.image_tools.v1.ai.SubmitAIResponse
+	(*SubmitStoredAIRequest)(nil),    // 7: vrooli.image_tools.v1.ai.SubmitStoredAIRequest
+	(*structpb.Struct)(nil),          // 8: google.protobuf.Struct
 }
 var file_image_tools_v1_ai_ai_proto_depIdxs = []int32{
-	0,  // 0: vrooli.image_tools.v1.ai.ListAIOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ai.AIOperationInfo
-	9,  // 1: vrooli.image_tools.v1.ai.AIParams.adapters:type_name -> vrooli.image_tools.v1.ai.AdapterRef
-	8,  // 2: vrooli.image_tools.v1.ai.AIParams.segmentation:type_name -> vrooli.image_tools.v1.ai.SegmentationPrompt
-	6,  // 3: vrooli.image_tools.v1.ai.AIParams.scene_geometry:type_name -> vrooli.image_tools.v1.ai.SceneGeometryParams
-	7,  // 4: vrooli.image_tools.v1.ai.AIParams.image_to_object:type_name -> vrooli.image_tools.v1.ai.ImageToObjectParams
-	5,  // 5: vrooli.image_tools.v1.ai.AIParams.background_repair:type_name -> vrooli.image_tools.v1.ai.BackgroundRepairParams
-	4,  // 6: vrooli.image_tools.v1.ai.AIParams.inpaint:type_name -> vrooli.image_tools.v1.ai.InpaintParams
-	12, // 7: vrooli.image_tools.v1.ai.BackgroundRepairParams.removal_regions:type_name -> vrooli.image_tools.v1.selection.Box
-	12, // 8: vrooli.image_tools.v1.ai.SceneGeometryParams.support_roi:type_name -> vrooli.image_tools.v1.selection.Box
-	13, // 9: vrooli.image_tools.v1.ai.SegmentationPrompt.points:type_name -> vrooli.image_tools.v1.selection.Point
-	12, // 10: vrooli.image_tools.v1.ai.SegmentationPrompt.box:type_name -> vrooli.image_tools.v1.selection.Box
-	3,  // 11: vrooli.image_tools.v1.ai.SubmitStoredAIRequest.params:type_name -> vrooli.image_tools.v1.ai.AIParams
-	1,  // 12: vrooli.image_tools.v1.ai.AIService.ListAIOperations:input_type -> vrooli.image_tools.v1.ai.ListAIOperationsRequest
-	11, // 13: vrooli.image_tools.v1.ai.AIService.SubmitStoredAI:input_type -> vrooli.image_tools.v1.ai.SubmitStoredAIRequest
-	2,  // 14: vrooli.image_tools.v1.ai.AIService.ListAIOperations:output_type -> vrooli.image_tools.v1.ai.ListAIOperationsResponse
-	10, // 15: vrooli.image_tools.v1.ai.AIService.SubmitStoredAI:output_type -> vrooli.image_tools.v1.ai.SubmitAIResponse
-	14, // [14:16] is the sub-list for method output_type
-	12, // [12:14] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0, // 0: vrooli.image_tools.v1.ai.ListAIOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ai.AIOperationInfo
+	5, // 1: vrooli.image_tools.v1.ai.AIParams.adapters:type_name -> vrooli.image_tools.v1.ai.AdapterRef
+	8, // 2: vrooli.image_tools.v1.ai.AIParams.op_params:type_name -> google.protobuf.Struct
+	3, // 3: vrooli.image_tools.v1.ai.SubmitStoredAIRequest.params:type_name -> vrooli.image_tools.v1.ai.AIParams
+	1, // 4: vrooli.image_tools.v1.ai.AIService.ListAIOperations:input_type -> vrooli.image_tools.v1.ai.ListAIOperationsRequest
+	7, // 5: vrooli.image_tools.v1.ai.AIService.SubmitStoredAI:input_type -> vrooli.image_tools.v1.ai.SubmitStoredAIRequest
+	2, // 6: vrooli.image_tools.v1.ai.AIService.ListAIOperations:output_type -> vrooli.image_tools.v1.ai.ListAIOperationsResponse
+	6, // 7: vrooli.image_tools.v1.ai.AIService.SubmitStoredAI:output_type -> vrooli.image_tools.v1.ai.SubmitAIResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ai_ai_proto_init() }
@@ -1221,7 +982,7 @@ func file_image_tools_v1_ai_ai_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ai_ai_proto_rawDesc), len(file_image_tools_v1_ai_ai_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

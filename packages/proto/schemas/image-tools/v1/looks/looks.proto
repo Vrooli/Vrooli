@@ -95,17 +95,41 @@ enum StepKind {
   STEP_KIND_AI = 2;
 }
 
+// StepInput binds one operation input port to a workflow source. It is how a
+// chain is type-checked before anything runs: an empty list means "take the
+// previous step's output / the workflow source", which is the historical
+// behaviour and stays valid for image-only chains.
+message StepInput {
+  // Input port name from the operation's capability manifest (e.g. "image").
+  string name = 1;
+  // Source: "source" (the Look's input) or "previous" (default). Reserved for
+  // future explicit wiring; validation treats empty as the linear default.
+  string from = 2;
+  // Expected port kind. Empty resolves from the manifest; a present value must
+  // match it (typo guard).
+  string kind = 3;
+}
+
 // LookStep is one stage of a Look's chain.
 message LookStep {
-  // Operation name: a deterministic op (e.g. "adjust", "filter", "naturalize"
-  // is treated as deterministic) or an AI op (e.g. "edit_instruct",
-  // "image_to_image"). Must exist in the corresponding catalog.
+  // Operation name: a deterministic op (internal/ops) or an AI op (internal/ai).
+  // Must exist in the corresponding catalog; validation rejects unknown names.
   string operation = 1;
   // Whether this step runs on the deterministic engine or the AI engine.
   StepKind kind = 2;
   // Op params (string-valued, matching the op's param map). For an AI step the
   // step may carry a `prompt` here, or rely on the Look's prompt_template.
   map<string, string> params = 3;
+  // Owning scenario. Empty or "image-tools" runs here; any other value marks a
+  // cross-scenario step, which is not executable until the shared operation
+  // catalog lands (docs/concepts/COMPOSITION.md, phase C3) and is rejected with
+  // an actionable error rather than silently skipped.
+  string scenario = 4;
+  // Optional explicit input wiring. Empty = linear (previous output/source).
+  repeated StepInput inputs = 5;
+  // Optional declared output kind. Empty resolves from the manifest; a present
+  // value must match it (typo guard).
+  string output_kind = 6;
 }
 
 // Look is one library entry.
@@ -192,6 +216,10 @@ message CompiledStep {
   StepKind kind = 2;
   // Fully resolved params (Look defaults + step params + filled prompt).
   map<string, string> params = 3;
+  // Owning scenario (empty or "image-tools" today).
+  string scenario = 4;
+  // Resolved output port kind from the capability manifest (image/mask/text/…).
+  string output_kind = 5;
 }
 
 message CompileLookResponse {

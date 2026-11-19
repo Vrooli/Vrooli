@@ -422,7 +422,31 @@
       "properties": {
         "service": { "type": "string", "minLength": 1 },
         "method": { "type": "string", "minLength": 1 },
-        "reason": { "type": "string", "minLength": 1 }
+        "reason": { "type": "string", "minLength": 1 },
+        "program_only": {
+          "$ref": "#/$defs/ProgramOnlyBinding",
+          "description": "Optional private Program Runtime capability. It remains omitted from CLI discovery and is callable only by the exact declared contract digest."
+        }
+      }
+    },
+    "ProgramOnlyBinding": {
+      "type": "object",
+      "required": ["binding_id", "program", "digest", "effect", "permissions"],
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*$" },
+        "program": { "type": "string", "const": "program-runtime.bounty-replay" },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "effect": { "type": "string", "enum": ["read", "write"] },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["filesystem:read", "filesystem:write", "network:internal"]
+          }
+        }
       }
     },
     "Measure": {

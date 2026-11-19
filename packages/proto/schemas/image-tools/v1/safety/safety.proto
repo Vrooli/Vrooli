@@ -11,20 +11,26 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/
 // @stability alpha
 //
 // Wire contract for SafetyService: the policy surface for the Responsible-Use
-// deployment gate. image-tools' position (DECISIONS.md, 2026-06-18) is that
-// editing real people is gated at DEPLOYMENT, not at the capability —
-// local/personal use is unrestricted, and a public/monetized deployment opts
-// into a stricter policy. This service reports the RESOLVED policy for the
-// running deployment so the UI (settings), the CLI (`safety policy`), and any
-// composing scenario can see exactly what is enforced.
+// deployment gate. image-tools' position (DECISIONS.md, 2026-07-04) is
+// LOCAL-FIRST: no capability is blocked at the code layer. Editing real people —
+// including identity/appearance edits — is available on every tier. Harm
+// protection is a set of CONFIGURABLE controls (attribution/provenance marking,
+// consent affirmation, content scanning, abuse throttling) that a deployment can
+// tighten or disable. This service reports the RESOLVED policy for the running
+// deployment so the UI (settings), the CLI (`safety policy`), and any composing
+// scenario can see exactly which controls are on.
 //
 // The gate itself is server-side (internal/safety, enforced on the AI submit
-// edge): on the public tier, high-consent-weight ops (identity/body/clothing/
-// pose-altering: edit_instruct / inpaint / object_removal / image_to_image)
-// require a consent affirmation (recorded to the consent log) and the generated
-// output is auto-scanned for NSFW/unsafe content. Naturalize is low-weight and
-// never gated. The hard non-goals (no recognition / face-swap / deepfake) hold
-// on EVERY tier regardless of policy.
+// edge) and is built from the same resolved policy this service reports. When the
+// consent control is on, high-consent-weight ops (identity/body/clothing/
+// appearance-altering: edit_instruct / inpaint / outpaint / object_removal /
+// background_replace / image_to_image) require an affirmation recorded to the
+// consent log, and generated output is scanned. Naturalize is low-weight. Each
+// control is overridable per deployment (IMAGE_TOOLS_REQUIRE_CONSENT,
+// _NSFW_SCAN, _REQUIRE_PROVENANCE, _RATE_LIMIT_PER_MIN).
+//
+// The one non-configurable refusal is sexual content involving minors; see
+// docs/internal/SECURITY.md ("Non-negotiable") for its build status.
 //
 // Pure discovery: GetPolicy executes nothing and mutates nothing.
 //

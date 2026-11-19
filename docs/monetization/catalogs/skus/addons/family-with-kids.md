@@ -32,7 +32,7 @@ When hosted or hardware tiers activate, this add-on's appeal increases dispropor
 
 ## Promotion constraints
 
-1. The lifestyle bundle must be active before this add-on can be promoted.
+1. Follow the [lifestyle add-on activation prerequisite](../base/lifestyle.md#candidate-add-ons-parented-to-this-bundle).
 2. The "kids-facing AI" category has significant trust, safety, and regulatory requirements (COPPA in the US; strong parent expectations about content filtering and data retention). The Vrooli runtime does not yet have the guardrails infrastructure this demands.
 3. Many of the headline features (rewards, games, tutors) are specific applications that don't reuse as much existing capability as they might appear to — they are real new work.
 

@@ -52,7 +52,7 @@ Pricing is the intersection of WHAT and HOW. The financial model projects runway
 
 ## Editing rules
 
-- **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
+- See [governance/editing.md](governance/editing.md) for canon authority and the operator decision route.
 - **Use the most specific module.** Add SKU/bundle/add-on files under `catalogs/skus/`, revenue-line files under `catalogs/revenue-lines/`, channel files under `catalogs/channels/`, directional strategy under `strategy/`, supporting proof under `evidence/`, and classification/routing rules under `taxonomies/`.
 - **Operator inputs are not canon edits.** Enter financial inputs through the Money Ledger `/adapters` surface; [`governance/HOW_TO_GATHER_INPUTS.md`](governance/HOW_TO_GATHER_INPUTS.md) describes how to gather and interpret those fields.
 - **Operator executes accepted edits.** Commit messages cite the decision id.

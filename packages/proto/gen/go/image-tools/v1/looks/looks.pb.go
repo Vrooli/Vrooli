@@ -132,25 +132,103 @@ func (StepKind) EnumDescriptor() ([]byte, []int) {
 	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{1}
 }
 
+// StepInput binds one operation input port to a workflow source. It is how a
+// chain is type-checked before anything runs: an empty list means "take the
+// previous step's output / the workflow source", which is the historical
+// behaviour and stays valid for image-only chains.
+type StepInput struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Input port name from the operation's capability manifest (e.g. "image").
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Source: "source" (the Look's input) or "previous" (default). Reserved for
+	// future explicit wiring; validation treats empty as the linear default.
+	From string `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	// Expected port kind. Empty resolves from the manifest; a present value must
+	// match it (typo guard).
+	Kind          string `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StepInput) Reset() {
+	*x = StepInput{}
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StepInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StepInput) ProtoMessage() {}
+
+func (x *StepInput) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StepInput.ProtoReflect.Descriptor instead.
+func (*StepInput) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *StepInput) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StepInput) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *StepInput) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
 // LookStep is one stage of a Look's chain.
 type LookStep struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Operation name: a deterministic op (e.g. "adjust", "filter", "naturalize"
-	// is treated as deterministic) or an AI op (e.g. "edit_instruct",
-	// "image_to_image"). Must exist in the corresponding catalog.
+	// Operation name: a deterministic op (internal/ops) or an AI op (internal/ai).
+	// Must exist in the corresponding catalog; validation rejects unknown names.
 	Operation string `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
 	// Whether this step runs on the deterministic engine or the AI engine.
 	Kind StepKind `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.image_tools.v1.looks.StepKind" json:"kind,omitempty"`
 	// Op params (string-valued, matching the op's param map). For an AI step the
 	// step may carry a `prompt` here, or rely on the Look's prompt_template.
-	Params        map[string]string `protobuf:"bytes,3,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Params map[string]string `protobuf:"bytes,3,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Owning scenario. Empty or "image-tools" runs here; any other value marks a
+	// cross-scenario step, which is not executable until the shared operation
+	// catalog lands (docs/concepts/COMPOSITION.md, phase C3) and is rejected with
+	// an actionable error rather than silently skipped.
+	Scenario string `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional explicit input wiring. Empty = linear (previous output/source).
+	Inputs []*StepInput `protobuf:"bytes,5,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	// Optional declared output kind. Empty resolves from the manifest; a present
+	// value must match it (typo guard).
+	OutputKind    string `protobuf:"bytes,6,opt,name=output_kind,json=outputKind,proto3" json:"output_kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LookStep) Reset() {
 	*x = LookStep{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[0]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +240,7 @@ func (x *LookStep) String() string {
 func (*LookStep) ProtoMessage() {}
 
 func (x *LookStep) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[0]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +253,7 @@ func (x *LookStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookStep.ProtoReflect.Descriptor instead.
 func (*LookStep) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{0}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *LookStep) GetOperation() string {
@@ -197,6 +275,27 @@ func (x *LookStep) GetParams() map[string]string {
 		return x.Params
 	}
 	return nil
+}
+
+func (x *LookStep) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *LookStep) GetInputs() []*StepInput {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *LookStep) GetOutputKind() string {
+	if x != nil {
+		return x.OutputKind
+	}
+	return ""
 }
 
 // Look is one library entry.
@@ -230,7 +329,7 @@ type Look struct {
 
 func (x *Look) Reset() {
 	*x = Look{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[1]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +341,7 @@ func (x *Look) String() string {
 func (*Look) ProtoMessage() {}
 
 func (x *Look) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[1]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +354,7 @@ func (x *Look) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Look.ProtoReflect.Descriptor instead.
 func (*Look) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{1}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Look) GetId() string {
@@ -345,7 +444,7 @@ type ListLooksRequest struct {
 
 func (x *ListLooksRequest) Reset() {
 	*x = ListLooksRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[2]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +456,7 @@ func (x *ListLooksRequest) String() string {
 func (*ListLooksRequest) ProtoMessage() {}
 
 func (x *ListLooksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[2]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +469,7 @@ func (x *ListLooksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLooksRequest.ProtoReflect.Descriptor instead.
 func (*ListLooksRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{2}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListLooksRequest) GetKind() LookKind {
@@ -389,7 +488,7 @@ type ListLooksResponse struct {
 
 func (x *ListLooksResponse) Reset() {
 	*x = ListLooksResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[3]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +500,7 @@ func (x *ListLooksResponse) String() string {
 func (*ListLooksResponse) ProtoMessage() {}
 
 func (x *ListLooksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[3]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +513,7 @@ func (x *ListLooksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLooksResponse.ProtoReflect.Descriptor instead.
 func (*ListLooksResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{3}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListLooksResponse) GetLooks() []*Look {
@@ -433,7 +532,7 @@ type GetLookRequest struct {
 
 func (x *GetLookRequest) Reset() {
 	*x = GetLookRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[4]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +544,7 @@ func (x *GetLookRequest) String() string {
 func (*GetLookRequest) ProtoMessage() {}
 
 func (x *GetLookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[4]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +557,7 @@ func (x *GetLookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLookRequest.ProtoReflect.Descriptor instead.
 func (*GetLookRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{4}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetLookRequest) GetId() string {
@@ -477,7 +576,7 @@ type GetLookResponse struct {
 
 func (x *GetLookResponse) Reset() {
 	*x = GetLookResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[5]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +588,7 @@ func (x *GetLookResponse) String() string {
 func (*GetLookResponse) ProtoMessage() {}
 
 func (x *GetLookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[5]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +601,7 @@ func (x *GetLookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLookResponse.ProtoReflect.Descriptor instead.
 func (*GetLookResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{5}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetLookResponse) GetLook() *Look {
@@ -523,7 +622,7 @@ type CreateLookRequest struct {
 
 func (x *CreateLookRequest) Reset() {
 	*x = CreateLookRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[6]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +634,7 @@ func (x *CreateLookRequest) String() string {
 func (*CreateLookRequest) ProtoMessage() {}
 
 func (x *CreateLookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[6]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +647,7 @@ func (x *CreateLookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateLookRequest.ProtoReflect.Descriptor instead.
 func (*CreateLookRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{6}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreateLookRequest) GetLook() *Look {
@@ -567,7 +666,7 @@ type CreateLookResponse struct {
 
 func (x *CreateLookResponse) Reset() {
 	*x = CreateLookResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[7]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +678,7 @@ func (x *CreateLookResponse) String() string {
 func (*CreateLookResponse) ProtoMessage() {}
 
 func (x *CreateLookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[7]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +691,7 @@ func (x *CreateLookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateLookResponse.ProtoReflect.Descriptor instead.
 func (*CreateLookResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{7}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateLookResponse) GetLook() *Look {
@@ -611,7 +710,7 @@ type UpdateLookRequest struct {
 
 func (x *UpdateLookRequest) Reset() {
 	*x = UpdateLookRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[8]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +722,7 @@ func (x *UpdateLookRequest) String() string {
 func (*UpdateLookRequest) ProtoMessage() {}
 
 func (x *UpdateLookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[8]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +735,7 @@ func (x *UpdateLookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLookRequest.ProtoReflect.Descriptor instead.
 func (*UpdateLookRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{8}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateLookRequest) GetLook() *Look {
@@ -655,7 +754,7 @@ type UpdateLookResponse struct {
 
 func (x *UpdateLookResponse) Reset() {
 	*x = UpdateLookResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[9]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +766,7 @@ func (x *UpdateLookResponse) String() string {
 func (*UpdateLookResponse) ProtoMessage() {}
 
 func (x *UpdateLookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[9]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +779,7 @@ func (x *UpdateLookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLookResponse.ProtoReflect.Descriptor instead.
 func (*UpdateLookResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{9}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateLookResponse) GetLook() *Look {
@@ -699,7 +798,7 @@ type DeleteLookRequest struct {
 
 func (x *DeleteLookRequest) Reset() {
 	*x = DeleteLookRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[10]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +810,7 @@ func (x *DeleteLookRequest) String() string {
 func (*DeleteLookRequest) ProtoMessage() {}
 
 func (x *DeleteLookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[10]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +823,7 @@ func (x *DeleteLookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteLookRequest.ProtoReflect.Descriptor instead.
 func (*DeleteLookRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{10}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteLookRequest) GetId() string {
@@ -743,7 +842,7 @@ type DeleteLookResponse struct {
 
 func (x *DeleteLookResponse) Reset() {
 	*x = DeleteLookResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[11]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +854,7 @@ func (x *DeleteLookResponse) String() string {
 func (*DeleteLookResponse) ProtoMessage() {}
 
 func (x *DeleteLookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[11]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,7 +867,7 @@ func (x *DeleteLookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteLookResponse.ProtoReflect.Descriptor instead.
 func (*DeleteLookResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{11}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteLookResponse) GetDeleted() bool {
@@ -794,7 +893,7 @@ type CompileLookRequest struct {
 
 func (x *CompileLookRequest) Reset() {
 	*x = CompileLookRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[12]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +905,7 @@ func (x *CompileLookRequest) String() string {
 func (*CompileLookRequest) ProtoMessage() {}
 
 func (x *CompileLookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[12]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +918,7 @@ func (x *CompileLookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompileLookRequest.ProtoReflect.Descriptor instead.
 func (*CompileLookRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{12}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CompileLookRequest) GetLookId() string {
@@ -856,14 +955,18 @@ type CompiledStep struct {
 	Operation string                 `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
 	Kind      StepKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.image_tools.v1.looks.StepKind" json:"kind,omitempty"`
 	// Fully resolved params (Look defaults + step params + filled prompt).
-	Params        map[string]string `protobuf:"bytes,3,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Params map[string]string `protobuf:"bytes,3,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Owning scenario (empty or "image-tools" today).
+	Scenario string `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Resolved output port kind from the capability manifest (image/mask/text/…).
+	OutputKind    string `protobuf:"bytes,5,opt,name=output_kind,json=outputKind,proto3" json:"output_kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CompiledStep) Reset() {
 	*x = CompiledStep{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[13]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -875,7 +978,7 @@ func (x *CompiledStep) String() string {
 func (*CompiledStep) ProtoMessage() {}
 
 func (x *CompiledStep) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[13]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -888,7 +991,7 @@ func (x *CompiledStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompiledStep.ProtoReflect.Descriptor instead.
 func (*CompiledStep) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{13}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CompiledStep) GetOperation() string {
@@ -912,6 +1015,20 @@ func (x *CompiledStep) GetParams() map[string]string {
 	return nil
 }
 
+func (x *CompiledStep) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *CompiledStep) GetOutputKind() string {
+	if x != nil {
+		return x.OutputKind
+	}
+	return ""
+}
+
 type CompileLookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The ordered resolved steps to run, in order.
@@ -932,7 +1049,7 @@ type CompileLookResponse struct {
 
 func (x *CompileLookResponse) Reset() {
 	*x = CompileLookResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[14]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +1061,7 @@ func (x *CompileLookResponse) String() string {
 func (*CompileLookResponse) ProtoMessage() {}
 
 func (x *CompileLookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[14]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +1074,7 @@ func (x *CompileLookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompileLookResponse.ProtoReflect.Descriptor instead.
 func (*CompileLookResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{14}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CompileLookResponse) GetSteps() []*CompiledStep {
@@ -1004,7 +1121,7 @@ type RenderPreviewRequest struct {
 
 func (x *RenderPreviewRequest) Reset() {
 	*x = RenderPreviewRequest{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[15]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +1133,7 @@ func (x *RenderPreviewRequest) String() string {
 func (*RenderPreviewRequest) ProtoMessage() {}
 
 func (x *RenderPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[15]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +1146,7 @@ func (x *RenderPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderPreviewRequest.ProtoReflect.Descriptor instead.
 func (*RenderPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{15}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RenderPreviewRequest) GetLookId() string {
@@ -1052,7 +1169,7 @@ type RenderPreviewResponse struct {
 
 func (x *RenderPreviewResponse) Reset() {
 	*x = RenderPreviewResponse{}
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[16]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1064,7 +1181,7 @@ func (x *RenderPreviewResponse) String() string {
 func (*RenderPreviewResponse) ProtoMessage() {}
 
 func (x *RenderPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[16]
+	mi := &file_image_tools_v1_looks_looks_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1194,7 @@ func (x *RenderPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderPreviewResponse.ProtoReflect.Descriptor instead.
 func (*RenderPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{16}
+	return file_image_tools_v1_looks_looks_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RenderPreviewResponse) GetThumbnailRef() string {
@@ -1098,11 +1215,19 @@ var File_image_tools_v1_looks_looks_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_looks_looks_proto_rawDesc = "" +
 	"\n" +
-	" image-tools/v1/looks/looks.proto\x12\x1bvrooli.image_tools.v1.looks\"\xe9\x01\n" +
+	" image-tools/v1/looks/looks.proto\x12\x1bvrooli.image_tools.v1.looks\"G\n" +
+	"\tStepInput\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04from\x18\x02 \x01(\tR\x04from\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\"\xe6\x02\n" +
 	"\bLookStep\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x129\n" +
 	"\x04kind\x18\x02 \x01(\x0e2%.vrooli.image_tools.v1.looks.StepKindR\x04kind\x12I\n" +
-	"\x06params\x18\x03 \x03(\v21.vrooli.image_tools.v1.looks.LookStep.ParamsEntryR\x06params\x1a9\n" +
+	"\x06params\x18\x03 \x03(\v21.vrooli.image_tools.v1.looks.LookStep.ParamsEntryR\x06params\x12\x1a\n" +
+	"\bscenario\x18\x04 \x01(\tR\bscenario\x12>\n" +
+	"\x06inputs\x18\x05 \x03(\v2&.vrooli.image_tools.v1.looks.StepInputR\x06inputs\x12\x1f\n" +
+	"\voutput_kind\x18\x06 \x01(\tR\n" +
+	"outputKind\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xec\x03\n" +
@@ -1148,11 +1273,14 @@ const file_image_tools_v1_looks_looks_proto_rawDesc = "" +
 	"\alook_id\x18\x01 \x01(\tR\x06lookId\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x16\n" +
 	"\x06prompt\x18\x03 \x01(\tR\x06prompt\x12\x1b\n" +
-	"\thas_input\x18\x04 \x01(\bR\bhasInput\"\xf1\x01\n" +
+	"\thas_input\x18\x04 \x01(\bR\bhasInput\"\xae\x02\n" +
 	"\fCompiledStep\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x129\n" +
 	"\x04kind\x18\x02 \x01(\x0e2%.vrooli.image_tools.v1.looks.StepKindR\x04kind\x12M\n" +
-	"\x06params\x18\x03 \x03(\v25.vrooli.image_tools.v1.looks.CompiledStep.ParamsEntryR\x06params\x1a9\n" +
+	"\x06params\x18\x03 \x03(\v25.vrooli.image_tools.v1.looks.CompiledStep.ParamsEntryR\x06params\x12\x1a\n" +
+	"\bscenario\x18\x04 \x01(\tR\bscenario\x12\x1f\n" +
+	"\voutput_kind\x18\x05 \x01(\tR\n" +
+	"outputKind\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe5\x01\n" +
@@ -1203,66 +1331,68 @@ func file_image_tools_v1_looks_looks_proto_rawDescGZIP() []byte {
 }
 
 var file_image_tools_v1_looks_looks_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_image_tools_v1_looks_looks_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_image_tools_v1_looks_looks_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_image_tools_v1_looks_looks_proto_goTypes = []any{
 	(LookKind)(0),                 // 0: vrooli.image_tools.v1.looks.LookKind
 	(StepKind)(0),                 // 1: vrooli.image_tools.v1.looks.StepKind
-	(*LookStep)(nil),              // 2: vrooli.image_tools.v1.looks.LookStep
-	(*Look)(nil),                  // 3: vrooli.image_tools.v1.looks.Look
-	(*ListLooksRequest)(nil),      // 4: vrooli.image_tools.v1.looks.ListLooksRequest
-	(*ListLooksResponse)(nil),     // 5: vrooli.image_tools.v1.looks.ListLooksResponse
-	(*GetLookRequest)(nil),        // 6: vrooli.image_tools.v1.looks.GetLookRequest
-	(*GetLookResponse)(nil),       // 7: vrooli.image_tools.v1.looks.GetLookResponse
-	(*CreateLookRequest)(nil),     // 8: vrooli.image_tools.v1.looks.CreateLookRequest
-	(*CreateLookResponse)(nil),    // 9: vrooli.image_tools.v1.looks.CreateLookResponse
-	(*UpdateLookRequest)(nil),     // 10: vrooli.image_tools.v1.looks.UpdateLookRequest
-	(*UpdateLookResponse)(nil),    // 11: vrooli.image_tools.v1.looks.UpdateLookResponse
-	(*DeleteLookRequest)(nil),     // 12: vrooli.image_tools.v1.looks.DeleteLookRequest
-	(*DeleteLookResponse)(nil),    // 13: vrooli.image_tools.v1.looks.DeleteLookResponse
-	(*CompileLookRequest)(nil),    // 14: vrooli.image_tools.v1.looks.CompileLookRequest
-	(*CompiledStep)(nil),          // 15: vrooli.image_tools.v1.looks.CompiledStep
-	(*CompileLookResponse)(nil),   // 16: vrooli.image_tools.v1.looks.CompileLookResponse
-	(*RenderPreviewRequest)(nil),  // 17: vrooli.image_tools.v1.looks.RenderPreviewRequest
-	(*RenderPreviewResponse)(nil), // 18: vrooli.image_tools.v1.looks.RenderPreviewResponse
-	nil,                           // 19: vrooli.image_tools.v1.looks.LookStep.ParamsEntry
-	nil,                           // 20: vrooli.image_tools.v1.looks.Look.ParamsEntry
-	nil,                           // 21: vrooli.image_tools.v1.looks.CompiledStep.ParamsEntry
+	(*StepInput)(nil),             // 2: vrooli.image_tools.v1.looks.StepInput
+	(*LookStep)(nil),              // 3: vrooli.image_tools.v1.looks.LookStep
+	(*Look)(nil),                  // 4: vrooli.image_tools.v1.looks.Look
+	(*ListLooksRequest)(nil),      // 5: vrooli.image_tools.v1.looks.ListLooksRequest
+	(*ListLooksResponse)(nil),     // 6: vrooli.image_tools.v1.looks.ListLooksResponse
+	(*GetLookRequest)(nil),        // 7: vrooli.image_tools.v1.looks.GetLookRequest
+	(*GetLookResponse)(nil),       // 8: vrooli.image_tools.v1.looks.GetLookResponse
+	(*CreateLookRequest)(nil),     // 9: vrooli.image_tools.v1.looks.CreateLookRequest
+	(*CreateLookResponse)(nil),    // 10: vrooli.image_tools.v1.looks.CreateLookResponse
+	(*UpdateLookRequest)(nil),     // 11: vrooli.image_tools.v1.looks.UpdateLookRequest
+	(*UpdateLookResponse)(nil),    // 12: vrooli.image_tools.v1.looks.UpdateLookResponse
+	(*DeleteLookRequest)(nil),     // 13: vrooli.image_tools.v1.looks.DeleteLookRequest
+	(*DeleteLookResponse)(nil),    // 14: vrooli.image_tools.v1.looks.DeleteLookResponse
+	(*CompileLookRequest)(nil),    // 15: vrooli.image_tools.v1.looks.CompileLookRequest
+	(*CompiledStep)(nil),          // 16: vrooli.image_tools.v1.looks.CompiledStep
+	(*CompileLookResponse)(nil),   // 17: vrooli.image_tools.v1.looks.CompileLookResponse
+	(*RenderPreviewRequest)(nil),  // 18: vrooli.image_tools.v1.looks.RenderPreviewRequest
+	(*RenderPreviewResponse)(nil), // 19: vrooli.image_tools.v1.looks.RenderPreviewResponse
+	nil,                           // 20: vrooli.image_tools.v1.looks.LookStep.ParamsEntry
+	nil,                           // 21: vrooli.image_tools.v1.looks.Look.ParamsEntry
+	nil,                           // 22: vrooli.image_tools.v1.looks.CompiledStep.ParamsEntry
 }
 var file_image_tools_v1_looks_looks_proto_depIdxs = []int32{
 	1,  // 0: vrooli.image_tools.v1.looks.LookStep.kind:type_name -> vrooli.image_tools.v1.looks.StepKind
-	19, // 1: vrooli.image_tools.v1.looks.LookStep.params:type_name -> vrooli.image_tools.v1.looks.LookStep.ParamsEntry
-	0,  // 2: vrooli.image_tools.v1.looks.Look.kind:type_name -> vrooli.image_tools.v1.looks.LookKind
-	2,  // 3: vrooli.image_tools.v1.looks.Look.steps:type_name -> vrooli.image_tools.v1.looks.LookStep
-	20, // 4: vrooli.image_tools.v1.looks.Look.params:type_name -> vrooli.image_tools.v1.looks.Look.ParamsEntry
-	0,  // 5: vrooli.image_tools.v1.looks.ListLooksRequest.kind:type_name -> vrooli.image_tools.v1.looks.LookKind
-	3,  // 6: vrooli.image_tools.v1.looks.ListLooksResponse.looks:type_name -> vrooli.image_tools.v1.looks.Look
-	3,  // 7: vrooli.image_tools.v1.looks.GetLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
-	3,  // 8: vrooli.image_tools.v1.looks.CreateLookRequest.look:type_name -> vrooli.image_tools.v1.looks.Look
-	3,  // 9: vrooli.image_tools.v1.looks.CreateLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
-	3,  // 10: vrooli.image_tools.v1.looks.UpdateLookRequest.look:type_name -> vrooli.image_tools.v1.looks.Look
-	3,  // 11: vrooli.image_tools.v1.looks.UpdateLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
-	1,  // 12: vrooli.image_tools.v1.looks.CompiledStep.kind:type_name -> vrooli.image_tools.v1.looks.StepKind
-	21, // 13: vrooli.image_tools.v1.looks.CompiledStep.params:type_name -> vrooli.image_tools.v1.looks.CompiledStep.ParamsEntry
-	15, // 14: vrooli.image_tools.v1.looks.CompileLookResponse.steps:type_name -> vrooli.image_tools.v1.looks.CompiledStep
-	4,  // 15: vrooli.image_tools.v1.looks.LooksService.ListLooks:input_type -> vrooli.image_tools.v1.looks.ListLooksRequest
-	6,  // 16: vrooli.image_tools.v1.looks.LooksService.GetLook:input_type -> vrooli.image_tools.v1.looks.GetLookRequest
-	8,  // 17: vrooli.image_tools.v1.looks.LooksService.CreateLook:input_type -> vrooli.image_tools.v1.looks.CreateLookRequest
-	10, // 18: vrooli.image_tools.v1.looks.LooksService.UpdateLook:input_type -> vrooli.image_tools.v1.looks.UpdateLookRequest
-	12, // 19: vrooli.image_tools.v1.looks.LooksService.DeleteLook:input_type -> vrooli.image_tools.v1.looks.DeleteLookRequest
-	14, // 20: vrooli.image_tools.v1.looks.LooksService.CompileLook:input_type -> vrooli.image_tools.v1.looks.CompileLookRequest
-	17, // 21: vrooli.image_tools.v1.looks.LooksService.RenderPreview:input_type -> vrooli.image_tools.v1.looks.RenderPreviewRequest
-	5,  // 22: vrooli.image_tools.v1.looks.LooksService.ListLooks:output_type -> vrooli.image_tools.v1.looks.ListLooksResponse
-	7,  // 23: vrooli.image_tools.v1.looks.LooksService.GetLook:output_type -> vrooli.image_tools.v1.looks.GetLookResponse
-	9,  // 24: vrooli.image_tools.v1.looks.LooksService.CreateLook:output_type -> vrooli.image_tools.v1.looks.CreateLookResponse
-	11, // 25: vrooli.image_tools.v1.looks.LooksService.UpdateLook:output_type -> vrooli.image_tools.v1.looks.UpdateLookResponse
-	13, // 26: vrooli.image_tools.v1.looks.LooksService.DeleteLook:output_type -> vrooli.image_tools.v1.looks.DeleteLookResponse
-	16, // 27: vrooli.image_tools.v1.looks.LooksService.CompileLook:output_type -> vrooli.image_tools.v1.looks.CompileLookResponse
-	18, // 28: vrooli.image_tools.v1.looks.LooksService.RenderPreview:output_type -> vrooli.image_tools.v1.looks.RenderPreviewResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	20, // 1: vrooli.image_tools.v1.looks.LookStep.params:type_name -> vrooli.image_tools.v1.looks.LookStep.ParamsEntry
+	2,  // 2: vrooli.image_tools.v1.looks.LookStep.inputs:type_name -> vrooli.image_tools.v1.looks.StepInput
+	0,  // 3: vrooli.image_tools.v1.looks.Look.kind:type_name -> vrooli.image_tools.v1.looks.LookKind
+	3,  // 4: vrooli.image_tools.v1.looks.Look.steps:type_name -> vrooli.image_tools.v1.looks.LookStep
+	21, // 5: vrooli.image_tools.v1.looks.Look.params:type_name -> vrooli.image_tools.v1.looks.Look.ParamsEntry
+	0,  // 6: vrooli.image_tools.v1.looks.ListLooksRequest.kind:type_name -> vrooli.image_tools.v1.looks.LookKind
+	4,  // 7: vrooli.image_tools.v1.looks.ListLooksResponse.looks:type_name -> vrooli.image_tools.v1.looks.Look
+	4,  // 8: vrooli.image_tools.v1.looks.GetLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
+	4,  // 9: vrooli.image_tools.v1.looks.CreateLookRequest.look:type_name -> vrooli.image_tools.v1.looks.Look
+	4,  // 10: vrooli.image_tools.v1.looks.CreateLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
+	4,  // 11: vrooli.image_tools.v1.looks.UpdateLookRequest.look:type_name -> vrooli.image_tools.v1.looks.Look
+	4,  // 12: vrooli.image_tools.v1.looks.UpdateLookResponse.look:type_name -> vrooli.image_tools.v1.looks.Look
+	1,  // 13: vrooli.image_tools.v1.looks.CompiledStep.kind:type_name -> vrooli.image_tools.v1.looks.StepKind
+	22, // 14: vrooli.image_tools.v1.looks.CompiledStep.params:type_name -> vrooli.image_tools.v1.looks.CompiledStep.ParamsEntry
+	16, // 15: vrooli.image_tools.v1.looks.CompileLookResponse.steps:type_name -> vrooli.image_tools.v1.looks.CompiledStep
+	5,  // 16: vrooli.image_tools.v1.looks.LooksService.ListLooks:input_type -> vrooli.image_tools.v1.looks.ListLooksRequest
+	7,  // 17: vrooli.image_tools.v1.looks.LooksService.GetLook:input_type -> vrooli.image_tools.v1.looks.GetLookRequest
+	9,  // 18: vrooli.image_tools.v1.looks.LooksService.CreateLook:input_type -> vrooli.image_tools.v1.looks.CreateLookRequest
+	11, // 19: vrooli.image_tools.v1.looks.LooksService.UpdateLook:input_type -> vrooli.image_tools.v1.looks.UpdateLookRequest
+	13, // 20: vrooli.image_tools.v1.looks.LooksService.DeleteLook:input_type -> vrooli.image_tools.v1.looks.DeleteLookRequest
+	15, // 21: vrooli.image_tools.v1.looks.LooksService.CompileLook:input_type -> vrooli.image_tools.v1.looks.CompileLookRequest
+	18, // 22: vrooli.image_tools.v1.looks.LooksService.RenderPreview:input_type -> vrooli.image_tools.v1.looks.RenderPreviewRequest
+	6,  // 23: vrooli.image_tools.v1.looks.LooksService.ListLooks:output_type -> vrooli.image_tools.v1.looks.ListLooksResponse
+	8,  // 24: vrooli.image_tools.v1.looks.LooksService.GetLook:output_type -> vrooli.image_tools.v1.looks.GetLookResponse
+	10, // 25: vrooli.image_tools.v1.looks.LooksService.CreateLook:output_type -> vrooli.image_tools.v1.looks.CreateLookResponse
+	12, // 26: vrooli.image_tools.v1.looks.LooksService.UpdateLook:output_type -> vrooli.image_tools.v1.looks.UpdateLookResponse
+	14, // 27: vrooli.image_tools.v1.looks.LooksService.DeleteLook:output_type -> vrooli.image_tools.v1.looks.DeleteLookResponse
+	17, // 28: vrooli.image_tools.v1.looks.LooksService.CompileLook:output_type -> vrooli.image_tools.v1.looks.CompileLookResponse
+	19, // 29: vrooli.image_tools.v1.looks.LooksService.RenderPreview:output_type -> vrooli.image_tools.v1.looks.RenderPreviewResponse
+	23, // [23:30] is the sub-list for method output_type
+	16, // [16:23] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_looks_looks_proto_init() }
@@ -1276,7 +1406,7 @@ func file_image_tools_v1_looks_looks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_looks_looks_proto_rawDesc), len(file_image_tools_v1_looks_looks_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

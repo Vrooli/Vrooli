@@ -255,6 +255,10 @@ flowchart LR
   UNATTENDEDSE[[unattended-self-improvement]]
   %% @node VEGAREDESIGN team:vega-redesign-delivery
   VEGAREDESIGN[[vega-redesign-delivery]]
+  %% @node LOCALINFEREN team:local-inference-maturity-delivery
+  LOCALINFEREN[[local-inference-maturity-delivery]]
+  %% @node LOCALINFEREN2 team:local-inference-maturity-supervision
+  LOCALINFEREN2[[local-inference-maturity-supervision]]
 
   OP --> DC
   OP --> RI
@@ -295,6 +299,8 @@ flowchart LR
   FLEETSTORAGE --> FRICTIONINBO
   INFRA --> FRICTIONINBO
   LANDINGPAGEV --> FRICTIONINBO
+  LOCALINFEREN --> FRICTIONINBO
+  LOCALINFEREN2 --> FRICTIONINBO
   MKT --> FRICTIONINBO
   MARKETINGI16 --> FRICTIONINBO
   MON --> FRICTIONINBO

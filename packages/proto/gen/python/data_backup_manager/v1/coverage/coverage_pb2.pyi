@@ -141,7 +141,7 @@ class ExcludeSensitiveTargetResponse(_message.Message):
     def __init__(self, policy: _Optional[_Union[SensitivePolicy, _Mapping]] = ...) -> None: ...
 
 class RegisteredTarget(_message.Message):
-    __slots__ = ("id", "owner", "name", "source_kind", "locator", "planned", "last_success_at", "last_verified_at", "critical", "reacquirable", "reacquisition_command", "reacquisition_evidence", "reacquisition_needs_operator", "reacquisition_auth_reason", "destinations", "all_destinations_backed_up", "all_destinations_verified", "physical_independence_proven", "independence_warnings")
+    __slots__ = ("id", "owner", "name", "source_kind", "locator", "planned", "last_success_at", "last_verified_at", "critical", "reacquirable", "reacquisition_command", "reacquisition_evidence", "reacquisition_needs_operator", "reacquisition_auth_reason", "destinations", "all_destinations_backed_up", "all_destinations_verified", "physical_independence_proven", "independence_warnings", "protection_level", "protection_device_count")
     ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -161,6 +161,8 @@ class RegisteredTarget(_message.Message):
     ALL_DESTINATIONS_VERIFIED_FIELD_NUMBER: _ClassVar[int]
     PHYSICAL_INDEPENDENCE_PROVEN_FIELD_NUMBER: _ClassVar[int]
     INDEPENDENCE_WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    PROTECTION_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    PROTECTION_DEVICE_COUNT_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     name: str
@@ -180,7 +182,9 @@ class RegisteredTarget(_message.Message):
     all_destinations_verified: bool
     physical_independence_proven: bool
     independence_warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., planned: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., critical: _Optional[bool] = ..., reacquirable: _Optional[bool] = ..., reacquisition_command: _Optional[str] = ..., reacquisition_evidence: _Optional[str] = ..., reacquisition_needs_operator: _Optional[bool] = ..., reacquisition_auth_reason: _Optional[str] = ..., destinations: _Optional[_Iterable[_Union[TargetDestinationStatus, _Mapping]]] = ..., all_destinations_backed_up: _Optional[bool] = ..., all_destinations_verified: _Optional[bool] = ..., physical_independence_proven: _Optional[bool] = ..., independence_warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    protection_level: str
+    protection_device_count: int
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., planned: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., critical: _Optional[bool] = ..., reacquirable: _Optional[bool] = ..., reacquisition_command: _Optional[str] = ..., reacquisition_evidence: _Optional[str] = ..., reacquisition_needs_operator: _Optional[bool] = ..., reacquisition_auth_reason: _Optional[str] = ..., destinations: _Optional[_Iterable[_Union[TargetDestinationStatus, _Mapping]]] = ..., all_destinations_backed_up: _Optional[bool] = ..., all_destinations_verified: _Optional[bool] = ..., physical_independence_proven: _Optional[bool] = ..., independence_warnings: _Optional[_Iterable[str]] = ..., protection_level: _Optional[str] = ..., protection_device_count: _Optional[int] = ...) -> None: ...
 
 class TargetDestinationStatus(_message.Message):
     __slots__ = ("destination_id", "last_success_at", "last_verified_at")
@@ -233,7 +237,7 @@ class SuggestedTarget(_message.Message):
     def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., rationale: _Optional[str] = ..., approx_bytes: _Optional[int] = ..., sensitive: _Optional[bool] = ..., warning: _Optional[str] = ..., critical: _Optional[bool] = ..., reacquirable: _Optional[bool] = ..., budget_max_bytes: _Optional[str] = ..., budget_max_age: _Optional[str] = ..., retention: _Optional[str] = ..., reacquisition_command: _Optional[str] = ..., reacquisition_evidence: _Optional[str] = ..., reacquisition_needs_operator: _Optional[bool] = ..., reacquisition_auth_reason: _Optional[str] = ...) -> None: ...
 
 class CoverageSummary(_message.Message):
-    __slots__ = ("registered_count", "recommended_count", "sensitive_count", "planned_count", "backed_up_count", "verified_count", "default_coverage_complete", "has_sensitive_unreviewed", "has_unplanned_registered_targets", "has_unverified_targets", "destination_copy_count", "all_destination_backed_up_count", "all_destination_verified_count", "multi_destination_target_count", "physically_independent_target_count")
+    __slots__ = ("registered_count", "recommended_count", "sensitive_count", "planned_count", "backed_up_count", "verified_count", "default_coverage_complete", "has_sensitive_unreviewed", "has_unplanned_registered_targets", "has_unverified_targets", "destination_copy_count", "all_destination_backed_up_count", "all_destination_verified_count", "multi_destination_target_count", "physically_independent_target_count", "protected_target_count", "single_copy_target_count", "unprotected_target_count", "identity_unknown_target_count")
     REGISTERED_COUNT_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_COUNT_FIELD_NUMBER: _ClassVar[int]
     SENSITIVE_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -249,6 +253,10 @@ class CoverageSummary(_message.Message):
     ALL_DESTINATION_VERIFIED_COUNT_FIELD_NUMBER: _ClassVar[int]
     MULTI_DESTINATION_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
     PHYSICALLY_INDEPENDENT_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PROTECTED_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SINGLE_COPY_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    UNPROTECTED_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_UNKNOWN_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
     registered_count: int
     recommended_count: int
     sensitive_count: int
@@ -264,7 +272,11 @@ class CoverageSummary(_message.Message):
     all_destination_verified_count: int
     multi_destination_target_count: int
     physically_independent_target_count: int
-    def __init__(self, registered_count: _Optional[int] = ..., recommended_count: _Optional[int] = ..., sensitive_count: _Optional[int] = ..., planned_count: _Optional[int] = ..., backed_up_count: _Optional[int] = ..., verified_count: _Optional[int] = ..., default_coverage_complete: _Optional[bool] = ..., has_sensitive_unreviewed: _Optional[bool] = ..., has_unplanned_registered_targets: _Optional[bool] = ..., has_unverified_targets: _Optional[bool] = ..., destination_copy_count: _Optional[int] = ..., all_destination_backed_up_count: _Optional[int] = ..., all_destination_verified_count: _Optional[int] = ..., multi_destination_target_count: _Optional[int] = ..., physically_independent_target_count: _Optional[int] = ...) -> None: ...
+    protected_target_count: int
+    single_copy_target_count: int
+    unprotected_target_count: int
+    identity_unknown_target_count: int
+    def __init__(self, registered_count: _Optional[int] = ..., recommended_count: _Optional[int] = ..., sensitive_count: _Optional[int] = ..., planned_count: _Optional[int] = ..., backed_up_count: _Optional[int] = ..., verified_count: _Optional[int] = ..., default_coverage_complete: _Optional[bool] = ..., has_sensitive_unreviewed: _Optional[bool] = ..., has_unplanned_registered_targets: _Optional[bool] = ..., has_unverified_targets: _Optional[bool] = ..., destination_copy_count: _Optional[int] = ..., all_destination_backed_up_count: _Optional[int] = ..., all_destination_verified_count: _Optional[int] = ..., multi_destination_target_count: _Optional[int] = ..., physically_independent_target_count: _Optional[int] = ..., protected_target_count: _Optional[int] = ..., single_copy_target_count: _Optional[int] = ..., unprotected_target_count: _Optional[int] = ..., identity_unknown_target_count: _Optional[int] = ...) -> None: ...
 
 class CoverageReport(_message.Message):
     __slots__ = ("summary", "registered_targets", "recommended_targets", "sensitive_targets", "reacquirable_targets")

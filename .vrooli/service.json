@@ -109,6 +109,9 @@
         "enabled": true,
         "required": false
       },
+      "cogvideo": {
+        "enabled": false
+      },
       "doc-ocr": {
         "description": "Native document OCR tooling",
         "enabled": false,
@@ -151,6 +154,9 @@
         "description": "S3-compatible object storage service",
         "enabled": true,
         "required": false
+      },
+      "music-mir": {
+        "enabled": false
       },
       "n8n": {
         "description": "Task-scoped n8n workflow rehearsal runtimes; acquired and started only through the F7 runtime owner",
@@ -277,10 +283,27 @@
         "enabled": true,
         "required": false
       },
+      "wordpress": {
+        "enabled": false
+      },
       "x402-facilitator": {
         "description": "x402 payment facilitation service",
         "enabled": true,
         "required": false
+      },
+      "x402-facilitator-local-test": {
+        "description": "Isolated pinned x402 facilitator for local Base fork test rehearsals",
+        "enabled": false,
+        "required": false
+      }
+    },
+    "scenarios": {
+      "data-backup-manager": {
+        "degraded_behavior": "Private data remains in place; scheduled protection resumes when the backup manager and a destination are available.",
+        "description": "Project-wide encrypted backup service for private runtime-home and operator data",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start"
       }
     }
   },
@@ -427,8 +450,8 @@
     },
     {
       "name": "vrooli_launcher",
-      "notes": "Optional: only matters if you want `sudo vrooli ...` to work. The shim forwards to the calling user's ~/.vrooli/bin/vrooli; see internal/safeguards/vrooli-launcher/handler.go package doc for the design rationale.",
-      "reason": "Install /usr/local/bin/vrooli launcher shim so `sudo vrooli` resolves (sudo's secure_path excludes ~/.vrooli/bin where make install writes the real binary)",
+      "notes": "Optional: enables direct elevated `vrooli` commands when the sudo PATH cannot resolve the invoking user's installation.",
+      "reason": "Install a POSIX launcher that forwards to the invoking user's ~/.vrooli/bin/vrooli.",
       "required": false,
       "when": [
         "setup"
@@ -579,7 +602,7 @@
     {
       "name": "harness_file_ownership",
       "notes": "Changes the owner of root-owned coding-agent files back to the invoking operator: ~/.local/bin/\u003cagent\u003e, the upstream installer copies and each agent's version directory. Changes ownership only, never contents, and never follows a symlink. Moving a standalone file aside and linking Vrooli's copy stays a user-privileged action in `vrooli resource update`.",
-      "reason": "Web Console reports a root-owned agent file as `needs setup` and shows `sudo vrooli setup --include-optional`; this safeguard is what makes that command repair it",
+      "reason": "Repair root-owned coding-agent files through the optional setup safeguard without relaunching the whole setup process as root",
       "required": false,
       "when": [
         "setup"
@@ -737,8 +760,8 @@
         "development"
       ],
       "name": "node",
-      "notes": "Root-owned development toolchain",
-      "reason": "Build and run JavaScript-based workspace tooling during development setup",
+      "notes": "Exact checksum-verified user-local development runtime from internal/tools/node/tool.json; no sudo required",
+      "reason": "Run and build JavaScript-based workspace tooling with Vrooli's pinned Node.js release",
       "required": false,
       "when": [
         "setup",
@@ -750,8 +773,8 @@
         "development"
       ],
       "name": "pnpm",
-      "notes": "Pinned standalone binary matching the pnpm-workspace.yaml packageManager version; installed into ~/.vrooli/bin (no sudo).",
-      "reason": "Install and build scenario UI workspaces; lifecycle steps fall back to plain `pnpm` when the host Node.js has no corepack shims",
+      "notes": "Exact checksum-verified standalone release from internal/tools/pnpm/tool.json; installed for the invoking user without sudo.",
+      "reason": "Provide a verified user-local pnpm fallback on hosts without a usable Corepack shim",
       "required": false,
       "when": [
         "setup",

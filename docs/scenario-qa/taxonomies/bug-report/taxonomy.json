@@ -50,6 +50,7 @@
   ],
   "evidenceRules": [
     "A repro is mandatory; if absent, the investigator first tries to reproduce, else routes to file-work asking the reporter or operator to supply repro.",
+    "Typed CaptureBug callers may provide optional observed_at as YYYY-MM-DD to preserve an existing observation date; omission uses the UTC capture date and invalid calendar dates are rejected.",
     "Severity is the producer's claim; the investigator may overrule based on actual scope of impact discovered during investigation.",
     "Honesty flags must include `repro-not-attempted` if the producer did not try to reproduce before reporting.",
     "Investigation outcomes must reference the technique applied (e.g., `scientific-debugging`) so the audit log can drive technique-graduation decisions on `meta-self-improvement`.",
@@ -91,6 +92,9 @@
       },
       "bodyRequiredSections": ["Findings", "Action taken"]
     }
+  },
+  "captureInputs": {
+    "observed_at": "Optional YYYY-MM-DD observation date for typed CaptureBug callers; defaults to UTC capture date."
   },
   "honestyFlags": [
     "repro-not-attempted",

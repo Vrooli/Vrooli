@@ -18,6 +18,8 @@ bug-inbox/<signal-type>/<short-slug>
 
 The typed capture owner honors an optional `idempotency_key` (CLI `--idempotency-key`) with a bounded hashed topic. Reusing that key returns the original immutable report even if its display title changes; distinct keys remain distinct when long titles share a prefix. Keyless captures retain title-based topics. A retry key identifies one observation, not a reporting batch.
 
+Typed `CaptureBug` callers may provide `observed_at` as a calendar date in `YYYY-MM-DD` format when forwarding an existing observation. The date is preserved in the published report; when omitted, capture time in UTC supplies the date. Invalid dates are rejected as field diagnostics.
+
 The producer (the agent invoking `report-bug`) picks the signal type from the fixed list below; the investigator validates the choice as the first step of investigation. There is **no separate classifier skill** — bug-inbox uses deterministic-prefix routing because investigation includes classification as its first sub-step. (Compare: `marketing-research` uses a separate classifier because the producer is a research scan that doesn't yet investigate. Bugs are different — every drainer also reads the entry to start work.)
 
 ## Signal types
@@ -84,6 +86,8 @@ description: |
   <free-form notes; what the reporter observed, hypotheses tried, etc.>
 honesty_flags: [<flags from honestyFlags below>]
 ```
+
+For typed `CaptureBug` requests, `observed_at` is an optional input with the same `YYYY-MM-DD` format. Omission means the report was observed on the UTC capture date. The `report-bug` skill continues to require the date in its normal front matter.
 
 ### `bug-investigation` (entry written by investigator on close)
 

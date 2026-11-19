@@ -910,6 +910,16 @@
         }
       }
     },
+    "activity_network": {
+      "type": "object",
+      "description": "Linux resource-owner boundary that keeps the backend private and bridges it to a stable host activity edge over an owner-authorized Unix socket.",
+      "required": ["edge_port", "upstream_port"],
+      "properties": {
+        "edge_port": {"type": "string", "minLength": 1},
+        "upstream_port": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
     "health_checks": {
       "type": "array",
       "items": {

@@ -10,7 +10,47 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/looks/looks.proto.
  */
 export const file_image_tools_v1_looks_looks: GenFile = /*@__PURE__*/
-  fileDesc("CiBpbWFnZS10b29scy92MS9sb29rcy9sb29rcy5wcm90bxIbdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzIsQBCghMb29rU3RlcBIRCglvcGVyYXRpb24YASABKAkSMwoEa2luZBgCIAEoDjIlLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5TdGVwS2luZBJBCgZwYXJhbXMYAyADKAsyMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va1N0ZXAuUGFyYW1zRW50cnkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASL3AgoETG9vaxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEjMKBGtpbmQYBCABKA4yJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va0tpbmQSNAoFc3RlcHMYBSADKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va1N0ZXASFwoPcHJvbXB0X3RlbXBsYXRlGAYgASgJEj0KBnBhcmFtcxgHIAMoCzItLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rLlBhcmFtc0VudHJ5EhUKDXRodW1ibmFpbF9yZWYYCCABKAkSDwoHYnVpbHRpbhgJIAEoCBISCgpjcmVhdGVkX2F0GAogASgJEhIKCnVwZGF0ZWRfYXQYCyABKAkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJHChBMaXN0TG9va3NSZXF1ZXN0EjMKBGtpbmQYASABKA4yJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va0tpbmQiRQoRTGlzdExvb2tzUmVzcG9uc2USMAoFbG9va3MYASADKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayIcCg5HZXRMb29rUmVxdWVzdBIKCgJpZBgBIAEoCSJCCg9HZXRMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIkQKEUNyZWF0ZUxvb2tSZXF1ZXN0Ei8KBGxvb2sYASABKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayJFChJDcmVhdGVMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIkQKEVVwZGF0ZUxvb2tSZXF1ZXN0Ei8KBGxvb2sYASABKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayJFChJVcGRhdGVMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIh8KEURlbGV0ZUxvb2tSZXF1ZXN0EgoKAmlkGAEgASgJIiUKEkRlbGV0ZUxvb2tSZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIlkKEkNvbXBpbGVMb29rUmVxdWVzdBIPCgdsb29rX2lkGAEgASgJEg8KB3N1YmplY3QYAiABKAkSDgoGcHJvbXB0GAMgASgJEhEKCWhhc19pbnB1dBgEIAEoCCLMAQoMQ29tcGlsZWRTdGVwEhEKCW9wZXJhdGlvbhgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLlN0ZXBLaW5kEkUKBnBhcmFtcxgDIAMoCzI1LnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Db21waWxlZFN0ZXAuUGFyYW1zRW50cnkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKoAQoTQ29tcGlsZUxvb2tSZXNwb25zZRI4CgVzdGVwcxgBIAMoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Db21waWxlZFN0ZXASFgoOcHJpbWFyeV9wcm9tcHQYAiABKAkSFgoOcmVxdWlyZXNfaW1hZ2UYAyABKAgSFQoNcmVxdWlyZXNfbWFzaxgEIAEoCBIQCgh3YXJuaW5ncxgFIAMoCSInChRSZW5kZXJQcmV2aWV3UmVxdWVzdBIPCgdsb29rX2lkGAEgASgJIkYKFVJlbmRlclByZXZpZXdSZXNwb25zZRIVCg10aHVtYm5haWxfcmVmGAEgASgJEhYKDmRlZmVycmVkX3N0ZXBzGAIgAygJKpEBCghMb29rS2luZBIZChVMT09LX0tJTkRfVU5TUEVDSUZJRUQQABITCg9MT09LX0tJTkRfU1RZTEUQARISCg5MT09LX0tJTkRfRklMTRACEhQKEExPT0tfS0lORF9DQU1FUkEQAxIVChFMT09LX0tJTkRfRU5IQU5DRRAEEhQKEExPT0tfS0lORF9DVVNUT00QBSpUCghTdGVwS2luZBIZChVTVEVQX0tJTkRfVU5TUEVDSUZJRUQQABIbChdTVEVQX0tJTkRfREVURVJNSU5JU1RJQxABEhAKDFNURVBfS0lORF9BSRACMpcGCgxMb29rc1NlcnZpY2USagoJTGlzdExvb2tzEi0udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLkxpc3RMb29rc1JlcXVlc3QaLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTGlzdExvb2tzUmVzcG9uc2USZAoHR2V0TG9vaxIrLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5HZXRMb29rUmVxdWVzdBosLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5HZXRMb29rUmVzcG9uc2USbQoKQ3JlYXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5DcmVhdGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5DcmVhdGVMb29rUmVzcG9uc2USbQoKVXBkYXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5VcGRhdGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5VcGRhdGVMb29rUmVzcG9uc2USbQoKRGVsZXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5EZWxldGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5EZWxldGVMb29rUmVzcG9uc2UScAoLQ29tcGlsZUxvb2sSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuQ29tcGlsZUxvb2tSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLkNvbXBpbGVMb29rUmVzcG9uc2USdgoNUmVuZGVyUHJldmlldxIxLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5SZW5kZXJQcmV2aWV3UmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5SZW5kZXJQcmV2aWV3UmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9sb29rcztsb29rc192MWIGcHJvdG8z");
+  fileDesc("CiBpbWFnZS10b29scy92MS9sb29rcy9sb29rcy5wcm90bxIbdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzIjUKCVN0ZXBJbnB1dBIMCgRuYW1lGAEgASgJEgwKBGZyb20YAiABKAkSDAoEa2luZBgDIAEoCSKjAgoITG9va1N0ZXASEQoJb3BlcmF0aW9uGAEgASgJEjMKBGtpbmQYAiABKA4yJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuU3RlcEtpbmQSQQoGcGFyYW1zGAMgAygLMjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLkxvb2tTdGVwLlBhcmFtc0VudHJ5EhAKCHNjZW5hcmlvGAQgASgJEjYKBmlucHV0cxgFIAMoCzImLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5TdGVwSW5wdXQSEwoLb3V0cHV0X2tpbmQYBiABKAkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASL3AgoETG9vaxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEjMKBGtpbmQYBCABKA4yJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va0tpbmQSNAoFc3RlcHMYBSADKAsyJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va1N0ZXASFwoPcHJvbXB0X3RlbXBsYXRlGAYgASgJEj0KBnBhcmFtcxgHIAMoCzItLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rLlBhcmFtc0VudHJ5EhUKDXRodW1ibmFpbF9yZWYYCCABKAkSDwoHYnVpbHRpbhgJIAEoCBISCgpjcmVhdGVkX2F0GAogASgJEhIKCnVwZGF0ZWRfYXQYCyABKAkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJHChBMaXN0TG9va3NSZXF1ZXN0EjMKBGtpbmQYASABKA4yJS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9va0tpbmQiRQoRTGlzdExvb2tzUmVzcG9uc2USMAoFbG9va3MYASADKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayIcCg5HZXRMb29rUmVxdWVzdBIKCgJpZBgBIAEoCSJCCg9HZXRMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIkQKEUNyZWF0ZUxvb2tSZXF1ZXN0Ei8KBGxvb2sYASABKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayJFChJDcmVhdGVMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIkQKEVVwZGF0ZUxvb2tSZXF1ZXN0Ei8KBGxvb2sYASABKAsyIS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTG9vayJFChJVcGRhdGVMb29rUmVzcG9uc2USLwoEbG9vaxgBIAEoCzIhLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Mb29rIh8KEURlbGV0ZUxvb2tSZXF1ZXN0EgoKAmlkGAEgASgJIiUKEkRlbGV0ZUxvb2tSZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIlkKEkNvbXBpbGVMb29rUmVxdWVzdBIPCgdsb29rX2lkGAEgASgJEg8KB3N1YmplY3QYAiABKAkSDgoGcHJvbXB0GAMgASgJEhEKCWhhc19pbnB1dBgEIAEoCCLzAQoMQ29tcGlsZWRTdGVwEhEKCW9wZXJhdGlvbhgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLlN0ZXBLaW5kEkUKBnBhcmFtcxgDIAMoCzI1LnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Db21waWxlZFN0ZXAuUGFyYW1zRW50cnkSEAoIc2NlbmFyaW8YBCABKAkSEwoLb3V0cHV0X2tpbmQYBSABKAkaLQoLUGFyYW1zRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKoAQoTQ29tcGlsZUxvb2tSZXNwb25zZRI4CgVzdGVwcxgBIAMoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5Db21waWxlZFN0ZXASFgoOcHJpbWFyeV9wcm9tcHQYAiABKAkSFgoOcmVxdWlyZXNfaW1hZ2UYAyABKAgSFQoNcmVxdWlyZXNfbWFzaxgEIAEoCBIQCgh3YXJuaW5ncxgFIAMoCSInChRSZW5kZXJQcmV2aWV3UmVxdWVzdBIPCgdsb29rX2lkGAEgASgJIkYKFVJlbmRlclByZXZpZXdSZXNwb25zZRIVCg10aHVtYm5haWxfcmVmGAEgASgJEhYKDmRlZmVycmVkX3N0ZXBzGAIgAygJKpEBCghMb29rS2luZBIZChVMT09LX0tJTkRfVU5TUEVDSUZJRUQQABITCg9MT09LX0tJTkRfU1RZTEUQARISCg5MT09LX0tJTkRfRklMTRACEhQKEExPT0tfS0lORF9DQU1FUkEQAxIVChFMT09LX0tJTkRfRU5IQU5DRRAEEhQKEExPT0tfS0lORF9DVVNUT00QBSpUCghTdGVwS2luZBIZChVTVEVQX0tJTkRfVU5TUEVDSUZJRUQQABIbChdTVEVQX0tJTkRfREVURVJNSU5JU1RJQxABEhAKDFNURVBfS0lORF9BSRACMpcGCgxMb29rc1NlcnZpY2USagoJTGlzdExvb2tzEi0udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLkxpc3RMb29rc1JlcXVlc3QaLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuTGlzdExvb2tzUmVzcG9uc2USZAoHR2V0TG9vaxIrLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5HZXRMb29rUmVxdWVzdBosLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5HZXRMb29rUmVzcG9uc2USbQoKQ3JlYXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5DcmVhdGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5DcmVhdGVMb29rUmVzcG9uc2USbQoKVXBkYXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5VcGRhdGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5VcGRhdGVMb29rUmVzcG9uc2USbQoKRGVsZXRlTG9vaxIuLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5EZWxldGVMb29rUmVxdWVzdBovLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5EZWxldGVMb29rUmVzcG9uc2UScAoLQ29tcGlsZUxvb2sSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubG9va3MuQ29tcGlsZUxvb2tSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmxvb2tzLkNvbXBpbGVMb29rUmVzcG9uc2USdgoNUmVuZGVyUHJldmlldxIxLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5SZW5kZXJQcmV2aWV3UmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5sb29rcy5SZW5kZXJQcmV2aWV3UmVzcG9uc2VCTlpMZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9sb29rcztsb29rc192MWIGcHJvdG8z");
+
+/**
+ * StepInput binds one operation input port to a workflow source. It is how a
+ * chain is type-checked before anything runs: an empty list means "take the
+ * previous step's output / the workflow source", which is the historical
+ * behaviour and stays valid for image-only chains.
+ *
+ * @generated from message vrooli.image_tools.v1.looks.StepInput
+ */
+export type StepInput = Message<"vrooli.image_tools.v1.looks.StepInput"> & {
+  /**
+   * Input port name from the operation's capability manifest (e.g. "image").
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Source: "source" (the Look's input) or "previous" (default). Reserved for
+   * future explicit wiring; validation treats empty as the linear default.
+   *
+   * @generated from field: string from = 2;
+   */
+  from: string;
+
+  /**
+   * Expected port kind. Empty resolves from the manifest; a present value must
+   * match it (typo guard).
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.looks.StepInput.
+ * Use `create(StepInputSchema)` to create a new message.
+ */
+export const StepInputSchema: GenMessage<StepInput> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_looks_looks, 0);
 
 /**
  * LookStep is one stage of a Look's chain.
@@ -19,9 +59,8 @@ export const file_image_tools_v1_looks_looks: GenFile = /*@__PURE__*/
  */
 export type LookStep = Message<"vrooli.image_tools.v1.looks.LookStep"> & {
   /**
-   * Operation name: a deterministic op (e.g. "adjust", "filter", "naturalize"
-   * is treated as deterministic) or an AI op (e.g. "edit_instruct",
-   * "image_to_image"). Must exist in the corresponding catalog.
+   * Operation name: a deterministic op (internal/ops) or an AI op (internal/ai).
+   * Must exist in the corresponding catalog; validation rejects unknown names.
    *
    * @generated from field: string operation = 1;
    */
@@ -41,6 +80,31 @@ export type LookStep = Message<"vrooli.image_tools.v1.looks.LookStep"> & {
    * @generated from field: map<string, string> params = 3;
    */
   params: { [key: string]: string };
+
+  /**
+   * Owning scenario. Empty or "image-tools" runs here; any other value marks a
+   * cross-scenario step, which is not executable until the shared operation
+   * catalog lands (docs/concepts/COMPOSITION.md, phase C3) and is rejected with
+   * an actionable error rather than silently skipped.
+   *
+   * @generated from field: string scenario = 4;
+   */
+  scenario: string;
+
+  /**
+   * Optional explicit input wiring. Empty = linear (previous output/source).
+   *
+   * @generated from field: repeated vrooli.image_tools.v1.looks.StepInput inputs = 5;
+   */
+  inputs: StepInput[];
+
+  /**
+   * Optional declared output kind. Empty resolves from the manifest; a present
+   * value must match it (typo guard).
+   *
+   * @generated from field: string output_kind = 6;
+   */
+  outputKind: string;
 };
 
 /**
@@ -48,7 +112,7 @@ export type LookStep = Message<"vrooli.image_tools.v1.looks.LookStep"> & {
  * Use `create(LookStepSchema)` to create a new message.
  */
 export const LookStepSchema: GenMessage<LookStep> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 0);
+  messageDesc(file_image_tools_v1_looks_looks, 1);
 
 /**
  * Look is one library entry.
@@ -132,7 +196,7 @@ export type Look = Message<"vrooli.image_tools.v1.looks.Look"> & {
  * Use `create(LookSchema)` to create a new message.
  */
 export const LookSchema: GenMessage<Look> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 1);
+  messageDesc(file_image_tools_v1_looks_looks, 2);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.ListLooksRequest
@@ -151,7 +215,7 @@ export type ListLooksRequest = Message<"vrooli.image_tools.v1.looks.ListLooksReq
  * Use `create(ListLooksRequestSchema)` to create a new message.
  */
 export const ListLooksRequestSchema: GenMessage<ListLooksRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 2);
+  messageDesc(file_image_tools_v1_looks_looks, 3);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.ListLooksResponse
@@ -168,7 +232,7 @@ export type ListLooksResponse = Message<"vrooli.image_tools.v1.looks.ListLooksRe
  * Use `create(ListLooksResponseSchema)` to create a new message.
  */
 export const ListLooksResponseSchema: GenMessage<ListLooksResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 3);
+  messageDesc(file_image_tools_v1_looks_looks, 4);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.GetLookRequest
@@ -185,7 +249,7 @@ export type GetLookRequest = Message<"vrooli.image_tools.v1.looks.GetLookRequest
  * Use `create(GetLookRequestSchema)` to create a new message.
  */
 export const GetLookRequestSchema: GenMessage<GetLookRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 4);
+  messageDesc(file_image_tools_v1_looks_looks, 5);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.GetLookResponse
@@ -202,7 +266,7 @@ export type GetLookResponse = Message<"vrooli.image_tools.v1.looks.GetLookRespon
  * Use `create(GetLookResponseSchema)` to create a new message.
  */
 export const GetLookResponseSchema: GenMessage<GetLookResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 5);
+  messageDesc(file_image_tools_v1_looks_looks, 6);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.CreateLookRequest
@@ -222,7 +286,7 @@ export type CreateLookRequest = Message<"vrooli.image_tools.v1.looks.CreateLookR
  * Use `create(CreateLookRequestSchema)` to create a new message.
  */
 export const CreateLookRequestSchema: GenMessage<CreateLookRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 6);
+  messageDesc(file_image_tools_v1_looks_looks, 7);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.CreateLookResponse
@@ -239,7 +303,7 @@ export type CreateLookResponse = Message<"vrooli.image_tools.v1.looks.CreateLook
  * Use `create(CreateLookResponseSchema)` to create a new message.
  */
 export const CreateLookResponseSchema: GenMessage<CreateLookResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 7);
+  messageDesc(file_image_tools_v1_looks_looks, 8);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.UpdateLookRequest
@@ -256,7 +320,7 @@ export type UpdateLookRequest = Message<"vrooli.image_tools.v1.looks.UpdateLookR
  * Use `create(UpdateLookRequestSchema)` to create a new message.
  */
 export const UpdateLookRequestSchema: GenMessage<UpdateLookRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 8);
+  messageDesc(file_image_tools_v1_looks_looks, 9);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.UpdateLookResponse
@@ -273,7 +337,7 @@ export type UpdateLookResponse = Message<"vrooli.image_tools.v1.looks.UpdateLook
  * Use `create(UpdateLookResponseSchema)` to create a new message.
  */
 export const UpdateLookResponseSchema: GenMessage<UpdateLookResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 9);
+  messageDesc(file_image_tools_v1_looks_looks, 10);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.DeleteLookRequest
@@ -290,7 +354,7 @@ export type DeleteLookRequest = Message<"vrooli.image_tools.v1.looks.DeleteLookR
  * Use `create(DeleteLookRequestSchema)` to create a new message.
  */
 export const DeleteLookRequestSchema: GenMessage<DeleteLookRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 10);
+  messageDesc(file_image_tools_v1_looks_looks, 11);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.DeleteLookResponse
@@ -307,7 +371,7 @@ export type DeleteLookResponse = Message<"vrooli.image_tools.v1.looks.DeleteLook
  * Use `create(DeleteLookResponseSchema)` to create a new message.
  */
 export const DeleteLookResponseSchema: GenMessage<DeleteLookResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 11);
+  messageDesc(file_image_tools_v1_looks_looks, 12);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.CompileLookRequest
@@ -346,7 +410,7 @@ export type CompileLookRequest = Message<"vrooli.image_tools.v1.looks.CompileLoo
  * Use `create(CompileLookRequestSchema)` to create a new message.
  */
 export const CompileLookRequestSchema: GenMessage<CompileLookRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 12);
+  messageDesc(file_image_tools_v1_looks_looks, 13);
 
 /**
  * CompiledStep is one resolved, ready-to-submit stage.
@@ -370,6 +434,20 @@ export type CompiledStep = Message<"vrooli.image_tools.v1.looks.CompiledStep"> &
    * @generated from field: map<string, string> params = 3;
    */
   params: { [key: string]: string };
+
+  /**
+   * Owning scenario (empty or "image-tools" today).
+   *
+   * @generated from field: string scenario = 4;
+   */
+  scenario: string;
+
+  /**
+   * Resolved output port kind from the capability manifest (image/mask/text/…).
+   *
+   * @generated from field: string output_kind = 5;
+   */
+  outputKind: string;
 };
 
 /**
@@ -377,7 +455,7 @@ export type CompiledStep = Message<"vrooli.image_tools.v1.looks.CompiledStep"> &
  * Use `create(CompiledStepSchema)` to create a new message.
  */
 export const CompiledStepSchema: GenMessage<CompiledStep> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 13);
+  messageDesc(file_image_tools_v1_looks_looks, 14);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.CompileLookResponse
@@ -426,7 +504,7 @@ export type CompileLookResponse = Message<"vrooli.image_tools.v1.looks.CompileLo
  * Use `create(CompileLookResponseSchema)` to create a new message.
  */
 export const CompileLookResponseSchema: GenMessage<CompileLookResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 14);
+  messageDesc(file_image_tools_v1_looks_looks, 15);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.RenderPreviewRequest
@@ -443,7 +521,7 @@ export type RenderPreviewRequest = Message<"vrooli.image_tools.v1.looks.RenderPr
  * Use `create(RenderPreviewRequestSchema)` to create a new message.
  */
 export const RenderPreviewRequestSchema: GenMessage<RenderPreviewRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 15);
+  messageDesc(file_image_tools_v1_looks_looks, 16);
 
 /**
  * @generated from message vrooli.image_tools.v1.looks.RenderPreviewResponse
@@ -470,7 +548,7 @@ export type RenderPreviewResponse = Message<"vrooli.image_tools.v1.looks.RenderP
  * Use `create(RenderPreviewResponseSchema)` to create a new message.
  */
 export const RenderPreviewResponseSchema: GenMessage<RenderPreviewResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_looks_looks, 16);
+  messageDesc(file_image_tools_v1_looks_looks, 17);
 
 /**
  * LookKind groups Looks for the picker. The kind also hints whether a Look is

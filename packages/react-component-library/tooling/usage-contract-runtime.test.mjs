@@ -274,3 +274,34 @@ test("phone-specific item caps and child allowlists are enforced from their vers
     ),
   );
 });
+
+test("an optional primary count means at most N, not exactly N", () => {
+  const optionalPrimary = {
+    componentId: "react-component-library:DataTable",
+    version: "1.4.8",
+    collections: [
+      {
+        property: "rowActions",
+        primaryAction: "optional",
+        primaryField: "primary",
+        primaryCount: 1,
+      },
+    ],
+  };
+  assert.deepEqual(inspectUsageContract(optionalPrimary, { rowActions: [] }), []);
+  assert.deepEqual(
+    inspectUsageContract(optionalPrimary, {
+      rowActions: [{ id: "view", label: "View", primary: false }],
+    }),
+    [],
+  );
+  assert.deepEqual(
+    inspectUsageContract(optionalPrimary, {
+      rowActions: [
+        { id: "view", label: "View", primary: true },
+        { id: "edit", label: "Edit", primary: true },
+      ],
+    }).map(({ limit }) => limit),
+    ["primaryCount <= 1"],
+  );
+});

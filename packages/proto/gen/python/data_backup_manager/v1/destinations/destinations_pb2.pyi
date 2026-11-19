@@ -111,18 +111,20 @@ class Destination(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ..., encryption_algorithm: _Optional[str] = ..., secret_ref: _Optional[str] = ..., usage_bytes: _Optional[int] = ..., usage_state: _Optional[_Union[UsageState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repository_location: _Optional[str] = ..., device_identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., relative_path: _Optional[str] = ...) -> None: ...
 
 class CreateDestinationRequest(_message.Message):
-    __slots__ = ("name", "backend_kind", "location", "cap_bytes", "cap_policy")
+    __slots__ = ("name", "backend_kind", "location", "cap_bytes", "cap_policy", "acknowledge_unrepairable_filesystem")
     NAME_FIELD_NUMBER: _ClassVar[int]
     BACKEND_KIND_FIELD_NUMBER: _ClassVar[int]
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     CAP_BYTES_FIELD_NUMBER: _ClassVar[int]
     CAP_POLICY_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_UNREPAIRABLE_FILESYSTEM_FIELD_NUMBER: _ClassVar[int]
     name: str
     backend_kind: BackendKind
     location: str
     cap_bytes: int
     cap_policy: CapPolicy
-    def __init__(self, name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ...) -> None: ...
+    acknowledge_unrepairable_filesystem: bool
+    def __init__(self, name: _Optional[str] = ..., backend_kind: _Optional[_Union[BackendKind, str]] = ..., location: _Optional[str] = ..., cap_bytes: _Optional[int] = ..., cap_policy: _Optional[_Union[CapPolicy, str]] = ..., acknowledge_unrepairable_filesystem: _Optional[bool] = ...) -> None: ...
 
 class CreateDestinationResponse(_message.Message):
     __slots__ = ("destination",)

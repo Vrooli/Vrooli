@@ -14,7 +14,7 @@ prompt-manager graph operating-model coverage --team scenario-qa --id scenario-q
 
 The structural plan-of-record manifest should report no missing required files, no missing required headings, no missing package files, and no unregistered durable Markdown files under `docs/scenario-qa/`.
 
-The operating model should validate cleanly against the team graph, topic catalog, work catalog, runtime prompt sections, and plan-of-record registration.
+See the canonical [operating-model contract](../../agent-system/OPERATING_GRAPHS.md) for the checks enforced by the validation commands above.
 
 ## Enforcement Scope
 

@@ -136,6 +136,10 @@ flowchart LR
   UNATTENDEDSE[[unattended-self-improvement]]
   %% @node VEGAREDESIGN team:vega-redesign-delivery
   VEGAREDESIGN[[vega-redesign-delivery]]
+  %% @node LOCALINFEREN team:local-inference-maturity-delivery
+  LOCALINFEREN[[local-inference-maturity-delivery]]
+  %% @node LOCALINFEREN2 team:local-inference-maturity-supervision
+  LOCALINFEREN2[[local-inference-maturity-supervision]]
 
   OP --> QA
   RB --> BI
@@ -156,6 +160,8 @@ flowchart LR
   FLEETSTORAGE --> BUGINBOX
   INFRA --> BUGINBOX
   LANDINGPAGEV --> BUGINBOX
+  LOCALINFEREN --> BUGINBOX
+  LOCALINFEREN2 --> BUGINBOX
   MKT --> BUGINBOX
   MARKETINGI16 --> BUGINBOX
   META_IN --> BUGINBOX

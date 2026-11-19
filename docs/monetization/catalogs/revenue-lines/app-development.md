@@ -23,7 +23,7 @@ Among all services lines, this has the worst scope-creep-to-revenue ratio:
 
 ## Activation discipline (from REVENUE_LINES.md)
 
-On promotion to `active`, this line must have all four:
+Apply the [shared services-line standing discipline](README.md#standing-discipline-applies-to-all-services-based-lines) with these line-specific values:
 
 1. **Validation hypothesis** — which specific Vrooli capability does this engagement prove? "We can build apps" is not a hypothesis; "Vrooli's generate-apps flow produces production-quality X in N days" is.
 2. **Fixed-duration pilot** — fixed-scope build with hard cutoff, not ongoing retainer.

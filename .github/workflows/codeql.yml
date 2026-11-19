@@ -28,11 +28,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Read pinned Node version
+        id: node-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/node/tool.json)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
-          node-version: "18"
-          cache: "pnpm"
+          node-version: ${{ steps.node-version.outputs.value }}
+
+      - name: Read pinned pnpm version
+        id: pnpm-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/pnpm/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Enable pnpm
+        shell: bash
+        run: corepack enable && corepack prepare pnpm@${{ steps.pnpm-version.outputs.value }} --activate
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile # Install dependencies for all workspaces

@@ -31,8 +31,17 @@ STEP_KIND_UNSPECIFIED: StepKind
 STEP_KIND_DETERMINISTIC: StepKind
 STEP_KIND_AI: StepKind
 
+class StepInput(_message.Message):
+    __slots__ = ("name", "kind")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    FROM_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    kind: str
+    def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., **kwargs) -> None: ...
+
 class LookStep(_message.Message):
-    __slots__ = ("operation", "kind", "params")
+    __slots__ = ("operation", "kind", "params", "scenario", "inputs", "output_kind")
     class ParamsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -43,10 +52,16 @@ class LookStep(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_KIND_FIELD_NUMBER: _ClassVar[int]
     operation: str
     kind: StepKind
     params: _containers.ScalarMap[str, str]
-    def __init__(self, operation: _Optional[str] = ..., kind: _Optional[_Union[StepKind, str]] = ..., params: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    scenario: str
+    inputs: _containers.RepeatedCompositeFieldContainer[StepInput]
+    output_kind: str
+    def __init__(self, operation: _Optional[str] = ..., kind: _Optional[_Union[StepKind, str]] = ..., params: _Optional[_Mapping[str, str]] = ..., scenario: _Optional[str] = ..., inputs: _Optional[_Iterable[_Union[StepInput, _Mapping]]] = ..., output_kind: _Optional[str] = ...) -> None: ...
 
 class Look(_message.Message):
     __slots__ = ("id", "name", "description", "kind", "steps", "prompt_template", "params", "thumbnail_ref", "builtin", "created_at", "updated_at")
@@ -154,7 +169,7 @@ class CompileLookRequest(_message.Message):
     def __init__(self, look_id: _Optional[str] = ..., subject: _Optional[str] = ..., prompt: _Optional[str] = ..., has_input: _Optional[bool] = ...) -> None: ...
 
 class CompiledStep(_message.Message):
-    __slots__ = ("operation", "kind", "params")
+    __slots__ = ("operation", "kind", "params", "scenario", "output_kind")
     class ParamsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -165,10 +180,14 @@ class CompiledStep(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     PARAMS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_KIND_FIELD_NUMBER: _ClassVar[int]
     operation: str
     kind: StepKind
     params: _containers.ScalarMap[str, str]
-    def __init__(self, operation: _Optional[str] = ..., kind: _Optional[_Union[StepKind, str]] = ..., params: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    scenario: str
+    output_kind: str
+    def __init__(self, operation: _Optional[str] = ..., kind: _Optional[_Union[StepKind, str]] = ..., params: _Optional[_Mapping[str, str]] = ..., scenario: _Optional[str] = ..., output_kind: _Optional[str] = ...) -> None: ...
 
 class CompileLookResponse(_message.Message):
     __slots__ = ("steps", "primary_prompt", "requires_image", "requires_mask", "warnings")

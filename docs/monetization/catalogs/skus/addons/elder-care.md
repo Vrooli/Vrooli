@@ -21,7 +21,7 @@ Candidate capabilities:
 
 ## Promotion constraints
 
-1. The lifestyle bundle must be active before this add-on can be promoted.
+1. Follow the [lifestyle add-on activation prerequisite](../base/lifestyle.md#candidate-add-ons-parented-to-this-bundle).
 2. Elder-care has meaningful regulatory surface (HIPAA in the US if any clinical integration, state-level licensing for adjacent services, consent-and-capacity considerations).
 3. The emotional/trust bar is extremely high — software that drops a medication reminder is worse than no software. This add-on should not activate until the underlying Vrooli runtime has proven reliability with lower-stakes scenarios.
 

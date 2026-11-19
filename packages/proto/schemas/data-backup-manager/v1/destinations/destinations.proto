@@ -159,6 +159,11 @@ message CreateDestinationRequest {
   int64 cap_bytes = 4 [(buf.validate.field).int64.gte = 0];
   // Optional; defaults to CAP_POLICY_ALERT_BLOCK when unspecified.
   CapPolicy cap_policy = 5;
+  // Admit a filesystem this host has no metadata repair tool for (for example
+  // NTFS on Linux). Without it, creation is refused: a destination on such a
+  // filesystem cannot be made whole again after an unsafe shutdown, so adding
+  // one silently would create a drive that is safe until the first crash.
+  bool acknowledge_unrepairable_filesystem = 6;
 }
 
 message CreateDestinationResponse {

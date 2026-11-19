@@ -826,12 +826,24 @@ type RegisteredTarget struct {
 	Destinations               []*TargetDestinationStatus `protobuf:"bytes,15,rep,name=destinations,proto3" json:"destinations,omitempty"`
 	AllDestinationsBackedUp    bool                       `protobuf:"varint,16,opt,name=all_destinations_backed_up,json=allDestinationsBackedUp,proto3" json:"all_destinations_backed_up,omitempty"`
 	AllDestinationsVerified    bool                       `protobuf:"varint,17,opt,name=all_destinations_verified,json=allDestinationsVerified,proto3" json:"all_destinations_verified,omitempty"`
-	// True only when observed host/device topology proves these destinations
-	// are independent failure domains.
+	// Deprecated: device-graduated protection is reported by protection_level.
+	// Host-level failure-domain independence is a stronger, separately proven
+	// claim and is never inferred from a backend name or URL.
+	//
+	// Deprecated: Marked as deprecated in data-backup-manager/v1/coverage/coverage.proto.
 	PhysicalIndependenceProven bool     `protobuf:"varint,18,opt,name=physical_independence_proven,json=physicalIndependenceProven,proto3" json:"physical_independence_proven,omitempty"`
 	IndependenceWarnings       []string `protobuf:"bytes,19,rep,name=independence_warnings,json=independenceWarnings,proto3" json:"independence_warnings,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Device-graduated protection verdict: "multi_device" (two or more distinct
+	// storage devices hold a successful copy — protected), "single_copy" (one
+	// device — a warning, not a failure), "unprotected" (no successful copy),
+	// or "identity_unknown" (a copy exists but its device identity is not proven).
+	// Consumers must render this instead of re-deriving protection.
+	ProtectionLevel string `protobuf:"bytes,20,opt,name=protection_level,json=protectionLevel,proto3" json:"protection_level,omitempty"`
+	// Number of distinct storage devices holding a successful copy. Separate
+	// drives on one host count; off-host placement is a stronger, separate level.
+	ProtectionDeviceCount int32 `protobuf:"varint,21,opt,name=protection_device_count,json=protectionDeviceCount,proto3" json:"protection_device_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RegisteredTarget) Reset() {
@@ -983,6 +995,7 @@ func (x *RegisteredTarget) GetAllDestinationsVerified() bool {
 	return false
 }
 
+// Deprecated: Marked as deprecated in data-backup-manager/v1/coverage/coverage.proto.
 func (x *RegisteredTarget) GetPhysicalIndependenceProven() bool {
 	if x != nil {
 		return x.PhysicalIndependenceProven
@@ -995,6 +1008,20 @@ func (x *RegisteredTarget) GetIndependenceWarnings() []string {
 		return x.IndependenceWarnings
 	}
 	return nil
+}
+
+func (x *RegisteredTarget) GetProtectionLevel() string {
+	if x != nil {
+		return x.ProtectionLevel
+	}
+	return ""
+}
+
+func (x *RegisteredTarget) GetProtectionDeviceCount() int32 {
+	if x != nil {
+		return x.ProtectionDeviceCount
+	}
+	return 0
 }
 
 type TargetDestinationStatus struct {
@@ -1281,13 +1308,22 @@ type CoverageSummary struct {
 	// Targets with every configured destination verified by a scratch restore.
 	AllDestinationVerifiedCount int32 `protobuf:"varint,13,opt,name=all_destination_verified_count,json=allDestinationVerifiedCount,proto3" json:"all_destination_verified_count,omitempty"`
 	// Targets bound to two or more currently enabled destinations; this count
-	// does not imply physical independence, which requires topology evidence.
+	// is not protection: two destinations on one drive are still one copy.
 	MultiDestinationTargetCount int32 `protobuf:"varint,14,opt,name=multi_destination_target_count,json=multiDestinationTargetCount,proto3" json:"multi_destination_target_count,omitempty"`
-	// Targets with two or more currently enabled destinations whose observed
-	// topology proves physical independence.
+	// Deprecated: superseded by protected_target_count, which counts distinct
+	// storage devices rather than inferred host independence.
+	//
+	// Deprecated: Marked as deprecated in data-backup-manager/v1/coverage/coverage.proto.
 	PhysicallyIndependentTargetCount int32 `protobuf:"varint,15,opt,name=physically_independent_target_count,json=physicallyIndependentTargetCount,proto3" json:"physically_independent_target_count,omitempty"`
-	unknownFields                    protoimpl.UnknownFields
-	sizeCache                        protoimpl.SizeCache
+	// Protection breakdown by distinct storage device. Protected is the only
+	// state that claims drive-loss safety; a single copy is a warning; no
+	// successful copy is the issue.
+	ProtectedTargetCount       int32 `protobuf:"varint,16,opt,name=protected_target_count,json=protectedTargetCount,proto3" json:"protected_target_count,omitempty"`
+	SingleCopyTargetCount      int32 `protobuf:"varint,17,opt,name=single_copy_target_count,json=singleCopyTargetCount,proto3" json:"single_copy_target_count,omitempty"`
+	UnprotectedTargetCount     int32 `protobuf:"varint,18,opt,name=unprotected_target_count,json=unprotectedTargetCount,proto3" json:"unprotected_target_count,omitempty"`
+	IdentityUnknownTargetCount int32 `protobuf:"varint,19,opt,name=identity_unknown_target_count,json=identityUnknownTargetCount,proto3" json:"identity_unknown_target_count,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *CoverageSummary) Reset() {
@@ -1418,9 +1454,38 @@ func (x *CoverageSummary) GetMultiDestinationTargetCount() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in data-backup-manager/v1/coverage/coverage.proto.
 func (x *CoverageSummary) GetPhysicallyIndependentTargetCount() int32 {
 	if x != nil {
 		return x.PhysicallyIndependentTargetCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetProtectedTargetCount() int32 {
+	if x != nil {
+		return x.ProtectedTargetCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetSingleCopyTargetCount() int32 {
+	if x != nil {
+		return x.SingleCopyTargetCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetUnprotectedTargetCount() int32 {
+	if x != nil {
+		return x.UnprotectedTargetCount
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetIdentityUnknownTargetCount() int32 {
+	if x != nil {
+		return x.IdentityUnknownTargetCount
 	}
 	return 0
 }
@@ -2065,7 +2130,7 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\vexcluded_by\x18\x04 \x01(\tR\n" +
 	"excludedBy\"q\n" +
 	"\x1eExcludeSensitiveTargetResponse\x12O\n" +
-	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\"\xdd\a\n" +
+	"\x06policy\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.SensitivePolicyR\x06policy\"\xc4\b\n" +
 	"\x10RegisteredTarget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -2085,9 +2150,11 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x19reacquisition_auth_reason\x18\x0e \x01(\tR\x17reacquisitionAuthReason\x12c\n" +
 	"\fdestinations\x18\x0f \x03(\v2?.vrooli.data_backup_manager.v1.coverage.TargetDestinationStatusR\fdestinations\x12;\n" +
 	"\x1aall_destinations_backed_up\x18\x10 \x01(\bR\x17allDestinationsBackedUp\x12:\n" +
-	"\x19all_destinations_verified\x18\x11 \x01(\bR\x17allDestinationsVerified\x12@\n" +
-	"\x1cphysical_independence_proven\x18\x12 \x01(\bR\x1aphysicalIndependenceProven\x123\n" +
-	"\x15independence_warnings\x18\x13 \x03(\tR\x14independenceWarnings\"\xca\x01\n" +
+	"\x19all_destinations_verified\x18\x11 \x01(\bR\x17allDestinationsVerified\x12D\n" +
+	"\x1cphysical_independence_proven\x18\x12 \x01(\bB\x02\x18\x01R\x1aphysicalIndependenceProven\x123\n" +
+	"\x15independence_warnings\x18\x13 \x03(\tR\x14independenceWarnings\x12)\n" +
+	"\x10protection_level\x18\x14 \x01(\tR\x0fprotectionLevel\x126\n" +
+	"\x17protection_device_count\x18\x15 \x01(\x05R\x15protectionDeviceCount\"\xca\x01\n" +
 	"\x17TargetDestinationStatus\x12%\n" +
 	"\x0edestination_id\x18\x01 \x01(\tR\rdestinationId\x12B\n" +
 	"\x0flast_success_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12D\n" +
@@ -2112,7 +2179,7 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x15reacquisition_command\x18\x0f \x01(\tR\x14reacquisitionCommand\x125\n" +
 	"\x16reacquisition_evidence\x18\x10 \x01(\tR\x15reacquisitionEvidence\x12@\n" +
 	"\x1creacquisition_needs_operator\x18\x11 \x01(\bR\x1areacquisitionNeedsOperator\x12:\n" +
-	"\x19reacquisition_auth_reason\x18\x12 \x01(\tR\x17reacquisitionAuthReason\"\xd0\x06\n" +
+	"\x19reacquisition_auth_reason\x18\x12 \x01(\tR\x17reacquisitionAuthReason\"\xc0\b\n" +
 	"\x0fCoverageSummary\x12)\n" +
 	"\x10registered_count\x18\x01 \x01(\x05R\x0fregisteredCount\x12+\n" +
 	"\x11recommended_count\x18\x02 \x01(\x05R\x10recommendedCount\x12'\n" +
@@ -2128,8 +2195,12 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x16destination_copy_count\x18\v \x01(\x05R\x14destinationCopyCount\x12D\n" +
 	"\x1fall_destination_backed_up_count\x18\f \x01(\x05R\x1ballDestinationBackedUpCount\x12C\n" +
 	"\x1eall_destination_verified_count\x18\r \x01(\x05R\x1ballDestinationVerifiedCount\x12C\n" +
-	"\x1emulti_destination_target_count\x18\x0e \x01(\x05R\x1bmultiDestinationTargetCount\x12M\n" +
-	"#physically_independent_target_count\x18\x0f \x01(\x05R physicallyIndependentTargetCount\"\x88\x04\n" +
+	"\x1emulti_destination_target_count\x18\x0e \x01(\x05R\x1bmultiDestinationTargetCount\x12Q\n" +
+	"#physically_independent_target_count\x18\x0f \x01(\x05B\x02\x18\x01R physicallyIndependentTargetCount\x124\n" +
+	"\x16protected_target_count\x18\x10 \x01(\x05R\x14protectedTargetCount\x127\n" +
+	"\x18single_copy_target_count\x18\x11 \x01(\x05R\x15singleCopyTargetCount\x128\n" +
+	"\x18unprotected_target_count\x18\x12 \x01(\x05R\x16unprotectedTargetCount\x12A\n" +
+	"\x1didentity_unknown_target_count\x18\x13 \x01(\x05R\x1aidentityUnknownTargetCount\"\x88\x04\n" +
 	"\x0eCoverageReport\x12Q\n" +
 	"\asummary\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.coverage.CoverageSummaryR\asummary\x12g\n" +
 	"\x12registered_targets\x18\x02 \x03(\v28.vrooli.data_backup_manager.v1.coverage.RegisteredTargetR\x11registeredTargets\x12h\n" +

@@ -416,6 +416,19 @@
           "type": "boolean",
           "default": false,
           "description": "Recommended default for the auto-heal toggle in onboarding. Operators can override per-install via operator-state.json. Typically true for long_running scenarios that are part of system operation; false for user applications the operator may prefer to start manually."
+        },
+        "node": {
+          "type": "object",
+          "description": "Optional scenario-specific Node.js runtime for lifecycle-managed JavaScript work. The exact release must exist in Vrooli's checksum-pinned runtime catalog; absent means use the host development default.",
+          "additionalProperties": false,
+          "required": ["version"],
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$",
+              "description": "Exact supported Node.js release, without a leading v."
+            }
+          }
         }
       }
     },

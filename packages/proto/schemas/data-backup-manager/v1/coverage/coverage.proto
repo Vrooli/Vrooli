@@ -176,10 +176,20 @@ message RegisteredTarget {
   repeated TargetDestinationStatus destinations = 15;
   bool all_destinations_backed_up = 16;
   bool all_destinations_verified = 17;
-  // True only when observed host/device topology proves these destinations
-  // are independent failure domains.
-  bool physical_independence_proven = 18;
+  // Deprecated: device-graduated protection is reported by protection_level.
+  // Host-level failure-domain independence is a stronger, separately proven
+  // claim and is never inferred from a backend name or URL.
+  bool physical_independence_proven = 18 [deprecated = true];
   repeated string independence_warnings = 19;
+  // Device-graduated protection verdict: "multi_device" (two or more distinct
+  // storage devices hold a successful copy — protected), "single_copy" (one
+  // device — a warning, not a failure), "unprotected" (no successful copy),
+  // or "identity_unknown" (a copy exists but its device identity is not proven).
+  // Consumers must render this instead of re-deriving protection.
+  string protection_level = 20;
+  // Number of distinct storage devices holding a successful copy. Separate
+  // drives on one host count; off-host placement is a stronger, separate level.
+  int32 protection_device_count = 21;
 }
 
 message TargetDestinationStatus {
@@ -252,11 +262,18 @@ message CoverageSummary {
   // Targets with every configured destination verified by a scratch restore.
   int32 all_destination_verified_count = 13;
   // Targets bound to two or more currently enabled destinations; this count
-  // does not imply physical independence, which requires topology evidence.
+  // is not protection: two destinations on one drive are still one copy.
   int32 multi_destination_target_count = 14;
-  // Targets with two or more currently enabled destinations whose observed
-  // topology proves physical independence.
-  int32 physically_independent_target_count = 15;
+  // Deprecated: superseded by protected_target_count, which counts distinct
+  // storage devices rather than inferred host independence.
+  int32 physically_independent_target_count = 15 [deprecated = true];
+  // Protection breakdown by distinct storage device. Protected is the only
+  // state that claims drive-loss safety; a single copy is a warning; no
+  // successful copy is the issue.
+  int32 protected_target_count = 16;
+  int32 single_copy_target_count = 17;
+  int32 unprotected_target_count = 18;
+  int32 identity_unknown_target_count = 19;
 }
 
 // CoverageReport is the full first-backup-readiness picture, derived live.

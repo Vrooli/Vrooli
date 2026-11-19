@@ -1,19 +1,22 @@
 # Scenario QA Readiness Checks — Plan of Record
 
-This folder is the **strategic canon** for readiness-dimension checks. One paired doc + skill per check, once entries exist.
+This folder is the **strategic canon** for readiness-dimension checks. Each active check has one paired reasoning document and procedure skill.
 
-> **Pre-emptive readiness ordering lives in swarm-manager now.** A former QA member ran these reviews on idle scenarios and filed fix items ahead of feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature`) plus optional policy-governed maintenance intake through the backlog auto-filer (`auto_filer`). This registry remains the home for *individual readiness-check techniques* should they graduate into Vrooli skills; it no longer belongs to a specific QA member.
+> **Pre-emptive readiness ordering lives in swarm-manager now.** A former QA member ran these reviews on idle scenarios and filed fix items ahead of feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature`) plus optional policy-governed maintenance intake through the backlog auto-filer (`auto_filer`). This registry remains the home for *individual readiness-check techniques* used by deployment readiness; it no longer belongs to a specific QA member.
 
-These docs would answer: *what is this readiness check, when does it apply, when does it backfire, what's the failure mode the qa-contrarian watches for?*
+These docs answer: *what is this readiness check, when does it apply, when does it backfire, what's the failure mode the qa-contrarian watches for?*
 
-They would **not** answer: *step-by-step procedure for applying it.* That belongs in the paired skill.
+They do **not** answer: *step-by-step procedure for applying it.* That belongs in the paired skill.
 
 ## Status: v1
 
-This registry contains the readiness-check canon used by deployment-manager's
-deployment-time aggregator. Each check has a paired reasoning document and
-procedure skill. The checklist is declarative; adding a check does not require
-a schema or Test Genie phase change.
+This registry contains the reasoning canon used by Deployment Manager's
+deployment-time aggregator. Deployment Manager owns the declarative checklist
+and JSON Schema in `scenarios/deployment-manager/api/readiness/`; its Go loader
+embeds and validates that policy. Evidence producers retain ownership of their
+measurements, and paired Prompt Manager skills own procedures. Adding a checklist
+item that fits the existing schema does not itself add a Test Genie phase; a new
+producer route still needs owner wiring and validation.
 
 The registry's shape — paired doc + skill per check — mirrors the `methods/investigation/` and `methods/audit/` siblings. The v1 entries are the canonical reasoning layer for the deployment-manager checklist; procedures live in the paired prompt-manager skills.
 
@@ -37,13 +40,23 @@ The same mandatory rule applies (mirrored from [`docs/marketing/catalogs/post-ty
 
 The canon coherence test at `scenarios/prompt-manager/test/agent_system_canon_test.sh` enforces pairing across all three registries via a shared `{registryDir, skillTag}` pair table; this readiness registry plugs in by appending one entry to that table once the first paired entry exists.
 
+## Shared evidence and failure requirements
+
+Apply each check to a scenario and commit being prepared for sale. Use declared
+evidence anchored to an attributable run or artifact. Do not infer a pass from a
+declaration alone, reuse evidence for another commit, or treat an unavailable
+producer as a pass. For a failure, record the mismatch, source, run identifier,
+timestamp and exact checklist item; unanchored observations remain unknown until
+directly evidenced. The authoritative policy is
+[`readiness-policy.json`](../../../../scenarios/deployment-manager/api/readiness/readiness-policy.json).
+
 ## Lifecycle (applies when entries exist)
 
 Each check has a status:
 
 - **v0** — Strategic canon documented, not yet active. PoR doc exists; paired skill missing or incomplete; consumers must not include it.
 - **v1** — Active. Three activation requirements:
-  1. Skill is authored at `path:scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
+  1. Skill is authored at `scenarios/prompt-manager/store/skills/packs/core/<slug>/`.
   2. Skill cites this check's PoR doc as required reading.
   3. PoR doc Status line bumped to `v1`.
 

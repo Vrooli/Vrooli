@@ -259,10 +259,20 @@ function itemViolations(contract, props) {
       const primaryCount = value.filter(
         (item) => isRecord(item) && item[rule.primaryField] === true,
       ).length;
-      if (primaryCount !== rule.primaryCount) {
+      // `primaryAction: "optional"` means at most N, matching the action-slot
+      // evaluator. Only a required primary asserts an exact count. Treating
+      // "optional" as exact flagged every zero-primary collection.
+      const violates =
+        rule.primaryAction === "optional"
+          ? primaryCount > rule.primaryCount
+          : primaryCount !== rule.primaryCount;
+      if (violates) {
         violations.push({
           field: `${field}.${rule.primaryField}`,
-          limit: `primaryCount = ${rule.primaryCount}`,
+          limit:
+            rule.primaryAction === "optional"
+              ? `primaryCount <= ${rule.primaryCount}`
+              : `primaryCount = ${rule.primaryCount}`,
           actual: primaryCount,
         });
       }

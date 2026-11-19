@@ -47,7 +47,11 @@ service OpsService {
 message OperationInfo {
   // Canonical operation name (e.g. "resize"); the {operation} path segment.
   string name = 1;
-  // Grouping for UIs: geometry, color, format, compose, metadata.
+  // Application family: generate | edit | enhance | restore | extract |
+  // compose. The in-process table owns execution only; this comes from the
+  // operation's capability manifest, the single declaration of record.
+  //
+  // The field keeps its original name for wire compatibility.
   string category = 2;
   // One-line human summary.
   string summary = 3;
@@ -107,6 +111,8 @@ message OpParams {
     VectorizeParams vectorize = 35;
     IconContainerParams icon_container = 36;
     ParallaxParams parallax = 37;
+    CannyParams canny = 38;
+    ScreenshotCleanupParams screenshot_cleanup = 39;
   }
 
   // Space no colour operation may print into, whichever one is selected above.
@@ -536,6 +542,35 @@ message DisplacementParams {
   double spacing_rel = 4;
   // amplitude_rel is the peak displacement as a fraction of the short edge.
   double amplitude_rel = 5;
+}
+
+// CannyParams produces a deterministic edge map, the ControlNet "canny"
+// preprocessor: grayscale, optional Gaussian smoothing, then Sobel magnitude
+// with hysteresis. It is the one geometric preprocessor that needs no weights,
+// so a caller can build conditioning inputs with no model download.
+message CannyParams {
+  // Gaussian smoothing sigma applied before the gradient (0 = none).
+  double amount = 1;
+  // Hysteresis bounds on the 0..255-normalized gradient magnitude; 0 takes the
+  // defaults (50 / 150).
+  double low_threshold = 2;
+  double high_threshold = 3;
+}
+
+// ScreenshotCleanupParams trims the uniform bands a screenshot carries around
+// its subject — window chrome, the frame a picture was embedded in, and
+// letterbox bars. Anything printed ON the picture needs a masked edit; this is
+// the surrounding band only.
+message ScreenshotCleanupParams {
+  // Per-channel match tolerance as a fraction of full scale (0 = 0.04). Raise
+  // it for banded or slightly gradient chrome.
+  double tolerance = 1;
+  // Per-side safety ceiling as a fraction of the dimension (0 = 0.25, max 0.45).
+  // A photograph whose subject touches the edge can present a flat row (clear
+  // sky, white wall) that is content, so the trim is bounded.
+  double max_trim_percent = 2;
+  // Margin kept (or restored) around the detected content, in pixels.
+  int32 padding_px = 3;
 }
 
 // RasterizeParams renders an SVG at an exact pixel size. background, when set,

@@ -324,6 +324,12 @@
         "lease_check": { "type": "string", "enum": ["none", "open_handle", "lease_file", "model_pin", "owner"] },
         "platforms": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "enum": ["linux", "macos", "windows"] } },
         "tool_prune_command": { "type": "array", "items": { "type": "string" } },
+        "owner_reclaim_command": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Owner-reclaim/v1 command prefix. Storage Manager appends `plan --cache <root> --json` and `reclaim --cache <root> --token <token> --max-bytes <n> [--time-budget <d>] --json`; the owner proves what is unused, binds its plan to the store, and enforces its own budget. Requires tier safe_with_owner and excludes tool_prune_command."
+        },
         "proof": {
           "type": "object",
           "additionalProperties": false,
@@ -342,6 +348,13 @@
         {
           "if": { "properties": { "tier": { "const": "regenerable" } } },
           "then": { "required": ["proof"] }
+        },
+        {
+          "if": { "required": ["owner_reclaim_command"] },
+          "then": {
+            "properties": { "tier": { "const": "safe_with_owner" } },
+            "not": { "required": ["tool_prune_command"] }
+          }
         }
       ]
     },
@@ -522,6 +535,17 @@
               "pattern": "^/api/",
               "description": "Owner API path storage-manager POSTs {\"dry_run\":false} to when this non-regenerable entry stays over budget. The owner reclaims; storage-manager never deletes non-regenerable data."
             }
+          }
+        },
+        "reacquisition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "evidence"],
+          "properties": {
+            "command": {"type": "string", "minLength": 1, "description": "Owner command that reacquires this exact artifact; it is informational and is never run by coverage discovery."},
+            "evidence": {"type": "string", "minLength": 1, "description": "Owner-maintained artifact lock or acquisition manifest that pins the reacquired inputs."},
+            "requires_authorization": {"type": "boolean", "description": "Whether provider, license or operator authorization can be required before reacquisition."},
+            "authorization_rationale": {"type": "string", "minLength": 1, "description": "Why authorization may be required and the owner route that obtains it."}
           }
         },
         "budget": {

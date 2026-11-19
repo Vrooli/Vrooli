@@ -505,9 +505,14 @@ type CreateDestinationRequest struct {
 	Location    string                 `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	CapBytes    int64                  `protobuf:"varint,4,opt,name=cap_bytes,json=capBytes,proto3" json:"cap_bytes,omitempty"`
 	// Optional; defaults to CAP_POLICY_ALERT_BLOCK when unspecified.
-	CapPolicy     CapPolicy `protobuf:"varint,5,opt,name=cap_policy,json=capPolicy,proto3,enum=vrooli.data_backup_manager.v1.destinations.CapPolicy" json:"cap_policy,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CapPolicy CapPolicy `protobuf:"varint,5,opt,name=cap_policy,json=capPolicy,proto3,enum=vrooli.data_backup_manager.v1.destinations.CapPolicy" json:"cap_policy,omitempty"`
+	// Admit a filesystem this host has no metadata repair tool for (for example
+	// NTFS on Linux). Without it, creation is refused: a destination on such a
+	// filesystem cannot be made whole again after an unsafe shutdown, so adding
+	// one silently would create a drive that is safe until the first crash.
+	AcknowledgeUnrepairableFilesystem bool `protobuf:"varint,6,opt,name=acknowledge_unrepairable_filesystem,json=acknowledgeUnrepairableFilesystem,proto3" json:"acknowledge_unrepairable_filesystem,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *CreateDestinationRequest) Reset() {
@@ -573,6 +578,13 @@ func (x *CreateDestinationRequest) GetCapPolicy() CapPolicy {
 		return x.CapPolicy
 	}
 	return CapPolicy_CAP_POLICY_UNSPECIFIED
+}
+
+func (x *CreateDestinationRequest) GetAcknowledgeUnrepairableFilesystem() bool {
+	if x != nil {
+		return x.AcknowledgeUnrepairableFilesystem
+	}
+	return false
 }
 
 type CreateDestinationResponse struct {
@@ -2913,7 +2925,7 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12/\n" +
 	"\x13repository_location\x18\r \x01(\tR\x12repositoryLocation\x12n\n" +
 	"\x0fdevice_identity\x18\x0e \x01(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentityR\x0edeviceIdentity\x12#\n" +
-	"\rrelative_path\x18\x0f \x01(\tR\frelativePath\"\xc0\x02\n" +
+	"\rrelative_path\x18\x0f \x01(\tR\frelativePath\"\x90\x03\n" +
 	"\x18CreateDestinationRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12f\n" +
 	"\fbackend_kind\x18\x02 \x01(\x0e27.vrooli.data_backup_manager.v1.destinations.BackendKindB\n" +
@@ -2921,7 +2933,8 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\blocation\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12$\n" +
 	"\tcap_bytes\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bcapBytes\x12T\n" +
 	"\n" +
-	"cap_policy\x18\x05 \x01(\x0e25.vrooli.data_backup_manager.v1.destinations.CapPolicyR\tcapPolicy\"v\n" +
+	"cap_policy\x18\x05 \x01(\x0e25.vrooli.data_backup_manager.v1.destinations.CapPolicyR\tcapPolicy\x12N\n" +
+	"#acknowledge_unrepairable_filesystem\x18\x06 \x01(\bR!acknowledgeUnrepairableFilesystem\"v\n" +
 	"\x19CreateDestinationResponse\x12Y\n" +
 	"\vdestination\x18\x01 \x01(\v27.vrooli.data_backup_manager.v1.destinations.DestinationR\vdestination\"\xd4\x03\n" +
 	" ImportExistingDestinationRequest\x12.\n" +

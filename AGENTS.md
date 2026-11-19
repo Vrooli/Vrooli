@@ -63,8 +63,9 @@ recurring friction should move downward and simplify the layers above.
 5. **Bug reports & work logging**: Unless the active workflow explicitly owns these operations,
    defect outside your scope → `prompt-manager skill read report-bug` (a skill, not a shell
    command) and file to scenario-qa. Completed non-trivial work → `vrooli-memory journal note
-   --kind work-record` with trigger, approach, evidence, and outcome (the write side of the
-   learning loop).
+   --kind work-record` with a brief searchable body plus trigger, approach, evidence, and
+   outcome (the write side of the learning loop). The body is required separately from
+   those fields; use `--body-file` for multiline or shell-sensitive prose.
 6. **Recall → Reuse → Capture**:
    - **Recall prior work** — before non-trivial investigation or implementation,
      run `search-hub query "<intent>" --type library,record,skill,doc`; use §1's fallback if needed.
@@ -74,9 +75,12 @@ recurring friction should move downward and simplify the layers above.
      Read `prompt-manager skill read program-runtime` when unfamiliar.
    - **Capture** — reusable win → `prompt-manager action create …`; messy/partial →
      `swarm-manager captures create …`.
-   - **Delegate cheaply** — give every sub-agent the cheapest agent definition or role that fits
-     (`.claude/agents/`; Codex Luna roles for read-only work) and a fresh worker per outcome;
-     detail in `harness-goal-authoring`.
+   - **Delegate by outcome** — match each sub-agent's role and lifetime to its outcome: cheap
+     lookup roles (`.claude/agents/` `lookup`; Codex Luna read-only roles) for retrieval, and
+     an implementation-capable owner that keeps one coherent outcome for as long as it takes,
+     often hours. Brief it fresh from the charter (`fork_turns=none`) with the destination and
+     stance verbatim, and say when it should spawn its own workers. Detail in
+     `harness-goal-authoring` §5.
 7. **Dependencies**: ALL dependency work flows through **Scenario Dependency Analyzer** —
    never hand-edit `.vrooli/dependencies/approved-dependencies.json` or run a raw package
    manager (`pnpm add`, `go get`, `npm install`, `pip install`). Use
@@ -86,7 +90,16 @@ recurring friction should move downward and simplify the layers above.
    use a plan or adaptive mandate when the work needs one. For a goal or delegated
    handoff, use `harness-goal-authoring`; long delivery across epochs uses
    `large-effort-orchestration`. Update target docs when the design needs a durable
-   source, rather than repeating it in the goal.
+   source, rather than repeating it in the goal. Efforts that run for hours follow
+   `docs/agent-system/LONG_EFFORT_DESIGN.md`. After a compaction during an active goal or
+   brief, re-read its charter before acting. Codex compaction drops a long goal's
+   objective, and the operator's stance once about eight newer messages or wakes follow
+   it. A goal meant to outlive a compaction is a short kernel sent after a stance message
+   holding the operator's words (`harness-goal-authoring` §2a; `LONG_EFFORT_DESIGN.md` §4a).
+   Size work to the operator's stated scale: falling short of it is a defect reported with
+   its cause, like an overclaim; honesty rules govern claims, never scope. Research topics
+   are programmes: start from your `work/<ID>/BRIEF.md` if you were given one, else the
+   topic's `MISSION.md` (`research-coordination`).
 9. **Separate operator authority, agent grants, and safety proofs**: require an
    authorization grant only for operations explicitly governed by the authorization
    model. Ordinary operator-authorized host maintenance does not require an
@@ -134,6 +147,7 @@ changed or its guidance is missing from the active context.
 | Setting up or running unattended scenario self-improvement through Swarm (goal or sliced mode) | `goal-loop` → `scenario-improvement-campaign`; model in **docs/agent-system/SCENARIO_DEVELOPMENT.md** |
 | Running a long delivery goal as epochs (orchestrator/worker) | `large-effort-orchestration` |
 | Supervising effort orchestrators, delivery effectiveness, and supervision overhead | `large-effort-supervision` |
+| A goal, cohort, hunt or long-running task is under-delivering, starting too small, or decaying | `effort-diagnosis` |
 | Writing a `/goal`, an `until`, or a sub-agent assignment | `harness-goal-authoring` |
 | Executing an existing plan | `implementation-plan-execution` |
 | Coordinating a reviewed multi-plan family | `plan-family-orchestration` |
@@ -146,6 +160,7 @@ changed or its guidance is missing from the active context.
 | Making a scenario UI beautiful/intuitive across desktop & mobile | `experiential-ui-design` |
 | Creating a scenario that does not exist yet | `ecosystem-fit` |
 | Deploying/publishing a scenario | `deployment-coordinator` |
+| Asking the operator for a decision or sending them a notification | `notification-hub` |
 | Authoring plans/requirements/PRDs/tests/reports | `writing-standards` |
 | Auditing the agent system (teams/members/PoRs) | `agent-system-audit` |
 | Starting a morning vision walk or daily strategic sync | `morning-vision-walk` |
@@ -164,10 +179,9 @@ a scenario, or the quarantined vendor pack. Use `prompt-manager skill ...` for r
 operations, and read the publication/security doctrine before publishing.
 Edit canonical skill sources, not generated native copies such as `.codex/skills`;
 refresh guidance: **docs/reference/cli-commands.md** §"Editing projected skills".
-If a skill-read tool result is explicitly truncated, inspect the full content
-before applying it: use `prompt-manager skill show <id> --json | jq -r '.content' | wc -l`,
-then page it with `prompt-manager skill show <id> --json | jq -r '.content' | nl -ba | sed -n '1,160p'`.
-Repeat with non-overlapping ranges such as `161,320` until the final line.
+If a skill-read tool result is explicitly truncated, read the full content before applying
+it: page it with `prompt-manager skill read <id> --lines 1-160`; each page is numbered and ends
+with the exact command for the next page. Run those until a page reports the end of output.
 A partial tool result is not a complete skill read.
 
 ## 🔧 Setup & Tooling
