@@ -79,7 +79,7 @@ func deskTokens(credential askreader.CredentialSource) *askreader.Tokens {
 }
 
 func deskAsk(id string) *convv1.Ask {
-	return &convv1.Ask{Id: id, Source: Source, State: "pending", Question: "Keep the video tool?", TechnicalDetails: "Desk key: " + testSpec.Key}
+	return &convv1.Ask{Id: id, Source: Source, State: "pending", Question: "Keep the video tool?", TechnicalDetails: "Desk key: " + testSpec.Key, AttachmentNotes: []*convv1.AskAttachmentNote{{Attachment: "redesign", Path: "regions/nav-main.json", Note: "Keep this navigation visible on a phone."}}}
 }
 
 func TestTheDeskReadsItsAsksBackAsItsAskReaderService(t *testing.T) {
@@ -92,8 +92,27 @@ func TestTheDeskReadsItsAsksBackAsItsAskReaderService(t *testing.T) {
 	if len(asks) != 1 || asks[0].ID != "a1" || asks[0].Key != testSpec.Key {
 		t.Fatalf("asks read back = %+v", asks)
 	}
+	if got := asks[0].AttachmentNotes; len(got) != 1 || got[0] != (AttachmentNote{Attachment: "redesign", Path: "regions/nav-main.json", Note: "Keep this navigation visible on a phone."}) {
+		t.Fatalf("the packet region path and operator text must survive the Hub read: %+v", got)
+	}
 	if len(stub.askAuth) != 1 || stub.askAuth[0] != "Bearer desk-token" {
 		t.Fatalf("the ask read must carry the desk's ask-reader bearer, sent %v", stub.askAuth)
+	}
+}
+
+func TestHubPacketRegionAnswerRoundTripsIntoTheImplementerInbox(t *testing.T) {
+	protoAsk := deskAsk("ask-region-7")
+	protoAsk.State = "answered"
+	protoAsk.Answer = "keep"
+	protoAsk.AnswerLabel = "Keep the navigation"
+	protoAsk.Note = "The link must remain easy to reach."
+	protoAsk.TechnicalDetails += "\nPacket: redesign/BRIEF.md"
+	ask := askFromProto(protoAsk)
+	body := inboxAnswer("redesign-1", &ask)
+	if !strings.Contains(body, "Packet: redesign/BRIEF.md") ||
+		!strings.Contains(body, `"path":"regions/nav-main.json"`) ||
+		!strings.Contains(body, `"note":"Keep this navigation visible on a phone."`) {
+		t.Fatalf("implementer inbox answer lost packet or exact region note: %s", body)
 	}
 }
 

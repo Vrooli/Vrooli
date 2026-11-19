@@ -1,8 +1,7 @@
 # The topic folder
 
 One common shape, kept small, that each topic extends as its work needs. Files are the
-authority: every view works with grep alone, and services such as Source Ledger, Prompt Manager
-and Program Runtime only make it faster. Start a topic from its mode's template
+authority: every view works with grep alone; services only make it faster. Start a topic from its mode's template
 (`python3 -I scripts/new_topic.py`, see `templates/topics/README.md`).
 
 ## The shape
@@ -49,8 +48,7 @@ the topic folder always works. Never copy whole files into another store.
 ## Plans and risks
 
 `work/` makes the next commission cheap to start and hard to shrink. Each planned piece of work is
-a folder `work/<ID>/BRIEF.md` written so a fresh owner can start it with one standard message
-and that path, re-deriving nothing:
+a folder `work/<ID>/BRIEF.md` a fresh owner starts from with the standard message alone:
 
 - the destination and the mission workstream it advances, with magnitude in agent-hours;
 - why now, and the evidence and starting points (paths, commands, prior attempts);
@@ -59,11 +57,12 @@ and that path, re-deriving nothing:
 
 `work/README.md` lists the briefs in order with a one-word state (`planned`, `active`, `waiting`,
 `landed`) and holds the risk list: each risk, its likelihood and impact in a word, the mitigation,
-the owner, and the date it was last reviewed. The supervisor keeps plan and risks true at every
-review; mission status cells stay authoritative for workstreams.
+the owner, and a `Reviewed` date only when that risk was re-checked (else blank). The supervisor
+keeps plan and risks true at every review; mission status cells stay authoritative.
 
-The standard message is: "You own `<topic>/work/<ID>`. Read `<abs path>/BRIEF.md` and the topic's
-`MISSION.md`, then build toward the brief's showcase. [Operator stance, verbatim.]"
+The standard message lives once, in `work/README.md`, never in a brief: "You own `<topic>/work/<ID>`.
+Read `<abs path>/BRIEF.md` and the topic's `MISSION.md`, then build toward the brief's showcase.
+[Operator stance, verbatim.]"
 
 ## Inbox
 

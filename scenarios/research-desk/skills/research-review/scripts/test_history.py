@@ -230,6 +230,9 @@ class CommissionTests(Fixture):
         self.assertEqual(s["repo_paths_changed"], 3)
         self.assertEqual(s["idle"]["max_gap_h"], 4.5)  # 11:00 -> 15:30, the last agent line before the stop
         self.assertEqual(s["no_change"]["max_gap_h"], 8.98)  # last edit 07:01 -> stop 16:00
+        self.assertIsNotNone(s["first_repo_edit_h"])  # time to first edit, from the window start
+        self.assertGreaterEqual(s["first_repo_edit_h"], 0)
+        self.assertLessEqual(s["first_repo_edit_h"], 1.02)  # no repo edit after 07:01
         self.assertEqual(row["landed"], ["debt-reduction:DR1"])
         self.assertEqual(row["record_entries"], 4)  # three timed entries and one day-only heading
         self.assertEqual(row["checkpoint_entries"], 2)

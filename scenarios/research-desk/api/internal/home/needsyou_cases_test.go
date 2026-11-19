@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The needs-you grammar is one set of cases, kept beside the agents' file check
@@ -70,6 +71,41 @@ func TestTheGrammarCasesTheFileCheckRuns(t *testing.T) {
 			if string(got) != string(want) {
 				t.Errorf("items\n%s\nwant\n%s", got, want)
 			}
+			if len(problems) != len(c.Problems) {
+				t.Fatalf("problems %q, want ones containing %q", problems, c.Problems)
+			}
+			for i, want := range c.Problems {
+				if !strings.Contains(problems[i], want) {
+					t.Errorf("problem %q does not say %q", problems[i], want)
+				}
+			}
+		})
+	}
+}
+
+func TestTheBriefCasesTheFileCheckRuns(t *testing.T) {
+	raw, err := os.ReadFile(grammarCases)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Briefs []struct {
+			Name, Brief, Now string
+			Keys, Problems   []string
+		}
+	}
+	if err := json.Unmarshal(raw, &file); err != nil || len(file.Briefs) == 0 {
+		t.Fatalf("no brief cases: %v", err)
+	}
+	for _, c := range file.Briefs {
+		t.Run(c.Name, func(t *testing.T) {
+			var now time.Time
+			if c.Now != "" {
+				if now, err = time.Parse(time.RFC3339, c.Now); err != nil {
+					t.Fatal(err)
+				}
+			}
+			problems := BriefProblems(c.Brief, c.Keys, now)
 			if len(problems) != len(c.Problems) {
 				t.Fatalf("problems %q, want ones containing %q", problems, c.Problems)
 			}

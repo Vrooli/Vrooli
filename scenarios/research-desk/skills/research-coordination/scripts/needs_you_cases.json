@@ -1,107 +1,340 @@
 {
-  "about": "The needs-you grammar (research-desk FILE-CONTRACT §5) as cases. needs_you.py's tests and research-desk's Go parser (api/internal/home) both run every case, so the file check and the desk read the same grammar. A decision (an item with Recommended:) carries Packet: naming its brief, work/<ID>/BRIEF.md. options is null when the item has no Options: line (the defaults apply); each problem is text both parsers' messages contain.",
-  "cases": [
+ "about": "The needs-you grammar (research-desk FILE-CONTRACT §5) as cases. needs_you.py's tests and research-desk's Go parser (api/internal/home) both run every case, so the file check and the desk read the same grammar. A decision (an item with Recommended:) carries Packet: naming its brief, work/<ID>/BRIEF.md, in a folder named for it, and Explainer: naming its page beside the brief. `briefs` are what a decision's brief must say (a dated Checked: line; an `## On each answer` bullet per offered key and `other`). options is null when the item has no Options: line (the defaults apply); each problem is text both parsers' messages contain.",
+ "cases": [
+  {
+   "name": "explicit options with an offered recommendation",
+   "text": "## Needs you\n\n### AV4 — Pick one\nTwo plain sentences.\nRecommended: keep — Keep it.\nOptions: keep — Keep; wait — Wait.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\n",
+   "items": [
     {
-      "name": "explicit options with an offered recommendation",
-      "text": "## Needs you\n\n### AV4 — Pick one\nTwo plain sentences.\nRecommended: keep — Keep it.\nOptions: keep — Keep; wait — Wait.\nPacket: /abs/work/AV4/BRIEF.md\n",
-      "items": [
-        {"id": "AV4", "title": "Pick one", "options": ["keep", "wait"], "recommended": "keep", "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": []
-    },
-    {
-      "name": "no options line takes the default options",
-      "text": "## Needs you\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV5/BRIEF.md\n### AV6 — Notice only\nNo recommendation.\n",
-      "items": [
-        {"id": "AV5", "title": "Pick", "options": null, "recommended": "accept", "explainer": null, "packet": "/abs/work/AV5/BRIEF.md"},
-        {"id": "AV6", "title": "Notice only", "options": null, "recommended": null, "explainer": null, "packet": null}
-      ],
-      "problems": []
-    },
-    {
-      "name": "a recommendation that is not offered",
-      "text": "## Needs you\n\n### AV4 — Pick one\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nOptions: propose — Propose.\n",
-      "items": [
-        {"id": "AV4", "title": "Pick one", "options": ["propose"], "recommended": null, "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": ["is not offered"]
-    },
-    {
-      "name": "an empty options line does not fall back to the defaults",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV4/BRIEF.md\nOptions:\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": [], "recommended": null, "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": ["is not offered"]
-    },
-    {
-      "name": "the first of two options lines counts",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nOptions: keep — Keep.\nOptions: wait — Wait.\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": ["keep"], "recommended": "keep", "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": ["duplicate Options: line"]
-    },
-    {
-      "name": "a malformed and a repeated option",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nOptions: keep — Keep; Wait a bit; keep — Keep again\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": ["keep", "keep"], "recommended": "keep", "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": ["malformed option", "duplicate option key"]
-    },
-    {
-      "name": "a malformed recommendation line",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: Keep it\nPacket: /abs/work/AV4/BRIEF.md\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": null, "recommended": null, "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": ["malformed Recommended line"]
-    },
-    {
-      "name": "an explainer names an html page",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: pages/av4.html\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV5/BRIEF.md\nExplainer: notes/av5.md\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": null, "recommended": "accept", "explainer": "pages/av4.html", "packet": "/abs/work/AV4/BRIEF.md"},
-        {"id": "AV5", "title": "Pick", "options": null, "recommended": "accept", "explainer": "notes/av5.md", "packet": "/abs/work/AV5/BRIEF.md"}
-      ],
-      "problems": ["must name an .html page"]
-    },
-    {
-      "name": "a heading that is not an item",
-      "text": "## Needs you\n### av4 — lower-case id\nRecommended: keep — Keep.\nPacket: /abs/work/av4/BRIEF.md\n### AV5 — Fine\nRecommended: accept — Accept.\nPacket: /abs/work/AV5/BRIEF.md\n",
-      "items": [
-        {"id": "AV5", "title": "Fine", "options": null, "recommended": "accept", "explainer": null, "packet": "/abs/work/AV5/BRIEF.md"}
-      ],
-      "problems": ["malformed item heading"]
-    },
-    {
-      "name": "other sections are not read",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nOptions: keep — Keep.\n## Closeout\n### AV9 — Not an item here\nRecommended: nope — ignored.\nPacket: /abs/work/AV9/BRIEF.md\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": ["keep"], "recommended": "keep", "explainer": null, "packet": "/abs/work/AV4/BRIEF.md"}
-      ],
-      "problems": []
-    },
-    {
-      "name": "the attention file's section",
-      "section": "Actionable now",
-      "text": "# Attention\n\n## Actionable now\n\n### OUTREACH-1 — Approve the window?\nWhy.\nRecommended: approve — Run it.\nPacket: /abs/work/OUTREACH-1/BRIEF.md\nOptions: approve — Run it; defer — Not yet.\nCommission: outreach-20261113\n",
-      "items": [
-        {"id": "OUTREACH-1", "title": "Approve the window?", "options": ["approve", "defer"], "recommended": "approve", "explainer": null, "packet": "/abs/work/OUTREACH-1/BRIEF.md"}
-      ],
-      "problems": []
-    },
-    {
-      "name": "a decision carries its packet, the brief a worker executes",
-      "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: notes/av5.md\n### AV6 — Notice only\nNo recommendation, so no packet is needed.\n### AV7 — Pick\nRecommended: accept — Accept it.\nPacket: work/AV7/BRIEF.md\n",
-      "items": [
-        {"id": "AV4", "title": "Pick", "options": null, "recommended": "accept", "explainer": null, "packet": null},
-        {"id": "AV5", "title": "Pick", "options": null, "recommended": "accept", "explainer": null, "packet": "notes/av5.md"},
-        {"id": "AV6", "title": "Notice only", "options": null, "recommended": null, "explainer": null, "packet": null},
-        {"id": "AV7", "title": "Pick", "options": null, "recommended": "accept", "explainer": null, "packet": "work/AV7/BRIEF.md"}
-      ],
-      "problems": ["a decision needs a Packet: line", "Packet: must name the decision's brief"]
+     "id": "AV4",
+     "title": "Pick one",
+     "options": [
+      "keep",
+      "wait"
+     ],
+     "recommended": "keep",
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
     }
-  ]
+   ],
+   "problems": []
+  },
+  {
+   "name": "no options line takes the default options",
+   "text": "## Needs you\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV5/BRIEF.md\nExplainer: /abs/work/AV5/page.html\n### AV6 — Notice only\nNo recommendation.\n",
+   "items": [
+    {
+     "id": "AV5",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "/abs/work/AV5/page.html",
+     "packet": "/abs/work/AV5/BRIEF.md"
+    },
+    {
+     "id": "AV6",
+     "title": "Notice only",
+     "options": null,
+     "recommended": null,
+     "explainer": null,
+     "packet": null
+    }
+   ],
+   "problems": []
+  },
+  {
+   "name": "a recommendation that is not offered",
+   "text": "## Needs you\n\n### AV4 — Pick one\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\nOptions: propose — Propose.\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick one",
+     "options": [
+      "propose"
+     ],
+     "recommended": null,
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "is not offered"
+   ]
+  },
+  {
+   "name": "an empty options line does not fall back to the defaults",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\nOptions:\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [],
+     "recommended": null,
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "is not offered"
+   ]
+  },
+  {
+   "name": "the first of two options lines counts",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\nOptions: keep — Keep.\nOptions: wait — Wait.\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [
+      "keep"
+     ],
+     "recommended": "keep",
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "duplicate Options: line"
+   ]
+  },
+  {
+   "name": "a malformed and a repeated option",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\nOptions: keep — Keep; Wait a bit; keep — Keep again\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [
+      "keep",
+      "keep"
+     ],
+     "recommended": "keep",
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "malformed option",
+    "duplicate option key"
+   ]
+  },
+  {
+   "name": "a malformed recommendation line",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: Keep it\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": null,
+     "recommended": null,
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "malformed Recommended line"
+   ]
+  },
+  {
+   "name": "an explainer names an html page",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: /abs/work/AV5/BRIEF.md\nExplainer: /abs/work/AV5/notes.md\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    },
+    {
+     "id": "AV5",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "/abs/work/AV5/notes.md",
+     "packet": "/abs/work/AV5/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "must name an .html page"
+   ]
+  },
+  {
+   "name": "a heading that is not an item",
+   "text": "## Needs you\n### av4 — lower-case id\nRecommended: keep — Keep.\nPacket: /abs/work/av4/BRIEF.md\nExplainer: /abs/work/av4/page.html\n### AV5 — Fine\nRecommended: accept — Accept.\nPacket: /abs/work/AV5/BRIEF.md\nExplainer: /abs/work/AV5/page.html\n",
+   "items": [
+    {
+     "id": "AV5",
+     "title": "Fine",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "/abs/work/AV5/page.html",
+     "packet": "/abs/work/AV5/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "malformed item heading"
+   ]
+  },
+  {
+   "name": "other sections are not read",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: keep — Keep it.\nPacket: /abs/work/AV4/BRIEF.md\nExplainer: /abs/work/AV4/page.html\nOptions: keep — Keep.\n## Closeout\n### AV9 — Not an item here\nRecommended: nope — ignored.\nPacket: /abs/work/AV9/BRIEF.md\nExplainer: /abs/work/AV9/page.html\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": [
+      "keep"
+     ],
+     "recommended": "keep",
+     "explainer": "/abs/work/AV4/page.html",
+     "packet": "/abs/work/AV4/BRIEF.md"
+    }
+   ],
+   "problems": []
+  },
+  {
+   "name": "the attention file's section",
+   "section": "Actionable now",
+   "text": "# Attention\n\n## Actionable now\n\n### OUTREACH-1 — Approve the window?\nWhy.\nRecommended: approve — Run it.\nPacket: /abs/work/OUTREACH-1/BRIEF.md\nExplainer: /abs/work/OUTREACH-1/page.html\nOptions: approve — Run it; defer — Not yet.\nCommission: outreach-20261113\n",
+   "items": [
+    {
+     "id": "OUTREACH-1",
+     "title": "Approve the window?",
+     "options": [
+      "approve",
+      "defer"
+     ],
+     "recommended": "approve",
+     "explainer": "/abs/work/OUTREACH-1/page.html",
+     "packet": "/abs/work/OUTREACH-1/BRIEF.md"
+    }
+   ],
+   "problems": []
+  },
+  {
+   "name": "a decision carries its packet, the brief a worker executes",
+   "text": "## Needs you\n### AV4 — Pick\nRecommended: accept — Accept it.\nExplainer: work/AV4/page.html\n### AV5 — Pick\nRecommended: accept — Accept it.\nPacket: notes/av5.md\nExplainer: notes/page.html\n### AV6 — Notice only\nNo recommendation, so no packet is needed.\n### AV7 — Pick\nRecommended: accept — Accept it.\nPacket: work/AV7/BRIEF.md\nExplainer: work/AV7/page.html\n",
+   "items": [
+    {
+     "id": "AV4",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "work/AV4/page.html",
+     "packet": null
+    },
+    {
+     "id": "AV5",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "notes/page.html",
+     "packet": "notes/av5.md"
+    },
+    {
+     "id": "AV6",
+     "title": "Notice only",
+     "options": null,
+     "recommended": null,
+     "explainer": null,
+     "packet": null
+    },
+    {
+     "id": "AV7",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "work/AV7/page.html",
+     "packet": "work/AV7/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "a decision needs a Packet: line",
+    "Packet: must name the decision's brief"
+   ]
+  },
+  {
+   "name": "a decision's folder is its own: never a workstream's brief, and its page beside its brief",
+   "text": "## Needs you\n### W1 — Pick\nRecommended: accept — Accept it.\nPacket: work/W2/BRIEF.md\nExplainer: work/W2/page.html\n### W3 — Pick\nRecommended: accept — Accept it.\nPacket: work/W3/BRIEF.md\n### W4 — Pick\nRecommended: accept — Accept it.\nPacket: work/W4/BRIEF.md\nExplainer: pages/w4.html\n",
+   "items": [
+    {
+     "id": "W1",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "work/W2/page.html",
+     "packet": "work/W2/BRIEF.md"
+    },
+    {
+     "id": "W3",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": null,
+     "packet": "work/W3/BRIEF.md"
+    },
+    {
+     "id": "W4",
+     "title": "Pick",
+     "options": null,
+     "recommended": "accept",
+     "explainer": "pages/w4.html",
+     "packet": "work/W4/BRIEF.md"
+    }
+   ],
+   "problems": [
+    "in a folder named for the decision",
+    "needs an Explainer: line",
+    "must sit beside the brief"
+   ]
+  }
+ ],
+ "briefs": [
+  {
+   "name": "a brief an executor can run cold",
+   "keys": [
+    "keep",
+    "drop"
+   ],
+   "brief": "# X\n\nChecked: 2026-11-15T20:00Z the feature is still absent, read on the served screen\n\n## On each answer\n\n- `keep`: restore it; proof: the screen shows it.\n- **`drop`.** delete its code.\n- `other`: the operator's words are the instruction.\n",
+   "problems": []
+  },
+  {
+   "name": "a thin brief: a workstream's text with no check and no answers",
+   "keys": [
+    "accept",
+    "hold"
+   ],
+   "brief": "# W1 — Build the thing\n\nBuild it well.\n",
+   "problems": [
+    "no `Checked:",
+    "says nothing for `accept`, `hold`, `other`"
+   ]
+  },
+  {
+   "name": "a check with no date or no saying how, and an answer left out",
+   "keys": [
+    "yes",
+    "no"
+   ],
+   "brief": "Checked: today\n\n## On each answer\n- `yes`: go.\n- `no`: stop.\n",
+   "problems": [
+    "no `Checked:",
+    "says nothing for `other`"
+   ]
+  },
+  {
+   "name": "a premise checked over a week before it is raised",
+   "keys": [
+    "yes"
+   ],
+   "now": "2026-11-15T12:00:00Z",
+   "brief": "Checked: 2026-11-01 the key is missing from vrooli credentials list\n\n## On each answer\n- `yes`: go.\n- `other`: hold.\n",
+   "problems": [
+    "is over 7 days old"
+   ]
+  }
+ ]
 }

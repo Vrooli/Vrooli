@@ -186,6 +186,10 @@ const (
 	// ActLandAnswer records the operator's answer to an ask whose item is in no
 	// file in its level's inbox (afterlife.go).
 	ActLandAnswer Action = "land-answer"
+	// ActWritePage starts or moves on the decision-page writer's job for a
+	// decision whose page does not exist; the ask goes once the page is
+	// ready (pagewriter.go).
+	ActWritePage Action = "write-page"
 )
 
 // Step is the courier's decision for one item or one orphaned ask.
@@ -248,6 +252,8 @@ type Plan struct {
 	sightings Sightings
 	// pages are the items' explainer pages, read for this plan.
 	pages Pages
+	// misses are the page misses recorded so far (PageMissesFile).
+	misses map[string]PageMiss
 }
 
 // keep reports whether a remembered key's owner is blocked, so its record
@@ -262,8 +268,11 @@ type Courier struct {
 	Reader home.Snapshotter
 	Writer *writer.Writer
 	Hub    Hub
-	Clock  schedule.NowSource
-	Logger *log.Logger
+	// PageWriter makes the page of a decision whose raiser left it out; nil
+	// leaves such a decision unsent.
+	PageWriter PageWriter
+	Clock      schedule.NowSource
+	Logger     *log.Logger
 
 	mu          sync.Mutex
 	lastProblem string
@@ -285,6 +294,9 @@ type Health struct {
 	// LastDelivery is the later of when this process last sent an ask or a
 	// notice and the newest delivery recorded in the files.
 	LastDelivery time.Time
+	// PageMisses says which decisions are held unsent because the
+	// decision-page writer could not make their page; empty when none are.
+	PageMisses string
 }
 
 // Health returns the courier's state after its last pass.
@@ -306,13 +318,17 @@ func (h Health) Say() (bool, string) {
 		}
 		return stamp(t)
 	}
+	misses := ""
+	if h.PageMisses != "" {
+		misses = "; " + h.PageMisses
+	}
 	switch {
 	case h.LastPass.IsZero():
 		return false, "no pass yet; " + Withdraw
 	case h.Problem != "":
-		return false, fmt.Sprintf("last pass %s failed: %s; answers last read back %s; last delivery %s; %s", stamp(h.LastPass), h.Problem, when(h.LastReadBack), when(h.LastDelivery), Withdraw)
+		return false, fmt.Sprintf("last pass %s failed: %s; answers last read back %s; last delivery %s%s; %s", stamp(h.LastPass), h.Problem, when(h.LastReadBack), when(h.LastDelivery), misses, Withdraw)
 	}
-	return true, fmt.Sprintf("last pass %s; answers read back %s; last delivery %s; %s", stamp(h.LastPass), when(h.LastReadBack), when(h.LastDelivery), Withdraw)
+	return true, fmt.Sprintf("last pass %s; answers read back %s; last delivery %s%s; %s", stamp(h.LastPass), when(h.LastReadBack), when(h.LastDelivery), misses, Withdraw)
 }
 
 // problem is why a pass could not read or send everything, or "".
@@ -345,6 +361,9 @@ func (c *Courier) note(plan Plan, err error) {
 	defer c.hmu.Unlock()
 	h := &c.health
 	h.LastPass, h.Problem = c.Clock.Now(), problem(plan, err)
+	if plan.misses != nil {
+		h.PageMisses = sayMisses(held(plan, h.LastPass))
+	}
 	if err == nil && plan.HubRead == nil {
 		h.LastReadBack = plan.At
 	}
@@ -465,13 +484,17 @@ func (c *Courier) Plan(ctx context.Context) (Plan, *home.Snapshot, error) {
 		if plan.HubRead = c.Hub.Sendable(ctx); plan.HubRead != nil {
 			break
 		}
-		plan.pages = readPages(feed, snap.ResearchDir)
+		plan.pages = readPages(feed, snap.ResearchDir, snap.Now)
+		c.readJobs(&plan.pages)
 		if asks, plan.HubRead = c.Hub.Asks(ctx, AskPrefix); plan.HubRead == nil {
 			notices, plan.HubRead = c.Hub.Notices(ctx)
 		}
 	}
 	if plan.sightings, err = c.sightings(); err != nil {
 		return Plan{}, nil, err
+	}
+	if plan.misses, err = c.misses(); err != nil {
+		return Plan{}, nil, fmt.Errorf("%w; the courier sends nothing until it can read which decisions went without a written page", err)
 	}
 	plan.Steps = decide(c.Hub, feed, sw, asks, notices, plan.HubRead, plan.sightings, plan.pages, ownersOf(snap), snap.Now)
 	return plan, snap, nil
@@ -582,6 +605,25 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 				s.Reason, s.Why = home.ReasonInHub, "Hub notice "+n.State
 			}
 		}
+		if unready := pages.unready[f.Key()]; unready != "" && (s.Action == ActAsk || s.Action == ActRefreshAsk) {
+			// A thin packet cannot reach the operator: its executor would re-derive the decision (O7(f)).
+			s.Action, s.Reason = ActNone, home.ReasonPacketNotReady
+			s.Why = "not sent until the decision's folder is ready for a cold executor: " + unready + "; check it with needs_you.py validate"
+		}
+		if job := pages.job(f); job != nil && (s.Action == ActAsk || s.Action == ActRefreshAsk) {
+			switch failure := job.missed(); {
+			case job.page() != nil:
+				s.Why = joinWhy(s.Why, "sent with the page the decision-page writer made, "+job.result.Page)
+			case failure != nil:
+				// No page restating the item ever reaches the operator.
+				s.Action, s.Reason = ActNone, home.ReasonPacketNotReady
+				s.Why = "not sent: the decision-page writer could not make its page (" + failure.Error() + "; job " + job.result.Dir +
+					"); recorded as a page miss. Write work/" + f.Item.ID + "/page.html beside the brief, or change the brief, and the next pass sends it"
+			default:
+				// The operator answers in hours and a page takes minutes: the item waits for it.
+				s.Action, s.Reason, s.Why = ActWritePage, home.ReasonPacketNotReady, job.waiting()
+			}
+		}
 		if problem := pages.problem(f); problem != "" && (s.Action == ActAsk || s.Action == ActRefreshAsk) {
 			s.Why = joinWhy(s.Why, problem)
 		}
@@ -591,7 +633,7 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 				grammar = append(grammar, p)
 			}
 		}
-		if len(grammar) > 0 && s.Action != ActWithdraw {
+		if len(grammar) > 0 && s.Action != ActWithdraw && s.Reason != home.ReasonPacketNotReady {
 			// A withdrawal's reason is the operator's to read; the grammar note is the agent's.
 			s.Why = joinWhy(s.Why, "the item breaks the grammar ("+strings.Join(grammar, "; ")+"); check it with needs_you.py validate")
 		}
@@ -752,6 +794,9 @@ func (c *Courier) Pass(ctx context.Context) (plan Plan, err error) {
 		s.Err = c.act(ctx, s, now, plan)
 		s.Done = s.Err == nil
 	}
+	if err := c.recordMisses(plan, now); err != nil {
+		return plan, err
+	}
 	return plan, c.recordSightings(plan)
 }
 
@@ -760,6 +805,9 @@ func (c *Courier) act(ctx context.Context, s *Step, now time.Time, plan Plan) er
 	switch s.Action {
 	case ActAsk, ActRefreshAsk:
 		return c.Hub.Ask(ctx, askSpec(f, s.Key, plan.pages))
+	case ActWritePage:
+		_, err := c.PageWriter.Advance(ctx, plan.pages.job(f).request)
+		return err
 	case ActWithdraw:
 		return c.Hub.Withdraw(ctx, *s.Ask, s.Why, now)
 	case ActNotice:
@@ -808,7 +856,17 @@ func askSpec(f *home.FeedItem, key string, pages Pages) AskSpec {
 		Recommended:      f.Item.Recommended.Key,
 		Reason:           operatordecision.Clip(reason, operatordecision.MaxReason),
 		Explainer:        pages.explainer(f),
+		Packet:           packetPath(f),
 	}
+}
+
+// packetPath is the item's brief as an absolute path, or "" when it names
+// none or only a relative path the desk cannot resolve.
+func packetPath(f *home.FeedItem) string {
+	if f.Item.Packet == "" || !filepath.IsAbs(f.Item.PacketPath()) {
+		return ""
+	}
+	return f.Item.PacketPath()
 }
 
 // technicalDetails says where the item lives and what the next agent needs.
@@ -840,7 +898,10 @@ func technicalDetails(f *home.FeedItem, key string, page *Page, effects map[stri
 	if len(f.Inboxes) > 0 {
 		lines = append(lines, "Answer lands in: "+filepath.Join(f.Inboxes[0].Dir, home.InboxFile))
 	}
-	if page != nil {
+	switch {
+	case page != nil && page.Written != "":
+		lines = append(lines, "Page: made by the decision-page writer, "+page.Written+" (sha256 "+page.SHA256[:16]+")")
+	case page != nil:
 		lines = append(lines, "Explainer: "+f.Item.ExplainerPath()+" (sha256 "+page.SHA256[:16]+")")
 	}
 	if f.Item.Details != "" {

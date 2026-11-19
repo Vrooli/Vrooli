@@ -178,86 +178,6 @@ func (w *Writer) operatorFile(commissionID string, e home.Entry) (path, title st
 	return filepath.Join(dir, home.OperatorFile), "# Operator — " + commissionID, nil
 }
 
-// RenderStewardFinding returns an attributed finding for the commission's
-// lower-priority STEWARD.md channel without writing it.
-func (w *Writer) RenderStewardFinding(commissionID, runID, body string, at time.Time) (string, string, error) {
-	dir, err := w.folder("cohorts", commissionID)
-	if err != nil {
-		return "", "", err
-	}
-	path := filepath.Join(dir, "STEWARD.md")
-	text, err := w.stewardFindingText(path, runID, body, at)
-	return path, text, err
-}
-
-// AppendStewardFinding writes a dated finding attributed to its verified
-// agent run. It never writes the operator's higher-priority OPERATOR.md.
-func (w *Writer) AppendStewardFinding(commissionID, runID, body string, at time.Time) (string, string, error) {
-	path, text, err := w.RenderStewardFinding(commissionID, runID, body, at)
-	if err != nil {
-		return "", "", err
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if err := w.held(); err != nil {
-		return "", "", err
-	}
-	if _, err := w.enableStewardLocked(commissionID); err != nil {
-		return "", "", err
-	}
-	text, err = w.stewardFindingText(path, runID, body, at)
-	if err != nil {
-		return "", "", err
-	}
-	return path, text, appendBytes(path, text)
-}
-
-func (w *Writer) enableStewardLocked(commissionID string) (string, error) {
-	dir, err := w.folder("cohorts", commissionID)
-	if err != nil {
-		return "", err
-	}
-	path := filepath.Join(dir, home.CharterFile)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read the charter %s: %w", path, err)
-	}
-	if bytes.Contains(data, []byte(home.StewardSentence)) {
-		return "", nil
-	}
-	text := separator(data) + home.StewardSentence + "\n"
-	return text, appendBytes(path, text)
-}
-
-func (w *Writer) stewardFindingText(path, runID, body string, at time.Time) (string, error) {
-	body = strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n"))
-	if runID == "" || at.IsZero() || body == "" {
-		return "", fmt.Errorf("%w: a steward finding needs an agent run, time and text", home.ErrInvalid)
-	}
-	max, err := w.entryChars()
-	if err != nil {
-		return "", fmt.Errorf("%w: the entry limit is unknown: %v", home.ErrUnavailable, err)
-	}
-	if err := home.CheckEntryText(body, w.researchDir, max); err != nil {
-		return "", fmt.Errorf("%w: %v", home.ErrInvalid, err)
-	}
-	for _, line := range strings.Split(body, "\n") {
-		if strings.HasPrefix(line, "### ") {
-			return "", fmt.Errorf("%w: a steward finding cannot contain a heading line", home.ErrInvalid)
-		}
-	}
-	existing, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("read %s: %w", path, err)
-	}
-	prefix := separator(existing)
-	if len(existing) == 0 {
-		prefix = "# Steward findings\n\n"
-	}
-	entry := fmt.Sprintf("### %s · finding · by agent run %s\n%s\n", at.UTC().Format(home.EntryTimeLayout), runID, body)
-	return prefix + entry, nil
-}
-
 // AppendInbox appends one entry `### <UTC> · from <from> · <kind>` to a
 // level's INBOX.md (docs/agent-system/LEVELS.md): topics/<topic>/INBOX.md, or
 // the research home's (the supervisor's) when topic is empty. It creates the
@@ -346,8 +266,8 @@ func (w *Writer) verdictFile(reviewID string, e home.Entry) (path, title string,
 	return filepath.Join(dir, home.VerdictsFile), "# Verdicts — " + reviewID, nil
 }
 
-// RenderSteering returns the missing operator and steward guidance for an
-// older charter; it changes nothing when both authority clauses are present.
+// RenderSteering returns the missing operator guidance for an older charter;
+// it changes nothing when the Steering clause is present.
 func (w *Writer) RenderSteering(commissionID string) (path, text string, err error) {
 	dir, err := w.folder("cohorts", commissionID)
 	if err != nil {
@@ -361,9 +281,6 @@ func (w *Writer) RenderSteering(commissionID string) (path, text string, err err
 	var additions strings.Builder
 	if !bytes.Contains(data, []byte(home.SteeringSentence)) {
 		additions.WriteString("## Steering\n\n" + home.SteeringSentence + "\n")
-	}
-	if !bytes.Contains(data, []byte(home.StewardSentence)) {
-		additions.WriteString(home.StewardSentence + "\n")
 	}
 	if additions.Len() == 0 {
 		return path, "", nil

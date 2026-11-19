@@ -10,7 +10,6 @@ Research home: `$VROOLI_RESEARCH_HOME`, else `~/.vrooli/research` (the shared
 |---|---|
 | `cohorts/<id>/{README.md,STANCE-MESSAGE.txt,KERNEL.txt,PACKET.json}` | `packet.py build` (run by the desk or an agent); `enable-steering` adds missing operator and steward authority instructions to an older charter |
 | `cohorts/<id>/OPERATOR.md`, `reviews/<id>/VERDICTS.md` | the desk for the operator, or the operator by hand; append-only |
-| `cohorts/<id>/STEWARD.md` | `research-desk feedback` from a verified agent run; dated and attributed; append-only |
 | `cohorts/<id>/LAUNCH.json` | the desk |
 | `cohorts/<id>/{STATE.md,LEDGER.md,BASELINE.json}` | the scheduler (`BASELINE.json` may be seeded once by `packet.py`) |
 | `topics/<t>/MISSION.md`, `topics/<t>/DECISIONS.md`, `ATTENTION.md` | supervisors, the level's agents and the operator; never the desk |
@@ -23,7 +22,9 @@ Only the live instance writes, holding an exclusive `flock` on
 process; reads never take it). JSON is written to a temp file and renamed; a Markdown append
 is one `O_APPEND` write. The desk's own state, in that folder outside the research home:
 `courier.json` (the operator's courier switches, `{on, at}`), `first-sightings.json` (when
-the courier first found each needs-you item), `looks/<commission|topic>-<id>.json` (the
+the courier first found each needs-you item), `page-misses.json` (each decision held unsent
+because the decision-page writer gave up on its page: when, the ask, the failure class and
+detail, the writer's job folder), `looks/<commission|topic>-<id>.json` (the
 operator's last look), `launch-tests/<UTC stamp>.json` (one per `launch-test`) and
 `retention/` (the shared retention sweep's receipt; the desk sets no budgets). Deleting the folder resets "since" and the sightings and
 returns the switches to their defaults.
@@ -165,20 +166,13 @@ the fallback. `verdict <topic>` is used only in `reviews/<id>/VERDICTS.md`. A li
 that matches the heading regex is refused, so the file always parses back. A `### ` line
 that does not match is reported with its line number as unreadable, never dropped silently.
 
-## 4a. Steward findings (`STEWARD.md`)
+## 4a. Steward findings
 
-The desk appends one finding per verified agent run. The UTC timestamp and run ID are written
-in the heading; the finding body follows until the next heading. The channel is lower priority
-than `OPERATOR.md` and higher priority than supervisor judgment. A correction appends a new
-finding; neither file is rewritten. `research-desk feedback <commission-id> <text>` adds a
-finding and ensures the active charter reads this channel on each unit.
-
-```markdown
-# Steward findings
-
-### 2026-11-15T10:14:03Z · finding · by agent run run-42
-Reviewed correction: keep the measured limit.
-```
+`research-desk feedback <commission-id> <text>` (verified agent runs only) appends a
+`### <UTC> · from ceo · feedback` entry to the `INBOX.md` of the commission's first topic (the
+research home's when it has none), ending with `Source: agent run <id> at <UTC> about commission
+<id>`. The commission's scheduler drains it at its next review like any inbox entry
+(`docs/agent-system/LEVELS.md`); `OPERATOR.md` keeps priority over it.
 
 ## 5. Decisions (needs-you items)
 
@@ -219,7 +213,8 @@ Delivered: hub 2026-11-12T14:00:00Z
 - **A decision is a packet.** An item with `Recommended:` is a decision and must name its
   `Packet:`, the brief a worker executes on the answer: `work/<ID>/BRIEF.md` beside the
   level's decisions file, written by whoever raises it (research-coordination `topic-folder.md`).
-  Without `Recommended:` an item is a notice.
+  Without `Recommended:` an item is a notice. The raiser writes the item; anyone who relays
+  it (a scheduler, a supervisor) writes the raiser's item byte for byte, never in its own words.
 - **Write for the operator.** A sent item is read cold on a phone: the title is the question,
   the prose (the body without field lines) the big picture, `Reason:` (else the recommended
   label) the recommendation reason, the option labels the answers. No IDs, run names or
@@ -229,12 +224,24 @@ Delivered: hub 2026-11-12T14:00:00Z
   inside the research home (at most 2 MiB; with the images it names inlined it must fit
   720 KiB as JSON encodes it, else the images that do not fit are named on the plan row),
   absolute or relative to the item's file, written by the `notification-hub` skill's
-  `references/html-explainers.md`. Without one, or when it cannot travel, the desk builds a
-  summary page: the title, the prose, who asks, each option with what executes on it (from
+  `references/html-explainers.md`. The raiser's own page always wins. When the file it names
+  does not exist and the folder is otherwise ready, the courier hands the item, its options
+  with what executes on each and its packet (first) and item file to the shared decision-page
+  writer (`packages/api-core/decisionpage`): one Codex Luna run under Notification Hub's
+  `decision-page-writer` profile, started through Agent Manager, presents what the brief says
+  (it fills in nothing the brief lacks) and must pass the Hub's packet check; the job lives
+  under `~/.vrooli/state/vrooli/decision-pages/`. The item stays `packet_not_ready` meanwhile
+  (plan action `write-page`, the row naming the attempt and run); the written page goes with
+  its path and hash in the technical details, and a revised packet is a new page. When the
+  writer gives up, or no writer is configured, the item stays `packet_not_ready` and is never
+  sent without a page; an outage is retried after 30 minutes. A page of the raiser's that
+  cannot travel goes as a summary page: the title, the prose, who asks, each option with what executes on it (from
   the packet's `## On each answer` bullets that start with an option key, an `## On approval`
   section for the recommended key, or a section whose heading names one key in backticks), the
-  recommendation and its reason, and what happens without an answer. The desk reads the page
-  and packet each pass, so a revision replaces the Hub's page.
+  recommendation and its reason, and what happens without an answer. A writer that gave up is
+  a page miss: recorded in `page-misses.json`, named on the plan row and in the courier's
+  health line. The desk reads the page and packet each pass, so a revision replaces the Hub's
+  page.
 - `Delivered: <route> <UTC>` is written by an agent that delivered the item itself; the desk
   then does not send it. `Secret:` items go as a notice saying where the secret goes and are
   never answered into a file.

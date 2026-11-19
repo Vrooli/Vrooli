@@ -1,6 +1,5 @@
 # Architecture — Research Desk
 
-## Purpose Of This Document
 
 Pointer. The system shape, boundaries and dependencies of Research Desk are stated once, in
 [`SYSTEM.md`](SYSTEM.md) §1–§2 and §11. Template mechanics (proto bridge, Connect router,

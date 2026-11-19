@@ -547,7 +547,7 @@
       "path": "/vrooli.research_desk.v1.operator.OperatorService/AddStewardFinding",
       "method": "POST",
       "summary": "Send a steward finding",
-      "description": "Appends a dated, verified-agent-attributed finding to STEWARD.md. The live charter is updated to read this channel below OPERATOR.md and above supervisor judgment; operator words retain priority.",
+      "description": "Appends a dated `from ceo · feedback` entry, attributed to the verified agent run, to the INBOX.md of the commission's topic, which its next agent drains (docs/agent-system/LEVELS.md). Operator words in OPERATOR.md keep priority.",
       "category": "operator",
       "errors": [
         {

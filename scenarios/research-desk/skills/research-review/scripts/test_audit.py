@@ -29,6 +29,10 @@ class AuditTest(unittest.TestCase):
         (t / "README.md").write_text("# T\n\n[mission](MISSION.md) [missing](NOPE.md) [web](https://x.y) "
                                      "[line](MISSION.md:12) [range](MISSION.md:3-9) [anchor](MISSION.md#end-state) [self](#top)\n")
         (t / "BIG.md").write_text("x" * 40_001)
+        live = self.home / "cohorts" / "c1"  # a live commission on t, so its `active` row is honest
+        live.mkdir(parents=True)
+        (live / "PACKET.json").write_text('{"topics": ["t"]}')
+        (live / "STATE.md").write_text("live")
 
     def tearDown(self):
         self.tmp.cleanup()

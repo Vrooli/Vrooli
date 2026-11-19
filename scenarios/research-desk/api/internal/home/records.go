@@ -21,6 +21,9 @@ const (
 	LedgerFile     = "LEDGER.md"
 	BaselineFile   = "BASELINE.json"
 	SettlementFile = "SETTLEMENT.json"
+	// ClosureFile is the free-form closure record cohorts wrote before
+	// SETTLEMENT.json existed.
+	ClosureFile = "CLOSURE.json"
 )
 
 // LaunchSchema and PacketSchema are the schema ids of the two JSON records.

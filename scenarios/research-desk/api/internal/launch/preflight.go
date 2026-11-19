@@ -29,6 +29,12 @@ const (
 // block a launch.
 const QuietAfter = 24 * time.Hour
 
+// StaleAfter is how long an unknown commission whose Codex thread is unknown
+// must have gone without a write before a supersede records it without
+// stopping anything: the desk cannot type into a thread it cannot name, and
+// a commission silent this long is not doing commission work.
+const StaleAfter = 12 * time.Hour
+
 // Verdict says what one earlier commission on a topic means for a launch.
 type Verdict struct {
 	Topic        string
@@ -53,7 +59,8 @@ type Verdict struct {
 // Verdicts covers every commission other than self that names one of the
 // topics (SYSTEM.md §5). A live, paused or limited commission blocks, and so
 // does an unknown one with an open session or a recent write, unless the
-// choices resolve it.
+// choices resolve it. A SETTLEMENT.json or CLOSURE.json ends a commission
+// with no live goal.
 func Verdicts(snap *home.Snapshot, topics []string, choices map[string]Resolution, self string) []Verdict {
 	var out []Verdict
 	for _, topic := range topics {
@@ -64,16 +71,19 @@ func Verdicts(snap *home.Snapshot, topics []string, choices map[string]Resolutio
 				continue
 			}
 			v := Verdict{Topic: topic, CommissionID: c.ID, State: c.State}
-			switch c.State {
-			case home.StateLive, home.StatePaused, home.StateLimited, home.StateUnknown:
+			finished := false
+			switch closed, why := c.Closed(); {
+			case closed && !c.State.Running():
+				v.Message, finished = "ended: "+why, true
+			case c.State.Running() || c.State == home.StateUnknown:
 				v.judgeOpen(c, snap.Now, choices[c.ID])
-			case home.StatePrepared:
+			case c.State == home.StatePrepared:
 				v.Message = "another unlaunched packet covers this topic; discard it or launch only one"
 			default:
-				v.Message = "nothing to do (" + string(c.State) + ")"
-				if cp := checkpoint(c, topic); cp != nil && cp.Modified.UnixNano() > newestAt {
-					newest, newestAt = len(out), cp.Modified.UnixNano()
-				}
+				v.Message, finished = "nothing to do ("+string(c.State)+")", true
+			}
+			if cp := checkpoint(c, topic); finished && cp != nil && cp.Modified.UnixNano() > newestAt {
+				newest, newestAt = len(out), cp.Modified.UnixNano()
 			}
 			out = append(out, v)
 		}
@@ -146,6 +156,8 @@ func recommend(c *home.Commission, now time.Time) (Resolution, string) {
 	switch {
 	case c.State == home.StateUnknown && c.NeverStarted.Assertable:
 		return RunAlongside, "no session or goal found for it; nothing to stop; it stays launchable"
+	case staleThread(c, targetOf(c), now) != "":
+		return Supersede, "silent since " + stamp(c.LastWrite.Value) + " with no Codex thread the desk can name; superseding records it without stopping anything"
 	case c.State == home.StateLive:
 		return "", "it is live: the operator chooses"
 	case (c.State == home.StatePaused || c.State == home.StateLimited) && c.AllowanceEnd.Known && now.After(c.AllowanceEnd.Value):

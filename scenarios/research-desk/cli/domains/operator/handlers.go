@@ -42,7 +42,7 @@ func (h *handlers) sayCall(ctx cliapp.OperationContext) (*operatorv1.AddEntryRes
 
 func (h *handlers) feedbackCall(ctx cliapp.OperationContext) (*operatorv1.AddStewardFindingResponse, error) {
 	req := &operatorv1.AddStewardFindingRequest{CommissionId: ctx.Positional("commission-id"), Text: ctx.Positional("text"), DryRun: ctx.BoolFlag("dry-run")}
-	return render.Call("write a steward finding to STEWARD.md of "+req.CommissionId, h.client.AddStewardFinding, req)
+	return render.Call("write a steward finding to the topic inbox of "+req.CommissionId, h.client.AddStewardFinding, req)
 }
 
 func (h *handlers) settleHistoricalCall(ctx cliapp.OperationContext) (*operatorv1.SettleHistoricalStateResponse, error) {

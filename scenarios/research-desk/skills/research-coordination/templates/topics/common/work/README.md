@@ -17,5 +17,6 @@ the owner may decide. `MISSION.md` status cells stay authoritative.
 |---|---|---|---|---|---|
 | <fill: what could stall or shrink this programme> | | | | | |
 
-Standard message: "You own `{{topic}}/work/<ID>`. Read `<abs path>/BRIEF.md` and the topic's
-`MISSION.md`, then build toward the brief's showcase." followed by the operator's words verbatim.
+Standard message (here once; briefs never repeat it): "You own `{{topic}}/work/<ID>`. Read
+`<abs path>/BRIEF.md` and the topic's `MISSION.md`, then build toward the brief's showcase."
+followed by the operator's words verbatim.

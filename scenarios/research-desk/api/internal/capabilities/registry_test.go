@@ -17,8 +17,9 @@ import (
 )
 
 // The real manifest declares the services the desk calls: Web Console for
-// launch, Vrooli Events and Notification Hub for delivery, and Data Backup
-// Manager for research-home recovery.
+// launch, Vrooli Events and Notification Hub for delivery, Data Backup Manager
+// for research-home recovery, and Agent Manager for the decision-page writer's
+// runs.
 func TestLoadProjectsTheManifest(t *testing.T) {
 	defs, err := Load("../../../.vrooli/service.json")
 	require.NoError(t, err)
@@ -31,6 +32,7 @@ func TestLoadProjectsTheManifest(t *testing.T) {
 		"vrooli-events":       "ignore",
 		"notification-hub":    "ignore",
 		"data-backup-manager": "try_start",
+		"agent-manager":       "ignore",
 	}
 	require.Len(t, slugs, len(called), "service.json declares exactly the services the desk calls")
 	for slug, startupPolicy := range called {

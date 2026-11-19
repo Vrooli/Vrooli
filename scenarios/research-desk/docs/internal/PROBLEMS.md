@@ -194,6 +194,6 @@ which the next commission drains at start. The Hub is read every pass.
 ## Work ladder
 
 - Rung: W3
-- Evidence: On live `ee-forcing-functions-20261115`, agent `research-desk say … --dry-run` was denied because it writes operator words. The regression now proves verified-agent findings go to attributed `STEWARD.md`, and the charter ranks them below `OPERATOR.md` and above supervisor judgment. Focused writer, API/auth, home and CLI tests pass; live `feedback --dry-run` succeeds.
+- Evidence: On live `ee-forcing-functions-20261115`, agent `research-desk say … --dry-run` was denied because it writes operator words. Verified-agent findings now go to the commission topic's `INBOX.md` as attributed `from ceo · feedback` entries (the level inbox route; the separate `STEWARD.md` channel was folded into it on 2026-11-15). Focused writer, API/auth, home and CLI tests pass; live `feedback --dry-run` succeeds.
 - Blocker: none
 - Measured: 2026-11-15

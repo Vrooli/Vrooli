@@ -39,26 +39,26 @@
     ]
   },
   "ceilings": {
-    "scheduler_start_bytes": 23600,
-    "scheduler_unit_bytes": 21200,
-    "owner_start_bytes": 8591,
+    "scheduler_start_bytes": 23500,
+    "scheduler_unit_bytes": 21000,
+    "owner_start_bytes": 9300,
     "mission_bytes": 40000,
     "skill_bytes": {
-      "research-coordination/SKILL.md": 10780,
+      "research-coordination/SKILL.md": 11200,
       "research-coordination/references/mission.md": 7475,
-      "research-coordination/references/operator-attention.md": 5921,
-      "research-coordination/references/supervision.md": 5419,
-      "research-coordination/references/topic-folder.md": 6244,
-      "research-coordination/templates/charter.md": 12514,
-      "research-coordination/templates/owner-brief.md": 2456,
+      "research-coordination/references/operator-attention.md": 5868,
+      "research-coordination/references/supervision.md": 9400,
+      "research-coordination/references/topic-folder.md": 6208,
+      "research-coordination/templates/charter.md": 11500,
+      "research-coordination/templates/owner-brief.md": 3200,
       "adaptive-research/SKILL.md": 6098,
       "local-experimentation/SKILL.md": 5163,
       "local-experimentation/references/trials.md": 2447,
-      "research-review/SKILL.md": 7731
+      "research-review/SKILL.md": 7649
     }
   },
   "read_sets": {
-    "note": "What each role is told to read. 2026-11-15 condensation (owner A, research-system-maturation): the charter no longer sends the scheduler to LONG_EFFORT_DESIGN.md at start (it carries the procedure and pastes the §2a/§2b briefs only when it starts a reviewer), so scheduler_start is charter, STATE.md, OPERATOR.md and owner-brief.md. Skill ceilings are the sizes after the condensation (research-coordination SKILL+references+charter 139,190 → ~47 KB). MISSION.md and CHECKPOINT.md are excluded: the desk and the templates do not author them. Steward-channel update (2026-11-15): 605 bytes reserved for the charter's dated, lower-priority STEWARD.md guidance; scheduler read-set ceilings include this addition. Earlier history of these ceilings: measured 2026-11-11 on programme-three-20261111 (charter 36030, STATE.md 6549, long_effort_s2_s3 17945, owner-brief.md 3292). Read-set ceilings lowered 2026-11-15 to the measured sums: scheduler_start 63,816 → 23,000, scheduler_unit 42,677 → 20,600 (measured 22,830 and 20,452; the rest absorbs the test home's temporary path length), owner_start 21,517 → 8,591.",
+    "note": "What each role is told to read. 2026-11-15 condensation (owner A, research-system-maturation): the charter no longer sends the scheduler to LONG_EFFORT_DESIGN.md at start (it carries the procedure and pastes the \u00a72a/\u00a72b briefs only when it starts a reviewer), so scheduler_start is charter, STATE.md, OPERATOR.md and owner-brief.md. Skill ceilings are the sizes after the condensation (research-coordination SKILL+references+charter 139,190 \u2192 ~47 KB). MISSION.md and CHECKPOINT.md are excluded: the desk and the templates do not author them. The STEWARD.md reservation (605 bytes, 2026-11-15) was removed the same day when steward feedback moved to topic inboxes. Earlier history of these ceilings: measured 2026-11-11 on programme-three-20261111 (charter 36030, STATE.md 6549, long_effort_s2_s3 17945, owner-brief.md 3292). Read-set ceilings lowered 2026-11-15 to the measured sums: scheduler_start 63,816 \u2192 23,000, scheduler_unit 42,677 \u2192 20,600 (measured 22,830 and 20,452; the rest absorbs the test home's temporary path length), owner_start 21,517 \u2192 8,591. Lowered again 2026-11-15 22:15Z when the charter dropped its copy of the decision grammar (it points to operator-attention.md): charter template 11,947 \u2192 10803; scheduler_start 23,000 \u2192 22,000, scheduler_unit 20,600 \u2192 19,550 (measured 21,850 and 19,394); programme-four rendered 25,450 \u2192 about 24,300 against charter_bytes 25,000. 2026-11-16: Raised these bounds for supervisor report delivery and feedback application; the added procedure lives in supervision.md, with brief kickoff and boundary triggers in the charter.",
     "scheduler_start": [
       "charter",
       "STATE.md",

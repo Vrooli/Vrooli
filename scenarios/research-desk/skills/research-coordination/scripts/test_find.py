@@ -49,6 +49,21 @@ class FindTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_raw_material_ranks_below_curated_pages_unless_asked(self) -> None:
+        write(self.root, "topics/ux/knowledge/latency.md", "# Latency\n\nThe latency budget for the phone page is two seconds.\n")
+        for raw in ("topics/ux/runs/r1/latency.md", "topics/ux/support/copy/latency.md", "topics/ux/history/latency.md"):
+            write(self.root, raw, "# Latency budget\n\nlatency budget latency budget latency budget phone page\n")
+        _, res = run(["latency budget", "--files", "--home", str(self.root)])
+        self.assertEqual(res["hits"][0]["path"], "topics/ux/knowledge/latency.md")
+        _, res = run(["latency budget", "--files", "--include-raw", "--home", str(self.root)])
+        self.assertNotEqual(res["hits"][0]["path"], "topics/ux/knowledge/latency.md")
+
+    def test_top_results_name_different_files_first(self) -> None:
+        write(self.root, "topics/a/knowledge/big.md", "# One\n\nquota quota quota\n\n# Two\n\nquota quota quota\n\n# Three\n\nquota quota quota\n")
+        write(self.root, "topics/a/knowledge/small.md", "# Other\n\nthe quota is mentioned once among many other words in a longer passage\n")
+        _, res = run(["quota", "--files", "--limit", "2", "--home", str(self.root)])
+        self.assertEqual(len({h["path"] for h in res["hits"]}), 2)
+
     def test_edits_and_deletes_are_visible_with_citations(self) -> None:
         write(self.root, "topics/ux/knowledge/MAP.md", "# Map\n\n## Scenarios\n\nThe planner owns week view.\n")
         code, res = run(["planner week", "--home", str(self.root)])

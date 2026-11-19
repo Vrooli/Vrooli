@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/askreader"
+	"github.com/vrooli/api-core/decisionpage"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/api-core/schedule"
@@ -140,8 +141,9 @@ func newWiring(getenv func(string) string) *wiring {
 			// Notification Hub shows the desk its own asks to its ask-reader service identity only.
 			AskReader: askreader.NewTokens(courier.Source, askReaderCredential),
 		},
-		Clock:  deps.Clock,
-		Logger: log.Default(),
+		PageWriter: newPageWriter(w.registry, resolver),
+		Clock:      deps.Clock,
+		Logger:     log.Default(),
 	}
 	w.webConsole = &peer.Peer{Name: "web-console", BaseURL: capabilities.Reach(w.registry, resolver, "web-console"), Credential: webConsoleAuthorization(newWebConsoleTokens(authorityWebConsoleCredential))}
 	w.launch = &launch.Service{
@@ -389,4 +391,22 @@ func (w *wiring) researchHomeReadable(context.Context) error {
 		return fmt.Errorf("research home %s is not a folder", w.homeConfig.ResearchDir)
 	}
 	return nil
+}
+
+// newPageWriter is the shared decision-page writer the courier asks for the
+// page of a decision whose raiser left it out: its runs go through Agent
+// Manager under Notification Hub's writer profile, and its pages are checked
+// by the Hub the desk sends to. It starts runs as the desk's own Agent Manager
+// principal (page_writer_credential.go); until the operator issues it and
+// grants it run creation, every launch is refused and such a decision stays
+// packet_not_ready with that reason on its plan row.
+func newPageWriter(registry *capabilities.Registry, resolver capabilities.PortResolver) *decisionpage.Writer {
+	pw := decisionpage.New()
+	pw.Launcher = &decisionpage.AgentManager{
+		BaseURL:       capabilities.Reach(registry, resolver, "agent-manager"),
+		Authorization: newPageWriterTokens(authorityPageWriterCredential).Authorization,
+		CreatedBy:     "research-desk",
+	}
+	pw.Checker = &decisionpage.HubCheck{BaseURL: capabilities.Reach(registry, resolver, "notification-hub")}
+	return pw
 }

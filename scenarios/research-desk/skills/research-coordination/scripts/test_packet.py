@@ -7,6 +7,7 @@ import contextlib
 import datetime as dt
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -22,13 +23,11 @@ from test_mission_check import WORKSTREAM, mission  # noqa: E402
 CONTRACT_LINES = (
     "State: see STATE.md beside this file.",
     "Read entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at every unit start; they are the operator's words and win over this charter",
-    "Read entries in `STEWARD.md` beside this file at every unit start.",
-    "`OPERATOR.md` entries override everything; `STEWARD.md` entries guide the work when they do not conflict with operator entries; where neither file decides, use supervisor judgment.",
-    "`Steward · <date> · <attribution>`",
     "Write each decision as a needs-you item in its topic's `DECISIONS.md` (grammar in the research-coordination skill); research-desk delivers it, or you do by the fallback below.",
+    "its row in `research-desk needs-you` says why; fix that so the\ndesk sends it, never by hand.",
+    "`stat -c %Y` on `OPERATOR.md` and the card topics'",
     "`Commission: programme-five-20261112`",
     "### <UTC> · delivered <ID> · via desk",
-    "`Delivered: <route> <UTC>`",
     "`Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`",
 )
 
@@ -50,9 +49,12 @@ class PacketTest(unittest.TestCase):
         (self.home / "topics" / "alpha" / "FILMS.md").write_text("# Films\n\n## Wanted\n\n- a film\n")
         self._today = packet.today
         packet.today = lambda: dt.date(2026, 11, 12)
+        self.preflight_patch = mock.patch.object(packet, "report_preflight", return_value=[])
+        self.preflight = self.preflight_patch.start()
 
     def tearDown(self):
         packet.today = self._today
+        self.preflight_patch.stop()
         self.tmp.cleanup()
 
     def topic(self, name, text):
@@ -100,6 +102,15 @@ class PacketTest(unittest.TestCase):
         self.assertIn(str(packet.PATHS["footprint"]), charter)
         self.assertIn("`model` and `reasoning_effort` omitted", charter)
         self.assertTrue(all(g["ok"] for g in res["gates"]))
+        self.preflight.assert_not_called()
+
+    def test_build_runs_preflight_and_refuses_failure(self):
+        self.preflight.return_value = ["report answer inaccessible"]
+        code, res = self.build()
+        self.assertEqual(code, 1)
+        self.assertIn("report answer inaccessible", res["errors"][0]["message"])
+        self.assertEqual(list((self.home / "cohorts").iterdir()), [])
+        self.preflight.assert_called_once_with(self.home, ["alpha", "beta"])
 
     def test_without_an_order_cards_take_active_approved_then_open_and_say_it_is_not_priority(self):
         _, res = self.preview()
@@ -210,7 +221,7 @@ class PacketTest(unittest.TestCase):
         code, res = self.build(carry_baseline_from=None, owner_model_tier="gpt-6-astra")
         self.assertEqual((code, res["written"], res["texts"]), (0, True, None))
         folder = self.home / "cohorts" / "programme-five-20261112"
-        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["KERNEL.txt", "PACKET.json", "README.md", "STANCE-MESSAGE.txt"])
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["FEEDBACK.md", "KERNEL.txt", "PACKET.json", "README.md", "STANCE-MESSAGE.txt"])
         meta = json.loads((folder / "PACKET.json").read_text())
         self.assertEqual(meta["schema"], "research-desk.packet/v1")
         self.assertEqual(meta["spec"]["supervisor_model"], "gpt-6-luna")
@@ -293,11 +304,11 @@ class PacketTest(unittest.TestCase):
         failed = [g["name"] for g in res["gates"] if not g["ok"]]
         self.assertEqual(failed, ["stance_chars"])
         self.assertEqual(list((self.home / "cohorts").iterdir()), [])
-        code, res = self.build(card_notes={"beta": "Long operator note. " * 600})
+        code, res = self.build(card_notes={"beta": "Long operator note. " * 700})
         self.assertEqual(code, 1)
         overflow = [e["message"] for e in res["errors"] if e["code"] == "gate_overflow"]
         self.assertEqual(len(overflow), 1, res["errors"])
-        self.assertRegex(overflow[0], r"^charter is [\d,]+ bytes, [\d,]+ over 25,000; largest parts: Card 2 — Beta things \(notes 12,\d{3}\)")
+        self.assertRegex(overflow[0], r"^charter is [\d,]+ bytes, [\d,]+ over 25,000; largest parts: Card 2 — Beta things \(notes 14,\d{3}\)")
         self.assertNotIn("YTDLP", overflow[0])
         self.assertEqual(list((self.home / "cohorts").iterdir()), [])
 
@@ -374,11 +385,17 @@ class PacketTest(unittest.TestCase):
         start = res["texts"]["charter"].split("1. **Start.**", 1)[1].split("2. **The unit loop**", 1)[0]
         self.assertIn("never from your self-description", start)
         self.assertIn("No output: record `unknown`, no item.", start)
-        self.assertIn("Start the owners either way, with `model`\n   set to `gpt-6-luna`", start)
+        self.assertIn("Neither stops the start.", start)
+        self.assertIn("owners inherit this session's model", start)
         self.assertNotIn("start no owner", start)
         probe = re.search(r"^   `(p=\$\$; .+)`$", start, re.MULTILINE).group(1)
-        # A plain shell has no codex ancestor: nothing is printed, so the model is unknown.
-        plain = subprocess.run(["sh", "-c", probe], capture_output=True, text=True, timeout=10)
+        # Model a process tree ending at PID 1 without a Codex launch, regardless of the
+        # test runner's own ancestors. Keep grep and the shell real.
+        fake_ps = self.home / "ps"
+        fake_ps.write_text('#!/bin/sh\nif [ "$1" = "-o" ]; then echo 1; else echo "sh -c probe"; fi\n')
+        fake_ps.chmod(0o755)
+        env = {**os.environ, "PATH": f"{self.home}:{os.defpath}"}
+        plain = subprocess.run(["sh", "-c", probe], capture_output=True, text=True, timeout=10, env=env)
         self.assertEqual(plain.stdout, "")
         # Under a process launched as `codex ... --model X`, the probe prints that launch command.
         codex = subprocess.run(["codex", "-c", probe, "--model", "gpt-test"], executable="/bin/sh",
@@ -392,16 +409,18 @@ class NeedsYouGrammarTest(unittest.TestCase):
 
     def test_every_copy_names_the_same_heading_and_lines(self):
         contract = (packet.REPO / "scenarios/research-desk/docs/reference/FILE-CONTRACT.md").read_text(encoding="utf-8")
+        # The charter keeps no copy of its own: it sends the scheduler to operator-attention.md.
+        self.assertIn("Grammar, packet and page: `{{operator_attention}}`",
+                      (packet.TEMPLATES / "charter.md").read_text(encoding="utf-8"))
         copies = {
             "operator-attention.md": (packet.SKILL / "references/operator-attention.md").read_text(encoding="utf-8"),
-            "charter.md": (packet.TEMPLATES / "charter.md").read_text(encoding="utf-8"),
             "FILE-CONTRACT.md §5": contract[contract.index("## 5. Decisions"):],
         }
         for name, text in copies.items():
             for needle in ("[A-Z0-9][A-Z0-9_-]{0,127}", "[a-z0-9-]{1,32}"):
                 self.assertIn(needle, text, name)
             self.assertRegex(text, r"(?m)^### [A-Z0-9][A-Z0-9_-]{0,127} — \S", name)
-            for line in ("Recommended", "Options", "Packet", "Secret", "Commission", "Delivered"):
+            for line in ("Recommended", "Options", "Packet", "Secret", "Commission"):
                 self.assertRegex(text, rf"(?m)(^|`){line}: \S", f"{name} lacks {line}:")
 
 

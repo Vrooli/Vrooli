@@ -20,12 +20,12 @@ import (
 )
 
 func main() {
-	eventpublishing.Register()
 	// Preflight runs first so the binary can re-exec itself after a
 	// stale-source rebuild before any listener opens.
 	if preflight.Run(preflight.Config{ScenarioName: "research-desk"}) {
 		return
 	}
+	eventpublishing.Register()
 
 	w := newWiring(os.Getenv)
 	srv := server.New(

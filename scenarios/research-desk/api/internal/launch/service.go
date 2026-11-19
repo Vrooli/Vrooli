@@ -346,6 +346,9 @@ type supersession struct {
 	Target Target
 	Stop   bool
 	Open   bool
+	// Stale says why a commission is recorded without being stopped: its
+	// thread is unknown and it has been silent past StaleAfter.
+	Stale string
 }
 
 // supersessions checks, before anything is launched, that every superseded
@@ -365,8 +368,8 @@ func (s *Service) supersessions(ctx context.Context, snap *home.Snapshot, verdic
 		}
 		t := targetOf(c)
 		sup := supersession{ID: c.ID, Target: t, Open: c.State.Running() || (c.Session != nil && c.Session.WindowOpen)}
-		if !sup.Open && c.Session == nil {
-			out = append(out, sup) // nothing to stop: recorded only
+		if sup.Stale = staleThread(c, t, snap.Now); sup.Stale != "" || (!sup.Open && c.Session == nil) {
+			out = append(out, sup) // nothing the desk can or need stop: recorded only
 			continue
 		}
 		sup.Stop = true
@@ -388,6 +391,17 @@ func (s *Service) supersessions(ctx context.Context, snap *home.Snapshot, verdic
 		out = append(out, sup)
 	}
 	return out, nil
+}
+
+// staleThread says why an unknown commission may be superseded without a
+// stop: no live goal, no Codex thread the desk can name, and no write for
+// StaleAfter. Empty when any of that does not hold.
+func staleThread(c *home.Commission, t Target, now time.Time) string {
+	if c.State != home.StateUnknown || t.Thread != "" || !c.LastWrite.Known || c.LastWrite.AtLeast || now.Sub(c.LastWrite.Value) < StaleAfter {
+		return ""
+	}
+	return "stale: its Codex thread is unknown and nothing in it was written since " + stamp(c.LastWrite.Value) +
+		", so it was recorded as superseded without typing into or ending any session"
 }
 
 // targetOf is a commission's own conversation: the session and thread
@@ -497,6 +511,9 @@ func (s *Service) run(ctx context.Context, id, charter string, record *home.Laun
 			return
 		}
 		outcome := "no window found; no session is known for it, so nothing could still be running under the desk's control"
+		if sup.Stale != "" {
+			outcome = sup.Stale
+		}
 		if sup.Stop {
 			stopped, err := s.Launcher.Stop(ctx, sup.Target, sup.Open)
 			if err != nil {

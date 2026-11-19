@@ -1,6 +1,8 @@
 package courier
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -163,11 +165,6 @@ func inboxNames(levels []*home.Level, receipt string) string {
 func (c *Courier) recordAnswer(s *Step, now time.Time) error {
 	id := itemOf(s.Key)
 	body := inboxAnswer(id, s.Ask)
-	for _, l := range s.Inboxes {
-		if _, _, err := c.Writer.AppendInbox(l.Topic, s.Ask.ID, now, "operator", home.EntryAnswer, body); err != nil {
-			return err
-		}
-	}
 	commission := commissionOf(s.Key)
 	if s.Item != nil {
 		commission = ""
@@ -175,10 +172,21 @@ func (c *Courier) recordAnswer(s *Step, now time.Time) error {
 			commission = s.Item.CommissionID
 		}
 	}
+	operatorBody := home.AnswerBody(s.Ask.Answer, s.Ask.AnswerLabel, s.Ask.Note) + attachmentNotesSuffix(s.Ask.AttachmentNotes)
+	if len(s.Ask.AttachmentNotes) > 0 {
+		if c.Writer.FitEntry(body) != body || (commission != "" && !home.IsLevelOwner(commission) && c.Writer.FitEntry(operatorBody) != operatorBody) {
+			return fmt.Errorf("exact Hub attachment notes exceed the research desk entry limit; answer was not truncated or recorded")
+		}
+	}
+	for _, l := range s.Inboxes {
+		if _, _, err := c.Writer.AppendInbox(l.Topic, s.Ask.ID, now, "operator", home.EntryAnswer, body); err != nil {
+			return err
+		}
+	}
 	if commission == "" || home.IsLevelOwner(commission) {
 		return nil
 	}
-	_, err := c.Writer.AppendOperator(commission, home.Entry{At: now, Kind: home.EntryAnswer, Subject: id, Via: home.ViaHub, Body: c.Writer.FitEntry(home.AnswerBody(s.Ask.Answer, s.Ask.AnswerLabel, s.Ask.Note))})
+	_, err := c.Writer.AppendOperator(commission, home.Entry{At: now, Kind: home.EntryAnswer, Subject: id, Via: home.ViaHub, Body: c.Writer.FitEntry(operatorBody)})
 	return err
 }
 
@@ -193,5 +201,18 @@ func inboxAnswer(id string, a *Ask) string {
 			break
 		}
 	}
-	return home.InboxAnswerBody(id, a.Answer, a.AnswerLabel, a.Note, packet, "hub ask "+a.ID)
+	return home.InboxAnswerBody(id, a.Answer, a.AnswerLabel, a.Note, packet, "hub ask "+a.ID) + attachmentNotesSuffix(a.AttachmentNotes)
+}
+
+// attachmentNotesSuffix carries Hub's exact attachment path and text into the
+// agent-visible answer records. JSON keeps paths and operator text unambiguous.
+func attachmentNotesSuffix(notes []AttachmentNote) string {
+	if len(notes) == 0 {
+		return ""
+	}
+	payload, err := json.Marshal(notes)
+	if err != nil {
+		return ""
+	}
+	return "\nAttachment notes (exact path and text, JSON): " + string(payload)
 }

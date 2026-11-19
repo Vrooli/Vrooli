@@ -131,9 +131,47 @@ def table_rows(body: str) -> list[list[str]]:
     return rows[1:] if rows else []  # drop the header row
 
 
+def headless_tables(body: str) -> list[str]:
+    """First cell of each run of table lines that lacks a header and separator row. Markdown
+    renders such a run as plain text: a blank line inside a table splits it this way."""
+    found, run = [], []
+    for line in body.splitlines() + [""]:
+        if line.strip().startswith("|"):
+            run.append(line.strip())
+            continue
+        if run:
+            sep = [c.strip() for c in run[1].strip("|").split("|")] if len(run) > 1 else []
+            if not sep or not all(re.fullmatch(r":?-{3,}:?", c) for c in sep if c):
+                found.append(run[0].strip("|").split("|")[0].strip())
+            run = []
+    return found
+
+
 def parse_hours(magnitude: str) -> int | None:
     m = re.search(r"(\d+)\s*(?:[–-]\s*(\d+))?\s*h\b", magnitude)
     return int(m.group(1)) if m else None
+
+
+LIVE_WRITE_HOURS = 3  # a live supervisor overwrites STATE.md at every hourly review
+
+
+def live_topics(home: Path) -> set[str]:
+    """Topics a live commission names: its STATE.md was written within LIVE_WRITE_HOURS and its
+    PACKET.json (or, for older packets, README.md) names the topic. Files only."""
+    import time
+    out: set[str] = set()
+    for c in (home / "cohorts").glob("*/STATE.md") if (home / "cohorts").is_dir() else []:
+        if time.time() - c.stat().st_mtime > LIVE_WRITE_HOURS * 3600:
+            continue
+        packet, readme = c.parent / "PACKET.json", c.parent / "README.md"
+        try:
+            topics = json.loads(packet.read_text(encoding="utf-8")).get("topics") if packet.is_file() else None
+        except (OSError, ValueError, AttributeError):
+            topics = None
+        if topics is None and readme.is_file():
+            topics = re.findall(r"topics/([a-z0-9][a-z0-9-]*)/", readme.read_text(encoding="utf-8", errors="replace"))
+        out.update(t for t in topics or [] if isinstance(t, str))
+    return out
 
 
 def check_mission(topic: str, path: Path) -> TopicReport:
@@ -179,6 +217,11 @@ def check_mission(topic: str, path: Path) -> TopicReport:
             if phrase in end_state:
                 rep.errors.append(f"End state contains self-shrinking qualifier '{phrase}'")
 
+    for name in ("Scorecard", "Workstreams"):
+        for first in headless_tables(sections.get(name, "")):
+            rep.errors.append(f"{name} table is split: rows from '{first}' have no header, so they render as "
+                              "text outside it; remove the blank line above them")
+
     scorecard = table_rows(sections.get("Scorecard", ""))
     if scorecard and not 5 <= len(scorecard) <= 8:
         rep.warnings.append(f"Scorecard has {len(scorecard)} dimensions; mission.md asks for 5-8")
@@ -214,6 +257,10 @@ def check_mission(topic: str, path: Path) -> TopicReport:
     taken = [w.ident for w in rep.later if w.ident in {x.ident for x in rep.workstreams}]
     if taken:
         rep.errors.append(f"{', '.join(taken)}: both a table row and a Later line; keep one")
+    active = [w.ident for w in rep.workstreams if w.status == "active"]
+    if active and topic not in live_topics(path.parent.parent.parent):
+        rep.warnings.append(f"{', '.join(active)}: `active` but no live commission names this topic; "
+                            "say `open`, or `waiting-…` with what it waits on")
     live = sum(1 for w in rep.workstreams if w.status in LIVE)
     if live < 3:
         rep.errors.append(f"only {live} open/active/approved workstreams; keep at least three (run an architect pass)")

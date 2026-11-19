@@ -101,7 +101,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "steward_finding", Path: operatorconnect.OperatorServiceAddStewardFindingProcedure, Method: "POST", Category: "operator",
 		Summary:     "Send a steward finding",
-		Description: "Appends a dated, verified-agent-attributed finding to STEWARD.md. The live charter is updated to read this channel below OPERATOR.md and above supervisor judgment; operator words retain priority.",
+		Description: "Appends a dated `from ceo · feedback` entry, attributed to the verified agent run, to the INBOX.md of the commission's topic, which its next agent drains (docs/agent-system/LEVELS.md). Operator words in OPERATOR.md keep priority.",
 		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, {Status: 403, Code: "permission_denied", Description: "A verified agent run is required"}},
 		Examples:    example("Finding", "AddStewardFinding", `{"commission_id":"programme-five-20261112","text":"Keep the measured limit."}`),
 	},

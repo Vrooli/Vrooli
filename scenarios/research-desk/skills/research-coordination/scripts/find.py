@@ -304,15 +304,35 @@ def snippet(text: str, words: list[str], width: int = 280) -> str:
     return ("… " if start else "") + body + (" …" if start + width < len(text) else "")
 
 
-def authority(rel: str, feed: str) -> float:
-    """Same prior as Source Ledger: entry files over evidence, runs below curated files."""
+RAW_DIRS = {"runs", "support", "preimages", "history", "replay"}
+RAW_WEIGHT = 0.5
+
+
+def authority(rel: str, include_raw: bool = False) -> float:
+    """Same prior as Source Ledger: entry files over evidence; raw material (run output, support
+    copies, preimages, history, compiled files) lower unless asked for."""
     name = rel.rsplit("/", 1)[-1].upper()
-    if name in ("SKILL.MD", "MISSION.MD", "README.MD") or name.endswith("MAP.MD"):
-        return 1.25
-    return 0.85 if feed == "runs" else 1.0
+    w = 1.25 if name in ("SKILL.MD", "MISSION.MD", "README.MD") or name.endswith("MAP.MD") else 1.0
+    if not include_raw and (rel.endswith(".pyc") or RAW_DIRS & set(rel.split("/")[:-1])):
+        w *= RAW_WEIGHT
+    return w
 
 
-def search_files(home: Path, query: str, topic: str, feed: str, limit: int) -> dict:
+def distinct_files_first(scored: list, limit: int) -> list:
+    """Each file's best chunk first, then further chunks (up to PER_FILE per file) in rank order."""
+    out, per, taken = [], {}, set()
+    for rnd in range(1, PER_FILE + 1):
+        for i, item in enumerate(scored):
+            if len(out) == limit:
+                return out
+            if i not in taken and per.get(item[1]["path"], 0) == rnd - 1:
+                per[item[1]["path"]] = rnd
+                taken.add(i)
+                out.append(item)
+    return out
+
+
+def search_files(home: Path, query: str, topic: str, feed: str, limit: int, include_raw: bool = False) -> dict:
     started = time.time()
     if topic and ("/" in topic or topic in (".", "..")):
         raise SystemExit(f"find.py: invalid topic {topic!r}")
@@ -345,16 +365,11 @@ def search_files(home: Path, query: str, topic: str, feed: str, limit: int) -> d
     for e, c, tf, length, head_hits in pool:
         s = sum(math.log(1 + (n - df[w] + 0.5) / (df[w] + 0.5)) * tf[w] * 2.2 / (tf[w] + 1.2 * (0.25 + 0.75 * length / avg))
                 for w in words if tf[w])
-        scored.append(((s + head_hits) * authority(e["path"], e["feed"]), e, c))
+        scored.append(((s + head_hits) * authority(e["path"], include_raw), e, c))
     scored.sort(key=lambda x: -x[0])
     best = scored[0][0] if scored else 1
-    hits, per = [], {}
-    for s, e, c in scored:
-        if len(hits) == limit:
-            break
-        if per.get(e["path"], 0) == PER_FILE:
-            continue
-        per[e["path"]] = per.get(e["path"], 0) + 1
+    hits = []
+    for s, e, c in distinct_files_first(scored, limit):
         hits.append({"citation": f"{e['path']}#L{c['start']}-L{c['end']}", "path": e["path"], "absPath": str(home / e["path"]),
                      "topic": e["topic"], "feed": e["feed"], "lineStart": c["start"], "lineEnd": c["end"], "heading": c["heading"],
                      "snippet": snippet(c["text"], words), "score": round(s / best, 3), "truncated": e["size"] > e["max"],
@@ -383,8 +398,8 @@ def source_ledger_base() -> str | None:
     return f"http://127.0.0.1:{port}" if port.isdigit() else None
 
 
-def search_ledger(base: str, query: str, topic: str, feed: str, limit: int) -> dict:
-    body = json.dumps({"query": query, "topic": topic, "feed": feed, "limit": limit}).encode()
+def search_ledger(base: str, query: str, topic: str, feed: str, limit: int, include_raw: bool = False) -> dict:
+    body = json.dumps({"query": query, "topic": topic, "feed": feed, "limit": limit, "includeRaw": include_raw}).encode()
     req = urllib.request.Request(base + SL_PATH, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=12) as resp:
         return json.loads(resp.read())
@@ -414,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--feed", default="")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--include-raw", action="store_true", help="rank run output, support copies, preimages and history like curated pages")
     ap.add_argument("--files", action="store_true", help="skip Source Ledger and read the files")
     ap.add_argument("--home", help="research home (default $VROOLI_RESEARCH_HOME or ~/.vrooli/research)")
     args = ap.parse_args(argv)
@@ -425,14 +441,14 @@ def main(argv: list[str] | None = None) -> int:
     base = None if args.files or args.home else source_ledger_base()
     if base:
         try:
-            res = search_ledger(base, args.query, args.topic, args.feed, args.limit)
+            res = search_ledger(base, args.query, args.topic, args.feed, args.limit, args.include_raw)
             res.setdefault("hits", [])
         except Exception as err:  # any failure falls back to files
             why = f"unavailable ({err})"
     elif not args.files:
         why = "not reachable" if not args.home else "skipped (--home)"
     if res is None:
-        res = search_files(home, args.query, args.topic, args.feed, args.limit)
+        res = search_files(home, args.query, args.topic, args.feed, args.limit, args.include_raw)
         res["degradations"].insert(0, {"reason": "SOURCE_LEDGER_UNAVAILABLE", "leg": "source-ledger", "detail": f"Source Ledger {why}; searched the files directly"})
     print(json.dumps(res, indent=2) if args.json else render(res))
     return 0 if res["hits"] else 1

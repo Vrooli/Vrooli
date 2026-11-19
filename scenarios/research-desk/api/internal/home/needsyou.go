@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Needs-you grammar (FILE-CONTRACT.md §5). One parser for STATE.md
@@ -115,9 +116,7 @@ func ParseNeedsYou(text, section, source string) ([]NeedsYouItem, []Legacy) {
 		if current.RecommendedProblem != "" {
 			current.Problems = append(current.Problems, current.RecommendedProblem)
 		}
-		if p := current.packetProblem(); p != "" {
-			current.Problems = append(current.Problems, p)
-		}
+		current.Problems = append(current.Problems, current.packetProblems()...)
 		current.Body = strings.TrimSpace(strings.Join(body, "\n"))
 		items = append(items, *current)
 		current, body = nil, nil
@@ -226,19 +225,83 @@ func (it *NeedsYouItem) field(line string) {
 // BriefFile is the name of a decision's packet: the brief a worker gets.
 const BriefFile = "BRIEF.md"
 
-// packetProblem says why a decision's `Packet:` line does not name its
-// brief, or "". The raiser understands the decision best, so it writes the
-// packet a worker executes on the answer (LEVELS.md, "Decisions travel up").
-func (it *NeedsYouItem) packetProblem() string {
-	switch {
-	case !it.decision:
-		return ""
-	case it.Packet == "":
-		return "a decision needs a Packet: line naming its brief, work/<ID>/" + BriefFile + ", so the answer can be executed without its raiser"
-	case filepath.Base(it.Packet) != BriefFile:
-		return "Packet: must name the decision's brief, work/<ID>/" + BriefFile + ", not " + filepath.Base(it.Packet)
+// packetProblems say why a decision's `Packet:` and `Explainer:` lines do not
+// name its own folder, work/<ID>/, holding its brief and its page; none when
+// they do. The raiser understands the decision best, so it writes the brief a
+// worker executes on the answer cold (LEVELS.md, "Decisions travel up"); a
+// workstream's brief makes the executor re-derive the decision.
+func (it *NeedsYouItem) packetProblems() []string {
+	if !it.decision {
+		return nil
 	}
-	return ""
+	var out []string
+	folder := filepath.Dir(it.Packet)
+	switch {
+	case it.Packet == "":
+		out = append(out, "a decision needs a Packet: line naming its brief, work/"+it.ID+"/"+BriefFile+", so the answer can be executed without its raiser")
+	case filepath.Base(it.Packet) != BriefFile || filepath.Base(folder) != it.ID:
+		out = append(out, "Packet: must name the decision's brief, work/"+it.ID+"/"+BriefFile+", in a folder named for the decision, never a workstream's brief; not "+it.Packet)
+	}
+	switch {
+	case it.Explainer == "":
+		out = append(out, "a decision needs an Explainer: line naming its page beside its brief, work/"+it.ID+"/page.html")
+	case it.Packet != "" && filepath.Dir(it.Explainer) != folder:
+		out = append(out, "Explainer: must sit beside the brief, in "+folder+"/; not "+it.Explainer)
+	}
+	return out
+}
+
+// IsDecision is true for an item with a `Recommended:` line, well formed or not.
+func (it *NeedsYouItem) IsDecision() bool { return it.decision }
+
+// FreshDays is how old a brief's `Checked:` line may be when its decision goes
+// out: the premise is checked live before the operator is asked.
+const FreshDays = 7
+
+var (
+	checkedLine = regexp.MustCompile(`(?m)^Checked: (\d{4}-\d{2}-\d{2})\S*((?:\s+\S+){3,})`)
+	// AnswerBullet is a `## On each answer` bullet: the answer's key, then what it settles.
+	AnswerBullet  = regexp.MustCompile("^[-*]\\s+(?:\\*\\*)?`?([a-z0-9-]{1,32})`?(?:\\s*\\([^)]*\\))?[.:]?(?:\\*\\*)?[.:]?\\s*(?:— )?(.*)$")
+	answersHeader = regexp.MustCompile(`(?m)^## On each answer[^\n]*\n`)
+)
+
+// BriefProblems say what a fresh executor would have to re-derive from a
+// decision's brief: the premise checked live (a dated `Checked:` line saying
+// what and how, at most FreshDays old at now; a zero now skips the age) and
+// what each answer settles, `other` (the operator's own words) included.
+// needs_you.py's brief_problems says the same; the briefs cases bind both.
+func BriefProblems(text string, keys []string, now time.Time) []string {
+	var out []string
+	switch m := checkedLine.FindStringSubmatch(text); {
+	case m == nil:
+		out = append(out, "no `Checked: <YYYY-MM-DD> <the premise, verified live, and how>` line")
+	case !now.IsZero():
+		if day, err := time.Parse("2006-01-02", m[1]); err == nil && int(now.UTC().Truncate(24*time.Hour).Sub(day).Hours()/24) > FreshDays {
+			out = append(out, "Checked: "+m[1]+" is over "+strconv.Itoa(FreshDays)+" days old; check the premise live again")
+		}
+	}
+	said := map[string]bool{}
+	if loc := answersHeader.FindStringIndex(text); loc != nil {
+		body := "\n" + text[loc[1]:]
+		if end := strings.Index(body, "\n## "); end >= 0 {
+			body = body[:end]
+		}
+		for _, line := range strings.Split(body, "\n") {
+			if b := AnswerBullet.FindStringSubmatch(strings.TrimSpace(line)); b != nil && strings.TrimSpace(b[2]) != "" {
+				said[b[1]] = true
+			}
+		}
+	}
+	var missing []string
+	for _, k := range append(append([]string{}, keys...), "other") {
+		if !said[k] {
+			missing = append(missing, "`"+k+"`")
+		}
+	}
+	if len(missing) > 0 {
+		out = append(out, "`## On each answer` says nothing for "+strings.Join(missing, ", ")+"; give each answer a bullet saying what it settles (`other` is the operator's own words)")
+	}
+	return out
 }
 
 // PacketPath is the item's packet as an absolute path, resolved as

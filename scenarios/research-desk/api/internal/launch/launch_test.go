@@ -76,6 +76,18 @@ func newCodex() *fakeCodex {
 
 var target = Target{Session: "sess-1", Thread: "thread-1"}
 
+func stubHealthyHubStatusCLI(t *testing.T) {
+	t.Helper()
+	// Packet preflight still checks Hub readiness; answer through the CLI/PATH
+	// seam so unrelated host load cannot timeout launch tests.
+	binDir := t.TempDir()
+	statusCLI := filepath.Join(binDir, "notification-hub")
+	if err := os.WriteFile(statusCLI, []byte("#!/bin/sh\nprintf '%s\\n' '{\"status\":\"healthy\",\"readiness\":true}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 func idle(text string) Screen {
 	lines := strings.Split(text+"\n› ", "\n")
 	return Screen{Text: strings.Join(lines, "\n"), CursorRow: len(lines) - 1}
@@ -633,7 +645,7 @@ func TestBlockersAreFewAndResolvedInTheRequest(t *testing.T) {
 		t.Fatalf("an unknown commission with nothing found running: %+v", v)
 	}
 	r.reader.tweaks[handRun] = func(c *home.Commission) {
-		c.Session = &home.Match{SessionID: "sess-1"}
+		c.Session, c.LastWrite = &home.Match{SessionID: "sess-1"}, home.Time{Value: now.Add(-time.Hour), Evidence: home.Evidence{Known: true}}
 		c.NeverStarted = home.NeverStarted{Reason: "session sess-1 names this charter"}
 	}
 	if v = verdict(must(r.service.PreflightSpec(ctx, spec, Choices{}))); !v.Blocks || v.Recommended != "" {
@@ -861,6 +873,95 @@ func TestASupersessionThatCannotStopRefusesBeforeAnythingIsLaunched(t *testing.T
 	}
 }
 
+// A commission that a SETTLEMENT.json or CLOSURE.json closed has ended: it
+// never blocks a launch, whatever its derived state says, unless a goal is
+// still live in its window.
+func TestASettledOrClosedCommissionHasEndedAndNeverBlocks(t *testing.T) {
+	r := newRig(t)
+	r.sharing()
+	r.reader.states[handRun] = home.StateUnknown
+	ctx := context.Background()
+	pre := must(r.service.PreflightCommission(ctx, prepared, Choices{}))
+	if len(pre.Blockers) == 0 {
+		t.Fatal("an unknown commission with an open session blocks until it is closed")
+	}
+	for _, close := range []func(*home.Commission){
+		func(c *home.Commission) {
+			c.HistoricalSettlement = &home.HistoricalSettlement{Status: "closed_partial", AsOf: time.Date(2026, 11, 3, 18, 58, 0, 0, time.UTC)}
+		},
+		func(c *home.Commission) {
+			c.Files = append(c.Files, home.FileFact{Name: home.ClosureFile, Modified: time.Date(2026, 10, 27, 12, 27, 0, 0, time.UTC)})
+		},
+	} {
+		share := r.reader.tweaks[handRun]
+		r.reader.tweaks[handRun] = func(c *home.Commission) { share(c); close(c) }
+		pre = must(r.service.PreflightCommission(ctx, prepared, Choices{}))
+		r.reader.tweaks[handRun] = share
+		if len(pre.Blockers) != 0 {
+			t.Fatalf("a closed commission blocks: %v", pre.Blockers)
+		}
+		for _, v := range pre.Verdicts {
+			if v.CommissionID == handRun && (v.Blocks || !strings.HasPrefix(v.Message, "ended: ") || strings.Contains(v.Message, "may still be running")) {
+				t.Fatalf("verdict: %+v", v)
+			}
+		}
+	}
+
+	r.reader.states[handRun] = home.StateLive
+	share := r.reader.tweaks[handRun]
+	r.reader.tweaks[handRun] = func(c *home.Commission) {
+		share(c)
+		c.HistoricalSettlement = &home.HistoricalSettlement{Status: "closed", AsOf: time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)}
+	}
+	if pre = must(r.service.PreflightCommission(ctx, prepared, Choices{})); len(pre.Blockers) == 0 {
+		t.Fatal("a live goal blocks whatever a settlement says")
+	}
+}
+
+// An unknown commission whose Codex thread the desk cannot name used to
+// refuse every supersede. Silent past StaleAfter, it is recommended for
+// supersession and recorded as superseded, with the reason, without anything
+// typed or ended; silent for less, it still refuses.
+func TestAStaleCommissionWithAnUnknownThreadIsSupersededWithARecordedReason(t *testing.T) {
+	r := newRig(t)
+	r.sharing()
+	r.reader.states[handRun] = home.StateUnknown
+	share := r.reader.tweaks[handRun]
+	lastWrite := time.Date(2026, 11, 12, 1, 0, 0, 0, time.UTC) // the rig's clock reads 09:00
+	r.reader.tweaks[handRun] = func(c *home.Commission) {
+		share(c)
+		c.Session.ThreadID = ""
+		c.LastWrite = home.Time{Value: lastWrite, Evidence: home.Evidence{Known: true}}
+	}
+	ctx := context.Background()
+	ch := Choices{Resolutions: map[string]Resolution{handRun: Supersede}}
+	if _, err := r.service.Launch(ctx, prepared, ch); !errors.Is(err, home.ErrRefused) || !strings.Contains(err.Error(), "cannot stop "+handRun) {
+		t.Fatalf("eight hours of silence is not stale: %v", err)
+	}
+
+	lastWrite = time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC)
+	pre := must(r.service.PreflightCommission(ctx, prepared, Choices{}))
+	for _, v := range pre.Verdicts {
+		if v.CommissionID == handRun && v.Recommended != Supersede {
+			t.Fatalf("a stale commission is recommended for supersession: %+v", v)
+		}
+	}
+	if _, err := r.service.Launch(ctx, prepared, ch); err != nil {
+		t.Fatal(err)
+	}
+	r.wait(t, prepared)
+	if rec := r.launchFile(t, prepared); rec.Failed != nil {
+		t.Fatalf("launch failed: %+v", rec.Failed)
+	}
+	old := r.launchFile(t, handRun)
+	if got := old.Controls[len(old.Controls)-1].Outcome; old.SupersededBy != prepared || !strings.HasPrefix(got, "stale: its Codex thread is unknown") {
+		t.Fatalf("the old LAUNCH.json records why: %+v", old)
+	}
+	if len(r.codex.signalled) != 0 || slices.Contains(r.codex.typed(), "type:/goal pause") {
+		t.Fatalf("nothing is typed into or ended for a stale commission: typed %q, signalled %v", r.codex.typed(), r.codex.signalled)
+	}
+}
+
 // An unknown commission is launched on the operator's assertion only
 // when the desk found no session or goal for it; the assertion is recorded.
 func TestAnUnknownCommissionLaunchesOnTheOperatorsAssertion(t *testing.T) {
@@ -1028,6 +1129,7 @@ func TestARelaunchIsANewCommissionFromTheOldSpec(t *testing.T) {
 // baseline. One that has a baseline carries it.
 func TestABadStartRelaunchesThroughPacketPyWithOrWithoutABaseline(t *testing.T) {
 	r := newRig(t)
+	stubHealthyHubStatusCLI(t)
 	r.service.Packets = skillscripts.Packets{Paths: skillscripts.Paths{Skills: "../../../skills"}, Runner: skillscripts.NewPython(), ResearchDir: r.research}
 	ctx := context.Background()
 	first, err := r.service.Build(ctx, []byte(`{"topics":["niche-book-production"],"allowance_hours":6,"slug":"bad-start","stance_quotes":["Make research easier to manage."]}`), nil)
@@ -1071,6 +1173,7 @@ func TestABadStartRelaunchesThroughPacketPyWithOrWithoutABaseline(t *testing.T) 
 // alongside; the request wins over the spec.
 func TestBuildWritesTheChoicesIntoTheCharter(t *testing.T) {
 	r := newRig(t)
+	stubHealthyHubStatusCLI(t)
 	r.service.Packets = skillscripts.Packets{Paths: skillscripts.Paths{Skills: "../../../skills"}, Runner: skillscripts.NewPython(), ResearchDir: r.research}
 	ctx := context.Background()
 	spec := []byte(`{"topics":["niche-book-production"],"allowance_hours":6,"slug":"choices","stance_quotes":["Make research easier to manage."],"run_alongside":["` + other + `"]}`)

@@ -124,12 +124,10 @@ func entryReport(_ cliapp.OperationContext, msg *operatorv1.AddEntryResponse) cl
 
 func feedbackReport(_ cliapp.OperationContext, msg *operatorv1.AddStewardFindingResponse) cliapp.ListReport {
 	state := "written"
-	charter := "The charter now tells the supervisor to read this channel below operator entries."
 	if !msg.GetWritten() {
-		state = "dry run; nothing written"
-		charter = "A real write will make the charter read this channel below operator entries."
+		state = "not written (a dry run, or already in the inbox)"
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Steward finding %s to %s (agent run %s).", state, msg.GetPath(), msg.GetAgentRunId()), charter, msg.GetText()}, ResultCount: 1}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Steward finding %s to %s (agent run %s). The commission's next agent drains it at its review.", state, msg.GetPath(), msg.GetAgentRunId()), msg.GetText()}, ResultCount: 1}
 }
 
 func historicalSettlementReport(_ cliapp.OperationContext, msg *operatorv1.SettleHistoricalStateResponse) cliapp.ListReport {

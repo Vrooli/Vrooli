@@ -172,19 +172,37 @@ func TestAddEntryAndSteering(t *testing.T) {
 	}
 }
 
-func TestStewardFindingUsesVerifiedRunAndLowerPriorityFile(t *testing.T) {
+// A steward finding is a `from ceo · feedback` entry in the commission topic's
+// INBOX.md, attributed to the verified run, written once, and never operator words.
+func TestStewardFindingGoesToTheTopicInboxOnce(t *testing.T) {
 	h, research := newHandler(t)
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-42"})
-	resp, err := h.AddStewardFinding(ctx, connect.NewRequest(&operatorv1.AddStewardFindingRequest{CommissionId: commission, Text: "Reviewed correction."}))
-	if err != nil || !resp.Msg.Written || resp.Msg.AgentRunId != "run-42" || !strings.Contains(resp.Msg.Text, "by agent run run-42") {
-		t.Fatalf("verified run is attributed: %+v %v", resp, err)
+	req := &operatorv1.AddStewardFindingRequest{CommissionId: commission, Text: "Reviewed correction."}
+	dry, err := h.AddStewardFinding(ctx, connect.NewRequest(&operatorv1.AddStewardFindingRequest{CommissionId: commission, Text: req.Text, DryRun: true}))
+	if err != nil || dry.Msg.Written {
+		t.Fatalf("a dry run writes nothing: %+v %v", dry, err)
 	}
-	if !strings.HasSuffix(resp.Msg.Path, "STEWARD.md") {
-		t.Fatalf("finding goes to STEWARD.md: %s", resp.Msg.Path)
+	resp, err := h.AddStewardFinding(ctx, connect.NewRequest(req))
+	if err != nil || !resp.Msg.Written || resp.Msg.AgentRunId != "run-42" || resp.Msg.Text != dry.Msg.Text {
+		t.Fatalf("the finding is written as the dry run showed: %+v %v", resp, err)
 	}
-	operatorPath := filepath.Join(research, "cohorts", commission, home.OperatorFile)
-	if _, err := os.Stat(operatorPath); !os.IsNotExist(err) {
-		t.Fatalf("agent finding must not write operator words: %v", err)
+	if !strings.HasSuffix(resp.Msg.Path, filepath.Join("topics", "local-model-performance", "INBOX.md")) ||
+		!strings.Contains(resp.Msg.Text, " · from ceo · feedback\nReviewed correction.\nSource: agent run run-42 at ") {
+		t.Fatalf("the finding is a ceo feedback entry in the topic inbox: %s\n%s", resp.Msg.Path, resp.Msg.Text)
+	}
+	again, err := h.AddStewardFinding(ctx, connect.NewRequest(req))
+	if err != nil || again.Msg.Written {
+		t.Fatalf("the same finding at the same moment is written once: %+v %v", again, err)
+	}
+	if _, err := os.Stat(filepath.Join(research, "cohorts", commission, home.OperatorFile)); !os.IsNotExist(err) {
+		t.Fatalf("an agent finding must not write operator words: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(research, "cohorts", commission, "STEWARD.md")); !os.IsNotExist(err) {
+		t.Fatalf("no STEWARD.md channel: %v", err)
+	}
+	anonymous, err := h.AddStewardFinding(context.Background(), connect.NewRequest(req))
+	if err == nil {
+		t.Fatalf("a finding without a verified run is refused: %+v", anonymous)
 	}
 }
 

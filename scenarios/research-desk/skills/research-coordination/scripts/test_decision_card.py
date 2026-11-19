@@ -1,5 +1,6 @@
 import base64
 import importlib.util
+import datetime as dt
 import json
 import subprocess
 import sys
@@ -92,7 +93,7 @@ class Render(unittest.TestCase):
 
     def test_render_prints_the_needs_you_item_that_sends_the_page(self):
         with tempfile.TemporaryDirectory() as directory:
-            source, page = Path(directory, "card.json"), Path(directory, "page.html")
+            source, page = Path(directory, "card.json"), Path(directory, "work", bas_card()["id"], "page.html")
             source.write_text(json.dumps(bas_card()))
             result = subprocess.run([sys.executable, "-I", str(Path(__file__).with_name("decision_card.py")), "render", "--file", str(source), "--output", str(page)],
                                     capture_output=True, text=True, check=False)
@@ -105,6 +106,8 @@ class Render(unittest.TestCase):
             self.assertEqual(items, [{"id": "FEATURE_LOSS_ROUTE__SETTINGS", "title": "Keep or drop “Settings”?", "options": ["keep", "drop"],
                                       "recommended": "keep", "explainer": str(page.resolve()), "packet": str(packet.resolve())}])
             self.assertIn("- **`keep` (recommended).** Restore or retain this feature", packet.read_text())
+            self.assertEqual(needs_you.packet_problems(items[0], Path(directory), dt.datetime.now(dt.timezone.utc)), [],
+                             "the rendered folder is ready for a cold executor")
 
 
 if __name__ == "__main__":

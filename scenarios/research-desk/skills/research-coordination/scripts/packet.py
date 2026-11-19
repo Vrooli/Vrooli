@@ -20,6 +20,7 @@ import datetime as dt
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +28,8 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.dont_write_bytecode = True  # the desk runs this inside the repository; leave no __pycache__
 sys.path.insert(0, str(SCRIPTS))
 import mission_check as mc  # noqa: E402
+import inbox  # noqa: E402
+import report_feedback  # noqa: E402
 
 SKILL = SCRIPTS.parent
 TEMPLATES = SKILL / "templates"
@@ -340,6 +343,7 @@ def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, t
               + (f" Brief: `{briefs[w.ident]}`." if briefs.get(w.ident) else "")
               for i, w in enumerate(chosen, 1)]
     lines += mission_facts(rep, text, chosen, others, cap)
+    lines.append("- **Feedback:** see `FEEDBACK.md` beside this charter; apply this topic's entries before staffing.")
     if notes:
         lines += ["", "Operator's notes for this card, verbatim:", "", notes.strip("\n")]
     card = {"topic": topic, "mode": rep.mode, "order": [w.ident for w in chosen],
@@ -592,9 +596,34 @@ def read_spec(arg: str) -> object:
         raise Fail("invalid_spec", f"spec is not JSON: {e}", 2)
 
 
-def prepare(home: Path, spec_arg: str) -> tuple[dict, str, dict, list, list, list]:
+def report_preflight(home: Path, topics: list[str]) -> list[str]:
+    """Check the independent reporting path and reconcile all registered reports."""
+    kit = REPO / "scenarios/notification-hub/skills/notification-hub/kit"
+    required = [SCRIPTS / "research_report.py", SCRIPTS / "report_feedback.py", SCRIPTS / "evidence_record.py",
+                SCRIPTS.parent / "templates/topics/common/reporting/report.json",
+                kit / "schemas/evidence.schema.json",
+                kit / "schemas/research-report.schema.json", kit / "templates/research-report.html"]
+    errors = [f"report infrastructure missing: {path}" for path in required if not path.is_file()]
+    try:
+        proc = subprocess.run(["notification-hub", "status", "--json"], capture_output=True,
+                              text=True, timeout=15, check=True)
+        status = json.loads(proc.stdout)
+        if not isinstance(status, dict) or status.get("status") != "healthy" or status.get("readiness") is not True:
+            errors.append("notification-hub is not healthy and ready")
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        errors.append(f"notification-hub health check failed: {exc}")
+    for topic in topics:
+        errors.extend(report_feedback.sync(home / "topics" / topic))
+    return errors
+
+
+def prepare(home: Path, spec_arg: str, *, preflight: bool = False) -> tuple[dict, str, dict, list, list, list]:
     limits = load_limits()
     spec = normalize_spec(read_spec(spec_arg), home, limits)
+    if preflight:
+        errors = report_preflight(home, spec["topics"])
+        if errors:
+            raise Fail("report_preflight", "; ".join(errors), 1)
     cid = commission_id(home, spec["slug"])
     full = default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"])
     # The longest mission excerpts, then the most unordered workstreams per card, that let the
@@ -615,7 +644,7 @@ def cmd_preview(home: Path, spec_arg: str) -> dict:
 
 
 def cmd_build(home: Path, spec_arg: str) -> dict:
-    spec, cid, texts, cards, gates, errors = prepare(home, spec_arg)
+    spec, cid, texts, cards, gates, errors = prepare(home, spec_arg, preflight=True)
     folder = home / "cohorts" / cid
     res = result(cid, folder, False, gates, cards, None, errors)
     if not res["ok"]:
@@ -628,6 +657,7 @@ def cmd_build(home: Path, spec_arg: str) -> dict:
         (tmp / "README.md").write_text(texts["charter"], encoding="utf-8")
         (tmp / "STANCE-MESSAGE.txt").write_text(texts["stance"], encoding="utf-8")
         (tmp / "KERNEL.txt").write_text(texts["kernel"], encoding="utf-8")
+        (tmp / "FEEDBACK.md").write_text(feedback_snapshot(home, spec["topics"]), encoding="utf-8")
         packet = {"schema": "research-desk.packet/v1", "commission_id": cid, "built_at": now_utc(),
                   "template_version": load_limits()["template_version"], "spec": spec}
         (tmp / "PACKET.json").write_text(json.dumps(packet, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -641,6 +671,38 @@ def cmd_build(home: Path, spec_arg: str) -> dict:
         shutil.rmtree(tmp, ignore_errors=True)
         return {**res, "ok": False, "errors": [{"code": "filesystem", "message": str(e)}]}
     return {**res, "written": True}
+
+
+def feedback_snapshot(home: Path, topics: list[str]) -> str:
+    """Preserve feedback verbatim for review; never pretend interpretation is automatic."""
+    lines = ["# Operator feedback at packet build", "",
+             "Before staffing, sync report answers, refresh this inventory, and record a concrete application "
+             "for each item in the work plan and relevant owner briefs. Interpret unknown changes and inspect "
+             "images; do not silently drop either. This snapshot is not an application receipt.", ""]
+    for topic in topics:
+        root = home / "topics" / topic
+        lines += [f"## {topic}", ""]
+        found = False
+        feedback = root / "feedback"
+        for path in sorted(feedback.rglob("*")) if feedback.is_dir() else []:
+            if path.is_file() and path.suffix.lower() in (".md", ".json", ".txt"):
+                found = True
+                lines += [f"### {path.relative_to(root)}", "", path.read_text(encoding="utf-8"), ""]
+        for path in (root / "INBOX.md", root / "history" / "INBOX.md"):
+            for entry in inbox.entries(path)[1]:
+                if entry["from"] == "operator" and entry["kind"] in ("answer", "feedback", "priority", "clarification"):
+                    found = True
+                    lines += [f"### {path.relative_to(root)} · {entry['stamp']}", "", entry["raw"].strip(), ""]
+        for path in sorted((root / "history").glob("OPERATOR-ANSWERS*.md")):
+            found = True
+            lines += [f"### {path.relative_to(root)}", "", path.read_text(encoding="utf-8"), ""]
+        plan = root / "work" / "README.md"
+        if plan.is_file():
+            found = True
+            lines += ["### work/README.md", "", plan.read_text(encoding="utf-8"), ""]
+        if not found:
+            lines += ["No local operator feedback found at build. Check Hub reports at kickoff.", ""]
+    return "\n".join(lines)
 
 
 def read_opt(path: Path) -> str | None:

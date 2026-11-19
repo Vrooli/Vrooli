@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Check and write needs-you items (research-desk FILE-CONTRACT §5), and list every open decision.
 
-  needs_you.py validate --file DRAFT --section "Needs you"
+  needs_you.py validate --file DRAFT --section "Needs you" [--target topics/<t>/DECISIONS.md]
   needs_you.py write    --file DRAFT --section "Needs you" --target topics/<t>/DECISIONS.md
   needs_you.py open [--json] [--research DIR] [--portfolio DIR]
+  needs_you.py spawn <ID>     the standard message that starts an answered decision's executor
+
+A decision is refused unless its folder, work/<ID>/, holds the brief and the page it names, and the brief
+says what was checked live (a dated `Checked:` line) and what each answer settles, `other` included.
 
 `open` answers "what decisions are open?" across every level (docs/agent-system/LEVELS.md) from
 files alone, with every service down: the CEO's open asks, the supervisor's ATTENTION.md, each
@@ -61,11 +65,20 @@ def parse(text: str, section: str, full: bool = False) -> tuple[list[dict], list
             if key not in choices:
                 flag(f"line {number} ({item['id']}): Recommended key {key!r} is not offered. Use one of: "
                      f"{', '.join(choices) or '(no valid options)'}. Fix the Recommended key or add it to Options:.")
-        if decision and not item["packet"]:
-            flag(f"{item['id']}: a decision needs a Packet: line naming its brief, work/<ID>/{BRIEF}, "
+        if not decision:
+            return
+        packet, page = Path(item["packet"] or ""), Path(item["explainer"] or "")
+        if not item["packet"]:
+            flag(f"{item['id']}: a decision needs a Packet: line naming its brief, work/{item['id']}/{BRIEF}, "
                  "so the answer can be executed without its raiser.")
-        elif decision and Path(item["packet"]).name != BRIEF:
-            flag(f"{item['id']}: Packet: must name the decision's brief, work/<ID>/{BRIEF}, not {Path(item['packet']).name}.")
+        elif packet.name != BRIEF or packet.parent.name != item["id"]:
+            flag(f"{item['id']}: Packet: must name the decision's brief, work/{item['id']}/{BRIEF}, in a folder named "
+                 f"for the decision, never a workstream's brief; not {item['packet']}.")
+        if not item["explainer"]:
+            flag(f"{item['id']}: a decision needs an Explainer: line naming its page beside its brief, "
+                 f"work/{item['id']}/page.html.")
+        elif item["packet"] and page.parent != packet.parent:
+            flag(f"{item['id']}: Explainer: must sit beside the brief, in {packet.parent}/; not {item['explainer']}.")
 
     for number, raw in enumerate(text.replace("\r\n", "\n").split("\n"), start=1):
         line = raw.strip()
@@ -128,6 +141,46 @@ def validate(text: str, section: str) -> list[str]:
     return parse(text, section)[1]
 
 
+CHECKED = re.compile(r"(?m)^Checked: (\d{4}-\d{2}-\d{2})\S*((?:\s+\S+){3,})")
+# research-desk's courier (internal/courier/pages.go keyedBullet) reads these bullets as each answer's effect.
+ANSWER_BULLET = re.compile(r"^[-*]\s+(?:\*\*)?`?([a-z0-9-]{1,32})`?(?:\s*\([^)]*\))?[.:]?(?:\*\*)?[.:]?\s*(?:— )?(.*)$")
+FRESH_DAYS = 7
+
+
+def brief_problems(text: str, keys: list[str], now: dt.datetime | None = None) -> list[str]:
+    """What a fresh executor would have to re-derive from a decision's brief: the premise checked live (a dated
+    `Checked:` line saying what and how, under FRESH_DAYS old when now is given) and what each answer settles,
+    `other` (the operator's own words) included. needs_you_cases.json holds these as cases for the desk too."""
+    problems = []
+    checked = CHECKED.search(text)
+    if not checked:
+        problems.append("no `Checked: <YYYY-MM-DD> <the premise, verified live, and how>` line")
+    elif now and (now.date() - dt.date.fromisoformat(checked[1])).days > FRESH_DAYS:
+        problems.append(f"Checked: {checked[1]} is over {FRESH_DAYS} days old; check the premise live again")
+    body = re.search(r"(?ms)^## On each answer[^\n]*\n(.*?)(?=^## |\Z)", text)
+    said = {m[1] for line in (body[1] if body else "").splitlines() if (m := ANSWER_BULLET.match(line.strip())) and m[2].strip()}
+    missing = [k for k in [*keys, "other"] if k not in said]
+    if missing:
+        problems.append("`## On each answer` says nothing for " + ", ".join(f"`{k}`" for k in missing)
+                        + "; give each answer a bullet saying what it settles (`other` is the operator's own words)")
+    return problems
+
+
+def packet_problems(item: dict, base: Path, now: dt.datetime | None = None) -> list[str]:
+    """A decision's brief and page on disk: both exist, and the brief passes brief_problems. Relative paths are the
+    level file's, as the desk reads them."""
+    if item.get("recommended") is None:
+        return []
+    packet = base / Path(item["packet"]).expanduser() if item.get("packet") else None
+    page = base / Path(item["explainer"]).expanduser() if item.get("explainer") else None
+    problems = [f"{item['id']}: {what} {path} does not exist" for what, path in (("brief", packet), ("page", page))
+                if path is not None and not path.is_file()]
+    if packet is not None and packet.is_file():
+        keys = DEFAULT_KEYS if item.get("options") is None else item["options"]
+        problems += [f"{item['id']}: {packet}: {p}" for p in brief_problems(read(packet), keys, now)]
+    return problems
+
+
 def write_atomically(target: Path, content: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     mode = target.stat().st_mode & 0o777 if target.exists() else 0o644
@@ -142,6 +195,112 @@ def write_atomically(target: Path, content: str) -> None:
     except BaseException:
         Path(temporary).unlink(missing_ok=True)
         raise
+
+
+def section_spans(text: str, section: str) -> list[tuple[int, int]]:
+    """Character spans of each `## <section>` block: its heading up to the next `#`/`##` heading or the end."""
+    lines = text.splitlines(keepends=True)
+    spans, offset, start = [], 0, None
+    for line in lines:
+        bare = line.rstrip()
+        heading = bare.startswith("# ") or bare.startswith("## ")
+        if heading and start is not None:
+            spans.append((start, offset))
+            start = None
+        if bare == f"## {section}":
+            start = offset
+        offset += len(line)
+    if start is not None:
+        spans.append((start, offset))
+    return spans
+
+
+PLACEHOLDER = re.compile(r"^(No unanswered decisions|No actionable items|None open)\b", re.I)
+
+
+def classify(body: list[str]) -> list[tuple[str, str]]:
+    """Each line of a section body as ("item", line), ("placeholder", line), ("blank", line) or ("other", line).
+    An item runs from `### ` to the next `### `, heading or top-level `- ` line (items never hold bullets), so a
+    commission's status bullets after its last item are never taken for that item."""
+    out, in_item = [], False
+    for line in body:
+        bare = line.rstrip("\n")
+        if bare.startswith("### "):
+            in_item = True
+        elif bare.startswith("- "):
+            in_item = False
+        if in_item:
+            out.append(("item", line))
+        elif not bare.strip():
+            out.append(("blank", line))
+        else:
+            out.append(("placeholder" if PLACEHOLDER.match(bare) else "other", line))
+    return out
+
+
+def line_key(line: str) -> str:
+    """A status line `- Key: value` is matched by its key, so a draft may update its value."""
+    bare = line.strip()
+    m = re.match(r"^- ([^:]{1,60}):", bare)
+    return m.group(1).strip().lower() if m else bare
+
+
+def merge_section(target_text: str, draft: str, section: str) -> tuple[str, str | None]:
+    """The target with only the decisions in its `## <section>` replaced; every other byte is kept.
+
+    The section's other lines (a commission's status lines, notes) are kept in place, in order, when the draft
+    holds only items. A draft that also holds other lines owns the whole section, and is refused if it would drop
+    a line the target has. A target with no content takes the whole draft (a new DECISIONS.md); a target
+    without the section gets it appended; a target holding the section twice is refused, never guessed at."""
+    drafted = section_spans(draft, section)
+    if len(drafted) != 1:
+        return target_text, f"the draft must hold exactly one `## {section}` section (it holds {len(drafted)})"
+    block = draft[drafted[0][0]:drafted[0][1]]
+    if not target_text.strip():
+        return draft, None
+    spans = section_spans(target_text, section)
+    if len(spans) > 1:
+        return target_text, f"the target holds `## {section}` {len(spans)} times; merge them by hand first, nothing was written"
+    if not block.endswith("\n"):
+        block += "\n"
+    if not spans:
+        return target_text.rstrip("\n") + "\n\n" + block, None
+    start, end = spans[0]
+    old = target_text[start:end].splitlines(keepends=True)
+    new = block.splitlines(keepends=True)
+    old_parts, new_parts = classify(old[1:]), classify(new[1:])
+    kept = [line for kind, line in old_parts if kind == "other"]
+    if any(kind == "other" for kind, _ in new_parts):
+        have = {line_key(line) for kind, line in new_parts if kind == "other"}
+        dropped = [line.strip() for line in kept if line_key(line) not in have]
+        if dropped:
+            return target_text, ("the draft would drop these lines of the target's section; keep them in the draft, or "
+                                 "send only the items: " + " | ".join(dropped))
+        body = new[1:]
+    else:
+        decisions = [line for kind, line in new_parts if kind in ("item", "placeholder", "blank")]
+        while decisions and not decisions[0].strip():
+            decisions.pop(0)
+        while decisions and not decisions[-1].strip():
+            decisions.pop()
+        body, placed = [], False
+        for kind, line in old_parts:
+            if kind in ("item", "placeholder"):
+                if not placed:
+                    body += decisions + ["\n"]
+                    placed = True
+                continue
+            body.append(line)
+        if not placed:
+            body = ["\n"] + decisions + ["\n"] + body
+    text = old[0] + "".join(body)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    rest = target_text[end:]
+    if rest and not text.endswith("\n\n"):
+        text = text.rstrip("\n") + "\n\n"
+    elif not rest:
+        text = text.rstrip("\n") + "\n"
+    return target_text[:start] + text + rest, None
 
 
 # --- open: every open decision across levels, from files ---------------------------------------
@@ -170,8 +329,62 @@ def inbox_answers(folder: Path) -> list[str]:
     return bodies
 
 
+def waiting_answers(folder: Path, readers: list[str], now: dt.datetime) -> list[dict]:
+    """Answers still in a level's INBOX.md (not yet drained): each needs its executor started. An answered item
+    leaves the open list, so without this an answer waiting for nobody was invisible (two sat 11 h in
+    data-backup-manager-recovery on 2026-11-15 with no commission on the topic)."""
+    out = []
+    for raw in re.split(r"(?m)^(?=### )", read(folder / "INBOX.md"))[1:]:
+        head, _, body = raw.partition("\n")
+        m = re.match(r"^### (\S+) · from \S+ · answer\s*$", head)
+        if not m:
+            continue
+        ident = re.search(r"(?m)^([A-Z0-9][A-Z0-9_-]{0,127}): ([a-z0-9-]{1,32})\b", body) or re.search(r"item ([A-Z0-9][A-Z0-9_-]{0,127}) of", body)
+        key = ident.group(2) if ident and ident.re.groups == 2 else (re.search(r"(?m)^([a-z0-9-]{1,32}) — ", body) or [None, None])[1]
+        packet = (re.search(r"(?m)^Packet: (\S+)", body) or [None, None])[1]
+        at = utc(m.group(1))
+        item = {"id": ident.group(1) if ident else None, "answer": key, "stamp": m.group(1), "packet": packet,
+                "hours": round((now - at).total_seconds() / 3600, 1) if at else None,
+                "read_by": readers or None}
+        if item["id"] and key and packet:
+            item["spawn"], item["problems"] = spawn_message(Path(packet).expanduser(), item["id"], key, now)
+        out.append(item)
+    return out
+
+
+RECHECK_HOURS = 24
+
+
+def spawn_message(packet: Path, item_id: str, key: str, now: dt.datetime) -> tuple[str | None, list[str]]:
+    """The executor's standard message (LEVELS.md): its one line, a re-check line when the brief's premise is over a
+    day old or its page changed after it, then the operator's stance verbatim: the brief's `## Stance`, else its
+    topic's `## Operator intent (verbatim)`. No message while the brief cannot be executed cold, so nobody hand-types
+    one (O7(f): two of three hand-made spawns dropped the stance or ran on a stale packet)."""
+    if packet.name != BRIEF or packet.parent.name != item_id or not packet.is_file():
+        return None, [f"no brief at work/{item_id}/{BRIEF} ({packet})"]
+    text = read(packet)
+    problems = brief_problems(text, [key])
+    stance = re.search(r"(?ms)^## Stance[^\n]*\n(.*?)(?=^## |\Z)", text)
+    mission = packet.parents[2] / "MISSION.md" if packet.parents[1].name == "work" else None
+    if not stance and mission and mission.is_file():
+        stance = re.search(r"(?ms)^## Operator intent \(verbatim\)[^\n]*\n(.*?)(?=^## |\Z)", read(mission))
+    if not stance or not stance[1].strip():
+        problems.append(f"no stance: add `## Stance` with the operator's words to {packet}")
+    if problems:
+        return None, problems
+    line = f"Execute the approved decision `{item_id}`. Read `{packet}`; the answer is `{key}`."
+    checked = utc(CHECKED.search(text)[0].split()[1]) if CHECKED.search(text) else None
+    page_newer = any(p.stat().st_mtime > packet.stat().st_mtime for p in packet.parent.glob("*.htm*"))
+    if checked and (now - checked).total_seconds() > RECHECK_HOURS * 3600 or page_newer:
+        why = "its page changed after the brief" if page_newer else f"`Checked:` is {int((now - checked).total_seconds() // 3600)} h old"
+        line += f" First re-check the brief's premise live ({why}); if it no longer holds, stop and report."
+    return line + "\n\n" + stance[1].strip() + "\n", []
+
+
 def utc(text: str) -> dt.datetime | None:
     text = text.strip().replace(" UTC", "Z").replace(" ", "T")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        text += "T00:00Z"
     for layout in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%MZ", "%Y-%m-%dT%H:%M:%S.%fZ"):
         try:
             return dt.datetime.strptime(text[:26 if "." in text else 20], layout).replace(tzinfo=dt.timezone.utc)
@@ -225,7 +438,7 @@ def entry(item: dict, source: Path, **extra) -> dict:
 
     out = {"id": item["id"], "title": item["title"], "recommended": fields.get("Recommended"),
            "packet": path(item["packet"]), "page": path(item["explainer"]), "source": str(source),
-           "delivered": fields.get("Delivered"), "problems": item["problems"]}
+           "delivered": fields.get("Delivered"), "problems": item["problems"] + packet_problems(item, base)}
     out.update(extra)
     return out
 
@@ -233,6 +446,7 @@ def entry(item: dict, source: Path, **extra) -> dict:
 def ceo_level(portfolio: Path) -> dict:
     path = portfolio / "steward" / "state" / "asks.jsonl"
     latest: dict[str, dict] = {}
+    packets: dict[str, str] = {}  # an ask's packet may sit on an earlier row of its history
     for line in read(path).splitlines():
         try:
             row = json.loads(line)
@@ -240,15 +454,22 @@ def ceo_level(portfolio: Path) -> dict:
             continue
         if isinstance(row, dict) and row.get("id"):
             latest[row["id"]] = row
+            if row.get("packet"):
+                packets[row["id"]] = row["packet"]
     items = []
     for row in latest.values():
-        if row.get("state") not in ("sent", "file-fallback", "queued") or row.get("answer"):
+        if row.get("state") not in ("sent", "file-fallback", "queued", "held") or row.get("answer"):
             continue
-        delegation = portfolio / "steward" / "delegations" / row["id"]
+        packet = packets.get(row["id"])
+        if packet:
+            packet = str(portfolio / Path(packet).expanduser())  # the steward stores it relative to the portfolio
+        keys = [str(o).partition("=")[0].strip() for o in row.get("options") or []]
+        check = {"id": row["id"], "recommended": row.get("recommend"), "options": keys, "explainer": row.get("explainer"),
+                 "packet": packet or f"steward/asks/{row['id']}/{BRIEF}"}
         items.append({"id": row.get("key") or row["id"], "title": row.get("question") or row["id"],
-                      "recommended": row.get("recommend"), "packet": str(delegation) if delegation.is_dir() else None,
+                      "recommended": row.get("recommend"), "packet": packet,
                       "page": row.get("explainer"), "source": str(path), "delivered": row.get("sent_at"),
-                      "state": row.get("state"), "ask": row["id"], "problems": []})
+                      "state": row.get("state"), "ask": row["id"], "problems": packet_problems(check, portfolio)})
     return {"level": "ceo", "folder": str(portfolio), "decisions": str(path), "inbox": str(portfolio / "INBOX.md"), "items": items}
 
 
@@ -274,7 +495,8 @@ def open_decisions(research: Path, portfolio: Path, now: dt.datetime) -> dict:
             continue
         related = [c for c in commissions if folder.name in c.topics]
         level = {"level": f"topic:{folder.name}", "folder": str(folder), "decisions": str(folder / "DECISIONS.md"),
-                 "inbox": str(folder / "INBOX.md"), "items": []}
+                 "inbox": str(folder / "INBOX.md"), "items": [],
+                 "waiting": waiting_answers(folder, [c.id for c in related if c.live(now)], now)}
         for name, section, legacy in (("DECISIONS.md", "Needs you", False), ("STATE.md", "Needs you", True)):
             items, _ = parse(read(folder / name), section, full=True)
             for item in items:
@@ -285,7 +507,7 @@ def open_decisions(research: Path, portfolio: Path, now: dt.datetime) -> dict:
         levels.append(level)
 
     supervisor = {"level": "supervisor", "folder": str(research), "decisions": str(research / "ATTENTION.md"),
-                  "inbox": str(research / "INBOX.md"), "items": []}
+                  "inbox": str(research / "INBOX.md"), "items": [], "waiting": waiting_answers(research, [], now)}
     commission_levels: dict[str, dict] = {}
 
     def commission_level(c: Commission) -> dict:
@@ -325,14 +547,16 @@ def open_decisions(research: Path, portfolio: Path, now: dt.datetime) -> dict:
         add(supervisor, entry(item, research / "ATTENTION.md"), (topic, item["id"]) if topic else ("supervisor", item["id"]))
     levels.insert(1, supervisor)
     levels += list(commission_levels.values())
-    levels = [l for l in levels if l["items"] or l["level"] in ("ceo", "supervisor")]
+    levels = [l for l in levels if l["items"] or l.get("waiting") or l["level"] in ("ceo", "supervisor")]
     return {"generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "open": sum(len(l["items"]) for l in levels),
+            "waiting": sum(len(l.get("waiting") or []) for l in levels),
             "levels": levels, "not_counted": sorted(set(not_counted))}
 
 
 def print_open(report: dict) -> None:
     counts = ", ".join(f"{l['level']} {len(l['items'])}" for l in report["levels"])
-    print(f"Open decisions, from files only ({report['generated_at']}): {report['open']} ({counts}).")
+    print(f"Open decisions, from files only ({report['generated_at']}): {report['open']} ({counts}); "
+          f"answered and waiting for an executor: {report['waiting']}.")
     for level in report["levels"]:
         print(f"\n{level['level']} · {level['decisions']}" + (f" · live until {level['live_until']}" if level.get("live_until") else ""))
         print(f"  answers land in: {level['inbox']}")
@@ -349,6 +573,11 @@ def print_open(report: dict) -> None:
                 print(f"    note: {note}")
             if item.get("also_in"):
                 print(f"    also in: {', '.join(item['also_in'])}")
+        for w in level.get("waiting") or []:
+            who = f"read by live {', '.join(w['read_by'])}" if w.get("read_by") else "no live commission reads it"
+            print(f"  ANSWERED, waiting {w['hours']} h: {w['id'] or '(no item id)'} = {w['answer'] or '?'} ({who})")
+            print(f"    start it: needs_you.py spawn {w['id']}" if w.get("spawn") else
+                  f"    cannot start cold: {'; '.join(w.get('problems') or ['the answer names no packet'])}")
     if report["not_counted"]:
         print(f"\nNot counted: {len(report['not_counted'])} commissions hold needs-you items but their files do not say whether they "
               f"are live (no allowance end): {', '.join(report['not_counted'])}.")
@@ -357,7 +586,8 @@ def print_open(report: dict) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("action", choices=["validate", "write", "open"])
+    parser.add_argument("action", choices=["validate", "write", "open", "spawn"])
+    parser.add_argument("id", nargs="?", help="spawn: the answered decision's ID")
     parser.add_argument("--file", type=Path, help="Draft markdown file")
     parser.add_argument("--section", help='Section heading, for example "Needs you"')
     parser.add_argument("--target", type=Path, help="Destination file for the write action")
@@ -365,6 +595,17 @@ def main() -> int:
     parser.add_argument("--portfolio", type=Path, default=Path.home() / ".vrooli" / "portfolio")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+    if args.action == "spawn":
+        report = open_decisions(args.research.expanduser(), args.portfolio.expanduser(), dt.datetime.now(dt.timezone.utc))
+        hits = [w for level in report["levels"] for w in level.get("waiting") or [] if w["id"] == args.id]
+        if not hits:
+            print(f"no answer to {args.id} is waiting in any level's INBOX.md", file=sys.stderr)
+            return 1
+        if not hits[-1].get("spawn"):
+            print(f"{args.id} cannot be executed cold:\n" + "\n".join(f"- {p}" for p in hits[-1]["problems"]), file=sys.stderr)
+            return 1
+        print(hits[-1]["spawn"], end="")
+        return 0
     if args.action == "open":
         report = open_decisions(args.research.expanduser(), args.portfolio.expanduser(), dt.datetime.now(dt.timezone.utc))
         print(json.dumps(report, indent=1)) if args.json else print_open(report)
@@ -378,7 +619,11 @@ def main() -> int:
     except OSError as exc:
         print(f"cannot read draft {args.file}: {exc}", file=sys.stderr)
         return 2
-    problems = validate(draft, args.section)
+    base = args.target.parent if args.target else Path.cwd()
+    items, problems = parse(draft, args.section)
+    if not problems:
+        now = dt.datetime.now(dt.timezone.utc)
+        problems = [p for item in items for p in packet_problems(item, base, now)]
     if problems:
         print("Needs-you draft rejected:\n" + "\n".join(f"- {problem}" for problem in problems), file=sys.stderr)
         return 1
@@ -386,11 +631,16 @@ def main() -> int:
         print(f"Needs-you draft valid: {args.file} (## {args.section})")
         return 0
     try:
-        write_atomically(args.target, draft)
+        current = args.target.read_text(encoding="utf-8") if args.target.exists() else ""
+        merged, refusal = merge_section(current, draft, args.section)
+        if refusal:
+            print(f"Needs-you write refused: {args.target}: {refusal}", file=sys.stderr)
+            return 1
+        write_atomically(args.target, merged)
     except OSError as exc:
         print(f"cannot write validated draft to {args.target}: {exc}", file=sys.stderr)
         return 2
-    print(f"Needs-you draft written: {args.target} (## {args.section})")
+    print(f"Needs-you section written: {args.target} (## {args.section}; the rest of the file is unchanged)")
     return 0
 
 

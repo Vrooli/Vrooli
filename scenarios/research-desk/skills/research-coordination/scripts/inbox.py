@@ -11,7 +11,8 @@ Usage:
 An entry is `### <UTC> · from <sender> · <kind>`, its body, then optional `Source:` (where
 operator words came from) and `About:` (whom quoted words addressed) lines; the grammar is
 docs/agent-system/LEVELS.md. The time is always this machine's UTC clock; nobody types it. Drain
-moves one entry verbatim to <folder>/history/INBOX.md with an `Acted:` line. A verdict is the operator's words about one topic with their source (a Hub answer
+moves one entry verbatim to <folder>/history/INBOX.md with an `Acted:` line; a malformed heading (which
+append never writes) drains by its first token, so nothing sticks. A verdict is the operator's words about one topic with their source (a Hub answer
 id, an OPERATOR.md line, or the operator's chat with session and UTC); stance quoted in a brief is
 never a verdict, so a verdict without a source is refused. Exit 0 ok, 1 refused, 2 bad usage.
 """
@@ -59,7 +60,8 @@ def entries(path: Path) -> tuple[str, list[dict]]:
     for raw in parts[1:]:
         head, _, body = raw.partition("\n")
         m = HEAD.match(head)
-        out.append({"stamp": m.group(1) if m else None, "from": m.group(2) if m else None,
+        loose = re.match(r"^### (\S+)", head)  # a malformed heading still drains by its first token
+        out.append({"stamp": m.group(1) if m else (loose.group(1) if loose else None), "from": m.group(2) if m else None,
                     "kind": m.group(3) if m else None, "body": body.strip("\n"), "raw": raw, "valid": bool(m)})
     return pre, out
 

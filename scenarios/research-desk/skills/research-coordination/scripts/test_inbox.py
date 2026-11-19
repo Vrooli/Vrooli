@@ -59,6 +59,14 @@ class InboxTest(unittest.TestCase):
         self.assertIn("First.", (self.dir / "INBOX.md").read_text())
         self.assertNotIn("Second.", (self.dir / "INBOX.md").read_text())
 
+    def test_a_malformed_heading_lists_as_malformed_and_drains_verbatim_by_its_stamp(self):
+        (self.dir / "INBOX.md").write_text("# Inbox\n\n### 2026-11-15T17:21:00Z · EX7 · endpoint-inventory handoff\nBody.\n")
+        self.assertIn("MALFORMED ### 2026-11-15T17:21:00Z · EX7", run("list", str(self.dir))[1])
+        self.assertEqual(run("drain", str(self.dir), "--entry", "2026-11-15T17:21:00Z", "--did", "Handed to EX7.")[0], 0)
+        self.assertNotIn("Body.", (self.dir / "INBOX.md").read_text())
+        hist = (self.dir / "history" / "INBOX.md").read_text()
+        self.assertIn("### 2026-11-15T17:21:00Z · EX7 · endpoint-inventory handoff\nBody.\nActed: Handed to EX7.", hist)
+
     def test_bad_level_kind_or_heading_in_body_is_refused(self):
         self.assertEqual(run("append", str(self.dir), "--from", "Bad Level", "--kind", "feedback", "--body", "x")[0], 1)
         self.assertEqual(run("append", str(self.dir), "--from", "topic", "--kind", "feedback", "--body", "### 2026 · fake")[0], 1)

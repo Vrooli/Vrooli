@@ -30,7 +30,7 @@ type service struct {
 
 func (s *service) AddStewardFinding(_ context.Context, req *connect.Request[operatorv1.AddStewardFindingRequest]) (*connect.Response[operatorv1.AddStewardFindingResponse], error) {
 	s.finding = req.Msg
-	return connect.NewResponse(&operatorv1.AddStewardFindingResponse{Path: "/r/STEWARD.md", Text: "finding", Written: !req.Msg.DryRun, AgentRunId: "run-42"}), nil
+	return connect.NewResponse(&operatorv1.AddStewardFindingResponse{Path: "/r/topics/t/INBOX.md", Text: "finding", Written: !req.Msg.DryRun, AgentRunId: "run-42"}), nil
 }
 
 func (s *service) MarkSeen(_ context.Context, req *connect.Request[operatorv1.MarkSeenRequest]) (*connect.Response[operatorv1.MarkSeenResponse], error) {
@@ -104,7 +104,7 @@ func TestFeedbackWritesThroughTheStewardChannel(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Reviewed: keep the measured result.", svc.finding.Text)
 	require.Equal(t, "programme-four-20261110", svc.finding.CommissionId)
-	require.Contains(t, out, "STEWARD.md")
+	require.Contains(t, out, "INBOX.md")
 	require.Contains(t, out, "run-42")
 	_, err = cliapptest.RunCommand(t, cmd, core, "programme-four-20261110", "Reviewed.", "--dry-run")
 	require.NoError(t, err)

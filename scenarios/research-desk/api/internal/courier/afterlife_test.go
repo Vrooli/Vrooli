@@ -82,7 +82,8 @@ func answerEntry(id, answer string, extra ...string) string {
 func TestAnAnswerAfterTheCommissionEndedLandsInItsTopicsInboxOnce(t *testing.T) {
 	r := newRig(t, "desk")
 	r.endCommission(t)
-	key, _ := r.answeredAfterTheEnd()
+	key, ask := r.answeredAfterTheEnd()
+	ask.AttachmentNotes = []AttachmentNote{{Attachment: "redesign", Path: "regions/settings-nav.json", Note: "Keep the settings link reachable by thumb."}}
 
 	plan := r.pass(t)
 	if s := r.step(plan, key); s.Action != ActLandAnswer || !s.Done || len(s.Inboxes) != 1 || s.Inboxes[0].Topic != topic {
@@ -91,11 +92,11 @@ func TestAnAnswerAfterTheCommissionEndedLandsInItsTopicsInboxOnce(t *testing.T) 
 	if msg := problem(plan, nil); msg != "" {
 		t.Fatalf("a landed answer is not a problem: %s", msg)
 	}
-	if got := r.landed(t); len(got) != 1 || got[0].Body != "other — "+operators {
+	if got := r.landed(t); len(got) != 1 || !strings.HasPrefix(got[0].Body, "other — "+operators) || !strings.Contains(got[0].Body, `"path":"regions/settings-nav.json"`) || !strings.Contains(got[0].Body, `"note":"Keep the settings link reachable by thumb."`) {
 		t.Fatalf("the ended commission's answer record holds the answer: %+v", got)
 	}
 	inbox := r.inbox(t, r.topicDir(topic))
-	if want := answerEntry(goneItem, "other", "Note: "+operators, "Source: hub ask ask-1\n"); !strings.HasPrefix(inbox, "# Inbox — "+topic) || !strings.Contains(inbox, want) {
+	if want := answerEntry(goneItem, "other", "Note: "+operators, "Source: hub ask ask-1", `Attachment notes (exact path and text, JSON): [{"attachment":"redesign","path":"regions/settings-nav.json","note":"Keep the settings link reachable by thumb."}]`); !strings.HasPrefix(inbox, "# Inbox — "+topic) || !strings.Contains(inbox, want) {
 		t.Fatalf("the inbox entry is in the grammar:\n%s\nwant\n%s", inbox, want)
 	}
 
@@ -110,6 +111,21 @@ func TestAnAnswerAfterTheCommissionEndedLandsInItsTopicsInboxOnce(t *testing.T) 
 	}
 }
 
+func TestExactPacketRegionNotesAreRejectedBeforeTheyCouldBeTruncated(t *testing.T) {
+	r := newRig(t, "desk")
+	ask := &Ask{ID: "ask-large", Answer: "keep", AttachmentNotes: []AttachmentNote{{
+		Attachment: "redesign", Path: "regions/nav-main.json", Note: strings.Repeat("x", 4100),
+	}}}
+	step := &Step{Key: AskPrefix + commission + "/" + goneItem, Ask: ask}
+	err := r.courier.recordAnswer(step, r.clock.Now())
+	if err == nil || !strings.Contains(err.Error(), "exact Hub attachment notes exceed") {
+		t.Fatalf("oversized exact notes must fail visibly instead of truncating: %v", err)
+	}
+	if got := r.operatorFile(t); len(got) != 0 {
+		t.Fatalf("no partial commission answer is recorded: %+v", got)
+	}
+}
+
 // O7 showcase (a), end to end at the courier's Hub seam: a commission raises a
 // fresh decision, the desk sends it, the commission ends before the operator
 // answers, and the answer reaches the topic, where the next commission on the
@@ -118,9 +134,9 @@ func TestAFreshDecisionWhoseCommissionEndsBeforeTheAnswerReachesTheNextCommissio
 	r := newRig(t, "desk")
 	r.pass(t) // the record of first sightings begins: AV4 and AV5 were there
 	packet := filepath.Join(r.topicDir(topic), "work", "FRESH-1", "BRIEF.md")
-	r.write(t, packet, []byte("# FRESH-1\n\n## On each answer\n\n- **`keep`.** Keep the local model.\n- **`drop`.** Remove it.\n"))
+	folder := r.ready(t, filepath.Dir(packet), "keep", "drop")
 	r.clock.Advance(time.Minute)
-	r.setItems(t, items+"\n### FRESH-1 — Keep the local model?\nWhy it is yours.\nRecommended: keep — Keep it\nOptions: keep — Keep it; drop — Drop it\nPacket: "+packet+"\n")
+	r.setItems(t, items+"\n### FRESH-1 — Keep the local model?\nWhy it is yours.\nRecommended: keep — Keep it\nOptions: keep — Keep it; drop — Drop it\n"+folder)
 	r.pass(t)
 	key := AskPrefix + commission + "/FRESH-1"
 	ask := r.hub.asks[key]
@@ -159,18 +175,16 @@ func TestATopicsDecisionIsSentAndAnsweredWithNoCommission(t *testing.T) {
 	r.pass(t)
 	r.clock.Advance(time.Minute)
 	packet := filepath.Join(r.topicDir(topic), "work", "LM-PICK", "BRIEF.md")
-	r.write(t, packet, []byte("# LM-PICK\n\n## On each answer\n\n- **`gpu` (recommended).** Move the model to the GPU host and rerun the benchmark.\n- **`cpu`.** Keep it on the CPU.\n"))
-	r.write(t, filepath.Join(r.topicDir(topic), home.DecisionsFile), []byte("# Decisions\n\n## Needs you\n\n### LM-PICK — Where should the model run?\nTwo plain sentences.\nRecommended: gpu — On the GPU host\nOptions: gpu — On the GPU host; cpu — On the CPU\nPacket: work/LM-PICK/BRIEF.md\n"))
+	r.ready(t, filepath.Dir(packet))
+	r.write(t, packet, []byte("# LM-PICK\n\nChecked: 2026-11-12 the model still runs on the CPU, read in the benchmark log\n\n## On each answer\n\n- **`gpu` (recommended).** Move the model to the GPU host and rerun the benchmark.\n- **`cpu`.** Keep it on the CPU.\n- `other`: the operator's words are the instruction.\n"))
+	r.write(t, filepath.Join(r.topicDir(topic), home.DecisionsFile), []byte("# Decisions\n\n## Needs you\n\n### LM-PICK — Where should the model run?\nTwo plain sentences.\nRecommended: gpu — On the GPU host\nOptions: gpu — On the GPU host; cpu — On the CPU\nPacket: work/LM-PICK/BRIEF.md\nExplainer: work/LM-PICK/page.html\n"))
 	plan := r.pass(t)
 	key := AskPrefix + home.TopicOwner(topic) + "/LM-PICK"
 	if s := r.step(plan, key); s.Action != ActAsk || !s.Done || s.Item.Owner() != home.TopicOwner(topic) {
 		t.Fatalf("the topic's decision is sent though no commission is live: %+v", s)
 	}
-	page := r.hub.raised[len(r.hub.raised)-1].Explainer
-	for _, want := range []string{"Move the model to the GPU host and rerun the benchmark.", "Keep it on the CPU.", "the research on local model performance"} {
-		if !strings.Contains(page, want) {
-			t.Fatalf("the summary page shows what executes on each answer (%q):\n%s", want, page)
-		}
+	if got := r.hub.raised[len(r.hub.raised)-1].Explainer; got != page {
+		t.Fatalf("the decision goes with the page beside its brief:\n%s", got)
 	}
 
 	ask := r.hub.asks[key]
@@ -195,8 +209,7 @@ func TestACopyOfAnItemInItsTopicNeverAsksTwice(t *testing.T) {
 	r.pass(t)
 	r.clock.Advance(time.Minute)
 	brief := filepath.Join(r.topicDir(topic), "work", "MOVE-1", "BRIEF.md")
-	r.write(t, brief, []byte("# MOVE-1\n"))
-	item := "\n## Needs you\n\n### MOVE-1 — Move it?\nWhy.\nRecommended: yes — Yes\nOptions: yes — Yes; no — No\nPacket: " + brief + "\n"
+	item := "\n## Needs you\n\n### MOVE-1 — Move it?\nWhy.\nRecommended: yes — Yes\nOptions: yes — Yes; no — No\n" + r.ready(t, filepath.Dir(brief), "yes", "no")
 	r.setItems(t, item)
 	r.pass(t)
 	move := AskPrefix + commission + "/MOVE-1"
@@ -236,15 +249,15 @@ func TestTheSupervisorsDecisionAnswerLandsInTheResearchHomesInbox(t *testing.T) 
 	r.clock.Advance(time.Minute)
 	attention := filepath.Join(r.research, home.AttentionFile)
 	old, _ := os.ReadFile(attention)
-	r.write(t, filepath.Join(r.research, "work", "SPLIT-TOPICS", "BRIEF.md"), []byte("# Split\n\n## On approval\n\nSplit the topic in two and move its runs.\n"))
-	r.write(t, attention, []byte(strings.Replace(string(old), "## Actionable now\n", "## Actionable now\n\n### SPLIT-TOPICS — Split the crowded topic in two?\nWhy.\nRecommended: split — Split it\nOptions: split — Split it; keep — Keep it\nPacket: work/SPLIT-TOPICS/BRIEF.md\n", 1)))
+	r.ready(t, filepath.Join(r.research, "work", "SPLIT-TOPICS"), "split", "keep")
+	r.write(t, attention, []byte(strings.Replace(string(old), "## Actionable now\n", "## Actionable now\n\n### SPLIT-TOPICS — Split the crowded topic in two?\nWhy.\nRecommended: split — Split it\nOptions: split — Split it; keep — Keep it\nPacket: work/SPLIT-TOPICS/BRIEF.md\nExplainer: work/SPLIT-TOPICS/page.html\n", 1)))
 	plan := r.pass(t)
 	key := AskPrefix + home.SupervisorOwner + "/SPLIT-TOPICS"
 	if s := r.step(plan, key); s.Action != ActAsk || !s.Done {
 		t.Fatalf("the supervisor's decision is sent: %+v", s)
 	}
-	if page := r.hub.raised[len(r.hub.raised)-1].Explainer; !strings.Contains(page, "Split the topic in two and move its runs.") || !strings.Contains(page, "the research supervisor") {
-		t.Fatalf("its page shows what approval executes:\n%s", page)
+	if got := r.hub.raised[len(r.hub.raised)-1].Explainer; got != page {
+		t.Fatalf("its page is the one beside its brief:\n%s", got)
 	}
 	a := r.hub.asks[key]
 	a.State, a.Answer, a.AnswerLabel = "answered", "split", "Split it"
@@ -294,7 +307,7 @@ func TestAnAnswerGoesToTheTopicItsPacketIsIn(t *testing.T) {
 	// The commission also worked on a second topic.
 	r.write(t, filepath.Join(r.topicDir(other), "runs", commission, "CHECKPOINT.md"), []byte("# Checkpoint\n"))
 	packet := filepath.Join(r.topicDir(other), "work", goneItem, "BRIEF.md")
-	r.setItems(t, "\n## Needs you\n\n### "+goneItem+" — Off-host backup\nWhy.\nRecommended: keep — Keep\nOptions: keep — Keep; drop — Drop\nPacket: "+packet+"\n")
+	r.setItems(t, "\n## Needs you\n\n### "+goneItem+" — Off-host backup\nWhy.\nRecommended: keep — Keep\nOptions: keep — Keep; drop — Drop\n"+r.ready(t, filepath.Dir(packet), "keep", "drop"))
 	r.endCommission(t)
 	key, ask := r.answeredAfterTheEnd()
 	ask.TechnicalDetails = deskKeyLine(key) + "\nPacket: " + packet

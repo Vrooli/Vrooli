@@ -118,6 +118,7 @@ func TestTheDeskDeclaresExactlyThePrincipalsItsCodeExpects(t *testing.T) {
 		eventpublisher.Principal(courier.Source): {
 			Name: eventpublisher.Principal(courier.Source), Resource: eventpublisher.Resource, Audience: eventpublisher.Audience, Scopes: []string{eventpublisher.Scope},
 		},
+		pageWriterPrincipal: {Name: pageWriterPrincipal, Resource: "agent-manager", Audience: pageWriterAudience, Scopes: []string{"agent-manager:write"}},
 	}
 	if len(declared) != len(want) {
 		t.Fatalf("declared %d principals, the desk consumes %d: %+v", len(declared), len(want), declared)
@@ -126,6 +127,9 @@ func TestTheDeskDeclaresExactlyThePrincipalsItsCodeExpects(t *testing.T) {
 		if !reflect.DeepEqual(got, want[got.Name]) {
 			t.Errorf("%s declares %+v, the code expects %+v", got.Name, got, want[got.Name])
 		}
+	}
+	if pageWriterCredentialIdentity != serviceprincipal.CredentialIdentity(pageWriterPrincipal, "agent-manager") {
+		t.Errorf("the page writer's credential is read from %s, which is not where issuing writes it", pageWriterCredentialIdentity)
 	}
 	if webConsoleCredentialIdentity != serviceprincipal.CredentialIdentity("research-desk", "web-console") {
 		t.Errorf("the credential is read from %s, which is not where issuing writes it", webConsoleCredentialIdentity)

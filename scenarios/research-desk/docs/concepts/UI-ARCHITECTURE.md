@@ -44,3 +44,5 @@ change; nothing is optimistic. A confirmation's exact text comes from the same R
 (this tab only); blocker choices travel in the Preflight, Build and Launch requests, never
 in the spec. Research-home files are fetched from the API's read-only file route on the
 page's own origin, so the desk works unchanged through the tunnel hostname.
+
+Research Desk uses Notification Hub for its decision courier through its API, with direct in-app answers available during Hub outages. It does not declare app-delivery capability because browser push delivery is not part of that contract; the generic initializer and settings component are omitted.

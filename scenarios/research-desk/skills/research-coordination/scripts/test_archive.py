@@ -118,6 +118,35 @@ class ArchiveTest(unittest.TestCase):
         self.assertIn("refused", err.getvalue())
         self.assertTrue((self.home / "topics/t/runs/r1/cf2-a/lpbs-workspace").is_dir())
 
+    def test_a_hash_manifest_naming_a_file_inside_a_candidate_keeps_it(self) -> None:
+        write(self.home, "topics/t/runs/r1/app/SHA256SUMS", "abc  ./node_modules/pkg/index.js\n")
+        age(self.home)
+        _, res = self.run_cli("plan", "--topic", "t")
+        kept = {i["path"].split("/r1/")[1]: i["why"] for i in res["refused"]}
+        self.assertIn("app/node_modules", kept)
+        self.assertIn("SHA256SUMS", kept["app/node_modules"])
+
+    def test_a_write_inside_a_candidate_means_the_run_is_still_working(self) -> None:
+        write(self.home, "topics/t/runs/r1/cf2-a/lpbs-workspace/scenarios/x/new.go")
+        os.utime(self.home / "topics/t/runs/r1/cf2-a/lpbs-workspace/scenarios/x", (OLD, OLD))
+        os.utime(self.home / "topics/t/runs/r1/cf2-a/lpbs-workspace/scenarios", (OLD, OLD))
+        _, res = self.run_cli("plan", "--topic", "t")
+        self.assertEqual(res["items"], [])
+
+    def test_restore_moves_back_what_a_later_rule_finds_linked(self) -> None:
+        self.run_cli("apply", "--topic", "t")
+        src = self.home / "topics/t/runs/r1/app/node_modules"
+        self.assertFalse(src.exists())
+        write(self.home, "topics/t/runs/r1/app/SHA256SUMS", "abc  node_modules/pkg/index.js\n")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = archive.main(["restore", "--topic", "t", "--home", str(self.home), "--archive", str(self.archive), "--json"])
+        self.assertEqual(code, 0)
+        self.assertEqual([r["restored"] for r in json.loads(out.getvalue())], ["topics/t/runs/r1/app/node_modules"])
+        self.assertTrue((src / "pkg/index.js").exists())
+        self.assertFalse(src.with_name("node_modules.ARCHIVED.md").exists())
+        self.assertTrue((self.home / "topics/t/runs/r1/cf2-a/lpbs-workspace.ARCHIVED.md").exists(), "unlinked stays archived")
+
     def test_an_existing_archive_entry_is_never_overwritten(self) -> None:
         write(self.archive, "rehearsal/t/runs/r1/cf2-a/lpbs-workspace/OLD.md")
         code, res = self.run_cli("apply", "--topic", "t")

@@ -121,6 +121,22 @@
           }
         ]
       },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Runs the shared decision-page writer (packages/api-core/decisionpage): when a decision's raiser left its page out, the courier starts one Codex run under Notification Hub's decision-page-writer profile to make it. Task and run creation need no credential while Agent Manager does not enforce run-creation callers.",
+        "degraded_behavior": "A decision whose page was left out waits, with its plan row saying why; the writer retries after the outage. Decisions with their own page are unaffected.",
+        "uses": [
+          {
+            "id": "decision-page-writer",
+            "name": "Decision page writer",
+            "description": "Start and read the writer run that makes a decision's page from its item and brief",
+            "group": "decisions"
+          }
+        ]
+      },
       "notification-hub": {
         "type": "scenario",
         "enabled": true,
@@ -318,6 +334,20 @@
           "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
         }
       },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "subpath": "deployment/deployment-report.json",
+        "regenerable": false,
+        "rationale": "Lifecycle deployment evidence the lifecycle writes beneath the scenario data root; kept as the owner's operational record.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "max_age": "30d",
+          "rationale": "750 KB measured 2026-11-15; bounded so an abnormal report writer cannot fill the data root."
+        }
+      },
       "research_home": {
         "rung": "pinned",
         "kind": "dir",
@@ -327,7 +357,7 @@
         "rationale": "Canonical retained-research home (runtime_home entry research in .vrooli/repo-contract.json; docs/internal/research-experimentation/STORAGE.md). Research Desk is the budget owner: it reads and supervises every topic, run and cohort here, and its research-coordination skill ships archive.py, the tool that moves heavy material out of closed runs. Topics, runs, cohorts and migration receipts are research results and evidence: never pruned by budget or by a generic sweep. Rehearsal repository copies and dependency or build trees in closed runs are moved by archive.py to the research_archive_* entries below, leaving a pointer file and keeping every reference.",
         "budget": {
           "max_bytes": "120GiB",
-          "rationale": "Alarm-only: 107 GiB measured 2026-11-15 before archiving, 95 GiB after archive.py moved 115 items (14 GiB) from closed runs; programme-four-20261108 still holds about 32 GiB of rehearsal copies that move once the run has been quiet for 24 hours. A breach means a run kept its intermediates past closure or a study outgrew the home and needs an operator decision; storage-manager never deletes research."
+          "rationale": "Alarm-only: 107 GiB measured 2026-11-15 before archiving; 62 GiB after archive.py moved 115 items (14 GiB) from closed runs and then 177 programme-four-20261108 rehearsal copies (35.7 GiB) once that run had been quiet for 24 hours. A breach means a run kept its intermediates past closure or a study outgrew the home and needs an operator decision; storage-manager never deletes research."
         }
       },
       "research_archive_rehearsals": {
@@ -339,7 +369,7 @@
         "rationale": "Repository copies research runs made to rehearse on, moved here by archive.py (research-coordination skill) from closed runs under the same topic and run path, with an index.jsonl line each and a <name>.ARCHIVED.md pointer at the old place holding the restore command. Kept as run evidence; never pruned.",
         "budget": {
           "max_bytes": "64GiB",
-          "rationale": "Alarm-only: 9.4 GiB on 2026-11-15 (38 crypto-foundations copies, hard links counted once); about 32 GiB more arrives when programme-four-20261108 closes. A breach needs an operator decision on dropping old rehearsal copies."
+          "rationale": "Alarm-only: 46 GiB on 2026-11-15 (215 crypto-foundations copies from closed runs, including programme-four-20261108; hard links counted once). A breach needs an operator decision on dropping old rehearsal copies."
         }
       },
       "research_archive_rebuildable": {

@@ -1,6 +1,5 @@
 # Domains — Research Desk
 
-## Purpose Of This Document
 
 The domain map. RPCs and CLI verbs per domain are listed once, in [`SYSTEM.md`](SYSTEM.md)
 §2; the rules each domain applies are in the sections named below.

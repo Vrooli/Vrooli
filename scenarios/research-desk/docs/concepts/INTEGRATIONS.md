@@ -1,6 +1,5 @@
 # Integrations — Research Desk
 
-## Purpose Of This Document
 
 Pointer. Every dependency is optional and is an entry in the capability registry; what
 each one is used for and what the desk shows when it is down are in

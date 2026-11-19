@@ -50,34 +50,6 @@ func TestAppendOperatorKeepsTheGrammar(t *testing.T) {
 	}
 }
 
-func TestStewardFindingIsDatedAttributedAndSeparateFromOperatorWords(t *testing.T) {
-	w, research := newHome(t)
-	const id, run = "programme-three-20261111", "run-42"
-	path, shown, err := w.RenderStewardFinding(id, run, "Reviewed correction: keep the measured limit.", at)
-	if err != nil || !strings.Contains(shown, "### 2026-11-12T10:14:03Z · finding · by agent run run-42") {
-		t.Fatalf("render includes UTC date and agent attribution: %q %v", shown, err)
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("render created STEWARD.md: %v", err)
-	}
-	path, written, err := w.AppendStewardFinding(id, run, "Reviewed correction: keep the measured limit.", at)
-	if err != nil || path == "" || written != shown {
-		t.Fatalf("append writes the rendered finding: %q %q %v", path, written, err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil || !strings.Contains(string(data), written) {
-		t.Fatalf("STEWARD.md carries the finding: %q %v", data, err)
-	}
-	operatorPath := filepath.Join(research, "cohorts", id, home.OperatorFile)
-	if _, err := os.Stat(operatorPath); !os.IsNotExist(err) {
-		t.Fatalf("steward finding must not create or change OPERATOR.md: %v", err)
-	}
-	charter, _ := os.ReadFile(filepath.Join(research, "cohorts", id, home.CharterFile))
-	if !strings.Contains(string(charter), home.StewardSentence) {
-		t.Fatal("a live charter is updated to read the steward channel with explicit lower authority")
-	}
-}
-
 // A render is the exact text an append would add, it writes nothing, and
 // it needs no writer role.
 func TestARenderIsTheExactTextAndWritesNothing(t *testing.T) {
@@ -225,8 +197,8 @@ func TestEnableSteeringOnRealOlderCharter(t *testing.T) {
 		t.Fatalf("second enable must change nothing: %q %v", text, err)
 	}
 	after, _ := os.ReadFile(charter)
-	if string(after) != string(before)+shown || strings.Count(string(after), home.SteeringSentence) != 1 || strings.Count(string(after), home.StewardSentence) != 1 {
-		t.Error("enable-steering adds the missing operator and steward rules once")
+	if string(after) != string(before)+shown || strings.Count(string(after), home.SteeringSentence) != 1 {
+		t.Error("enable-steering adds the missing operator rule once")
 	}
 }
 

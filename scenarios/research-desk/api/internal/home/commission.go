@@ -118,6 +118,19 @@ func (c *Commission) LaunchedBy() string {
 }
 
 // File returns a top-level file of the folder by name.
+// Closed says whether a record ends the commission: a valid SETTLEMENT.json
+// or a CLOSURE.json. It is historical evidence; an open supervisor window
+// with a live goal still counts as running whatever it says.
+func (c *Commission) Closed() (bool, string) {
+	if s := c.HistoricalSettlement; s != nil {
+		return true, SettlementFile + " records it as " + s.Status + " as of " + s.AsOf.UTC().Format("2006-01-02 15:04Z")
+	}
+	if f, ok := c.File(ClosureFile); ok {
+		return true, ClosureFile + " written " + f.Modified.UTC().Format("2006-01-02 15:04Z")
+	}
+	return false, ""
+}
+
 func (c *Commission) File(name string) (FileFact, bool) {
 	for _, f := range c.Files {
 		if f.Name == name {

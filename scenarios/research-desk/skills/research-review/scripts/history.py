@@ -711,6 +711,8 @@ def measure(window, threads_rows, records, checkpoints, operator, home: Home, to
             "paths_changed": len({f for c in changes for f in c[3]}),
             "repo_paths_changed": len({f for c in changes for f in c[3] if home.in_repo([0, 0, 0, [f]])}),
             "lines_source": sorted({r["lines_source"] for r in threads_rows}),
+            # time to first edit: hours from the window's start to the first repository change
+            "first_repo_edit_h": round((min(c[0] for c in repo) - window[0][0]) / 3600, 2) if repo else None,
         }
         # dated records written while no linked rollout moved: the work ran somewhere this tool cannot see
         stalls = [g for g in gaps(spans, window) if g[1] - g[0] > STALL_HOURS * 3600]

@@ -1,6 +1,5 @@
 # Experience Design
 
-## Purpose Of This Document
 
 The UI decision for Research Desk: the comparison, the primary surface, the shell, and what
 the design is accountable for. States, actions and data come from

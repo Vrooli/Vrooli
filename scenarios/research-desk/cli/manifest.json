@@ -584,7 +584,7 @@
         },
         {
           "name": "feedback",
-          "description": "Send a dated finding from this verified agent run to the lower-priority STEWARD.md channel",
+          "description": "Send a dated finding from this verified agent run to the commission topic's INBOX.md, which its next agent drains",
           "positionals": [
             {"name": "commission-id", "required": true, "description": "Commission folder name"},
             {"name": "text", "required": true, "description": "Reviewed finding or correction for the supervisor"}
@@ -616,7 +616,7 @@
           "flags": [
             {"name": "activity-start", "description": "UTC RFC 3339 start of the historical research interval; required except for prepared"},
             {"name": "activity-end", "description": "UTC RFC 3339 end of the historical research interval; required except for prepared"},
-            {"name": "evidence", "description": "Research-home-relative source file citation; repeat for each source", "repeatable": true, "required": true},
+            {"name": "evidence", "description": "Research-home-relative source file citation; repeat for each source", "repeatable": true, "required": true, "bind": {"field": "evidence_paths"}},
             {"name": "dry-run", "bool": true, "description": "Show the exact record without writing"}
           ],
           "binding": {

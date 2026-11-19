@@ -32,10 +32,8 @@ progress.
 - **Steering lives in files, never in chat.** Goal mode compacts often and replays recent chat
   messages, so a chat nudge keeps poisoning the context for hours. The supervisor is primed
   once (stance message, "ready", then the goal) and re-reads files: its charter, `STATE.md`,
-  `OPERATOR.md`, and `STEWARD.md`. `OPERATOR.md` is authoritative; steward findings are dated,
-  attributed guidance below operator words and above the supervisor's own judgment. Use
-  `research-desk say` for operator direction and `research-desk feedback` for a verified
-  agent's reviewed finding or correction.
+  `OPERATOR.md` (authoritative) and the topic inboxes. Use `research-desk say` for operator
+  direction; `research-desk feedback` puts a verified agent's finding in the topic's `INBOX.md`.
 - **The supervisor is a manager, not a worker.** It plans, staffs, reviews claims and removes
   blockers. Owners do the domain work for hours each and may spawn their own workers.
 - **Infrastructure is a shortcut, never a dependency.** Everything works from files and the
@@ -63,13 +61,16 @@ The rest of the folder is a small common shape each topic extends as it needs
 
 1. Start from the missions, never from the last checkpoint. Run `mission_check.py`. A topic
    with small workstreams, a stale architect pass or a pending ambition review gets the
-   architect pass and ambition review first (`templates/review-briefs.md`).
+   architect pass and ambition review first (`templates/review-briefs.md`). Sync report answers
+   before packet build as in [supervision](references/supervision.md#reports-and-feedback).
 2. Build the packet: `research-desk build <spec>` or
    `python3 -I scripts/packet.py preview|build --home ~/.vrooli/research --spec <spec.json>`.
    It renders the charter, `STANCE-MESSAGE.txt` and `KERNEL.txt` from `templates/` and checks
    the size gates in `templates/limits.json`. The spec carries the topics, allowance, the
    operator's stance quotes verbatim, and optional order, emphasis and card notes. Never ask
    the operator to write a prompt.
+   Before staffing, apply the packet's feedback and verify the report path as in
+   [supervision](references/supervision.md#reports-and-feedback).
 3. Launch: `research-desk launch <id>`, or by hand in a fresh Codex session send
    `STANCE-MESSAGE.txt`, wait for "ready", then `KERNEL.txt` as the `/goal`.
 4. Asked only to prepare? Build the packet, realign missions if needed, and stop. Start no
@@ -127,9 +128,10 @@ and no direct path exists; then it becomes an owner's workstream or a bug report
 Each level (topic, supervisor, CEO) keeps its own open decisions, plans and inbox in its own
 folder, so nothing is lost when a commission ends ([levels](../../../../docs/agent-system/LEVELS.md)).
 A decision is a needs-you item with a ready-to-run packet written by whoever raised it; on
-approval the next agent spawns a worker from that packet and re-derives nothing. Friction and
+approval the next agent spawns a worker from that packet and re-derives nothing. Each review, run
+`scripts/needs_you.py open` and start the executor for each `ANSWERED, waiting` line nobody reads. Friction and
 feedback go down to the level that owns the fix, through that level's inbox, written and drained
-only with `scripts/inbox.py` (it stamps the time). Spawn messages are one line plus the stance:
+only with `scripts/inbox.py`. Spawn messages are one line plus the stance:
 owner "You own `<topic>/work/<ID>`. Read `<abs>/BRIEF.md` and the topic's `MISSION.md`, then build
 toward the brief's showcase."; executor "Execute the approved decision `<ID>`. Read
 `<abs>/BRIEF.md`; the answer is `<key>`."; reviewers the briefs in `templates/review-briefs.md`. Ask only for what the operator alone owns, and deliver it
@@ -147,6 +149,8 @@ with one standard message. Planning is the supervisor's job; owners build.
 At the allowance end or after `wind-down`, follow the charter's closing step: owners stop what
 they started, the final `STATE.md` says per card what landed, moved, waits and is unverified, and
 each `MISSION.md` (and `CURRENT.md` where the frontier moved) is updated.
+The supervisor publishes each topic's report at allowance end, pause, stop and on request;
+[supervision](references/supervision.md#reports-and-feedback) owns delivery and feedback.
 
 ### Traps
 

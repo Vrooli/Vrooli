@@ -110,6 +110,9 @@ const (
 	ReasonOrphaned       DeliveryReason = "orphaned"
 	ReasonBaseline       DeliveryReason = "baseline"
 	ReasonNotice         DeliveryReason = "notice"
+	// ReasonPacketNotReady: a decision whose work/<ID>/ lacks a brief a cold
+	// executor can run (or its page) is never sent.
+	ReasonPacketNotReady DeliveryReason = "packet_not_ready"
 )
 
 // Delivery says how the courier would carry the item, why as a code, and

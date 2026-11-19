@@ -13,7 +13,7 @@ Usage (each with --workspace DIR; one workspace holds one snapshot and every var
   replay.py grade RUN_A RUN_B --topic T
   replay.py metrics RUN_DIR...                  re-parse recorded runs (writes metrics.json and plan.json)
   replay.py exclude RUN... --reason TEXT        keep a run but leave it out of the report
-  replay.py report [--arm NAME=V1,V2 ...]       write REPORT.md; arms pool variants, the first is the base
+  replay.py report [--arm NAME=V1,V2 ...] [--correction TEXT]   write REPORT.md; arms pool variants, the first is the base
 
 Every variant reads the same snapshot: an allowlisted copy of the repository (source and text files,
 never a credential-like name or content, no data/ folders, no effort folder), the commissions' topic
@@ -21,10 +21,11 @@ folders, the research home's top-level files, every non-research skill and the V
 offline stubs. A variant differs only in its research skills (a copy in the workspace) and its
 rendered commission. Each run is a fresh `codex exec --json` session with the role's model and
 effort, inside bubblewrap with every namespace unshared: no host process, loopback port or socket is
-reachable; the root holds /usr, /etc and the Codex install read-only; the home folder is an empty
+reachable; the root holds /usr, an allowlisted part of /etc and the Codex install read-only; the home folder is an empty
 read-only tmpfs onto which the snapshot, the variant's skills and the commission are mounted
-read-only, at the paths the prompts name. The only writable places are a size-capped /tmp and the
-run's own Codex home (config and a login copy without its refresh token), watched for size. The only
+read-only, at the paths the prompts name. The only writable places are /tmp and the Codex home, both
+size-capped tmpfs that vanish with the sandbox; the login copy (no refresh token) exists only there,
+written by a driver that runs every turn of the run in that one sandbox. The only
 network path is a host gate that terminates TLS for the provider alone (the sandbox trusts only the
 gate's CA) and forwards only the model API paths, over its own TLS connection. The prompt ends with a replay protocol: act as on receipt, stop
 before the first edit, sub-agent or message, and print the planned first unit as JSON. Measured per
@@ -68,23 +69,56 @@ SKILLS = SCRIPTS.parents[1]                       # scenarios/research-desk/skil
 REPO = SKILLS.parents[2]
 RESEARCH = HOME / ".vrooli" / "research"
 EFFORT_DIR = REPO / ".vrooli/work/research-system-maturation"
-WORKSPACE = EFFORT_DIR / "owners/A/replay/v3"
+WORKSPACE = EFFORT_DIR / "owners/A/replay/v4"
 BASELINE_SKILLS = EFFORT_DIR / "owners/A/baseline-skills-20261115"
 RUBRIC = SCRIPTS / "replay_rubric.txt"
 REPLAY_FILES = ("replay.py", "test_replay.py", "replay_rubric.txt")  # never visible to a replayed agent
 PROVIDER = "chatgpt.com"  # the gate's only upstream; the gate opens the TLS, so SNI and Host are always this
-PROVIDER_PATHS = ("/backend-api/codex/",  # the only paths it forwards (GET, POST, a WebSocket upgrade):
-                  "/backend-api/wham/accounts/check")  # the model API and Codex's workspace routing discovery
-TMP_CAP = 1 << 30  # bytes: the sandbox's /tmp
-CODEX_HOME_CAP = 2 << 30  # bytes: a run's Codex home, the one writable host folder (checked every second)
-FILE_CAP = 1 << 30  # bytes: any one file a sandboxed process writes (RLIMIT_FSIZE)
-OUTPUT_CAP = 256 << 20  # bytes: a turn's event stream, as recorded on the host
-CODEX_SHARED = ("plugins", "rules", "skills")  # mounted read-only into each run's Codex home
+PROVIDER_ROUTES = {("POST", "/backend-api/codex/responses"): "",  # the only requests it forwards, with the query
+                   ("GET", "/backend-api/codex/models"): r"client_version=[0-9][0-9A-Za-z.+-]{0,30}",  # each may carry
+                   ("GET", "/backend-api/wham/accounts/check"): ""}  # model turns, the model list, routing discovery
+# What Codex 0.167 sends, captured through the gate with a local stand-in for the provider (no model call)
+# and checked against the response items of 89 recorded runs. Anything else is refused, since the
+# provider may act on it itself: hosted tools, URL fetches, stored state, other features.
+TURN_STATE = "x-codex-turn-state"  # a routing value the provider issues in a reply; Codex echoes it on the turn's POSTs
+REQUEST_HEADERS = {"accept", "chatgpt-account-id", "content-type", "cookie", "originator", "session-id", "thread-id",
+                   "user-agent", "version", "x-client-request-id", "x-codex-beta-features", "x-codex-routing-hint", TURN_STATE,
+                   "x-codex-turn-metadata", "x-codex-window-id", "x-openai-internal-codex-responses-lite",
+                   "host", "connection", "content-length", "authorization"}  # the last four the gate sets itself
+BETA_FEATURES = {"remote_compaction_v2"}
+REQUEST_KEYS = {"model", "stream", "tool_choice", "parallel_tool_calls", "reasoning", "store", "include", "prompt_cache_key",
+                "text", "client_metadata", "access_programs", "input"}
+META = "internal_chat_message_metadata_passthrough"
+ITEM_KEYS = {"message": {"type", "id", "role", "content", "phase", "status", META},
+             "reasoning": {"type", "id", "summary", "encrypted_content", "content", META},
+             "custom_tool_call": {"type", "id", "call_id", "name", "input", "status", META},
+             "custom_tool_call_output": {"type", "id", "call_id", "output", META},
+             "function_call": {"type", "id", "call_id", "name", "arguments", "namespace", "status", META},
+             "function_call_output": {"type", "id", "call_id", "output", META},
+             "additional_tools": {"type", "id", "role", "tools"}, "configuration_update": {"type", "reasoning"},
+             "compaction_trigger": {"type"}, "compaction": {"type", "id", "encrypted_content"}}  # auto-compaction
+PART_KEYS = {"input_text": {"type", "text"}, "output_text": {"type", "text", "annotations", "logprobs"},
+             "summary_text": {"type", "text"}, "input_image": {"type", "image_url", "detail"}}  # image: data: URL only
+TOOL_KEYS = {"function": {"type", "name", "description", "parameters", "strict"},  # tools Codex runs itself,
+             "custom": {"type", "name", "description", "format"},  # grouped in namespaces
+             "namespace": {"type", "name", "description", "tools"}}
+BODY_CAP = 32 << 20  # bytes: one request body
+GATE_REQUESTS, GATE_BYTES = 1500, 1 << 30  # per gate (one run): requests forwarded, bytes in both directions
+TMP_CAP = 1 << 30  # bytes: the sandbox's /tmp, a tmpfs
+SHM_CAP = 64 << 20  # bytes: its /dev/shm; every other mount but these and the Codex home is read-only
+CODEX_HOME_CAP = 1 << 30  # bytes: the sandbox's Codex home, a tmpfs; the login copy lives only there
+OUTPUT_CAP = 256 << 20  # bytes: a run's event stream, as recorded on the host
+CODEX_FILES = ("config.toml", "installation_id", "version.json", "settings.json", "models_cache.json")
+CODEX_SHARED = ("plugins", "rules", "skills")
+ETC_ALLOW = ("alternatives", "bash.bashrc", "environment", "gai.conf", "gitconfig", "group", "host.conf", "hostname", "hosts",
+             "inputrc", "ld.so.cache", "ld.so.conf", "ld.so.conf.d", "locale.alias", "localtime", "lsb-release", "magic",
+             "magic.mime", "mime.types", "nsswitch.conf", "os-release", "passwd", "profile", "profile.d", "protocols",
+             "python3", "python3.12", "services", "shells", "ssl", "terminfo", "timezone")  # nothing else of /etc  # mounted read-only into each run's Codex home
 PROXY_PORT = 18080
-SANDBOX_NOTE = ("bwrap --unshare-all: /usr, /etc, Codex install read-only; home an empty read-only tmpfs with the "
-                "snapshot (allowlisted repo copy), variant skills and commission mounted read-only; writable: /tmp "
-                "(capped) and the run's Codex home (login without refresh token); network: the gate to "
-                f"https://{PROVIDER} paths " + ", ".join(PROVIDER_PATHS) + " only")
+SANDBOX_NOTE = ("bwrap --unshare-all: /usr, allowlisted /etc, Codex install read-only; home an empty read-only tmpfs with the "
+                "snapshot (allowlisted repo copy), variant skills and commission mounted read-only; writable: capped "
+                "tmpfs /tmp and Codex home (login copy without refresh token, never on the host disk); network: the gate to "
+                f"https://{PROVIDER} " + ", ".join(sorted(f"{m} {r}" for m, r in PROVIDER_ROUTES)) + " only, as Codex sends them")
 SKILL_IDS = ("adaptive-research", "research-coordination", "local-experimentation", "research-review", "research-desk")
 ROUTE_CLIS = ("prompt-manager", "search-hub", "research-desk", "agent-manager", "notification-hub", "program-runtime",
               "source-ledger", "swarm-manager", "test-genie", "vrooli", "vrooli-memory")
@@ -338,11 +372,11 @@ SOURCE_SUFFIXES = TEXT_SUFFIXES | {".go", ".mod", ".sum", ".ts", ".tsx", ".js", 
                                    ".bash", ".proto", ".sql", ".css", ".scss", ".html", ".rs", ".tmpl", ".svelte", ".vue"}
 SOURCE_NAMES = {"Makefile", "Dockerfile"}
 REPO_SKIP = SKIP_DIRS | {"data", "dist", "build", "coverage", ".cache", "tmp", "logs", "vendor", "target", ".next",
-                         ".turbo", "secrets", "test-results", "playwright-report"}
+                         ".turbo", "secrets", "test-results", "playwright-report", "dist-electron"}
 SECRET_NAME = re.compile(r"^\.env|\.(key|pem|p12|pfx|jks|keystore|kdbx|db|db-wal|db-shm|sqlite3?)$|^(secrets?|credentials?)\."
                          r"|^id_(rsa|ecdsa|ed25519)|^auth\.json$|^\.(npmrc|netrc|pgpass)$", re.I)
 SECRET_TEXT = re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsk-(proj-|svcacct-)?[A-Za-z0-9_-]{24,}|\bgh[pousr]_[A-Za-z0-9]{30,}"
-                         rb"|\bxox[abpr]-[A-Za-z0-9-]{10,}|\bAKIA[0-9A-Z]{16}\b|\"refresh_token\"\s*:\s*\"[^\"]{20,}|(?m:^(//\S+:)?_authToken\s*=\s*\S)")
+                         rb"|\bxox[abpr]-[A-Za-z0-9-]{10,}|\bAKIA[0-9A-Z]{16}\b|\b[a-z][a-z0-9+.-]*://[^\s/:@'\"%{}<>$\[\]]+:[^\s/@'\"%{}<>$\[\]]+@|\"refresh_token\"\s*:\s*\"[^\"]{20,}|(?m:^(//\S+:)?_authToken\s*=\s*\S)")
 
 
 def copy_safe(p: Path, t: Path) -> bool:
@@ -433,12 +467,13 @@ def copy_text_tree(src: Path, dest: Path, *, cap_file: int, cap_dir: int, skip_p
 
 def copy_repo(src: Path, dest: Path, leave_out: tuple[Path, ...]) -> dict:
     """The repository as an agent may read it, an allowlist: source and text files (SOURCE_SUFFIXES,
-    at most 1 MB, regular files) outside REPO_SKIP folders and `leave_out`, never one whose name or
+    at most 1 MB, regular files) outside REPO_SKIP folders, Electron bundles and `leave_out`, never one whose name or
     content looks like a credential. Nothing else of the repository exists in the sandbox."""
     kept = refused = 0
     for dirpath, dirs, files in os.walk(src, onerror=lambda e: None):
         d = Path(dirpath)
-        dirs[:] = [x for x in dirs if x not in REPO_SKIP and d / x not in leave_out]
+        dirs[:] = [x for x in dirs if x not in REPO_SKIP and d / x not in leave_out
+                   and not (x == "bundle" and "electron" in d.parts)]  # packaged copies of other scenarios' config
         for f in files:
             p = d / f
             if p.suffix not in SOURCE_SUFFIXES and f not in SOURCE_NAMES:
@@ -754,24 +789,83 @@ sys.exit(child.wait())
 '''
 
 
+DRIVER = r'''import glob, json, os, re, signal, subprocess, sys, threading
+# Inside the sandbox: write the Codex home (a tmpfs) from the header line on stdin, run each turn, obey
+# "stop N" (end turn N, go on) and "quit N" (end turn N and the run), then print the session rollouts.
+home = os.environ["CODEX_HOME"]
+cfg = json.loads(sys.stdin.readline())
+for d in cfg["dirs"]:
+    os.makedirs(os.path.join(home, d), exist_ok=True)
+for name, text in cfg["files"].items():
+    with os.fdopen(os.open(os.path.join(home, name), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+        f.write(text)
+state = {"p": None, "n": 0, "quit": False}
+def emit(o):
+    sys.stdout.write(json.dumps(o) + "\n")
+    sys.stdout.flush()
+def control():
+    for line in sys.stdin:
+        verb, _, n = line.strip().partition(" ")
+        if n != str(state["n"]):
+            continue
+        state["quit"] = state["quit"] or verb == "quit"
+        p = state["p"]
+        try:
+            os.killpg(p.pid, signal.SIGINT)
+            p.wait(5)
+        except subprocess.TimeoutExpired:
+            os.killpg(p.pid, signal.SIGKILL)
+        except (OSError, AttributeError):
+            pass
+threading.Thread(target=control, daemon=True).start()
+thread = None
+for n, argv in enumerate(cfg["turns"], 1):
+    if state["quit"] or (not thread and any("{thread}" in a for a in argv)):
+        break
+    emit({"replay": "turn", "n": n})
+    p = subprocess.Popen([a.replace("{thread}", thread or "") for a in argv], stdout=subprocess.PIPE,
+                         stdin=subprocess.DEVNULL, start_new_session=True)
+    state["p"], state["n"] = p, n
+    for line in p.stdout:
+        sys.stdout.buffer.write(line)
+        sys.stdout.flush()
+        if not thread and b'"thread.started"' in line:
+            thread = (json.loads(line) or {}).get("thread_id")
+    emit({"replay": "exit", "n": n, "code": p.wait()})
+for path in sorted(glob.glob(os.path.join(home, "sessions", "**", "*.jsonl"), recursive=True))[:8]:
+    with open(path, errors="replace") as f:
+        for line in f:
+            emit({"replay": "rollout", "name": os.path.basename(path), "line": line.rstrip("\n")})
+emit({"replay": "end"})
+'''
+
+
 class Gate:
     """The sandbox's only network path, on the host: an HTTPS proxy on a Unix socket that terminates
     TLS. It accepts CONNECT to PROVIDER:443 only, then completes the handshake itself with a
     certificate from a CA made for this gate (the sandbox trusts that CA and nothing else; its key never
-    enters the sandbox), refusing any other SNI. Each decrypted request must be a GET or POST under
-    PROVIDER_PATHS with a declared body; the gate sends exactly that request, with Host set to PROVIDER,
-    over its own TLS connection to a public address of PROVIDER, one request per tunnel (a WebSocket
-    upgrade there is piped after the provider answers 101). Everything else is refused and logged. The
-    token refresh host is not reachable, so a sandboxed Codex can never rotate the host's login."""
+    enters the sandbox), refusing any other SNI. Each decrypted request must be one of PROVIDER_ROUTES,
+    with well-formed, allowlisted header lines, no upgrade and no chunked or encoded body; a POST body
+    is read whole and must be a model turn shaped as Codex sends it (model_request), forwarded as the
+    gate's own serialization. The gate then sends that request, with Host
+    PROVIDER and the host login's Authorization (the sandbox only has tokens with dummy signatures),
+    over its own TLS connection to a public address of PROVIDER, one request per tunnel, within a
+    request and byte budget per gate. A turn state is forwarded only on a POST and only as a value the
+    provider itself issued to this gate (one gate per run). Everything else is refused and logged."""
 
-    HOP = {"host", "connection", "keep-alive", "proxy-connection", "proxy-authorization", "te", "trailer",
-           "transfer-encoding", "upgrade", "content-length"}
+    HOP = {"host", "connection", "content-length", "content-type", "authorization"}  # the headers the gate sets itself
+    BODY_WAIT = 10  # seconds a body may pause
 
-    def __init__(self):
+    def __init__(self, token: str | None = None, model_turns: bool = True):
+        self.token = host_access_token() if token is None else token  # sent upstream; the sandbox holds a dummy
+        self.model_turns = model_turns  # False: every POST is refused, so no model call is made
+        self.requests = self.bytes = 0
+        self.turn_states: set[str] = set()  # issued by the provider in this gate's replies
         base = HOME / ".vrooli/tmp"
         base.mkdir(parents=True, exist_ok=True)
         self.dir = Path(tempfile.mkdtemp(prefix="rg-", dir=base))  # short: a Unix socket path has 108 bytes
         write(self.dir / "bridge.py", BRIDGE)
+        write(self.dir / "driver.py", DRIVER)
         self.ca = self.dir / "ca.pem"
         self.tls = self._issue()
         self.sock = self.dir / "gate.sock"
@@ -801,8 +895,31 @@ class Gate:
 
     @staticmethod
     def allowed(method: str, target: str) -> bool:
-        return (method in ("GET", "POST") and target.startswith(PROVIDER_PATHS)
+        path, sep, query = target.partition("?")
+        pattern = PROVIDER_ROUTES.get((method, path))
+        return (pattern is not None and (not sep or bool(pattern) and re.fullmatch(pattern, query) is not None)
                 and not re.search(r"/\.|//|\\|%2e|%2f|%5c|[^\x21-\x7e]", target, re.I))
+
+    @staticmethod
+    def model_request(body: bytes) -> tuple[str | None, bytes]:
+        """A /responses body as the gate forwards it: (None, the re-serialized request) when it is strict
+        UTF-8 JSON without duplicate keys or NaN, shaped as Codex sends it (request_refusal), else the
+        reason and nothing. Forwarding the gate's own serialization leaves no parser differential."""
+        def pairs(kv):
+            if len({k for k, _ in kv}) != len(kv):
+                raise ValueError("duplicate key")
+            return dict(kv)
+
+        def number(x):
+            if not math.isfinite(f := float(x)):  # NaN, Infinity, or 1e999
+                raise ValueError(x)
+            return f
+        try:
+            req = json.loads(body.decode("utf-8"), object_pairs_hook=pairs, parse_constant=number, parse_float=number)
+        except (ValueError, RecursionError):
+            return "body is not strict UTF-8 JSON without duplicate keys", b""
+        why = request_refusal(req)
+        return why, b"" if why else json.dumps(req, ensure_ascii=False).encode()
 
     @staticmethod
     def upstream() -> socket.socket:
@@ -825,8 +942,9 @@ class Gate:
             threading.Thread(target=self._handle, args=(c,), daemon=True).start()
 
     @staticmethod
-    def _head(c: socket.socket) -> tuple[str, str, list, bytes]:
-        """Read one request head; anything that does not start like HTTP is refused at once."""
+    def _head(c: socket.socket) -> tuple[str, str, list, bytes, bool]:
+        """Read one request head; anything that does not start like HTTP is refused at once. The flag says
+        whether every header line is `name: value` with a token name and no CR, LF or NUL (no obs-fold)."""
         buf = b""
         c.settimeout(60)
         while b"\r\n\r\n" not in buf and len(buf) < 65536 and re.match(rb"[A-Z]{3,7} |[A-Z]{0,6}$", buf):
@@ -839,8 +957,9 @@ class Gate:
         lines = head.decode("latin1", "replace").split("\r\n")
         parts = lines[0].split(" ")
         if not sep or len(parts) != 3 or parts[2] != "HTTP/1.1":
-            return "?", lines[0][:80], [], b""
-        return parts[0], parts[1], [(k.strip(), v.strip()) for k, _, v in (x.partition(":") for x in lines[1:])], rest
+            return "?", re.sub(r"[^\x20-\x7e]", "?", lines[0])[:40], [], b"", False
+        valid = all(re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+:[^\r\n\x00]*", x) for x in lines[1:])
+        return parts[0], parts[1], [(k.strip(), v.strip()) for k, _, v in (x.partition(":") for x in lines[1:])], rest, valid
 
     def _refuse(self, c: socket.socket, request: str):
         self.log.append({"t": now(), "request": request, "allowed": False})
@@ -852,60 +971,69 @@ class Gate:
     def _handle(self, c: socket.socket):
         u = None
         try:
-            method, target, _, rest = self._head(c)
-            if method != "CONNECT" or target != f"{PROVIDER}:443" or rest:
+            method, target, _, rest, valid = self._head(c)
+            if not valid or method != "CONNECT" or target != f"{PROVIDER}:443" or rest:
                 return self._refuse(c, f"{method} {target[:160]}")
             c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
-            c = self.tls.wrap_socket(c, server_side=True)  # the SNI callback refuses any other name
-            method, target, headers, rest = self._head(c)
+            try:
+                c = self.tls.wrap_socket(c, server_side=True)  # the SNI callback refuses any other name
+            except (OSError, ssl.SSLError) as e:
+                self.log.append({"t": now(), "request": f"TLS refused: {type(e).__name__} {str(e)[:80]}", "allowed": False})
+                raise
+            method, target, headers, rest, valid = self._head(c)
             h = {k.lower(): v for k, v in headers}
-            upgrade = h.get("upgrade", "").lower() == "websocket"
             length = h.get("content-length", "0")
             request = f"{method} {target.split('?')[0][:160]}"
-            if not (self.allowed(method, target) and "transfer-encoding" not in h and length.isdigit()
-                    and int(length) <= 64 << 20 and not (upgrade and method != "GET")):
-                return self._refuse(c, request)
+            names = [k.lower() for k, _ in headers]
+            why = ("malformed head" if not valid else "route" if not self.allowed(method, target)
+                   else "header" if set(names) - REQUEST_HEADERS or len(set(names)) != len(names)
+                   or set(filter(None, re.split(r"\s*,\s*", h.get("x-codex-beta-features", "")))) - BETA_FEATURES
+                   or TURN_STATE in h and (method != "POST" or h[TURN_STATE] not in self.turn_states)
+                   else "framing" if {"transfer-encoding", "content-encoding", "upgrade"} & set(h) or not length.isdigit()
+                   or int(length) > BODY_CAP or (method == "GET") == bool(int(length))
+                   else "budget" if self.requests >= GATE_REQUESTS or self.bytes >= GATE_BYTES else None)
+            body = rest[:int(length)] if not why else b""
+            c.settimeout(self.BODY_WAIT)  # a body shorter than its Content-Length ends here
+            while not why and len(body) < int(length):
+                try:
+                    d = c.recv(min(65536, int(length) - len(body)))
+                except TimeoutError:
+                    d = b""
+                why = None if d else "body shorter than its Content-Length"
+                body += d
+            c.settimeout(None)
+            if method == "POST" and not why:
+                why, body = self.model_request(body) if self.model_turns else ("model turns off", b"")
+            if why:
+                return self._refuse(c, f"{request} ({why})")
+            self.requests += 1
+            self.bytes += len(body)
             self.log.append({"t": now(), "request": request, "allowed": True})
             u = self.upstream()
             out = [f"{method} {target} HTTP/1.1", f"Host: {PROVIDER}",
                    *(f"{k}: {v}" for k, v in headers if k.lower() not in self.HOP),
-                   *(["Upgrade: websocket", "Connection: Upgrade"] if upgrade else ["Connection: close"]),
-                   *([f"Content-Length: {length}"] if int(length) else [])]
-            u.sendall(("\r\n".join(out) + "\r\n\r\n").encode("latin1"))
-            need = int(length)
-            u.sendall(rest[:need])  # bytes past the declared body are dropped, never sent on
-            need -= len(rest[:need])
-            while need > 0:
-                d = c.recv(min(65536, need))
-                if not d:
-                    raise OSError("client closed mid-body")
-                u.sendall(d)
-                need -= len(d)
-            if upgrade:
-                resp = b""
-                while b"\r\n\r\n" not in resp and len(resp) < 65536:
-                    d = u.recv(65536)
-                    if not d:
-                        raise OSError("provider closed")
-                    resp += d
-                c.sendall(resp)
-                if resp.split(b" ", 2)[1:2] == [b"101"]:  # now WebSocket frames, not HTTP, on this one connection
-                    threading.Thread(target=self._pipe, args=(c, u), daemon=True).start()
+                   *([f"Authorization: Bearer {self.token}"] if self.token else []), "Connection: close",
+                   *(["Content-Type: application/json", f"Content-Length: {len(body)}"] if body else [])]
+            u.sendall(("\r\n".join(out) + "\r\n\r\n").encode("latin1") + body)  # bytes past the body are dropped
         except (OSError, ssl.SSLError, ValueError, IndexError):
             for x in (c, u):
                 if x is not None:
                     x.close()
             return
-        self._pipe(u, c)
-
-    @staticmethod
-    def _pipe(a: socket.socket, b: socket.socket):
-        try:
-            while (d := a.recv(65536)):
-                b.sendall(d)
+        try:  # the answer, within the byte budget; the turn states its head issues are kept
+            head = b""
+            while (d := u.recv(65536)) and self.bytes + len(d) <= GATE_BYTES:
+                if head is not None and len(head) < 1 << 16:
+                    head += d
+                    if b"\r\n\r\n" in head:  # the whole head: 1 to 2048 visible ASCII bytes per value
+                        self.turn_states.update(v.decode() for v in re.findall(
+                            rb"(?im)^x-codex-turn-state:[ \t]*([\x21-\x7e]{1,2048})[ \t]*\r\n", head.partition(b"\r\n\r\n")[0] + b"\r\n"))
+                        head = None
+                self.bytes += len(d)
+                c.sendall(d)
         except OSError:
             pass
-        for x in (a, b):
+        for x in (u, c):
             try:
                 x.shutdown(socket.SHUT_RDWR)
             except OSError:
@@ -917,7 +1045,8 @@ class Gate:
         for e in self.log:
             if e["allowed"]:
                 allowed[e["request"]] = allowed.get(e["request"], 0) + 1
-        return {"allowed": allowed, "denied": [e["request"] for e in self.log if not e["allowed"]]}
+        return {"allowed": allowed, "denied": [e["request"] for e in self.log if not e["allowed"]],
+                "requests": self.requests, "bytes": self.bytes}
 
     def close(self):
         try:
@@ -951,25 +1080,26 @@ def codex_install() -> tuple[Path, Path]:
 
 
 def sandbox_cmd(inner: list[str], *, ws: WS, variant: str | None = None, cohort: str | None = None,
-                codex_home: Path | None = None, gate: Gate | None = None, cwd: Path | None = None,
-                extra: tuple[str, ...] = ()) -> list[str]:
-    """bubblewrap with every namespace unshared (no network but loopback, own pids) under a per-file size
-    limit. The root holds only /usr, /etc and the Codex install, read-only; /tmp is a private capped
-    tmpfs and the home folder an empty read-only tmpfs. An agent run adds, read-only: the snapshot
-    (allowlisted repository copy, research home, skill copies, offline CLIs), the variant's research
-    skills and its own commission folder; writable: only its Codex home. `gate` adds the provider path."""
-    bw, prlimit = which("bwrap"), which("prlimit")
-    if not bw or not prlimit:
-        raise Fail("bwrap (bubblewrap) and prlimit are required; the replay refuses to run unsandboxed")
-    a = [prlimit, f"--fsize={FILE_CAP}", "--", bw, "--unshare-all", "--die-with-parent", "--new-session",
-         "--ro-bind", "/usr", "/usr"]
+                gate: Gate | None = None, cwd: Path | None = None, extra: tuple[str, ...] = ()) -> list[str]:
+    """bubblewrap with every namespace unshared (no network but loopback, own pids). The root holds only
+    /usr, the ETC_ALLOW part of /etc and the Codex install, read-only; /tmp is a private capped tmpfs and the home folder an
+    empty read-only tmpfs. An agent run adds, read-only: the snapshot (allowlisted repository copy,
+    research home, skill copies, offline CLIs), the variant's research skills and its own commission
+    folder. `gate` adds the provider path and a capped tmpfs Codex home that DRIVER fills: inner is
+    then run under the bridge, so it should be DRIVER (`python3 -I /tmp/.gate/driver.py`)."""
+    bw = which("bwrap")
+    if not bw:
+        raise Fail("bwrap (bubblewrap) is not installed; the replay refuses to run unsandboxed")
+    a = [bw, "--unshare-all", "--die-with-parent", "--new-session", "--ro-bind", "/usr", "/usr"]
     for name in ("bin", "lib", "lib64", "sbin"):
         p = Path("/") / name
         if p.is_symlink():
             a += ["--symlink", os.readlink(p), str(p)]
         elif p.is_dir():
             a += ["--ro-bind", str(p), str(p)]
-    a += ["--ro-bind", "/etc", "/etc", "--proc", "/proc", "--dev", "/dev", "--size", str(TMP_CAP), "--tmpfs", "/tmp",
+    a += [x for n in ETC_ALLOW if os.path.lexists(f"/etc/{n}") for x in ("--ro-bind", f"/etc/{n}", f"/etc/{n}")]
+    a += ["--proc", "/proc", "--dev", "/dev", "--size", str(SHM_CAP), "--tmpfs", "/dev/shm",
+          "--size", str(TMP_CAP), "--tmpfs", "/tmp",
           "--tmpfs", "/home", "--dir", str(HOME)]
     _, install = codex_install()
     for p in (install, HOME / ".vrooli/opt/node"):
@@ -986,16 +1116,17 @@ def sandbox_cmd(inner: list[str], *, ws: WS, variant: str | None = None, cohort:
               "--ro-bind", str(snap / "skills"), str(SKILL_EXPORT)]
         if cohort:
             a += ["--ro-bind", str(ws.variant(variant) / "cohorts" / cohort), str(research / "cohorts" / cohort)]
-    if codex_home:
-        a += ["--bind", str(codex_home), str(HOME / ".codex")]
+        a += ["--remount-ro", str(research / "cohorts")]
+    if gate:
+        a += ["--size", str(CODEX_HOME_CAP), "--tmpfs", str(HOME / ".codex")]
         for name in CODEX_SHARED:
             if (HOME / ".codex" / name).is_dir():
                 a += ["--ro-bind", str(HOME / ".codex" / name), str(HOME / ".codex" / name)]
-    if gate:
-        a += ["--ro-bind", str(gate.dir / "bridge.py"), "/tmp/.gate/bridge.py", "--ro-bind", str(gate.ca), "/tmp/.gate/ca.pem",
-              "--bind", str(gate.sock), "/tmp/.gate/gate.sock"]
+        a += [x for f in ("bridge.py", "driver.py", "ca.pem") for x in ("--ro-bind", str(gate.dir / f), f"/tmp/.gate/{f}")]
+        a += ["--ro-bind", str(gate.sock), "/tmp/.gate/gate.sock"]  # connecting needs no write access to the mount
         inner = ["python3", "-I", "/tmp/.gate/bridge.py", str(PROXY_PORT), "/tmp/.gate/gate.sock", "--", *inner]
-    a += [*extra, "--remount-ro", "/home", "--chdir", str(cwd or (REPO if variant else HOME)), "--"]
+    a += [*extra, "--remount-ro", "/home", "--remount-ro", "/dev", "--remount-ro", "/",
+          "--chdir", str(cwd or (REPO if variant else HOME)), "--"]
     return a + inner
 
 
@@ -1026,27 +1157,109 @@ def auth_check() -> None:
                    "cannot refresh it)")
 
 
-def make_codex_home(run_id: str) -> Path:
-    """A fresh Codex home: copies of the config and install files, and the login with its refresh
-    token blanked (only the access token, which auth_check keeps valid for a day,
-    leaves the host); the plugin, rules and skills folders are mounted read-only over the empty folders
-    made here."""
-    base = HOME / ".vrooli" / "tmp" / "research-replay"
-    base.mkdir(parents=True, exist_ok=True)
-    home = Path(tempfile.mkdtemp(prefix=f"{run_id[:60]}-", dir=base))
-    src = HOME / ".codex"
-    for name in ("config.toml", "installation_id", "version.json", "settings.json", "models_cache.json"):
-        if (src / name).exists():
-            shutil.copy2(src / name, home / name)
+def codex_header(turns: list[list[str]]) -> dict:
+    """DRIVER's header: the turns, and the Codex home it writes into the sandbox's own tmpfs: the config
+    and install files, and the login with its refresh token blanked and its tokens' signatures replaced
+    (Codex reads their claims; the gate sends the real access token). No usable credential enters the
+    sandbox, and no copy of the login is written to the host disk."""
+    src, files = HOME / ".codex", {}
+    for name in CODEX_FILES:
+        if (src / name).is_file():
+            files[name] = (src / name).read_text(encoding="utf-8", errors="replace")
     auth = read_json(src / "auth.json")
     if auth:
-        auth["tokens"] = {**(auth.get("tokens") or {}), "refresh_token": ""}
-        fd = os.open(home / "auth.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(auth, f)
-    for name in ("log", "logs", "tmp", "outputs", "shell_snapshots", "cache", "sessions", *CODEX_SHARED):
-        (home / name).mkdir()
-    return home
+        tokens = auth.get("tokens") or {}
+        auth["tokens"] = {**tokens, "refresh_token": "", **{k: dummy_jwt(tokens[k]) for k in ("access_token", "id_token")
+                                                           if isinstance(tokens.get(k), str)}}
+        files["auth.json"] = json.dumps(auth)
+    return {"turns": turns, "files": files, "dirs": ["log", "logs", "tmp", "outputs", "shell_snapshots", "cache", "sessions"]}
+
+
+DRIVE = ["python3", "-I", "/tmp/.gate/driver.py"]
+DUMMY_SIGNATURE = "replay-dummy-signature"
+
+
+def dummy_jwt(token: str) -> str:
+    return ".".join(token.split(".")[:2] + [DUMMY_SIGNATURE])
+
+
+def request_refusal(req) -> str | None:
+    """Why a parsed /responses body is not a model turn as Codex sends it, or None: only REQUEST_KEYS,
+    no tool choice but auto, no stored response, and an input of ITEM_KEYS items whose parts are
+    PART_KEYS (an image only as a data: URL) and whose tools are TOOL_KEYS, none run by the provider."""
+    def flat(d, keys=None):
+        return isinstance(d, dict) and (keys is None or set(d) <= keys) and \
+            all(isinstance(v, (str, bool, int, float)) for v in d.values())
+
+    def text(v, none=True):
+        return isinstance(v, str) or (none and v is None)
+
+    def tools_refusal(tools, nested=False):
+        for t in tools if isinstance(tools, list) else [None]:
+            kind = t.get("type") if isinstance(t, dict) else None
+            if why := kind == "namespace" and not nested and tools_refusal(t.get("tools"), True):
+                return why
+            if kind not in TOOL_KEYS or set(t) - TOOL_KEYS[kind] or (kind == "namespace" and nested) \
+                    or not text(t.get("name"), False) or not text(t.get("description")) \
+                    or (kind == "custom" and not flat(t.get("format"), {"type", "syntax", "definition"})) \
+                    or (kind == "function" and (not isinstance(t.get("strict", False), bool) or remote_ref(t.get("parameters")))):
+                return f"tool {str(kind)[:30]}"
+        return None
+
+    def remote_ref(v) -> bool:  # a JSON Schema reference the provider might resolve
+        if isinstance(v, dict):
+            return any((k in ("$ref", "$id") and "://" in str(x)) or remote_ref(x) for k, x in v.items())
+        return isinstance(v, list) and any(remote_ref(x) for x in v)
+
+    def part_refusal(part):
+        kind = part.get("type") if isinstance(part, dict) else None
+        if kind not in PART_KEYS or set(part) - PART_KEYS[kind] or not text(part.get("text")):
+            return f"part {str(kind)[:30]}"
+        if kind == "input_image" and not re.match(r"data:image/(png|jpeg|webp|gif);base64,", str(part.get("image_url"))):
+            return "image not a data: URL of a raster image"
+        if kind == "output_text" and (part.get("annotations") or []) != []:
+            return "annotations"
+        return None
+
+    if not isinstance(req, dict) or set(req) - REQUEST_KEYS:
+        return "keys " + ",".join(sorted(set(req) - REQUEST_KEYS) if isinstance(req, dict) else ["?"])[:80]
+    for key, ok in (("model", text(req.get("model"), False)), ("tool_choice", req.get("tool_choice", "auto") == "auto"),
+                    ("store", req.get("store", False) is False), ("stream", isinstance(req.get("stream", True), bool)),
+                    ("parallel_tool_calls", isinstance(req.get("parallel_tool_calls", False), bool)),
+                    ("include", req.get("include", []) in ([], ["reasoning.encrypted_content"])),
+                    ("text", flat(req.get("text", {}), {"verbosity"})), ("prompt_cache_key", text(req.get("prompt_cache_key"))),
+                    ("reasoning", flat(req.get("reasoning", {}), {"effort", "context", "summary"})),
+                    ("client_metadata", flat(req.get("client_metadata", {}))), ("access_programs", req.get("access_programs", {}) in ({}, {"cyber": "standard"})),
+                    ("input", isinstance(req.get("input"), list))):
+        if not ok:
+            return key
+    for item in req["input"]:
+        kind = item.get("type") if isinstance(item, dict) else None
+        if kind not in ITEM_KEYS or set(item) - ITEM_KEYS[kind]:
+            return f"item {str(kind)[:30]}"
+        meta = json.dumps(item.get(META))
+        if "://" in meta or not all(text(item.get(k)) for k in ("id", "call_id", "name", "arguments", "input", "status",
+                                                                  "phase", "namespace", "encrypted_content", "role")):
+            return f"{kind} fields"
+        if kind == "message" and item.get("role") not in ("developer", "user", "assistant"):
+            return "role"
+        if kind == "additional_tools" and (item.get("role") != "developer" or tools_refusal(item.get("tools"))):
+            return tools_refusal(item.get("tools")) or "role"
+        if kind == "configuration_update" and not flat(item.get("reasoning"), {"effort", "context", "summary"}):
+            return "configuration_update"
+        if kind == "reasoning" and item.get("content") is not None:
+            return "reasoning content"
+        parts = {"message": item.get("content"), "reasoning": item.get("summary", [])}.get(kind, item.get("output", []))
+        if kind.endswith("_output") and isinstance(parts, str):
+            continue
+        for part in parts if isinstance(parts, list) else [None]:
+            if why := part_refusal(part):
+                return why
+    return None
+
+
+def host_access_token() -> str:
+    return ((read_json(HOME / ".codex/auth.json") or {}).get("tokens") or {}).get("access_token") or ""
 
 
 def subagent_instructions() -> str | None:
@@ -1058,10 +1271,34 @@ def subagent_instructions() -> str | None:
         return None
 
 
+# The model API over HTTPS only. Codex's built-in provider opens a WebSocket first; the gate refuses the
+# upgrade and Codex falls back to HTTPS after five failures, and turns after that fallback came back with
+# no reasoning and few tool calls (diagnostic-transport2: host through the gate 0/3 engaged, the sandbox
+# with this provider 3/3). This provider is the built-in one with WebSockets switched off, so no turn ever
+# tries the upgrade; a run that does is refused (websocket_attempts).
+HTTPS_PROVIDER = ("-c", 'model_providers.openai_https={name="OpenAI (HTTPS only)", '
+                        'base_url="https://chatgpt.com/backend-api/codex", wire_api="responses", '
+                        'requires_openai_auth=true, supports_websockets=false}',
+                  "-c", 'model_provider="openai_https"')
+WS_ROUTE = "GET /backend-api/codex/responses"  # a WebSocket upgrade, as the gate logs it
+
+
+def websocket_attempts(network: dict, stderr: str = "", events: list | None = None) -> list[str]:
+    """Every sign that a run tried the model API over a WebSocket: an upgrade the gate refused, Codex's
+    connect failure on stderr, or its fallback notice in the event stream. Empty when it used HTTPS only."""
+    seen = [r for r in network.get("denied", []) if r.startswith(WS_ROUTE)]
+    seen += [f"stderr: {m}" for m in sorted(set(re.findall(r"failed to connect to Responses WebSocket", stderr)))]
+    if any("Falling back from WebSockets" in json.dumps(e) for e in events or []):
+        seen.append("events: Falling back from WebSockets")
+    return seen
+
+
 def codex_turn(prompt: str, *, model: str, effort: str, cwd: Path, resume: str | None, dev: str | None,
                extra: tuple[str, ...] = ()) -> list[str]:
     codex, _ = codex_install()
-    cfg = [*extra, "-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"',
+    cfg = [*extra, *HTTPS_PROVIDER, "--skip-git-repo-check", "-c", 'approval_policy="never"', "-c", 'sandbox_mode="danger-full-access"',
+           "-c", 'web_search="disabled"', "-c", "features.image_generation=false",  # no tool that runs on the provider's side
+           "-c", "features.enable_request_compression=false",  # bodies the gate can read
            "-c", f"model_reasoning_effort={json.dumps(effort)}", "-m", model]
     if dev:
         cfg += ["-c", f"developer_instructions={json.dumps(dev)}"]
@@ -1073,106 +1310,98 @@ def codex_turn(prompt: str, *, model: str, effort: str, cwd: Path, resume: str |
 SPAWN_TYPES = re.compile(r"collab|spawn|agent(?!_message)", re.I)
 
 
-def stream(cmd: list[str], env: dict, deadline: float, turn: int, out, t0: float, until: str = "plan",
-           codex_home: Path | None = None) -> dict:
-    """Run one turn, appending {"t", "turn", "e"} lines to `out`. The turn ends when the agent has
-    answered: its first message for `until="reply"` (the stance turn, where an agent told to wait for
-    its goal otherwise sleeps for an hour), its replay JSON for `until="plan"`. Also stops at the
-    deadline, three minutes after the agent starts a sub-agent (the protocol forbids it), and when the
-    event stream passes OUTPUT_CAP or the Codex home CODEX_HOME_CAP."""
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, env=env,
+def stream(cmd: list[str], header: dict, env: dict, deadline: float, out, t0: float,
+           rollouts: Path | None = None) -> dict:
+    """Run DRIVER's turns in one sandbox, appending {"t", "turn", "e"} lines to `out` and the session
+    rollouts to `rollouts`. A turn ends when the agent has answered: its first message before the last
+    turn (the stance turn, where an agent told to wait for its goal otherwise sleeps for an hour), its
+    replay JSON in the last. A turn also ends at the deadline and three minutes after the agent starts a
+    sub-agent (the protocol forbids it), and either ends the run; so does an event stream past OUTPUT_CAP."""
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
                             text=True, start_new_session=True)
-    state = {"killed": None, "thread": None, "spawn_at": None, "answered_at": None}
-    err_lines: collections.deque = collections.deque(maxlen=16)
-    err_thread = threading.Thread(target=lambda: err_lines.extend(iter(lambda: proc.stderr.read(4096), "")), daemon=True)
-    err_thread.start()
+    last = len(header["turns"])
+    st: dict = {"turns": [], "spawn_at": None, "answered_at": None}
+    err: collections.deque = collections.deque(maxlen=16)
+    threading.Thread(target=lambda: err.extend(iter(lambda: proc.stderr.read(4096), "")), daemon=True).start()
+
+    def send(line: str):
+        try:
+            proc.stdin.write(line + "\n")
+            proc.stdin.flush()
+        except (OSError, ValueError):
+            pass
 
     def watchdog():
         while proc.poll() is None:
-            limit = min(deadline, state["spawn_at"] + 180) if state["spawn_at"] else deadline
-            if state["answered_at"]:
-                limit = min(limit, state["answered_at"] + 8)
-            if codex_home and not state["killed"] and tree_bytes(codex_home) > CODEX_HOME_CAP:
-                state["killed"], limit = "disk", 0
-            if time.time() > limit:
-                state["killed"] = state["killed"] or (
-                    "answered" if state["answered_at"] and time.time() < deadline else
-                    "timeout" if time.time() > deadline else "spawned")
-                os.killpg(proc.pid, signal.SIGINT if state["killed"] == "answered" else signal.SIGTERM)
-                time.sleep(5)
-                if proc.poll() is None:
-                    os.killpg(proc.pid, signal.SIGKILL)
+            t = st["turns"][-1] if st["turns"] else None
+            limit = min(deadline, st["spawn_at"] + 180) if st["spawn_at"] else deadline
+            if st["answered_at"]:
+                limit = min(limit, st["answered_at"] + 8)
+            if t and t["killed"] is None and time.time() > limit:
+                t["killed"] = ("answered" if st["answered_at"] and time.time() < deadline else
+                               "timeout" if time.time() > deadline else "spawned")
+                send(f"{'stop' if t['killed'] == 'answered' and t['turn'] < last else 'quit'} {t['turn']}")
+            if time.time() > deadline + 60:
+                os.killpg(proc.pid, signal.SIGKILL)
                 return
             time.sleep(1)
 
+    send(json.dumps(header))
     threading.Thread(target=watchdog, daemon=True).start()
-    written = 0
-    for line in iter(lambda: proc.stdout.readline(16 << 20), ""):
-        written += len(line)
-        if written > OUTPUT_CAP:
-            state["killed"] = "output"
-            os.killpg(proc.pid, signal.SIGKILL)
-            break
-        line = line.rstrip("\n")
-        if not line.strip():
-            continue
+    written, files = 0, {}
+    try:
+        for line in iter(lambda: proc.stdout.readline(16 << 20), ""):
+            written += len(line)
+            if written > OUTPUT_CAP:
+                if st["turns"]:
+                    st["turns"][-1]["killed"] = "output"
+                os.killpg(proc.pid, signal.SIGKILL)
+                break
+            try:
+                ev = json.loads(line)
+            except (ValueError, RecursionError):
+                ev = {"raw": line.rstrip("\n")} if line.strip() else None
+            if not isinstance(ev, dict):
+                continue
+            kind = ev.get("replay")
+            if kind == "turn":
+                st["turns"].append({"turn": ev.get("n"), "exit": None, "killed": None, "thread": None})
+                st["spawn_at"] = st["answered_at"] = None
+                continue
+            if kind == "exit" and st["turns"]:
+                st["turns"][-1]["exit"] = ev.get("code")
+            if kind == "rollout" and rollouts is not None:
+                name = re.sub(r"[^A-Za-z0-9-]", "", Path(str(ev.get("name"))).stem)[-12:] or "x"
+                if name not in files and len(files) < 8:
+                    files[name] = gzip.open(rollouts / f"rollout-{name}.jsonl.gz", "wt", encoding="utf-8")
+                if name in files:
+                    files[name].write(str(ev.get("line")) + "\n")
+            if kind:
+                continue
+            t = st["turns"][-1] if st["turns"] else {"turn": 0}
+            out.write(json.dumps({"t": round(time.time() - t0, 3), "turn": t["turn"], "e": ev}, ensure_ascii=False) + "\n")
+            out.flush()
+            if ev.get("type") == "thread.started" and "thread" in t:
+                t["thread"] = ev.get("thread_id")
+            item = ev.get("item") or {}
+            if item.get("type") and SPAWN_TYPES.search(item["type"]) and not st["spawn_at"]:
+                st["spawn_at"] = time.time()
+            if ev.get("type") == "turn.completed":
+                st["answered_at"] = None  # the turn ended by itself
+            elif item.get("type") == "agent_message" and not st["answered_at"] and \
+                    (t["turn"] < last or (extract_json(item.get("text", "")) or {}).get("role")):
+                st["answered_at"] = time.time()
+    finally:
+        for f in files.values():
+            f.close()
         try:
-            ev = json.loads(line)
-        except ValueError:
-            ev = {"raw": line}
-        out.write(json.dumps({"t": round(time.time() - t0, 3), "turn": turn, "e": ev}, ensure_ascii=False) + "\n")
-        out.flush()
-        if ev.get("type") == "thread.started":
-            state["thread"] = ev.get("thread_id")
-        item = ev.get("item") or {}
-        if item.get("type") and SPAWN_TYPES.search(item["type"]) and not state["spawn_at"]:
-            state["spawn_at"] = time.time()
-        if ev.get("type") == "turn.completed":
-            state["answered_at"] = None  # the turn ended by itself
-        elif item.get("type") == "agent_message" and not state["answered_at"] and \
-                (until == "reply" or (extract_json(item.get("text", "")) or {}).get("role")):
-            state["answered_at"] = time.time()
-    proc.wait()
-    err_thread.join(timeout=10)
-    proc.stdout.close()
-    proc.stderr.close()
-    return {"exit": proc.returncode, "killed": state["killed"], "thread": state["thread"],
-            "stderr": "".join(err_lines)[-20000:]}
-
-
-def tree_bytes(root: Path) -> int:
-    """Bytes under a folder, never through a link."""
-    total = 0
-    for dirpath, _, files in os.walk(root):
-        for f in files:
-            try:
-                total += os.lstat(os.path.join(dirpath, f)).st_size
-            except OSError:
-                pass
-    return total
-
-
-def copy_rollouts(codex_home: Path, run_dir: Path) -> int:
-    """Copy the session rollouts out of a Codex home the agent could write (every sandboxed process is
-    gone by now): regular .jsonl files only, opened without following a link, each up to OUTPUT_CAP."""
-    n, sessions = 0, codex_home / "sessions"
-    if sessions.is_symlink() or not sessions.is_dir():
-        return 0
-    for dirpath, _, files in sorted(os.walk(sessions)):
-        for f in sorted(files):
-            if not f.endswith(".jsonl"):
-                continue
-            try:
-                fd = os.open(os.path.join(dirpath, f), os.O_RDONLY | os.O_NOFOLLOW)
-            except OSError:
-                continue
-            with os.fdopen(fd, "rb") as src:
-                if not stat.S_ISREG(os.fstat(fd).st_mode):
-                    continue
-                with gzip.open(run_dir / f"rollout-{Path(f).stem[-12:]}.jsonl.gz", "wb") as dst:
-                    dst.write(src.read(OUTPUT_CAP))
-            n += 1
-    return n
+            proc.stdin.close()
+        except OSError:
+            pass
+        proc.wait()
+        proc.stdout.close()
+        proc.stderr.close()
+    return {"exit": proc.returncode, "turns": st["turns"], "rollouts": len(files), "stderr": "".join(err)[-20000:]}
 
 
 def next_run_dir(ws: WS, key: str) -> Path:
@@ -1227,7 +1456,6 @@ def cmd_run(ws: WS, cid: str, variant: str, role: str, topic: str | None, card: 
         key, dev = f"{cid}.{variant}.owner.{brief.stem.removeprefix('owner-')}", subagent_instructions()
     model = model_override or model
     run_dir = next_run_dir(ws, key)
-    codex_home = make_codex_home(run_dir.name)
     codex, _ = codex_install()
     agents_md = (ws.snapshot() / "repo/AGENTS.md").read_bytes() if (ws.snapshot() / "repo/AGENTS.md").exists() else b""
     meta = {"run_id": run_dir.name, "commission_id": cid, "cohort": info.get("cohort") or cid, "variant": variant,
@@ -1239,30 +1467,29 @@ def cmd_run(ws: WS, cid: str, variant: str, role: str, topic: str | None, card: 
     for i, t in enumerate(turns, 1):
         write(run_dir / f"prompt-{i}.txt", t)
     t0 = time.time()
-    deadline = t0 + timeout
-    resume = None
+    argvs = [codex_turn(t, model=model, effort=effort, cwd=REPO, resume="{thread}" if i else None, dev=dev)
+             for i, t in enumerate(turns)]
     gate = Gate()
     try:
         with open(run_dir / "events.jsonl", "w", encoding="utf-8") as out:
-            for i, prompt in enumerate(turns, 1):
-                inner = codex_turn(prompt, model=model, effort=effort, cwd=REPO, resume=resume, dev=dev)
-                cmd = sandbox_cmd(inner, ws=ws, variant=variant, cohort=meta["cohort"], codex_home=codex_home, gate=gate)
-                res = stream(cmd, sandbox_env(), deadline, i, out, t0, until="reply" if i < len(turns) else "plan",
-                             codex_home=codex_home)
-                meta["turns"].append({"turn": i, **{k: v for k, v in res.items() if k != "stderr"},
-                                      "stderr_tail": res["stderr"][-2000:]})
-                write(run_dir / f"stderr-{i}.txt", res["stderr"])
-                resume = res["thread"]
-                if res["killed"] not in (None, "answered") or not resume:
-                    break
+            cmd = sandbox_cmd(DRIVE, ws=ws, variant=variant, cohort=meta["cohort"], gate=gate)
+            res = stream(cmd, codex_header(argvs), sandbox_env(), t0 + timeout, out, t0, rollouts=run_dir)
+        meta["turns"], meta["rollouts"], meta["stderr_tail"] = res["turns"], res["rollouts"], res["stderr"][-2000:]
+        write(run_dir / "stderr.txt", res["stderr"])
     finally:
         gate.close()
         meta["network"] = gate.summary()
         meta["wall_s"] = round(time.time() - t0, 1)
         meta["ended_at"] = now()
-        meta["rollouts"] = copy_rollouts(codex_home, run_dir)
-        shutil.rmtree(codex_home, ignore_errors=True)
+        events = [json.loads(x) for x in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+                  if x.strip()] if (run_dir / "events.jsonl").exists() else []
+        err = (run_dir / "stderr.txt").read_text(encoding="utf-8", errors="replace") if (run_dir / "stderr.txt").exists() else ""
+        meta["websocket_attempts"] = websocket_attempts(meta["network"], err, events)
+        if meta["websocket_attempts"]:
+            meta["excluded"] = "the run tried a WebSocket; replay turns run over HTTPS only"
         write_json(run_dir / "meta.json", meta)
+    if meta["websocket_attempts"]:
+        raise Fail(f"{run_dir.name} tried a WebSocket ({meta['websocket_attempts'][0]}); it is excluded")
     metrics = analyse_run(run_dir)
     return {"run": str(run_dir), "wall_s": meta["wall_s"], "turns": [{k: t[k] for k in ("turn", "exit", "killed")}
                                                                      for t in meta["turns"]],
@@ -1343,8 +1570,28 @@ def unwrap(command: str) -> str:
     return command
 
 
-def command_paths(command: str, cwd: Path) -> list[str]:
-    """Files a shell command reads: existing file paths among its arguments, skill reads and route CLIs."""
+def sandbox_view(ws: WS, variant: str, cohort: str | None) -> list[tuple[str, Path]]:
+    """Where a path inside a run's sandbox lives on the host (sandbox_cmd's mounts), longest prefix first:
+    a run's files exist only there, so the host's own files say nothing about what it read."""
+    snap, research = ws.snapshot(), research_home(ws)
+    view = {str(REPO): snap / "repo", str(SKILLS): ws.variant(variant) / "skills", str(research): snap / "home",
+            str(research / "cohorts"): Path("/nonexistent"), str(HOME / ".vrooli/bin"): snap / "bin",
+            str(SKILL_EXPORT): snap / "skills"}
+    if cohort:
+        view[str(research / "cohorts" / cohort)] = ws.variant(variant) / "cohorts" / cohort
+    return sorted(view.items(), key=lambda kv: -len(kv[0]))
+
+
+def on_host(path: Path, view: list[tuple[str, Path]] | None) -> Path:
+    for prefix, host in view or []:
+        if str(path) == prefix or str(path).startswith(prefix + "/"):
+            return host / os.path.relpath(path, prefix)
+    return path
+
+
+def command_paths(command: str, cwd: Path, view: list[tuple[str, Path]] | None = None) -> list[str]:
+    """Files a shell command reads: existing file paths among its arguments (checked where the run's
+    sandbox view puts them), skill reads and route CLIs."""
     inner = unwrap(command)
     out: list[str] = []
     try:
@@ -1380,19 +1627,21 @@ def command_paths(command: str, cwd: Path) -> list[str]:
         if tok.startswith("-") or tok in ("<", ">", ">>"):
             continue
         p = Path(os.path.expanduser(tok))
-        p = p if p.is_absolute() else cwd / p
+        p = Path(os.path.normpath(p if p.is_absolute() else cwd / p))
         try:
-            if ("/" in tok or "." in tok) and p.is_file():
+            if ("/" in tok or "." in tok) and on_host(p, view).is_file():
                 out.append(str(p))
         except OSError:
             pass
     return list(dict.fromkeys(out))
 
 
-def normalize(events: list[dict], cwd: Path) -> tuple[list[dict], dict, list[str]]:
+def normalize(events: list[dict], cwd: Path, workdirs: dict[str, str] | None = None,
+              view: list[tuple[str, Path]] | None = None) -> tuple[list[dict], dict, list[str]]:
     """Codex `exec --json` events into steps:
     {kind: read|write|spawn|message|other, t, command, paths, bytes, exit, text}. Returns steps,
-    token usage and the agent's messages."""
+    token usage and the agent's messages. A command's relative paths resolve against the working
+    folder the agent gave it (workdirs, from the rollout: the event stream does not carry it), else cwd."""
     steps: list[dict] = []
     usage = {"input": 0, "cached_input": 0, "output": 0, "reasoning": 0}
     messages: list[str] = []
@@ -1417,13 +1666,14 @@ def normalize(events: list[dict], cwd: Path) -> tuple[list[dict], dict, list[str
                 output = it.get("aggregated_output") or ""
                 inner = unwrap(cmd)
                 kind = "write" if is_write(inner, output) else "read"
-                steps.append({"kind": kind, "t": t, "command": inner, "paths": command_paths(cmd, cwd),
+                where = cwd / (workdirs or {}).get(inner, "")
+                steps.append({"kind": kind, "t": t, "command": inner, "paths": command_paths(cmd, where, view),
                               "bytes": len(output.encode()), "exit": it.get("exit_code"), "output_head": output[:300]})
             elif ityp in ("file_change", "patch_apply"):
                 steps.append({"kind": "write", "t": t, "command": ityp,
                               "paths": [c.get("path", "") for c in it.get("changes", []) if isinstance(c, dict)],
                               "bytes": 0, "exit": None})
-            elif ityp in ("todo_list", "web_search"):
+            elif ityp in ("todo_list", "web_search", "error"):  # an error item (a transport fallback) is no action
                 steps.append({"kind": "other", "t": t, "command": ityp, "paths": [], "bytes": 0, "exit": None})
             else:
                 kind = "spawn" if SPAWN_TYPES.search(ityp) else ("message" if "message" in ityp else "write")
@@ -1481,8 +1731,9 @@ def plan_units(plan: dict | None) -> list[dict]:
     return [plan]
 
 
-def metrics(events: list[dict], cwd: Path, scenarios: set[str] | None = None) -> dict:
-    steps, usage, messages = normalize(events, cwd)
+def metrics(events: list[dict], cwd: Path, scenarios: set[str] | None = None,
+            workdirs: dict[str, str] | None = None, view: list[tuple[str, Path]] | None = None) -> dict:
+    steps, usage, messages = normalize(events, cwd, workdirs, view)
     first = next((i for i, s in enumerate(steps) if s["kind"] in ("write", "spawn", "message")), None)
     before = steps if first is None else steps[:first]
     paths: list[str] = []
@@ -1539,6 +1790,33 @@ def js_string(literal: str) -> str | None:
         return json.loads(literal)
     except ValueError:
         return None
+
+
+JS_EXEC = re.compile(r"exec_command\(\s*\{(.*?)\}\s*\)", re.S)
+JS_FIELD = r"""\b%s\s*:\s*("(?:[^"\\]|\\.)*")"""
+
+
+def command_workdirs(records: list[dict]) -> dict[str, str]:
+    """Each shell command in a Codex rollout and the working folder the agent ran it in, from the
+    exec_command calls (a code-mode `tools.exec_command({cmd, workdir})` or a function call)."""
+    out: dict[str, str] = {}
+    for o in records:
+        p = o.get("payload") or {}
+        if p.get("type") == "function_call" and p.get("name") == "exec_command":
+            try:
+                args = json.loads(p.get("arguments") or "{}")
+            except ValueError:
+                continue
+            pairs = [(args.get("cmd"), args.get("workdir"))]
+        elif p.get("type") == "custom_tool_call":
+            pairs = []
+            for m in JS_EXEC.finditer(p.get("input") or ""):
+                cmd, wd = (re.search(JS_FIELD % k, m.group(1)) for k in ("cmd", "workdir"))
+                pairs.append((cmd and js_string(cmd.group(1)), wd and js_string(wd.group(1))))
+        else:
+            continue
+        out.update({c: w for c, w in pairs if isinstance(c, str) and isinstance(w, str) and w})
+    return out
 
 
 def rollout_calls(records: list[dict]) -> list[dict]:
@@ -1614,13 +1892,15 @@ def load_events(run_dir: Path) -> list[dict]:
 
 def analyse_run(run_dir: Path) -> dict:
     meta = read_json(run_dir / "meta.json", {})
-    events = load_events(run_dir)
-    m = metrics(events, Path(meta.get("cwd") or REPO))
+    events, records = load_events(run_dir), load_rollouts(run_dir)
+    view = sandbox_view(WS(run_dir.parent.parent), meta["variant"], meta.get("cohort")) if meta.get("variant") else None
+    m = metrics(events, Path(meta.get("cwd") or REPO), workdirs=command_workdirs(records), view=view)
     m["wall_s"] = meta.get("wall_s")
-    calls = rollout_calls(load_rollouts(run_dir))
+    calls = rollout_calls(records)
     m.update(seen_before_action(calls, (m["first_action"] or {}).get("command") if m["first_action"] and
                                 m["first_action"]["kind"] == "write" else None))
     m["collab_calls"] = [c["name"] for c in calls if c["name"] != "exec"]
+    m["tool_calls"] = len(calls) if records else m["commands_before_first_action"]  # no rollout: the event stream
     _, _, messages = normalize(events, REPO)
     plan = None
     for msg in reversed(messages):
@@ -1663,21 +1943,19 @@ def grade_prompt(mission: str, rubric: str, a: list[dict], b: list[dict]) -> str
 
 def grade_once(ws: WS, gdir: Path, label: str, prompt: str, model: str, effort: str, timeout: int) -> dict:
     write(gdir / f"prompt-{label}.txt", prompt)
-    codex_home = make_codex_home(f"grade-{gdir.name}")
     with Gate() as gate:
-        try:
-            inner = codex_turn(prompt, model=model, effort=effort, cwd=HOME / ".codex", resume=None, dev=None,
-                               extra=("--skip-git-repo-check",))
-            cmd = sandbox_cmd(inner, ws=ws, codex_home=codex_home, gate=gate, cwd=HOME / ".codex")
-            t0 = time.time()
-            with open(gdir / f"events-{label}.jsonl", "w", encoding="utf-8") as out:
-                res = stream(cmd, sandbox_env(), t0 + timeout, 1, out, t0, codex_home=codex_home)
-        finally:
-            shutil.rmtree(codex_home, ignore_errors=True)
+        inner = codex_turn(prompt, model=model, effort=effort, cwd=HOME / ".codex", resume=None, dev=None)
+        t0 = time.time()
+        with open(gdir / f"events-{label}.jsonl", "w", encoding="utf-8") as out:
+            res = stream(sandbox_cmd(DRIVE, ws=ws, gate=gate, cwd=HOME / ".codex"), codex_header([inner]), sandbox_env(),
+                         t0 + timeout, out, t0)
+        net = gate.summary()
     events = [json.loads(x) for x in (gdir / f"events-{label}.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+    if (seen := websocket_attempts(net, res["stderr"], events)):
+        raise Fail(f"grade {label} tried a WebSocket ({seen[0]}); grades run over HTTPS only")
     _, usage, messages = normalize(events, HOME)
     verdict = next((v for v in (extract_json(m) for m in reversed(messages)) if v), None)
-    return {"verdict": verdict, "exit": res["exit"], "killed": res["killed"], "tokens": usage,
+    return {"verdict": verdict, "exit": res["exit"], "killed": (res["turns"] or [{}])[0].get("killed"), "tokens": usage,
             "stderr_tail": res["stderr"][-1500:]}
 
 
@@ -1960,6 +2238,29 @@ def summary_lines(vals: dict, arms: dict, records: list[dict], run_arm: dict, ru
     return out
 
 
+def engaged(m: dict) -> bool:
+    """A run engaged unless it both reasoned no tokens and made no tool call: it answered from the prompt alone."""
+    return bool(m["tokens"]["reasoning"] or m.get("tool_calls", m.get("calls_before_first_action")))
+
+
+def engagement_lines(runs: list[dict], run_arm: dict, arms: dict) -> list[str]:
+    """Post-hoc, exploratory: each arm's share of runs that did not engage, and bytes seen among those that did."""
+    out = ["## Did not engage (post-hoc exploratory analysis, NOT pre-registered)", "",
+           "Added after the runs. A run \"did not engage\" when it reasoned 0 tokens AND made 0 tool calls. The "
+           "pre-registered verdicts use every run and are unchanged; nothing here is a claim.", "",
+           "| Role · arm | Runs | Did not engage | Bytes seen median, engaged runs (n) |", "|---|---|---|---|"]
+    for role in ("supervisor", "owner"):
+        for arm in arms:
+            rs = [x["m"] for x in runs if x["meta"]["role"] == role and run_arm.get(x["dir"].name) == arm]
+            if not rs:
+                continue
+            on = [MEASURES["bytes_seen"](m) for m in rs if engaged(m)]
+            med = median([x for x in on if x is not None])
+            out.append(f"| {role} · `{arm}` | {len(rs)} | {len(rs) - len(on)} ({(len(rs) - len(on)) / len(rs):.0%}) | "
+                       f"{'—' if med is None else f'{med:,.0f}'} ({len(on)}) |")
+    return out + [""]
+
+
 def prereg_lines(ws: WS, runs: list[dict], vals: dict) -> list[str]:
     pre = read_json(ws.root / "PREREGISTRATION.json")
     if not pre:
@@ -2058,7 +2359,13 @@ def guidance_lines(runs: list, ws: WS, run_arm: dict) -> list[str]:
     return out + [""]
 
 
-def cmd_report(ws: WS, arm_specs: list[str] | None) -> Path:
+def cmd_report(ws: WS, arm_specs: list[str] | None, correction: str | None = None) -> Path:
+    """REPORT.md over every run not excluded. A correction (a parser or harness fix after the runs that
+    leaves the pre-registered measure unchanged) is kept in corrections.json and shown in every report."""
+    corrections = read_json(ws.root / "corrections.json") or []
+    if correction:
+        corrections.append({"at": now(), "text": correction})
+        write_json(ws.root / "corrections.json", corrections)
     runs, excluded = [], []
     for d in sorted(ws.runs().iterdir()) if ws.runs().is_dir() else []:
         meta = read_json(d / "meta.json")
@@ -2085,6 +2392,9 @@ def cmd_report(ws: WS, arm_specs: list[str] | None) -> Path:
              "(Codex rollout, after Codex's own truncation) up to its first write, sub-agent or message, or over the whole "
              "run when it stopped as the replay protocol asks; \"bytes raw\" is the full command output. Re-parse a run "
              "with `replay.py metrics <run dir>`.", ""]
+    if corrections:
+        lines += ["## Corrections after the runs", "", "Not new analyses: each changes no pre-registered measure.", ""]
+        lines += [f"- {c['at']}: {c['text']}" for c in corrections] + [""]
     lines += prereg_lines(ws, runs, vals)
     lines += ["## Variants", "", "| Variant | Arm | Research skill text bytes | Prompts frozen or rendered | Packet gates failed |",
               "|---|---|---|---|---|"]
@@ -2098,6 +2408,7 @@ def cmd_report(ws: WS, arm_specs: list[str] | None) -> Path:
                      f"{' … ' + when[-1] if len(when) > 1 else ''} | {'; '.join(failed) or '—'} |")
     lines.append("")
     lines += summary_lines(vals, arms, records, run_arm, run_role)
+    lines += engagement_lines(runs, run_arm, arms)
     lines += guidance_lines(runs, ws, run_arm)
     by_run: dict[str, list] = {}
     for g in records:
@@ -2181,12 +2492,21 @@ try:
     socket.create_connection(("1.1.1.1", 443), timeout=3).close(); out["direct_internet"] = "CONNECTED"
 except OSError as e:
     out["direct_internet"] = "refused: " + str(e)
-import re, resource, ssl
-def gate(raw, tls_sni=None):
+import re, ssl
+def gate(raw, sni=None):
+    """Send raw bytes to the gate, or with sni through a CONNECT tunnel and a TLS session that names sni."""
     s = socket.create_connection(("127.0.0.1", cfg["proxy_port"]), timeout=30)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE  # the gate, not this client, must refuse
     try:
-        if tls_sni:
-            s = ssl.create_default_context().wrap_socket(s, server_hostname=tls_sni)
+        if sni == "direct-tls":
+            s = ctx.wrap_socket(s, server_hostname="example.com")
+        elif sni:
+            s.sendall(("CONNECT %s:443 HTTP/1.1\r\n\r\n" % cfg["provider"]).encode())
+            first = s.recv(4096).decode("latin1")
+            if " 200 " not in first.split("\r\n")[0] + " ":
+                return {"status": first.split("\r\n")[0], "gate_refused": True, "responses": 0}
+            s = ctx.wrap_socket(s, server_hostname=sni)
         s.sendall(raw.encode("latin1"))
         got = b""
         while (d := s.recv(65536)) and len(got) < 1 << 20:
@@ -2207,9 +2527,9 @@ for top in cfg["scan"]:
             p = os.path.join(d, f)
             if p == cfg["auth"]:
                 continue
-            ours = p.startswith(tuple(cfg["text_scan"]))  # copied by the snapshot; elsewhere a read-only install
+            ours = p.startswith(tuple(cfg["name_scan"]))  # copied by the snapshot; elsewhere an install or /etc
             bad = (name_re.search(f) and ours) or ("/data/" in p and p.startswith(cfg["repo"]))
-            if not bad and (ours or name_re.search(f)) and os.path.isfile(p) and not os.path.islink(p) and os.path.getsize(p) <= 1 << 20:
+            if not bad and (p.startswith(tuple(cfg["text_scan"])) or name_re.search(f)) and os.path.isfile(p) and not os.path.islink(p) and os.path.getsize(p) <= 1 << 20:
                 try:
                     bad = text_re.search(open(p, "rb").read())
                 except OSError:
@@ -2219,12 +2539,12 @@ for top in cfg["scan"]:
 out["credentials_readable"] = found[:40]
 out["named_secrets_readable"] = [p for p in cfg["named_secrets"] if os.path.exists(p)]
 try:
-    out["login_refresh_token"] = json.load(open(cfg["auth"]))["tokens"].get("refresh_token")
+    tokens = json.load(open(cfg["auth"]))["tokens"]
+    out["login_refresh_token"] = tokens.get("refresh_token")
+    out["login_signatures"] = [str(tokens.get(k)).split(".")[-1] for k in ("access_token", "id_token")]
 except (OSError, ValueError, KeyError) as e:
-    out["login_refresh_token"] = "unreadable: " + str(e)
-st = os.statvfs("/tmp")
-out["tmp_bytes"] = st.f_blocks * st.f_frsize
-out["file_size_limit"] = resource.getrlimit(resource.RLIMIT_FSIZE)[0]
+    out["login_refresh_token"] = out["login_signatures"] = "unreadable: " + str(e)
+out["tmpfs_bytes"] = {p: os.statvfs(p).f_blocks * os.statvfs(p).f_frsize for p in ("/tmp", os.environ["CODEX_HOME"])}
 out["routes"] = {}
 for name, argv in cfg["routes"].items():
     p = subprocess.run(argv, capture_output=True, text=True)
@@ -2266,7 +2586,8 @@ def cmd_sandbox_check(ws: WS, variant: str) -> dict:
     """Prove the agent sandbox, by trying what it must refuse: writes to the repository, research home,
     skills, CLI state, CLI binaries and home folder; every host loopback port and Unix socket; the
     internet; every gate request but the model API (CONNECT, other paths, absolute and dot-dot targets,
-    chunked bodies, raw TLS, a second request pipelined after the first, a foreign Host); any readable
+    chunked, compressed or non-JSON bodies, provider-side tools, WebSocket upgrades, malformed header
+    lines, raw TLS, a second request pipelined after the first, a foreign Host); any readable
     credential-like file; the login's refresh token; the mutating routes; the effort folder and the
     harness; and the /tmp and file size caps."""
     need_snapshot(ws)
@@ -2286,21 +2607,67 @@ def cmd_sandbox_check(ws: WS, variant: str) -> dict:
         writes["topic"] = research / "topics" / topic / probe
     if cohort:
         writes["cohort"] = research / "cohorts" / cohort / probe
-    api = PROVIDER_PATHS[0] + "models?client_version=0.0.0"
+    api, resp = "/backend-api/codex/models?client_version=0.0.0", "/backend-api/codex/responses"
+
+    def post(body, length=0) -> str:  # a model turn with one thing Codex never sends
+        body = body if isinstance(body, str) else json.dumps({"model": "m", "input": [], **body})
+        return f"POST {resp} HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: {len(body) + length}{end}{body}"
+
+    def tools(*t) -> dict:
+        return {"input": [{"type": "additional_tools", "role": "developer", "tools": list(t)}]}
+
+    def user(*parts) -> dict:
+        return {"input": [{"type": "message", "role": "user", "content": list(parts)}]}
+
     end = "\r\n\r\n"
     cfg = {"writes": {k: str(v) for k, v in writes.items()}, "ports": ports, "sockets": socks, "proxy_port": PROXY_PORT,
-           "gate_requests": {
-               "CONNECT chatgpt.com:443": (f"CONNECT {PROVIDER}:443 HTTP/1.1\r\nHost: {PROVIDER}:443{end}", None),
+           "provider": PROVIDER, "gate_requests": {
                "CONNECT example.com:443": f"CONNECT example.com:443 HTTP/1.1\r\nHost: example.com{end}",
                "CONNECT 127.0.0.1:22": f"CONNECT 127.0.0.1:22 HTTP/1.1{end}",
-               "GET / (not the model API)": f"GET / HTTP/1.1\r\nHost: {PROVIDER}{end}",
-               "GET absolute http://example.com/": f"GET http://example.com/ HTTP/1.1\r\nHost: example.com{end}",
-               "GET dot-dot out of the API": f"GET {PROVIDER_PATHS[0]}../../ HTTP/1.1\r\nHost: {PROVIDER}{end}",
-               "POST chunked body": f"POST {PROVIDER_PATHS[0]}responses HTTP/1.1\r\nTransfer-Encoding: chunked{end}0{end}",
-               "TLS with SNI example.com": ("GET / HTTP/1.1\r\nHost: example.com" + end, "example.com"),
-               "model API, Host example.com": f"GET {api} HTTP/1.1\r\nHost: example.com{end}",
-               "model API, then a pipelined Host example.com": (f"GET {api} HTTP/1.1\r\nHost: {PROVIDER}\r\n"
-                                                                f"Connection: keep-alive{end}GET / HTTP/1.1\r\nHost: example.com{end}"),
+               f"CONNECT {PROVIDER}:80": f"CONNECT {PROVIDER}:80 HTTP/1.1{end}",
+               "plain GET absolute http://example.com/": f"GET http://example.com/ HTTP/1.1\r\nHost: example.com{end}",
+               "plain GET of the model API": f"GET {api} HTTP/1.1\r\nHost: {PROVIDER}{end}",
+               "raw TLS to the gate": ("", "direct-tls"),
+               "tunnel, SNI example.com (domain fronting)": (f"GET / HTTP/1.1\r\nHost: example.com{end}", "example.com"),
+               "tunnel, SNI cloudflare.com": (f"GET / HTTP/1.1\r\nHost: www.cloudflare.com{end}", "cloudflare.com"),
+               "tunnel, GET / (not the model API)": (f"GET / HTTP/1.1\r\nHost: {PROVIDER}{end}", PROVIDER),
+               "tunnel, Host example.com, GET /": (f"GET / HTTP/1.1\r\nHost: example.com{end}", PROVIDER),
+               "tunnel, dot-dot out of the API": (f"GET /backend-api/codex/../../ HTTP/1.1\r\nHost: {PROVIDER}{end}", PROVIDER),
+               "tunnel, wham/accounts/check-x": (f"GET /backend-api/wham/accounts/check-x HTTP/1.1{end}", PROVIDER),
+               "tunnel, WebSocket upgrade": (f"GET {resp} HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade{end}", PROVIDER),
+               "tunnel, colonless header line": (f"GET {api} HTTP/1.1\r\njunk-line{end}", PROVIDER),
+               "tunnel, obs-fold header line": (f"GET {api} HTTP/1.1\r\nX-T: a\r\n b{end}", PROVIDER),
+               "tunnel, top-level tools web_search": (post({"tools": [{"type": "web_search"}]}), PROVIDER),
+               "tunnel, tool web_search": (post(tools({"type": "web_search"})), PROVIDER),
+               "tunnel, tool mcp at an outside URL": (post(tools({"type": "mcp", "server_label": "x",
+                                                                  "server_url": "https://example.com/mcp"})), PROVIDER),
+               "tunnel, tool image_generation beside a function": (post(tools({"type": "function", "name": "f"},
+                                                                               {"type": "image_generation"})), PROVIDER),
+               "tunnel, function tool with a server_url": (post(tools({"type": "function", "name": "f",
+                                                                       "server_url": "https://example.com"})), PROVIDER),
+               "tunnel, duplicate key hiding a web_search tool": (post(
+                   '{"model":"m","input":[{"type":"additional_tools","role":"developer","tools":[{"type":"web_search"}],'
+                   '"tools":[]}]}'), PROVIDER),
+               "tunnel, input_image at an outside URL": (post(user({"type": "input_image",
+                                                                    "image_url": "https://example.com/x.png"})), PROVIDER),
+               "tunnel, input_file at an outside URL": (post(user({"type": "input_file",
+                                                                   "file_url": "https://example.com/x.pdf"})), PROVIDER),
+               "tunnel, mcp_call item": (post({"input": [{"type": "mcp_call", "server_label": "s", "name": "n"}]}), PROVIDER),
+               "tunnel, previous_response_id": (post({"previous_response_id": "resp_1"}), PROVIDER),
+               "tunnel, Content-Length beyond the body": (post({}, length=50), PROVIDER),
+               "tunnel, header Codex never sends": (f"GET {api} HTTP/1.1\r\nX-Forwarded-Host: example.com{end}", PROVIDER),
+               "tunnel, models with another query": (f"GET {api}&q=1 HTTP/1.1{end}", PROVIDER),
+               "tunnel, accounts check with a query": (f"GET /backend-api/wham/accounts/check?x=1 HTTP/1.1{end}", PROVIDER),
+               "tunnel, body not JSON": (f"POST {resp} HTTP/1.1\r\nContent-Length: 3{end}abc", PROVIDER),
+               "tunnel, compressed body": (f"POST {resp} HTTP/1.1\r\nContent-Encoding: zstd\r\nContent-Length: 2{end}{{}}", PROVIDER),
+               "tunnel, chunked POST": (f"POST {resp} HTTP/1.1\r\nTransfer-Encoding: chunked{end}0{end}",
+                                        PROVIDER),
+               "tunnel, bare LF smuggling a Host header": (f"GET {api} HTTP/1.1\r\nX-A: a\nHost: example.com{end}", PROVIDER),
+               "tunnel, NUL in a header": (f"GET {api} HTTP/1.1\r\nX-A: a\x00b{end}", PROVIDER),
+               "model API, Host example.com": (f"GET {api} HTTP/1.1\r\nHost: example.com{end}", PROVIDER),
+               "model API, then a pipelined Host example.com": (
+                   f"GET {api} HTTP/1.1\r\nHost: {PROVIDER}\r\nConnection: keep-alive{end}"
+                   f"GET / HTTP/1.1\r\nHost: example.com{end}", PROVIDER),
            },
            "routes": {"research-desk say": ["research-desk", "say", "replay probe"],
                       "agent-manager run": ["agent-manager", "run", "--help"],
@@ -2310,28 +2677,30 @@ def cmd_sandbox_check(ws: WS, variant: str) -> dict:
                       "prompt-manager skill read": ["prompt-manager", "skill", "read", "research-coordination", "--lines", "1-1"]},
            "effort": str(EFFORT_DIR), "hidden": [str(SKILLS / "research-review/scripts" / f) for f in REPLAY_FILES],
            "secret_name": SECRET_NAME.pattern, "secret_text": SECRET_TEXT.pattern.decode("latin1"),
-           "scan": [str(HOME)], "text_scan": [str(REPO), str(research), str(SKILL_EXPORT)], "repo": str(REPO),
+           "scan": [str(HOME), "/etc"], "name_scan": [str(REPO), str(research), str(SKILL_EXPORT)],
+           "text_scan": [str(REPO), str(research), str(SKILL_EXPORT), "/etc"], "repo": str(REPO),
            "auth": str(HOME / ".codex/auth.json"),
            "named_secrets": [str(REPO / r) for r in ("scenarios/agent-manager/data/identity-secret.key",
                                                      "scenarios/agent-manager/data/agent-manager.db",
                                                      "scenarios/system-monitor/.env", "scenarios/app-monitor/ui/.env",
                                                      "data/resources/home-assistant/config/secrets.yaml")]}
     cfg["gate_requests"] = {k: v if isinstance(v, tuple) else (v, None) for k, v in cfg["gate_requests"].items()}
-    codex_home = make_codex_home("sandbox-check")
-    try:
-        with Gate() as gate:
-            real = HOME / ".vrooli/bin/research-desk"  # the real CLI, to show a mutating call cannot reach its service
-            cmd = sandbox_cmd(["python3", "-I", "-c", PROBE, json.dumps(cfg)], ws=ws, variant=variant, cohort=cohort,
-                              codex_home=codex_home, gate=gate,
-                              extra=("--ro-bind", str(real), "/tmp/.probe/research-desk") if real.is_file() else ())
-            p = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=sandbox_env())
-            net = gate.summary()
-    finally:
-        shutil.rmtree(codex_home, ignore_errors=True)
-    try:
-        got = json.loads(p.stdout.strip().splitlines()[-1])
-    except (ValueError, IndexError):
-        return {"ok": False, "error": "the probe did not report", "stderr": p.stderr[-2000:]}
+    replay_tmp = HOME / ".vrooli/tmp/research-replay"  # where earlier harness versions kept Codex homes
+    before = {str(p) for p in replay_tmp.rglob("*")} if replay_tmp.is_dir() else set()
+    with Gate() as gate:
+        real = HOME / ".vrooli/bin/research-desk"  # the real CLI, to show a mutating call cannot reach its service
+        cmd = sandbox_cmd(DRIVE, ws=ws, variant=variant, cohort=cohort, gate=gate,
+                          extra=("--ro-bind", str(real), "/tmp/.probe/research-desk") if real.is_file() else ())
+        p = subprocess.run(cmd, input=json.dumps(codex_header([["python3", "-I", "-c", PROBE, json.dumps(cfg)]])) + "\n",
+                           capture_output=True, text=True, timeout=600, env=sandbox_env())
+        net = gate.summary()
+    transport = transport_probe(ws, variant, cohort)
+    after = {str(p) for p in replay_tmp.rglob("*")} if replay_tmp.is_dir() else set()
+    new_on_host = sorted(after - before) + ([str(gate.dir)] if gate.dir.exists() else [])
+    logins_on_host = sorted(p for p in after if p.endswith("/auth.json"))
+    got = next((json.loads(x) for x in reversed(p.stdout.splitlines()) if x.startswith('{"writes"')), None)
+    if got is None:
+        return {"ok": False, "error": "the probe did not report", "stdout": p.stdout[-2000:], "stderr": p.stderr[-2000:]}
     leaked = [str(v) for v in writes.values() if v.exists()]
     checks = {
         "every write refused": all(x.startswith("refused") for x in got["writes"].values()),
@@ -2345,7 +2714,11 @@ def cmd_sandbox_check(ws: WS, variant: str) -> dict:
             for k in got["gate"] if k.startswith("model API")),
         "no credential-like file readable": not got["credentials_readable"] and not got["named_secrets_readable"],
         "login copy has no refresh token": got["login_refresh_token"] == "",
-        "/tmp and file sizes capped": 0 < got["tmp_bytes"] <= TMP_CAP and got["file_size_limit"] == FILE_CAP,
+        "/tmp and Codex home are capped tmpfs": 0 < got["tmpfs_bytes"]["/tmp"] <= TMP_CAP
+                                                 and 0 < got["tmpfs_bytes"][str(HOME / ".codex")] <= CODEX_HOME_CAP,
+        "nothing left on the host by this check": not new_on_host,
+        "no login copy anywhere under ~/.vrooli/tmp/research-replay": not logins_on_host,
+        "sandbox tokens carry a dummy signature": got["login_signatures"] == [DUMMY_SIGNATURE] * 2,
         "mutating routes refused": all(got["routes"][k]["exit"] == 69 for k in cfg["routes"] if k.split()[0] in ROUTE_CLIS
                                        and k != "prompt-manager skill read")
                                    and got["routes"]["real research-desk binary: say"]["exit"] not in (0, None),
@@ -2355,9 +2728,32 @@ def cmd_sandbox_check(ws: WS, variant: str) -> dict:
         "own pid namespace": got["pid1"] != "" and "systemd" not in got["pid1"] and got["pids"] < 20,
         "nothing leaked to the host": not leaked,
         "host login unchanged": (sha(auth.read_bytes()) if auth.exists() else None) == auth_before,
+        "replay turns use HTTPS only, no WebSocket attempt": transport["https_turns"] > 0 and not transport["websocket"],
     }
-    return {"ok": all(checks.values()), "variant": variant, "checks": checks, "probe": got,
-            "host_ports_tried": len(ports), "host_sockets_tried": len(socks), "gate": net, "leaked": leaked}
+    return {"ok": all(checks.values()), "variant": variant, "checks": checks, "probe": got, "new_on_host": new_on_host,
+            "logins_on_host": logins_on_host,
+            "host_ports_tried": len(ports), "host_sockets_tried": len(socks), "gate": net, "leaked": leaked,
+            "transport": transport}
+
+
+def transport_probe(ws: WS, variant: str, cohort: str | None) -> dict:
+    """A replay turn exactly as cmd_run starts it (codex_turn in the sandbox, through a gate), except
+    that this gate refuses every model turn, so no model call is made: the turn must reach the model
+    API as an HTTPS POST and never try a WebSocket upgrade."""
+    with Gate(model_turns=False) as gate:
+        inner = codex_turn("Reply OK.", model="gpt-6-luna", effort="low", cwd=REPO, resume=None, dev=None)
+        p = subprocess.run(sandbox_cmd(DRIVE, ws=ws, variant=variant, cohort=cohort, gate=gate),
+                           input=json.dumps(codex_header([inner])) + "\n", capture_output=True, text=True,
+                           timeout=300, env=sandbox_env())
+        net = gate.summary()
+    def load(line):
+        try:
+            return json.loads(line)
+        except ValueError:
+            return None
+    events = [e for e in map(load, p.stdout.splitlines()) if isinstance(e, dict)]
+    return {"https_turns": sum(r.startswith("POST /backend-api/codex/responses") for r in net["denied"]),
+            "websocket": websocket_attempts(net, p.stderr, events), "denied": net["denied"]}
 
 
 # ---------------------------------------------------------------- main
@@ -2417,6 +2813,7 @@ def main(argv: list[str]) -> int:
     p.add_argument("--reason", required=True)
     p = sub.add_parser("report")
     p.add_argument("--arm", action="append")
+    p.add_argument("--correction", help="record a post-run correction that changes no pre-registered measure")
     p = sub.add_parser("sandbox-check")
     p.add_argument("--variant", default="old")
     args = ap.parse_args(argv)
@@ -2463,7 +2860,7 @@ def main(argv: list[str]) -> int:
                 write_json(d / "meta.json", meta)
                 res[d.name] = args.reason
         elif args.cmd == "report":
-            res = {"report": str(cmd_report(ws, args.arm))}
+            res = {"report": str(cmd_report(ws, args.arm, args.correction))}
         else:
             res = cmd_sandbox_check(ws, args.variant)
     except Fail as e:

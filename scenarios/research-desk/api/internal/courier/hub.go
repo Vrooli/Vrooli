@@ -22,6 +22,14 @@ import (
 	hubsharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
 )
 
+// AttachmentNote is the exact answer text pinned to a Hub attachment entry.
+// The entry path is preserved so packet consumers can recover a region ID.
+type AttachmentNote struct {
+	Attachment string `json:"attachment"`
+	Path       string `json:"path"`
+	Note       string `json:"note"`
+}
+
 // Ask is the courier's view of one Notification Hub ask.
 type Ask struct {
 	ID string
@@ -41,6 +49,7 @@ type Ask struct {
 	Answer                                              string
 	AnswerLabel                                         string
 	Note                                                string
+	AttachmentNotes                                     []AttachmentNote
 	// AnsweredAt is when the operator answered; zero while no one has.
 	AnsweredAt time.Time
 	CreatedAt  time.Time
@@ -72,6 +81,9 @@ type AskSpec struct {
 	// Explainer is the decision's page, carried inline in the event; the Hub
 	// stores it as the ask's explainer. Every ask the courier raises has one.
 	Explainer string
+	// Packet is the absolute path of the item's brief, the packet a worker
+	// executes on the answer; the Hub keeps it with the ask.
+	Packet string
 }
 
 // NoticeSpec is one plain notice, without answer options.
@@ -189,6 +201,7 @@ func askFacts(spec AskSpec) (operatordecision.Facts, error) {
 		Deadline:             spec.Deadline,
 		SubjectKey:           subjectKey(spec.Key),
 		Explainer:            spec.Explainer,
+		Packet:               spec.Packet,
 	}
 	for _, o := range spec.Options {
 		facts.Options = append(facts.Options, operatordecision.Option{Key: o.Key, Label: o.Label})
@@ -359,10 +372,17 @@ func keyOf(question, technical string) string {
 }
 
 func askFromProto(a *convv1.Ask) Ask {
+	attachmentNotes := make([]AttachmentNote, 0, len(a.GetAttachmentNotes()))
+	for _, note := range a.GetAttachmentNotes() {
+		if note == nil {
+			continue
+		}
+		attachmentNotes = append(attachmentNotes, AttachmentNote{Attachment: note.GetAttachment(), Path: note.GetPath(), Note: note.GetNote()})
+	}
 	return Ask{
 		ID: a.GetId(), Key: keyOf(a.GetQuestion(), a.GetTechnicalDetails()), State: a.GetState(), RequesterRef: a.GetRequesterRef(),
 		Question: a.GetQuestion(), BigPicture: a.GetBigPicture(), TechnicalDetails: a.GetTechnicalDetails(), Recommended: a.GetRecommended(), Options: askOptions(a),
-		Answer: a.GetAnswer(), AnswerLabel: a.GetAnswerLabel(), Note: a.GetNote(), AnsweredAt: parseTime(a.GetAnsweredAt()),
+		Answer: a.GetAnswer(), AnswerLabel: a.GetAnswerLabel(), Note: a.GetNote(), AttachmentNotes: attachmentNotes, AnsweredAt: parseTime(a.GetAnsweredAt()),
 		CreatedAt: parseTime(a.GetCreatedAt()), Deadline: parseTime(a.GetDeadline()), FirstDelivered: parseTime(a.GetFirstDeliveredAt()),
 	}
 }

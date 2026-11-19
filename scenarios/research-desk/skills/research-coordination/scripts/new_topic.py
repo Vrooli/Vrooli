@@ -60,6 +60,11 @@ def create(home: Path, name: str, mode: str, title: str, intent: str | None, sou
             dest = target / src.relative_to(layer)
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(fill(src.read_text(encoding="utf-8"), values), encoding="utf-8")
+    reporting = target / "reporting"
+    reporting.mkdir(parents=True, exist_ok=True)
+    config = TEMPLATES / "common" / "reporting" / "report.json"
+    if config.is_file():
+        (reporting / "report.json").write_text(config.read_text(encoding="utf-8"), encoding="utf-8")
     return target
 
 

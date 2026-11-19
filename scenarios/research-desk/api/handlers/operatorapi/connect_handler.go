@@ -146,6 +146,7 @@ var reasonWire = map[home.DeliveryReason]operatorv1.DeliveryReason{
 	home.ReasonOrphaned:           operatorv1.DeliveryReason_DELIVERY_REASON_ORPHANED,
 	home.ReasonBaseline:           operatorv1.DeliveryReason_DELIVERY_REASON_BASELINE,
 	home.ReasonNotice:             operatorv1.DeliveryReason_DELIVERY_REASON_NOTICE,
+	home.ReasonPacketNotReady:     operatorv1.DeliveryReason_DELIVERY_REASON_PACKET_NOT_READY,
 }
 
 func step(s *courier.Step) *operatorv1.CourierStep {
@@ -367,19 +368,30 @@ func (h *handler) AddStewardFinding(ctx context.Context, req *connect.Request[op
 	if err != nil {
 		return nil, err
 	}
+	// A steward (CEO) finding is a message to the commission's next agent: an
+	// entry in its topic's INBOX.md, which the scheduler drains at each review
+	// (docs/agent-system/LEVELS.md). A commission with no known topic writes
+	// to the research home's, the supervisor's inbox.
 	runID := provenance.FromContext(ctx).RunID
+	if runID == "" {
+		return nil, h.fail("steward finding", home.Cause(home.ErrInvalid, errors.New("a steward finding needs a verified agent run")))
+	}
 	at := h.deps.Clock.Now().UTC()
-	path, text, err := h.deps.Writer.RenderStewardFinding(c.ID, runID, req.Msg.Text, at)
+	topic := ""
+	if len(c.Topics) > 0 {
+		topic = c.Topics[0].Topic
+	}
+	source := "Source: agent run " + runID + " at " + at.Format(home.EntryTimeLayout) + " about commission " + c.ID
+	body := strings.TrimSpace(req.Msg.Text) + "\n" + source
+	path, text, err := h.deps.Writer.RenderInbox(topic, source, at, "ceo", "feedback", body)
 	if err != nil {
 		return nil, h.fail("steward finding", err)
 	}
 	written := false
 	if !req.Msg.DryRun {
-		path, text, err = h.deps.Writer.AppendStewardFinding(c.ID, runID, req.Msg.Text, at)
-		if err != nil {
+		if path, written, err = h.deps.Writer.AppendInbox(topic, source, at, "ceo", "feedback", body); err != nil {
 			return nil, h.fail("steward finding", err)
 		}
-		written = true
 	}
 	return connect.NewResponse(&operatorv1.AddStewardFindingResponse{Path: path, Text: text, Written: written, AgentRunId: runID}), nil
 }

@@ -746,7 +746,7 @@
               "2. `packet.py`",
               "3. `LAUNCH.json`",
               "4. Operator file grammar (`OPERATOR.md`, `VERDICTS.md`)",
-              "5. Needs-you grammar"
+              "5. Decisions (needs-you items)"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

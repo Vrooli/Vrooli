@@ -2,7 +2,7 @@
 
 A topic is a programme. Its `MISSION.md` is the charter every owner re-reads at each checkpoint
 and after compaction. It keeps the operator's words verbatim, states an end state large on its
-face, and makes small work visibly small through a scorecard and a workstream table (unbriefed rows wait under `## Later`), because
+face, and makes small work visibly small through a scorecard and a workstream table, because
 topics drifted small: findings instead of capabilities, paraphrased smaller at every handoff.
 
 Keep it under 15 KB; receipts, evidence and history go to `LEDGER.md` and run folders.
@@ -56,14 +56,14 @@ Last architect pass: <YYYY-MM-DD> · Last ambition review: <YYYY-MM-DD> <ACCEPT|
 | Operator intent | Quotes only, dated, with source. Append; never paraphrase, shorten or reorder. Restatements go in End state. |
 | End state | The mission done, not the next step. No "decision-ready", "narrower", "foundation for later" or "if justified" unless the mode is `evidence`. |
 | Scorecard | 5–8 dimensions that cover the intent. "Today" is measured from code, runs or a command, never inferred from names. A dimension no workstream moves is a gap. |
-| Workstreams | Each 20–200 agent-hours, moves a dimension, names the owners it changes or creates (a new resource or scenario by name), and names a showcase proved on real targets. Keep at least three open or active. Check what already landed and what the operator already answered first. Smaller items are tasks inside a row. Status is one word and a date or link: `open`, `active`, `waiting-operator`, `waiting-time`, `landed`, `proposed`, `approved`, `declined`; waiting rows do not count toward the three. Rows are briefed or active work and the next few; the rest wait in order under `## Later`, one line each (`- **ID** — outcome · N–M h`), until their brief is written. |
+| Workstreams | Each 20–200 agent-hours, moves a dimension, names the owners it changes or creates (a new resource or scenario by name), and names a showcase proved on real targets. Keep at least three open or active; check what landed and what the operator answered first; smaller items are tasks inside a row. Status is one word and a date or link: `open`, `active` (only while a live commission or owner is on it), `waiting-operator`, `waiting-time`, `landed`, `proposed`, `approved`, `declined`; waiting rows do not count toward the three. Rows are briefed or active work; the rest wait in order under `## Later` (`- **ID** — outcome · N–M h`). A row's prerequisites are briefed rows ordered before it in `work/README.md`; nothing in the table waits on a Later line. |
 | Approval flow | The mode's row below, specialised. |
-| Real boundaries | Six bullets or fewer: money, external contact, credentials, legal or rights acceptance, irreversible host or device actions, operator taste. Everything else is authorized within AGENTS.md. |
+| Real boundaries | Six bullets or fewer: money, external contact, credentials, legal or rights acceptance, irreversible host or device actions, operator taste. All else is authorized within AGENTS.md. |
 | Exemplar | One pinned unit that looks like what the operator wants more of. |
-| Not this | Two to five concrete traps from the topic's history. |
+| Not this | Two to five traps from the topic's history. |
 
 A finished topic gets `Retired: <date> — <why; what would reopen it>` under `Mode:`. Its folder
-and links stay; the check reports it and commissions refuse it.
+stays; commissions refuse it.
 
 ## Modes
 
@@ -101,7 +101,7 @@ tested only on targets their builder wrote).
   serves graded levels, a corpus of real public material. It outlives the task, so name it as a
   resource or scenario (a `propose-then-build` topic proposes it).
 - Prove on the real thing too: real public instances, real sizes, the tool the client named.
-  Simulate only what a real boundary forbids, and label the stand-in.
+  Simulate only what a real boundary forbids; label the stand-in.
 - Use the trade's mature open-source tool; a from-scratch script needs a reason.
 - Work in categories: one listing is an example of a kind of work; the kind is the unit.
 

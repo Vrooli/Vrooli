@@ -30,6 +30,8 @@ const items = `
 Keep or propose.
 Recommended: keep — Keep yt-dlp uninstalled and continue AV5–AV7.
 Options: keep — Keep it uninstalled; propose — Ask for a maintained target proposal.
+Packet: decisions/AV4/BRIEF.md
+Explainer: decisions/AV4/page.html
 
 ### AV5 — Rights of the pose checkpoint
 No recommendation line yet.
@@ -196,8 +198,38 @@ func newRig(t *testing.T, launchedBy string) *rig {
 		clock:    clock,
 		state:    string(state),
 	}
+	r.ready(t, filepath.Join(dir, "decisions", "AV4"), "keep", "propose")
 	r.setItems(t, items)
 	return r
+}
+
+func (r *rig) write(t *testing.T, path string, content []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// readyBrief is a brief a cold executor can run: its premise checked live, and
+// what each answer and `other` settles.
+func readyBrief(keys ...string) []byte {
+	b := "Checked: 2026-11-12 the choice is still open, read in the commission's STATE.md\n\n## On each answer\n\n"
+	for _, k := range append(keys, "other") {
+		b += "- `" + k + "`: settles it this way.\n"
+	}
+	return []byte(b)
+}
+
+// ready writes a decision's folder, its ready brief and its page, and returns
+// the item's lines that name them.
+func (r *rig) ready(t *testing.T, folder string, keys ...string) string {
+	t.Helper()
+	r.write(t, filepath.Join(folder, home.BriefFile), readyBrief(keys...))
+	r.write(t, filepath.Join(folder, "page.html"), []byte(page))
+	return "Packet: " + filepath.Join(folder, home.BriefFile) + "\nExplainer: " + filepath.Join(folder, "page.html") + "\n"
 }
 
 // setItems gives STATE.md the real file's text plus the given items.
@@ -273,10 +305,11 @@ func TestDeskLaunchedCommissionAsksAndReadsTheAnswerBack(t *testing.T) {
 	a.FirstDelivered = r.clock.Now()
 	r.pass(t)
 	a.State, a.Answer, a.Note = "answered", "other", "Ask me again after AV6"
+	a.AttachmentNotes = []AttachmentNote{{Attachment: "redesign", Path: "regions/settings-nav.json", Note: "Keep the settings link reachable by thumb."}}
 	r.clock.Advance(time.Minute)
 	r.pass(t)
 	entries := r.operatorFile(t)
-	if len(entries) != 2 || entries[0].Kind != home.EntryDelivered || entries[1].Kind != home.EntryAnswer || entries[1].Via != home.ViaHub || entries[1].Body != "other — Ask me again after AV6" {
+	if len(entries) != 2 || entries[0].Kind != home.EntryDelivered || entries[1].Kind != home.EntryAnswer || entries[1].Via != home.ViaHub || !strings.HasPrefix(entries[1].Body, "other — Ask me again after AV6") || !strings.Contains(entries[1].Body, `"path":"regions/settings-nav.json"`) || !strings.Contains(entries[1].Body, `"note":"Keep the settings link reachable by thumb."`) {
 		t.Fatalf("OPERATOR.md must record the delivery then the Hub answer: %+v", entries)
 	}
 	r.pass(t)
@@ -692,6 +725,9 @@ Delivered: hub 2026-11-13T00:00:00Z
 	if keyOf(spec.Question, spec.TechnicalDetails) != spec.Key {
 		t.Fatal("the desk finds the ask again by its technical details")
 	}
+	if facts, _ := askFacts(spec); facts.Packet != "/home/x/work/DB1-SINK/BRIEF.md" {
+		t.Fatalf("the Hub keeps the packet with the ask, as every producer's: %q", facts.Packet)
+	}
 	items[0].Reason = ""
 	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{}).Reason; got != "Use the storage account you already have." {
 		t.Fatalf("without a Reason: line the recommended label explains: %q", got)
@@ -751,7 +787,7 @@ func TestAReusedIDIsShownNotDelivered(t *testing.T) {
 	r.setItems(t, items[:strings.Index(items, "### AV4")]+items[strings.Index(items, "### AV5"):])
 	r.clock.Advance(time.Hour)
 	r.pass(t)
-	r.setItems(t, items[:strings.Index(items, "### AV4")]+"### AV4 — Licence for the new footage pack\nWhich licence?\nRecommended: cc-by — Use CC-BY only.\nOptions: cc-by — Use CC-BY only; any — Any open licence.\n\n"+items[strings.Index(items, "### AV5"):])
+	r.setItems(t, items[:strings.Index(items, "### AV4")]+"### AV4 — Licence for the new footage pack\nWhich licence?\nRecommended: cc-by — Use CC-BY only.\nOptions: cc-by — Use CC-BY only; any — Any open licence.\n"+r.ready(t, filepath.Join(r.research, "cohorts", commission, "decisions", "AV4"), "cc-by", "any")+"\n"+items[strings.Index(items, "### AV5"):])
 	r.clock.Advance(time.Hour)
 	r.pass(t)
 	plan := r.pass(t)
@@ -855,7 +891,7 @@ func TestAnUnreadableStateIsNotTakenAsNoItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.clock.Advance(time.Minute)
-	r.setItems(t, items+"\n### AV9 — a new item\nRecommended: go — Go.\nOptions: go — Go; wait — Wait.\n")
+	r.setItems(t, items+"\n### AV9 — a new item\nRecommended: go — Go.\nOptions: go — Go; wait — Wait.\n"+r.ready(t, filepath.Join(r.research, "cohorts", commission, "decisions", "AV9"), "go", "wait"))
 	r.pass(t)
 	unlock := lock(t, filepath.Join(r.research, "cohorts", commission, home.StateFile))
 	r.clock.Advance(time.Hour)

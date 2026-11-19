@@ -33,6 +33,47 @@ Every observation keeps its source and time. A field you could not read is `unkn
 `idle`, `stopped` or `failed`; a run record proves a run was recorded, not that the worker lives.
 One row's uncertainty never stops the others.
 
+## Reports and feedback
+
+The supervisor owns this loop; it does not ask owners to assemble a separate report. Topic
+files remain authoritative and Research Desk is not required. For each topic:
+
+1. **Before staffing.** Verify the builder, Hub template/schema and delivery path; repair gaps.
+   Run `python3 -I scripts/report_feedback.py <topic-folder>` before packet build and kickoff.
+   It migrates `reports/*.json` receipts (preserving files and recording old paths), reads all
+   history through Hub, saves answers in `feedback/` and flags reviews in `work/README.md`.
+   Reconcile any read error. Inspect saved answers and packet feedback; retrieve and inspect
+   referenced images, or leave unavailable content pending. Preserve words and weights; mark-read
+   is not feedback. For each item, update the plan and affected briefs with its workstream or a
+   reason it does not apply. Read all steering since the last commission, including `FEEDBACK.md`;
+   copying an item alone is not application.
+2. **At allowance end, pause, stop, or on request.** Gather the mission, plan, ledger, inbox,
+   feedback, commission state, runs and checkpoints. Review what landed, changed, waits, remains
+   unverified and comes next. Judge every scorecard dimension from evidence; missing evidence is
+   unavailable, never a fabricated measure. Collect sources without `--review`, then write review
+   JSON with `meta.title` and one exact mission `dimension`, `level` and evidence-backed `reason`
+   per scorecard row. Add other reviewed findings. Run `python3 -I scripts/research_report.py <topic-folder>
+   --commission <id> --review <review.json> --output <report.json> --validate-schema
+   scenarios/notification-hub/skills/notification-hub/kit/schemas/research-report.schema.json`.
+   The builder reports JSON paths for schema violations. Preview and check the page at phone
+   width in light and dark as directed by the notification-hub skill.
+3. **Deliver and record.** Send with the status template, stable topic subject key, plain cover,
+   and `--attach <topic>/runs/<commission>/evidence=evidence`. Read back the conversation; record
+   ID, key, report path, evidence time and outcome in `STATE.md` or `LEDGER.md`. Save review,
+   report, receipt (`ask_id`, key, attachment name) and answer in
+   `reporting/history/<UTC yyyy-mm-ddTHHMMSSZ>-<commission>/`; update `reporting/latest.json`.
+   Never overwrite receipts or claim failed sends. Keep the report and exact error pending for a
+   Hub retry; a held-back push is not a failed send.
+4. **Reconcile steering.** Run `report_feedback.py`; set each item in
+   `feedback/hub-*-items.json` to applied, planned or declined with a reason via
+   `python3 -I scripts/report_feedback.py <topic> --reconcile <item-id> <status> <reason>`.
+   The next report shows these outcomes. Update affected live briefs and owners; keep each source
+   answer and distinguish applied, pending and not applicable items.
+
+If Hub is unavailable, keep the report and feedback state in files and record the route failure;
+do not substitute a needs-you decision for this status update. Repair the path before the next
+staffing. Do not let a paused or closed goal erase the pending delivery.
+
 ## Footprint
 
 The host is shared. An owner stops every resource, service and model it starts when the job ends.

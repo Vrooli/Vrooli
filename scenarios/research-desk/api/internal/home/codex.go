@@ -3,7 +3,6 @@ package home
 import (
 	"bufio"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/retry"
 	_ "modernc.org/sqlite" // read-only access to Codex goals_1.sqlite
 )
 
@@ -216,7 +217,9 @@ func fileKey(path string) (int64, time.Time, bool) {
 func readGoals(ctx context.Context, path, sessionID string) ([]Goal, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), goalReadTime)
 	defer cancel()
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	// Through the api-core seam (one attempt: a missing or locked database is
+	// reported now, never retried past the read budget).
+	db, err := database.Connect(ctx, database.Config{Driver: database.DriverSQLite, DSN: "file:" + path + "?mode=ro", MaxOpenConns: 1, Retry: &retry.Config{MaxAttempts: 1}})
 	if err != nil {
 		return nil, err
 	}

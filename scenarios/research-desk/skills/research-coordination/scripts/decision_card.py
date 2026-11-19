@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import datetime as dt
 import html
 import json
 import re
@@ -128,9 +129,13 @@ def brief(card: dict) -> str:
     taps = " → ".join(card["location"]["taps"])
     effects = "\n".join(f"- **`{o['key']}`{' (recommended)' if o['key'] == card['recommendation'] else ''}.** {o['effect']}"
                          for o in card["options"])
+    checked = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     return (f"# {card['id']} · packet: {question(card)}\n\n{card['summary']}\n\n"
+            f"Checked: {checked} the served feature inventory diff reports this feature gone (card {card['id']}, "
+            f"rendered from it just now)\n\n"
             f"**Where:** {card['location']['screen']} ({taps}). **Evidence:** the decision page beside this file.\n\n"
-            f"## On each answer\n\n{effects}\n\n"
+            f"## On each answer\n\n{effects}\n- **`other`.** The operator's own words are the instruction; "
+            "do only what they say, and if they ask for neither keep nor drop, change nothing and raise it again.\n\n"
             "## Proof\n\nThe served screen shows the feature (keep), or no code provides it (drop), and the feature "
             "inventory diff reports this card resolved.\n")
 
@@ -165,9 +170,11 @@ def main() -> int:
     if args.action == "validate":
         print(f"Feature decision card valid: {args.file}")
         return 0
-    if args.output is None:
-        print("render requires --output", file=sys.stderr)
+    if args.output is None or args.output.parent.name != card["id"]:
+        print(f"render requires --output <level>/work/{card['id']}/page.html: a decision's page and brief live in its own folder",
+              file=sys.stderr)
         return 2
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(card), encoding="utf-8")
     packet = args.output.with_name("BRIEF.md")
     print(f"Feature decision page rendered: {args.output}")

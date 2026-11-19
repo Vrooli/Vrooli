@@ -31,7 +31,7 @@ class NewTopicTest(unittest.TestCase):
         for mode, page in pages.items():
             t = self.make(mode, name=mode)
             files = sorted(str(p.relative_to(t)) for p in t.rglob("*") if p.is_file())
-            expected = sorted(["README.md", "MISSION.md", "LEDGER.md", "TOOLS.md", "INBOX.md", "work/README.md", page]
+            expected = sorted(["README.md", "MISSION.md", "LEDGER.md", "TOOLS.md", "INBOX.md", "work/README.md", page, "reporting/report.json"]
                               + (["ARTIFACTS.md"] if mode == "artifact" else []))
             self.assertEqual(files, expected, mode)
             text = "".join(p.read_text() for p in t.rglob("*") if p.is_file())

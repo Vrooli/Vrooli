@@ -13,6 +13,12 @@
       "scopes": ["notification-hub:ask-read"]
     },
     {
+      "name": "research-desk-agent-manager",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:write"]
+    },
+    {
       "name": "research-desk-event-publisher",
       "resource": "vrooli-events",
       "audience": "scenario-authenticator:vrooli-events",

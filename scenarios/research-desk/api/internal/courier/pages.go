@@ -5,14 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/vrooli/api-core/decisionpage"
 	"github.com/vrooli/api-core/operatordecision"
 
 	"research-desk/internal/home"
@@ -21,7 +25,9 @@ import (
 // Every decision goes out with a page the operator can read cold. An item whose
 // `Explainer:` line names a page sends that page, with the images it names by a
 // local path inlined as data: URIs, because the Hub's page loads nothing from
-// elsewhere. Every other item, and one whose page cannot travel, sends the
+// elsewhere. A decision whose page does not exist waits, packet_not_ready, for
+// the shared decision-page writer to make one (pagewriter.go); without a page
+// it is never sent. A page of the raiser's that cannot travel sends the
 // summary page the desk builds from the item itself. The page rides inside
 // the decision event, so one event bounds it (operatordecision.MaxExplainerBytes,
 // measured as JSON encodes it).
@@ -38,6 +44,9 @@ type Page struct {
 	// LeftOut says which images could not travel with the page; empty when
 	// every one did.
 	LeftOut string
+	// Written is where the decision-page writer saved the page when it made
+	// it; empty for the raiser's own page.
+	Written string
 }
 
 // Pages are the item pages of the feed, read once a pass so that every
@@ -48,18 +57,92 @@ type Pages struct {
 	// effects are what executes on each answer, by item key and option key,
 	// read from the item's packet for its summary page.
 	effects map[string]map[string]string
+	// unready says, by item key, why a decision's folder cannot go to the
+	// operator: an executor would have to re-derive what it lacks.
+	unready map[string]string
+	// wanted are the decisions, by item key, whose folder is ready but whose
+	// page does not exist: the writer makes it from this request.
+	wanted map[string]decisionpage.Request
+	// jobs are the writer's jobs for them, read for this plan.
+	jobs map[string]*pageJob
+}
+
+// folder is what folderProblem found in a decision's folder.
+type folder struct {
+	// problem says why the folder is not ready for a cold executor; "" when it is.
+	problem string
+	// noPage is set when the page its `Explainer:` line names does not exist:
+	// the decision-page writer makes it.
+	noPage bool
+	brief  []byte
+}
+
+// folderProblem says why a decision's folder, work/<ID>/, is not ready for a
+// cold executor, or "": the grammar's objections to the item (its folder lines
+// among them), then its brief and page on disk, then what the brief must say
+// (home.BriefProblems). A page that does not exist is not a problem: the
+// writer makes it.
+func folderProblem(f *home.FeedItem, research string, now time.Time) folder {
+	if !f.Item.IsDecision() {
+		return folder{}
+	}
+	var problems []string
+	for _, p := range f.Item.Problems {
+		if p != f.Item.RecommendedProblem {
+			problems = append(problems, p)
+		}
+	}
+	if len(problems) > 0 {
+		return folder{problem: strings.Join(problems, "; ")}
+	}
+	root, err := filepath.EvalSymlinks(research)
+	if err != nil {
+		return folder{problem: "the research home cannot be read: " + err.Error()}
+	}
+	var out folder
+	if _, _, err := readHomeFile(f.Item.ExplainerPath(), root, maxPageBytes); errors.Is(err, fs.ErrNotExist) {
+		out.noPage = true
+	} else if err != nil {
+		problems = append(problems, "its page "+err.Error())
+	}
+	keys := []string{}
+	for _, o := range f.Item.Choices() {
+		keys = append(keys, o.Key)
+	}
+	if _, brief, err := readHomeFile(f.Item.PacketPath(), root, maxPacketBytes); err != nil {
+		problems = append(problems, "its brief "+err.Error())
+	} else {
+		out.brief = brief
+		problems = append(problems, home.BriefProblems(string(brief), keys, now)...)
+	}
+	out.problem = strings.Join(problems, "; ")
+	return out
 }
 
 // readPages reads the page of every item that names one. A page that cannot be
 // sent never stops its item: the item goes with its summary page, and the
-// reason is kept to say so. research is the research home; nothing outside it
+// reason is kept to say so. A ready decision whose page does not exist is
+// wanted from the writer. research is the research home; nothing outside it
 // is read, because the desk would otherwise send whatever file an item names.
-func readPages(feed home.Feed, research string) Pages {
-	pages := Pages{byKey: map[string]*Page{}, problems: map[string]string{}, effects: map[string]map[string]string{}}
+func readPages(feed home.Feed, research string, now time.Time) Pages {
+	pages := Pages{
+		byKey: map[string]*Page{}, problems: map[string]string{}, effects: map[string]map[string]string{}, unready: map[string]string{},
+		wanted: map[string]decisionpage.Request{}, jobs: map[string]*pageJob{},
+	}
 	for i := range feed.Items {
 		f := &feed.Items[i]
+		dir := folderProblem(f, research, now)
+		if dir.problem != "" {
+			pages.unready[f.Key()] = dir.problem
+		}
 		if effects := readEffects(f, research); len(effects) > 0 {
 			pages.effects[f.Key()] = effects
+		}
+		if dir.noPage {
+			if dir.problem == "" {
+				pages.wanted[f.Key()] = pageRequest(f, pages.effects[f.Key()], dir.brief)
+			}
+			continue
 		}
 		path := f.Item.ExplainerPath()
 		if path == "" {
@@ -83,6 +166,10 @@ func (p Pages) of(f *home.FeedItem) *Page { return p.byKey[f.Key()] }
 
 // problem says what of the item's page did not travel; empty when all did.
 func (p Pages) problem(f *home.FeedItem) string { return p.problems[f.Key()] }
+
+// job is the writer's job for an item whose page does not exist; nil for an
+// item with a page of its own.
+func (p Pages) job(f *home.FeedItem) *pageJob { return p.jobs[f.Key()] }
 
 // explainer is the page sent with the item's decision.
 func (p Pages) explainer(f *home.FeedItem) string {
@@ -124,7 +211,7 @@ func readEffects(f *home.FeedItem, research string) map[string]string {
 		if m := answerHeading.FindStringSubmatch(heading); m != nil {
 			key, keyed, current := "", false, []string(nil)
 			for _, line := range lines {
-				if b := keyedBullet.FindStringSubmatch(line); b != nil && offered(b[1]) {
+				if b := home.AnswerBullet.FindStringSubmatch(line); b != nil && offered(b[1]) {
 					put(key, current)
 					key, keyed, current = b[1], true, []string{b[2]}
 					continue
@@ -151,7 +238,6 @@ func readEffects(f *home.FeedItem, research string) map[string]string {
 
 var (
 	answerHeading = regexp.MustCompile(`(?i)^on (each answer|approval)\b`)
-	keyedBullet   = regexp.MustCompile("^[-*]\\s+(?:\\*\\*)?`?([a-z0-9-]{1,32})`?(?:\\s*\\([^)]*\\))?[.:]?(?:\\*\\*)?[.:]?\\s*(?:— )?(.*)$")
 	backticked    = regexp.MustCompile("`([a-z0-9-]{1,32})`")
 	markdownLinkT = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
 )

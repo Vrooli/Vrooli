@@ -108,15 +108,18 @@ topic a verdict over every commission naming it (found from the `PACKET.json` sp
 blocks when it is `live`, `paused` or `limited`, or `unknown` with an open or unchecked
 session, an unknown last write, or a write in the last 24 hours; an older quiet `unknown` is
 listed as `quiet`. Each blocker offers `supersede` and `run_alongside` and a `recommended`
-choice with its reason: supersede when paused or limited past its allowance; run alongside
-when `unknown` with no session or goal found ("nothing to stop; it stays launchable"); none
-otherwise. The request resolves each blocker; the spec's `run_alongside` and `supersedes`
+choice with its reason: supersede when paused or limited past its allowance, or when
+`unknown` and stale (below); run alongside when `unknown` with no session or goal found
+("nothing to stop; it stays launchable"); none otherwise. The request resolves each blocker; the spec's `run_alongside` and `supersedes`
 count as choices and the request wins. `stopped` and `ended` commissions block nothing (their
-newest checkpoint is offered as `read_first`). A commission that is itself `unknown`
+newest checkpoint is offered as `read_first`), and neither does one with a `SETTLEMENT.json`
+or `CLOSURE.json` and no live goal: it has ended. A commission that is itself `unknown`
 launches only on the operator's word. Choices made before a packet exists go to `Build`,
 which writes them into the spec, so the charter names them. Before anything launches, every
 superseded commission with an open window must pass the checks of §6, or the whole launch is
-refused naming it; the launch then stops each through its own session (a failure is step
+refused naming it, except a stale one: `unknown`, its Codex thread unknown, and no write for
+12 hours. That one is recorded as superseded with that reason, and nothing is typed into or
+ended for it; the launch then stops each through its own session (a failure is step
 `supersede`, nothing new starts) and marks it discarded with `superseded_by`, so it derives
 `ended`. A packet launched as it is records a supersede chosen at Launch in the two
 `LAUNCH.json` files only; the desk never rewrites `README.md`.

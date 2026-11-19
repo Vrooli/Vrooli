@@ -8,7 +8,9 @@ context. Ask rarely, ask well, and never ask what agents can resolve.
 - Agents can resolve it, or restore a permitted path: assign that work; do not ask.
 - Only the operator holds it (money, credentials, rights, private facts, taste, an explicitly
   human-only decision): prepare one concrete request and keep every other workstream moving.
-- The proposal or evidence is not reviewable yet: finish the preparation first.
+  Before a credential or account ask, read `vrooli credentials list` (names and state only) and
+  ask only for what is missing.
+- Not reviewable yet: finish the preparation first.
 - Later evidence removed the need: mark it superseded; do not send it.
 
 ## Needs-you items
@@ -33,25 +35,33 @@ Details: IDs, paths and evidence for the agent that acts on the answer.
 IDs match `[A-Z0-9][A-Z0-9_-]{0,127}`; option keys match `[a-z0-9-]{1,32}`;
 `Recommended:` names one option, and a decision needs `Packet:`. A notice has no `Recommended:`;
 a secret has `Secret: <where it goes>`, never the value. An item about a whole commission gains
-`Commission: <id>`; one you delivered yourself, `Delivered: <route> <UTC>`. Edit a copy, then write
-it through the validator, which replaces the file:
+`Commission: <id>`. Edit a copy, then write it through the validator:
 `python3 -I scripts/needs_you.py write --file <draft> --section "Needs you" --target topics/<t>/DECISIONS.md`.
 `needs_you.py open` lists every open decision from files alone. Every reply to the operator opens
-with the open items; a clause in a status paragraph is not a delivery.
+with the open items, never a clause in a status paragraph.
 
 ## The packet behind a decision
 
-Whoever raises a decision writes its packet; they understand it best. `Packet:` points
-to a brief a fresh agent can execute on approval with no other context: what gets built or
-changed, where, the scale, the evidence and starting points, the showcase, and what each option
-changes.
+The raiser writes `work/<ID>/BRIEF.md` and its page beside it, never a workstream brief. A fresh
+agent executes it on the answer with no other context:
+
+```markdown
+Checked: <UTC> <the premise, verified live, and how; a credential: what `vrooli credentials list` shows>
+## Destination / ## What changes   identities, paths, the cause; earlier asks like it as pointers
+## Commands   each: directory, as whom, the command, what it prints, its undo; `operator-only` where so
+## On each answer
+- `<key>`: what it settles, what executes and its proof, or `nothing`   (one per option)
+- `other`: what the operator's own words settle
+```
+
+`needs_you.py`, the desk and the steward refuse a decision without it. When scope or premise changes,
+update the brief and `Checked:` with the item.
 
 ## Decision pages
 
-Every item gets a page. Make it by the `notification-hub` skill, "Make the page"
-(`prompt-manager skill read notification-hub`, or `scenarios/notification-hub/skills/notification-hub/SKILL.md`),
-save it inside the research home, and name it on the item's `Explainer:` line; Research Desk
-sends it with the item (experience engineering's `present-ux-decisions` skill is a model).
+Every item's page (`notification-hub` skill, "Make the page") sits beside its brief and is named
+on `Explainer:`. It shows one card per thing asked (its state, what it
+unlocks, numbered steps), how long it takes, and what a no costs.
 
 ## Proposals
 
@@ -60,9 +70,8 @@ A `propose-then-build` topic sends each new maintained capability as a proposal 
 to say yes:
 
 - **In plain words**: what the operator can do afterwards that they cannot today.
-- **What Vrooli lacks**: each missing piece, and whether an existing resource or scenario really
-  owns it (the command that proves it) or nothing does. Software a prototype installed for itself
-  is still missing.
+- **What Vrooli lacks**: each missing piece, and whether a resource or scenario really owns it
+  (the command that proves it). Software a prototype installed for itself is still missing.
 - **What the prototype really did**: what ran, on what, and what was simulated.
 - **What gets built**: every resource, scenario and extension by name, with magnitude and showcase.
 - **Recommendation and options**: build, a smaller first step (say what it leaves out), defer,
@@ -83,18 +92,12 @@ professional send it to a paying client? If not, finish it.
 ## Deliver and reconcile
 
 - Research Desk forwards `DECISIONS.md` and `ATTENTION.md` items and records `delivered <ID>` in
-  the commission's `OPERATOR.md`. With no such entry by the second review, deliver once yourself:
-  `notification-hub conversations ask` with the plain question, `--big-picture` (for a cold
-  reader), `--technical-details` (paths, IDs), at least two `--option key=label`,
-  `--recommend` with a reason, `--explainer <page>`, a stable `--idempotency-key` and
-  `--subject-key`, and `--expires`.
-  If that fails, mark the item "not delivered"; your replies carry it.
-- Read the ask's state before every delivery and at the next unit: `research-desk needs-you`.
-  Answered, dismissed, withdrawn and expired are distinct; none stays actionable; unreadable is
-  `unknown`, never "pending".
+  the commission's `OPERATOR.md`. Not delivered by the second review: fix what its row in
+  `research-desk needs-you` says. Never send a decision by hand; that skips every check.
+- `research-desk needs-you` reads ask states: answered, dismissed, withdrawn and expired are
+  distinct and none stays actionable; unreadable is `unknown`, never "pending".
 - An answer arrives as an `answer` entry in the owning level's `INBOX.md`. Add it verbatim to the
-  packet under `## Operator answer`, start the executor ("Execute the approved decision `<ID>`.
-  Read `<abs>/BRIEF.md`; the answer is `<key>`." plus the stance), move the item to
-  `history/DECISIONS.md`, then drain the entry. Silence, expiry or a delivery receipt never grants
-  approval.
-- At most one reminder per item per day, and only with new context or a real deadline.
+  packet under `## Operator answer`, start the executor with exactly what `needs_you.py spawn
+  <ID>` prints, move the item to `history/DECISIONS.md`, then drain the entry. Silence, expiry
+  or a delivery receipt never grants approval.
+- At most one reminder per item a day, only with new context or a real deadline.

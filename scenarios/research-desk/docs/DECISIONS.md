@@ -111,8 +111,8 @@ Alternatives: keep items with the commission and relay late answers to a live su
 `ATTENTION.md` (a second source). A topic's `DECISIONS.md` and the supervisor's `ATTENTION.md`
 outlive every commission, and the level's `INBOX.md` is the channel its next agent drains, so no
 successor logic and no copies (`docs/agent-system/LEVELS.md`). The supervisor's decisions are
-on by default, because the courier is the one route. Switch: medium; `internal/home/levels.go`,
-`internal/courier/afterlife.go`.
+on by default, because the courier is the one route. Switch: medium; `levels.go` in `api/internal/home`,
+`afterlife.go` in `api/internal/courier`.
 
 **One first-sightings record for the courier.** Alternative: a per-switch item list plus
 separate first-seen and first-held files (three records of one fact). Present-before-switch,

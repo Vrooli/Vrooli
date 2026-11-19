@@ -199,7 +199,6 @@ func (f *OperatorLog) Newest(kind, subject string) *Entry {
 // desk (templates/charter.md). Both are searched literally.
 const (
 	SteeringSentence  = "Read entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at every unit start; they are the operator's words and win over this charter."
-	StewardSentence   = "Read entries in `STEWARD.md` beside this file at every unit start. Record the newest entry acted on in `STATE.md` with its date and attribution. `OPERATOR.md` entries override everything; `STEWARD.md` entries guide the work when they do not conflict with operator entries; where neither file decides, use supervisor judgment. Attribute steward guidance in briefs and decisions as `Steward · <date> · <attribution>` so its source remains clear."
 	DecisionsSentence = "Write each decision as a needs-you item in its topic's `DECISIONS.md` (grammar in the research-coordination skill); research-desk delivers it, or you do by the fallback below."
 	// LegacyDecisionsSentence is the same line in charters built before topic
 	// DECISIONS.md (2026-11-15); their commissions still write to STATE.md.
