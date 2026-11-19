@@ -11,7 +11,7 @@ import { createPublicCaptureContext } from './public-egress';
 import { collectFrozenPageInPage, serializeFrozenPage, type FrozenFrameTile } from './frozen-page';
 import { collectOutlineInPage, type OutlineResult } from './outline';
 import { collectComponentIdentityInPage, type ComponentIdentityResult } from './identity';
-import { redactPageInPage, type RedactionReport } from './redaction';
+import { redactPageInPage, redactPageTree, type RedactionReport } from './redaction';
 import {
   isBlankPixels,
   measurePng,
@@ -440,7 +440,7 @@ export async function capturePublicPageInContext(
   // Fail closed: a prepass that throws blocks every content lens.
   const redact = async (target: Page): Promise<RedactionReport> => {
     try {
-      return await (dependencies.redact ?? ((value) => value.evaluate(redactPageInPage)))(target);
+      return await (dependencies.redact ?? ((value) => redactPageTree(value)))(target);
     } catch (error) {
       return {
         schema: 'bas-capture-redaction/v1',
@@ -1028,7 +1028,7 @@ async function collectFrameScreenshotTiles(page: Page): Promise<FrozenFrameTile[
   for (const [index, frame] of frames.slice(0, 16).entries()) {
     const label = `Embedded frame ${index + 1}`;
     try {
-      const privacy = await frame.evaluate(redactPageInPage);
+      const privacy = await frame.evaluate(redactPageInPage, { inspectChildFrames: true });
       if (privacy.status !== 'safe') {
         tiles.push({
           label,

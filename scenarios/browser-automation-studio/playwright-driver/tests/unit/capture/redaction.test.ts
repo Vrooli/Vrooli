@@ -1,4 +1,4 @@
-import { redactPageInPage } from '../../../src/capture/redaction';
+import { redactPageInPage, redactPageTree } from '../../../src/capture/redaction';
 
 type FakeText = { nodeType: 3; nodeValue: string; parentElement: FakeElement };
 type FakeElement = {
@@ -172,5 +172,63 @@ describe('redaction keeps interface chrome intact', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('capture redaction frame tree', () => {
+  const report = (formValues: number) => ({
+    schema: 'bas-capture-redaction/v1' as const,
+    status: 'safe' as const,
+    redacted: {
+      formValues,
+      markedRegions: 0,
+      assignments: 0,
+      attributes: 0,
+      urlParameters: 0,
+      personalData: 0,
+    },
+    unsupported: [],
+  });
+
+  function frame(
+    childFrames: Array<ReturnType<typeof frame>>,
+    declaredIframes: number,
+    calls?: { count: number }
+  ) {
+    return {
+      evaluate: jest.fn(async () => {
+        if (!calls) return report(1);
+        calls.count += 1;
+        return calls.count === 1 ? report(1) : declaredIframes;
+      }),
+      childFrames: () => childFrames,
+    };
+  }
+
+  it('inspects child frames and sums their redaction evidence', async () => {
+    const child = frame([], 0, { count: 0 });
+    const main = frame([child], 1, { count: 0 });
+    const result = await redactPageTree({ mainFrame: () => main });
+    expect(result.status).toBe('safe');
+    expect(result.redacted.formValues).toBe(2);
+    expect(result.unsupported).toEqual([]);
+  });
+
+  it('fails closed when a declared frame is missing or uninspectable', async () => {
+    const main = frame([], 2, { count: 0 });
+    const result = await redactPageTree({ mainFrame: () => main });
+    expect(result.status).toBe('blocked');
+    expect(result.unsupported[0]?.surface).toBe('iframe');
+
+    const broken = {
+      evaluate: jest.fn(async () => {
+        throw new Error('frame detached');
+      }),
+      childFrames: () => [],
+    };
+    const parent = frame([broken], 1, { count: 0 });
+    const missing = await redactPageTree({ mainFrame: () => parent });
+    expect(missing.status).toBe('blocked');
+    expect(missing.unsupported.map((item) => item.surface)).toEqual(['iframe']);
   });
 });

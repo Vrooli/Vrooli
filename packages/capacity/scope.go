@@ -37,7 +37,10 @@ func AcquireScoped(ctx context.Context, request Request) (*Scope, error) {
 	}
 	lease, verdict, err := broker.AcquireResources(ctx, request)
 	if err != nil || verdict.Kind != "grant" || lease == nil {
-		cleanup, cancel := detachedCleanupContext(ctx, 10*time.Second)
+		// The ledger's writer lock can be held by another process for up to its
+		// SQLite busy timeout. Give release a window that outlives a normal busy
+		// wait (and its retries), while an enclosing caller deadline still wins.
+		cleanup, cancel := detachedCleanupContext(ctx, 45*time.Second)
 		defer cancel()
 		if lease != nil {
 			err = errors.Join(err, lease.Release(cleanup))
@@ -124,7 +127,10 @@ func (s *Scope) Release(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.stopRenewLocked()
-	cleanup, cancel := detachedCleanupContext(ctx, 10*time.Second)
+	// The ledger's writer lock can be held by another process for up to its
+	// SQLite busy timeout. Give release a window that outlives a normal busy
+	// wait (and its retries), while an enclosing caller deadline still wins.
+	cleanup, cancel := detachedCleanupContext(ctx, 45*time.Second)
 	defer cancel()
 	if s.lease != nil {
 		if err := s.lease.Release(cleanup); err != nil {

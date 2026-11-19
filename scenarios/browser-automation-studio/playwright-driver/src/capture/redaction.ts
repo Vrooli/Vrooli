@@ -14,8 +14,13 @@ export type RedactionReport = {
   unsupported: Array<{ surface: string; reason: string }>;
 };
 
+export type RedactPageOptions = {
+  /** Child frames are inspected by the Node-side tree walker. */
+  inspectChildFrames?: boolean;
+};
+
 /** This function must remain closure-free because Playwright serializes it. */
-export function redactPageInPage(): RedactionReport {
+export function redactPageInPage(options?: RedactPageOptions): RedactionReport {
   const doc = document;
   const unsupported: RedactionReport['unsupported'] = [];
   const redacted = {
@@ -153,7 +158,9 @@ export function redactPageInPage(): RedactionReport {
         surface: 'canvas',
         reason: 'Canvas pixels cannot be inspected by the redaction prepass.',
       });
-    if (tag === 'iframe')
+    // The single-frame fallback cannot see inside a child document. The tree
+    // walker passes inspectChildFrames and redacts every frame separately.
+    if (tag === 'iframe' && !options?.inspectChildFrames)
       unsupported.push({
         surface: 'iframe',
         reason: 'Embedded frame content is outside the inspected document.',
@@ -211,4 +218,72 @@ export function redactPageInPage(): RedactionReport {
     redacted,
     unsupported,
   };
+}
+
+type CaptureFrame = {
+  evaluate<T>(fn: (options?: RedactPageOptions) => T, arg?: RedactPageOptions): Promise<T>;
+  childFrames(): CaptureFrame[];
+};
+
+type CapturePage = { mainFrame(): CaptureFrame };
+
+/**
+ * Redacts the main document and every child frame, then proves the frame tree
+ * matches the iframe elements each document declares. Playwright can evaluate
+ * inside cross-origin frames even though `contentDocument` is null, so a page
+ * that embeds its own harness (or a trusted third-party surface) can produce a
+ * complete redaction report instead of being rejected wholesale.
+ */
+export async function redactPageTree(page: CapturePage): Promise<RedactionReport> {
+  const aggregate: RedactionReport = {
+    schema: 'bas-capture-redaction/v1',
+    status: 'safe',
+    redacted: {
+      formValues: 0,
+      markedRegions: 0,
+      assignments: 0,
+      attributes: 0,
+      urlParameters: 0,
+      personalData: 0,
+    },
+    unsupported: [],
+  };
+  let index = 0;
+  const visit = async (frame: CaptureFrame): Promise<void> => {
+    const label = `Embedded frame #${index++}`;
+    let report: RedactionReport;
+    try {
+      report = await frame.evaluate(redactPageInPage, { inspectChildFrames: true });
+    } catch {
+      aggregate.status = 'blocked';
+      aggregate.unsupported.push({
+        surface: 'iframe',
+        reason: `${label} could not be inspected.`,
+      });
+      return;
+    }
+    aggregate.redacted.formValues += report.redacted.formValues;
+    aggregate.redacted.markedRegions += report.redacted.markedRegions;
+    aggregate.redacted.assignments += report.redacted.assignments;
+    aggregate.redacted.attributes += report.redacted.attributes;
+    aggregate.redacted.urlParameters += report.redacted.urlParameters;
+    aggregate.redacted.personalData += report.redacted.personalData;
+    aggregate.unsupported.push(...report.unsupported);
+    if (report.status === 'blocked') aggregate.status = 'blocked';
+
+    const declared = await frame
+      .evaluate(() => document.querySelectorAll('iframe, frame').length)
+      .catch(() => -1);
+    const children = frame.childFrames();
+    if (declared !== children.length) {
+      aggregate.status = 'blocked';
+      aggregate.unsupported.push({
+        surface: 'iframe',
+        reason: `${label} declares ${declared < 0 ? 'unknown' : declared} embedded frame(s) but only ${children.length} are inspectable.`,
+      });
+    }
+    for (const child of children) await visit(child);
+  };
+  await visit(page.mainFrame());
+  return aggregate;
 }

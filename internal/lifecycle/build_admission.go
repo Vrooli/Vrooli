@@ -16,9 +16,10 @@ import (
 )
 
 // Capacity-ledger writes may wait up to ten seconds on another process's
-// SQLite writer. Cleanup must outlive that busy window so a lease release can
-// finish instead of failing solely because its caller deadline is shorter.
-const buildAdmissionCleanupTimeout = 15 * time.Second
+// SQLite writer, and the retry loop can face a second writer before it wins.
+// Cleanup must outlive that window so a successful build is not reported as a
+// failure solely because lease bookkeeping lost a lock race.
+const buildAdmissionCleanupTimeout = 45 * time.Second
 
 const buildAdmissionHeartbeatTimeout = 5 * time.Second
 

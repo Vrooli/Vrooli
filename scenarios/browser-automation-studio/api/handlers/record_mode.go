@@ -333,7 +333,9 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		frameSlots.ClearRecordingFrames(sessionID)
 	}
 	h.clearActiveSessionProfile(sessionID)
-	h.wsHub.RevokeSessionStreamCookie(sessionID)
+	if h.wsHub != nil {
+		h.wsHub.RevokeSessionStreamCookie(sessionID)
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     websocket.SessionStreamCookieName(sessionID),
 		Value:    "",
@@ -598,6 +600,11 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer conn.Close()
+	// This handler blocks on ReadMessage for the life of the driver stream.
+	// Release admission when the control plane starts maintenance instead of
+	// pinning the scenario behind a closed lifecycle fence.
+	stopMaintenance := closeOnMaintenance(r.Context(), conn)
+	defer stopMaintenance()
 
 	h.log.Info("Driver frame stream connected")
 
@@ -645,15 +652,27 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 			h.wsHub.BroadcastBinaryFrame(sessionID, viewerFrame(sessionID, pageID, title, pageURL, driverHeader.CapturedAt, frameData))
 		} else if source.StreamKind == "execution" {
 			executionID, parseErr := uuid.Parse(source.ExecutionID)
-			if parseErr != nil || h.executionService == nil || source.SessionID == "" || source.LeaseID == "" || source.PageID == "" {
+			if parseErr != nil || source.SessionID == "" || source.LeaseID == "" || source.PageID == "" {
 				continue
 			}
-			if _, ownerErr := h.executionService.GetExecution(r.Context(), executionID); ownerErr != nil {
+			owned := false
+			if h.executionService != nil {
+				if _, ownerErr := h.executionService.GetExecution(r.Context(), executionID); ownerErr == nil {
+					owned = true
+				}
+			}
+			if !owned && h.sessionBroker != nil {
+				if ownerSession, ok := h.sessionBroker.Get(source.SessionID); ok && ownerSession != nil {
+					ownedExecution, ownedLease := ownerSession.OwnerIdentity()
+					owned = ownedExecution == source.ExecutionID && ownedLease == source.LeaseID
+				}
+			}
+			if !owned {
 				continue
 			}
 			width, height := jpegDimensions(frameData)
 			h.wsHub.BroadcastExecutionFrame(executionID.String(), &wsHub.ExecutionFrame{
-				ExecutionID: executionID.String(), Data: base64.StdEncoding.EncodeToString(frameData),
+				ExecutionID: executionID.String(), SessionID: source.SessionID, Data: base64.StdEncoding.EncodeToString(frameData),
 				MediaType: "image/jpeg", Width: width, Height: height,
 				CapturedAt: driverHeader.CapturedAt.UTC().Format(time.RFC3339Nano),
 			})
