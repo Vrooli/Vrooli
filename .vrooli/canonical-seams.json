@@ -36,7 +36,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/scenario/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "command-execution",
@@ -69,7 +68,6 @@
       "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "test-clock-fixtures",
@@ -80,7 +78,6 @@
       "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "test-json-decode-fixtures",
@@ -91,7 +88,6 @@
       "scope": { "include": ["internal/cli/**/*_test.go"], "exclude": ["internal/testenv/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "test-sqlite-store-fixtures",
@@ -102,7 +98,6 @@
       "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "test-safeguard-lookup-fixtures",
@@ -113,7 +108,6 @@
       "scope": { "include": ["internal/safeguards/**/*_test.go"], "exclude": ["internal/hostreqkit/hostreqkittest/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "repository-layout-paths",
@@ -229,7 +223,6 @@
       },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "typed-json-file-operations",
@@ -243,7 +236,6 @@
       },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "typed-existence-classification",
@@ -265,7 +257,6 @@
       "scope": { "include": ["internal/**/*.go"], "exclude": ["internal/clock/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "rfc3339-utc-adapters",
@@ -298,7 +289,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "private-json-writers-by-name",
@@ -320,7 +310,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/cliout/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "semantic-constant-naming",
@@ -337,7 +326,6 @@
       "scope": { "include": ["internal/**", "cmd/**", "packages/**"], "exclude": ["**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "value-named-duration-constants",
@@ -348,7 +336,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/tuning/**", "internal/**/*_test.go"] },
       "severity": "medium",
       "budget": 0
-
     },
     {
       "id": "stamped-test-names",
@@ -359,7 +346,6 @@
       "scope": { "include": ["internal/**/*_test.go"], "exclude": [] },
       "severity": "low",
       "budget": 0
-
     },
     {
       "id": "stamped-handler-tests",
@@ -370,7 +356,6 @@
       "scope": { "include": ["internal/**"], "exclude": [] },
       "severity": "low",
       "budget": 0
-
     },
     {
       "id": "private-binder-call-sites",
@@ -381,7 +366,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "goconst-suppression-breadth",
@@ -414,7 +398,6 @@
       "scope": { "include": ["internal/**", "cmd/**"], "exclude": ["**/*_test.go"] },
       "severity": "critical",
       "budget": 0
-
     },
     {
       "id": "hand-written-dispatchers",
@@ -436,7 +419,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/**/*_test.go"] },
       "severity": "medium",
       "budget": 0
-
     },
     {
       "id": "test-lookpath-fakes",
@@ -447,7 +429,6 @@
       "scope": { "include": ["internal/**/*_test.go"], "exclude": [] },
       "severity": "low",
       "budget": 0
-
     },
     {
       "id": "untyped-boundary-errors",
@@ -480,7 +461,6 @@
       "scope": { "include": ["internal/safeguards/**"], "exclude": ["internal/safeguards/**/testdata/**", "internal/safeguards/*.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "tidiness-provider-dependency-declared",
@@ -491,7 +471,6 @@
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": [] },
       "severity": "critical",
       "budget": 0
-
     },
     {
       "id": "committed-coverage-artifacts",
@@ -502,7 +481,6 @@
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0
-
     },
     {
       "id": "committed-backup-artifacts",
@@ -513,7 +491,6 @@
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0
-
     },
     {
       "id": "committed-test-log-artifacts",
@@ -524,7 +501,6 @@
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0
-
     },
     {
       "id": "committed-executable-artifacts",
@@ -535,7 +511,6 @@
       "scope": { "include": ["**"], "exclude": [".vrooli/build/**", ".vrooli/bin/**", ".tmp/**", "data/**", "logs/**", "**/target/**", "**/node_modules/**"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "global-command-binding",
@@ -546,7 +521,6 @@
       "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
       "severity": "high",
       "budget": 0
-
     },
     {
       "id": "credential-json-contract-assertions",
@@ -585,7 +559,6 @@
       "scope": { "include": ["internal/app/**"], "exclude": ["internal/app/**/*_test.go"] },
       "severity": "critical",
       "budget": 0
-
     }
   ]
 }
