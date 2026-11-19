@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ArchiveDrawer from "../components/ArchiveDrawer";
 
+// The drawer's footer shows its primary action and one more; the rest live in the
+// action bar's "More" menu, whose entries are menu items.
+function chooseMoreAction(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: /^More/ }));
+  fireEvent.click(screen.getByRole("menuitem", { name }));
+}
+
 const mocks = vi.hoisted(() => ({
   listArchivedSessions: vi.fn(),
   searchArchivedConversations: vi.fn(),
@@ -181,20 +188,60 @@ describe("ArchiveDrawer", () => {
     fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.export" }));
     await waitFor(() => expect(mocks.getConversationRange).toHaveBeenCalledWith("archive-1", 1, 12));
 
-    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
+    chooseMoreAction("archiveDrawer.delete");
     expect(screen.getByTestId("archive-delete-dialog")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("archive-delete-cancel"));
     await waitFor(() => expect(screen.queryByTestId("archive-delete-dialog")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
+    chooseMoreAction("archiveDrawer.delete");
     fireEvent.click(screen.getByTestId("archive-delete-confirm"));
     await waitFor(() => expect(mocks.deleteSession).toHaveBeenCalledWith("archive-1"));
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("keeps the action bar within the component contract and leaves closing to the header", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onClose = vi.fn();
+    render(<ArchiveDrawer open onClose={onClose} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("archive-session-archive-1"));
+    fireEvent.click(screen.getByRole("button", { name: /^More/ }));
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["archiveDrawer.receipt", "archiveDrawer.delete"]);
+    expect(warn.mock.calls.filter(([message]) => String(message).includes("OverlayActionBar"))).toEqual([]);
+    warn.mockRestore();
+  });
+
+  it("keeps the German phone showcase concise, one-row, and warning-free", async () => {
+    window.history.replaceState({}, "", "/?rcl-contract-showcase=1");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onClose = vi.fn();
+    try {
+      render(<ArchiveDrawer open onClose={onClose} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+      fireEvent.click(await screen.findByTestId("archive-session-archive-1"));
+
+      const bar = document.querySelector<HTMLElement>("[data-rcl-overlay-action-bar]");
+      expect(bar).not.toBeNull();
+      expect(bar).toHaveStyle({ flexWrap: "nowrap" });
+      expect(bar?.querySelectorAll(":scope > button")).toHaveLength(2);
+      expect(screen.getByRole("button", { name: /^More/ })).toBeInTheDocument();
+      expect(screen.getByTestId("archive-reopen")).toHaveAccessibleName("Sitzung wiederherstellen");
+      expect(warn.mock.calls.filter(([message]) => String(message).includes("OverlayActionBar"))).toEqual([]);
+
+      fireEvent.click(screen.getByRole("button", { name: /^More/ }));
+      expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+        "Beleg anzeigen",
+        "Sitzung dauerhaft löschen",
+      ]);
+      fireEvent.click(screen.getByTestId("archive-drawer.grabber"));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
   it("inspects the durable archive receipt without leaving the drawer", async () => {
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
     fireEvent.click(await screen.findByTestId("archive-session-archive-1"));
-    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.receipt" }));
+    chooseMoreAction("archiveDrawer.receipt");
     expect(await screen.findByTestId("archive-receipt")).toHaveTextContent("succeeded");
     expect(mocks.getContinuityReceipt).toHaveBeenCalledWith("archive:archive-1");
   });
@@ -233,7 +280,8 @@ describe("ArchiveDrawer", () => {
     expect(screen.getByRole("button", { name: "archiveDrawer.semanticSearch" })).toBeDisabled();
     const reopen = screen.getByRole("button", { name: "archiveDrawer.reopen" });
     expect(reopen).toBeDisabled();
-    expect(reopen).toHaveAttribute("title", "agent history no longer on disk");
+    // The action bar titles a button with its own label, so the reason is shown as text beside the state.
+    expect(screen.getByText(/agent history no longer on disk/)).toBeInTheDocument();
   });
 
   it("retries Reopen with one stable idempotency key and reports the replacement", async () => {

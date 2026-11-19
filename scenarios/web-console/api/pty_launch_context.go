@@ -4,7 +4,17 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"web-console/backends/codex"
+	"web-console/backends/grok"
 )
+
+func sessionCodexSessionsDir(sessionID string) string {
+	return codex.SessionsDirPath(resolveSessionStateRoot(), sessionID)
+}
+
+func sessionGrokSessionsDir(sessionID string) string {
+	return grok.SessionsDirPath(resolveSessionStateRoot(), sessionID)
+}
 
 // prepareSessionEnvironment applies the same validated workspace and tool
 // environment used by coding-agent launchers to Web Console shells. This keeps

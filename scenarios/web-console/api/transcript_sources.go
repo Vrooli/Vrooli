@@ -258,14 +258,14 @@ func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 	})
 }
 
-func newCodexTranscriptEngine(ct *CodexTailer) *tailer.Engine {
+func newCodexTranscriptEngine(ct *CodexTailer, staleTimeout time.Duration) *tailer.Engine {
 	return tailer.New(tailer.Config{
 		Name:         codexTailerSource,
 		Source:       codexTranscriptSource{tailer: ct},
 		Checkpoints:  transcriptCheckpointAdapter{store: ct.checkpoints},
 		PollInterval: codexPollInterval,
 		TailInterval: codexTailInterval,
-		StaleTimeout: codexStaleTimeout,
+		StaleTimeout: staleTimeout,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
 				source := codexTailerSource

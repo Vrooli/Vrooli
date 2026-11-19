@@ -99,7 +99,6 @@ vi.mock("../../audio-integration/api/voice", async (importOriginal) => {
     transcribeAudioBypassFilter: vi.fn().mockResolvedValue(""),
     transcribeAudio: vi.fn().mockResolvedValue(""),
     transcribeAudioWithRetry: vi.fn().mockResolvedValue(""),
-    buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://localhost:0"),
   };
 });
 vi.mock("../../audio-integration/hooks/voice/wakeword", async (importOriginal) => {
@@ -150,7 +149,6 @@ vi.mock("../../audio-integration", async (importOriginal) => {
     transcribeAudioBypassFilter: vi.fn().mockResolvedValue(""),
     transcribeAudio: vi.fn().mockResolvedValue(""),
     transcribeAudioWithRetry: vi.fn().mockResolvedValue(""),
-    buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://localhost:0"),
   };
 });
 

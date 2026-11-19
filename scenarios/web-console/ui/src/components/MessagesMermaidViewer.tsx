@@ -7,7 +7,7 @@ import { copyText } from "../lib/clipboard";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
-import { useMermaidSvg } from "./markdown/hooks/useMermaidSvg";
+import { useMermaidSvg } from "@vrooli/file-viewer";
 import { MermaidZoomSurface, type MermaidZoomSurfaceHandle } from "./mermaid-viewer/MermaidZoomSurface";
 import { formatScalePercent } from "./mermaid-viewer/zoomTransform";
 

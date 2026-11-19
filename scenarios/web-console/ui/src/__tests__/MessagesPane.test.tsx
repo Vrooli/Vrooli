@@ -21,43 +21,10 @@ vi.mock("../hooks/useConversationSession", () => ({
   loadConversationPageContaining: mockLoadConversationPageContaining,
 }));
 
-const { mockResolveFilePreview, mockGetFilePreviewText, mockGetAllConversationEvents, mockResolveConversationEvents } = vi.hoisted(() => ({
-  mockResolveFilePreview: vi.fn(),
-  mockGetFilePreviewText: vi.fn(),
+const { mockGetAllConversationEvents, mockResolveConversationEvents } = vi.hoisted(() => ({
   mockGetAllConversationEvents: vi.fn().mockResolvedValue([]),
   mockResolveConversationEvents: vi.fn().mockResolvedValue({ events: [], missingEventIds: [] }),
 }));
-
-vi.mock("../api/filePreview", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/filePreview")>();
-  return {
-    ...actual,
-    resolveFilePreview: mockResolveFilePreview,
-    getFilePreviewText: mockGetFilePreviewText,
-  };
-});
-
-// makeModel builds a PreviewModel fixture for the file-preview controller.
-function makeModel(overrides: Record<string, unknown>) {
-  return {
-    previewId: "pv-1",
-    inputPath: "/tmp/example.ts",
-    resolvedPath: "/tmp/example.ts",
-    basename: "example.ts",
-    resolutionBasis: "absolute",
-    kind: "code",
-    mimeType: "text/plain; charset=utf-8",
-    sizeBytes: 12,
-    canPreview: true,
-    canDownload: true,
-    supportsRange: false,
-    textContentAvailable: true,
-    blobUrl: "/api/v1/sessions/sess-1/file-previews/pv-1/blob",
-    blobHref: "/api/v1/sessions/sess-1/file-previews/pv-1/blob",
-    warnings: [],
-    ...overrides,
-  };
-}
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 // Search runs on the server only; this stands in for it the way the server
@@ -76,7 +43,10 @@ vi.mock("../api/conversation", async (importOriginal) => {
   };
 });
 
-vi.mock("../components/markdown", () => ({
+vi.mock("@vrooli/file-viewer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vrooli/file-viewer")>()),
+  // Keep the real Mermaid viewer/drawer but avoid loading the mermaid bundle.
+  useMermaidSvg: () => ({ svgHtml: '<svg viewBox="0 0 100 80"></svg>', error: null, loading: false }),
   MarkdownRenderer: ({
     content,
     onLinkClick,
@@ -107,11 +77,6 @@ vi.mock("../components/markdown", () => ({
       </button>
     </div>
   ),
-}));
-
-// Keep the real Mermaid viewer/drawer but avoid loading the mermaid bundle.
-vi.mock("../components/markdown/hooks/useMermaidSvg", () => ({
-  useMermaidSvg: () => ({ svgHtml: '<svg viewBox="0 0 100 80"></svg>', error: null, loading: false }),
 }));
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
@@ -435,18 +400,6 @@ describe("MessagesPane", () => {
   });
 
   it("opens the file viewer when clicking a file-like markdown link", async () => {
-    mockResolveFilePreview.mockResolvedValueOnce(
-      makeModel({ inputPath: "/tmp/example.ts:12", line: 12, kind: "code" }),
-    );
-    mockGetFilePreviewText.mockResolvedValueOnce({
-      resolvedPath: "/tmp/example.ts",
-      kind: "code",
-      mimeType: "text/plain; charset=utf-8",
-      content: "const x = 1;\n",
-      truncated: false,
-      line: 12,
-    });
-
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[example.ts](/tmp/example.ts:12)" })]);
     render(<MessagesPane {...defaultProps} />);
 
@@ -471,18 +424,6 @@ describe("MessagesPane", () => {
   });
 
   it("renders SVG file references as image previews", async () => {
-    mockResolveFilePreview.mockResolvedValueOnce(
-      makeModel({
-        inputPath: "/tmp/logo.svg",
-        resolvedPath: "/tmp/logo.svg",
-        basename: "logo.svg",
-        kind: "svg",
-        mimeType: "image/svg+xml",
-        textContentAvailable: false,
-        supportsRange: true,
-      }),
-    );
-
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[logo](/tmp/logo.svg)" })]);
     render(<MessagesPane {...defaultProps} />);
 
@@ -492,8 +433,6 @@ describe("MessagesPane", () => {
   });
 
   it("shows a viewer error when file resolution fails", async () => {
-    mockResolveFilePreview.mockRejectedValueOnce(new Error("Referenced file was not found"));
-
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[missing.ts](missing.ts)" })]);
     render(<MessagesPane {...defaultProps} />);
 

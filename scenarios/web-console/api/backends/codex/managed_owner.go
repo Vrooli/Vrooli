@@ -46,13 +46,6 @@ func NewManagedOwner(client *Client, ownerID, threadID string) (*ManagedOwner, e
 	return &ManagedOwner{client: client, ownerID: ownerID, threadID: threadID, originalThreadID: threadID}, nil
 }
 
-// StartManaged establishes the complete managed lifecycle: spawn the owned
-// app-server, initialize the client, announce readiness, and create one
-// persisted native thread. Any failure closes the process before returning.
-func StartManaged(ctx context.Context, executable, ownerID, clientName, clientVersion, cwd string, args ...string) (*ManagedOwner, error) {
-	return StartManagedWithEnv(ctx, executable, ownerID, clientName, clientVersion, cwd, nil, args...)
-}
-
 func StartManagedWithEnv(ctx context.Context, executable, ownerID, clientName, clientVersion, cwd string, env []string, args ...string) (*ManagedOwner, error) {
 	// The provider is owned by the Web Console session, not by the HTTP/RPC
 	// request that created it. A request context is normally canceled as soon
@@ -80,14 +73,6 @@ func StartManagedWithEnv(ctx context.Context, executable, ownerID, clientName, c
 		return nil, err
 	}
 	return owner, nil
-}
-
-func ResumeManaged(ctx context.Context, executable, ownerID, clientName, clientVersion, threadID string, args ...string) (*ManagedOwner, error) {
-	return ResumeManagedInDir(ctx, executable, "", ownerID, clientName, clientVersion, threadID, args...)
-}
-
-func ResumeManagedInDir(ctx context.Context, executable, cwd, ownerID, clientName, clientVersion, threadID string, args ...string) (*ManagedOwner, error) {
-	return ResumeManagedInDirWithEnv(ctx, executable, cwd, ownerID, clientName, clientVersion, threadID, nil, args...)
 }
 
 func ResumeManagedInDirWithEnv(ctx context.Context, executable, cwd, ownerID, clientName, clientVersion, threadID string, env []string, args ...string) (*ManagedOwner, error) {

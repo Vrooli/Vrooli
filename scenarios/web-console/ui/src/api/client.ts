@@ -24,6 +24,15 @@ export const transport = createScenarioConnectTransport({
   fetch: async (input, init) => {
     const headers = new Headers(init?.headers);
     headers.set("X-Vrooli-Device-Id", deviceIdentity().id);
+    const requestURL = new URL(input instanceof Request ? input.url : String(input), API_BASE);
+    if (requestURL.pathname.includes("web_console.v1.ai.AIService/") && typeof window !== "undefined") {
+      const consentReceipt = window.sessionStorage.getItem("web-console.ai.remote-consent-receipt");
+      const consentSource = window.sessionStorage.getItem("web-console.ai.remote-consent-source");
+      if (consentReceipt && consentSource) {
+        headers.set("X-Vrooli-AI-Consent-Grant", consentReceipt);
+        headers.set("X-Vrooli-AI-Consent-Source", consentSource);
+      }
+    }
     const token = await getAccessToken();
     if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
     if (window.desktop?.auth?.getLocalSessionToken && new URL(input instanceof Request ? input.url : String(input), window.location.href).origin === window.location.origin) {

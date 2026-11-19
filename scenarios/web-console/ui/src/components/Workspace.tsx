@@ -104,8 +104,9 @@ import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesVi
 import WorkspaceFilePreview, { type WorkspaceFilePreviewRequest } from "./file-preview/WorkspaceFilePreview";
 import RunScriptDialog from "./file-preview/RunScriptDialog";
 import RunCommandDialog from "./file-preview/RunCommandDialog";
-import { resolveFilePreview, type PreviewSourceContext } from "../api/filePreview";
-import { shouldFocusArtifactViewer } from "./file-preview/artifactViewerLayout";
+import type { PreviewSourceContext } from "@vrooli/file-viewer";
+import { resolveSessionPath } from "../api/filePreview";
+import { shouldFocusArtifactViewer } from "@vrooli/file-viewer";
 import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { setupMediaSession } from "../domains/tts-playback/mediaSession";
@@ -541,11 +542,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [launchSession, markPendingIntents, runScriptRequest]);
   const openRunCommand = useCallback((sessionId: string, command: string) => {
     setRunCommandRequest({ sessionId, command, workingDir: "." });
-    void resolveFilePreview(sessionId, ".").then((model) => {
-      if (!model.resolvedPath) return;
+    void resolveSessionPath(sessionId, ".").then((resolvedPath) => {
+      if (!resolvedPath) return;
       setRunCommandRequest((current) => (
         current && current.sessionId === sessionId && current.command === command && current.workingDir === "."
-          ? { ...current, workingDir: model.resolvedPath }
+          ? { ...current, workingDir: resolvedPath }
           : current
       ));
     }).catch(() => undefined);

@@ -23,7 +23,6 @@ vi.mock("../../audio-integration", async () => {
     transcribeAudioBypassFilter: vi.fn(),
     getVoiceStreamConfig: vi.fn().mockRejectedValue(new Error("no config")),
     getWakeWordConfig: vi.fn().mockRejectedValue(new Error("no wake word")),
-    buildVoiceStreamWsUrl: vi.fn().mockReturnValue("ws://test"),
   };
 });
 

@@ -3,6 +3,7 @@
   "version": 2,
   "bundle_key": "business_suite",
   "app_key": "web-console",
+  "product_shape": "meter_only",
   "requires_entitlement": false,
   "features": [],
   "meters": [

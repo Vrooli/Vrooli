@@ -2,7 +2,8 @@
 INSERT INTO ai_provider_configs (name, enabled, priority, timeout_sec, max_retries)
 VALUES
     ('ollama', 1, 1, 30, 0),
-    ('openrouter', 1, 2, 30, 0)
+    ('openrouter', 1, 2, 30, 0),
+    ('vrooli', 1, 3, 30, 0)
 ON CONFLICT (name) DO NOTHING;
 
 -- Default shortcut profile (idempotent seed for fresh DBs).

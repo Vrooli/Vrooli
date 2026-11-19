@@ -1,4 +1,4 @@
-import { basename } from "./paths";
+import { basename } from "@vrooli/file-viewer/paths";
 
 export interface ScriptRunPlan {
   command: string;

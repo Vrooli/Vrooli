@@ -7,9 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -74,9 +76,46 @@ func Module(svc Service, logger *log.Logger) module.Module {
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.Handle("/api/v1/ai/generate", restGenerateHandler(svc)).Methods(http.MethodPost)
+			r.Handle("/api/v1/ai/privacy-consent", privacyConsentProxy()).Methods(http.MethodGet, http.MethodPost)
+			r.Handle("/api/v1/ai/privacy-consent/{id}", privacyConsentProxy()).Methods(http.MethodDelete)
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+// privacyConsentProxy keeps browser requests same-origin while Gateway remains
+// the shared consent authority. It forwards only the original authentication
+// material, which Gateway independently verifies to derive the grant owner.
+func privacyConsentProxy() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		base, err := discovery.ResolveScenarioURLDefault(r.Context(), "ai-gateway")
+		if err != nil {
+			http.Error(w, "AI consent authority is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		url := strings.TrimRight(base, "/") + r.URL.RequestURI()
+		request, err := http.NewRequestWithContext(r.Context(), r.Method, url, r.Body)
+		if err != nil {
+			http.Error(w, "AI consent request could not be prepared", http.StatusBadGateway)
+			return
+		}
+		for _, name := range []string{"Authorization", "Cookie", "Content-Type"} {
+			for _, value := range r.Header.Values(name) {
+				request.Header.Add(name, value)
+			}
+		}
+		response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request)
+		if err != nil {
+			http.Error(w, "AI consent authority is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		defer response.Body.Close()
+		for _, value := range response.Header.Values("Content-Type") {
+			w.Header().Add("Content-Type", value)
+		}
+		w.WriteHeader(response.StatusCode)
+		_, _ = io.Copy(w, response.Body)
+	})
 }
 
 type restGenerateRequest struct {
@@ -100,10 +139,12 @@ func restGenerateHandler(svc Service) http.Handler {
 			return
 		}
 		ctx := aidomain.WithConsumerToken(r.Context(), r.Header.Get("Authorization"))
+		ctx = aidomain.WithPrivacyConsentGrant(ctx, r.Header.Get("X-Vrooli-AI-Consent-Grant"), r.Header.Get("X-Vrooli-AI-Consent-Source"))
+		ctx = aidomain.WithRootOperationID(ctx, r.Header.Get("X-Idempotency-Key"))
 		command, provider, err := svc.Generate(ctx, request.Prompt, request.Context)
 		if err != nil {
 			if errors.Is(err, aidomain.ErrCreditsRequired) {
-				upgradePath, _ := discovery.ResolveExternalURL(r.Context(), "landing-page-business-suite", r.Host)
+				upgradePath, _ := discovery.ResolveExternalURL(r.Context(), "landing-page-business-suite", discovery.ExternalHost(r))
 				writeRESTError(w, http.StatusPaymentRequired, "credits_required", "credits are required for routed inference", upgradePath)
 				return
 			}

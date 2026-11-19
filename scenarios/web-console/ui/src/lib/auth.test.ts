@@ -125,6 +125,8 @@ describe("completeWebAuthCallback", () => {
 describe("signOut", () => {
   it("revokes the server session and clears the local token", async () => {
     sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken: "at", expiresAt: "2099-01-01T00:00:00Z" }));
+    sessionStorage.setItem("web-console.ai.remote-consent-receipt", "alice-receipt");
+    sessionStorage.setItem("web-console.ai.remote-consent-source", "own-key");
     authRequest.mockResolvedValue(undefined);
     await signOut();
     expect(authRequest).toHaveBeenCalledWith(
@@ -132,6 +134,8 @@ describe("signOut", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
     expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
+    expect(sessionStorage.getItem("web-console.ai.remote-consent-receipt")).toBeNull();
+    expect(sessionStorage.getItem("web-console.ai.remote-consent-source")).toBeNull();
   });
 
   it("still clears the local token when the revoke request fails", async () => {

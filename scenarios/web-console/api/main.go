@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	capsH "web-console/handlers/capabilities"
 	"web-console/internal/audioports"
 	"web-console/internal/backend"
@@ -126,7 +128,7 @@ type Server struct {
 	codexTailer            *CodexTailer
 	claudeTailer           *ClaudeTailer
 	grokTailer             *GrokTailer
-	opencodeWatcher        *OpenCodeWatcher
+	opencodeWatcher        *OpenCodeWatcherGroup
 	agentCheckpointStore   AgentTranscriptCheckpointStore
 	// usageModeQuota overrides the quota reading used to resolve a reset time (tests).
 	usageModeQuota func(context.Context, string) (capsH.AgentUsageResult, error)
@@ -188,9 +190,8 @@ type Server struct {
 	// was never wired, and every cross-scenario link is then withheld rather
 	// than guessed — which is why unit tests that build a bare Server see no
 	// link and fork no CLI.
-	resolveConsoleURL  func(ctx context.Context, scenarioSlug, requestHost string) (string, error)
-	monetization       *monetization.Gate
-	monetizationOutbox *monetization.Outbox
+	resolveConsoleURL func(ctx context.Context, scenarioSlug, requestHost string) (string, error)
+	monetization      *monetization.Gate
 	// sessionNotifier raises generic *.notification.v1 events when a session
 	// needs the operator or finishes a turn (api/session_notifications.go).
 	sessionNotifier *sessionNotifier
@@ -394,11 +395,13 @@ func NewServer(db *database.RoutedDB) *Server {
 				return access.AccessToken, err
 			}
 			srv.entitlements = entitlementclient.NewClient(resolver.LPBSBaseURL, resolveToken, &http.Client{Timeout: 15 * time.Second})
-			srv.monetization = monetization.NewGate(srv.entitlements, resolver, "business_suite")
-			store := monetization.NewSQLStore(db, monetization.SQLDialectSQLite)
-			transport := &lpbsMonetizationTransport{baseURL: resolver.LPBSBaseURL, resolveToken: resolveToken, client: &http.Client{Timeout: 15 * time.Second}}
-			srv.monetizationOutbox = monetization.NewOutbox(store, transport)
-			go srv.drainMonetizationOutbox()
+			if leaseStore, storeErr := newWebConsoleLeaseStore(); storeErr != nil {
+				log.Printf("monetization lease cache unavailable: %v", storeErr)
+			} else {
+				srv.entitlements.SetStore(leaseStore)
+			}
+			srv.entitlements.SetIssuerKeyStore(monetization.NewCredentialIssuerKeyStore(credentials))
+			srv.monetization = monetization.NewGateForApp(srv.entitlements, resolver, "business_suite", "web-console")
 		}
 	}
 	if srv.credentialClient != nil {
@@ -509,7 +512,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		if srv.subscriptionResolver != nil {
 			if access, resolveErr := srv.subscriptionResolver.Resolve(ctx); resolveErr == nil {
 				creds.LPBSToken = access.AccessToken
-				if identity, identityErr := resolveLPBSIdentity(ctx, srv.subscriptionResolver.LPBSBaseURL, access.AccessToken); identityErr == nil {
+				if identity, identityErr := srv.subscriptionResolver.ResolveIdentityAt(ctx, srv.subscriptionResolver.LPBSBaseURL, access.AccessToken); identityErr == nil {
 					creds.UserIdentity = identity
 				}
 			}
@@ -568,11 +571,24 @@ func NewServer(db *database.RoutedDB) *Server {
 	// Start the OpenCode watcher: owns a loopback `opencode serve` instance,
 	// subscribes to its event stream, and reconciles transcripts by directory.
 	// Best-effort — a missing/unstartable opencode binary must not fail boot.
-	srv.opencodeWatcher = NewOpenCodeWatcher(srv)
+	srv.opencodeWatcher = NewOpenCodeWatcherGroup(srv)
 	srv.opencodeWatcher.Start()
 	log.Println("opencode-watcher: started")
 
 	return srv
+}
+
+func newWebConsoleLeaseStore() (*entitlementclient.FileLeaseStore, error) {
+	base := strings.TrimSpace(os.Getenv("APP_DATA_DIR"))
+	if base == "" {
+		var err error
+		base, err = os.UserConfigDir()
+		if err != nil {
+			return nil, fmt.Errorf("resolve user config directory: %w", err)
+		}
+		base = filepath.Join(base, "Vrooli", "Web Console")
+	}
+	return entitlementclient.NewFileLeaseStore(filepath.Join(base, "monetization", "leases"))
 }
 
 func bridgeURLSecurityWarning(raw string) string {
@@ -1158,6 +1174,7 @@ func loadOrCreateHookToken(path string) string {
 }
 
 func main() {
+	eventpublishing.Register()
 	if preflight.Run(preflight.Config{
 		ScenarioName: "web-console",
 	}) {

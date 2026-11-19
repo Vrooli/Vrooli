@@ -32,7 +32,7 @@ import { usePaneSelection } from "../hooks/terminal/usePaneSelection";
 import { DeviceFrame } from "./terminal/DeviceFrame";
 import { useFollowerViewportLayout } from "../hooks/terminal/useFollowerViewportLayout";
 import type { FollowerMode } from "../lib/terminalProtocol";
-import type { PreviewSourceContext } from "../api/filePreview";
+import type { PreviewSourceContext } from "@vrooli/file-viewer";
 
 interface TerminalPaneProps {
   sessionId: string;

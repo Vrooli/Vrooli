@@ -5,67 +5,14 @@ export { librarySelectors };
  * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
  */
 
+import { fileViewerSelectors } from "@vrooli/file-viewer/selectors";
 import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
 export { defineDynamicSelector } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
-  databasePreview: { root: "file-preview-database", tables: "database-tables", grid: "database-grid", records: "database-records", schema: "database-schema", navigation: "database-navigation" },
-  fontPreview: { root: "file-preview-font", specimen: "font-preview-specimen", sample: "font-preview-sample", characters: "font-preview-characters", navigation: "font-preview-navigation" },
-  modelPreview: { root: "file-preview-model", stage: "model-preview-stage", navigation: "model-preview-navigation" },
-  presentationPreview: {
-    root: "file-preview-presentation",
-    frame: "presentation-preview-frame",
-    notes: "presentation-preview-notes",
-    navigation: "presentation-preview-navigation",
-  },
-  ebookPreview: {
-    root: "file-preview-ebook",
-    article: "ebook-preview-article",
-    pane: "ebook-preview-pane",
-    contents: "ebook-preview-contents",
-  },
-  documentPreview: {
-    root: "file-preview-document",
-    article: "document-preview-article",
-    pane: "document-preview-pane",
-    search: "document-preview-search",
-    outline: "document-preview-outline",
-  },
-  inspectionPreview: {
-    navigation: 'file-preview-navigation',
-    sourceLines: 'inspection-source-lines',
-    sourceSearch: 'inspection-source-search',
-    sourceSearchToggle: 'inspection-source-search-toggle',
-    diffBody: 'inspection-diff-body',
-    workbook: 'inspection-workbook',
-    workbookGrid: 'inspection-workbook-grid',
-    workbookRows: 'inspection-workbook-rows',
-    workbookDetail: 'inspection-workbook-detail',
-  },
-  readerPreview: {
-    searchToggle: 'reader-search-toggle',
-    outline: 'reader-outline',
-    readingPane: 'reader-reading-pane',
-    structureTree: 'reader-structure-tree',
-    structureDetail: 'reader-structure-detail',
-  },
-  artifactPreview: {
-    imageStage: 'artifact-image-stage',
-    pdfPages: 'artifact-pdf-pages',
-    videoSeek: 'artifact-video-seek',
-    videoPlay: 'artifact-video-play',
-    tableGrid: 'artifact-table-grid',
-    tableRecords: 'artifact-table-records',
-    tableRecord: 'artifact-table-record',
-  },
-  audioPreview: {
-    player: 'audio-preview-player',
-    waveform: 'audio-preview-waveform',
-    seek: 'audio-preview-seek',
-    play: 'audio-preview-play',
-    repeat: 'audio-preview-repeat',
-    tools: 'audio-preview-tools',
-  },
+  // The file viewer's own test ids come from the package, so its selector
+  // manifest entries stay identical wherever the viewer is hosted.
+  ...fileViewerSelectors,
   workspace: {
     settings: 'toolbar-settings',
     paneGrid: 'pane-grid',

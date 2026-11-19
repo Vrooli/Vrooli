@@ -15,10 +15,50 @@ export interface AIGenerateResponse {
   provider: string;
 }
 
-export async function generateAICommand(prompt: string, context?: string): Promise<AIGenerateResponse> {
-  const headers = new Headers({ "Content-Type": "application/json" });
+export interface AIPrivacyConsentGrant {
+  id: string;
+  source: "own-key" | "vrooli-credits";
+  created_at: string;
+  expires_at: string;
+  revoked_at?: string;
+}
+
+async function consentRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
   const accessToken = await getAccessToken();
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  if (init?.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const response = await fetch(path, { ...init, headers });
+  if (!response.ok) throw await extractAPIError(response, "AI data-sharing consent request failed");
+  if (response.status === 204) return undefined as T;
+  return await response.json() as T;
+}
+
+export const listAIPrivacyConsent = () => consentRequest<{ grants: AIPrivacyConsentGrant[] }>("/api/v1/ai/privacy-consent");
+export const createAIPrivacyConsent = (source: AIPrivacyConsentGrant["source"]) =>
+  consentRequest<{ grant: AIPrivacyConsentGrant; receipt: string }>("/api/v1/ai/privacy-consent", {
+    method: "POST", body: JSON.stringify({ source, lifetime_days: 30 }),
+  });
+export const revokeAIPrivacyConsent = (grantID: string) =>
+  consentRequest<void>(`/api/v1/ai/privacy-consent/${encodeURIComponent(grantID)}`, { method: "DELETE" });
+
+export const AI_PRIVACY_CONSENT_SESSION_KEY = "web-console.ai.remote-consent-receipt";
+export const AI_PRIVACY_CONSENT_SOURCE_SESSION_KEY = "web-console.ai.remote-consent-source";
+
+function newAIRequestID(): string {
+  return crypto.randomUUID();
+}
+
+export async function generateAICommand(prompt: string, context?: string): Promise<AIGenerateResponse> {
+  const headers = new Headers({ "Content-Type": "application/json", "X-Idempotency-Key": newAIRequestID() });
+  const accessToken = await getAccessToken();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const receipt = window.sessionStorage.getItem(AI_PRIVACY_CONSENT_SESSION_KEY);
+  const receiptSource = window.sessionStorage.getItem(AI_PRIVACY_CONSENT_SOURCE_SESSION_KEY);
+  if (receipt && receiptSource) {
+    headers.set("X-Vrooli-AI-Consent-Grant", receipt);
+    headers.set("X-Vrooli-AI-Consent-Source", receiptSource);
+  }
   const response = await fetch("/api/v1/ai/generate", {
     method: "POST",
     headers,
@@ -36,7 +76,7 @@ export interface AISuggestResponse {
 }
 
 export async function generateAISuggestions(prompt: string, context?: string): Promise<AISuggestResponse> {
-  const resp = await aiClient.suggest({ prompt, context: context ?? "" });
+  const resp = await aiClient.suggest({ prompt, context: context ?? "" }, { headers: { "X-Idempotency-Key": newAIRequestID() } });
   return { commands: resp.commands, provider: resp.provider };
 }
 

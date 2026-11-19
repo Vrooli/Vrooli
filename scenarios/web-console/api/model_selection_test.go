@@ -395,14 +395,14 @@ func TestCodexChoicesLeaveOutExcludedModels(t *testing.T) {
 			t.Errorf("%s has no friendly name: %q", choice.Model, choice.DisplayName)
 		}
 	}
-	for _, excluded := range []string{"gpt-6-astra", "gpt-6-sol", "gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "codex-auto-review", "gpt-reserve"} {
+	for _, excluded := range []string{"gpt-6-astra", "gpt-6.2-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "codex-auto-review", "gpt-reserve"} {
 		if got[excluded] {
 			t.Errorf("%s is excluded and must not be offered", excluded)
 		}
 	}
-	// gpt-6.1-sol is restricted to the fallback role, so a launcher does not offer it.
-	if got["gpt-6.1-sol"] {
-		t.Error("gpt-6.1-sol is restricted and must not be offered")
+	// gpt-6.2-sol is restricted to the fallback role, so a launcher does not offer it.
+	if got["gpt-6.2-sol"] {
+		t.Error("gpt-6.2-sol is restricted and must not be offered")
 	}
 	for _, offered := range []string{"gpt-6.1-terra", "gpt-6-luna"} {
 		if !got[offered] {

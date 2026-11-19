@@ -2,8 +2,6 @@ package sessions
 
 import (
 	_ "embed"
-
-	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 //go:embed schema.sql
@@ -16,7 +14,7 @@ var seedSQL string
 var agentTypeMigrationSQL string
 
 // Schema returns the session and workspace schema.
-func Schema() string { return schemaSQL + "\n" + monetization.SQLiteSchema }
+func Schema() string { return schemaSQL }
 
 // Seed returns the default seed data for a new database.
 func Seed() string { return seedSQL }

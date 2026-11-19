@@ -1,5 +1,5 @@
 import type { ConversationEvent, ConversationSearchMatch, SearchTextRange } from "../api/conversation";
-import { looksLikeFileReference } from "../lib/fileReferences";
+import { looksLikeFileReference } from "@vrooli/file-viewer/file-references";
 import { strings } from "../consts/strings";
 
 export type StatusGlyph = "played" | "playing" | "unseen" | "failed";

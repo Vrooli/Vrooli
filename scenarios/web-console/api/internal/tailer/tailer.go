@@ -62,25 +62,6 @@ type Source interface {
 	CaptureAgentInfo(path, sessionID string)
 }
 
-// RunPollLoop is the small lifecycle seam used by legacy adapters while they
-// are migrated to Engine. It keeps timer ownership and stop semantics in this
-// package, so adapters cannot accidentally diverge on shutdown behavior.
-func RunPollLoop(stop <-chan struct{}, interval time.Duration, scan func()) {
-	if interval <= 0 {
-		interval = time.Second
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-ticker.C:
-			scan()
-		}
-	}
-}
-
 // Config controls one engine. Zero intervals use safe defaults.
 type Config struct {
 	Name         string

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { Loader2, Plus, Search, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -16,7 +17,6 @@ import { cn } from "../../lib/classnames";
 import { paneAccentStyle } from "../../lib/paneColor";
 import type { HandoffResult } from "../../lib/handoff";
 import { targetKey, textForTarget, type HandoffTarget } from "../../hooks/useHandoff";
-import { Button } from "../ui/button";
 import { SnippetPicker } from "../snippets/SnippetPicker";
 import type { SnippetDTO } from "../../api/snippets";
 import type { HandoffTargetSection } from "../../hooks/useHandoff";
@@ -209,30 +209,18 @@ export default function HandoffComposer({
     </div>
   );
 
+  const sendLabel = sending
+    ? t(strings.handoff.sending)
+    // Keep the fan-out count visible: it tells the operator how many sessions
+    // will receive this handoff before they commit.
+    : selectedTargets.length > 1
+      ? t(strings.handoff.sendTo, { total: selectedTargets.length })
+      : t(strings.handoff.send);
   const footer = (
-    <div className="flex w-full items-center justify-end gap-2">
-      <Button variant="outline" size="sm" onClick={onClose}>
-        <X className="me-1.5 h-4 w-4" aria-hidden />
-        {t(strings.handoff.close)}
-      </Button>
-      <Button
-        data-testid="handoff-send"
-        size="sm"
-        onClick={() => { void handleSend(); }}
-        disabled={selectedTargets.length === 0 || sending || snippetPickerOpen}
-      >
-        {sending
-          ? <Loader2 className="me-1.5 h-4 w-4 animate-spin" aria-hidden />
-          : <Send className="me-1.5 h-4 w-4" aria-hidden />}
-        {sending
-          ? t(strings.handoff.sending)
-          // The count is on the button because fanning out to three sessions
-          // is not something to discover from the results panel afterwards.
-          : selectedTargets.length > 1
-            ? t(strings.handoff.sendTo, { total: selectedTargets.length })
-            : t(strings.handoff.send)}
-      </Button>
-    </div>
+    <OverlayActionBar className="flex-row-reverse" actions={[
+      { id: "send", label: sendLabel, onSelect: () => { void handleSend(); }, disabled: selectedTargets.length === 0 || sending || snippetPickerOpen, primary: true, testId: "handoff-send" },
+      { id: "close", label: t(strings.handoff.close), onSelect: onClose },
+    ]} />
   );
 
   return (

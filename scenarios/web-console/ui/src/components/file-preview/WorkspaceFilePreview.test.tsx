@@ -1,9 +1,8 @@
+import { ARTIFACT_VIEWER_MIN_WIDTH, type FileViewerProps, type PreviewState } from "@vrooli/file-viewer";
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders as render } from "../../test-utils";
 import WorkspaceFilePreview from "./WorkspaceFilePreview";
-import { ARTIFACT_VIEWER_MIN_WIDTH } from "./artifactViewerLayout";
-import type { PreviewState } from "./types";
 
 const mocks = vi.hoisted(() => ({
   controller: {
@@ -18,18 +17,18 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("./useFilePreviewController", () => ({
+// The viewer itself is the package's; this test is about how Web Console wires
+// it: the session source, the dock, and the actions it adds to the header.
+vi.mock("@vrooli/file-viewer", async (original) => ({
+  ...(await original<typeof import("@vrooli/file-viewer")>()),
   useFilePreviewController: () => mocks.controller,
-}));
-
-vi.mock("../MessagesFileViewer", () => ({
-  default: (props: Record<string, unknown>) => (
-    <div data-testid="mock-file-viewer" data-presentation={String(props.presentation ?? "drawer")}>
-      <button type="button" onClick={() => (props.onHandoff as ((path: string) => void) | undefined)?.("/resolved/file.md")}>handoff</button>
-      <button type="button" onClick={() => (props.onFocus as (() => void) | undefined)?.()}>focus</button>
-      <button type="button" onClick={() => (props.onRestore as (() => void) | undefined)?.()}>restore</button>
-      <button type="button" onClick={props.onClose as () => void}>close</button>
-      <div role="separator" onPointerDown={props.onResizeStart as React.PointerEventHandler<HTMLDivElement>} />
+  FileViewer: (props: FileViewerProps) => (
+    <div data-testid="mock-file-viewer" data-presentation={String(props.presentation ?? "drawer")} data-scope={props.source.scope}>
+      {props.renderHeaderActions?.({ path: "/resolved/file.md", model: { kind: "markdown", archiveMember: false } as never, text: null })}
+      <button type="button" onClick={() => props.onFocus?.()}>focus</button>
+      <button type="button" onClick={() => props.onRestore?.()}>restore</button>
+      <button type="button" onClick={props.onClose}>close</button>
+      <div role="separator" onPointerDown={props.onResizeStart} />
     </div>
   ),
 }));
@@ -57,6 +56,7 @@ describe("WorkspaceFilePreview", () => {
 
     renderPreview();
     expect(screen.getByTestId("mock-file-viewer")).toHaveAttribute("data-presentation", "dock");
+    expect(screen.getByTestId("mock-file-viewer")).toHaveAttribute("data-scope", "session-1");
     expect(mocks.controller.openPreview).toHaveBeenCalledWith("/workspace/file.md", "message_link");
   });
 
@@ -66,7 +66,7 @@ describe("WorkspaceFilePreview", () => {
     renderPreview({ mobile: true, onHandoff, onClose });
 
     expect(screen.getByTestId("mock-file-viewer")).toHaveAttribute("data-presentation", "drawer");
-    fireEvent.click(screen.getByRole("button", { name: "handoff" }));
+    fireEvent.click(screen.getByTestId("handoff-file-viewer"));
     fireEvent.click(screen.getByRole("button", { name: "close" }));
     expect(onHandoff).toHaveBeenCalledWith("session-1", "/resolved/file.md");
     expect(onClose).toHaveBeenCalledOnce();

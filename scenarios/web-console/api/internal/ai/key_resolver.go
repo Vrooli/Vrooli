@@ -40,15 +40,3 @@ func (r *CredentialKeyResolver) Resolve(ctx context.Context) (string, KeySource,
 	}
 	return "", KeySourceNone, nil
 }
-
-type StaticKeyResolver struct {
-	Key    string
-	Source KeySource
-}
-
-func (r StaticKeyResolver) Resolve(context.Context) (string, KeySource, error) {
-	if strings.TrimSpace(r.Key) == "" {
-		return "", KeySourceNone, nil
-	}
-	return r.Key, r.Source, nil
-}

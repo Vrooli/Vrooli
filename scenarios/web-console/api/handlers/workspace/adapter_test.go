@@ -2,7 +2,6 @@ package workspace
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	wsdomain "web-console/internal/workspace"
@@ -16,7 +15,7 @@ func TestAdapterCoversWorkspacePersistenceAndEvents(t *testing.T) {
 	ctx := context.Background()
 	store := wsdomain.NewMemStore()
 	events := &workspaceEvents{}
-	a := &Adapter{Store: store, Events: events, Logger: log.Default()}
+	a := &Adapter{Store: store, Events: events}
 
 	if err := a.SaveLayout(ctx, "s1", []string{"s1"}); err != nil {
 		t.Fatal(err)

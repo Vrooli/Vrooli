@@ -29,6 +29,7 @@ import {
 } from "./useStdinStream";
 
 const MAX_OUTPUT_PROBE_CHARS = 12000;
+const TERMINAL_WRITE_BATCH_CHARS = 64 * 1024;
 const TERMINAL_DEBUG_ENABLED = (() => {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
   return env?.VITE_WC_TERMINAL_DEBUG === "1" || env?.VITE_WC_TERMINAL_DEBUG === "true";
@@ -209,6 +210,9 @@ export function useTerminalSession({
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const pendingResizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const outputQueueRef = useRef<string[]>([]);
+	// Advancing a head index avoids repeated Array.shift() while draining many
+	// small frames in one bounded write.
+	const outputQueueHeadRef = useRef(0);
 	const outputFlushRafRef = useRef<number | null>(null);
 	const historyReadyRef = useRef(false);
 	// This is deliberately separate from serverSizeRef. A follower renders the
@@ -292,10 +296,10 @@ export function useTerminalSession({
       //     this, scrollback content from before a WS reconnect or API
       //     restart layers underneath the new snapshot, producing the
       //     "scroll up shows last page repeated" symptom.
-		if (outputQueueRef.current.length > 0) {
-		  t.write(outputQueueRef.current.join(""));
-		  outputQueueRef.current = [];
-		}
+		// The reconnect snapshot is authoritative; discard any output whose
+		// pending animation frame was suspended while the page was backgrounded.
+		outputQueueRef.current = [];
+		outputQueueHeadRef.current = 0;
 		if (outputFlushRafRef.current !== null) cancelAnimationFrame(outputFlushRafRef.current);
 		outputFlushRafRef.current = null;
 		t.reset();
@@ -323,9 +327,37 @@ export function useTerminalSession({
 	const flushOutputQueue = useCallback(() => {
 	  outputFlushRafRef.current = null;
 	  const t = terminalRef.current;
-	  if (!t || outputQueueRef.current.length === 0) return;
-	  t.write(outputQueueRef.current.join(""));
-	  outputQueueRef.current = [];
+	  if (!t || outputQueueHeadRef.current === outputQueueRef.current.length) return;
+	  let remaining = TERMINAL_WRITE_BATCH_CHARS;
+	  const batch: string[] = [];
+	  while (remaining > 0 && outputQueueHeadRef.current < outputQueueRef.current.length) {
+	    const head = outputQueueHeadRef.current;
+	    const first = outputQueueRef.current[head];
+	    if (first === undefined) break;
+	    let take = Math.min(remaining, first.length);
+	    // Keep UTF-16 surrogate pairs intact when splitting a large WS frame.
+	    if (take < first.length) {
+	      const before = first.charCodeAt(take - 1);
+	      const after = first.charCodeAt(take);
+	      if (before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff) take -= 1;
+	    }
+	    if (take === 0) break;
+	    batch.push(first.slice(0, take));
+	    remaining -= take;
+	    if (take === first.length) outputQueueHeadRef.current += 1;
+	    else outputQueueRef.current[head] = first.slice(take);
+	  }
+	  t.write(batch.join(""));
+	  if (outputQueueHeadRef.current === outputQueueRef.current.length) {
+	    outputQueueRef.current = [];
+	    outputQueueHeadRef.current = 0;
+	  } else {
+	    if (typeof requestAnimationFrame === "function") {
+	      outputFlushRafRef.current = requestAnimationFrame(flushOutputQueue);
+	    } else {
+	      outputFlushRafRef.current = Number(setTimeout(flushOutputQueue, 0));
+	    }
+	  }
 	}, []);
 
 	const enqueueOutput = useCallback((data: string) => {
@@ -607,7 +639,10 @@ export function useTerminalSession({
         case "resync": {
           const t = terminalRef.current;
           if (t) {
-			flushOutputQueue();
+			outputQueueRef.current = [];
+			outputQueueHeadRef.current = 0;
+			if (outputFlushRafRef.current !== null) cancelAnimationFrame(outputFlushRafRef.current);
+			outputFlushRafRef.current = null;
             t.reset();
             t.clear();
           }
@@ -665,7 +700,7 @@ export function useTerminalSession({
       }
     });
     return unsubscribe;
-  }, [enqueueOutput, flushOutputQueue, onFollowerModeChange, onStatus, sessionId, stdin, transport]);
+  }, [enqueueOutput, onFollowerModeChange, onStatus, sessionId, stdin, transport]);
 
   useEffect(() => {
     if (!terminal || !predictionContainer) return;
@@ -733,6 +768,7 @@ export function useTerminalSession({
         outputFlushRafRef.current = null;
       }
       outputQueueRef.current = [];
+			outputQueueHeadRef.current = 0;
       gate.dispose();
       stdin.dispose();
       getTerminalDebugProbe().remove(sessionId);

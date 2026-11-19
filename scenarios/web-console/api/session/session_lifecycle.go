@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"web-console/internal/backend"
@@ -39,6 +40,40 @@ type TmuxDiscoverFunc func() ([]string, error)
 // may still be alive). 30 seconds balances responsiveness with low overhead.
 const reattachWatchdogInterval = 30 * time.Second
 
+// shutdownCleanupDrainTimeout bounds how long Shutdown waits for session
+// owner goroutines to finish their final store writes before the database is
+// closed. It is a deadline, not a delay: sessions that finish immediately do
+// not extend shutdown.
+const shutdownCleanupDrainTimeout = 5 * time.Second
+
+// shutdownPTYConcurrency bounds parallel tmux detaches during shutdown. Each
+// detach is an independent socket operation; a small pool removes the serial
+// cost for installations with dozens of recovered panes without stampeding the
+// shared tmux server.
+const shutdownPTYConcurrency = 8
+
+func waitForSessionCleanup(sessions []*Session, timeout time.Duration) {
+	if len(sessions) == 0 || timeout <= 0 {
+		return
+	}
+	deadline := time.Now().Add(timeout)
+	for _, sess := range sessions {
+		if sess == nil || sess.cleanupDone == nil {
+			continue
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			log.Printf("shutdown: session cleanup drain timed out with sessions still running")
+			return
+		}
+		select {
+		case <-sess.cleanupDone:
+		case <-time.After(remaining):
+			log.Printf("shutdown: timed out waiting for session %s cleanup", sess.ID)
+		}
+	}
+}
+
 // Shutdown gracefully detaches from all persistent (tmux) sessions without
 // killing them, so they survive for recovery on the next startup. Standard
 // sessions are killed. Must be called before closing the database.
@@ -66,24 +101,56 @@ func (sm *Manager) Shutdown() {
 		}
 	}
 
-	for _, sess := range snapshot {
-		if sess.Backend == backend.Persistent {
-			// Close the attach PTY fd — this detaches from the tmux session
-			// without killing it. The readLoop will see EOF and exit, but
-			// the auto-remove goroutine checks shuttingDown and preserves
-			// the metadata.
-			_ = sess.currentPTY().Close()
-			log.Printf("shutdown: detached from persistent session %s", sess.ID)
-		} else {
+	// Close PTYs concurrently. The previous sequential loop waited on one
+	// tmux detach per recovered session; with dozens of durable panes that made
+	// a graceful stop take minutes and left the API bound while lifecycle was
+	// already moving on. The work is per-session and independent, so a bounded
+	// worker pool removes the serial cost without creating a detach stampede.
+	closeSessionPTYs(snapshot, shutdownPTYConcurrency)
+	// Give each session's owner goroutine a bounded chance to finish its
+	// post-exit persistence (MarkOrphaned and upload cleanup) before the
+	// database is closed. Without this wait, Cleanup closes the pool while a
+	// goroutine is still writing, and the write lands on a closed pool.
+	waitForSessionCleanup(snapshot, shutdownCleanupDrainTimeout)
+	if sm.lifecycleCancel != nil {
+		sm.lifecycleCancel()
+	}
+}
+
+func closeSessionPTYs(sessions []*Session, concurrency int) {
+	if len(sessions) == 0 {
+		return
+	}
+	if concurrency <= 0 {
+		concurrency = 1
+	}
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, concurrency)
+	for _, sess := range sessions {
+		if sess == nil {
+			continue
+		}
+		wg.Add(1)
+		slots <- struct{}{}
+		go func(sess *Session) {
+			defer wg.Done()
+			defer func() { <-slots }()
+			if sess.Backend == backend.Persistent {
+				// Close the attach PTY fd — this detaches from the tmux session
+				// without killing it. The readLoop will see EOF and exit, but
+				// the auto-remove goroutine checks shuttingDown and preserves
+				// the metadata.
+				_ = sess.currentPTY().Close()
+				log.Printf("shutdown: detached from persistent session %s", sess.ID)
+				return
+			}
 			p := sess.currentPTY()
 			_ = p.Kill()
 			_ = p.Close()
 			log.Printf("shutdown: killed standard session %s", sess.ID)
-		}
+		}(sess)
 	}
-	if sm.lifecycleCancel != nil {
-		sm.lifecycleCancel()
-	}
+	wg.Wait()
 }
 
 // RecoveryProgress returns a snapshot of startup session-recovery progress.
@@ -312,6 +379,7 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		inputQueue:              make(chan queuedInput, sm.cfg.InputQueueSize),
 		inputStopCh:             make(chan struct{}),
 		exitCh:                  make(chan struct{}),
+		cleanupDone:             make(chan struct{}),
 		emu:                     terminal.New(terminal.Options{Cols: int(meta.Cols), Rows: int(meta.Rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
@@ -332,6 +400,7 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 	sess.startAnsiResponder()
 	go sess.readLoop()
 	go func(sessID string, bid backend.ID) {
+		defer close(sess.cleanupDone)
 		<-sess.Done()
 		log.Printf("session %s: recovered process exited (backend=%s)", sessID, bid)
 		sm.mu.Lock()

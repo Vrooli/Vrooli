@@ -29,6 +29,10 @@ Complete. The scenario boots through the standard Vrooli lifecycle:
 - `make test` submits the Test Genie comprehensive preset through
   `vrooli scenario test web-console`; `.vrooli/testing.json` owns any
   scenario-specific test configuration.
+- For a focused UI verdict, run `vrooli scenario test web-console --phases experience`
+  and block once on `test-genie runs wait --json web-console <run-id>`. Test Genie
+  labels a missing verdict as never run and an evaluation older than the latest UI
+  file change as stale.
 - API health is exposed at `/health` and gated by the
   `health` Connect service in `api/internal/health/`.
 

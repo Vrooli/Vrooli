@@ -60,16 +60,6 @@ func (d *sessionDelegations) Lookup(sessionID string, now time.Time) (string, bo
 	return entry.token, true
 }
 
-// Delete drops the delegation for a session (e.g. when the session ends).
-func (d *sessionDelegations) Delete(sessionID string) {
-	if d == nil || sessionID == "" {
-		return
-	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	delete(d.items, sessionID)
-}
-
 // activeSessionDelegations is the process-wide holder the env builder reads and
 // the verified-human create path writes. It is a package var because
 // defaultSessionEnv is a free function wired into the session manager before any

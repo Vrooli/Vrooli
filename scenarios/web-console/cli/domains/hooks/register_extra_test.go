@@ -3,6 +3,8 @@ package hooks
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -84,4 +86,41 @@ func TestRegistrarRemoveAndCommandRunner(t *testing.T) {
 	if output, err := runCommand(context.Background(), "true"); err != nil || len(output) != 0 {
 		t.Fatalf("runCommand = %q, %v", output, err)
 	}
+}
+
+func TestDecodeReconcileResultToleratesLeadingBanner(t *testing.T) {
+	result, err := decodeReconcileResult([]byte("notice: “refreshing”\n{\"status\":\"applied\"}\n"))
+	if err != nil {
+		t.Fatalf("decodeReconcileResult: %v", err)
+	}
+	if result.Status != "applied" {
+		t.Fatalf("status = %q, want applied", result.Status)
+	}
+	if _, err := decodeReconcileResult(nil); err == nil {
+		t.Fatal("empty output unexpectedly decoded")
+	}
+}
+
+// TestRunCommandKeepsStdoutPure pins the regression that made every cold start
+// log "invalid character 'â'": stderr diagnostics were folded into the JSON
+// stream. The helper process writes a non-ASCII warning to stderr and JSON to
+// stdout; only the JSON may survive.
+func TestRunCommandKeepsStdoutPure(t *testing.T) {
+	t.Setenv("WC_HOOK_COMMAND_HELPER", "1")
+	output, err := runCommand(context.Background(), os.Args[0], "-test.run=TestHookCommandHelperProcess", "--")
+	if err != nil {
+		t.Fatalf("runCommand: %v", err)
+	}
+	if got := strings.TrimSpace(string(output)); got != `{"status":"applied"}` {
+		t.Fatalf("output = %q, want only the JSON document", got)
+	}
+}
+
+func TestHookCommandHelperProcess(t *testing.T) {
+	if os.Getenv("WC_HOOK_COMMAND_HELPER") != "1" {
+		return
+	}
+	fmt.Fprint(os.Stderr, "warning: “a non-ASCII diagnostic”\n")
+	fmt.Print(`{"status":"applied"}`)
+	os.Exit(0)
 }

@@ -6,7 +6,7 @@ import { useConversationStore, getSessionConversationEvents, getSessionSlice, re
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
-import { clampMessagesFont, useMessagesTypographyPinch } from "../hooks/useMessagesTypographyPinch";
+import { clampReaderFontSize, useTypographyPinch } from "@vrooli/file-viewer";
 import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
@@ -14,7 +14,7 @@ import { writeText } from "../lib/clipboard";
 import { executeConversationControl, getAllConversationEvents, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { looksLikeFileReference } from "../lib/fileReferences";
+import { looksLikeFileReference } from "@vrooli/file-viewer/file-references";
 import { rewriteLocalhostUrlForProxy } from "../lib/terminalFileLinks";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
@@ -22,7 +22,7 @@ import MessageJumpList, { type MessageExportSelection, type SearchOptionsState }
 import MessageExportDrawer from "./MessageExportDrawer";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
-import type { PreviewSourceContext } from "../api/filePreview";
+import type { PreviewSourceContext } from "@vrooli/file-viewer";
 import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
 import { groupSuggestionsByRule } from "../lib/captureRules";
 import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
@@ -145,9 +145,9 @@ export default function MessagesPane({
   // faster than the sentence can be read.
   const liveInterrupted = useLiveStreamNotice();
 
-  const messagesFontSize = clampMessagesFont(useMessagesViewStore((state) => state.messagesFontSize));
+  const messagesFontSize = clampReaderFontSize(useMessagesViewStore((state) => state.messagesFontSize));
   const setMessagesFontSize = useCallback((size: number) => {
-    useMessagesViewStore.getState().setMessagesFontSize(clampMessagesFont(size));
+    useMessagesViewStore.getState().setMessagesFontSize(clampReaderFontSize(size));
   }, []);
 
   // --- Copy ---
@@ -218,7 +218,7 @@ export default function MessagesPane({
 
   // --- Scroll: follow + prepend anchor ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const listPinchSize = useMessagesTypographyPinch(scrollContainerRef, messagesFontSize, setMessagesFontSize);
+  const listPinchSize = useTypographyPinch(scrollContainerRef, messagesFontSize, setMessagesFontSize);
   const renderedMessagesFontSize = listPinchSize ?? messagesFontSize;
   // Where this session's list was left (persisted across reloads). An archive
   // hit being revealed takes precedence over it.

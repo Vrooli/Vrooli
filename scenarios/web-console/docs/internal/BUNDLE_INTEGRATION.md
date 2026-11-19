@@ -10,10 +10,12 @@ experience, not the commercial policy.
 
 - `packages/credentialclient-go` provides the shared `vrooli/lpbs-account`
   subscription identity and credential authority integration.
-- `packages/entitlementclient-go` verifies the LPBS lease and supplies the
-  server-signed feature and limit snapshot.
-- `packages/monetization-go` provides shared session, journey, and durable
-  usage primitives. Web Console does not maintain a private commercial policy.
+- [`entitlementclient-go`](../../../../packages/entitlementclient-go/README.md)
+  verifies the signed lease. Web Console persists the token and authority JWKS
+  in private app data and re-verifies the cached lease after restart.
+- [`monetization-go`](../../../../packages/monetization-go/README.md) provides
+  shared session and usage primitives; Web Console defines no commercial
+  policy or private HTTP usage adapter.
 - `api/internal/ai/provider.go` uses Ollama first, then the user's credential-
   authority OpenRouter key, then `ai-gateway` for subscription-backed
   inference. Only the last path carries the consumer token to the trusted
@@ -41,6 +43,8 @@ Web Console may surface a degraded state, but it never grants wallet headroom.
 ## Integration rules
 
 1. Keep one `MonetizationAccount`/shared credential identity per machine.
+   Explicit sign-out deletes the refresh credential and clears the local lease
+   cache before acknowledging success.
 2. Read features and limits from the signed lease; do not add local plan or
    credit tables.
 3. Keep `ai_credits` ownership in the service that performs the billable work;

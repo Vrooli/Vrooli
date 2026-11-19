@@ -47,6 +47,7 @@ describe("api/notifications", () => {
               {
                 source_scenario: "web-console",
                 category: "session.input_needed",
+                scope_key: "",
                 enabled: true,
                 min_urgency: "normal",
                 channel_override: "",
@@ -83,6 +84,7 @@ describe("api/notifications", () => {
       const pref = (slug: string) => ({
         source_scenario: slug,
         category: "",
+        scope_key: "",
         enabled: true,
         min_urgency: "normal",
         channel_override: "",
@@ -106,14 +108,12 @@ describe("api/notifications", () => {
       expect(catalog.preferences.map((p) => p.source_scenario)).toEqual(["my-app"]);
     });
 
-    it("defaults missing or non-array sources/preferences to empty arrays", async () => {
+    it("rejects malformed catalog data instead of treating it as empty", async () => {
       fetchSpy.mockResolvedValueOnce(
         new Response(JSON.stringify({ sources: "nope" }), { status: 200 }),
       );
 
-      const catalog = await fetchNotificationCatalog();
-
-      expect(catalog).toEqual({ sources: [], preferences: [] });
+      await expect(fetchNotificationCatalog()).rejects.toThrow("invalid catalog");
     });
 
     it("raises NotificationsUnavailableError when the facade returns 503", async () => {
@@ -137,13 +137,14 @@ describe("api/notifications", () => {
     const preference: NotificationPreference = {
       source_scenario: "git-control-tower",
       category: "review",
+      scope_key: "",
       enabled: false,
       min_urgency: "high",
       channel_override: "",
     };
 
     it("PUTs the preference as JSON with auth + content-type headers", async () => {
-      fetchSpy.mockResolvedValueOnce(new Response("", { status: 200 }));
+      fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(preference), { status: 200 }));
 
       await updateNotificationPreference(preference);
 

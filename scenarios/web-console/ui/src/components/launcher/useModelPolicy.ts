@@ -105,8 +105,18 @@ export function useModelPolicy(open: boolean, agentId: string | null, targetId: 
   const stale = Boolean(policy && (policy.catalogStale || policy.policyStatus === "stale"));
   // Ready and stale both offer the list: a stale list warns rather than hides (LD-2).
   const selectable = Boolean(policy && (policy.policyStatus === "ready" || policy.policyStatus === "stale") && choices.length > 0 && policy.modelFlag);
-  const defaultChoice = choices.find((choice) => choice.isDefault && choice.source !== VROOLI_CREDITS_SOURCE)
+  const declaredDefault = choices.find((choice) => choice.isDefault && choice.source !== VROOLI_CREDITS_SOURCE)
     ?? choices.find((choice) => choice.source !== VROOLI_CREDITS_SOURCE);
+  // A stale list pauses metered choices. When the declared default is one of
+  // them, leaving it selected dead-ends the launch: the button is disabled even
+  // though the agent itself is ready, and only a metered option was offered.
+  // Fall back to the first choice that can still launch so the operator can
+  // start the agent; an operator's own saved choice is never replaced.
+  const defaultBlocked = Boolean(declaredDefault && choiceBlocked(declaredDefault, stale));
+  const fallbackChoice = defaultBlocked
+    ? choices.find((choice) => choice.source !== VROOLI_CREDITS_SOURCE && !choiceBlocked(choice, stale))
+    : undefined;
+  const defaultChoice = fallbackChoice ?? declaredDefault;
   const explicitChoice = explicitKey === null ? undefined : choices.find((choice) => roleChoiceKey(choice) === explicitKey);
   const selectedChoice = explicitChoice ?? defaultChoice;
   const sources = useMemo(() => [...new Set(choices.map((choice) => choice.source))], [choices]);
@@ -115,7 +125,7 @@ export function useModelPolicy(open: boolean, agentId: string | null, targetId: 
   return {
     identity: requestIdentity,
     policy, loading, failed, choices, sources, sourceChoices, stale, selectable,
-    defaultChoice, explicitChoice, selectedChoice,
+    declaredDefault, defaultBlocked, fallbackChoice, defaultChoice, explicitChoice, selectedChoice,
     choose,
     usesVrooliCredits: open && !policy?.commandLiteral && selectedChoice?.source === VROOLI_CREDITS_SOURCE,
     /** The command runs as written, so no setting here can reach it. */

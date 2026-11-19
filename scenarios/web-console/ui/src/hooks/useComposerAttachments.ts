@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComposerAttachment } from "../components/composer/AttachmentPreviewTray";
 import { attachmentKind, attachmentKindForName, isBlockedAttachment } from "../lib/attachments";
-import { basename } from "../lib/paths";
+import { basename } from "@vrooli/file-viewer/paths";
 
 /** A file or folder picked on the host, attached by its absolute path. */
 export interface HostAttachmentPick {

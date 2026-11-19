@@ -30,8 +30,7 @@ func TestCodexTailer_SurvivesPastStaleTimeoutWhileFileRecentlyModified(t *testin
 	defer f.Close()
 
 	ct := NewCodexTailer(srv)
-	// 200ms stale timeout so the test doesn't sleep for minutes.
-	ct.staleTimeout = 200 * time.Millisecond
+	ct.engine = newCodexTranscriptEngine(ct, 200*time.Millisecond)
 	ct.scanForNewFiles()
 	t.Cleanup(ct.Stop)
 

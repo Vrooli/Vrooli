@@ -501,7 +501,7 @@ describe("settings", () => {
   it("bounds transient model lookup retries and then reports the fallback", async () => {
     models.getRoleModelChoices.mockRejectedValue(new TypeError("Failed to fetch"));
     drawer();
-    await waitFor(() => { expect(screen.getByRole("status")).toHaveTextContent(strings.terminalLauncher.modelChoicesUnknown); }, { timeout: 2000 });
+    await waitFor(() => { expect(within(screen.getByTestId("launcher-settings")).getByRole("status")).toHaveTextContent(strings.terminalLauncher.modelChoicesUnknown); }, { timeout: 2000 });
     expect(models.getRoleModelChoices).toHaveBeenCalledTimes(3);
     expect(onLaunch).not.toHaveBeenCalled();
   });
@@ -517,7 +517,7 @@ describe("settings", () => {
     expect(onLaunch).not.toHaveBeenCalled();
 
     await act(async () => { rejectPolicy(new Error("policy unavailable")); await Promise.resolve(); });
-    const fallbackNotice = await screen.findByRole("status");
+    const fallbackNotice = await within(screen.getByTestId("launcher-settings")).findByRole("status");
     expect(fallbackNotice).toHaveTextContent(strings.terminalLauncher.modelChoicesUnknown);
     expect(launchButton()).not.toBeDisabled();
     if (launchWith === "click") fireEvent.click(launchButton());
@@ -660,6 +660,40 @@ describe("settings", () => {
     expect(option("paid")?.disabled).toBe(true);
     openDetail("claude");
     expect(await screen.findByTestId("launcher-model-list-detail")).toHaveTextContent("Refresh this list.");
+  });
+
+  it("uses a launchable choice when the stale default is metered, and names the paused default", async () => {
+    const paused = choice("paid-default", { source: "router", sourceLabel: "Router", isDefault: true, metered: true });
+    const flat = choice("flat", { source: "flat", sourceLabel: "Flat", launchModel: "flat/flat" });
+    models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, policyStatus: "stale", choices: [paused, flat] }) as never);
+    drawer();
+    await screen.findByTestId("launcher-model-choice");
+    expect(launchButton()).not.toBeDisabled();
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("flat");
+    expect(screen.getByTestId("launcher-model-fallback")).toHaveTextContent(strings.terminalLauncher.modelDefaultPaused);
+    expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["flat", "flat"]));
+    fireEvent.click(launchButton());
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ agentLaunch: expect.objectContaining({ model: "flat", provider: "flat" }) }));
+  });
+
+  it("explains a disabled launch when every model is paused", async () => {
+    const paused = choice("paid", { isDefault: true, metered: true });
+    models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, policyStatus: "stale", choices: [paused] }) as never);
+    drawer();
+    await screen.findByTestId("launcher-model-selection");
+    expect(launchButton()).toBeDisabled();
+    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.launchModelBlocked);
+  });
+
+  it("keeps a saved metered choice blocked instead of silently replacing it", async () => {
+    const paid = choice("paid", { source: "router", sourceLabel: "Router", metered: true });
+    const flat = choice("flat", { source: "flat", sourceLabel: "Flat" });
+    window.localStorage.setItem("wc-launcher-model-choice:local:claude", JSON.stringify(["router", "paid"]));
+    models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, policyStatus: "stale", choices: [paid, flat] }) as never);
+    drawer();
+    await waitFor(() => { expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["router", "paid"])); });
+    expect(launchButton()).toBeDisabled();
+    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.launchModelBlocked);
   });
 
   it.each([[false, "router"], [true, "router"], [false, "vrooli-credits"], [true, "vrooli-credits"]] as const)("keeps a stale saved metered choice visible and blocks click and Enter (desktop=%s, source=%s)", async (desktop, source) => {

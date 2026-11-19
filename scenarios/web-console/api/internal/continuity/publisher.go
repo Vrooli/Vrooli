@@ -12,8 +12,11 @@ import (
 )
 
 // AgentManagerPublisher adapts the durable Web Console publication queue to
-// Agent Manager's existing transcript-import authority. It never sends raw
-// event text or a Web Console catalog; Agent Manager reads the native
+// Agent Manager's existing transcript-import authority. It keeps the two
+// owner-only REST procedures POST /api/v1/runs/import-transcript and
+// POST /api/v1/runs/external/tombstone because the Agent Manager proto has no
+// RPC for path-based transcript import or source tombstones. It never sends
+// raw event text or a Web Console catalog; Agent Manager reads the native
 // transcript through its own parser and owns the resulting search projection.
 type AgentManagerPublisher struct {
 	BaseURL string

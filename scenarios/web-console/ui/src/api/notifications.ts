@@ -17,56 +17,24 @@
 // headers the shared Connect transport attaches in ./client.
 
 import { buildApiUrl } from "@vrooli/api-base";
+import {
+  createNotificationPreferencesClient,
+  notificationPreferenceControlGroups,
+  NotificationPreferencesError,
+  NotificationPreferencesUnavailableError,
+  type NotificationCatalog,
+  type NotificationCategory,
+  type NotificationPreference,
+  type NotificationSource,
+} from "@vrooli/api-base/notifications";
 import { deviceIdentity } from "../lib/deviceIdentity";
 import { getAccessToken } from "../lib/auth";
 import { API_BASE, makeApiError } from "./client";
 
 export type NotificationUrgency = string;
-
-export interface NotificationCategory {
-  category: string;
-  display_name: string;
-  description: string;
-  declared: boolean;
-  default_enabled: boolean;
-  default_min_urgency: NotificationUrgency;
-}
-
-export interface NotificationSource {
-  source_scenario: string;
-  display_name: string;
-  icon: string;
-  deep_link_base: string;
-  declared: boolean;
-  categories: NotificationCategory[];
-}
-
-export interface NotificationPreference {
-  source_scenario: string;
-  category: string;
-  enabled: boolean;
-  min_urgency: NotificationUrgency;
-  channel_override: string;
-  /**
-   * Optional per-instance scope. When set, this preference overrides on/off
-   * (and min-urgency) for a single entity — e.g. one web-console session —
-   * leaving the global category preference untouched. Global rows omit it.
-   */
-  scope_key?: string;
-}
-
-export interface NotificationCatalog {
-  sources: NotificationSource[];
-  preferences: NotificationPreference[];
-}
-
-/** Raised when notification-hub is unreachable (facade returns 503). */
-export class NotificationsUnavailableError extends Error {
-  constructor(message = "Notifications service is unavailable") {
-    super(message);
-    this.name = "NotificationsUnavailableError";
-  }
-}
+export type { NotificationCatalog, NotificationCategory, NotificationPreference, NotificationSource };
+export { NotificationPreferencesError, NotificationPreferencesUnavailableError as NotificationsUnavailableError };
+export { notificationPreferenceControlGroups };
 
 async function authedFetch(path: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
@@ -81,7 +49,7 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
     cache: "no-store",
   });
   if (res.status === 503) {
-    throw new NotificationsUnavailableError();
+    throw new NotificationPreferencesUnavailableError();
   }
   if (!res.ok) {
     throw makeApiError("notifications_error", `notifications request failed (${String(res.status)})`, res.status);
@@ -91,6 +59,11 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
 
 /** This scenario's own source slug — the source web-console sessions notify under. */
 export const WEB_CONSOLE_SOURCE = "web-console";
+
+/** Transport keeps Web Console's owner token and device identity at this boundary. */
+export const notificationPreferencesClient = createNotificationPreferencesClient((path, init) =>
+  authedFetch(`/api/v1${path}`, init),
+);
 
 /**
  * Fetch the notification catalog scoped to ONE producing scenario. A scenario's
@@ -105,17 +78,7 @@ export const WEB_CONSOLE_SOURCE = "web-console";
 export async function fetchNotificationCatalog(
   sourceScenario: string = WEB_CONSOLE_SOURCE,
 ): Promise<NotificationCatalog> {
-  const res = await authedFetch(
-    `/api/v1/notifications/catalog?source_scenario=${encodeURIComponent(sourceScenario)}`,
-    { method: "GET" },
-  );
-  const body = (await res.json()) as Partial<NotificationCatalog>;
-  const sources = Array.isArray(body.sources) ? body.sources : [];
-  const preferences = Array.isArray(body.preferences) ? body.preferences : [];
-  return {
-    sources: sources.filter((s) => s.source_scenario === sourceScenario),
-    preferences: preferences.filter((p) => p.source_scenario === sourceScenario),
-  };
+  return notificationPreferencesClient.getCatalog([sourceScenario]);
 }
 
 /**
@@ -137,11 +100,7 @@ export async function fetchScenarioLink(scenario: string): Promise<string> {
 export async function updateNotificationPreference(
   pref: NotificationPreference,
 ): Promise<void> {
-  await authedFetch("/api/v1/notifications/preferences", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pref),
-  });
+  await notificationPreferencesClient.updatePreference(pref);
 }
 
 /**

@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "web-console-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    }
+  ]
+}

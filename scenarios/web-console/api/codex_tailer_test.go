@@ -158,7 +158,6 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	defer srv.hub.Unsubscribe(sub)
 
 	ct := NewCodexTailer(srv)
-	ct.staleTimeout = 2 * time.Second
 
 	now := time.Now()
 	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
@@ -224,7 +223,6 @@ func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing
 	}
 
 	ct := NewCodexTailer(srv)
-	ct.staleTimeout = 2 * time.Second
 	ct.scanForNewFiles()
 	t.Cleanup(ct.Stop)
 
@@ -273,7 +271,6 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	}
 
 	ct := NewCodexTailer(srv)
-	ct.staleTimeout = 2 * time.Second
 	ct.scanForNewFiles()
 	t.Cleanup(ct.Stop)
 

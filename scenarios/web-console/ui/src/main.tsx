@@ -9,10 +9,12 @@ import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { FileViewerHost } from "./components/FileViewerHost";
 import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { registerVoiceTransport } from "./audio-integration";
 import "./i18n";
 import "./design-tokens.css";
+import "@vrooli/file-viewer/styles.css";
 import "./styles.css";
 import { onProfilerRender } from "./lib/profiler";
 
@@ -54,9 +56,11 @@ ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SpatialNavProvider controller={spatialNav}>
       <QueryClientProvider client={queryClient}>
-        <React.Profiler id="App" onRender={onProfilerRender}>
-          <App />
-        </React.Profiler>
+        <FileViewerHost>
+          <React.Profiler id="App" onRender={onProfilerRender}>
+            <App />
+          </React.Profiler>
+        </FileViewerHost>
       </QueryClientProvider>
     </SpatialNavProvider>
   </React.StrictMode>

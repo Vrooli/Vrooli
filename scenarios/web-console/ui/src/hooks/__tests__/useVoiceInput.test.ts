@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { apiBaseMock } from "../../test-utils";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
+import { registerVoiceTransport as registerBrowserVoiceTransport, type VoiceStreamHandlers } from "@vrooli/audio-capture-browser";
 import {
   _resetMicOwnershipForTesting,
   getActiveMicLeases,
@@ -80,7 +80,10 @@ describe("useVoiceInput", () => {
     originalFetch = globalThis.fetch;
     vi.clearAllMocks();
     registerBrowserVoiceTransport({
-      buildStreamUrl: () => "ws://voice.test/stream",
+      openStream: (_start, handlers) => {
+        queueMicrotask(() => handlers.onReady());
+        return { isOpen: () => true, sendAudio: () => {}, end: () => {}, close: () => {} };
+      },
       transcribeRetained: async () => "",
     });
     removeSpeechRecognition();
@@ -308,59 +311,7 @@ describe("voice capture lifecycle ownership", () => {
   });
 });
 
-class FinalFrameWebSocket {
-  static OPEN = 1;
-  static CLOSED = 3;
-  static CONNECTING = 0;
-  static instances: FinalFrameWebSocket[] = [];
-  readyState = FinalFrameWebSocket.CONNECTING;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  onmessage: ((e: { data: string }) => void) | null = null;
-  send = vi.fn<(data: unknown) => void>();
-  close = vi.fn(() => {
-    this.readyState = FinalFrameWebSocket.CLOSED;
-    this.onclose?.();
-  });
-
-  constructor(readonly url: string) {
-    FinalFrameWebSocket.instances.push(this);
-    queueMicrotask(() => {
-      this.readyState = FinalFrameWebSocket.OPEN;
-      this.onopen?.();
-    });
-  }
-
-  emitFinal(text: string): void {
-    this.onmessage?.({ data: JSON.stringify({ type: "final", text }) });
-  }
-}
-
-class FinalFrameMediaRecorder {
-  static instances: FinalFrameMediaRecorder[] = [];
-  static isTypeSupported = vi.fn(() => true);
-  state: "inactive" | "recording" = "inactive";
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  start = vi.fn(() => {
-    this.state = "recording";
-  });
-  stop = vi.fn(() => {
-    this.state = "inactive";
-    this.onstop?.();
-  });
-
-  constructor(_stream: MediaStream, _opts?: unknown) {
-    FinalFrameMediaRecorder.instances.push(this);
-  }
-}
-
-function installFinalFrameBrowserFakes() {
-  FinalFrameWebSocket.instances = [];
-  FinalFrameMediaRecorder.instances = [];
-  (globalThis as unknown as { WebSocket: typeof FinalFrameWebSocket }).WebSocket = FinalFrameWebSocket;
-  (globalThis as unknown as { MediaRecorder: typeof FinalFrameMediaRecorder }).MediaRecorder = FinalFrameMediaRecorder;
+function installConnectBrowserFakes() {
   const tracks: Array<MediaStreamTrack & { stop: ReturnType<typeof vi.fn> }> = [];
   const getUserMedia = vi.fn(async () => {
     const track = {
@@ -409,7 +360,21 @@ describe("voice capture lifecycle server-final wedge", () => {
 
   it("does not accept a premature server final as a successful turn", async () => {
     mockCapabilities(true);
-    const browser = installFinalFrameBrowserFakes();
+    const browser = installConnectBrowserFakes();
+    const streams: VoiceStreamHandlers[] = [];
+    registerBrowserVoiceTransport({
+      openStream: (_start, handlers) => {
+        streams.push(handlers);
+        queueMicrotask(() => handlers.onReady());
+        return {
+          isOpen: () => true,
+          sendAudio: () => {},
+          end: () => {},
+          close: () => handlers.onClose(),
+        };
+      },
+      transcribeRetained: async () => "",
+    });
     const onTranscript = vi.fn();
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
@@ -420,12 +385,12 @@ describe("voice capture lifecycle server-final wedge", () => {
     await act(async () => { await result.current.startRecording(); });
     await waitFor(() => expect(result.current.voiceState).toBe("recording"));
     expect(getActiveMicLeases()).toHaveLength(1);
-    const firstSocket = FinalFrameWebSocket.instances.at(-1);
-    if (!firstSocket) throw new Error("expected streaming socket fake to exist");
+    const firstStream = streams.at(-1);
+    if (!firstStream) throw new Error("expected Connect stream fake to exist");
     expect(browser.tracks[0]?.readyState).toBe("live");
 
     await act(async () => {
-      firstSocket.emitFinal("server finished");
+      firstStream.onEvent({ type: "final", text: "server finished" });
       await Promise.resolve();
     });
 

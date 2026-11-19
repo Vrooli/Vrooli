@@ -58,6 +58,9 @@ type OpenCodeWatcher struct {
 
 	reconcileInterval time.Duration
 	reconnectBackoff  time.Duration
+	// major is the OpenCode generation this capture server speaks. Zero means
+	// unknown (the historical single-server test/fallback path).
+	major int
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -112,8 +115,10 @@ func (w *OpenCodeWatcher) run() {
 	w.mu.Unlock()
 
 	// Re-establish claims for already-attributed panes so a restart reconciles
-	// (idempotently, via the persisted cursor) instead of orphaning them.
-	w.loadExistingClaims()
+	// (idempotently, via the persisted cursor) instead of orphaning them. Only
+	// adopt sessions this server can actually serve: a V1 capture must not poll
+	// a V2 session (or the reverse) and turn every reconcile into a 404.
+	w.loadExistingClaimsForClient(client)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -211,6 +216,36 @@ func (w *OpenCodeWatcher) loadExistingClaims() {
 	}
 }
 
+// loadExistingClaimsForClient seeds claims only for sessions the selected
+// server can serve. A host with both majors has one claim set per capture; the
+// metadata itself is shared, so the probe is what keeps the majors separate.
+func (w *OpenCodeWatcher) loadExistingClaimsForClient(client opencode.Client) {
+	if w.server == nil || w.server.sessionStore == nil || client == nil {
+		return
+	}
+	metas, err := w.server.sessionStore.List(context.Background())
+	if err != nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, m := range metas {
+		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID == "" {
+			continue
+		}
+		if w.major > 0 && providerMajor(m.ProviderVersion) != 0 && providerMajor(m.ProviderVersion) != w.major {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := client.SessionMessages(ctx, m.AgentSessionID)
+		cancel()
+		if err != nil {
+			continue
+		}
+		w.claimed[m.AgentSessionID] = m.ID
+	}
+}
+
 func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Client) {
 	sessions, err := w.listCandidateSessions(ctx, client)
 	if err != nil {
@@ -275,12 +310,18 @@ func (w *OpenCodeWatcher) listCandidateSessions(ctx context.Context, client open
 // paneIsLive keeps dead catalog rows from widening attribution ambiguity. A
 // manager that has not been wired (older test/embedding) keeps the metadata as
 // the only evidence.
-func (w *OpenCodeWatcher) paneIsLive(sessionID string) bool {
+func (w *OpenCodeWatcher) paneIsLive(meta sessionstore.Metadata) bool {
 	if w.server == nil || w.server.sessions == nil {
 		return true
 	}
-	_, ok := w.server.sessions.Get(sessionID)
-	return ok
+	if _, ok := w.server.sessions.Get(meta.ID); ok {
+		return true
+	}
+	// A restarted API may not have reattached every tmux pane yet. The durable
+	// row is still authoritative while the pane is not archived, orphaned or
+	// detached; otherwise the messages view stays empty until someone clicks
+	// the pane again.
+	return meta.ArchivedAt.IsZero() && meta.OrphanedAt.IsZero()
 }
 
 // opencodePaneDirectories returns the distinct cwds of opencode panes that are
@@ -297,7 +338,7 @@ func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string 
 	seen := make(map[string]bool)
 	var directories []string
 	for _, m := range metas {
-		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !m.ArchivedAt.IsZero() || !w.paneIsLive(m.ID) {
+		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !m.ArchivedAt.IsZero() || !w.paneIsLive(m) {
 			continue
 		}
 		directory := m.CWD
@@ -341,7 +382,10 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 
 	var panes []sessionstore.Metadata
 	for _, m := range metas {
-		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && m.ArchivedAt.IsZero() && !claimedPane[m.ID] && w.paneIsLive(m.ID) {
+		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && m.ArchivedAt.IsZero() && !claimedPane[m.ID] && w.paneIsLive(m) {
+			if w.major > 0 && providerMajor(m.ProviderVersion) != 0 && providerMajor(m.ProviderVersion) != w.major {
+				continue // a pane explicitly recorded on another major
+			}
 			if strings.TrimSpace(m.CWD) == "" {
 				m.CWD = config.ResolveWorkingDir()
 			}
@@ -388,7 +432,10 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 func opencodeSessionMatchesPane(s opencode.Session, p sessionstore.Metadata) bool {
 	if !p.Created.IsZero() {
 		earliest := p.Created.Add(-opencodeAttributionSlack).UnixMilli()
-		if s.Time.Created < earliest {
+		// A pane can resume an older session (for example after a Web Console
+		// restart), so creation alone is too strict. A session updated after the
+		// pane is evidence that this pane is using it now.
+		if s.Time.Created < earliest && s.Time.Updated < earliest {
 			return false
 		}
 	}
@@ -473,6 +520,27 @@ func (w *OpenCodeWatcher) nativeClient() opencode.Client {
 	return w.client
 }
 
+// ownsNativeSession reports whether this capture loop has attributed the
+// native session. It lets a multi-version supervisor route control calls to
+// the server that actually holds the session.
+func (w *OpenCodeWatcher) ownsNativeSession(nativeSessionID string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, ok := w.claimed[nativeSessionID]
+	return ok
+}
+
+func (w *OpenCodeWatcher) ownsWebSession(webSessionID string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, id := range w.claimed {
+		if id == webSessionID {
+			return true
+		}
+	}
+	return false
+}
+
 // reconcileNativeSession is the postcondition handoff used by native control:
 // only a verified owner result may trigger projection reconciliation.
 func (w *OpenCodeWatcher) reconcileNativeSession(ctx context.Context, nativeSessionID, webSessionID string) {
@@ -545,6 +613,13 @@ func spawnOpenCodeServe() (opencode.Server, func(), error) {
 	if err != nil {
 		return opencode.Server{}, nil, err
 	}
+	return spawnOpenCodeServeForPath(path)
+}
+
+// spawnOpenCodeServeForPath starts the capture server for one concrete
+// OpenCode binary. A host can have both a V1 and a V2 managed copy; each
+// captures only the sessions its own database/API exposes.
+func spawnOpenCodeServeForPath(path string) (opencode.Server, func(), error) {
 	launchContext, err := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{
 		WorkingDir:  config.ResolveWorkingDir(),
 		Environment: os.Environ(),

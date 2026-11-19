@@ -1,51 +1,62 @@
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import {
+  DirectorySort,
+  EntryType,
+  ListDirectoryResponseSchema,
+  PreviewKind,
+  ResolveResponseSchema,
+} from "@vrooli/proto-types/web-console/v1/file_preview/file_preview_pb";
 import { renderWithProviders as render } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import HostFilePicker from "./HostFilePicker";
-import { listDirectory, resolveFilePreview, type DirectoryEntry, type PreviewListing, type PreviewModel } from "../../api/filePreview";
+import { filePreviewClient } from "../../api/filePreview";
 import { useConversationStore } from "../../stores/useConversationStore";
 import type { ConversationEvent } from "../../api/conversation";
 
-vi.mock("../../api/filePreview", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/filePreview")>();
-  return { ...actual, resolveFilePreview: vi.fn(), listDirectory: vi.fn() };
-});
-
+// The picker is exercised against the real session source: only the Connect
+// client underneath it is scripted, so decoding and the viewer contract run.
 const CWD = "/home/me/Vrooli/scenarios/web-console";
 
-function model(resolvedPath: string, kind: PreviewModel["kind"], extra: Partial<PreviewModel> = {}): PreviewModel {
-  return {
+type Kind = "directory" | "markdown" | "image" | "text";
+const KIND: Record<Kind, PreviewKind> = { directory: PreviewKind.DIRECTORY, markdown: PreviewKind.MARKDOWN, image: PreviewKind.IMAGE, text: PreviewKind.TEXT };
+
+function model(resolvedPath: string, kind: Kind, extra: Omit<MessageInitShape<typeof ResolveResponseSchema>, "$typeName"> = {}) {
+  return create(ResolveResponseSchema, {
     previewId: `pv:${resolvedPath}`, inputPath: resolvedPath, resolvedPath, basename: resolvedPath.split("/").at(-1) ?? "",
-    resolutionBasis: "absolute", kind, mimeType: "", sizeBytes: 10, canPreview: true, canDownload: true, supportsRange: false,
-    textContentAvailable: false, listingAvailable: kind === "directory", blobUrl: "", blobHref: "", expiresMs: Date.now() + 60_000,
-    warnings: [], candidates: [], searchBases: [], ...extra,
+    previewKind: KIND[kind], sizeBytes: 10n, canPreview: true, canDownload: true,
+    listingAvailable: kind === "directory", expiresUnixNano: BigInt(Date.now() + 60_000) * 1_000_000n, ...extra,
+  });
+}
+
+function entry(name: string, entryType: "file" | "directory", sizeBytes = 0) {
+  return {
+    name, entryType: entryType === "directory" ? EntryType.DIRECTORY : EntryType.FILE,
+    previewKind: entryType === "directory" ? PreviewKind.DIRECTORY : PreviewKind.MARKDOWN,
+    sizeBytes: BigInt(sizeBytes), canPreview: true, childCount: -1n,
   };
 }
 
-function entry(name: string, entryType: DirectoryEntry["entryType"], sizeBytes = 0): DirectoryEntry {
-  return { name, entryType, kind: entryType === "directory" ? "directory" : "markdown", sizeBytes, mtimeMs: 0, canPreview: true, symlinkTarget: "", symlinkBroken: false, mode: "", childCount: null };
+function listing(resolvedPath: string, entries: ReturnType<typeof entry>[]) {
+  return create(ListDirectoryResponseSchema, { resolvedPath, parentPath: "/home/me/Vrooli/scenarios", entries, totalEntries: entries.length, effectiveSort: DirectorySort.DIRS_FIRST_NAME });
 }
 
-function listing(resolvedPath: string, entries: DirectoryEntry[]): PreviewListing {
-  return { resolvedPath, parentPath: "/home/me/Vrooli/scenarios", entries, totalEntries: entries.length, truncated: false, nextPageToken: "", effectiveSort: "dirs_first_name", sort: "dirs_first_name", showHidden: false, warnings: [] };
-}
-
-const resolveMock = vi.mocked(resolveFilePreview);
-const listMock = vi.mocked(listDirectory);
+const resolveMock = vi.spyOn(filePreviewClient, "resolve");
+const listMock = vi.spyOn(filePreviewClient, "listDirectory");
 
 beforeEach(() => {
   // The executor turns a fixture throw into a rejection, as the real client does.
-  resolveMock.mockImplementation((_session, path) => new Promise((resolve) => { resolve(resolveFixture(path)); }));
-  listMock.mockImplementation((_session, previewId) => Promise.resolve(previewId === `pv:${CWD}`
+  resolveMock.mockImplementation((request) => new Promise((resolve) => { resolve(resolveFixture(request.path ?? "")); }));
+  listMock.mockImplementation((request) => Promise.resolve(request.previewId === `pv:${CWD}`
     ? listing(CWD, [entry("docs", "directory"), entry("PRD.md", "file", 18_000), entry("README.md", "file", 6_000), entry("shot.png", "file", 4_000)])
     : listing(`${CWD}/docs`, [entry("PLAN.md", "file", 900)])));
 });
 
-function resolveFixture(path: string): PreviewModel {
+function resolveFixture(path: string) {
   // "." matches both the session cwd and the project root.
   if (path === ".") return model("", "directory", { candidates: [
-    { resolvedPath: "/home/me/Vrooli", resolutionBasis: "project_root", kind: "directory", canPreview: true, basename: "Vrooli" },
-    { resolvedPath: CWD, resolutionBasis: "session_cwd", kind: "directory", canPreview: true, basename: "web-console" },
+    { resolvedPath: "/home/me/Vrooli", resolutionBasis: "project_root", previewKind: PreviewKind.DIRECTORY, canPreview: true, basename: "Vrooli" },
+    { resolvedPath: CWD, resolutionBasis: "session_cwd", previewKind: PreviewKind.DIRECTORY, canPreview: true, basename: "web-console" },
   ] });
   if (path === CWD || path === `${CWD}/docs`) return model(path, "directory");
   if (path === "docs/PLAN.md") return model(`${CWD}/docs/PLAN.md`, "markdown");
@@ -71,7 +82,7 @@ describe("HostFilePicker", () => {
   it("opens in the session's working folder, not the project root", async () => {
     render(<HostFilePicker open sessionId="s1" onClose={vi.fn()} onAttach={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByTestId("directory-entry")).toHaveLength(4));
-    expect(resolveMock).toHaveBeenCalledWith("s1", CWD, undefined);
+    expect(resolveMock).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "s1", path: CWD }), expect.anything());
   });
 
   it("toggles files instead of opening them, selects folders by checkbox, and attaches by absolute path", async () => {
@@ -84,7 +95,7 @@ describe("HostFilePicker", () => {
     fireEvent.click(row("PRD.md"));
     expect(row("PRD.md").getAttribute("aria-checked")).toBe("true");
     // Tapping a file never leaves the picker.
-    expect(resolveMock).not.toHaveBeenCalledWith("s1", `${CWD}/PRD.md`, undefined);
+    expect(resolveMock).not.toHaveBeenCalledWith(expect.objectContaining({ path: `${CWD}/PRD.md` }), expect.anything());
 
     const docsRow = row("docs").closest("li");
     if (!docsRow) throw new Error("no docs li");

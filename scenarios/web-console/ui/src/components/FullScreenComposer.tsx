@@ -447,8 +447,8 @@ export default function FullScreenComposer({
               onRemove={onRemoveAttachment}
               removeAriaLabel={t(strings.composer.removeAttachmentAriaLabel)}
               viewAriaLabel={(name) => t(strings.composer.viewAttachmentAriaLabel, { name })}
-              previewTitle={t(strings.messagesFileViewer.imagePreview)}
-              closePreviewLabel={t(strings.messagesFileViewer.closeAriaLabel)}
+              previewTitle={t(strings.composer.attachmentPreviewTitle)}
+              closePreviewLabel={t(strings.composer.attachmentPreviewClose)}
               hostBadgeLabel={t(strings.composer.hostAttachmentBadge)}
             />
           </div>

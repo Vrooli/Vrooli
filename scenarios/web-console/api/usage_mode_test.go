@@ -108,7 +108,7 @@ func TestUsageModeStartShowsModelEndsAndFullPowerIsOnePerLaunch(t *testing.T) {
 		t.Fatalf("modes = %+v", got.Modes)
 	}
 	codex := usageModeAgentFor(t, got, "codex")
-	if codex.Model != "gpt-6-luna" || codex.UsualModel != "gpt-6.1-sol" || codex.FullPowerArgs != "-m gpt-6.1-sol" {
+	if codex.Model != "gpt-6-luna" || codex.UsualModel != "gpt-6.2-sol" || codex.FullPowerArgs != "-m gpt-6.2-sol" {
 		t.Fatalf("codex = %+v", codex)
 	}
 	// Managed Codex fills an empty model from the mode but never overrides one.

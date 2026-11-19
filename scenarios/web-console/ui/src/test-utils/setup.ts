@@ -5,16 +5,20 @@ import { i18n } from "../i18n";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { I18nextProvider } from "react-i18next";
 import { createElement } from "react";
+import { FileViewerHost } from "../components/FileViewerHost";
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 
-configureTestProviders((children) => createElement(I18nextProvider, { i18n }, children));
+configureTestProviders((children) => createElement(I18nextProvider, { i18n }, createElement(FileViewerHost, null, children)));
 
 // The shared voice hook requires a registered transport even in tests that
 // exercise only state transitions or rejection handling. Individual suites
 // may replace this with a more specific fixture; the common default prevents
 // unrelated tests from failing during provider construction.
 registerBrowserVoiceTransport({
-  buildStreamUrl: () => "ws://test.invalid/voice",
+  openStream: (_start, handlers) => {
+    queueMicrotask(() => handlers.onReady());
+    return { isOpen: () => true, sendAudio: () => {}, end: () => {}, close: () => {} };
+  },
   transcribeRetained: async () => "",
 });
 

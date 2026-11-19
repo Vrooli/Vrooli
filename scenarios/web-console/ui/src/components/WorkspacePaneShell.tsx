@@ -13,7 +13,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
 import TerminalHeader from "./TerminalHeader";
 import MessagesPane from "./MessagesPane";
-import type { PreviewSourceContext } from "../api/filePreview";
+import type { PreviewSourceContext } from "@vrooli/file-viewer";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 
 interface WorkspacePaneShellProps {

@@ -10,7 +10,8 @@ vi.mock("../hooks/useConversationSession", () => ({
   loadOlderConversationPage: vi.fn().mockResolvedValue(false),
   loadConversationPageContaining: vi.fn().mockResolvedValue(false),
 }));
-vi.mock("../components/markdown", () => ({ MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div> }));
+vi.mock("@vrooli/file-viewer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vrooli/file-viewer")>()), MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div> }));
 vi.mock("../hooks/useHandoffSuggestions", () => ({
   useHandoffSuggestions: () => ({ forEvent: () => [], dismiss: vi.fn() }),
 }));

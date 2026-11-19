@@ -103,33 +103,6 @@ describe("strategyPreferenceLabel", () => {
   });
 });
 
-describe("buildVoiceStreamWsUrl", () => {
-  afterEach(() => {
-    globalThis.history.replaceState({}, "", initialLocation);
-    vi.resetModules();
-  });
-
-  it("forwards an explicitly armed page fault through the same-origin proxy", async () => {
-    globalThis.history.replaceState({}, "", "/?stt_test_mode=1&stt_test_fault=suppress_processed_ack");
-    const { buildVoiceStreamWsUrl } = await import("./voice");
-
-    const url = new URL(buildVoiceStreamWsUrl("en", "session-1", "resume-1"));
-    expect(url.searchParams.get("test_mode")).toBe("1");
-    expect(url.searchParams.get("test_fault")).toBe("suppress_processed_ack");
-    expect(url.searchParams.get("protocol_version")).toBe("2");
-    expect(url.searchParams.get("session_id")).toBe("session-1");
-  });
-
-  it("does not forward a fault unless page test mode is explicitly armed", async () => {
-    globalThis.history.replaceState({}, "", "/?stt_test_fault=suppress_processed_ack");
-    const { buildVoiceStreamWsUrl } = await import("./voice");
-
-    const url = new URL(buildVoiceStreamWsUrl());
-    expect(url.searchParams.has("test_mode")).toBe(false);
-    expect(url.searchParams.has("test_fault")).toBe(false);
-  });
-});
-
 describe("getVoiceStreamConfig", () => {
   beforeEach(() => {
     getMock.mockReset();

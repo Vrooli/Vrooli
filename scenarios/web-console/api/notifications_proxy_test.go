@@ -8,7 +8,94 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/identity"
+	"web-console/internal/sessionstore"
 )
+
+type notificationScopeStore struct {
+	sessionstore.Store
+	owners map[string]string
+}
+
+func (s notificationScopeStore) Get(_ context.Context, id string) (sessionstore.Metadata, error) {
+	owner, ok := s.owners[id]
+	if !ok {
+		return sessionstore.Metadata{}, errors.New("not found")
+	}
+	return sessionstore.Metadata{ID: id, Owner: owner}, nil
+}
+
+func notificationOwnerRequest(req *http.Request, owner string) *http.Request {
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: owner, Verified: true, Source: identity.SourcePersonalLocal, ExpiresAt: time.Now().Add(time.Hour)}
+	return req.WithContext(identity.WithPrincipal(req.Context(), p))
+}
+
+func TestNotificationsProxyRejectsExpiredOwnerForScopedWrite(t *testing.T) {
+	called := false
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { called = true }))
+	defer upstream.Close()
+	store := notificationScopeStore{owners: map[string]string{"mine": "operator"}}
+	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil }, store)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", strings.NewReader(`{"category":"session.input_needed","scope_key":"mine","enabled":false}`))
+	expired := identity.Principal{Kind: identity.ActorHuman, Subject: "operator", Verified: true, Source: identity.SourcePersonalLocal, ExpiresAt: time.Now().Add(-time.Minute)}
+	req = req.WithContext(identity.WithPrincipal(req.Context(), expired))
+	rec := httptest.NewRecorder()
+	proxy.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden || called {
+		t.Fatalf("status=%d called=%t body=%q", rec.Code, called, rec.Body.String())
+	}
+}
+
+func TestNotificationsProxyScopedWritesRequireOwnedSession(t *testing.T) {
+	for _, tc := range []struct {
+		name, scope, wantOwner string
+		status                 int
+	}{
+		{"owned", "mine", "operator", http.StatusOK},
+		{"cross-owner", "theirs", "someone-else", http.StatusForbidden},
+		{"nonexistent", "missing", "", http.StatusForbidden},
+		{"whitespace-scope", "   ", "", http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true; w.WriteHeader(http.StatusOK) }))
+			defer upstream.Close()
+			store := notificationScopeStore{owners: map[string]string{"mine": "operator", "theirs": "someone-else"}}
+			proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil }, store)
+			req := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", strings.NewReader(`{"source_scenario":"web-console","category":"session.input_needed","scope_key":"`+tc.scope+`","owner":"operator","enabled":false}`))
+			req = notificationOwnerRequest(req, "operator")
+			rec := httptest.NewRecorder()
+			proxy.ServeHTTP(rec, req)
+			if rec.Code != tc.status || called != (tc.status == http.StatusOK) {
+				t.Fatalf("status=%d called=%t body=%q", rec.Code, called, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestNotificationsProxyFiltersScopedReadsBySessionOwner(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"preferences":[{"source_scenario":"web-console","scope_key":"","category":"global"},{"source_scenario":"web-console","scope_key":"mine","category":"mine"},{"source_scenario":"web-console","scope_key":"theirs","category":"theirs"},{"source_scenario":"web-console","scope_key":"missing","category":"missing"}]}`)
+	}))
+	defer upstream.Close()
+	store := notificationScopeStore{owners: map[string]string{"mine": "operator", "theirs": "someone-else"}}
+	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil }, store)
+	req := notificationOwnerRequest(httptest.NewRequest(http.MethodGet, "/api/v1/notifications/preferences", nil), "operator")
+	rec := httptest.NewRecorder()
+	proxy.ServeHTTP(rec, req)
+	for _, want := range []string{`"category":"global"`, `"category":"mine"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("missing %s in %s", want, rec.Body.String())
+		}
+	}
+	for _, forbidden := range []string{`"category":"theirs"`, `"category":"missing"`} {
+		if strings.Contains(rec.Body.String(), forbidden) {
+			t.Fatalf("leaked %s in %s", forbidden, rec.Body.String())
+		}
+	}
+}
 
 func TestNotificationsProxyForwardsCatalogGET(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,22 +115,26 @@ func TestNotificationsProxyForwardsCatalogGET(t *testing.T) {
 	}
 }
 
-// The catalog's source_scenario filter is what scopes Web Console's settings
-// page to its own categories; the facade must carry it to the hub untouched.
-func TestNotificationsProxyForwardsCatalogSourceFilter(t *testing.T) {
-	var gotSource string
+// A caller cannot widen Web Console's source-scoped settings view by changing
+// the query parameter sent to the facade.
+func TestNotificationsProxyPinsSettingsReadSourceFilter(t *testing.T) {
+	var gotSources []string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotSource = r.URL.Query().Get("source_scenario")
+		gotSources = r.URL.Query()["source_scenario"]
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"sources":[],"preferences":[]}`)
 	}))
 	defer upstream.Close()
 	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil })
-	record := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/catalog?source_scenario=web-console", nil)
-	proxy.ServeHTTP(record, request)
-	if record.Code != http.StatusOK || gotSource != "web-console" {
-		t.Fatalf("status=%d forwarded source_scenario=%q", record.Code, gotSource)
+	for _, path := range []string{
+		"/api/v1/notifications/catalog?source_scenario=nutrition-planner&source_scenario=other",
+		"/api/v1/notifications/preferences?source_scenario=nutrition-planner",
+	} {
+		record := httptest.NewRecorder()
+		proxy.ServeHTTP(record, httptest.NewRequest(http.MethodGet, path, nil))
+		if record.Code != http.StatusOK || len(gotSources) != 1 || gotSources[0] != "web-console" {
+			t.Fatalf("path=%q status=%d forwarded source_scenario=%v", path, record.Code, gotSources)
+		}
 	}
 }
 
@@ -56,7 +147,7 @@ func TestNotificationsProxyForwardsPUTBodyAndAuthorization(t *testing.T) {
 			t.Fatalf("authorization=%q", r.Header.Get("Authorization"))
 		}
 		body, _ := io.ReadAll(r.Body)
-		if !strings.Contains(string(body), `"source_scenario":"nutrition-planner"`) {
+		if !strings.Contains(string(body), `"source_scenario":"web-console"`) {
 			t.Fatalf("body=%q", body)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -66,12 +157,26 @@ func TestNotificationsProxyForwardsPUTBodyAndAuthorization(t *testing.T) {
 	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil })
 	record := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences",
-		strings.NewReader(`{"source_scenario":"nutrition-planner","category":"meals","enabled":true}`))
+		strings.NewReader(`{"source_scenario":"web-console","category":"sessions","enabled":true}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer owner-token")
 	proxy.ServeHTTP(record, request)
 	if record.Code != http.StatusOK || !strings.Contains(record.Body.String(), "ok") {
 		t.Fatalf("status=%d body=%q", record.Code, record.Body.String())
+	}
+}
+
+func TestNotificationsProxyRejectsCrossSourcePreferenceWrite(t *testing.T) {
+	called := false
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+	defer upstream.Close()
+	proxy := newNotificationsProxy(func(context.Context) (string, error) { return upstream.URL, nil })
+	record := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences",
+		strings.NewReader(`{"source_scenario":"nutrition-planner","category":"meals","enabled":true}`))
+	proxy.ServeHTTP(record, request)
+	if record.Code != http.StatusForbidden || called {
+		t.Fatalf("status=%d upstream_called=%t body=%q", record.Code, called, record.Body.String())
 	}
 }
 

@@ -201,9 +201,10 @@ describe("Connect client wrappers", () => {
     vi.spyOn(filePreview.filePreviewClient, "resolve").mockResolvedValue({ previewId: "p", inputPath: "x", resolvedPath: "/x", basename: "x", hasLine: true, line: 4, resolutionBasis: "path", previewKind: PreviewKind.MARKDOWN, mimeType: "text/markdown", sizeBytes: 3n, canPreview: true, canDownload: true, supportsRange: false, textContentAvailable: true, listingAvailable: false, blobUrl: "/blob", expiresUnixNano: 2_000_000_000n, warnings: [], candidates: [], searchBases: [], unresolved: false } as never);
     vi.spyOn(filePreview.filePreviewClient, "listDirectory").mockResolvedValue({ resolvedPath: "/x", parentPath: "/", entries: [{ name: "a", entryType: EntryType.FILE, previewKind: PreviewKind.TEXT, sizeBytes: 2n, mtimeUnixNano: 3_000_000n, canPreview: true, symlinkTarget: "", symlinkBroken: false, mode: "644", childCount: -1n }], totalEntries: 1, truncated: false, nextPageToken: "", effectiveSort: 1, warnings: [] } as never);
     vi.spyOn(filePreview.filePreviewClient, "getTextContent").mockResolvedValue({ resolvedPath: "/x", previewKind: PreviewKind.TEXT, mimeType: "text/plain", content: "hi", truncated: false, hasLine: false, line: 0 } as never);
-    await expect(filePreview.resolveFilePreview("s", "x", "cli")).resolves.toMatchObject({ kind: "markdown", line: 4, blobHref: expect.stringContaining("/blob"), runtimeHref: expect.stringContaining("/runtime/") });
-    await expect(filePreview.listDirectory("s", "p", { sort: "name", showHidden: false })).resolves.toMatchObject({ entries: [{ entryType: "file", kind: "text", childCount: null }] });
-    await expect(filePreview.getFilePreviewText("s", "p")).resolves.toEqual({ resolvedPath: "/x", kind: "text", mimeType: "text/plain", content: "hi", truncated: false, line: undefined });
+    const source = filePreview.createSessionPreviewSource("s");
+    await expect(source.resolve("x", { context: "cli" })).resolves.toMatchObject({ outcome: "resolved", model: { kind: "markdown", line: 4, blobHref: expect.stringContaining("/blob"), runtimeHref: expect.stringContaining("/runtime/") } });
+    await expect(source.listDirectory({ previewId: "p" } as never, { sort: "name", showHidden: false })).resolves.toMatchObject({ entries: [{ entryType: "file", kind: "text", childCount: null }] });
+    await expect(source.readText({ previewId: "p" } as never)).resolves.toEqual({ resolvedPath: "/x", kind: "text", mimeType: "text/plain", content: "hi", truncated: false, line: undefined });
   });
 
   it("covers empty and unknown decoder branches for capabilities, targets, and previews", async () => {
@@ -227,9 +228,10 @@ describe("Connect client wrappers", () => {
 
     expect(filePreview.previewBlobHref("blob")).toMatch(/\/blob$/);
     vi.spyOn(filePreview.filePreviewClient, "resolve").mockResolvedValue({ previewId: "p", inputPath: "x", resolvedPath: "/x", basename: "x", hasLine: false, line: 0, resolutionBasis: "", previewKind: 999, mimeType: "", sizeBytes: 0n, canPreview: false, canDownload: false, supportsRange: false, textContentAvailable: false, listingAvailable: false, blobUrl: "", expiresUnixNano: 0n, warnings: undefined, candidates: [], searchBases: [], unresolved: false } as never);
-    await expect(filePreview.resolveFilePreview("s", "x")).resolves.toMatchObject({ kind: "unsupported", line: undefined, blobHref: "", warnings: [] });
+    const emptySource = filePreview.createSessionPreviewSource("s");
+    await expect(emptySource.resolve("x")).resolves.toMatchObject({ outcome: "resolved", model: { kind: "unsupported", line: undefined, blobHref: "" } });
     vi.spyOn(filePreview.filePreviewClient, "listDirectory").mockResolvedValue({ resolvedPath: "/", parentPath: "", entries: [{ name: "unknown", entryType: 999, previewKind: 0, sizeBytes: 0n, mtimeUnixNano: 0n, canPreview: false, symlinkTarget: "", symlinkBroken: false, mode: "", childCount: 0n }], totalEntries: 1, truncated: true, nextPageToken: "next", effectiveSort: 999, warnings: undefined } as never);
-    await expect(filePreview.listDirectory("s", "p", { sort: "mtime_desc", showHidden: true })).resolves.toMatchObject({ effectiveSort: "dirs_first_name", entries: [{ entryType: "other", kind: null, childCount: 0 }], warnings: [] });
+    await expect(emptySource.listDirectory({ previewId: "p" } as never, { sort: "mtime_desc", showHidden: true })).resolves.toMatchObject({ effectiveSort: "dirs_first_name", entries: [{ entryType: "other", kind: null, childCount: 0 }], warnings: [] });
   });
 
   it("sets every workspace update presence bit and fails closed on missing responses", async () => {

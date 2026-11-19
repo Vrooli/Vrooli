@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 	internalai "web-console/internal/ai"
 )
@@ -44,7 +45,9 @@ var ErrProviderUnavailable = errors.New("ai provider unavailable")
 var ErrUnknownProvider = errors.New("unknown provider")
 
 func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[aiv1.GenerateRequest]) (*connect.Response[aiv1.GenerateResponse], error) {
-	ctx = internalai.WithConsumerToken(ctx, req.Header().Get("Authorization"))
+	ctx = internalai.WithConsumerToken(ctx, consumerAuthorization(ctx, req.Header().Get("Authorization")))
+	ctx = internalai.WithPrivacyConsentGrant(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"), req.Header().Get("X-Vrooli-AI-Consent-Source"))
+	ctx = internalai.WithRootOperationID(ctx, req.Header().Get("X-Idempotency-Key"))
 	prompt := strings.TrimSpace(req.Msg.GetPrompt())
 	if prompt == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
@@ -63,7 +66,9 @@ func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[aiv1
 }
 
 func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.SuggestRequest]) (*connect.Response[aiv1.SuggestResponse], error) {
-	ctx = internalai.WithConsumerToken(ctx, req.Header().Get("Authorization"))
+	ctx = internalai.WithConsumerToken(ctx, consumerAuthorization(ctx, req.Header().Get("Authorization")))
+	ctx = internalai.WithPrivacyConsentGrant(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"), req.Header().Get("X-Vrooli-AI-Consent-Source"))
+	ctx = internalai.WithRootOperationID(ctx, req.Header().Get("X-Idempotency-Key"))
 	prompt := strings.TrimSpace(req.Msg.GetPrompt())
 	if prompt == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
@@ -79,6 +84,13 @@ func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.
 		return nil, connect.NewError(connect.CodeUnavailable, ErrProviderUnavailable)
 	}
 	return connect.NewResponse(&aiv1.SuggestResponse{Commands: commands, Provider: provider}), nil
+}
+
+func consumerAuthorization(ctx context.Context, fallback string) string {
+	if token := monetization.AccessTokenFromContext(ctx); token != "" {
+		return "Bearer " + token
+	}
+	return fallback
 }
 
 func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[aiv1.GetConfigRequest]) (*connect.Response[aiv1.GetConfigResponse], error) {

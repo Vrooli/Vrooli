@@ -176,11 +176,6 @@ func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequ
 	return lifecycleSuccess(req, waitResult), nil
 }
 
-func (s LifecycleActionService) scenarioDef(capabilityID string) (Def, bool) {
-	def, ok := s.definition(capabilityID)
-	return def, ok && def.DependencyKind == DependencyScenario
-}
-
 func (s LifecycleActionService) definition(capabilityID string) (Def, bool) {
 	for _, def := range s.Defs {
 		if def.ID == capabilityID {

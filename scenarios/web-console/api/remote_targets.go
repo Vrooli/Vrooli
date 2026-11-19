@@ -272,17 +272,3 @@ func (s *Server) remoteTargets() []targetConnection {
 	return configuredRemoteTargets()
 }
 
-func ownerAuthorization(value string) string {
-	value = strings.TrimSpace(value)
-	if hasExplicitAuthScheme(value, "LocalSession") || hasExplicitAuthScheme(value, "Bearer") {
-		return value
-	}
-	return "Bearer " + value
-}
-
-func websocketScheme(scheme string) string {
-	if scheme == "https" {
-		return "wss"
-	}
-	return "ws"
-}

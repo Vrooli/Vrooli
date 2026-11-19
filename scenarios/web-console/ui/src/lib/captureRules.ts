@@ -11,8 +11,8 @@
 
 import type { ConversationEvent } from "../api/conversation";
 import type { HandoffRuleDTO } from "../api/handoffrules";
-import { matchProseFilePaths } from "./fileReferences";
-import { isWindowsPath } from "./paths";
+import { matchProseFilePaths } from "@vrooli/file-viewer/file-references";
+import { isWindowsPath } from "@vrooli/file-viewer/paths";
 
 /**
  * How far back a scan looks.

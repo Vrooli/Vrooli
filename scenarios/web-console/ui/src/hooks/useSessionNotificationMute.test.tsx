@@ -8,7 +8,7 @@ import { useSessionNotificationMute } from "./useSessionNotificationMute";
 
 const mocks = vi.hoisted(() => ({
   fetchNotificationCatalog: vi.fn(),
-  setSessionNotificationMuted: vi.fn(),
+  updateNotificationPreference: vi.fn(),
 }));
 
 vi.mock("../api/notifications", async (importOriginal) => {
@@ -16,7 +16,10 @@ vi.mock("../api/notifications", async (importOriginal) => {
   return {
     ...actual,
     fetchNotificationCatalog: mocks.fetchNotificationCatalog,
-    setSessionNotificationMuted: mocks.setSessionNotificationMuted,
+    notificationPreferencesClient: {
+      getCatalog: mocks.fetchNotificationCatalog,
+      updatePreference: mocks.updateNotificationPreference,
+    },
   };
 });
 
@@ -55,14 +58,14 @@ describe("useSessionNotificationMute", () => {
 
   it("is not muted without an override and toggles to muted", async () => {
     mocks.fetchNotificationCatalog.mockResolvedValue({ sources: [], preferences: [] });
-    mocks.setSessionNotificationMuted.mockResolvedValue(undefined);
+    mocks.updateNotificationPreference.mockResolvedValue({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: false, min_urgency: "", channel_override: "" });
     const { result } = renderHook(() => useSessionNotificationMute("sess-1"), {
       wrapper: wrapper(),
     });
     await waitFor(() => expect(result.current.muted).toBe(false));
     result.current.toggle();
     await waitFor(() =>
-      expect(mocks.setSessionNotificationMuted).toHaveBeenCalledWith("sess-1", true),
+      expect(mocks.updateNotificationPreference).toHaveBeenCalledWith(expect.objectContaining({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: false })),
     );
   });
 

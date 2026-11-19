@@ -570,15 +570,17 @@ HTTP hooks, conversation reads, search, ranges and cursor writes retain the requ
 
 **Invariants**: directory traversal is impossible because resolution happens before id issuance; the blob route binds id↔session; a swapped file is never served under a stale id.
 
-### File Preview Renderer Registry Seam (UI)
-**File**: `ui/src/components/file-preview/` (controller, renderers, registry)
-**Purpose**: Keep `MessagesFileViewer` a thin shell — a normalized `PreviewModel` state machine feeding a kind-keyed renderer table — so new preview kinds are additive, not new special-cases.
+### File Preview Source Seam (UI)
+**File**: `packages/file-viewer/src/source/types.ts` (contract), `ui/src/api/filePreview.ts` (Web Console's source)
+**Purpose**: The shared viewer (`@vrooli/file-viewer`) never talks to a server or a session. It talks to a `PreviewSource`: resolve a path to a `ResolveOutcome` (`resolved` / `ambiguous` / `unresolved`), read text, list a directory, optionally open archives and make thumbnails. Web Console implements it over the session-bound Connect `FilePreviewService`; Notification Hub implements it over the attachments of a decision. A source declares `capabilities` and the viewer hides what it does not declare.
 
 | Component | Surface |
 |-----------|---------|
-| `useFilePreviewController(sessionId)` | Owns the `idle → resolving → loadingText → ready \| unsupported \| error` state machine; request-id guarded; the only seam surfaces (MessagesPane, future) call to open a path. |
-| `renderers` registry (`renderers/index.ts`) | `Record<PreviewKind, PreviewRenderer>` — one component per kind; `rendererForKind` falls back to the unsupported renderer. |
-| `previewBlobHref` / `format.ts` | Pure helpers (blob URL join, `formatBytes`, `parseDelimited` CSV/TSV parser) split out for fast-refresh + unit tests. |
+| `createSessionPreviewSource(sessionId)` / `sessionPreviewSource` | Decodes the proto responses into the viewer's models; scope is the session id, so repinning a pane resets the viewer. `sessionPreviewSource` caches by session so equal sessions share one object (the Markdown renderer compares sources by identity). |
+| `useFilePreviewController(source)` (package) | Owns the `idle → resolving → loadingText → ready \| unsupported \| error` state machine; request-id guarded; the only seam surfaces call to open a path. |
+| `FileViewer` (package) | The shell. Web Console adds its Hand off and Run buttons through `renderHeaderActions` (`ui/src/components/file-preview/ViewerActions.tsx`). |
+| `renderers` registry (package) | `Record<PreviewKind, PreviewRenderer>` — one lazily loaded component per kind; `rendererForKind` falls back to the unsupported renderer. |
+| `FileViewerHost` (`ui/src/components/FileViewerHost.tsx`) | Connects the viewer to the app: locale (i18next `cimode` becomes the viewer's `keys` pseudo-locale), the shared reading text size, localhost link rewriting. |
 
 ### API↔CLI Parity Seam (CLI)
 **File**: `cli/parity_test.go`
@@ -755,7 +757,7 @@ HTTP hooks, conversation reads, search, ranges and cursor writes retain the requ
 | Component | Production | Test |
 |-----------|-----------|------|
 | `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
-| `PcmVoiceStreamProvider` | Captures canonical PCM, journals before send, then streams v2 frames to `/api/v1/voice/stream` through the same-origin proxy; reconnect replay is deduplicated by the server session ledger | Mock WebSocket + mic + capture/journal seams |
+| `PcmVoiceStreamProvider` | Captures canonical PCM, journals before sending typed chunks through the same-origin Connect bidi proxy; reconnect replay is deduplicated by the server session ledger | Fake typed stream + mic + capture/journal seams |
 | `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
 | `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
 | Mic ownership registry | Sole production path to `navigator.mediaDevices.getUserMedia()`; providers call `acquireMicStream(owner, constraints)` | Mock `getUserMedia`, assert lease owner/release |
@@ -766,7 +768,6 @@ HTTP hooks, conversation reads, search, ranges and cursor writes retain the requ
 | Stale WS cleanup | `start()` closes previous WS and resets MediaRecorder before creating new ones | Call `start()` twice, verify first WS is closed |
 | Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2x recording duration), capped at 60s | Pure function, table-driven unit tests |
 | Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |
-| Stream chunk interval | `STREAM_CHUNK_INTERVAL_MS = 250` | Constant assertion |
 | `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain -> `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories |
 | `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ~= 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5x/s) | Pure function, table-driven unit tests |
 | `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms) | Direct unit testing with synthetic VadRefs and timestamps |

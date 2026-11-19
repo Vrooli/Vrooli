@@ -1,4 +1,4 @@
-import { MarkdownRenderer } from "../markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/file-viewer";
 
 /** Render hub supplied prose with the same safe, device-friendly links as chat. */
 export default function ApprovalLinkedText({

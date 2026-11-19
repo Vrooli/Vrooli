@@ -224,20 +224,6 @@ func TestJourneyHandlerIsLoopbackOnlyAndMetadataOnly(t *testing.T) {
 	}
 }
 
-func TestResolveLPBSIdentityUsesAuthenticatedAuthorityResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer access-token" {
-			t.Fatalf("authorization = %q", r.Header.Get("Authorization"))
-		}
-		_, _ = w.Write([]byte(`{"user":{"email":"verified@example.com"}}`))
-	}))
-	defer server.Close()
-	identity, err := resolveLPBSIdentity(context.Background(), server.URL, "access-token")
-	if err != nil || identity != "verified@example.com" {
-		t.Fatalf("resolveLPBSIdentity() = %q, %v", identity, err)
-	}
-}
-
 func TestCommercialContextFailsClosedWhenAccountIsUnavailable(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/commercial-context?placement=integrations", nil)
 	request.RemoteAddr = "127.0.0.1:1234"

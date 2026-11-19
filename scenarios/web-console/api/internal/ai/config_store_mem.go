@@ -31,10 +31,18 @@ func NewMemConfigStore() *MemConfigStore {
 				TimeoutSec: 30,
 				MaxRetries: 0,
 			},
+			"vrooli": {
+				Name:       "vrooli",
+				Enabled:    true,
+				Priority:   3,
+				TimeoutSec: 30,
+				MaxRetries: 0,
+			},
 		},
 		health: map[string]*healthTracker{
 			"ollama":     {},
 			"openrouter": {},
+			"vrooli":     {},
 		},
 	}
 }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { READER_FONT_DEFAULT } from "@vrooli/file-viewer";
 import { persist } from "zustand/middleware";
 
 /** Which view a pane shows for its session. */
@@ -29,10 +30,6 @@ export interface OpenReader {
   eventId: string;
   seenThrough: number;
 }
-
-export const MESSAGES_FONT_MIN = 12;
-export const MESSAGES_FONT_MAX = 32;
-export const MESSAGES_FONT_DEFAULT = 16;
 
 interface MessagesViewState {
   viewModes: Record<string, PaneViewMode>;
@@ -74,7 +71,7 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
     (set) => ({
       viewModes: {},
       positions: {},
-      messagesFontSize: MESSAGES_FONT_DEFAULT,
+      messagesFontSize: READER_FONT_DEFAULT,
       readers: {},
       setViewMode: (sessionId, mode) => { set((state) => ({ viewModes: { ...state.viewModes, [sessionId]: mode } })); },
       savePosition: (sessionId, position) => {
@@ -107,7 +104,7 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
         }
         if (version < 2) {
           const legacy = state.readerFontSize;
-          state.messagesFontSize = typeof legacy === "number" ? legacy : MESSAGES_FONT_DEFAULT;
+          state.messagesFontSize = typeof legacy === "number" ? legacy : READER_FONT_DEFAULT;
           delete state.readerFontSize;
         }
         return state as unknown as MessagesViewState & MessagesViewActions;

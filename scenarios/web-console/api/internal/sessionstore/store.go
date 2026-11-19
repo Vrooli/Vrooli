@@ -29,6 +29,33 @@ const (
 	StatusDismissed        Status = "dismissed"
 )
 
+// transitionStatus is the sole policy owner for persisted session status.
+// Same-state events are idempotent; dismissal is terminal and cannot be
+// reopened by a late runtime or recovery callback.
+func transitionStatus(from, to Status) error {
+	if !validStatus(from) || !validStatus(to) {
+		return fmt.Errorf("invalid session status transition %q -> %q", from, to)
+	}
+	if from == to {
+		return nil
+	}
+	switch from {
+	case StatusLive:
+		if to == StatusAwaitingRecovery || to == StatusDismissed {
+			return nil
+		}
+	case StatusAwaitingRecovery:
+		if to == StatusLive || to == StatusDismissed {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid session status transition %q -> %q", from, to)
+}
+
+func validStatus(status Status) bool {
+	return status == StatusLive || status == StatusAwaitingRecovery || status == StatusDismissed
+}
+
 // Agent is the closed set of agent kinds the recovery flow knows how to
 // reattach. New runtimes require an explicit code change; the launch_command
 // string is never parsed at recovery time to derive type.
@@ -184,6 +211,9 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 	}
 	if meta.Status == "" {
 		meta.Status = StatusLive
+	}
+	if !validStatus(meta.Status) {
+		return fmt.Errorf("invalid session status %q", meta.Status)
 	}
 	if meta.AgentType == "" {
 		meta.AgentType = AgentNone
@@ -418,38 +448,60 @@ func (s *SQLStore) SetProvenance(ctx context.Context, id string, origin Origin, 
 }
 
 func (s *SQLStore) MarkOrphaned(ctx context.Context, id string, at time.Time) error {
-	_, err := s.db.ExecContext(ctx, `
-		UPDATE sessions
-		SET status = ?, orphaned_at = ?
-		WHERE id = ? AND archived_at = ''`,
-		string(StatusAwaitingRecovery),
-		at.UTC().Format(time.RFC3339),
-		id,
-	)
-	return err
+	return s.transition(ctx, id, StatusAwaitingRecovery, at, "")
 }
 
 func (s *SQLStore) MarkLive(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, `
-		UPDATE sessions
-		SET status = ?, orphaned_at = ''
-		WHERE id = ?`,
-		string(StatusLive),
-		id,
-	)
-	return err
+	return s.transition(ctx, id, StatusLive, time.Time{}, "")
 }
 
 func (s *SQLStore) MarkDismissed(ctx context.Context, id string, recoveredInto string) error {
-	_, err := s.db.ExecContext(ctx, `
-		UPDATE sessions
-		SET status = ?, recovered_into = ?, archived_at = ''
-		WHERE id = ?`,
-		string(StatusDismissed),
-		recoveredInto,
-		id,
-	)
-	return err
+	return s.transition(ctx, id, StatusDismissed, time.Time{}, recoveredInto)
+}
+
+// transition applies the status graph and persists with compare-and-swap so
+// a concurrent runtime callback cannot overwrite a newer recovery decision.
+func (s *SQLStore) transition(ctx context.Context, id string, target Status, at time.Time, recoveredInto string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var rawStatus, archivedAt string
+	if err := tx.QueryRowContext(ctx, `SELECT status, archived_at FROM sessions WHERE id = ?`, id).Scan(&rawStatus, &archivedAt); err != nil {
+		return fmt.Errorf("load session %s for status transition: %w", id, err)
+	}
+	from := Status(rawStatus)
+	if from == "" {
+		from = StatusLive
+	}
+	if target == StatusAwaitingRecovery && archivedAt != "" {
+		return nil // preserve the existing archived-session recovery no-op
+	}
+	if err := transitionStatus(from, target); err != nil {
+		return err
+	}
+	var result sql.Result
+	if target == StatusAwaitingRecovery {
+		result, err = tx.ExecContext(ctx, `UPDATE sessions SET status = ?, orphaned_at = ? WHERE id = ? AND status = ? AND archived_at = ?`, string(target), at.UTC().Format(time.RFC3339), id, rawStatus, archivedAt)
+	} else if target == StatusLive {
+		result, err = tx.ExecContext(ctx, `UPDATE sessions SET status = ?, orphaned_at = '' WHERE id = ? AND status = ?`, string(target), id, rawStatus)
+	} else if target == StatusDismissed {
+		result, err = tx.ExecContext(ctx, `UPDATE sessions SET status = ?, recovered_into = ?, archived_at = '' WHERE id = ? AND status = ?`, string(target), recoveredInto, id, rawStatus)
+	} else {
+		result, err = tx.ExecContext(ctx, `UPDATE sessions SET status = ? WHERE id = ? AND status = ?`, string(target), id, rawStatus)
+	}
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected != 1 {
+		return fmt.Errorf("session %s status changed during transition", id)
+	}
+	return tx.Commit()
 }
 
 func (s *SQLStore) MarkArchived(ctx context.Context, id string, at time.Time) error {
@@ -601,6 +653,9 @@ func (s *InMemoryStore) Save(_ context.Context, meta Metadata) error {
 	defer s.mu.Unlock()
 	if meta.Status == "" {
 		meta.Status = StatusLive
+	}
+	if !validStatus(meta.Status) {
+		return fmt.Errorf("invalid session status %q", meta.Status)
 	}
 	if meta.AgentType == "" {
 		meta.AgentType = AgentNone
@@ -791,6 +846,9 @@ func (s *InMemoryStore) MarkOrphaned(_ context.Context, id string, at time.Time)
 	if !meta.ArchivedAt.IsZero() {
 		return nil
 	}
+	if err := transitionStatus(meta.Status, StatusAwaitingRecovery); err != nil {
+		return err
+	}
 	meta.Status = StatusAwaitingRecovery
 	meta.OrphanedAt = at
 	s.sessions[id] = meta
@@ -804,6 +862,9 @@ func (s *InMemoryStore) MarkLive(_ context.Context, id string) error {
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
 	}
+	if err := transitionStatus(meta.Status, StatusLive); err != nil {
+		return err
+	}
 	meta.Status = StatusLive
 	meta.OrphanedAt = time.Time{}
 	s.sessions[id] = meta
@@ -816,6 +877,9 @@ func (s *InMemoryStore) MarkDismissed(_ context.Context, id string, recoveredInt
 	meta, ok := s.sessions[id]
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
+	}
+	if err := transitionStatus(meta.Status, StatusDismissed); err != nil {
+		return err
 	}
 	meta.Status = StatusDismissed
 	meta.RecoveredInto = recoveredInto

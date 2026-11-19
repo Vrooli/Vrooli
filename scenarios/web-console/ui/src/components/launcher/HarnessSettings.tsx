@@ -59,7 +59,7 @@ function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, 
   onOpenDetail: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { policy, choices, sources, sourceChoices, explicitChoice, defaultChoice, stale } = model;
+  const { policy, choices, sources, sourceChoices, explicitChoice, declaredDefault, fallbackChoice, defaultChoice, stale } = model;
   const selectable = model.selectable && canChoose && !model.literal;
   const lowered = !model.literal && saveAgent?.model && !explicitChoice && !fullPower ? saveAgent.model : null;
   const usualName = modelLabel(model, saveAgent?.usualModel);
@@ -139,6 +139,11 @@ function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, 
       <Row testId="launcher-model-selection">
         <Field label={t(strings.terminalLauncher.modelChoice)}>{control}</Field>
         {hint && <span className={HINT} role="status">{hint}</span>}
+        {fallbackChoice && !explicitChoice && !model.loading && (
+          <span className={HINT} data-testid="launcher-model-fallback">
+            {t(strings.terminalLauncher.modelDefaultPaused, { model: declaredDefault?.displayName ?? "", fallback: fallbackChoice.displayName })}
+          </span>
+        )}
         {saveAgent?.learnModeId && !saveAgent.model && <span className={HINT} data-testid={`launcher-mode-note-${slugify(card.key)}`}>{t(strings.launcher.usageModeLearnArm)}</span>}
         {lowered && saveAgent && (
           <span className={HINT} data-testid={`launcher-mode-note-${slugify(card.key)}`}>{t(strings.launcher.usageModeLowers, { usual: usualName ?? saveAgent.usualModel, lower: loweredName ?? lowered })}</span>

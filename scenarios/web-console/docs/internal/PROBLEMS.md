@@ -1,5 +1,30 @@
 # Web Console — Known Problems and Risks
 
+## Work ladder — HTML fragments in chat and file links (2026-11-17)
+
+The live file resolver opened the November 17 portfolio report by absolute path.
+Appending a project fragment to that path produced a file-not-found error. The
+scoped W3 repair resolves the HTML filename and applies the fragment inside the
+existing opaque preview. Both encoded file links and ordinary URL fragments
+reach the document through the active session. Chrome confirmed native scrolling
+to an encoded section ID and the hash was available to the document's first script.
+All 657 shared-viewer tests, 56 focused Web Console tests and the shared package
+type check passed. The scenario UI type check also encountered an unrelated
+missing export for `NotificationPreferencesPanel` in the notification settings.
+
+The shell transcript exposed a second W3 defect. At 59–62 columns the detector
+joined the report path to the next prompt. At 75–78 columns it prefixed the
+path with the last word of the command. Terminal links now follow xterm's
+soft-wrap flag, and require a hanging indent or matching shorter block width
+to infer a TUI-drawn wrap. All 34 focused terminal tests passed. With a real
+xterm buffer, selecting every character of the original path and the new
+session-bound report URL produced the intended target at widths 8–180.
+
+Test Genie unit run `20261117-221146-b57d5468` failed in API tests, UI tests
+for notifications, audio, launch and tmux mouse settings, and the UI type check.
+The terminal correction landed after run admission and has the focused xterm
+coverage above.
+
 ## Work ladder — native agent voice implementation (2026-10-21)
 
 - Rung: scoped W3 implementation against the operator-approved research and
@@ -3960,3 +3985,42 @@ artifact_e781165955e2fa6a4f2dced8196f7bc4; SHA-256
   phase failed on unrelated API identity/model/tmux cases and one PCM voice diagnostic test;
   no whole-scenario pass is claimed. Focused approval-renderer validation is recorded in the
   delegation return.
+
+
+### 2026-11-14 — Adopting `@vrooli/file-viewer` needed one raw pnpm run (governed-path gap)
+
+**Status: workaround applied once, with operator approval ("Allow one-time install", relayed by the coordinator).**
+
+**Symptom:** `scenario-dependency-analyzer deps install npm/@vrooli/file-viewer@file:../../../packages/file-viewer --scenario web-console --surface ui --apply` could not adopt the shared package: the closure probe denied it (bounded pnpm closure/registry-metadata budget), and an earlier governed `--apply` into Web Console emptied its `node_modules` because the analyzer's pnpm store (`store/v10`) differs from the lifecycle store (`store/v3`).
+
+**Root cause:** the analyzer's hand-written pnpm resolver simulation has fixed bounds (256 packages, 512 edges, 64 MiB metadata, 512 registry requests) and uses a different store from the lifecycle. QA bugs: `knw-1794618858815944773`, `knw-1794619329121707178`. The analyzer itself is being fixed separately.
+
+**Workaround (what was run, once):**
+- Declared `"@vrooli/file-viewer": "file:../../../packages/file-viewer"` in `ui/package.json` dependencies (hand edit; the package was already recorded with `deps approved approve`).
+- cwd `scenarios/web-console/ui`, started 02:04 UTC: `PNPM_HOME=$HOME/.local/share/pnpm node ~/.cache/node/corepack/v1/pnpm/10.19.0/bin/pnpm.cjs install --ignore-workspace --prefer-offline --config.package-manager-strict=false --config.manage-package-manager-versions=false`
+- pnpm 10.19.0 (corepack cache; the manifest's `packageManager` pnpm 10.34.9 cannot rebuild this lock), global store `~/.local/share/pnpm/store/v3`, lifecycle `--ignore-workspace` install, non-frozen, scripts of dependencies not approved (esbuild, unrs-resolver build scripts stayed ignored).
+- `ui/pnpm-lock.yaml` before/after: +49 lines, 0 removed. One importer entry for `@vrooli/file-viewer`, its `packages:` entry and its `snapshots:` entry (peer context RCL, mermaid 11.13.0, react, react-dom, vite 5.4.21, xlsx tarball); no existing entry changed. pnpm reported `Packages: +8`.
+- The temporary plain copy of the package in `node_modules` was moved by pnpm to `node_modules/.ignored/@vrooli/file-viewer` (untracked, inside `node_modules`); no symlink or alias was created. Direct dependencies now unused by Web Console source (`three`, `pdfjs-dist`, `@sqlite.org/sqlite-wasm`, `@aiden0z/pptx-renderer`, `mammoth`, `jszip`, `fontkit`, `music-metadata`, `dompurify`, `yaml`, `@types/three`) are not yet pruned; that needs a second install run and was not authorised.
+- Validation after: `tsc --noEmit` clean, vitest 3110 pass and 6 fail (the same 6 fail at HEAD: ArchiveDrawer x3, HostFilePicker, PcmVoiceStreamProvider, BannerRegion.damping), `vite build` to a scratch outDir passes.
+
+**Real fix:** the analyzer adopts a shared file: package through the same store and install profile as the lifecycle, with closure sizing from a staged lock resolution; then this entry is deleted.
+
+**Owner:** scenario-dependency-analyzer owner (separate agent); file-viewer agent performed the one-time run.
+
+**Refs:** `packages/file-viewer/README.md` (Consumer setup), `scenarios/scenario-dependency-analyzer/api/internal/installgateway/pnpm_closure.go`, QA bugs `knw-1794618858815944773`, `knw-1794619329121707178`.
+
+## Cleanup History — verified reduction (2026-11-14)
+
+- Consolidated the duplicated Unix/Windows Codex and Grok transcript-directory helpers into `pty_launch_context.go`; deleted the unused session-home wrappers.
+- Removed the unused Codex/Grok adapter `staleTimeout` compatibility fields and assignments. The Codex stale-timeout test now injects its timeout into the engine it exercises.
+- Removed the unused workspace adapter logger field and fallback method.
+- Focused Codex/Grok API tests, workspace adapter tests, and Test Genie structure passed. The full unit phase still fails on unrelated API tests; see the debt delegation return.
+- Tidiness Manager's recommendation endpoint and repeat scan returned unexpected EOF; direct issue inventory and caller searches were used instead.
+
+### 2026-11-14 — Remove remaining unreferenced API helpers
+
+- Rung: scoped W3 code cleanup; no W0–W2 readiness claim.
+- Removed the unused transcript polling forwarding file, remote auth/WebSocket helpers, monetization gate type, and `scenarioDef` wrapper after source-wide caller searches.
+- Net production Go reduction: 40 lines. Deleted identifiers have no remaining Web Console references; shared packages were not changed.
+- `go test . ./internal/capabilities`: capabilities passed; API package failed on existing docs/orphan, model-catalog, session-delete, and tmux tests. Test Genie run `20261114-172044-60e917cb`: structure passed; unit failed in the API workspace on the same unrelated suite failure class.
+- Tidiness Manager recommendation RPC returned SQLite `SQLITE_BUSY`; bug `knw-1794677159476577977` filed. Caller searches and the existing issue inventory were used for selection.

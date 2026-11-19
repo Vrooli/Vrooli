@@ -23,6 +23,8 @@ const usageReadingMaxAge = 6 * time.Hour
 // readAgentUsage never projects local provider readings onto a remote target.
 // Agent Manager's service environment is an estimate of a future shell's
 // credentials, not a verified binding to that shell's account.
+// GET /api/v1/pricing/live-quota is retained as REST because Agent Manager's
+// service proto has no corresponding pricing RPC; it is a read-only projection.
 func (s *Server) readAgentUsage(ctx context.Context, targetID, agentID string) (capsH.AgentUsageResult, error) {
 	targetID, agentID = strings.TrimSpace(targetID), strings.TrimSpace(agentID)
 	if targetID == "" {

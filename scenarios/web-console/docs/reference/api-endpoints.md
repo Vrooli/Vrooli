@@ -66,6 +66,22 @@ retained conversation evidence:
 | `Rollback` | Restores the catalog projection preimage for a manifest without modifying raw evidence. |
 | `Publish` | Drains a bounded durable queue to Agent Manager; failures remain queued for retry and local recovery is independent of the remote service. |
 
+### Agent Manager REST exceptions
+
+Web Console uses Agent Manager's generated Connect service whenever the owner
+has a matching RPC. Three calls remain REST-only because the Agent Manager
+service proto has no corresponding procedures:
+
+| Route | Owner and payload | Reason and evidence |
+|---|---|---|
+| `POST /api/v1/runs/import-transcript` | Agent Manager parses the native transcript at its local path and owns the resulting imported run. Web Console sends the path, runner type, label, and stable `web-console` source identity. | Path-based transcript import has no RPC. `AgentManagerPublisher.Publish` and `TestAgentManagerPublisherSendsStableProvenance` cover the payload and route. |
+| `POST /api/v1/runs/external/tombstone` | Agent Manager removes or converges the imported run identified by `sourceHarness` and `sourceSessionId`; a missing record is already deleted. | Idempotent source tombstone has no RPC. `AgentManagerPublisher.Tombstone` and `TestAgentManagerPublisherTreatsMissingTombstoneAsConverged` cover the route and retry behavior. |
+| `GET /api/v1/pricing/live-quota?agent=<id>` | Agent Manager returns a bounded local live-quota reading. Web Console accepts only `match=likely`, fresh, valid windows and never presents the service reading as a verified remote-target account. | The owner has no matching Connect procedure. `fetchLocalAgentUsage`, `TestAgentUsageResolvesDesktopFeaturePerCall`, and `TestLocalAgentUsageKeepsEvidenceAndNeverClaimsVerified` cover the exact feature-resolved route, target restriction, freshness, and response validation. |
+
+The first two are locally owned import lifecycle operations, not substitutes
+for typed run creation, lookup, or stop calls. The quota read is a separate
+pricing projection and remains read-only.
+
 **Create provenance, target, and launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance, target selection, working directory, and launch intent alongside the shell/backend fields:
 
 - `origin` (`SessionOrigin`): who opened the session. The taxonomy is `SESSION_ORIGIN_UI` (human-opened browser tab), `SESSION_ORIGIN_PROGRAMMATIC` (agent/CLI caller), and `SESSION_ORIGIN_REMOTE`. `SESSION_ORIGIN_UNSPECIFIED` is **normalized to `SESSION_ORIGIN_PROGRAMMATIC`** on create — every first-party UI client sets `UI` explicitly, so an origin-less create can only have come from a programmatic caller. Persisted to `sessions.origin`.

@@ -110,8 +110,17 @@ func newRegistrar() *registrar {
 
 func runCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, name, args...)
-	output, err := command.CombinedOutput()
+	// Reconcile consumes this output as JSON. CombinedOutput folded any
+	// diagnostic the resource CLI wrote to stderr into the JSON stream, so a
+	// warning containing a non-ASCII character made every hook registration
+	// fail with "invalid character 'â' looking for beginning of value".
+	// Capture stdout alone; stderr is still preserved for the error path.
+	output, err := command.Output()
 	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			output = append(output, exitErr.Stderr...)
+		}
 		return output, fmt.Errorf("%s: %w", name, err)
 	}
 	return output, nil
@@ -228,7 +237,8 @@ func (r *registrar) reconcile(resourceCLI, event, id, command string, timeout in
 		return fmt.Errorf("tts-hook: reconcile %s hook: %w: %s", label, err, strings.TrimSpace(string(output)))
 	}
 	var result reconcileResult
-	if err := json.Unmarshal(output, &result); err != nil {
+	result, err = decodeReconcileResult(output)
+	if err != nil {
 		return fmt.Errorf("tts-hook: decode %s reconciliation: %w", label, err)
 	}
 	switch result.Status {
@@ -240,6 +250,43 @@ func (r *registrar) reconcile(resourceCLI, event, id, command string, timeout in
 		return fmt.Errorf("tts-hook: unexpected %s reconcile result status %q: %s", label, result.Status, result.Reason)
 	}
 	return nil
+}
+
+// decodeReconcileResult accepts a pure JSON document, and tolerates a leading
+// banner on stdout by falling back to the last complete JSON object. The
+// resource CLI contract is to emit one JSON line, but a launcher or runtime
+// notice must not turn a successful reconciliation into a failed lifecycle
+// step.
+func decodeReconcileResult(output []byte) (reconcileResult, error) {
+	var result reconcileResult
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return result, errors.New("resource CLI returned no output")
+	}
+	firstErr := json.Unmarshal([]byte(trimmed), &result)
+	if firstErr == nil {
+		return result, nil
+	}
+	lines := strings.Split(trimmed, "\n")
+	for index := len(lines) - 1; index >= 0; index-- {
+		candidate := strings.TrimSpace(lines[index])
+		if !strings.HasPrefix(candidate, "{") {
+			continue
+		}
+		var parsed reconcileResult
+		if err := json.Unmarshal([]byte(candidate), &parsed); err == nil {
+			return parsed, nil
+		}
+	}
+	return result, fmt.Errorf("%w (output: %s)", firstErr, abbreviatedOutput(trimmed))
+}
+
+func abbreviatedOutput(value string) string {
+	const limit = 200
+	if len(value) <= limit {
+		return value
+	}
+	return value[:limit] + "..."
 }
 
 func (r *registrar) resourceCLI() (string, error) {

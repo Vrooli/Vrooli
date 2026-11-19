@@ -332,7 +332,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     {
       id: "reopen",
       testId: selectedSession.awaiting_recovery ? "archive-reattach" : "archive-reopen",
-      label: GermanContractShowcase ? "Archivierte Sitzung vollständig wiederherstellen" : (selectedSession.awaiting_recovery ? t(strings.recoverableSessions.reattach) : t(strings.archiveDrawer.reopen)),
+      label: GermanContractShowcase ? "Sitzung wiederherstellen" : (selectedSession.awaiting_recovery ? t(strings.recoverableSessions.reattach) : t(strings.archiveDrawer.reopen)),
       primary: true,
       disabled: selectedSession.awaiting_recovery
         ? !recoverableById.get(selectedSession.id)?.recoverable || reopeningId !== null
@@ -341,27 +341,24 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     },
     {
       id: "export",
-      label: GermanContractShowcase ? "Vollständigen Gesprächsverlauf sicher exportieren" : t(strings.archiveDrawer.export),
+      label: GermanContractShowcase ? "Verlauf sicher exportieren" : t(strings.archiveDrawer.export),
       disabled: !selectedIsArchived,
       onSelect: () => void openExport(),
     },
     {
       id: "receipt",
-      label: GermanContractShowcase ? "Dauerhaften Kontinuitätsbeleg anzeigen" : t(strings.archiveDrawer.receipt),
+      label: GermanContractShowcase ? "Beleg anzeigen" : t(strings.archiveDrawer.receipt),
       disabled: receiptLoading,
       onSelect: () => void inspectReceipt(),
     },
     {
       id: "delete",
-      label: GermanContractShowcase ? "Archivierte Sitzung dauerhaft löschen" : t(strings.archiveDrawer.delete),
+      label: GermanContractShowcase ? "Sitzung dauerhaft löschen" : t(strings.archiveDrawer.delete),
       disabled: !selectedIsArchived,
       onSelect: () => setDeleteTarget(selectedSession),
     },
-    {
-      id: "close",
-      label: GermanContractShowcase ? "Sitzungsarchiv schließen und zur vorherigen Ansicht zurückkehren" : t(strings.archiveDrawer.close),
-      onSelect: onClose,
-    },
+    // Closing is not a bar action: the drawer header already carries the
+    // close control (`closeLabel`), and the contract caps the bar at four.
   ] : undefined;
 
   return (

@@ -16,15 +16,21 @@ export const useFilePreviewDeepLinkStore = create<FilePreviewDeepLinkState>((set
   retry: () => { set((state) => ({ retryVersion: state.retryVersion + 1 })); },
 }));
 
+function acceptsDocumentHash(path: string | null): boolean {
+  return path !== null && /^[^#]*\.html?$/i.test(path);
+}
+
 /** Read a `?file=` path without coupling the link to any particular session. */
-export function parseFilePreviewDeepLink(search: string): string | null {
+export function parseFilePreviewDeepLink(search: string, hash = ""): string | null {
   const path = new URLSearchParams(search || "").get("file");
-  return path && path.trim() ? path : null;
+  if (!path?.trim()) return null;
+  return hash && acceptsDocumentHash(path) ? path + hash : path;
 }
 
 /** Consume only the file parameter, retaining approval and unrelated URL state. */
 export function stripFilePreviewDeepLink(href: string): string {
   const url = new URL(href);
+  if (acceptsDocumentHash(url.searchParams.get("file"))) url.hash = "";
   url.searchParams.delete("file");
   return `${url.pathname}${url.search}${url.hash}`;
 }

@@ -98,7 +98,8 @@ describe("library style integration", () => {
   it("mounts the library banner stylesheet with token-derived tone palettes", () => {
     render(<BannerRegion banners={[warning("styled")]} damping={INSTANT_DAMPING} />);
 
-    const sheet = document.querySelector('style[data-rcl-sheet="react-component-library-banner-1.0.13"]');
+    // The sheet's key carries the library's version, which changes with every release.
+    const sheet = document.querySelector('style[data-rcl-sheet^="react-component-library-banner-"]');
     expect(sheet).not.toBeNull();
     const css = sheet?.textContent ?? "";
 

@@ -554,6 +554,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		inputQueue:              make(chan queuedInput, sm.cfg.InputQueueSize),
 		inputStopCh:             make(chan struct{}),
 		exitCh:                  make(chan struct{}),
+		cleanupDone:             make(chan struct{}),
 		emu:                     terminal.New(terminal.Options{Cols: int(cols), Rows: int(rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
@@ -614,6 +615,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	// Auto-remove: when the PTY exits, clean up the session map entry and
 	// any upload temp directory so List()/Get() no longer return a terminated session.
 	go func() {
+		defer close(sess.cleanupDone)
 		<-sess.Done()
 		log.Printf("session %s: process exited (backend=%s)", sess.ID, bid)
 		sm.mu.Lock()

@@ -24,7 +24,10 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'web-console',
-  corsOrigins: '*',
+  // Session file previews render in opaque-origin sandbox frames. Their
+  // module scripts, styles and media are capability URLs (the preview id is
+  // the authorization), so any origin may read them without credentials.
+  publicPaths: [/^\/api\/v1\/sessions\/[^/]+\/file-previews\/[^/]+\/runtime\//],
   wsPathPrefix: '/api/v1',
   wsPathTransform: (path) => path,
   // Terminal localhost links use this same-origin path so secure tunnel

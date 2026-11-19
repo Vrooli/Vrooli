@@ -3,7 +3,7 @@
 // HOST DIFFERENCE: the barrel includes web-console command adapters.
 
 export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceInputState, StartRecordingOpts } from "./types";
-export { WHISPER_FAILED_SENTINEL, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./types";
+export { WHISPER_FAILED_SENTINEL, AUDIO_BITRATE, computeFinalTimeout } from "./types";
 export { createAudioFilterChain } from "./audioUtils";
 export { playRecordingStartCue, playRecordingStopCue, playRecordingFaultCue } from "./audioCues";
 export type { VadState, VadRefs } from "./vad";

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef } from "react";
-import MessagesFileViewer from "../MessagesFileViewer";
-import { useFilePreviewController } from "./useFilePreviewController";
-import type { PreviewSourceContext } from "../../api/filePreview";
-import { ARTIFACT_VIEWER_MIN_WIDTH } from "./artifactViewerLayout";
+import { ARTIFACT_VIEWER_MIN_WIDTH, FileViewer, useFilePreviewController, type PreviewSourceContext, type ViewerActionContext } from "@vrooli/file-viewer";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+
+import { sessionPreviewSource } from "../../api/filePreview";
+import { ViewerActions } from "./ViewerActions";
 
 export interface WorkspaceFilePreviewRequest {
   sessionId: string;
@@ -38,7 +38,8 @@ export default function WorkspaceFilePreview({
   onRun,
 }: WorkspaceFilePreviewProps) {
   const sessionId = request?.sessionId ?? "";
-  const controller = useFilePreviewController(sessionId);
+  const source = useMemo(() => sessionPreviewSource(sessionId), [sessionId]);
+  const controller = useFilePreviewController(source);
   const resizeStart = useRef<{ x: number; width: number } | null>(null);
 
   useEffect(() => {
@@ -67,30 +68,23 @@ export default function WorkspaceFilePreview({
   if (!request) return null;
 
   const viewerProps = {
-    state: controller.state,
- onArchiveFolder: controller.navigateArchiveFolder,
- onArchiveEntry: controller.navigateArchiveEntry,
- onArchiveViewChange: controller.setArchiveView,
-    onHandoff: onHandoff ? (path: string) => { onHandoff(request.sessionId, path); } : undefined,
-    onRun: onRun ? (path: string, text: string) => { onRun(request.sessionId, path, text); } : undefined,
+    source,
+    controller,
     onClose,
-    onReopen: controller.reopen,
-    onRendererError: controller.reportError,
-    onNavigate: controller.navigateTo,
-    onNavigateBack: controller.navigateBack,
-    onLoadMore: controller.loadMore,
-    onListOptionsChange: controller.setListOptions,
-    onChooseCandidate: controller.chooseCandidate,
-    onOpenFoundMatch: controller.openFoundMatch,
-    onCancelSearch: controller.cancelSearch,
-    imageSessionId: sessionId,
+    renderHeaderActions: (context: ViewerActionContext) => (
+      <ViewerActions
+        context={context}
+        onHandoff={onHandoff ? (path: string) => { onHandoff(request.sessionId, path); } : undefined}
+        onRun={onRun ? (path: string, text: string) => { onRun(request.sessionId, path, text); } : undefined}
+      />
+    ),
   };
 
-  if (mobile) return <MessagesFileViewer {...viewerProps} />;
+  if (mobile) return <FileViewer {...viewerProps} />;
 
   return (
     <div className={focusMode ? "absolute inset-0 z-wc-chrome-raised" : "h-full shrink-0"} style={focusMode ? undefined : { width }}>
-      <MessagesFileViewer
+      <FileViewer
         {...viewerProps}
         presentation="dock"
         focusMode={focusMode}

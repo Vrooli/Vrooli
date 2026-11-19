@@ -37,12 +37,13 @@ type fakeOpenCodeClient struct {
 	sessions []opencode.Session
 	messages map[string][]opencode.MessageWithParts
 	// eventsFn, if set, drives the SSE seam; nil blocks until ctx cancel.
-	eventsFn     func(ctx context.Context, onEvent func(opencode.Event)) error
-	listCalls    int
-	listDirs     []string
-	eventCalls   int
-	messageCalls []string
-	replies      []string // "requestID:reply" per ReplyPermission call
+	eventsFn      func(ctx context.Context, onEvent func(opencode.Event)) error
+	messageErrors map[string]error
+	listCalls     int
+	listDirs      []string
+	eventCalls    int
+	messageCalls  []string
+	replies       []string // "requestID:reply" per ReplyPermission call
 
 	// scopeByDirectory makes ListSessions behave like a real managed server:
 	// an empty directory resolves to serverDirectory and only sessions whose
@@ -82,6 +83,9 @@ func (f *fakeOpenCodeClient) SessionMessages(_ context.Context, sessionID string
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.messageCalls = append(f.messageCalls, sessionID)
+	if err := f.messageErrors[sessionID]; err != nil {
+		return nil, err
+	}
 	return append([]opencode.MessageWithParts(nil), f.messages[sessionID]...), nil
 }
 

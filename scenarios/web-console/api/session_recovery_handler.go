@@ -1,9 +1,8 @@
 package main
 
-// copyCodexHome lives in package main because it depends on the per-session
-// CODEX_HOME layout (sessionCodexHome in pty.go). It is injected into the
-// sessions handler's Adapter via the CopyCodexHome field; the recovery copy
-// itself is limited to the rollout subtree.
+// copyCodexHome lives in package main because it copies one per-session
+// Codex rollout subtree. sessionCodexSessionsDir owns its layout; the function
+// is injected into the sessions handler's Adapter via CopyCodexHome.
 
 import (
 	"context"

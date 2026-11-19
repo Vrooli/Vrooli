@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTerminalStub } from "../../test-utils";
 import { appendOutputProbe, stripTerminalResponses, useTerminalSession } from "./useTerminalSession";
 
@@ -150,6 +150,56 @@ describe("reconnect presentation", () => {
     expect(terminal.write).toHaveBeenCalledWith("server-screen");
     expect(terminal.write).not.toHaveBeenCalledWith(expect.stringContaining("Disconnected"));
     expect(terminal.write).not.toHaveBeenCalledWith(expect.stringContaining("Reconnected"));
+    unmount();
+  });
+});
+
+describe("stdout rendering", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("drains a coding-agent output burst across bounded animation frames", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const socket = new SessionSocket();
+    const terminal = createTerminalStub();
+    const { unmount } = renderHook(() => useTerminalSession({
+      sessionId: "streaming-agent-session",
+      terminal: terminal as never,
+      createSocket: () => socket as unknown as WebSocket,
+    }));
+    const message = (payload: Record<string, unknown>) => act(() => {
+      socket.onmessage?.({ data: JSON.stringify(payload) } as MessageEvent<string>);
+    });
+    act(() => {
+      socket.readyState = SessionSocket.OPEN;
+      socket.onopen?.();
+    });
+    message({ type: "session_ready", accepted_through: 0 });
+
+    const burst = "x".repeat(65_535) + "😀\n" + "agent-output-😀\n".repeat(20_000);
+    message({ type: "stdout", data: burst });
+    expect(terminal.write).not.toHaveBeenCalled();
+
+    let drained = "";
+    while (frames.length > 0) {
+      act(() => frames.shift()?.(0));
+      const latestWrite = (terminal.write as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0];
+      if (typeof latestWrite === "string") {
+        expect(latestWrite.length).toBeLessThanOrEqual(64 * 1024);
+        const first = latestWrite.charCodeAt(0);
+        const last = latestWrite.charCodeAt(latestWrite.length - 1);
+        expect(first < 0xdc00 || first > 0xdfff).toBe(true);
+        expect(last < 0xd800 || last > 0xdbff).toBe(true);
+        drained += latestWrite;
+      }
+    }
+
+    expect(drained).toBe(burst);
     unmount();
   });
 });

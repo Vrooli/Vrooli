@@ -348,7 +348,17 @@ func (s *Server) subscriptionSessionModule() *monetization.SessionModule {
 	if s == nil {
 		return monetization.NewSessionModule(nil, webConsoleSubscriptionIdentity, webConsoleSubscriptionField)
 	}
-	return monetization.NewSessionModule(s.credentialClient, webConsoleSubscriptionIdentity, webConsoleSubscriptionField)
+	module := monetization.NewSessionModule(s.credentialClient, webConsoleSubscriptionIdentity, webConsoleSubscriptionField)
+	module.OnDelete = func(context.Context) error {
+		if s.subscriptionResolver != nil {
+			s.subscriptionResolver.Clear()
+		}
+		if s.entitlements != nil {
+			return s.entitlements.Clear()
+		}
+		return nil
+	}
+	return module
 }
 
 // subscriptionAuthorizationURL gives the browser the same LPBS issuer that
@@ -419,7 +429,7 @@ func (s *Server) subscriptionSummaryHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "subscription session is not configured", http.StatusUnauthorized)
 		return
 	}
-	identity, err := resolveLPBSIdentity(r.Context(), s.subscriptionResolver.LPBSBaseURL, access.AccessToken)
+	identity, err := s.subscriptionResolver.ResolveIdentityAt(r.Context(), s.subscriptionResolver.LPBSBaseURL, access.AccessToken)
 	if err != nil {
 		http.Error(w, "subscription identity unavailable", http.StatusServiceUnavailable)
 		return
@@ -429,9 +439,10 @@ func (s *Server) subscriptionSummaryHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "entitlement lease unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	snapshot := monetization.SnapshotFromLease(lease, time.Now().UTC())
 	writeCredentialJSON(w, http.StatusOK, map[string]any{
-		"configured": true, "status": lease.Status, "plan_tier": lease.PlanTier,
-		"credits": lease.Credits, "pending_sync": 0, "not_after": lease.NotAfter,
+		"configured": true, "status": snapshot.Status, "plan_tier": snapshot.Tier,
+		"credits": snapshot.Credits, "not_after": snapshot.ExpiresAt,
 	})
 }
 

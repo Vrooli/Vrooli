@@ -17,6 +17,10 @@ vi.mock("../../api/notifications", async (importOriginal) => {
     ...actual,
     fetchNotificationCatalog: notificationMocks.fetchNotificationCatalog,
     updateNotificationPreference: notificationMocks.updateNotificationPreference,
+    notificationPreferencesClient: {
+      getCatalog: notificationMocks.fetchNotificationCatalog,
+      updatePreference: notificationMocks.updateNotificationPreference,
+    },
     fetchScenarioLink: notificationMocks.fetchScenarioLink,
   };
 });
@@ -83,7 +87,7 @@ describe("NotificationsSection", () => {
     renderWithProviders(<NotificationsSection open />);
 
     await screen.findByTestId("notification-enable-web-console-review");
-    expect(notificationMocks.fetchNotificationCatalog).toHaveBeenCalledWith("web-console");
+      expect(notificationMocks.fetchNotificationCatalog).toHaveBeenCalledWith(["web-console"]);
   });
 
   it("renders each source group and its categories", async () => {
@@ -123,7 +127,7 @@ describe("NotificationsSection", () => {
     notificationMocks.fetchNotificationCatalog.mockResolvedValue({
       ...catalog,
       preferences: [
-        { source_scenario: "web-console", category: "review", enabled: false, min_urgency: "normal", channel_override: "" },
+        { source_scenario: "web-console", category: "review", scope_key: "", enabled: false, min_urgency: "normal", channel_override: "" },
       ],
     });
     renderWithProviders(<NotificationsSection open />);

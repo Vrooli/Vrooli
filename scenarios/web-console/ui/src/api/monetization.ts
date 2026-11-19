@@ -1,3 +1,7 @@
+import { AuthClient } from "@vrooli/react-component-library/AuthClient/1.0.0";
+import { getAccessToken } from "../lib/auth";
+import { LANDING_PAGE_URL } from "../shared/upgradeDestination";
+
 export interface SubscriptionSessionStatus {
   configured: boolean;
   provider_state?: string;
@@ -7,7 +11,6 @@ export interface SubscriptionSummary extends SubscriptionSessionStatus {
   status?: string;
   plan_tier?: string;
   credits?: unknown;
-  pending_sync?: number;
   not_after?: string;
 }
 
@@ -30,13 +33,22 @@ export interface BusinessAccountUsageSummary {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers({ "Content-Type": "application/json", ...(init?.headers ?? {}) });
   const accessToken = await getAccessToken();
-  if (accessToken && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${accessToken}`);
-  const response = await fetch(path, { ...init, headers });
-  if (!response.ok) throw new HttpResponseError(response.status, await response.text());
-  return response.status === 204 ? ({} as T) : response.json() as Promise<T>;
+  const client = new AuthClient({
+    baseURL: window.location.origin,
+    getToken: () => accessToken ?? undefined,
+    fetchImpl: async (input, requestInit) => {
+      const response = await fetch(input, requestInit);
+      if (!response.ok) throw new HttpResponseError(response.status, await response.text());
+      return response;
+    },
+  });
+  return (await client.request<T>(path, {
+    ...init,
+    headers: new Headers({ "Content-Type": "application/json", ...(init?.headers ?? {}) }),
+  }) ?? {}) as T;
 }
+
 
 /** HTTP status kept separate from the message so callers can render expected
  * unauthenticated states without parsing transport text. */
@@ -61,7 +73,7 @@ export const getSubscriptionSummary = async (): Promise<SubscriptionSummary> => 
     // specific response is normalized; authority and transport failures stay
     // visible to the caller.
     if (error instanceof Error && error.message.startsWith("Request failed (401)")) {
-      return { configured: false, status: "signed_out", plan_tier: "free", pending_sync: 0 };
+      return { configured: false, status: "signed_out", plan_tier: "free" };
     }
     throw error;
   }
@@ -141,8 +153,6 @@ export function _resetCommercialContextCache(): void {
   commercialCache.clear();
   commercialInflight.clear();
 }
-import { getAccessToken } from "../lib/auth";
-import { LANDING_PAGE_URL } from "../shared/upgradeDestination";
 
 export interface CommercialContent {
   content_id: string;

@@ -74,16 +74,6 @@ func NewClient(stdin io.WriteCloser, stdout io.Reader) *Client {
 
 func (c *Client) startReader() { c.readOnce.Do(func() { go c.readLoop() }) }
 
-// Start launches exactly one app-server owner over stdio. The caller owns the
-// returned client and must Close it before allowing the session to recover.
-func Start(ctx context.Context, executable string, args ...string) (*Client, error) {
-	return StartInDir(ctx, executable, "", args...)
-}
-
-func StartInDir(ctx context.Context, executable, dir string, args ...string) (*Client, error) {
-	return StartInDirWithEnv(ctx, executable, dir, nil, args...)
-}
-
 func StartInDirWithEnv(ctx context.Context, executable, dir string, env []string, args ...string) (*Client, error) {
 	cmd := exec.CommandContext(ctx, executable, args...)
 	if dir != "" {

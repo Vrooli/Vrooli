@@ -13,8 +13,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"web-console/backends/codex"
-	"web-console/backends/grok"
 	"web-console/internal/config"
 	"web-console/internal/pty"
 	"web-console/session"
@@ -300,22 +298,6 @@ func applySessionEnv(base []string, extra map[string]string) []string {
 		}
 	}
 	return result
-}
-
-func sessionCodexHome(sessionID string) string {
-	return codex.SessionHomePath(resolveSessionStateRoot(), sessionID)
-}
-
-func sessionCodexSessionsDir(sessionID string) string {
-	return codex.SessionsDirPath(resolveSessionStateRoot(), sessionID)
-}
-
-func sessionGrokHome(sessionID string) string {
-	return grok.SessionHomePath(resolveSessionStateRoot(), sessionID)
-}
-
-func sessionGrokSessionsDir(sessionID string) string {
-	return grok.SessionsDirPath(resolveSessionStateRoot(), sessionID)
 }
 
 func buildSessionEnv(spec pty.LaunchSpec) []string {

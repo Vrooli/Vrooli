@@ -2,15 +2,11 @@ import { renderWithProviders as render } from "../../test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import AttachSourceMenu from "./AttachSourceMenu";
+import { filePreviewClient } from "../../api/filePreview";
 import type { AttachEnvironment } from "../../lib/attachments";
 
-vi.mock("../../api/filePreview", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/filePreview")>();
-  return {
-    ...actual,
-    resolveFilePreview: vi.fn(() => new Promise(() => { /* the picker stays loading */ })),
-  };
-});
+// The host picker stays loading: its first resolve never answers.
+vi.spyOn(filePreviewClient, "resolve").mockImplementation(() => new Promise(() => { /* never settles */ }));
 
 const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, "mediaDevices");
 

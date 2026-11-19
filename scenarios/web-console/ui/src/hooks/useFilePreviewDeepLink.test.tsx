@@ -13,6 +13,14 @@ describe("file preview deep links", () => {
     expect(parseFilePreviewDeepLink("?approval=ask-1")).toBeNull();
   });
 
+  it("opens encoded or outer HTML fragments and consumes the file's own hash", () => {
+    const pathInQuery = "?file=%2Fworkspace%2Freport.html";
+    expect(parseFilePreviewDeepLink(pathInQuery, "#review-2")).toBe("/workspace/report.html#review-2");
+    expect(parseFilePreviewDeepLink(pathInQuery + "%23project-O5")).toBe("/workspace/report.html#project-O5");
+    expect(stripFilePreviewDeepLink("https://console.example/" + pathInQuery + "&theme=dark#review-2")).toBe("/?theme=dark");
+    expect(parseFilePreviewDeepLink("?file=%2Fworkspace%2Freport.html%2523archive")).toBe("/workspace/report.html%23archive");
+  });
+
   it("waits for hydration before opening the active session", async () => {
     const open = vi.fn();
     const { rerender } = renderHook((props: { hydrated: boolean }) => useFilePreviewDeepLink({

@@ -31,6 +31,16 @@ func (e *testEmitter) Emit(kind, _ string, details map[string]string) {
 	e.event, e.details = kind, details
 }
 
+func TestMemConfigStoreSeedsVrooliCreditsProviderLast(t *testing.T) {
+	configs := NewMemConfigStore().GetConfigs(context.Background())
+	if len(configs) != 3 {
+		t.Fatalf("default provider count = %d, want 3: %+v", len(configs), configs)
+	}
+	if configs[2].Name != "vrooli" || !configs[2].Enabled || configs[2].Priority != 3 {
+		t.Fatalf("Vrooli credits config = %+v, want enabled priority 3 after local/BYOK", configs[2])
+	}
+}
+
 func TestChainProviderSelectionAndEmptyCases(t *testing.T) {
 	fail := &testProvider{name: "first", err: errors.New("down")}
 	ok := &testProvider{name: "second", output: "ok"}

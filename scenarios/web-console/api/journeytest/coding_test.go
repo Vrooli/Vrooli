@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -103,6 +104,32 @@ func issueSession(t *testing.T, d doorFixture, harness string) string {
 	return key.Key
 }
 
+func openCodeRunArgs(home, prompt string) []string {
+	if openCodeMajor() >= 2 {
+		// V2 resolves the project from the process cwd and has no --pure/--dir.
+		return []string{"run", "--auto", "--standalone", "--format", "json", "--print-logs", prompt}
+	}
+	return []string{"run", "--pure", "--auto", "--dir", home, "--format", "json", prompt}
+}
+
+func openCodeMajor() int {
+	out, err := exec.Command("opencode", "--version").Output()
+	if err != nil {
+		return 1
+	}
+	for _, field := range strings.Fields(string(out)) {
+		field = strings.TrimPrefix(field, "v")
+		head, _, ok := strings.Cut(field, ".")
+		if !ok {
+			continue
+		}
+		if major, err := strconv.Atoi(head); err == nil && major > 0 {
+			return major
+		}
+	}
+	return 1
+}
+
 func TestJ5_RealOpenCodeRoundTripThroughDoorAndLedger(t *testing.T) {
 	var calls atomic.Int32
 	home := t.TempDir()
@@ -136,7 +163,12 @@ func TestJ5_RealOpenCodeRoundTripThroughDoorAndLedger(t *testing.T) {
 		} else if len(request.Tools) == 0 {
 			delta = map[string]any{"content": "Fixture title"}
 		} else {
-			delta = map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": "call_read", "type": "function", "function": map[string]string{"name": "read", "arguments": fmt.Sprintf(`{"filePath":%q}`, fixturePath)}}}}
+			argName := "filePath"
+			if openCodeMajor() >= 2 {
+				// V2 renamed the read tool's path argument from filePath to path.
+				argName = "path"
+			}
+			delta = map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": "call_read", "type": "function", "function": map[string]string{"name": "read", "arguments": fmt.Sprintf("{%q:%q}", argName, fixturePath)}}}}
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		data, _ := json.Marshal(map[string]any{"id": "fixture", "choices": []any{map[string]any{"index": 0, "delta": delta}}})
@@ -155,7 +187,7 @@ func TestJ5_RealOpenCodeRoundTripThroughDoorAndLedger(t *testing.T) {
 	var output bytes.Buffer
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "opencode", WorkingDir: home, Environment: environment, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: []string{"run", "--pure", "--auto", "--dir", home, "--format", "json", "Read fixture.txt and repeat its contents."}, Stdout: &output, Stderr: &output,
+	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "opencode", WorkingDir: home, Environment: environment, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: openCodeRunArgs(home, "Read fixture.txt and repeat its contents."), Stdout: &output, Stderr: &output,
 		RunChild: func(ctx context.Context, path string, args, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			cmd := exec.CommandContext(ctx, path, args...)
 			cmd.Dir = home
@@ -397,7 +429,7 @@ func runOpenCodeSource(t *testing.T, source cliutil.ModelSource, base, credentia
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	var output bytes.Buffer
-	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "opencode", WorkingDir: home, Environment: env, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: []string{"run", "--pure", "--auto", "--dir", home, "--format", "json", "Say source-verified."}, Stdout: &output, Stderr: &output,
+	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "opencode", WorkingDir: home, Environment: env, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: openCodeRunArgs(home, "Say source-verified."), Stdout: &output, Stderr: &output,
 		RunChild: func(ctx context.Context, path string, args, environment []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			if source.Kind == "subscription" {
 				for _, entry := range environment {

@@ -6,8 +6,9 @@ belong in [Seams](../SEAMS.md), and unresolved work in [Problems](../PROBLEMS.md
 In particular, input offsets are connection-scoped and presence is independent
 of grid dimensions; use the protocol contract when changing these behaviors.
 
-The six historical reviews are preserved beneath the protected runtime home:
-`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/web-console/docs/internal/reviews/`.
+The six historical reviews are preserved at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/web-console/docs/internal/reviews/`; their custody follows the
+[runtime-home retention contract](../../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract).
 
 | Preserved source | Historical subject |
 |---|---|

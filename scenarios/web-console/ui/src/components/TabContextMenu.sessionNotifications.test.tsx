@@ -7,7 +7,7 @@ import type { NotificationCatalog } from "../api/notifications";
 
 const mocks = vi.hoisted(() => ({
   fetchNotificationCatalog: vi.fn(),
-  setSessionNotificationMuted: vi.fn(),
+  updateNotificationPreference: vi.fn(),
 }));
 
 vi.mock("../api/notifications", async (importOriginal) => {
@@ -15,7 +15,10 @@ vi.mock("../api/notifications", async (importOriginal) => {
   return {
     ...actual,
     fetchNotificationCatalog: mocks.fetchNotificationCatalog,
-    setSessionNotificationMuted: mocks.setSessionNotificationMuted,
+    notificationPreferencesClient: {
+      getCatalog: mocks.fetchNotificationCatalog,
+      updatePreference: mocks.updateNotificationPreference,
+    },
   };
 });
 
@@ -53,19 +56,19 @@ describe("TabContextMenu session notifications", () => {
   });
 
   it("offers Mute for a session with no override and writes a muted scope preference", async () => {
-    mocks.setSessionNotificationMuted.mockResolvedValue(undefined);
+    mocks.updateNotificationPreference.mockResolvedValue({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: false, min_urgency: "", channel_override: "" });
     renderMenu({ sources: [], preferences: [] });
 
     // A session with no override is not muted, so the control mutes it.
     const item = await screen.findByTestId("tab-ctx-toggle-session-notifications");
     fireEvent.click(item);
     await waitFor(() =>
-      expect(mocks.setSessionNotificationMuted).toHaveBeenCalledWith("sess-1", true),
+      expect(mocks.updateNotificationPreference).toHaveBeenCalledWith(expect.objectContaining({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: false })),
     );
   });
 
   it("unmutes a session that carries a muted override", async () => {
-    mocks.setSessionNotificationMuted.mockResolvedValue(undefined);
+    mocks.updateNotificationPreference.mockResolvedValue({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: true, min_urgency: "", channel_override: "" });
     renderMenu({
       sources: [],
       preferences: [
@@ -85,7 +88,7 @@ describe("TabContextMenu session notifications", () => {
     const item = await screen.findByTestId("tab-ctx-toggle-session-notifications");
     fireEvent.click(item);
     await waitFor(() =>
-      expect(mocks.setSessionNotificationMuted).toHaveBeenCalledWith("sess-1", false),
+      expect(mocks.updateNotificationPreference).toHaveBeenCalledWith(expect.objectContaining({ source_scenario: "web-console", category: "", scope_key: "sess-1", enabled: true })),
     );
   });
 });

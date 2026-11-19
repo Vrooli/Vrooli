@@ -52,7 +52,7 @@ describe("AccountSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionMock.mockResolvedValue({ configured: false });
-    summaryMock.mockResolvedValue({ configured: false, plan_tier: "free", pending_sync: 0 });
+    summaryMock.mockResolvedValue({ configured: false, plan_tier: "free" });
     businessAccountsMock.mockResolvedValue({ accounts: [] });
     businessAccountUsageMock.mockResolvedValue({ business_account_id: "", billing_period: "", tier: "free", limits: {}, usage: {}, reserved: {}, remaining: {}, display_credits: {} });
     authStoreMock.mockReturnValue({
@@ -70,7 +70,8 @@ describe("AccountSection", () => {
     expect(screen.getByTestId("account-free-access-card")).toBeInTheDocument();
     expect(screen.getByLabelText("Optional refresh token")).toBeInTheDocument();
     expect(screen.getByText("Local Ollama generation")).toBeInTheDocument();
-    expect(screen.getByText(/Aquila remains fully useful without an account/)).toBeInTheDocument();
+    expect(screen.getByText(/Local workspace features stay available without an account/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Subscription and access" })).toBeInTheDocument();
   });
 
   it("shows usage facts for the selected business account", async () => {
@@ -96,24 +97,21 @@ describe("AccountSection", () => {
     await waitFor(() => expect(within(screen.getByTestId("business-account-usage-summary")).getByText("Research")).toBeInTheDocument());
   });
 
-  it("renders connected plan, credits, and pending sync details", async () => {
+  it("renders connected plan and credits", async () => {
     sessionMock.mockResolvedValue({ configured: true });
     summaryMock.mockResolvedValue({
       configured: true,
       status: "active",
       plan_tier: "pro",
       credits: { remaining: 72, limit: 100 },
-      pending_sync: 3,
       not_after: "2026-12-31T00:00:00Z",
     });
 
     render(<AccountSection />);
 
     await waitFor(() => { expect(screen.getByText("Vrooli account connected")).toBeInTheDocument(); });
-    expect(screen.getByText("pro")).toBeInTheDocument();
+    expect(screen.getAllByText("Pro").length).toBeGreaterThan(0);
     expect(screen.getByText("72")).toBeInTheDocument();
-    expect(screen.getByTestId("account-credits-meter")).toBeInTheDocument();
-    expect(screen.getByText("Usage waiting to sync")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
@@ -175,7 +173,7 @@ describe("AccountSection", () => {
       signOut: authSignOut,
     } as never);
     sessionMock.mockResolvedValue({ configured: true });
-    summaryMock.mockResolvedValue({ configured: true, status: "active", plan_tier: "pro", pending_sync: 0 });
+    summaryMock.mockResolvedValue({ configured: true, status: "active", plan_tier: "pro" });
     deleteSessionMock.mockResolvedValue(undefined as never);
 
     render(<AccountSection />);
@@ -184,5 +182,18 @@ describe("AccountSection", () => {
     await waitFor(() => { expect(authSignOut).toHaveBeenCalledTimes(1); });
     expect(deleteSessionMock).toHaveBeenCalledTimes(1);
     await waitFor(() => { expect(screen.getByText(/Signed out/)).toBeInTheDocument(); });
+  });
+});
+
+
+describe("shared account status presentation", () => {
+  it("keeps local use available and announces summary failures accessibly", async () => {
+    sessionMock.mockRejectedValue(new Error("temporary authority outage"));
+    summaryMock.mockRejectedValue(new Error("temporary authority outage"));
+    render(<AccountSection />);
+    const error = await screen.findByRole("alert");
+    expect(error).toHaveTextContent("Account status is temporarily unavailable");
+    expect(screen.getByTestId("account-free-access-card")).toBeInTheDocument();
+    expect(screen.getByText("Local Ollama generation")).toBeInTheDocument();
   });
 });

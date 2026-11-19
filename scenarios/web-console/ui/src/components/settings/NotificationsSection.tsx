@@ -1,78 +1,22 @@
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Bell, BellOff, ExternalLink, RefreshCw } from "lucide-react";
 import { strings } from "../../consts/strings";
 import {
-  fetchNotificationCatalog,
   fetchScenarioLink,
-  updateNotificationPreference,
+  notificationPreferenceControlGroups,
+  notificationPreferencesClient,
   NotificationsUnavailableError,
   WEB_CONSOLE_SOURCE,
-  type NotificationCategory,
-  type NotificationPreference,
-  type NotificationSource,
 } from "../../api/notifications";
+import { useNotificationPreferences } from "@vrooli/api-base/notifications/react";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
-import { Avatar } from "@vrooli/react-component-library/Avatar/1";
-import { SettingsToggle, SettingsIntro } from "./primitives";
+import { SettingsIntro } from "./primitives";
 import { AppNotificationSettings, type AppNotificationStrings } from "@vrooli/react-component-library/AppNotificationSettings/1";
+import { NotificationPreferencesPanel } from "@vrooli/react-component-library/AppNotificationSettings/1";
 
-const URGENCY_LADDER = ["low", "normal", "high", "critical"] as const;
-
-const CATALOG_QUERY_KEY = ["notification-catalog", WEB_CONSOLE_SOURCE] as const;
 const HUB_LINK_QUERY_KEY = ["scenario-link", "notification-hub"] as const;
-
-/**
- * A source may declare an empty category list — it only offers a coarse,
- * source-wide on/off. We synthesise a single pseudo-category with the empty
- * string id so the row maps onto the source-wide preference row the hub stores.
- */
-function categoriesFor(source: NotificationSource, allLabel: string): NotificationCategory[] {
-  if (source.categories.length > 0) return source.categories;
-  return [
-    {
-      category: "",
-      display_name: allLabel,
-      description: "",
-      declared: source.declared,
-      default_enabled: true,
-      default_min_urgency: "normal",
-    },
-  ];
-}
-
-/** A category the source never declared has no display name; show its key as words instead of a blank row. */
-function categoryLabel(category: NotificationCategory, allLabel: string): string {
-  if (category.display_name) return category.display_name;
-  const words = category.category.replace(/[._-]+/g, " ").trim();
-  return words ? words.charAt(0).toUpperCase() + words.slice(1) : allLabel;
-}
-
-/** Resolve the effective preference for a (source, category), falling back to declared defaults. */
-function effectivePreference(
-  source: NotificationSource,
-  category: NotificationCategory,
-  preferences: NotificationPreference[],
-): NotificationPreference {
-  const existing = preferences.find(
-    (p) =>
-      p.source_scenario === source.source_scenario &&
-      p.category === category.category &&
-      // Session-scoped overrides (scope_key set) are not the global row; they
-      // are managed per-session from the session menu, not this settings list.
-      !p.scope_key,
-  );
-  return (
-    existing ?? {
-      source_scenario: source.source_scenario,
-      category: category.category,
-      enabled: category.default_enabled,
-      min_urgency: category.default_min_urgency || "normal",
-      channel_override: "",
-    }
-  );
-}
 
 /** A loading skeleton shaped like the populated list, so the section never flashes blank. */
 function NotificationsSkeleton({ label }: { label: string }) {
@@ -168,15 +112,7 @@ function SecondaryButton({
 
 export default function NotificationsSection({ open }: { open: boolean }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-
-  const catalog = useQuery({
-    queryKey: CATALOG_QUERY_KEY,
-    queryFn: () => fetchNotificationCatalog(WEB_CONSOLE_SOURCE),
-    enabled: open,
-    retry: (failureCount, error) =>
-      !(error instanceof NotificationsUnavailableError) && failureCount < 2,
-  });
+  const { catalog, save } = useNotificationPreferences(notificationPreferencesClient, [WEB_CONSOLE_SOURCE], open);
 
   // The link to Notification Hub is resolved server-side so it carries the
   // right shape for the operator's current origin (tunnel subdomain on mobile,
@@ -189,13 +125,6 @@ export default function NotificationsSection({ open }: { open: boolean }) {
     enabled: open,
     staleTime: 5 * 60_000,
     retry: false,
-  });
-
-  const mutation = useMutation({
-    mutationFn: updateNotificationPreference,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATALOG_QUERY_KEY });
-    },
   });
 
   const preferences = useMemo(() => catalog.data?.preferences ?? [], [catalog.data]);
@@ -277,63 +206,19 @@ export default function NotificationsSection({ open }: { open: boolean }) {
           )}
         </NotificationsMessage>
       ) : (
-        sources.map((source) => (
-          <SettingsList.Group
-            key={source.source_scenario}
-            label={
-              <span className="flex items-center gap-2.5">
-                <Avatar name={source.display_name} size="xs" shape="rounded" />
-                <span className="normal-case tracking-normal">{source.display_name}</span>
-              </span>
-            }
-          >
-            {categoriesFor(source, allLabel).map((category) => {
-              const pref = effectivePreference(source, category, preferences);
-              return (
-                <SettingsList.Row
-                  key={`${source.source_scenario}:${category.category}`}
-                  label={categoryLabel(category, allLabel)}
-                  hint={
-                    <div className="grid gap-2">
-                      {category.description ? <span>{category.description}</span> : null}
-                      {pref.enabled ? (
-                        <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
-                          {t(strings.settings.notificationsSection.minUrgencyLabel)}
-                          <select
-                            data-testid={`notification-urgency-${source.source_scenario}-${category.category}`}
-                            className="h-8 rounded-md border border-wc-default bg-wc-surface-input px-2 text-sm text-wc-text-primary"
-                            disabled={mutation.isPending}
-                            value={pref.min_urgency || "normal"}
-                            onChange={(e) => {
-                              mutation.mutate({ ...pref, min_urgency: e.target.value });
-                            }}
-                          >
-                            {URGENCY_LADDER.map((level) => (
-                              <option key={level} value={level}>
-                                {t(strings.settings.notificationsSection.urgency[level])}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : null}
-                    </div>
-                  }
-                  control="compact"
-                >
-                  <SettingsToggle
-                    testId={`notification-enable-${source.source_scenario}-${category.category}`}
-                    ariaLabel={categoryLabel(category, allLabel)}
-                    checked={pref.enabled}
-                    disabled={mutation.isPending}
-                    onCheckedChange={(enabled) => {
-                      mutation.mutate({ ...pref, enabled });
-                    }}
-                  />
-                </SettingsList.Row>
-              );
-            })}
-          </SettingsList.Group>
-        ))
+        <NotificationPreferencesPanel
+          groups={notificationPreferenceControlGroups(sources, preferences, allLabel, (preference) => save.mutate(preference))}
+          disabled={save.isPending}
+          strings={{
+            minimumUrgency: t(strings.settings.notificationsSection.minUrgencyLabel),
+            urgency: {
+              low: t(strings.settings.notificationsSection.urgency.low),
+              normal: t(strings.settings.notificationsSection.urgency.normal),
+              high: t(strings.settings.notificationsSection.urgency.high),
+              critical: t(strings.settings.notificationsSection.urgency.critical),
+            },
+          }}
+        />
       )}
       {sources.length > 0 && hubLink.data ? (
         <div className="flex justify-center">

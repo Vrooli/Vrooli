@@ -177,6 +177,12 @@ type Session struct {
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
 
+	// cleanupDone is closed by the session's owner goroutine after it has
+	// finished its post-exit persistence (MarkOrphaned, upload cleanup).
+	// Shutdown waits on it so the database is not closed underneath a
+	// best-effort write. Nil for hand-built test sessions.
+	cleanupDone chan struct{}
+
 	// recovered is true for sessions restored from tmux after a server restart.
 	// Resets to false after the first WebSocket connection.
 	recovered bool

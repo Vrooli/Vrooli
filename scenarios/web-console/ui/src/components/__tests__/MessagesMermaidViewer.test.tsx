@@ -19,7 +19,8 @@ interface MermaidRenderResult {
 const { mockUseMermaidSvg } = vi.hoisted(() => ({
   mockUseMermaidSvg: vi.fn<(code: string) => MermaidRenderResult>(),
 }));
-vi.mock("../markdown/hooks/useMermaidSvg", () => ({
+vi.mock("@vrooli/file-viewer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vrooli/file-viewer")>()),
   useMermaidSvg: (code: string): MermaidRenderResult => mockUseMermaidSvg(code),
 }));
 

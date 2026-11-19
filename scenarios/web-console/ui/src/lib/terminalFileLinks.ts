@@ -154,24 +154,23 @@ function endsAtBlockWrapColumn(term: Terminal, row: number): boolean {
 }
 
 /**
- * Whether `row`'s token continues onto the next row: its content ended at a hard
- * wrap (within WRAP_MARGIN of the terminal edge, OR at a block-local wrap column
- * shared by a sibling row — not a short line that merely ended) and both sides of
- * the seam are run characters, so a single token was split there. The term.cols
- * test handles full-width output; the block-wrap-column test handles indented or
- * margin-reserving TUI panels that wrap well short of the edge. Requiring a
- * corroborating sibling row stops two lone short lines from being joined just
- * because the first is the longest.
+ * xterm marks the continuation row of a soft wrap. A TUI can instead draw a
+ * hanging indent near the edge or several rows at the same shorter box width.
+ * Shell commands and filenames followed by a newline can also end near the
+ * edge, so column position alone cannot establish a continuation.
  */
 function wrapsIntoNext(term: Terminal, row: number): boolean {
   const text = rowText(term, row);
-  if (text.length === 0) return false;
-  const reachedEdge = text.length >= term.cols - WRAP_MARGIN;
-  if (!reachedEdge && !endsAtBlockWrapColumn(term, row)) return false;
-  const next = rowText(term, row + 1);
+  if (!isRunChar(text.charAt(text.length - 1))) return false;
+  const nextLine = term.buffer.active.getLine(row + 1);
+  if (!nextLine) return false;
+  const next = nextLine.translateToString(true);
+  if (nextLine.isWrapped) return isRunChar(next.charAt(0));
   const firstNonSpace = next.search(/\S/);
-  if (firstNonSpace < 0) return false;
-  return isRunChar(text.charAt(text.length - 1)) && isRunChar(next.charAt(firstNonSpace));
+  if (firstNonSpace < 0 || !isRunChar(next.charAt(firstNonSpace))) return false;
+  const reachedEdge = text.length >= term.cols - WRAP_MARGIN;
+  return (reachedEdge && firstNonSpace > 0) ||
+    (text.length < term.cols && endsAtBlockWrapColumn(term, row));
 }
 
 /**

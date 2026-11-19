@@ -4,8 +4,8 @@
 
 -- Terminal sessions (metadata only; PTY state is process-bound).
 -- status state machine: live -> awaiting_recovery -> {live | dismissed}.
--- Only Recover() and the recovery endpoints transition status; everywhere
--- else the row is implicitly 'live'. agent_type+agent_session_id are
+-- The sessionstore status transition owner validates and persists these
+-- edges; everywhere else the row is implicitly 'live'. agent_type+agent_session_id are
 -- populated from the codex rollout session_meta event or the claude Stop
 -- hook payload, and are sufficient input to reattach an agent on recovery.
 CREATE TABLE IF NOT EXISTS sessions (

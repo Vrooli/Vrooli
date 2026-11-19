@@ -73,7 +73,6 @@ func TestGrokTailer_BackfillsCompletedTurnOnce(t *testing.T) {
 	grokTurn(t, f, "grok-1", "hello grok", "hi from grok")
 
 	gt := NewGrokTailer(srv)
-	gt.staleTimeout = 2 * time.Second
 	gt.scanForNewFiles()
 	t.Cleanup(gt.Stop)
 
@@ -113,7 +112,6 @@ func TestGrokTailer_ResumesFromCheckpointWithoutDuplicating(t *testing.T) {
 	}
 
 	gt := NewGrokTailer(srv)
-	gt.staleTimeout = 2 * time.Second
 	gt.scanForNewFiles()
 	t.Cleanup(gt.Stop)
 
@@ -143,7 +141,6 @@ func TestGrokTailer_DoesNotConsumePartialTrailingLine(t *testing.T) {
 	_ = f.Sync()
 
 	gt := NewGrokTailer(srv)
-	gt.staleTimeout = 2 * time.Second
 	gt.scanForNewFiles()
 	t.Cleanup(gt.Stop)
 
@@ -166,7 +163,6 @@ func TestGrokTailer_DuplicateReplayDoesNotDuplicate(t *testing.T) {
 	grokTurn(t, f, "grok-4", "dupe user", "dupe assistant")
 
 	gt := NewGrokTailer(srv)
-	gt.staleTimeout = 2 * time.Second
 	gt.scanForNewFiles()
 	t.Cleanup(gt.Stop)
 	waitForEventCount(t, srv.conversations, sess.ID, 2, 3*time.Second)
@@ -175,7 +171,6 @@ func TestGrokTailer_DuplicateReplayDoesNotDuplicate(t *testing.T) {
 	// re-append: the ConversationStore dedup is the second line of defense.
 	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	gt2 := NewGrokTailer(srv)
-	gt2.staleTimeout = 2 * time.Second
 	gt2.scanForNewFiles()
 	t.Cleanup(gt2.Stop)
 
@@ -204,7 +199,6 @@ func TestGrokTailer_CapturesAgentInfoFromSummary(t *testing.T) {
 	}
 
 	gt := NewGrokTailer(srv)
-	gt.staleTimeout = 2 * time.Second
 	gt.scanForNewFiles()
 	t.Cleanup(gt.Stop)
 

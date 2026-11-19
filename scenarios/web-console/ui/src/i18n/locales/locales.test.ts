@@ -102,39 +102,6 @@ const tokensPerBase = (catalog: Catalog): Map<string, Set<string>> => {
 };
 
 describe("locale catalogs", () => {
-  it.each(["readerPreview", "documentPreview"])("%s has matching localized keys and interpolation tokens", (section) => {
-    const reference = catalogs.en?.[section];
-    if (!reference || !isCatalogObject(reference)) throw new Error("Missing reader preview copy");
-    for (const [locale, catalog] of Object.entries(catalogs)) {
-      const copy = catalog[section];
-      if (!copy || !isCatalogObject(copy)) throw new Error(`Missing ${locale} reader preview copy`);
-      expect(logicalKeys(copy)).toEqual(logicalKeys(reference));
-      expect(tokensPerBase(copy)).toEqual(tokensPerBase(reference));
-      for (const value of Object.values(flatten(copy))) expect(value.trim().length).toBeGreaterThan(0);
-    }
-  });
-  it("artifact previews have complete localized copy and matching interpolation tokens", () => {
-    const reference = catalogs.en?.artifactPreview;
-    if (!reference || !isCatalogObject(reference)) throw new Error("Missing artifact preview copy");
-    for (const [locale, catalog] of Object.entries(catalogs)) {
-      const copy = catalog.artifactPreview;
-      if (!copy || !isCatalogObject(copy)) throw new Error(`Missing ${locale} artifact preview copy`);
-      expect(logicalKeys(copy)).toEqual(logicalKeys(reference));
-      expect(tokensPerBase(copy)).toEqual(tokensPerBase(reference));
-      for (const value of Object.values(flatten(copy))) expect(value.trim().length).toBeGreaterThan(0);
-    }
-  });
-  it("audio file player copy has matching, nonempty keys in every locale", () => {
-    const reference = catalogs.en?.audioFilePlayer;
-    if (!reference || !isCatalogObject(reference)) throw new Error("Missing audio file player copy");
-    const expectedKeys = Object.keys(reference).sort();
-    for (const [locale, catalog] of Object.entries(catalogs)) {
-      const copy = catalog.audioFilePlayer;
-      if (!copy || !isCatalogObject(copy)) throw new Error(`Missing ${locale} audio file player copy`);
-      expect(Object.keys(copy).sort()).toEqual(expectedKeys);
-      for (const value of Object.values(copy)) expect(typeof value === "string" && value.trim().length > 0).toBe(true);
-    }
-  });
   it.each(["ar", "ja"])("localizes the visible launcher and Manage labels in %s", (locale) => {
     const copy = flatten(catalogs[locale] ?? {});
     const english = flatten(catalogs.en ?? {});
@@ -220,17 +187,6 @@ describe("locale catalogs", () => {
     throw new Error("en.json must exist as the canonical reference catalog");
   }
 
-  it("inspection preview copy retains all locale keys and interpolation tokens", () => {
-    const referenceCopy = reference.inspectionPreview;
-    if (!isCatalogObject(referenceCopy)) throw new Error("Missing inspection copy");
-    const keys = logicalKeys(referenceCopy), tokens = tokensPerBase(referenceCopy);
-    for (const catalog of Object.values(catalogs)) {
-      const copy = catalog.inspectionPreview;
-      if (!isCatalogObject(copy)) throw new Error("Missing localized inspection copy");
-      expect(logicalKeys(copy)).toEqual(keys);
-      expect(tokensPerBase(copy)).toEqual(tokens);
-    }
-  });
 
   it("LOCALE_CODES matches the locale JSON files on disk", () => {
     // Catches the "added a code to LOCALE_CODES, forgot the JSON" failure mode

@@ -8,12 +8,13 @@ import { Input } from "@vrooli/react-component-library/Input/1";
 import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { strings } from "../../consts/strings";
 import { copyText } from "../../lib/clipboard";
-import { MarkdownRenderer } from "../markdown";
+import { MarkdownRenderer } from "@vrooli/file-viewer";
+import { sessionPreviewSource } from "../../api/filePreview";
 import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText";
 import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
 import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
-import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMessagesTypographyPinch";
+import { clampReaderFontSize, useTypographyPinch } from "@vrooli/file-viewer";
 import type { OutboxState, SentEcho } from "../../lib/echoMatch";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-reader
@@ -119,7 +120,7 @@ export function MessagesReader({
     if (scroller) scroller.scrollTop = 0;
   }, [event.id]);
 
-  const pinchSize = useMessagesTypographyPinch(bodyRef, fontSize, onFontSizeChange);
+  const pinchSize = useTypographyPinch(bodyRef, fontSize, onFontSizeChange);
 
   const step = (delta: number) => {
     if (matchCount === 0) return;
@@ -238,7 +239,7 @@ export function MessagesReader({
             {isPlaintext ? (
               <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{event.text}</pre>
             ) : (
-              <MarkdownRenderer content={event.text} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              <MarkdownRenderer content={event.text} imageSource={imageSessionId ? sessionPreviewSource(imageSessionId) : undefined} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
             )}
           </div>
         </div>
@@ -278,7 +279,7 @@ export function MessagesReader({
               surface="soft"
               size="sm"
               disabled={fontSize <= 12}
-              onClick={() => { onFontSizeChange(clampMessagesFont(fontSize - READER_FONT_STEP)); }}
+              onClick={() => { onFontSizeChange(clampReaderFontSize(fontSize - READER_FONT_STEP)); }}
             >
               <AArrowDown />
             </IconButton>
@@ -289,7 +290,7 @@ export function MessagesReader({
               surface="soft"
               size="sm"
               disabled={fontSize >= 32}
-              onClick={() => { onFontSizeChange(clampMessagesFont(fontSize + READER_FONT_STEP)); }}
+              onClick={() => { onFontSizeChange(clampReaderFontSize(fontSize + READER_FONT_STEP)); }}
             >
               <AArrowUp />
             </IconButton>

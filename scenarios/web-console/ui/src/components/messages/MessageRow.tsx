@@ -14,7 +14,8 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { copyText } from "../../lib/clipboard";
-import { MarkdownRenderer } from "../markdown";
+import { MarkdownRenderer } from "@vrooli/file-viewer";
+import { sessionPreviewSource } from "../../api/filePreview";
 import {
   actionIcon,
   actionLabelKey,
@@ -269,7 +270,7 @@ function MessageRowImpl({
             </pre>
           ) : (
             <>
-              <MarkdownRenderer content={preview.markdown} timeAnchor={event.createdAt} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              <MarkdownRenderer content={preview.markdown} timeAnchor={event.createdAt} imageSource={imageSessionId ? sessionPreviewSource(imageSessionId) : undefined} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
               {preview.plainText && <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{preview.plainText}</pre>}
             </>
           )}

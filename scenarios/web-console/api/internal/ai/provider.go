@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type consumerTokenContextKey struct{}
+type rootOperationIDContextKey struct{}
+type privacyConsentGrantContextKey struct{}
+type privacyConsentSourceContextKey struct{}
 
 // ErrCreditsRequired is preserved through the provider chain so transports
 // can expose a typed wallet refusal instead of flattening it into a generic
@@ -16,12 +21,52 @@ type consumerTokenContextKey struct{}
 var ErrCreditsRequired = errors.New("credits required")
 
 func WithConsumerToken(ctx context.Context, token string) context.Context {
-	return context.WithValue(ctx, consumerTokenContextKey{}, strings.TrimSpace(token))
+	token = strings.TrimSpace(token)
+	if scheme, value, ok := strings.Cut(token, " "); ok && strings.EqualFold(scheme, "Bearer") {
+		token = strings.TrimSpace(value)
+	}
+	return context.WithValue(ctx, consumerTokenContextKey{}, token)
 }
 
 func consumerToken(ctx context.Context) string {
 	token, _ := ctx.Value(consumerTokenContextKey{}).(string)
 	return strings.TrimSpace(token)
+}
+
+// WithPrivacyConsentGrant carries the one-time consent receipt for the exact
+// selected remote source. The shared Gateway verifies it on every dispatch.
+func WithPrivacyConsentGrant(ctx context.Context, receipt, source string) context.Context {
+	ctx = context.WithValue(ctx, privacyConsentGrantContextKey{}, strings.TrimSpace(receipt))
+	return context.WithValue(ctx, privacyConsentSourceContextKey{}, strings.ToLower(strings.TrimSpace(source)))
+}
+
+func privacyConsentGrant(ctx context.Context, selectedSource string) string {
+	receipt, _ := ctx.Value(privacyConsentGrantContextKey{}).(string)
+	source, _ := ctx.Value(privacyConsentSourceContextKey{}).(string)
+	if source != strings.ToLower(strings.TrimSpace(selectedSource)) {
+		return ""
+	}
+	return strings.TrimSpace(receipt)
+}
+
+// WithRootOperationID carries one high-entropy AI operation identity through
+// source fallback and into AI Gateway's accounting ledger. A caller may reuse
+// the same ID when it retries an uncertain request.
+func WithRootOperationID(ctx context.Context, id string) context.Context {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		id = uuid.NewString()
+	}
+	return context.WithValue(ctx, rootOperationIDContextKey{}, id)
+}
+
+func rootOperationID(ctx context.Context) string {
+	id, _ := ctx.Value(rootOperationIDContextKey{}).(string)
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return uuid.NewString()
+	}
+	return id
 }
 
 // Provider abstracts one source in the command-generation chain. The active

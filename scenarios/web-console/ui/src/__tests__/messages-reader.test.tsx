@@ -14,7 +14,8 @@ vi.mock("../hooks/useConversationSession", () => ({
   loadConversationPageContaining: vi.fn().mockResolvedValue(false),
 }));
 
-vi.mock("../components/markdown", () => ({
+vi.mock("@vrooli/file-viewer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vrooli/file-viewer")>()),
   MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div>,
 }));
 

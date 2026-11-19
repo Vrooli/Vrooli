@@ -3,8 +3,8 @@ import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import { readFileSync } from "node:fs";
 import launchProfiles from "./src/launch-profiles.json";
-import { pdfAssets } from "./scripts/pdf-assets";
-import { presentationSource } from "./scripts/presentation-source";
+import { fileViewer } from "@vrooli/file-viewer/vite";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces the perf-build channel used for
@@ -27,7 +27,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: base must be './' for tunnel/proxy embedding compatibility.
     // Changing this breaks parent-scenario iframe routing.
     base: './',
-    plugins: [react(), stringsCodegen(), pdfAssets(), presentationSource(), {
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen(), fileViewer(), {
       name: "aquila-launch-shell",
       transformIndexHtml: {
         order: "pre",
@@ -43,6 +43,9 @@ export default defineConfig(({ mode }): UserConfig => {
           ).join("\n")),
       },
     }],
+    // The viewer locates its workers and wasm relative to its own files, which
+    // dependency pre-bundling would move.
+    optimizeDeps: { exclude: ["@vrooli/file-viewer"] },
     resolve: isProfile
       ? {
           alias: {
@@ -76,7 +79,7 @@ export default defineConfig(({ mode }): UserConfig => {
       // Node cannot resolve. Inlining routes the import back through Vite, whose
       // resolver probes extensions the same way the app bundle does. Without
       // this, every test that touches the audio integration fails to collect.
-      server: { deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] } },
+      server: { deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library|file-viewer)/] } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

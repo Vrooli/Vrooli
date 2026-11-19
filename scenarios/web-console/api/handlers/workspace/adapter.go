@@ -3,7 +3,6 @@ package workspace
 import (
 	"context"
 	"errors"
-	"log"
 
 	"web-console/internal/events"
 	wsdomain "web-console/internal/workspace"
@@ -19,14 +18,6 @@ type EventEmitter interface {
 type Adapter struct {
 	Store  wsdomain.Store
 	Events EventEmitter
-	Logger *log.Logger
-}
-
-func (a *Adapter) logger() *log.Logger {
-	if a.Logger != nil {
-		return a.Logger
-	}
-	return log.Default()
 }
 
 func (a *Adapter) GetLayout(ctx context.Context) (Layout, error) {

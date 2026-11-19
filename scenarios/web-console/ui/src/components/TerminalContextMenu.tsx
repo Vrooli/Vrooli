@@ -156,7 +156,7 @@ export default function TerminalContextMenu({
         ...(onToggleMouseMode && mouseMode !== undefined
           ? [{
               id: "mouse-mode",
-              label: mouseMode ? "Disable tmux mouse mode (this pane only)" : "Enable tmux mouse mode (this pane only)",
+              label: t(mouseMode ? strings.terminalContextMenu.disableMouseMode : strings.terminalContextMenu.enableMouseMode),
               icon: <MousePointer2 className="h-4 w-4 shrink-0" />,
               testId: "ctx-mouse-mode",
               pressed: mouseMode,

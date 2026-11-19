@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	"net/http"
 	"os"
 	"time"
@@ -28,6 +29,7 @@ import (
 	workspaceH "web-console/handlers/workspace"
 	internalContinuity "web-console/internal/continuity"
 
+	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/nodereach"
@@ -40,6 +42,10 @@ import (
 // of deliberate REST exceptions (WebSocket, SSE, uploads, and blob streaming).
 func (s *Server) setupRoutes() {
 	s.router.Use(requestIDMiddleware)
+	// Keep the same shared paid-surface bearer context as BAS. Web Console is
+	// meter-only, so AI Gateway remains the authorization and spend boundary;
+	// this middleware only carries the signed session token to trusted handlers.
+	installMonetizationRequestContext(s.router)
 	s.router.Use(loggingMiddleware)
 	// Cross-scenario links are resolved against the origin the browser used, so
 	// the host has to survive the hop into a Connect handler. Go moves the Host
@@ -75,14 +81,18 @@ func (s *Server) setupRoutes() {
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
+			if !webConsoleSameOrigin(w, r) {
+				return
+			}
+			if err := session.Remove(r.Context()); err != nil {
+				http.Error(w, "subscription session could not be removed", http.StatusBadGateway)
+				return
+			}
 			s.backupGrant(r.Context(), "codex")
 			s.backupGrant(r.Context(), "opencode")
-			session.Delete(w, r)
 			activePaidCodingSessions.Clear()
 			s.clearCodingBackups()
-			if s.subscriptionResolver != nil {
-				s.subscriptionResolver.Clear()
-			}
+			w.WriteHeader(http.StatusNoContent)
 		}).Methods(http.MethodDelete)
 		s.router.HandleFunc("/api/v1/auth/subscription/summary", s.subscriptionSummaryHandler).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/business-accounts", s.businessAccountsHandler).Methods(http.MethodGet)
@@ -168,7 +178,7 @@ func (s *Server) setupRoutes() {
 	// token. An unreachable hub returns a clean 503 for the Notifications tab.
 	s.router.PathPrefix("/api/v1/notifications/").Handler(newNotificationsProxy(func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
-	}))
+	}, s.sessionStore))
 	// Same-origin facade for the Approvals inbox. notification-hub's
 	// ConversationsService is Connect-RPC only, so these REST routes are
 	// translated to Connect server-side by approvalsFacade (resolving the hub
@@ -258,9 +268,13 @@ func (s *Server) setupRoutes() {
 	}).Mount(s.router)
 
 	if s.audioToolsResolver != nil {
-		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver, s.webSockets))
+		s.router.Handle(sttconnect.STTServiceTranscribeStreamProcedure, newVoiceConnectProxy(s.audioToolsResolver))
 	}
 	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
 	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit, Notification: s.handleHookNotification}).Mount(s.router)
 	s.registerTTSHookRoutes()
+}
+
+func installMonetizationRequestContext(router *mux.Router) {
+	router.Use(monetization.InjectEntitlement)
 }

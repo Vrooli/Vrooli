@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Terminal } from "@xterm/xterm";
+import { Terminal } from "@xterm/xterm";
 import { linkAtCell, matchTerminalFilePaths, matchTerminalLinks, rewriteLocalhostUrlForProxy } from "./terminalFileLinks";
 
 describe("matchTerminalLinks", () => {
@@ -152,6 +152,20 @@ describe("linkAtCell across a styled block that wraps short of the terminal edge
 });
 
 describe("linkAtCell does not over-join", () => {
+  it.each([30, 59, 60, 62, 75, 76, 78, 80])("selects only a printed report path between shell prompts at %i columns", async (cols) => {
+    const term = new Terminal({ cols, rows: 12, allowProposedApi: true });
+    const prompt = "matthalloran8@swarminator:~/Vrooli$ ";
+    const command = "~/.vrooli/portfolio/steward/run.sh show";
+    const path = "/home/matthalloran8/.vrooli/portfolio/pages/2026-11-17.html";
+    try {
+      await new Promise<void>((resolve) => { term.write(`${prompt}${command}\r\n${path}\r\n${prompt}`, resolve); });
+      const firstOutputRow = Math.ceil((prompt.length + command.length) / cols);
+      for (let offset = 0; offset < path.length; offset++) {
+        expect(linkAtCell(term, firstOutputRow + Math.floor(offset / cols), offset % cols)?.value).toBe(path);
+      }
+    } finally { term.dispose(); }
+  });
+
   it("keeps two separate short lines apart (first is longest but did not wrap)", () => {
     // Neither row reaches cols - WRAP_MARGIN, so they must not be bridged.
     const term = fakeTerminal(["edit a/b.ts", "and c/d.ts"], 80);

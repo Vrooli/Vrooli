@@ -119,6 +119,7 @@ export default function SnippetsPanel() {
   };
 
   return (
+    <>
     <SettingsList layout="aligned" variant="flush" data-testid="snippets-panel">
       <SettingsIntro
         eyebrow={t(strings.snippets.settings.eyebrow)}
@@ -260,6 +261,7 @@ export default function SnippetsPanel() {
         </SettingsList.Group>
         </div>
       )}
+    </SettingsList>
 
       <SnippetSaveSheet
         open={creating}
@@ -319,6 +321,6 @@ export default function SnippetsPanel() {
           testIdPrefix="snippet-delete"
         />
       )}
-    </SettingsList>
+    </>
   );
 }

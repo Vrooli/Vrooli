@@ -66,7 +66,7 @@ with currency, percentages, dates, booleans, and saved formulas.
 Source, change review and workbook settings share a responsive options sheet;
 phones keep worksheet selection in a separate full-width row. Explicit phone
 table view opens cell details on selection and supports returning to the table.
-Other examples are `ui/src/components/file-preview/sourceData.ts` and
+Other examples are `packages/file-viewer/src/preview/sourceData.ts` and
 `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A134logs/11-toolchain-floor-candidate-v8.patch`.
 
 Word (.docx) provides a reflowing reader with headings, an outline, literal search,

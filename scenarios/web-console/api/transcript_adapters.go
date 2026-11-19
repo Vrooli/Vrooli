@@ -50,21 +50,19 @@ type ClaudeTailer struct {
 }
 
 type CodexTailer struct {
-	server       *Server
-	checkpoints  AgentTranscriptCheckpointStore
-	staleTimeout time.Duration // retained for fixture source compatibility
-	engine       *tailer.Engine
-	mu           sync.Mutex
-	watchers     map[string]string
+	server      *Server
+	checkpoints AgentTranscriptCheckpointStore
+	engine      *tailer.Engine
+	mu          sync.Mutex
+	watchers    map[string]string
 }
 
 type GrokTailer struct {
-	server       *Server
-	checkpoints  AgentTranscriptCheckpointStore
-	staleTimeout time.Duration // retained for fixture source compatibility
-	engine       *tailer.Engine
-	mu           sync.Mutex
-	watchers     map[string]string
+	server      *Server
+	checkpoints AgentTranscriptCheckpointStore
+	engine      *tailer.Engine
+	mu          sync.Mutex
+	watchers    map[string]string
 }
 
 func NewClaudeTailer(server *Server) *ClaudeTailer {
@@ -132,7 +130,7 @@ func NewCodexTailer(server *Server) *CodexTailer {
 	if server != nil {
 		ct.checkpoints = server.agentCheckpointStore
 	}
-	ct.engine = newCodexTranscriptEngine(ct)
+	ct.engine = newCodexTranscriptEngine(ct, codexStaleTimeout)
 	return ct
 }
 

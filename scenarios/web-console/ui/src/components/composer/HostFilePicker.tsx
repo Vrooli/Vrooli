@@ -1,18 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DirectoryPreview,
+  FileViewer,
+  PreviewBreadcrumbs,
+  strings as viewerStrings,
+  useFileViewerText,
+  useFilePreviewController,
+  type DirectorySelection,
+  type PreviewModel,
+} from "@vrooli/file-viewer";
+import { basename, pathCrumbs } from "@vrooli/file-viewer/paths";
+import { mentionedFilePaths } from "@vrooli/file-viewer/file-references";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Check, FileText, Folder, Loader2, RotateCw, ScanEye } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 
-import MessagesFileViewer, { PreviewBreadcrumbs } from "../MessagesFileViewer";
-import { DirectoryPreview } from "../file-preview/renderers/DirectoryPreview";
-import { useFilePreviewController } from "../file-preview/useFilePreviewController";
-import type { DirectorySelection } from "../file-preview/types";
-import { canThumbnail, previewThumbnailHref, resolveFilePreview, type PreviewModel } from "../../api/filePreview";
+import { resolveSessionPath, sessionPreviewSource } from "../../api/filePreview";
 import type { HostAttachmentPick } from "../../hooks/useComposerAttachments";
-import { mentionedFilePaths } from "../../lib/fileReferences";
-import { basename, pathCrumbs } from "../../lib/paths";
 import { cn } from "../../lib/classnames";
 import { strings } from "../../consts/strings";
 import { useConversationStore } from "../../stores/useConversationStore";
@@ -32,9 +38,7 @@ interface HostFilePickerProps {
 // match both the session cwd and the project root; the session cwd is the one
 // the operator means.
 async function startPathFor(sessionId: string, tab: "session" | "home"): Promise<string> {
-  const model = await resolveFilePreview(sessionId, tab === "home" ? "~" : ".");
-  const fromCwd = model.candidates?.find((c) => c.resolutionBasis === "session_cwd") ?? model.candidates?.[0];
-  return model.resolvedPath || fromCwd?.resolvedPath || (tab === "home" ? "~" : ".");
+  return (await resolveSessionPath(sessionId, tab === "home" ? "~" : ".")) || (tab === "home" ? "~" : ".");
 }
 
 /**
@@ -45,7 +49,9 @@ async function startPathFor(sessionId: string, tab: "session" | "home"): Promise
  */
 export default function HostFilePicker({ open, sessionId, onClose, onAttach }: HostFilePickerProps) {
   const { t } = useTranslation();
-  const controller = useFilePreviewController(sessionId);
+  const { t: viewerT } = useFileViewerText();
+  const source = useMemo(() => sessionPreviewSource(sessionId), [sessionId]);
+  const controller = useFilePreviewController(source);
   const { state, openPreview, navigateTo, navigateBack, loadMore, setListOptions, reportError, close: closeController } = controller;
   const [tab, setTab] = useState<PickerTab>("session");
   const [selected, setSelected] = useState<Map<string, HostAttachmentPick>>(() => new Map());
@@ -120,17 +126,19 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
         items={TAB_ORDER.map((id) => ({ id, label: t(TAB_LABEL[id]) }))}
       />
       {browsing && (
-        <nav aria-label={t(strings.documentPreview.navigation)} className="flex min-w-0 items-center gap-1 bg-wc-surface-raised px-2 py-1">
-          <IconButton type="button" onClick={navigateBack} disabled={stack.length === 0} data-testid="host-picker-back" aria-label={t(strings.documentPreview.back)} title={t(strings.documentPreview.back)} surface="ghost" shape="rounded" className="shrink-0"><ArrowLeft className="rtl:rotate-180" /></IconButton>
+        <nav aria-label={viewerT(viewerStrings.documentPreview.navigation)} className="flex min-w-0 items-center gap-1 bg-wc-surface-raised px-2 py-1">
+          <IconButton type="button" onClick={navigateBack} disabled={stack.length === 0} data-testid="host-picker-back" aria-label={viewerT(viewerStrings.documentPreview.back)} title={viewerT(viewerStrings.documentPreview.back)} surface="ghost" shape="rounded" className="shrink-0"><ArrowLeft className="rtl:rotate-180" /></IconButton>
           {crumbs.length > 0 && <PreviewBreadcrumbs crumbs={crumbs} onNavigate={navigateTo} />}
         </nav>
       )}
     </div>
   );
 
-  // The drawer keeps its selection context beside the shared action bar.
-  const footer = (
-    <p className="min-w-0 flex-1 self-center text-xs text-wc-text-muted" data-testid="host-picker-summary">
+  // The selection context sits under the title, not in the footer: FullPageDrawer can render
+  // both, but the footer stays one action row so it does not take viewport height from the
+  // file list on a phone, and the count reads next to the thing it describes.
+  const summary = (
+    <p className="min-w-0 text-xs text-wc-text-muted" data-testid="host-picker-summary">
       {selected.size > 0 ? t(strings.composer.hostPickerSelected, { count: selected.size }) : t(strings.composer.hostPickerHint)}
     </p>
   );
@@ -152,24 +160,26 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
     content = (
       <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        <span>{t(strings.messagesFileViewer.loadingPreview)}</span>
+        <span>{viewerT(viewerStrings.viewer.loadingPreview)}</span>
       </div>
     );
   } else {
     content = (
-      <DirectoryPreview
-        model={model}
-        text={null}
-        listing={listing}
-        listingRefreshing={listingRefreshing}
-        onError={reportError}
-        onNavigate={navigateTo}
-        onLoadMore={loadMore}
-        onListOptionsChange={setListOptions}
-        loadingMore={loadingMore}
-        selection={selection}
-        imageSessionId={sessionId}
-      />
+      <Suspense fallback={<div className="flex h-full items-center justify-center gap-2 text-wc-text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /></div>}>
+        <DirectoryPreview
+          model={model}
+          text={null}
+          listing={listing}
+          listingRefreshing={listingRefreshing}
+          onError={reportError}
+          onNavigate={navigateTo}
+          onLoadMore={loadMore}
+          onListOptionsChange={setListOptions}
+          loadingMore={loadingMore}
+          selection={selection}
+          source={source}
+        />
+      </Suspense>
     );
   }
 
@@ -181,7 +191,7 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
       title={t(strings.composer.hostPickerTitle)}
       closeLabel={t(strings.composer.hostPickerClose)}
       subheader={subheader}
-      footer={footer}
+      headerExtra={summary}
       actions={[{
         id: "attach",
         label: selected.size > 0
@@ -206,7 +216,8 @@ export default function HostFilePicker({ open, sessionId, onClose, onAttach }: H
 // picker's folder.
 function PickerPreview({ sessionId, path, isSelected, onToggle, onClose }: { sessionId: string; path: string | null; isSelected: (path: string) => boolean; onToggle: (pick: HostAttachmentPick) => void; onClose: () => void }) {
   const { t } = useTranslation();
-  const preview = useFilePreviewController(sessionId);
+  const source = useMemo(() => sessionPreviewSource(sessionId), [sessionId]);
+  const preview = useFilePreviewController(source);
   const { openPreview, close } = preview;
   useEffect(() => {
     if (path) void openPreview(path);
@@ -214,39 +225,26 @@ function PickerPreview({ sessionId, path, isSelected, onToggle, onClose }: { ses
   }, [path, openPreview, close]);
   if (!path) return null;
 
-  const model = preview.state.model;
-  const target = model && !model.archiveMember && model.resolvedPath ? model : null;
-  const checked = target ? isSelected(target.resolvedPath) : false;
-  const action = target && (
-    <button
-      type="button"
-      aria-pressed={checked}
-      onClick={() => { onToggle({ path: target.resolvedPath, isDirectory: target.kind === "directory", sizeBytes: target.kind === "directory" ? 0 : target.sizeBytes }); }}
-      data-testid="host-picker-preview-select"
-      className={cn("inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition", checked ? "bg-wc-accent text-white" : "border border-wc-default bg-wc-surface-input text-wc-text-secondary hover:text-wc-text-primary")}
-    >
-      {checked && <Check className="h-3.5 w-3.5" aria-hidden />}
-      {t(checked ? strings.composer.hostPickerPreviewSelected : strings.composer.hostPickerPreviewSelect)}
-    </button>
-  );
-  return (
-    <MessagesFileViewer
-      state={preview.state}
-      headerAction={action}
-      onClose={onClose}
-      onReopen={preview.reopen}
-      onRendererError={preview.reportError}
-      onNavigate={preview.navigateTo}
-      onNavigateBack={preview.navigateBack}
-      onLoadMore={preview.loadMore}
-      onListOptionsChange={preview.setListOptions}
-      onChooseCandidate={preview.chooseCandidate}
-      onArchiveFolder={preview.navigateArchiveFolder}
-      onArchiveEntry={preview.navigateArchiveEntry}
-      onArchiveViewChange={preview.setArchiveView}
-      imageSessionId={sessionId}
-    />
-  );
+  // The Select toggle rides the viewer's header-actions slot: it needs the open
+  // file, which only the viewer knows.
+  const renderHeaderActions = ({ model }: { model: PreviewModel | null }) => {
+    const target = model && !model.archiveMember && model.resolvedPath ? model : null;
+    if (!target) return null;
+    const checked = isSelected(target.resolvedPath);
+    return (
+      <button
+        type="button"
+        aria-pressed={checked}
+        onClick={() => { onToggle({ path: target.resolvedPath, isDirectory: target.kind === "directory", sizeBytes: target.kind === "directory" ? 0 : target.sizeBytes }); }}
+        data-testid="host-picker-preview-select"
+        className={cn("inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition", checked ? "bg-wc-accent text-white" : "border border-wc-default bg-wc-surface-input text-wc-text-secondary hover:text-wc-text-primary")}
+      >
+        {checked && <Check className="h-3.5 w-3.5" aria-hidden />}
+        {t(checked ? strings.composer.hostPickerPreviewSelected : strings.composer.hostPickerPreviewSelect)}
+      </button>
+    );
+  };
+  return <FileViewer source={source} controller={preview} renderHeaderActions={renderHeaderActions} onClose={onClose} />;
 }
 
 const TAB_LABEL = {
@@ -267,6 +265,7 @@ function MentionedList({ open, sessionId, isSelected, onToggle, onPreview }: { o
   // Keyed by content: a new message that mentions nothing new must not
   // re-resolve the list or flash the loader.
   const mentionKey = useMemo(() => mentionedFilePaths(events.map((e) => e.text)).join("\n"), [events]);
+  const source = useMemo(() => sessionPreviewSource(sessionId), [sessionId]);
   const [resolved, setResolved] = useState<PreviewModel[] | null>(null);
 
   useEffect(() => {
@@ -274,17 +273,19 @@ function MentionedList({ open, sessionId, isSelected, onToggle, onPreview }: { o
     let cancelled = false;
     setResolved(null);
     const mentions = mentionKey ? mentionKey.split("\n") : [];
-    void Promise.all(mentions.map((path) => resolveFilePreview(sessionId, path).catch(() => null))).then((models) => {
+    void Promise.all(mentions.map((path) => source.resolve(path).catch(() => null))).then((outcomes) => {
       if (cancelled) return;
       const seen = new Set<string>();
-      setResolved(models.filter((m): m is PreviewModel => {
-        if (!m || m.unresolved || !m.resolvedPath || (m.candidates?.length ?? 0) > 1 || seen.has(m.resolvedPath)) return false;
+      setResolved(outcomes.flatMap((outcome) => {
+        // A mention that matches nothing, or more than one place, is left out rather than guessed at.
+        const m = outcome?.outcome === "resolved" ? outcome.model : null;
+        if (!m || !m.resolvedPath || seen.has(m.resolvedPath)) return [];
         seen.add(m.resolvedPath);
-        return m.canPreview;
+        return m.canPreview ? [m] : [];
       }));
     });
     return () => { cancelled = true; };
-  }, [open, mentionKey, sessionId]);
+  }, [open, mentionKey, source]);
 
   if (!resolved) {
     return <div className="flex h-full items-center justify-center gap-2 text-wc-text-muted"><Loader2 className="h-4 w-4 animate-spin" aria-hidden /><span>{t(strings.composer.hostPickerMentionedLoading)}</span></div>;
@@ -298,6 +299,7 @@ function MentionedList({ open, sessionId, isSelected, onToggle, onPreview }: { o
         const isDirectory = m.kind === "directory";
         const checked = isSelected(m.resolvedPath);
         const name = basename(m.resolvedPath) || m.resolvedPath;
+        const thumbnail = m.previewId ? source.thumbnailHref?.(m, { size: 96 }) : undefined;
         return (
           <li key={m.resolvedPath} className={cn("flex items-stretch border-b border-wc-default", checked && "bg-wc-accent/10")}>
             <button
@@ -313,7 +315,7 @@ function MentionedList({ open, sessionId, isSelected, onToggle, onPreview }: { o
               <span aria-hidden="true" className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded border", checked ? "border-wc-accent bg-wc-accent text-white" : "border-wc-text-muted bg-wc-surface-input")}>{checked && <Check className="h-3.5 w-3.5" />}</span>
               <span aria-hidden="true" className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg", isDirectory ? "bg-wc-accent/10 text-wc-accent" : "bg-wc-surface-raised text-wc-text-muted")}>
                 {isDirectory ? <Folder className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                {canThumbnail(name) && m.previewId && <img src={previewThumbnailHref(sessionId, m.previewId, { size: 96 })} alt="" loading="lazy" decoding="async" draggable={false} onError={(e) => { e.currentTarget.hidden = true; }} className="absolute inset-0 h-full w-full object-cover" />}
+                {thumbnail && <img src={thumbnail} alt="" loading="lazy" decoding="async" draggable={false} onError={(e) => { e.currentTarget.hidden = true; }} className="absolute inset-0 h-full w-full object-cover" />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-wc-text-primary" dir="auto">{name}</span>

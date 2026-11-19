@@ -30,6 +30,7 @@ import { handleRadioKeys } from "./launcher/radioKeys";
 import { harnessAction, harnessNeedsAction, harnessState } from "./launcher/agentStatus";
 import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModePanel";
 import { HarnessSettings } from "./launcher/HarnessSettings";
+import { RemoteAIConsentSettings } from "./launcher/RemoteAIConsentSettings";
 import { LaunchExtras } from "./launcher/LaunchExtras";
 import { LaunchFooter } from "./launcher/LaunchFooter";
 import MachinePicker from "./launcher/MachinePicker";
@@ -310,6 +311,19 @@ export default function TerminalLauncher({
   const effectiveModelName = model.explicitChoice?.displayName ?? modelLabel(model, modeModel) ?? model.defaultChoice?.displayName;
   // A limit is offered per model, so one chosen for another model no longer applies.
   const appliedLimit = contextLimit !== null && !model.literal && limitOptions(effectiveChoice).includes(contextLimit) ? contextLimit : null;
+  // A dead button must say what is missing. Conditions are ordered by what the
+  // operator can change first; busy states keep their own label instead.
+  const launchReason = (() => {
+    if (sessionType === null || sessionType === "group" || isCreating) return undefined;
+    if (!selected.available) return selected.recovery_action ? `${t(strings.terminalLauncher.targetUnavailable)} ${selected.recovery_action}` : t(strings.terminalLauncher.targetUnavailable);
+    if (noBackendAvailable) return backendUnavailableReason;
+    if (sessionType !== "agent") return undefined;
+    if (!selectedCard) return t(strings.terminalLauncher.launchChooseAgent);
+    if (model.loading) return t(strings.terminalLauncher.launchModelLoading);
+    if (model.usesVrooliCredits && billing.blocked) return t(strings.terminalLauncher.launchBillingBlocked);
+    if (modelBlocked) return t(strings.terminalLauncher.launchModelBlocked);
+    return undefined;
+  })();
 
   const destinationGroup = groups.find((group) => group.id === destinationGroupId) ?? null;
   const changeDestination = useCallback((groupId: string | null) => {
@@ -339,12 +353,16 @@ export default function TerminalLauncher({
   // command the operator wrote stays literal, so nothing is sent with it.
   const launchAgent = () => {
     if (!selectedCard || launchBlocked || (model.usesVrooliCredits && billing.blocked) || modelBlocked || model.loading) return;
-    const chosenModel = model.failed ? undefined : fullPower ? saveAgent?.usualModel : model.explicitChoice?.model;
+    // A stale metered default is replaced by a launchable choice. Name that
+    // replacement on the launch, or the server would compose the paused default
+    // from the policy and defeat the block.
+    const replacement = model.explicitChoice || modeModel ? undefined : model.fallbackChoice;
+    const chosenModel = model.failed ? undefined : fullPower ? saveAgent?.usualModel : model.explicitChoice?.model ?? replacement?.model;
     const hasSettings = !model.literal && (chosenModel !== undefined || appliedLimit !== null);
     onLaunch(buildLaunchOptions(selectedCard.command, hasSettings ? {
       agent_id: selectedCard.agentID,
       model: chosenModel,
-      provider: model.explicitChoice?.source,
+      provider: model.explicitChoice?.source ?? replacement?.source,
       max_credits: model.usesVrooliCredits ? billing.maxCredits : undefined,
       context_limit_tokens: appliedLimit ?? undefined,
     } : undefined));
@@ -488,6 +506,7 @@ export default function TerminalLauncher({
       <LaunchFooter testId="launcher-submit-selection" summary={summaryParts.join(" · ")}
         label={sessionType === "shell" ? t(strings.terminalLauncher.launchSelectedShell) : selectedCard ? t(strings.terminalLauncher.launchSelectedAgent, { name: selectedCard.label }) : t(strings.terminalLauncher.launch)}
         disabled={launchBlocked || (sessionType === "agent" && (!selectedCard || (model.usesVrooliCredits && billing.blocked) || modelBlocked || model.loading))}
+        reason={launchReason}
         busy={isCreating} busyLabel={t(strings.terminalLauncher.creating)}
         onLaunch={sessionType === "shell" ? launchShell : launchAgent} />
     );
@@ -524,7 +543,7 @@ export default function TerminalLauncher({
           </div>
           <div className="flex min-h-0 flex-col">
             <div className="relative min-h-0 flex-1 overflow-y-auto p-4 pb-0">
-              {sessionType === "agent" ? settings : sessionType === null ? null : <p className="px-1 text-xs text-wc-text-muted">{t(strings.terminalLauncher.nothingToConfigure)}</p>}
+              {sessionType === "agent" ? <>{settings}<RemoteAIConsentSettings /></> : sessionType === null ? null : <p className="px-1 text-xs text-wc-text-muted">{t(strings.terminalLauncher.nothingToConfigure)}</p>}
               <ScrollFade />
             </div>
             <div className="border-t border-wc-default p-4">{footer}</div>
@@ -534,7 +553,7 @@ export default function TerminalLauncher({
         <div ref={drawerRoot} tabIndex={-1} onKeyDown={onDrawerKeyDown} data-testid="launcher-phone" className="min-h-[calc(100dvh-14rem)] pt-4 outline-none">
           <div className="px-4">{typeTabs}</div>
           {alerts}
-          {sessionType === "agent" && <>{agentChoice}<div className="px-4 pt-3">{settings}</div></>}
+          {sessionType === "agent" && <>{agentChoice}<div className="px-4 pt-3">{settings}<RemoteAIConsentSettings /></div></>}
           {sessionType === "shell" && shellPanel}
           {sessionType === "group" && groupPanel}
           {extras}

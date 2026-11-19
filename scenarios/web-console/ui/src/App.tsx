@@ -33,7 +33,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const link = parseApprovalsDeepLink(window.location.search);
-    const filePath = parseFilePreviewDeepLink(window.location.search);
+    const filePath = parseFilePreviewDeepLink(window.location.search, window.location.hash);
     const hasFileParam = new URLSearchParams(window.location.search).has("file");
     if (!link.open && !hasFileParam) return;
     if (link.open) requestApprovalsOpen(link.decisionId);

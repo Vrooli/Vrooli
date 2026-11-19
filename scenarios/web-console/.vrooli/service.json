@@ -430,6 +430,16 @@
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
       },
       {
+        "version": "credential-descriptor/v1",
+        "logical_id": "vrooli/lpbs-issuer-trust",
+        "field": "jwks-keysets",
+        "label": "LPBS issuer verification keys",
+        "description": "Public issuer keys retained by the credential authority so an editable offline lease cache cannot supply its own trust root.",
+        "required": false,
+        "provisioning": "generated",
+        "kind": "public"
+      },
+      {
         "logical_id": "vrooli/openrouter",
         "field": "api-key",
         "label": "OpenRouter API key",

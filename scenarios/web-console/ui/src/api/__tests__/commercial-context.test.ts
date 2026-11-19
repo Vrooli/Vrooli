@@ -139,7 +139,6 @@ describe("subscription and credential REST wrappers", () => {
       configured: false,
       status: "signed_out",
       plan_tier: "free",
-      pending_sync: 0,
     });
   });
 

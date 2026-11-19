@@ -1,3 +1,4 @@
+import fileViewerPreset from "@vrooli/file-viewer/tailwind-preset";
 import { type Config } from "tailwindcss";
 
 /**
@@ -8,13 +9,19 @@ import { type Config } from "tailwindcss";
  * instead of raw Tailwind palette classes (e.g. `bg-slate-950`).
  */
 export default {
+  // The shared file viewer's `fv-*` utilities map onto --fv-* variables, which
+  // src/styles.css points at the --wc-* tokens above.
+  presets: [fileViewerPreset],
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
     // BRIDGE (remove when the library emits no utility classes — see gate
     // catalog.utility-class). Some published RCL versions still ship Tailwind class strings; without
     // this glob their styling is purged from this app's bundle with no error.
-    "./node_modules/@vrooli/react-component-library/dist/**/*.js"
+    "./node_modules/@vrooli/react-component-library/dist/**/*.js",
+    // The viewer ships utility class strings in its dist; without this glob
+    // its styling is purged from this app's bundle with no error.
+    "./node_modules/@vrooli/file-viewer/dist/**/*.js"
   ],
   theme: {
     extend: {

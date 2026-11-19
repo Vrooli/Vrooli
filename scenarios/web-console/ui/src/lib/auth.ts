@@ -129,13 +129,18 @@ export async function startSignIn(): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
-  if (window.desktop?.auth) {
-    await window.desktop.auth.signOut();
-  } else {
-    try {
-      await authClient.request("/api/v1/auth/subscription/session", { method: "DELETE" });
-    } finally {
-      clearWebAccessToken();
+  try {
+    if (window.desktop?.auth) {
+      await window.desktop.auth.signOut();
+    } else {
+      try {
+        await authClient.request("/api/v1/auth/subscription/session", { method: "DELETE" });
+      } finally {
+        clearWebAccessToken();
+      }
     }
+  } finally {
+    sessionStorage.removeItem("web-console.ai.remote-consent-receipt");
+    sessionStorage.removeItem("web-console.ai.remote-consent-source");
   }
 }
