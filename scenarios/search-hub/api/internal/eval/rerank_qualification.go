@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func QualifyRerankCorpus(ctx context.Context, suite *evalv1.EvalSuite, verifier 
 	result.ReviewedPositive = int32(len(denominator))
 	result.DenominatorSha256 = denominatorDigest(denominator)
 	for _, c := range suite.GetCases() {
-		if c != nil && positiveProtoCase(c) && !isExcludedEvaluationCase(c) && hasEvaluationTag(c.GetTags(), "heldout") {
+		if c != nil && positiveProtoCase(c) && !isExcludedEvaluationCase(c) && slices.Contains(c.GetTags(), "heldout") {
 			result.HeldoutPositive++
 		}
 	}
@@ -246,7 +247,7 @@ func RerankHeldoutIDs(suite *evalv1.EvalSuite) []string {
 	}
 	var ids []string
 	for _, c := range suite.GetCases() {
-		if c != nil && positiveProtoCase(c) && !isExcludedEvaluationCase(c) && hasEvaluationTag(c.GetTags(), "heldout") {
+		if c != nil && positiveProtoCase(c) && !isExcludedEvaluationCase(c) && slices.Contains(c.GetTags(), "heldout") {
 			ids = append(ids, c.GetCaseId())
 		}
 	}

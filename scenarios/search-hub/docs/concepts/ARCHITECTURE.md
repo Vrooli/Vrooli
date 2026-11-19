@@ -100,7 +100,6 @@ tuning budgets — and never the corpus content itself. Corpus-specific
 relevance stays provider-owned and is measured through eval suites, not
 centralized checks.
 
-## Purpose Of This Document
 
 This document owns:
 

@@ -1,10 +1,12 @@
 package embedding
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +45,8 @@ type migrationState struct {
 	OldCollection    string                `json:"old_collection,omitempty"`
 	ActiveCollection string                `json:"active_collection"`
 	Plan             aisearch.RetargetPlan `json:"plan"`
+	RecipeID         string                `json:"recipe_id,omitempty"`
+	RecipeCanonical  string                `json:"recipe_canonical,omitempty"`
 	CompareVerdict   string                `json:"compare_verdict,omitempty"`
 	State            string                `json:"state"`
 	UpdatedAt        string                `json:"updated_at"`
@@ -112,6 +116,14 @@ func (h *handlers) applyShadowCall(ctx cliapp.OperationContext) (result, error) 
 	if err != nil {
 		return result{}, err
 	}
+	recipe, err := readRecipeFile(ctx.Flag("recipe-file"))
+	if err != nil {
+		return result{}, err
+	}
+	target, err = bindTargetRecipe(target, recipe)
+	if err != nil {
+		return result{}, err
+	}
 	collection := strings.TrimSpace(ctx.Flag("collection"))
 	if collection == "" && len(entries) == 1 {
 		collection = entries[0].Store.Collection
@@ -131,11 +143,11 @@ func (h *handlers) applyShadowCall(ctx cliapp.OperationContext) (result, error) 
 	}
 	store := aisearch.NewQdrantEmbeddingStore(collection)
 	plan := aisearch.PlanEmbeddingRetargetForStores(old, target, []aisearch.EmbeddingStore{store})
-	state := migrationState{ProviderID: providerID, LiveCollection: collection, ShadowCollection: collection + "__retarget_shadow", ActiveCollection: collection, Plan: plan, State: "shadow_build_requested", UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	state := migrationState{ProviderID: providerID, LiveCollection: collection, ShadowCollection: collection + "__retarget_shadow", ActiveCollection: collection, Plan: plan, RecipeID: recipe.ID(), RecipeCanonical: string(recipe.Canonical()), State: "shadow_build_requested", UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	if err := saveState(state); err != nil {
 		return result{}, err
 	}
-	providerResponse, err := h.invokeProviderControl(context.Background(), providerID, map[string]any{"action": "shadow", "provider_id": providerID, "collection": collection, "shadow_collection": state.ShadowCollection, "model": target.Model, "role": target.Role, "dimensions": target.Dimensions, "policy_schema_version": target.PolicySchemaVersion})
+	providerResponse, err := h.invokeProviderControl(context.Background(), providerID, map[string]any{"action": "shadow", "provider_id": providerID, "collection": collection, "shadow_collection": state.ShadowCollection, "model": target.Model, "role": target.Role, "dimensions": target.Dimensions, "policy_schema_version": target.PolicySchemaVersion, "recipe_id": recipe.ID(), "recipe_canonical": string(recipe.Canonical())})
 	if err != nil {
 		state.State = "shadow_build_failed"
 		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -245,7 +257,7 @@ func (h *handlers) rollbackCall(ctx cliapp.OperationContext) (result, error) {
 }
 
 func (h *handlers) invokeProviderControl(ctx context.Context, providerID string, body map[string]any) (*registryv1.ExecuteEmbeddingMigrationResponse, error) {
-	request := &registryv1.ExecuteEmbeddingMigrationRequest{ProviderId: providerID, Action: stringValue(body, "action"), ShadowCollection: stringValue(body, "shadow_collection"), RollbackCollection: stringValue(body, "rollback_collection"), EmbeddingModel: stringValue(body, "model"), EmbeddingRole: stringValue(body, "role"), EmbeddingPolicySchemaVersion: stringValue(body, "policy_schema_version")}
+	request := &registryv1.ExecuteEmbeddingMigrationRequest{ProviderId: providerID, Action: stringValue(body, "action"), ShadowCollection: stringValue(body, "shadow_collection"), RollbackCollection: stringValue(body, "rollback_collection"), EmbeddingModel: stringValue(body, "model"), EmbeddingRole: stringValue(body, "role"), EmbeddingPolicySchemaVersion: stringValue(body, "policy_schema_version"), EmbeddingRecipeId: stringValue(body, "recipe_id"), EmbeddingRecipeCanonical: stringValue(body, "recipe_canonical")}
 	if value, ok := body["dimensions"].(int); ok {
 		request.EmbeddingDimensions = int32(value)
 	}
@@ -341,7 +353,55 @@ func resolveTarget(ctx context.Context, model, role, dimensions string) (aisearc
 	if err != nil {
 		return aisearch.EmbeddingMetadata{}, err
 	}
-	return aisearch.EmbeddingMetadata(policy), nil
+	return aisearch.EmbeddingMetadata{Role: policy.Role, Model: policy.Model, Dimensions: policy.Dimensions, PolicySchemaVersion: policy.PolicySchemaVersion}, nil
+}
+
+func readRecipeFile(path string) (aisearch.EmbeddingRecipe, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return aisearch.EmbeddingRecipe{}, errors.New("--recipe-file is required: a complete embedding recipe must be supplied for a shadow arm")
+	}
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return aisearch.EmbeddingRecipe{}, fmt.Errorf("read embedding recipe %q: %w", path, err)
+	}
+	var input aisearch.EmbeddingRecipeInput
+	decoder := json.NewDecoder(bytes.NewReader(blob))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		return aisearch.EmbeddingRecipe{}, fmt.Errorf("decode embedding recipe %q: %w", path, err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return aisearch.EmbeddingRecipe{}, fmt.Errorf("decode embedding recipe %q: trailing JSON value", path)
+		}
+		return aisearch.EmbeddingRecipe{}, fmt.Errorf("decode embedding recipe %q trailing data: %w", path, err)
+	}
+	recipe, err := aisearch.NewEmbeddingRecipe(input)
+	if err != nil {
+		return aisearch.EmbeddingRecipe{}, fmt.Errorf("validate embedding recipe %q: %w", path, err)
+	}
+	if len(recipe.Canonical()) > 16*1024 {
+		return aisearch.EmbeddingRecipe{}, fmt.Errorf("validate embedding recipe %q: canonical recipe exceeds the 16 KiB migration contract limit", path)
+	}
+	return recipe, nil
+}
+
+func bindTargetRecipe(target aisearch.EmbeddingMetadata, recipe aisearch.EmbeddingRecipe) (aisearch.EmbeddingMetadata, error) {
+	if err := recipe.Verify(); err != nil {
+		return aisearch.EmbeddingMetadata{}, fmt.Errorf("embedding recipe is not initialized: %w", err)
+	}
+	input, err := recipe.Input()
+	if err != nil {
+		return aisearch.EmbeddingMetadata{}, fmt.Errorf("read validated embedding recipe: %w", err)
+	}
+	if target.Model != input.ModelID || target.Dimensions != input.Dimensions {
+		return aisearch.EmbeddingMetadata{}, fmt.Errorf("target policy model/dimensions (%s/%d) do not match canonical recipe (%s/%d)", target.Model, target.Dimensions, input.ModelID, input.Dimensions)
+	}
+	target.RecipeID = recipe.ID()
+	target.RecipeCanonical = string(recipe.Canonical())
+	return target, nil
 }
 
 func qdrantURL() string {

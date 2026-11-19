@@ -13,10 +13,13 @@ import (
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
+	"search-hub/cli/domains/evals/publicbench"
 )
 
 // runSuiteTimeout bounds a single `evals run` invocation. It is generous because
@@ -42,15 +45,17 @@ const generateTimeout = 20 * time.Minute
 // handlers bundles the closure over *cliapp.ScenarioApp so each RunCtx-func has
 // typed access to the EvalService client without re-resolving it.
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client evalconnect.EvalServiceClient
+	core     *cliapp.ScenarioApp
+	client   evalconnect.EvalServiceClient
+	registry registryconnect.RegistryServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
-		client: evalconnect.NewEvalServiceClient(httpClient, baseURL),
+		core:     core,
+		client:   evalconnect.NewEvalServiceClient(httpClient, baseURL),
+		registry: registryconnect.NewRegistryServiceClient(httpClient, baseURL),
 	}
 }
 
@@ -118,6 +123,71 @@ func (h *handlers) registerCall(ctx cliapp.OperationContext) (*evalv1.RegisterSu
 		return nil, fmt.Errorf("server returned no suite")
 	}
 	return resp.Msg, nil
+}
+
+// importPublicBenchCall adapts an already-staged, source-owned benchmark split
+// into the existing EvalSuite contract and registers it through EvalService.
+// RegistryService performs its standard fixed endpoint reachability probe;
+// this command does not run benchmark queries, corpus validation, or a model.
+func (h *handlers) importPublicBenchCall(ctx cliapp.OperationContext) (*evalv1.RegisterSuiteResponse, error) {
+	maxCases, err := strconv.Atoi(strings.TrimSpace(ctx.Flag("max-cases")))
+	if err != nil {
+		return nil, fmt.Errorf("invalid --max-cases: %w", err)
+	}
+	dataset, err := publicBenchDataset(
+		ctx.Flag("dataset"),
+		ctx.Flag("data-dir"),
+		maxCases,
+	)
+	if err != nil {
+		return nil, err
+	}
+	provider, err := publicbench.SearchProviderDescriptor(ctx.Flag("provider-id"), dataset.CorpusSHA256)
+	if err != nil {
+		return nil, err
+	}
+	providerResp, err := h.registry.RegisterProvider(context.Background(), connect.NewRequest(&registryv1.RegisterProviderRequest{Descriptor_: provider}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("register staged SciFact corpus provider", err, nil)
+	}
+	if providerResp == nil || providerResp.Msg == nil || providerResp.Msg.GetDescriptor_() == nil {
+		return nil, fmt.Errorf("server returned no staged SciFact provider")
+	}
+	suite, err := dataset.SearchSuite(provider.GetProviderId())
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.RegisterSuite(context.Background(), connect.NewRequest(&evalv1.RegisterSuiteRequest{Suite: suite}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("register public benchmark suite", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetSuite() == nil {
+		return nil, fmt.Errorf("server returned no public benchmark suite")
+	}
+	return resp.Msg, nil
+}
+
+func publicBenchDataset(datasetID, dataDir string, maxCases int) (publicbench.Dataset, error) {
+	if strings.TrimSpace(datasetID) != publicbench.SciFactDatasetID+"-"+publicbench.SciFactDevSplit {
+		return publicbench.Dataset{}, fmt.Errorf("unsupported --dataset %q (supported: %s-%s)", datasetID, publicbench.SciFactDatasetID, publicbench.SciFactDevSplit)
+	}
+	return publicbench.LoadSciFactDev(dataDir, maxCases)
+}
+
+func (h *handlers) importPublicBenchReport(_ cliapp.OperationContext, msg *evalv1.RegisterSuiteResponse) cliapp.MutationReport {
+	suite := msg.GetSuite()
+	verb := "Updated"
+	if msg.GetCreated() {
+		verb = "Registered"
+	}
+	return cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("%s staged SciFact provider %s and public benchmark suite %s (%d source-linked case(s)); provider registration passed its fixed endpoint probe.", verb, suite.GetProviderId(), suite.GetSuiteId(), len(suite.GetCases()))},
+		Changes: []string{formatSuite(suite), suite.GetDescription()},
+		NextCommand: []string{
+			fmt.Sprintf("`evals show %s` — inspect the registered source-linked cases", suite.GetSuiteId()),
+			"After host capacity permits: `evals validate " + suite.GetSuiteId() + "` and `evals run " + suite.GetSuiteId() + " --tag publicbench-baseline`.",
+		},
+	}
 }
 
 func (h *handlers) registerReport(_ cliapp.OperationContext, msg *evalv1.RegisterSuiteResponse) cliapp.MutationReport {

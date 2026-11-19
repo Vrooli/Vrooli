@@ -141,7 +141,8 @@ func (h *connectHandler) ExecuteEmbeddingMigration(ctx context.Context, req *con
 	response, err := h.deps.Control.ReindexRequest(ctx, desc, token, &controlv1.ReindexRequest{
 		Action: action, ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
 		EmbeddingModel: r.GetEmbeddingModel(), EmbeddingRole: r.GetEmbeddingRole(), EmbeddingDimensions: r.GetEmbeddingDimensions(),
-		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), Scope: r.GetScope(), DryRun: r.GetDryRun(),
+		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), EmbeddingRecipeId: r.GetEmbeddingRecipeId(),
+		EmbeddingRecipeCanonical: r.GetEmbeddingRecipeCanonical(), Scope: r.GetScope(), DryRun: r.GetDryRun(),
 	})
 	if err != nil {
 		code := connect.CodeOf(err)
@@ -206,6 +207,7 @@ func validateEmbeddingMigrationRequest(request *registryv1.ExecuteEmbeddingMigra
 		Action: action, ShadowCollection: request.GetShadowCollection(), RollbackCollection: request.GetRollbackCollection(),
 		EmbeddingModel: request.GetEmbeddingModel(), EmbeddingRole: request.GetEmbeddingRole(),
 		EmbeddingDimensions: request.GetEmbeddingDimensions(), EmbeddingPolicySchemaVersion: request.GetEmbeddingPolicySchemaVersion(),
+		EmbeddingRecipeID: request.GetEmbeddingRecipeId(), EmbeddingRecipeCanonical: request.GetEmbeddingRecipeCanonical(),
 		DryRun: request.GetDryRun(),
 	}
 	switch action {
@@ -213,7 +215,7 @@ func validateEmbeddingMigrationRequest(request *registryv1.ExecuteEmbeddingMigra
 		if strings.TrimSpace(request.GetJobId()) == "" {
 			return errors.New("status requires a job_id")
 		}
-		if request.GetShadowCollection() != "" || request.GetRollbackCollection() != "" || request.GetEmbeddingModel() != "" || request.GetEmbeddingRole() != "" || request.GetEmbeddingDimensions() != 0 || request.GetEmbeddingPolicySchemaVersion() != "" || request.GetScope() != "" || request.GetDryRun() {
+		if request.GetShadowCollection() != "" || request.GetRollbackCollection() != "" || request.GetEmbeddingModel() != "" || request.GetEmbeddingRole() != "" || request.GetEmbeddingDimensions() != 0 || request.GetEmbeddingPolicySchemaVersion() != "" || request.GetEmbeddingRecipeId() != "" || request.GetEmbeddingRecipeCanonical() != "" || request.GetScope() != "" || request.GetDryRun() {
 			return errors.New("status cannot include migration targets")
 		}
 		return nil

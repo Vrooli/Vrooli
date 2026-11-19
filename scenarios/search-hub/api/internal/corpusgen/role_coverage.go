@@ -48,13 +48,7 @@ func ValidateModelRoleCoverage(cases []*evalv1.EvalCase, minimumPerRole int) (ma
 		if c == nil || c.GetStatus() != "reviewed" || !hasCaseTag(c, "caller-audit") || !hasCaseTag(c, "agent-manager") || !hasCaseTag(c, "independently-reviewed") || hasCaseTag(c, "generated") || !hasReviewedCallerProvenance(c) {
 			continue
 		}
-		role := ""
-		for _, tag := range c.GetTags() {
-			if strings.HasPrefix(tag, "role:") {
-				role = strings.TrimPrefix(tag, "role:")
-				break
-			}
-		}
+		role := resourceRoleForCase(c)
 		if !known[role] || role == "" || c.GetCaseId() == "" || len(c.GetExpectIds()) == 0 || seen[c.GetCaseId()] {
 			continue
 		}
@@ -125,13 +119,7 @@ func ValidateGatewayTaskRoleCoverage(cases []*evalv1.EvalCase, taskRoles []strin
 // emitted by AuditedCallerCase.
 func hasReviewedCallerProvenance(c *evalv1.EvalCase) bool {
 	note := c.GetNote()
-	role := ""
-	for _, tag := range c.GetTags() {
-		if strings.HasPrefix(tag, "role:") {
-			role = strings.TrimPrefix(tag, "role:")
-			break
-		}
-	}
+	role := resourceRoleForCase(c)
 	if role == "" {
 		return false
 	}
@@ -152,7 +140,8 @@ func hasReviewedCallerProvenance(c *evalv1.EvalCase) bool {
 		return false
 	}
 	gatewayEventID := fields["gateway_event"]
-	if gatewayEventID == "" || fields["gateway_request"] == "" || fields["role"] != role || fields["model"] == "" ||
+	consumer := consumerForCase(c)
+	if gatewayEventID == "" || fields["gateway_request"] == "" || fields["selected_resource_role"] != role || fields["model"] == "" || consumer == "" || fields["consumer"] != consumer ||
 		fields["role_evidence"] != "gateway-ledger://events/"+gatewayEventID ||
 		!strings.HasPrefix(fields["capacity_estimate"], "capacity-footprint://") ||
 		fields["label_review"] == "" || fields["reviewer"] == "" {
@@ -167,10 +156,28 @@ func hasReviewedCallerProvenance(c *evalv1.EvalCase) bool {
 	return c.GetCaseId() == callerCaseID(sourceParts[0], sourceParts[1], role, gatewayEventID)
 }
 
+func resourceRoleForCase(c *evalv1.EvalCase) string {
+	for _, tag := range c.GetTags() {
+		if strings.HasPrefix(tag, "resource-role:") {
+			return strings.TrimSpace(strings.TrimPrefix(tag, "resource-role:"))
+		}
+	}
+	return ""
+}
+
 func taskRoleForCase(c *evalv1.EvalCase) string {
 	for _, tag := range c.GetTags() {
 		if strings.HasPrefix(tag, "task-role:") {
 			return strings.TrimSpace(strings.TrimPrefix(tag, "task-role:"))
+		}
+	}
+	return ""
+}
+
+func consumerForCase(c *evalv1.EvalCase) string {
+	for _, tag := range c.GetTags() {
+		if strings.HasPrefix(tag, "consumer:") {
+			return strings.TrimSpace(strings.TrimPrefix(tag, "consumer:"))
 		}
 	}
 	return ""

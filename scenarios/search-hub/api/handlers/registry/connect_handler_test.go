@@ -3,6 +3,7 @@ package registry_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -223,6 +224,13 @@ func TestEmbeddingMigrationNegotiatesCapabilitiesBeforeMutationAndNormalizesProm
 }
 
 func TestEmbeddingMigrationPassesEveryShadowFieldToProvider(t *testing.T) {
+	recipe, err := aisearch.NewEmbeddingRecipe(aisearch.EmbeddingRecipeInput{
+		SchemaVersion: "embedding-recipe-v1", ModelID: "nomic-embed-text:latest", ModelRevision: "revision-1",
+		ArtifactSHA256: strings.Repeat("a", 64), TokenizerRevision: "tokenizer-1", Runtime: "ollama", RuntimeBuild: "build-1",
+		Precision: "fp32", QueryInstruction: "query", DocumentInstruction: "document", Pooling: "mean", Normalization: "l2",
+		Dimensions: 768, OutputDType: "float32", Truncation: "512", ChunkerVersion: "chunk-v1", ComposerVersion: "composer-v1",
+	})
+	require.NoError(t, err)
 	store := &fakeStore{descriptor: validDescriptor(), tokenOut: "provider-token"}
 	provider := &fakeProviderControl{responses: []*controlv1.ReindexResponse{
 		{MigrationProtocolVersion: aisearch.ReindexMigrationProtocolVersion, SupportedMigrationActions: []string{"shadow", "cutover", "rollback"}},
@@ -232,7 +240,7 @@ func TestEmbeddingMigrationPassesEveryShadowFieldToProvider(t *testing.T) {
 	resp, err := client.ExecuteEmbeddingMigration(context.Background(), connect.NewRequest(&registryv1.ExecuteEmbeddingMigrationRequest{
 		ProviderId: "cli-health.commands", Action: "shadow", ShadowCollection: "candidate-recipe-b",
 		EmbeddingModel: "nomic-embed-text:latest", EmbeddingRole: "embedding.default", EmbeddingDimensions: 768,
-		EmbeddingPolicySchemaVersion: "policy/v4", Scope: "tenant-a", DryRun: true,
+		EmbeddingPolicySchemaVersion: "policy/v4", EmbeddingRecipeId: recipe.ID(), EmbeddingRecipeCanonical: string(recipe.Canonical()), Scope: "tenant-a", DryRun: true,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "shadow-job", resp.Msg.GetJobId())
@@ -244,6 +252,8 @@ func TestEmbeddingMigrationPassesEveryShadowFieldToProvider(t *testing.T) {
 	require.Equal(t, "embedding.default", shadow.GetEmbeddingRole())
 	require.Equal(t, int32(768), shadow.GetEmbeddingDimensions())
 	require.Equal(t, "policy/v4", shadow.GetEmbeddingPolicySchemaVersion())
+	require.Equal(t, recipe.ID(), shadow.GetEmbeddingRecipeId())
+	require.Equal(t, string(recipe.Canonical()), shadow.GetEmbeddingRecipeCanonical())
 	require.Equal(t, "tenant-a", shadow.GetScope())
 	require.True(t, shadow.GetDryRun())
 }

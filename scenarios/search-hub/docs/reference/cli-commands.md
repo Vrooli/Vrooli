@@ -91,8 +91,11 @@ search-hub configure api_base
 
 `search-hub query "<text>"` searches the selected provider set. The CLI defaults
 to five results per provider to keep ordinary reads bounded; pass `--limit 10`
-or another positive limit when a deeper search is needed. `--type`, `--group`,
-and `--scope` narrow the provider set, while `--all` explicitly fans out across
+or another positive limit when a deeper search is needed. Human output displays
+at most ten hits across providers; use `--show-all-results` to display every
+returned hit. Titles and provenance fields are bounded in human output, while
+`--json` retains the complete response for scripts. `--type`, `--group`, and
+`--scope` narrow the provider set, while `--all` explicitly fans out across
 active providers.
 
 ```bash

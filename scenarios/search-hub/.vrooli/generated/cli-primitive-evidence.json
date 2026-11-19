@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "976b7fe2c2e4bcb99ec2562de280dec15cdfd41f5b43b88d40496f7ea4d8210f",
+  "manifest_hash": "0df0788db33f436c86360bc45bad00b191a65a0f0111de1a80e288f29d8a991b",
   "commands": [
     {
       "path": "embedding abort",
@@ -79,12 +79,44 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "evals denominator",
+      "group": "evals",
+      "command": "denominator",
+      "binding": "EvalService.GetFixedDenominator",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals denominator-freeze",
+      "group": "evals",
+      "command": "denominator-freeze",
+      "binding": "EvalService.FreezeFixedDenominator",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "evals generate",
       "group": "evals",
       "command": "generate",
       "binding": "EvalService.Generate",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals harvest-callers",
+      "group": "evals",
+      "command": "harvest-callers",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "evals import-publicbench",
+      "group": "evals",
+      "command": "import-publicbench",
+      "binding": ".",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "evals list",

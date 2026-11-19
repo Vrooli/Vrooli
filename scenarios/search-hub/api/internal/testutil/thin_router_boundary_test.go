@@ -60,6 +60,8 @@ var knownTables = map[string]bool{
 	// Scheduled validation state (internal/eval/schema.sql). This stores
 	// verdict metadata only; corpus content remains provider-owned.
 	"eval_corpus_validations": true,
+	// Frozen reviewed-case denominators: suite case ids and labels, no corpus text.
+	"eval_fixed_denominators": true,
 	// Durable provider health policy state (internal/metrics/schema.sql).
 	"provider_demotion_state": true,
 	// Fleet snapshots pin the same routing-profile projection while a candidate

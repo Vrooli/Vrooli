@@ -1,6 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -31,7 +32,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: relative assets preserve routing when this UI is served
     // inside the web-console iframe or through a scenario tunnel.
     base: './',
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: isProfile
       ? {
           alias: {

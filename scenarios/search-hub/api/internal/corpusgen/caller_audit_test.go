@@ -25,10 +25,10 @@ func TestAuditedCallerCaseBindsValidatedLabelAndRoleEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.GetStatus() != "reviewed" || len(got.GetExpectIds()) != 1 || got.GetTags()[2] != "role:chat.default" {
+	if got.GetStatus() != "reviewed" || len(got.GetExpectIds()) != 1 || got.GetTags()[2] != "resource-role:chat.default" {
 		t.Fatalf("reviewed case lost provenance: %+v", got)
 	}
-	if got.GetTags()[3] != "task-role:classify.fast" || !strings.Contains(got.GetNote(), "task_role=classify.fast") {
+	if got.GetTags()[3] != "consumer:vrooli-memory" || got.GetTags()[4] != "task-role:classify.fast" || !strings.Contains(got.GetNote(), "task_role=classify.fast") || !strings.Contains(got.GetNote(), "consumer=vrooli-memory") {
 		t.Fatalf("reviewed case lost distinct task-role provenance: %+v", got)
 	}
 }
@@ -36,7 +36,7 @@ func TestAuditedCallerCaseBindsValidatedLabelAndRoleEvidence(t *testing.T) {
 func TestAuditedCallerCaseRequiresAuthenticatedTypedEventAndRoleSource(t *testing.T) {
 	valid := callerEventFixture()
 	route := gatewayRouteFixture()
-	route.Role = "unknown.role"
+	route.SelectedResourceRole = "unknown.role"
 	if _, err := AuditedCallerCase(valid, route, CallerLabelReview{}); err == nil {
 		t.Fatal("expected unsupported model role to fail")
 	}
@@ -64,6 +64,7 @@ func TestAuditedCallerCaseRequiresAuthenticatedTypedEventAndRoleSource(t *testin
 		"failed route":              func(r *GatewayRouteProof) { r.Status = "failed" },
 		"remote route":              func(r *GatewayRouteProof) { r.Locality = "remote" },
 		"missing gateway task role": func(r *GatewayRouteProof) { r.TaskRole = "" },
+		"missing consumer":          func(r *GatewayRouteProof) { r.Consumer = "" },
 		"no model identity":         func(r *GatewayRouteProof) { r.SelectedModel = "" },
 		"no gateway receipt":        func(r *GatewayRouteProof) { r.GatewayRequestID = "" },
 		"no capacity claim":         func(r *GatewayRouteProof) { r.CapacityClaimID = "" },
@@ -102,5 +103,5 @@ func callerEventFixture() CallerEvent {
 }
 
 func gatewayRouteFixture() GatewayRouteProof {
-	return GatewayRouteProof{SourceRunID: "run-1", SourceEventID: "event-1", SourceSequence: 42, GatewayEventID: "route-1", GatewayRequestID: "request-1", GatewayRoleEvidenceURI: "gateway-ledger://events/route-1", TaskRole: "classify.fast", Role: "chat.default", Status: "succeeded", SelectedProvider: "ollama", SelectedModel: "qwen3.5:4b", Locality: "local", CapacityClaimID: "claim-1", CapacityRequestedBytes: 1024, CapacityRequiredBytes: 1024, CapacityGrantedBytes: 1024, CapacityVerdict: "fit", CapacityEstimateEvidenceURI: "capacity-footprint://ollama/dynamic"}
+	return GatewayRouteProof{SourceRunID: "run-1", SourceEventID: "event-1", SourceSequence: 42, GatewayEventID: "route-1", GatewayRequestID: "request-1", GatewayRoleEvidenceURI: "gateway-ledger://events/route-1", TaskRole: "classify.fast", Consumer: "vrooli-memory", SelectedResourceRole: "chat.default", Status: "succeeded", SelectedProvider: "ollama", SelectedModel: "qwen3.5:4b", Locality: "local", CapacityClaimID: "claim-1", CapacityRequestedBytes: 1024, CapacityRequiredBytes: 1024, CapacityGrantedBytes: 1024, CapacityVerdict: "fit", CapacityEstimateEvidenceURI: "capacity-footprint://ollama/dynamic"}
 }

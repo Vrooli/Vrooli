@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/vrooli/api-core/schedule"
@@ -168,7 +169,7 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		// provider or let the case affect quality or latency.
 		if isExcludedEvaluationCase(c) {
 			reason := "candidate excluded from acceptance denominator"
-			if c != nil && hasEvaluationTag(c.GetTags(), aisearch.TagGenerated) {
+			if c != nil && slices.Contains(c.GetTags(), aisearch.TagGenerated) {
 				reason = "generated case excluded until owner review"
 			}
 			results = append(results, &evalv1.CaseResult{
@@ -430,11 +431,11 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 			agg.GradedCases++
 		}
 		tags := tagsByCase[cr.GetCaseId()]
-		if hasTag(tags, "strong") {
+		if slices.Contains(tags, "strong") {
 			strongSum += cr.GetObservedTopScore()
 			strongN++
 		}
-		if hasTag(tags, "gibberish") && cr.GetObservedTopScore() > agg.MaxGibberishScore {
+		if slices.Contains(tags, "gibberish") && cr.GetObservedTopScore() > agg.MaxGibberishScore {
 			agg.MaxGibberishScore = cr.GetObservedTopScore()
 		}
 	}
@@ -446,15 +447,6 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 		agg.PassRate = float64(agg.Met) / float64(agg.GradedCases)
 	}
 	return agg
-}
-
-func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
 }
 
 // p95 returns the 95th-percentile latency (nearest-rank). Small-sample friendly:

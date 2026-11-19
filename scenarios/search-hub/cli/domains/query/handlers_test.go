@@ -4,10 +4,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type showAllResultsContext struct {
+	cliapp.OperationContext
+	enabled bool
+}
+
+func (c showAllResultsContext) BoolFlag(name string) bool {
+	return name == "show-all-results" && c.enabled
+}
 
 func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
 	msg := &routingv1.QueryResponse{Ranked: []*routingv1.SearchHit{
@@ -160,6 +170,65 @@ func TestGroupedQueryReportKeepsProviderHitDetails(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
 		t.Fatalf("provider count is missing from summary: %v", report.Summary)
+	}
+}
+
+func TestQueryReportCapsHumanOutputButPreservesOptInAndProvenance(t *testing.T) {
+	hits := make([]*routingv1.SearchHit, 12)
+	for i := range hits {
+		hits[i] = &routingv1.SearchHit{
+			Id: "result", Title: "Result", Snippet: "unique snippet",
+			ProviderGroup: "docs", Path: "docs/result.md",
+		}
+	}
+	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{{
+		ProviderId: "docs.provider", Count: int32(len(hits)), Hits: hits,
+	}}}
+
+	defaultReport := (&handlers{}).queryReport(nil, msg)
+	defaultOutput := strings.Join(defaultReport.Results, "\n")
+	if strings.Count(defaultOutput, "unique snippet") != defaultVisibleHits {
+		t.Fatalf("default output showed %d hits, want %d", strings.Count(defaultOutput, "unique snippet"), defaultVisibleHits)
+	}
+	if !strings.Contains(defaultOutput, "2 additional hit(s) omitted") || !strings.Contains(defaultOutput, "docs.provider (12)") || !strings.Contains(defaultOutput, "docs/result") {
+		t.Fatalf("default output lost omission count or provenance:\n%s", defaultOutput)
+	}
+
+	fullReport := (&handlers{}).queryReport(showAllResultsContext{enabled: true}, msg)
+	if got := strings.Count(strings.Join(fullReport.Results, "\n"), "unique snippet"); got != len(hits) {
+		t.Fatalf("--show-all-results rendered %d hits, want %d", got, len(hits))
+	}
+}
+
+func TestQueryReportCapsUntrustedHitFieldsAndRankedRows(t *testing.T) {
+	longValue := strings.Repeat("x", 10000)
+	hits := make([]*routingv1.SearchHit, defaultVisibleHits+1)
+	for i := range hits {
+		hits[i] = &routingv1.SearchHit{Id: longValue, Title: longValue, Path: longValue}
+	}
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: hits}
+	report := (&handlers{}).queryReport(nil, msg)
+	output := strings.Join(report.Results, "\n")
+	if len(output) > defaultVisibleHits*500 {
+		t.Fatalf("bounded ranked output unexpectedly large: %d bytes", len(output))
+	}
+	if !strings.Contains(output, "1 additional hit(s) omitted") {
+		t.Fatalf("ranked output did not report omitted hits:\n%s", output)
+	}
+}
+
+// A provider that lost one ranking leg still answered; its hits are shown
+// under the degradation note instead of being hidden.
+func TestDegradedProviderWithHitsStillShowsThem(t *testing.T) {
+	lines := renderGroups([]*routingv1.ProviderResultGroup{
+		{ProviderId: "source-ledger.research", Count: 1, Degraded: true, Note: "lexical ranking: vectors warming", Hits: []*routingv1.SearchHit{{Id: "MAP.md", Title: "MAP.md#L3-L5", Snippet: "planner owns week view"}}},
+		{ProviderId: "prompt-manager.skills", Degraded: true, Note: "service unavailable"},
+	})
+	got := strings.Join(lines, "\n")
+	for _, want := range []string{"source-ledger.research (1) — degraded: lexical ranking", "planner owns week view", "prompt-manager.skills (0) — degraded: service unavailable"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderGroups() = %q, missing %q", got, want)
+		}
 	}
 }
 

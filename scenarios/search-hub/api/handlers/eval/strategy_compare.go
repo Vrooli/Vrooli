@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -47,7 +48,7 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	if active == "" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("active strategy is not configured"))
 	}
-	if !containsName(names, active) {
+	if !slices.Contains(names, active) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("comparison must include active strategy %q", active))
 	}
 	routable := make(map[string]struct{})
@@ -187,15 +188,6 @@ func uniqueStrategyNames(names []string) []string {
 	return result
 }
 
-func containsName(names []string, want string) bool {
-	for _, name := range names {
-		if name == want {
-			return true
-		}
-	}
-	return false
-}
-
 func scoreStrategyArm(suite *evalv1.EvalSuite, run *evalv1.EvalRun, routable map[string]struct{}) *evalv1.StrategyComparisonArm {
 	arm := &evalv1.StrategyComparisonArm{StrategyName: strings.TrimPrefix(run.GetTag(), "strategy-compare:"), RunId: run.GetRunId(), Aggregate: run.GetAggregate()}
 	for _, c := range suite.GetCases() {
@@ -274,7 +266,7 @@ func isStrategyPositiveCase(c *evalv1.EvalCase) bool {
 	if c == nil || c.GetStatus() == "candidate" || c.GetExpectedProviderId() == "" || len(c.GetExpectIds()) == 0 {
 		return false
 	}
-	return !hasStrategyTag(c.GetTags(), aisearch.TagGenerated) || hasStrategyTag(c.GetTags(), aisearch.TagHeldout)
+	return !slices.Contains(c.GetTags(), aisearch.TagGenerated) || slices.Contains(c.GetTags(), aisearch.TagHeldout)
 }
 
 func strategySplit(suite *evalv1.EvalSuite) (tuning, heldout []string) {
@@ -284,25 +276,16 @@ func strategySplit(suite *evalv1.EvalSuite) (tuning, heldout []string) {
 	for _, c := range suite.GetCases() {
 		if isStrategyPositiveCase(c) {
 			ids = append(ids, c.GetCaseId())
-			if hasStrategyTag(c.GetTags(), "generated") {
+			if slices.Contains(c.GetTags(), "generated") {
 				generated[c.GetCaseId()] = true
 			}
-			if hasStrategyTag(c.GetTags(), aisearch.TagHeldout) {
+			if slices.Contains(c.GetTags(), aisearch.TagHeldout) {
 				heldoutCases[c.GetCaseId()] = true
 			}
 		}
 	}
 	tuning, heldout, _ = aisearch.FixedEvaluationSplit(ids, heldoutCases, generated)
 	return tuning, heldout
-}
-
-func hasStrategyTag(tags []string, want string) bool {
-	for _, tag := range tags {
-		if tag == want {
-			return true
-		}
-	}
-	return false
 }
 
 func recallForCaseIDs(recall map[string]float64, ids []string) map[string]float64 {
@@ -412,7 +395,7 @@ func incompleteStrategyRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string 
 	want := strategyPositiveCaseIDs(suite)
 	seen := make(map[string]bool, len(want))
 	for _, result := range run.GetResults() {
-		if result == nil || !containsString(want, result.GetCaseId()) {
+		if result == nil || !slices.Contains(want, result.GetCaseId()) {
 			continue
 		}
 		if seen[result.GetCaseId()] {
@@ -428,7 +411,7 @@ func incompleteStrategyRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string 
 			return "missing fixed-denominator case " + id
 		}
 	}
-	if !equalCaseIDs(want, run.GetComparisonIdentity().GetDenominatorCaseIds()) {
+	if !slices.Equal(want, run.GetComparisonIdentity().GetDenominatorCaseIds()) {
 		return "run identity does not bind the fixed positive case IDs"
 	}
 	return ""
@@ -443,27 +426,6 @@ func strategyPositiveCaseIDs(suite *evalv1.EvalSuite) []string {
 	}
 	sort.Strings(ids)
 	return ids
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
-func equalCaseIDs(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func bestAccepted(arms []*evalv1.StrategyComparisonArm, active string, tuningScore map[string]float64) *evalv1.StrategyComparisonArm {

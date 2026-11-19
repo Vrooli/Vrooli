@@ -3,42 +3,39 @@ package routing
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/discovery"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 // SharedReranker adapts the shared ai-go/search reranker chain to Search Hub's
 // local routing.Reranker seam. Search Hub owns the fusion semantics for
-// provider hits; the shared package owns TEI and Ollama client logic.
+// provider hits; AI Gateway owns LLM role execution and resource policy.
 type SharedReranker struct {
-	chain       aisearch.Reranker
-	cpuFallback *CPULexicalReranker
+	chain aisearch.Reranker
 }
 
 var _ Reranker = (*SharedReranker)(nil)
 
 // NewDefaultRerankerChain builds the production rerankers: TEI cross-encoder
-// and Ollama LLM fallback. When the active persistent retrieval strategy names
-// the CPU degraded leg, preferred calls use CPU lexical after the cross-encoder
-// instead of advancing into the generative LLM.
-func NewDefaultRerankerChain(strategies ...RetrievalStrategy) *SharedReranker {
+// and Ollama LLM fallback. CPU lexical reranking is not admitted and is not
+// part of the production chain.
+func NewDefaultRerankerChain() *SharedReranker {
 	shared := aisearch.NewRerankerChain(
 		aisearch.NewCrossEncoderReranker("", ""),
-		aisearch.NewLLMReranker(""),
+		newGatewayLLMReranker(
+			func(ctx context.Context) (string, error) {
+				return discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
+			},
+			&http.Client{Timeout: 90 * time.Second},
+		),
 	)
-	r := &SharedReranker{chain: shared}
-	if len(strategies) > 0 && cpuLexicalFallbackEnabled(strategies[0]) {
-		r.cpuFallback = NewCPULexicalReranker()
-	}
-	return r
-}
-
-func cpuLexicalFallbackEnabled(strategy RetrievalStrategy) bool {
-	return strategyHasStage(strategy, StageCrossEncoder) &&
-		strategyStringParam(strategy, StageCrossEncoder, "degraded_fallback", "") == cpuLexicalRerankerName
+	return &SharedReranker{chain: shared}
 }
 
 // NewSharedReranker adapts a shared reranker implementation. Tests inject a
@@ -81,36 +78,17 @@ func (r *SharedReranker) rerankWithPreference(ctx context.Context, query string,
 	if policy, ok := r.chain.(interface {
 		RerankWithPreference(context.Context, string, []aisearch.RerankCandidate, string) ([]aisearch.RerankScore, error)
 	}); ok {
-		// A persistent strategy that names the CPU fallback changes the
-		// preferred outage ladder to cross-encoder -> bounded CPU lexical. The
-		// shared chain's normal preferred ladder is cross-encoder -> generative
-		// LLM, which can load a large model during the exact contention case
-		// this policy is intended to survive. Keep strict provider requirements
-		// untouched and use the shared chain's cross-encoder-only mode here.
-		chainPreference := preference
-		if preference != aisearch.RerankPreferenceCrossEncoderRequired && r.cpuFallback != nil {
-			chainPreference = aisearch.RerankPreferenceCrossEncoderRequired
-		}
-		scores, err = policy.RerankWithPreference(ctx, query, shared, chainPreference)
+		scores, err = policy.RerankWithPreference(ctx, query, shared, preference)
 	} else {
 		scores, err = r.chain.Rerank(ctx, query, shared)
 	}
 	if err != nil {
-		// Do not retry into the shared LLM leg when persistent policy selected
-		// CPU as the degraded path. The lexical leg is deterministic and
-		// bounded; if it declines an out-of-budget request, surface that error.
-		if preference != aisearch.RerankPreferenceCrossEncoderRequired && r.cpuFallback != nil {
-			return r.cpuFallback.Rerank(ctx, query, candidates)
-		}
 		scores, err = r.retryAfterActiveFailure(ctx, query, shared, err, preference)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if len(scores) == 0 {
-		if preference != aisearch.RerankPreferenceCrossEncoderRequired && r.cpuFallback != nil {
-			return r.cpuFallback.Rerank(ctx, query, candidates)
-		}
 		return nil, fmt.Errorf("reranker chain unavailable")
 	}
 	return applySharedRerank(candidates, scores), nil
@@ -118,7 +96,7 @@ func (r *SharedReranker) rerankWithPreference(ctx context.Context, query string,
 
 // Available reports whether any shared chain leg is reachable.
 func (r *SharedReranker) Available(ctx context.Context) bool {
-	return r != nil && ((r.chain != nil && r.chain.Available(ctx)) || (r.cpuFallback != nil && r.cpuFallback.Available(ctx)))
+	return r != nil && r.chain != nil && r.chain.Available(ctx)
 }
 
 // ActiveName returns the shared chain's active leg name when exposed.
@@ -128,38 +106,20 @@ func (r *SharedReranker) ActiveName(ctx context.Context) string {
 
 func (r *SharedReranker) ActiveNameWithPreference(ctx context.Context, preference string) string {
 	if r == nil || r.chain == nil {
-		if r != nil && preference != aisearch.RerankPreferenceCrossEncoderRequired && r.cpuFallback != nil {
-			return r.cpuFallback.Name()
-		}
 		return "none"
 	}
 	if named, ok := r.chain.(interface {
 		ActiveNameWithPreference(context.Context, string) string
 	}); ok {
 		active := named.ActiveNameWithPreference(ctx, preference)
-		if preference == aisearch.RerankPreferenceCrossEncoderRequired || r.cpuFallback == nil {
-			return active
-		}
-		if strings.HasPrefix(strings.TrimSpace(active), "cross-encoder:") {
-			return active
-		}
-		return r.cpuFallback.Name()
+		return active
 	}
 	if named, ok := r.chain.(interface{ ActiveName(context.Context) string }); ok {
 		active := named.ActiveName(ctx)
-		if preference == aisearch.RerankPreferenceCrossEncoderRequired || r.cpuFallback == nil {
-			return active
-		}
-		if strings.HasPrefix(strings.TrimSpace(active), "cross-encoder:") {
-			return active
-		}
-		return r.cpuFallback.Name()
+		return active
 	}
 	if r.chain.Available(ctx) {
 		return r.chain.Name()
-	}
-	if preference != aisearch.RerankPreferenceCrossEncoderRequired && r.cpuFallback != nil {
-		return r.cpuFallback.Name()
 	}
 	return "none"
 }

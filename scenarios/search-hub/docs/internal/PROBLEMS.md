@@ -851,6 +851,33 @@ not authoritative. See the Round 50 work record.
 **Refs:** Agent Manager fingerprint `fd62943b883c390e1c240666`;
 `cli/domains/query/handlers.go`.
 
+### 2026-11-15 — Federated CLI output still exceeded the agent read budget
+
+**Symptom:** The latest 30-day owner digest recorded 7,281 `search-hub query`
+calls across 1,857 runs. Human output had 1.3k median and 3.0k p90 result
+tokens; 1,478.5M tokens were re-read in later requests. The largest call
+returned about 262.2k tokens, although the harness displayed 10k. Coverage is
+partial: older parser facts and some result-token counts are unavailable.
+
+**Root cause:** The earlier per-provider default of five bounded API depth but
+still allowed five hits from every answering provider to appear in one human
+response. Long provider titles or paths could also bypass the snippet limit.
+
+**Fix:** Human output now shows at most ten hits across providers, reports the
+number omitted, and retains provider summaries and per-hit provenance. Titles,
+provider names, and provenance are bounded. `--show-all-results` expands the
+human result list; `--json` remains the full machine-readable response. Repeated
+retrieval hints were collapsed to one line.
+
+**Gate:** Focused query regressions and query/evals package tests passed. The
+Test Genie unit run `20261115-133412-0693164f` remained in progress after its
+single 120-second wait window, so no phase verdict is claimed.
+
+**Owner:** Search Hub.
+
+**Refs:** Agent Manager fingerprint `fd62943b883c390e1c240666`;
+`cli/domains/query/handlers.go` and `docs/reference/cli-commands.md`.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

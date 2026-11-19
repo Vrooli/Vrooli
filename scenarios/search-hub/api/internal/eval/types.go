@@ -63,6 +63,14 @@ type FixedDenominatorStore interface {
 	GetFixedDenominator(context.Context, string) (*evalv1.FixedDenominatorSnapshot, error)
 }
 
+// IndependentDenominatorReviewVerifier establishes that a source-owner's
+// immutable review receipt is authentic and binds the exact current suite.
+// Production freeze operations require this seam; receipt URI shape alone is
+// never evidence of review.
+type IndependentDenominatorReviewVerifier interface {
+	VerifyIndependentDenominatorReview(context.Context, *evalv1.EvalSuite, string, string) error
+}
+
 // FixedDenominatorReader is consumed by production eval runners. Test runners
 // may omit it to exercise isolated grading behavior without a persistence layer.
 type FixedDenominatorReader interface {

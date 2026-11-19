@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -61,7 +62,7 @@ func CheckAdequacy(s *evalv1.EvalSuite, strata []string) []*evalv1.AdequacyWarni
 		case isPositiveCase(c):
 			positives++
 			for _, d := range difficultyTags {
-				if hasTag(c.GetTags(), d) {
+				if slices.Contains(c.GetTags(), d) {
 					difficultyClasses[d] = true
 				}
 			}
@@ -120,7 +121,7 @@ func isPositiveCase(c *evalv1.EvalCase) bool {
 // isNegativeCase reports whether a case is a junk/no-answer case (the
 // constraint-side cases, never the objective).
 func isNegativeCase(c *evalv1.EvalCase) bool {
-	return c.GetExpectNoStrongHit() || hasTag(c.GetTags(), "gibberish")
+	return c.GetExpectNoStrongHit() || slices.Contains(c.GetTags(), "gibberish")
 }
 
 // duplicateQueries returns, sorted, each normalized query that appears on more

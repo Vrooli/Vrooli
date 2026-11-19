@@ -21,7 +21,6 @@ const defaultMaxFanoutWidth = aisearch.DefaultRouterMaxFanoutWidth
 const (
 	selectorLegCrossEncoder = "cross_encoder"
 	selectorLegLLM          = "llm"
-	selectorLegCPULexical   = "cpu_lexical"
 	selectorLegLexical      = "lexical"
 )
 
@@ -447,7 +446,7 @@ func rerankProviderCandidates(ctx context.Context, query string, profiles []Prov
 		crossEncoderErr := err
 		// The required call intentionally probes only the cross-encoder. A
 		// second preferred call lets the configured degraded policy select its
-		// next leg (LLM or CPU lexical) while preserving a deterministic lexical
+		// next leg while preserving a deterministic lexical
 		// escape hatch if that leg also fails.
 		ranked, err = rank(aisearch.RerankPreferenceCrossEncoderPreferred)
 		fallbackLeg := selectorLeg(selectorLegLLM)
@@ -508,8 +507,6 @@ func normalizeSelectorLeg(name, fallback string) string {
 		return selectorLegCrossEncoder
 	case strings.HasPrefix(name, "llm"):
 		return selectorLegLLM
-	case strings.HasPrefix(name, "cpu-lexical:"):
-		return selectorLegCPULexical
 	default:
 		return fallback
 	}

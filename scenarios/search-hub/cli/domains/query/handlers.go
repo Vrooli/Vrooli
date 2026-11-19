@@ -60,7 +60,7 @@ func (h *handlers) queryCall(ctx cliapp.OperationContext) (*routingv1.QueryRespo
 	return resp.Msg, nil
 }
 
-func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryResponse) cliapp.ListReport {
+func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.QueryResponse) cliapp.ListReport {
 	totalHits := 0
 	for _, g := range msg.GetGroups() {
 		totalHits += int(g.GetCount())
@@ -83,10 +83,15 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 	// provenance/degradation detail beneath it. Pre-rerank (or on rerank
 	// degradation) we show the honest grouping alone.
 	resultsHeading := "Results by provider"
-	results := renderGroups(msg.GetGroups())
+	showAllResults := ctx != nil && ctx.BoolFlag("show-all-results")
+	visibleLimit := defaultVisibleHits
+	if showAllResults {
+		visibleLimit = 0
+	}
+	results := renderGroupsLimit(msg.GetGroups(), visibleLimit)
 	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
 		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
-		results = renderRanked(msg.GetRanked())
+		results = renderRankedLimit(msg.GetRanked(), visibleLimit)
 		results = append(results, "", "Provenance by provider:")
 		results = append(results, renderGroupSummaries(msg.GetGroups())...)
 	}
@@ -97,13 +102,7 @@ func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryRe
 		ResultsHeading: resultsHeading,
 		Results:        results,
 		RetrievalHints: []string{
-			"`--type <a,b>` — route to specific leaf types (command, doc, record, component…)",
-			"`--all` — fan out to every active provider",
-			"`--group <scenario>` — scope to one scenario's leaves",
-			"`--scope <facet>` — pass a corpus facet to scoped providers",
-			"`--limit <n>` — change the per-provider result cap (default 5)",
-			"`--explain` — show why these providers were chosen",
-			"`providers list` — see every registered provider and its type",
+			"Tune retrieval with `--type`, `--group`, `--scope`, `--all`, or `--limit` (default 5 per provider); use `--explain` for routing and `--show-all-results` to expand the 10-hit human view. `providers list` shows available providers.",
 		},
 	}
 }
@@ -158,27 +157,55 @@ func orderedBy(msg *routingv1.QueryResponse) string {
 // renderGroups flattens the by-provider grouping into operator-friendly lines:
 // a provider header (with count or a degraded note) followed by each hit's
 // title, snippet, score, and provenance path.
+const defaultVisibleHits = 10
+
 func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
+	return renderGroupsLimit(groups, 0)
+}
+
+func renderGroupsLimit(groups []*routingv1.ProviderResultGroup, maxHits int) []string {
 	if len(groups) == 0 {
 		return []string{"(no providers matched — pass --type, --all, or --group)"}
 	}
 	out := make([]string, 0, len(groups)*3)
+	shown, total := 0, 0
+	for _, group := range groups {
+		if group != nil {
+			total += len(group.GetHits())
+		}
+	}
 	for _, g := range groups {
-		if g.GetDegraded() {
-			out = append(out, fmt.Sprintf("▸ %s — degraded: %s", g.GetProviderId(), g.GetNote()))
+		if g == nil {
 			continue
 		}
-		out = append(out, fmt.Sprintf("▸ %s (%d)", g.GetProviderId(), g.GetCount()))
+		// A degraded provider may still answer (one leg down, the rest ranked):
+		// say so, then show what it returned.
+		if g.GetDegraded() {
+			out = append(out, fmt.Sprintf("▸ %s (%d) — degraded: %s", g.GetProviderId(), g.GetCount(), g.GetNote()))
+			if len(g.GetHits()) == 0 {
+				continue
+			}
+		} else {
+			out = append(out, fmt.Sprintf("▸ %s (%d)", g.GetProviderId(), g.GetCount()))
+		}
 		if len(g.GetHits()) == 0 {
 			out = append(out, "    (no matches)")
 			continue
 		}
-		if allWeak(g.GetHits()) {
+		hits := g.GetHits()
+		if maxHits > 0 && shown+len(hits) > maxHits {
+			hits = hits[:maxHits-shown]
+		}
+		if allWeak(hits) {
 			out = append(out, "    (no confident match — all returned hits are weak)")
 		}
-		for i, hit := range g.GetHits() {
+		for i, hit := range hits {
 			out = append(out, formatHit(i+1, hit))
+			shown++
 		}
+	}
+	if total > shown {
+		out = append(out, fmt.Sprintf("… %d additional hit(s) omitted; use --show-all-results to display them", total-shown))
 	}
 	return out
 }
@@ -214,21 +241,32 @@ func renderGroupSummaries(groups []*routingv1.ProviderResultGroup) []string {
 // line carries the rerank score plus the owning provider/leaf so a result is
 // both comparably ranked and traceable to where it came from.
 func renderRanked(hits []*routingv1.SearchHit) []string {
+	return renderRankedLimit(hits, 0)
+}
+
+func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
 	if len(hits) == 0 {
 		return []string{"(no results)"}
 	}
-	out := make([]string, 0, len(hits))
-	for i, hit := range hits {
+	shown := len(hits)
+	if maxHits > 0 && shown > maxHits {
+		shown = maxHits
+	}
+	out := make([]string, 0, shown+1)
+	for i, hit := range hits[:shown] {
 		title := strings.TrimSpace(hit.GetTitle())
 		if title == "" {
 			title = hit.GetId()
 		}
-		line := fmt.Sprintf("%d. %s", i+1, title)
+		line := fmt.Sprintf("%d. %s", i+1, truncate(title, 160))
 		if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
 			line += " — " + snippet
 		}
-		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), hit.GetProviderId(), provenance(hit))
+		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderId(), 64), truncate(provenance(hit), 120))
 		out = append(out, line)
+	}
+	if len(hits) > shown {
+		out = append(out, fmt.Sprintf("… %d additional hit(s) omitted; use --show-all-results to display them", len(hits)-shown))
 	}
 	return out
 }
@@ -240,11 +278,11 @@ func formatHit(n int, hit *routingv1.SearchHit) string {
 	if title == "" {
 		title = hit.GetId()
 	}
-	line := fmt.Sprintf("    %d. %s", n, title)
+	line := fmt.Sprintf("    %d. %s", n, truncate(title, 160))
 	if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
 		line += " — " + snippet
 	}
-	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), hit.GetProviderGroup(), provenance(hit))
+	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderGroup(), 64), truncate(provenance(hit), 120))
 	if locs := locationSummary(hit.GetLocations()); locs != "" {
 		line += " locations: " + locs
 	}

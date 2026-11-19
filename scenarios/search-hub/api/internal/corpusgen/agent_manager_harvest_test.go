@@ -4,10 +4,14 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	"github.com/vrooli/vrooli/packages/proto/searcheval"
 )
 
 type fakeRunEventsReader struct {
@@ -57,59 +61,77 @@ func TestHarvestAgentManagerCallersValidatesPaginationIdentity(t *testing.T) {
 	}
 }
 
-func TestAgentManagerHTTPReaderDecodesOwnerProtoJSONAndHarvestsDeletionFilteredCaller(t *testing.T) {
-	const runID = "123e4567-e89b-12d3-a456-426614174000"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/runs/"+runID+"/events" {
-			t.Errorf("request path = %q", r.URL.Path)
-		}
-		if r.URL.Query().Get("event_types") != "message,message_deleted" {
-			t.Errorf("event_types = %q; want both message and message_deleted", r.URL.Query().Get("event_types"))
-		}
-		if r.URL.Query().Get("after_sequence") != "-1" || r.URL.Query().Get("limit") != "1000" {
-			t.Errorf("pagination query = %v", r.URL.Query())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"events":[{"id":"event-live","run_id":"123e4567-e89b-12d3-a456-426614174000","sequence":"1","event_type":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","source":"operator","content":"Where is retry handled?","conversation_id":"conversation-1"}},{"id":"event-deleted","run_id":"123e4567-e89b-12d3-a456-426614174000","sequence":"2","event_type":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","source":"operator","content":"Remove this query","conversation_id":"conversation-1"}},{"id":"delete-marker","run_id":"123e4567-e89b-12d3-a456-426614174000","sequence":"3","event_type":"RUN_EVENT_TYPE_MESSAGE_DELETED","message_deleted":{"target_event_id":"event-deleted"}}],"has_more":false}`))
-	}))
-	defer server.Close()
+type agentManagerEventsFixture struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	pages map[int64]*api.GetRunEventsResponse
+	calls int
+}
 
-	reader := AgentManagerHTTPReader{BaseURL: server.URL, Client: server.Client()}
+func (f *agentManagerEventsFixture) GetRunEvents(_ context.Context, req *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error) {
+	f.calls++
+	if req.Msg.GetRunId() == "" || req.Msg.GetLimit() != 1000 || len(req.Msg.GetEventTypes()) != 2 || req.Msg.GetSummaryOnly() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+	response, ok := f.pages[req.Msg.GetAfterSequence()]
+	if !ok {
+		return connect.NewResponse(&api.GetRunEventsResponse{}), nil
+	}
+	return connect.NewResponse(response), nil
+}
+
+func runEvent(id, runID string, sequence int64, data domain.RunEvent_Data) *domain.RunEvent {
+	eventType := domain.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED
+	switch data.(type) {
+	case *domain.RunEvent_Message:
+		eventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE
+	case *domain.RunEvent_MessageDeleted:
+		eventType = domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED
+	}
+	return &domain.RunEvent{Id: id, RunId: runID, Sequence: sequence, EventType: eventType, Data: data}
+}
+
+func serveAgentManagerEventFixture(t *testing.T, fixture *agentManagerEventsFixture) AgentManagerConnectReader {
+	t.Helper()
+	path, handler := apiconnect.NewAgentManagerServiceHandler(fixture)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return NewAgentManagerConnectReader(server.URL, server.Client())
+}
+
+func TestAgentManagerConnectReaderHarvestsDeletionFilteredCaller(t *testing.T) {
+	const runID = "123e4567-e89b-12d3-a456-426614174000"
+	fixture := &agentManagerEventsFixture{pages: map[int64]*api.GetRunEventsResponse{
+		-1: {Events: []*domain.RunEvent{
+			runEvent("event-live", runID, 1, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "Where is retry handled?", ConversationId: "conversation-1"}}),
+			runEvent("event-deleted", runID, 2, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "Remove this query", ConversationId: "conversation-1"}}),
+			runEvent("delete-marker", runID, 3, &domain.RunEvent_MessageDeleted{MessageDeleted: &domain.MessageDeletedEventData{TargetEventId: "event-deleted"}}),
+		}},
+	}}
+	reader := serveAgentManagerEventFixture(t, fixture)
 	got, err := HarvestAgentManagerCallers(context.Background(), reader, []string{runID})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].EventID != "event-live" || got[0].ConversationID != "conversation-1" || got[0].MessageRole != "user" || got[0].MessageSource != "operator" {
-		t.Fatalf("owner protojson harvest = %+v; want only the live identified operator message", got)
+	if len(got) != 1 || got[0].EventID != "event-live" || got[0].ConversationID != "conversation-1" || got[0].MessageRole != "user" || got[0].MessageSource != "operator" || fixture.calls != 1 {
+		t.Fatalf("Connect harvest = %+v calls=%d; want only the live identified operator message", got, fixture.calls)
 	}
 }
 
-func TestAgentManagerHTTPReaderFollowsOwnerHasMoreCursorAcrossPages(t *testing.T) {
+func TestAgentManagerConnectReaderFollowsHasMoreCursorIncludingSequenceZero(t *testing.T) {
 	const runID = "123e4567-e89b-12d3-a456-426614174001"
-	requests := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		if requests == 1 {
-			if r.URL.Query().Get("after_sequence") != "-1" {
-				t.Errorf("first page cursor = %q", r.URL.Query().Get("after_sequence"))
-			}
-			// protojson omits the proto3 sequence scalar when its value is zero.
-			_, _ = w.Write([]byte(`{"events":[{"id":"event-1","run_id":"123e4567-e89b-12d3-a456-426614174001","event_type":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","source":"operator","content":"first query","conversation_id":"conversation-1"}}],"has_more":true}`))
-			return
-		}
-		if r.URL.Query().Get("after_sequence") != "0" {
-			t.Errorf("second page cursor = %q; want 0", r.URL.Query().Get("after_sequence"))
-		}
-		_, _ = w.Write([]byte(`{"events":[{"id":"event-2","run_id":"123e4567-e89b-12d3-a456-426614174001","sequence":"1","event_type":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","source":"operator","content":"second query","conversation_id":"conversation-1"}}],"has_more":false}`))
-	}))
-	defer server.Close()
-
-	got, err := HarvestAgentManagerCallers(context.Background(), AgentManagerHTTPReader{BaseURL: server.URL, Client: server.Client()}, []string{runID})
+	fixture := &agentManagerEventsFixture{pages: map[int64]*api.GetRunEventsResponse{
+		-1: {Events: []*domain.RunEvent{runEvent("event-1", runID, 0, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "first query", ConversationId: "conversation-1"}})}, HasMore: true},
+		0:  {Events: []*domain.RunEvent{runEvent("event-2", runID, 1, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "second query", ConversationId: "conversation-1"}})}, HasMore: false},
+	}}
+	reader := serveAgentManagerEventFixture(t, fixture)
+	got, err := HarvestAgentManagerCallers(context.Background(), reader, []string{runID})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if requests != 2 || len(got) != 2 || got[0].Sequence != 0 || got[1].Sequence != 1 {
-		t.Fatalf("pagination requests=%d, callers=%+v; want sequence zero followed by one across two pages", requests, got)
+	if fixture.calls != 2 || len(got) != 2 || got[0].Sequence != 0 || got[1].Sequence != 1 {
+		t.Fatalf("pagination calls=%d, callers=%+v; want sequence zero followed by one across two pages", fixture.calls, got)
 	}
 }
 
@@ -117,6 +139,7 @@ func TestAuditedAgentManagerCallerCaseRetainsConversationRoleAndReviewGate(t *te
 	record := AgentManagerCallerRecord{RunID: "run-1", EventID: "event-1", Sequence: 0, ConversationID: "conversation-1", MessageRole: "user", MessageSource: "operator", Query: "where is retry handled"}
 	route := gatewayRouteFixture()
 	route.SourceSequence = 0
+	route.GatewayRequestID, _ = searcheval.AgentManagerReplayRequestID(record.RunID, record.EventID, int64(record.Sequence), route.TaskRole, route.Consumer)
 	candidate, err := AuditedAgentManagerCallerCase(record, route, CallerLabelReview{})
 	if err != nil {
 		t.Fatal(err)
@@ -131,5 +154,15 @@ func TestAuditedAgentManagerCallerCaseRetainsConversationRoleAndReviewGate(t *te
 	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{candidate, reviewed}, 1)
 	if err == nil || counts["chat.default"] != 1 {
 		t.Fatalf("reviewed role coverage = %v, %v; want chat.default counted and other roles reported deficient", counts, err)
+	}
+}
+
+func TestAuditedAgentManagerCallerCaseRejectsUnboundGatewayRequest(t *testing.T) {
+	record := AgentManagerCallerRecord{RunID: "run-1", EventID: "event-1", Sequence: 5, ConversationID: "conversation-1", MessageRole: "user", MessageSource: "operator", Query: "private text omitted"}
+	route := gatewayRouteFixture()
+	route.SourceSequence = record.Sequence
+	route.GatewayRequestID = "gateway-request-without-source-binding"
+	if _, err := AuditedAgentManagerCallerCase(record, route, CallerLabelReview{}); err == nil || !strings.Contains(err.Error(), "does not bind") {
+		t.Fatalf("unbound route accepted, error = %v", err)
 	}
 }

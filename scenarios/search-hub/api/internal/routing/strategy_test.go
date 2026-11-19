@@ -40,8 +40,10 @@ func TestLoadActiveStrategyUsesEmbeddedData(t *testing.T) {
 	if len(strategy.Stages) != 2 || strategy.Stages[0].Kind != StageLexical || strategy.Stages[1].Kind != StageCrossEncoder {
 		t.Fatalf("active stages = %+v, want lexical then cross_encoder", strategy.Stages)
 	}
-	if !cpuLexicalFallbackEnabled(strategy) {
-		t.Fatal("active cross-encoder stage lost its declared CPU degraded fallback")
+	for _, stage := range strategy.Stages {
+		if _, found := stage.Params["degraded_fallback"]; found {
+			t.Fatalf("active stage %q still declares an unadmitted degraded fallback", stage.Kind)
+		}
 	}
 	if got := strategyIntParam(strategy, StageCrossEncoder, "fanout_width", 0); got != 6 {
 		t.Fatalf("active fanout width = %d, want 6", got)

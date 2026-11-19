@@ -180,6 +180,7 @@ func (p *providerBreakers) allow(id string, now time.Time) (bool, string) {
 	ok, note, _ := p.allowClaim(id, now)
 	return ok, note
 }
+
 func (p *providerBreakers) allowClaim(id string, now time.Time) (bool, string, uint64) {
 	b := p.breaker(id)
 	if b == nil {
@@ -204,6 +205,15 @@ func (p *providerBreakers) record(id string, degraded bool, now time.Time) {
 	b.recordSuccess()
 }
 
+// providerFailed reports whether a group is a failed call (transport, HTTP or
+// mapping error) rather than an answer. A provider that answers and reports a
+// partial-leg degradation of its own (for example a dense leg down while
+// lexical hits remain) answered: counting that as a failure kept such circuits
+// open indefinitely, because every recovery probe got the same honest answer.
+func providerFailed(group *routingv1.ProviderResultGroup) bool {
+	return group == nil || (group.GetDegraded() && len(group.GetDegradations()) == 0)
+}
+
 // 401/403 describe this caller's authority, not shared provider health.
 func (p *providerBreakers) recordGroup(id string, group *routingv1.ProviderResultGroup, now time.Time, probeClaimed uint64) {
 	if group != nil && group.GetDegraded() && (group.GetNote() == "provider returned HTTP 401" || group.GetNote() == "provider returned HTTP 403") {
@@ -212,7 +222,7 @@ func (p *providerBreakers) recordGroup(id string, group *routingv1.ProviderResul
 		}
 		return
 	}
-	p.record(id, group.GetDegraded(), now)
+	p.record(id, providerFailed(group), now)
 }
 
 func (p *providerBreakers) recordResult(id string, hitCount int, degraded, explicit bool, now time.Time) {

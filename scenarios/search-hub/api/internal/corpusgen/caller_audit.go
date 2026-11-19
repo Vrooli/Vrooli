@@ -44,7 +44,8 @@ type GatewayRouteProof struct {
 	GatewayRequestID            string
 	GatewayRoleEvidenceURI      string
 	TaskRole                    string
-	Role                        string
+	Consumer                    string
+	SelectedResourceRole        string
 	Status                      string
 	SelectedProvider            string
 	SelectedModel               string
@@ -78,17 +79,20 @@ func AuditedCallerCase(event CallerEvent, route GatewayRouteProof, review Caller
 	if route.CapacityVerdict != "fit" || route.CapacityClaimID == "" || route.CapacityRequestedBytes <= 0 || route.CapacityRequiredBytes != route.CapacityRequestedBytes || route.CapacityGrantedBytes < route.CapacityRequiredBytes || !strings.HasPrefix(route.CapacityEstimateEvidenceURI, "capacity-footprint://") {
 		return nil, fmt.Errorf("caller case route lacks an admitted local capacity claim")
 	}
-	if !isModelPolicyRole(route.Role) {
-		return nil, fmt.Errorf("caller case uses unknown model policy role %q", route.Role)
+	if !isModelPolicyRole(route.SelectedResourceRole) {
+		return nil, fmt.Errorf("caller case uses unknown selected resource policy role %q", route.SelectedResourceRole)
 	}
 	if strings.TrimSpace(route.TaskRole) == "" {
 		return nil, fmt.Errorf("caller case requires the distinct AI Gateway task role from its source-linked route")
 	}
-	caseID := callerCaseID(event.RunID, event.EventID, route.Role, route.GatewayEventID)
+	if strings.TrimSpace(route.Consumer) == "" {
+		return nil, fmt.Errorf("caller case requires the AI Gateway consumer scenario from its source-linked route")
+	}
+	caseID := callerCaseID(event.RunID, event.EventID, route.SelectedResourceRole, route.GatewayEventID)
 	result := &evalv1.EvalCase{
 		CaseId: caseID, Query: strings.TrimSpace(event.Query), Status: "candidate",
-		Tags: []string{"caller-audit", "agent-manager", "role:" + route.Role},
-		Note: fmt.Sprintf("source=agent-manager://runs/%s/events/%s seq=%d gateway_event=%s gateway_request=%s role=%s role_evidence=%s model=%s capacity_estimate=%s", event.RunID, event.EventID, event.Sequence, route.GatewayEventID, route.GatewayRequestID, route.Role, route.GatewayRoleEvidenceURI, route.SelectedModel, route.CapacityEstimateEvidenceURI),
+		Tags: []string{"caller-audit", "agent-manager", "resource-role:" + route.SelectedResourceRole, "consumer:" + route.Consumer},
+		Note: fmt.Sprintf("source=agent-manager://runs/%s/events/%s seq=%d gateway_event=%s gateway_request=%s selected_resource_role=%s role_evidence=%s model=%s consumer=%s capacity_estimate=%s", event.RunID, event.EventID, event.Sequence, route.GatewayEventID, route.GatewayRequestID, route.SelectedResourceRole, route.GatewayRoleEvidenceURI, route.SelectedModel, route.Consumer, route.CapacityEstimateEvidenceURI),
 	}
 	if strings.TrimSpace(route.TaskRole) != "" {
 		result.Tags = append(result.Tags, "task-role:"+strings.TrimSpace(route.TaskRole))

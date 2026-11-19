@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"testing"
 
@@ -12,11 +11,7 @@ import (
 )
 
 func TestModelPolicyRoleCoverageMatchesAuthoritativeInventory(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+	repoRoot := testRepoRoot(t)
 	policyPath := filepath.Join(repoRoot, "resources", "ollama", "model-policy.json")
 	raw, err := os.ReadFile(policyPath)
 	if err != nil {
@@ -46,11 +41,7 @@ func TestModelPolicyRoleCoverageMatchesAuthoritativeInventory(t *testing.T) {
 }
 
 func TestGatewayTaskRoleCoverageMatchesAuthoritativeCatalog(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+	repoRoot := testRepoRoot(t)
 	catalogPath := filepath.Join(repoRoot, "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
 	raw, err := os.ReadFile(catalogPath)
 	if err != nil {
@@ -90,7 +81,7 @@ func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
 			route.SourceEventID = event.EventID
 			route.GatewayEventID = string(rune('a'+i)) + "-route-" + string(rune('0'+n))
 			route.GatewayRoleEvidenceURI = "gateway-ledger://events/" + route.GatewayEventID
-			route.Role = role
+			route.SelectedResourceRole = role
 			got, err := AuditedCallerCase(event, route, CallerLabelReview{
 				Reviewer: "independent reviewer", EvidenceURI: "audit://expected-docs/" + role,
 				ExpectedIDs: []string{"doc/" + role}, IndependentlyValidated: true,
@@ -101,7 +92,7 @@ func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
 			cases = append(cases, got)
 		}
 	}
-	cases = append(cases, &evalv1.EvalCase{CaseId: "synthetic", Status: "reviewed", ExpectIds: []string{"doc/x"}, Tags: []string{"independently-reviewed", "role:chat.default"}})
+	cases = append(cases, &evalv1.EvalCase{CaseId: "synthetic", Status: "reviewed", ExpectIds: []string{"doc/x"}, Tags: []string{"independently-reviewed", "resource-role:chat.default"}})
 	counts, err := ValidateModelRoleCoverage(cases, 2)
 	if err != nil {
 		t.Fatalf("adequate real caller corpus rejected: %v", err)
@@ -114,7 +105,7 @@ func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
 func TestModelRoleCoverageRejectsCallerTagsWithoutLinkedEvidence(t *testing.T) {
 	caseWithTagsOnly := &evalv1.EvalCase{
 		CaseId: "pretend", Query: "caller query", Status: "reviewed", ExpectIds: []string{"doc/expected"},
-		Tags: []string{"caller-audit", "independently-reviewed", "role:chat.default"},
+		Tags: []string{"caller-audit", "independently-reviewed", "resource-role:chat.default"},
 	}
 	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caseWithTagsOnly}, 1)
 	if err == nil || counts["chat.default"] != 0 {
@@ -142,4 +133,16 @@ func TestModelRoleCoverageReportsAllUnderfilledRoles(t *testing.T) {
 	if err == nil || len(err.Error()) < len(ModelPolicyRoles()) {
 		t.Fatalf("expected all role gaps to be reported, got %v", err)
 	}
+}
+
+// testRepoRoot resolves the repository from the package directory `go test`
+// runs in. runtime.Caller paths are module-relative under -trimpath, which is
+// how Test Genie runs the suite.
+func testRepoRoot(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve package directory: %v", err)
+	}
+	return filepath.Clean(filepath.Join(wd, "../../../../.."))
 }

@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -62,7 +61,7 @@ reaches providers at runtime — never owning their data.
 | `swarm-manager` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `knowledge-observatory` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `prompt-manager` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
-| `agent-manager` | scenario (provider) | no | `ignore` | `agent-manager.runs` conversation-history fan-out | Absent, stale, rebuilding, or lexical-only ⇒ the provider group reports its native coverage/degradation evidence; other groups remain available. |
+| `agent-manager` | scenario (provider) | no | `ignore` | `agent-manager.runs` conversation-history fan-out and operator-reviewed caller harvesting | Run metadata/content reads use generated Connect `GetRun`/`GetRunEvents`. The privacy-filtered caller-source inventory keeps only Agent Manager's `GET /api/v1/runs/{id}/events/metadata` as REST because the owner has no RPC for that projection; its payload-free shape is checked by `TestAgentManagerMetadataHTTPReaderRequiresMetadataOnlyResponse`. Absent, stale, rebuilding, or lexical-only ⇒ the provider group reports its native coverage/degradation evidence; other groups remain available. |
 | Vrooli lifecycle | local platform | yes | n/a | API, UI, CLI | Start through lifecycle commands. |
 
 > **Storage note (2026-06-03, Phase 3).** `.vrooli/service.json` keeps

@@ -45,13 +45,16 @@ type TelemetrySample struct {
 	QueuedProviderCount     int
 	ClassifierLatencyMs     int64
 	ResolverLatencyMs       int64
-	ResolverCacheHits       int64
-	ResolverCacheMisses     int64
-	FanoutLatencyMs         int64
-	RerankLatencyMs         int64
-	RerankCandidateCount    int
-	RerankerLeg             string
-	ResponseDegradeReason   string
+	// Resolver cache counts are scoped to this query's context and cover only
+	// api-core's outer cache. A miss can still be served by cliutil's shared
+	// cache without starting the CLI.
+	ResolverCacheHits     int64
+	ResolverCacheMisses   int64
+	FanoutLatencyMs       int64
+	RerankLatencyMs       int64
+	RerankCandidateCount  int
+	RerankerLeg           string
+	ResponseDegradeReason string
 	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
 	// provider into the fan-out because the query was judged web-shaped
 	// (OT-P2-002). Lets the metrics surface measure the auto-routed-external rate.

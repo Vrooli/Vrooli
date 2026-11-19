@@ -324,3 +324,30 @@ func TestProviderAuthorizationRefusalDoesNotPoisonSharedCircuit(t *testing.T) {
 	allowed, _ = p.allow("leaf", now.Add(2*time.Second))
 	require.True(t, allowed, "authorization refusal must release a half-open probe")
 }
+
+// A provider that answers with hits and reports a partial leg of its own
+// (agent-manager: dense leg down, lexical hits remain) answered. Counting that
+// as a failure held agent-manager.runs open for 150+ "failures" on 2026-11-14
+// while every probe returned results.
+func TestProviderSelfReportedDegradationIsAnAnswerNotAFailure(t *testing.T) {
+	now := time.Now()
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 1, Cooldown: time.Second, MaxCooldown: time.Second})
+	answered := &routingv1.ProviderResultGroup{
+		Degraded:     true,
+		Note:         "embedding unavailable; lexical results remain available",
+		Degradations: []*routingv1.ProviderDegradation{{Detail: "embedding unavailable; lexical results remain available"}},
+		Hits:         []*routingv1.SearchHit{{Id: "run-1"}},
+	}
+	p.recordGroup("leaf", answered, now, 0)
+	allowed, note := p.allow("leaf", now)
+	require.True(t, allowed, "a self-reported partial degradation must not open the circuit: %s", note)
+
+	p.recordGroup("leaf", &routingv1.ProviderResultGroup{Degraded: true, Note: "request failed: context deadline exceeded"}, now, 0)
+	allowed, _ = p.allow("leaf", now)
+	require.False(t, allowed, "a transport failure still opens the circuit")
+
+	_, _, claimed := p.allowClaim("leaf", now.Add(2*time.Second))
+	p.recordGroup("leaf", answered, now.Add(2*time.Second), claimed)
+	allowed, _ = p.allow("leaf", now.Add(2*time.Second))
+	require.True(t, allowed, "a half-open probe answered with a partial degradation closes the circuit")
+}

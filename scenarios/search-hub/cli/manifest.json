@@ -47,6 +47,11 @@
               "description": "Maximum results per provider (use a larger limit for a deeper search)"
             },
             {
+              "name": "show-all-results",
+              "bool": true,
+              "description": "Display every hit returned by providers (human output is capped by default)"
+            },
+            {
               "name": "explain",
               "bool": true,
               "description": "Include the routing rationale (which selector chose the providers)"
@@ -433,6 +438,49 @@
             "run_eligible": true,
             "permissions": [
               "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "import-publicbench",
+          "description": "Register a Search Hub lexical provider over the staged full SciFact corpus and source-linked dev EvalSuite; no download or model inference",
+          "flags": [
+            {
+              "name": "dataset",
+              "required": true,
+              "description": "Public source/split identifier; currently scifact-dev"
+            },
+            {
+              "name": "data-dir",
+              "required": true,
+              "description": "Existing directory containing official claims_dev.jsonl and corpus.jsonl; this command never downloads data",
+              "local_only": true
+            },
+            {
+              "name": "provider-id",
+              "required": true,
+              "description": "Provider ID to register for the staged SciFact corpus and bind to the suite"
+            },
+            {
+              "name": "max-cases",
+              "default": "20",
+              "description": "Maximum evidence-labeled dev claims to import (1–300; deterministic claim-id order)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": true,
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
             ]
           },
           "architecture": {
@@ -839,7 +887,7 @@
             {
               "name": "run-ids",
               "required": true,
-              "description": "Comma-separated run IDs selected from Agent Manager's ListRuns inventory"
+              "description": "Comma-separated run IDs selected from Agent Manager run or conversation search"
             },
             {
               "name": "agent-manager-url",
@@ -1241,6 +1289,11 @@
             {
               "name": "dimensions",
               "description": "Explicit target dimensions"
+            },
+            {
+              "name": "recipe-file",
+              "required": true,
+              "description": "JSON file with the complete embedding recipe input (model, artifact, runtime, tokenizer, chunker and composer identity)"
             }
           ],
           "binding": {

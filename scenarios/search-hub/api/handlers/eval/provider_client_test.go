@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/vrooli/api-core/apihttptest"
 	internaleval "search-hub/internal/eval"
-	"search-hub/internal/testutil/mocks"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -40,7 +40,7 @@ func httpJSONDescriptor() *registryv1.ProviderDescriptor {
 }
 
 func TestSearchForwardsOverrideHeaders(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(http.StatusOK, []byte(`{"results":[]}`))
 	c := newHTTPProviderClient(staticResolver{url: "http://provider.test"}, doer)
 
@@ -67,7 +67,7 @@ func TestSearchForwardsOverrideHeaders(t *testing.T) {
 }
 
 func TestSearchBaselineSendsNoOverrideHeaders(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(http.StatusOK, []byte(`{"results":[]}`))
 	c := newHTTPProviderClient(staticResolver{url: "http://provider.test"}, doer)
 
@@ -82,7 +82,7 @@ func TestSearchBaselineSendsNoOverrideHeaders(t *testing.T) {
 }
 
 func TestSearchRendersScopePlaceholders(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(http.StatusOK, []byte(`{"results":[]}`))
 	c := newHTTPProviderClient(staticResolver{url: "http://provider.test"}, doer)
 	desc := httpJSONDescriptor()

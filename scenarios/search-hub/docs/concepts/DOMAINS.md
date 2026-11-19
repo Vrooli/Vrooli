@@ -50,7 +50,6 @@ registry row, never router code. See
 > implemented. The "Build Phase" column records the plan phase that lands
 > each domain.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -215,9 +214,10 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Does not own: candidate generation (providers) or fan-out (routing).
 - Storage: none (calls Ollama).
 - Requirements: MOD-P1-007 (unified cross-provider ranking).
-- Tests: deterministic parse/ordering/fuse unit tests (always-on) + the
-  real-model rerank-ordering/MRR gate (`reranker_mrr_test.go`, skips when
-  Ollama is down) + the degradation fallback path.
+- Tests: deterministic parse/ordering/fuse unit tests (always-on). Reranker
+  quality is not claimed by these unit tests; it needs owner-reviewed held-out
+  caller cases and a measured production-path comparison before a candidate is
+  admitted.
 
 ### metrics
 

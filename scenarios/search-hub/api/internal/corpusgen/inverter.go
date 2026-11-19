@@ -3,9 +3,13 @@ package corpusgen
 import (
 	"context"
 	"fmt"
-	"os"
+	"net/http"
 	"strings"
+	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	"search-hub/internal/aigateway"
 	"search-hub/internal/ollama"
 )
 
@@ -13,61 +17,66 @@ import (
 // of corpusgen: InvertPositive produces a natural-language query that SHOULD
 // retrieve the item (the heart of query inversion); InvertNegative produces a
 // plausible-but-unanswerable query in the same domain (a hard negative). Tests
-// inject a deterministic fake; production uses the local Ollama gateway.
+// inject a deterministic fake; production uses AI Gateway's local-only typed
+// inference boundary.
 type Inverter interface {
 	InvertPositive(ctx context.Context, it Item) (query string, err error)
 	InvertNegative(ctx context.Context, it Item) (query string, err error)
 }
 
-const defaultInverterRole = "classify.routing"
+const defaultInverterRole = "classify.fast"
 
 // inverterMaxTokens caps generation — one short query line needs little room.
 const inverterMaxTokens = 128
 
 // generateFn is the gateway seam (mirrors routing's): tests inject a runner
 // instead of shelling the real model.
-type generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
+type generateFn = aigateway.TextGenerator
 
-// OllamaInverter is the production Inverter: it asks the local model, for a
+const corpusgenPrivacySource = "search_hub.corpus_generation.sampled_index_item_metadata"
+
+// GatewayInverter is the production Inverter: it asks the local role, for a
 // sampled item, "what would a user type to find THIS?" (positive) or "what
 // plausible query in this area has no good answer here?" (negative). It reads
 // only the item's own title/snippet/type, so it holds no provider-specific
 // knowledge.
-type OllamaInverter struct {
+type GatewayInverter struct {
 	role      string
 	maxTokens int
 	generate  generateFn
 }
 
-// NewOllamaInverter returns the gateway-backed inverter. Role resolves from
-// SEARCH_HUB_CORPUSGEN_ROLE or falls back to defaultInverterRole.
-func NewOllamaInverter() *OllamaInverter {
-	role := strings.TrimSpace(os.Getenv("SEARCH_HUB_CORPUSGEN_ROLE"))
-	if role == "" {
-		role = defaultInverterRole
-	}
-	return &OllamaInverter{
-		role:      role,
+// NewGatewayInverter sends the confidential corpus sample through AI Gateway's
+// local-only typed request path. Role/model selection remains policy-owned.
+func NewGatewayInverter() *GatewayInverter {
+	return newGatewayInverter(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
+	}, &http.Client{Timeout: 90 * time.Second})
+}
+
+func newGatewayInverter(resolve aigateway.URLResolver, client connect.HTTPClient) *GatewayInverter {
+	return &GatewayInverter{
+		role:      defaultInverterRole,
 		maxTokens: inverterMaxTokens,
-		generate:  ollama.Generate,
+		generate:  aigateway.NewTextGenerator(resolve, client, corpusgenPrivacySource),
 	}
 }
 
 // InvertPositive asks for one natural-language query that retrieves the item.
-func (o *OllamaInverter) InvertPositive(ctx context.Context, it Item) (string, error) {
+func (o *GatewayInverter) InvertPositive(ctx context.Context, it Item) (string, error) {
 	return o.ask(ctx, buildPositivePrompt(it))
 }
 
 // InvertNegative asks for one plausible query in the same area that the item
 // does NOT answer (a hard negative).
-func (o *OllamaInverter) InvertNegative(ctx context.Context, it Item) (string, error) {
+func (o *GatewayInverter) InvertNegative(ctx context.Context, it Item) (string, error) {
 	return o.ask(ctx, buildNegativePrompt(it))
 }
 
-func (o *OllamaInverter) ask(ctx context.Context, prompt string) (string, error) {
+func (o *GatewayInverter) ask(ctx context.Context, prompt string) (string, error) {
 	raw, err := o.generate(ctx, o.role, prompt, o.maxTokens)
 	if err != nil {
-		return "", fmt.Errorf("ollama generate: %w", err)
+		return "", fmt.Errorf("AI Gateway generate: %w", err)
 	}
 	q := parseQuery(ollama.StripThink(ollama.UnwrapResponse(raw)))
 	if q == "" {

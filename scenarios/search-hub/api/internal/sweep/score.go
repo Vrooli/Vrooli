@@ -1,6 +1,7 @@
 package sweep
 
 import (
+	"slices"
 	"sort"
 
 	aisearch "github.com/vrooli/ai-go/search"
@@ -19,10 +20,10 @@ import (
 // objective: it carries a positive expectation (an expected id or a top-K
 // requirement) and is not a negative/gibberish case.
 func isPositiveCase(c *evalv1.EvalCase) bool {
-	if hasStringTag(c.GetTags(), aisearch.TagGenerated) && !hasStringTag(c.GetTags(), aisearch.TagHeldout) {
+	if slices.Contains(c.GetTags(), aisearch.TagGenerated) && !slices.Contains(c.GetTags(), aisearch.TagHeldout) {
 		return false
 	}
-	if c.GetExpectNoStrongHit() || hasStringTag(c.GetTags(), "gibberish") {
+	if c.GetExpectNoStrongHit() || slices.Contains(c.GetTags(), "gibberish") {
 		return false
 	}
 	return len(c.GetExpectIds()) > 0 || c.GetExpectWithinTopK() > 0
@@ -47,7 +48,7 @@ func positiveCaseIDs(suite *evalv1.EvalSuite) []string {
 func generatedCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
 	out := map[string]bool{}
 	for _, c := range suite.GetCases() {
-		if hasStringTag(c.GetTags(), "generated") {
+		if slices.Contains(c.GetTags(), "generated") {
 			out[c.GetCaseId()] = true
 		}
 	}
@@ -57,7 +58,7 @@ func generatedCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
 func ownerHeldoutCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
 	out := map[string]bool{}
 	for _, c := range suite.GetCases() {
-		if hasStringTag(c.GetTags(), aisearch.TagHeldout) {
+		if slices.Contains(c.GetTags(), aisearch.TagHeldout) {
 			out[c.GetCaseId()] = true
 		}
 	}
@@ -100,7 +101,7 @@ func completePositiveRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string {
 	want := positiveCaseIDs(suite)
 	seen := make(map[string]bool, len(want))
 	for _, result := range run.GetResults() {
-		if result == nil || !containsCaseID(want, result.GetCaseId()) {
+		if result == nil || !slices.Contains(want, result.GetCaseId()) {
 			continue
 		}
 		if seen[result.GetCaseId()] {
@@ -119,15 +120,6 @@ func completePositiveRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string {
 		}
 	}
 	return ""
-}
-
-func containsCaseID(ids []string, want string) bool {
-	for _, id := range ids {
-		if id == want {
-			return true
-		}
-	}
-	return false
 }
 
 // meanOver returns the mean of recall[id] over the given ids (0 when ids is
@@ -152,13 +144,4 @@ func vectorOver(recall map[string]float64, ids []string) []float64 {
 		out[i] = recall[id]
 	}
 	return out
-}
-
-func hasStringTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
 }

@@ -22,6 +22,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
 		"EvalService.RegisterSuite":             cliapp.ProtoMutation(h.registerCall, h.registerReport),
+		"import-publicbench":                    cliapp.ProtoMutation(h.importPublicBenchCall, h.importPublicBenchReport),
 		"EvalService.ListSuites":                cliapp.ProtoList(h.listCall, h.listReport),
 		"EvalService.GetSuite":                  cliapp.ProtoList(h.showCall, h.showReport),
 		"EvalService.RunSuite":                  cliapp.ProtoMutationOutcome(h.runCall, h.runReport, h.runOutcome),

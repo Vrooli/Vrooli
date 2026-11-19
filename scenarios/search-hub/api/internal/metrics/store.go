@@ -307,6 +307,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		{name: "resolver_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "resolver_cache_hits", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_cache_hits INTEGER NOT NULL DEFAULT 0"},
 		{name: "resolver_cache_misses", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_cache_misses INTEGER NOT NULL DEFAULT 0"},
+		{name: "resolver_cache_scope_version", ddl: "ALTER TABLE query_telemetry ADD COLUMN resolver_cache_scope_version INTEGER NOT NULL DEFAULT 0"},
 		{name: "fanout_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN fanout_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "rerank_latency_ms", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_latency_ms INTEGER NOT NULL DEFAULT 0"},
 		{name: "rerank_candidate_count", ddl: "ALTER TABLE query_telemetry ADD COLUMN rerank_candidate_count INTEGER NOT NULL DEFAULT 0"},
@@ -377,8 +378,8 @@ func (s *sqliteStore) Record(ctx context.Context, sample Sample) error {
 	}
 
 	res, err := s.db.ExecContext(ctx, `
-INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, routing_mode, eligible_provider_count, selected_provider_count, selected_leaf_count, widened_leaf_count, fanout_width_bound_reached, withheld_external_count, queued_provider_count, classifier_latency_ms, resolver_latency_ms, resolver_cache_hits, resolver_cache_misses, fanout_latency_ms, rerank_latency_ms, rerank_candidate_count, response_degrade_reason, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+INSERT INTO query_telemetry (query_hash, routed_types, result_count, zero_result, degraded, reranked, auto_routed_external, escalated, latency_ms, routing_mode, eligible_provider_count, selected_provider_count, selected_leaf_count, widened_leaf_count, fanout_width_bound_reached, withheld_external_count, queued_provider_count, classifier_latency_ms, resolver_latency_ms, resolver_cache_hits, resolver_cache_misses, resolver_cache_scope_version, fanout_latency_ms, rerank_latency_ms, rerank_candidate_count, response_degrade_reason, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?, ?)`,
 		sample.QueryHash, strings.Join(sample.RoutedTypes, ","), sample.ResultCount, zero,
 		boolToInt(sample.Degraded), boolToInt(sample.Reranked),
 		boolToInt(sample.AutoRoutedExternal), boolToInt(sample.Escalated), sample.LatencyMs,
@@ -433,9 +434,15 @@ FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
 		&out.AutoRoutedExternalQueries, &out.EscalatedQueries); err != nil {
 		return nil, fmt.Errorf("aggregate query_telemetry: %w", err)
 	}
+	cacheFilter := filter.queryWhere
+	if cacheFilter == "" {
+		cacheFilter = " WHERE resolver_cache_scope_version = 2"
+	} else {
+		cacheFilter += " AND resolver_cache_scope_version = 2"
+	}
 	cacheRow := s.db.QueryRowContext(ctx, `
 SELECT COALESCE(SUM(resolver_cache_hits), 0), COALESCE(SUM(resolver_cache_misses), 0)
-FROM query_telemetry`+filter.queryWhere, filter.queryArgs...)
+FROM query_telemetry`+cacheFilter, filter.queryArgs...)
 	if err := cacheRow.Scan(&out.ResolverCacheHits, &out.ResolverCacheMisses); err != nil {
 		return nil, fmt.Errorf("aggregate resolver cache telemetry: %w", err)
 	}

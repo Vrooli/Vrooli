@@ -37,6 +37,7 @@ import (
 	experimentH "search-hub/handlers/experimentarms"
 	healthH "search-hub/handlers/health"
 	metricsH "search-hub/handlers/metrics"
+	publicbenchH "search-hub/handlers/publicbench"
 	registryH "search-hub/handlers/registry"
 	routingH "search-hub/handlers/routing"
 	validationH "search-hub/handlers/validation"
@@ -257,6 +258,7 @@ func main() {
 		routingH.ModuleWithRouter(router, log.Default()),
 		evalH.ModuleWithRoutability(db, schedule.System(), log.Default(), router),
 		validationH.Module(log.Default(), repoRoot, db, schedule.System(), router),
+		publicbenchH.Module(os.Getenv("SEARCH_HUB_SCIFACT_DATA_DIR")),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

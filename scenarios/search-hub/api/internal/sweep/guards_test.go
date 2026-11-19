@@ -2,6 +2,7 @@ package sweep
 
 import (
 	"math/rand"
+	"slices"
 	"testing"
 
 	aisearch "github.com/vrooli/ai-go/search"
@@ -56,7 +57,7 @@ func TestSplitCases_Deterministic(t *testing.T) {
 	if len(tun1)+len(held1)+len(excluded1) != len(ids) {
 		t.Fatalf("split lost cases: %d + %d + %d != %d", len(tun1), len(held1), len(excluded1), len(ids))
 	}
-	if !equalStrings(tun1, tun2) || !equalStrings(held1, held2) || !equalStrings(excluded1, excluded2) {
+	if !slices.Equal(tun1, tun2) || !slices.Equal(held1, held2) || !slices.Equal(excluded1, excluded2) {
 		t.Fatalf("split is not deterministic: %v/%v/%v vs %v/%v/%v", tun1, held1, excluded1, tun2, held2, excluded2)
 	}
 }
@@ -70,11 +71,11 @@ func TestSplitCases_GeneratedExcludedUnlessOwnerMarksHeldout(t *testing.T) {
 			t.Fatalf("generated case %q leaked into the tuning fold", id)
 		}
 	}
-	if len(heldout) != 0 || !equalStrings(excluded, []string{"a", "b"}) {
+	if len(heldout) != 0 || !slices.Equal(excluded, []string{"a", "b"}) {
 		t.Fatalf("generated cases without owner review are excluded, got heldout=%v excluded=%v", heldout, excluded)
 	}
 	tuning, heldout, excluded = splitCases(ids, map[string]bool{"a": true}, gen)
-	if !equalStrings(heldout, []string{"a"}) || !equalStrings(excluded, []string{"b"}) || contains(tuning, "a") {
+	if !slices.Equal(heldout, []string{"a"}) || !slices.Equal(excluded, []string{"b"}) || slices.Contains(tuning, "a") {
 		t.Fatalf("only owner-tagged generated case may validate, got tuning=%v heldout=%v excluded=%v", tuning, heldout, excluded)
 	}
 }
@@ -150,25 +151,4 @@ func TestComplexityOrdering(t *testing.T) {
 	if !(complexity(denseRerank) < complexity(blend)) {
 		t.Fatalf("no-blend must be simpler than blend")
 	}
-}
-
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func contains(s []string, want string) bool {
-	for _, v := range s {
-		if v == want {
-			return true
-		}
-	}
-	return false
 }

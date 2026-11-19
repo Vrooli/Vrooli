@@ -120,16 +120,17 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 	scheduler := evalsched.New(clk, store, runner, federated, store, schedulerOpts)
 	go scheduler.Run(context.Background())
 
-	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(NewConnectHandler(Deps{
-		Store:          store,
-		Registry:       resolver,
-		Providers:      resolver,
-		Runner:         runner,
-		Federated:      federated,
-		Validator:      validator,
-		Sweeper:        sweeper,
-		ActiveStrategy: activeStrategy.Name,
-		Routability:    routability,
+	evalHandler := NewConnectHandler(Deps{
+		Store:                    store,
+		Registry:                 resolver,
+		Providers:                resolver,
+		Runner:                   runner,
+		Federated:                federated,
+		Validator:                validator,
+		Sweeper:                  sweeper,
+		ActiveStrategy:           activeStrategy.Name,
+		Routability:              routability,
+		DenominatorReviewReceipt: newIndependentDenominatorReviewVerifier(),
 		// The corpus generator samples the provider through the SAME client the
 		// runner/sweep use (its index is reached only via its search endpoint) and
 		// inverts items with the local Ollama gateway.
@@ -140,10 +141,12 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 		Control: controlClient,
 		Tokens:  resolver,
 		Logger:  logger,
-	}))
+	})
+	connectPath, connectHandler := evalconnect.NewEvalServiceHandler(evalHandler)
 	return module.Module{
 		Name: "eval",
 		Mount: func(r *mux.Router) {
+			r.HandleFunc("/eval/review-template/{suite_id}", evalHandler.ReviewTemplate).Methods(http.MethodGet)
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 		},
 		Endpoints: Endpoints,

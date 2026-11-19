@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -26,7 +27,7 @@ func ComposeRoutingSuite(suites []*evalv1.EvalSuite, registered map[string]struc
 		}
 		if _, ok := registered[suite.GetProviderId()]; !ok {
 			for _, c := range suite.GetCases() {
-				if c != nil && c.GetStatus() != "candidate" && !hasTag(c.GetTags(), "generated") && !c.GetExpectNoStrongHit() {
+				if c != nil && c.GetStatus() != "candidate" && !slices.Contains(c.GetTags(), "generated") && !c.GetExpectNoStrongHit() {
 					excluded["unregistered"]++
 				}
 			}
@@ -39,7 +40,7 @@ func ComposeRoutingSuite(suites []*evalv1.EvalSuite, registered map[string]struc
 			switch {
 			case c.GetStatus() == "candidate":
 				excluded["candidate"]++
-			case composeHasTag(c.GetTags(), "generated"):
+			case slices.Contains(c.GetTags(), "generated"):
 				excluded["generated"]++
 			case c.GetExpectNoStrongHit() || len(c.GetExpectIds()) == 0:
 				excluded["negative"]++
@@ -81,15 +82,6 @@ func ComposeRoutingSuite(suites []*evalv1.EvalSuite, registered map[string]struc
 		Cases:       cases,
 		State:       "active",
 	}
-}
-
-func composeHasTag(tags []string, want string) bool {
-	for _, tag := range tags {
-		if tag == want {
-			return true
-		}
-	}
-	return false
 }
 
 func composeDegenerate(c *evalv1.EvalCase) bool {

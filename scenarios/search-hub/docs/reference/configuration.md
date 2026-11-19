@@ -69,10 +69,9 @@ only successful, non-degraded empty responses contribute to that separate state.
 
 ### Corpus generation model role
 
-Eval corpus generation uses `SEARCH_HUB_CORPUSGEN_ROLE` when set; otherwise it
-shares `classify.routing`. This keeps the optional query-inversion workflow on
-Search Hub's resident 4B model instead of requiring the larger `chat.default`
-role during normal federation operation.
+Eval corpus generation uses AI Gateway's `classify.routing` role with a
+local-only, confidential task contract. The Gateway policy owns the selected
+resource role and model; Search Hub does not expose a per-caller role override.
 
 ### Scenario-prefixed CLI variables
 

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/identity"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -881,32 +880,6 @@ type fakeReranker struct {
 	gotCount         int
 }
 
-type cpuFallbackReranker struct{ inner *routing.CPULexicalReranker }
-
-func (r cpuFallbackReranker) Name() string { return r.inner.Name() }
-
-func (r cpuFallbackReranker) Available(context.Context) bool { return true }
-
-func (r cpuFallbackReranker) ActiveName(context.Context) string { return r.inner.Name() }
-
-func (r cpuFallbackReranker) ActiveNameWithPreference(_ context.Context, preference string) string {
-	if preference == aisearch.RerankPreferenceCrossEncoderRequired {
-		return "none"
-	}
-	return r.inner.Name()
-}
-
-func (r cpuFallbackReranker) Rerank(ctx context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
-	return r.inner.Rerank(ctx, query, candidates)
-}
-
-func (r cpuFallbackReranker) RerankWithPreference(ctx context.Context, query string, candidates []*routingv1.SearchHit, preference string) ([]*routingv1.SearchHit, error) {
-	if preference == aisearch.RerankPreferenceCrossEncoderRequired {
-		return nil, errors.New("required cross encoder unavailable")
-	}
-	return r.inner.Rerank(ctx, query, candidates)
-}
-
 type telemetryCapture struct{ sample routing.TelemetrySample }
 
 func (c *telemetryCapture) Record(_ context.Context, sample routing.TelemetrySample) {
@@ -988,26 +961,6 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 		require.Empty(t, group.GetHits(), "reranked hits must not be duplicated under provider groups")
 	}
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 2 candidate")
-}
-
-func TestCPUDegradedLegFlowsThroughQueryAndTelemetryRecorder(t *testing.T) {
-	recorder := &telemetryCapture{}
-	r := routing.NewRouter(routing.Deps{
-		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
-		Reranker: cpuFallbackReranker{inner: routing.NewCPULexicalReranker()}, Recorder: recorder,
-	})
-
-	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", All: true, Explain: true})
-	require.NoError(t, err)
-	require.True(t, resp.GetReranked())
-	require.True(t, resp.GetDegraded())
-	require.Equal(t, "cpu-lexical:v1", resp.GetRerankerLeg())
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker_degraded_to_cpu_lexical")
-	require.True(t, recorder.sample.Reranked)
-	require.True(t, recorder.sample.Degraded)
-	require.Equal(t, "cpu-lexical:v1", recorder.sample.RerankerLeg)
-	require.Contains(t, recorder.sample.ResponseDegradeReason, "reranker_degraded_to_cpu_lexical")
-	require.GreaterOrEqual(t, recorder.sample.RerankLatencyMs, int64(0))
 }
 
 func TestBackgroundEvaluationBypassesModelsAndFansOutExplicitly(t *testing.T) {

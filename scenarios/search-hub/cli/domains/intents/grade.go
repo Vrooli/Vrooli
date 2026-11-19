@@ -1,6 +1,7 @@
 package intents
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -93,22 +94,13 @@ func grade(c loadedCase, hits []*routingv1.SearchHit, k int) caseResult {
 // need not carry its scenario's name); otherwise the hit must be a leaf the
 // scenario owns, of an accepted type.
 func qualifies(c loadedCase, hit *routingv1.SearchHit, owned bool) bool {
-	if len(c.ExpectTypes) > 0 && !contains(c.ExpectTypes, hit.GetType()) {
+	if len(c.ExpectTypes) > 0 && !slices.Contains(c.ExpectTypes, hit.GetType()) {
 		return false
 	}
 	if len(c.ExpectIDs) > 0 {
-		return contains(c.ExpectIDs, hit.GetId())
+		return slices.Contains(c.ExpectIDs, hit.GetId())
 	}
 	return owned
-}
-
-func contains(values []string, want string) bool {
-	for _, v := range values {
-		if v == want {
-			return true
-		}
-	}
-	return false
 }
 
 // scenarioRecall is one owner's rolled-up result.

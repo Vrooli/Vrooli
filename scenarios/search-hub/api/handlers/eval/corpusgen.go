@@ -40,7 +40,7 @@ type liveCorpusGenerator struct {
 func newLiveCorpusGenerator(client internaleval.ProviderClient) liveCorpusGenerator {
 	return liveCorpusGenerator{
 		client:   client,
-		inverter: corpusgen.NewOllamaInverter(),
+		inverter: corpusgen.NewGatewayInverter(),
 		deduper:  corpusgen.JaccardDeduper{},
 		perProbe: defaultProbeLimit,
 	}

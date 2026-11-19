@@ -2,15 +2,17 @@ package corpusgen
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 
+	"connectrpc.com/connect"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	"github.com/vrooli/vrooli/packages/proto/searcheval"
 )
 
 // RunEventsReader is the narrow Agent Manager read surface used by the caller
@@ -25,49 +27,12 @@ type AgentManagerEventPage struct {
 }
 
 type AgentManagerEvent struct {
-	ID              string                       `json:"id"`
-	RunID           string                       `json:"run_id"`
-	Sequence        int64                        `json:"-"`
-	SequenceOmitted bool                         `json:"-"`
-	EventType       string                       `json:"event_type"`
-	Message         *AgentManagerMessage         `json:"message"`
-	MessageDeleted  *AgentManagerMessageDeletion `json:"message_deleted"`
-}
-
-// UnmarshalJSON matches Agent Manager's protojson contract: snake_case field
-// names, int64 sequence encoded as a JSON string, and oneof alternatives at
-// the RunEvent object level (message/message_deleted).
-func (e *AgentManagerEvent) UnmarshalJSON(data []byte) error {
-	type eventJSON struct {
-		ID             string                       `json:"id"`
-		RunID          string                       `json:"run_id"`
-		Sequence       json.RawMessage              `json:"sequence"`
-		EventType      string                       `json:"event_type"`
-		Message        *AgentManagerMessage         `json:"message"`
-		MessageDeleted *AgentManagerMessageDeletion `json:"message_deleted"`
-	}
-	var decoded eventJSON
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		return err
-	}
-	sequence := strings.TrimSpace(string(decoded.Sequence))
-	if sequence == "" {
-		*e = AgentManagerEvent{ID: decoded.ID, RunID: decoded.RunID, EventType: decoded.EventType, Message: decoded.Message, MessageDeleted: decoded.MessageDeleted, SequenceOmitted: true}
-		return nil
-	}
-	if len(sequence) >= 2 && sequence[0] == '"' && sequence[len(sequence)-1] == '"' {
-		var value string
-		if err := json.Unmarshal(decoded.Sequence, &value); err != nil {
-			return err
-		}
-		sequence = value
-	}
-	parsed, err := strconv.ParseInt(sequence, 10, 64)
-	if err != nil {
-		return fmt.Errorf("decode Agent Manager event sequence: %w", err)
-	}
-	*e = AgentManagerEvent{ID: decoded.ID, RunID: decoded.RunID, Sequence: parsed, EventType: decoded.EventType, Message: decoded.Message, MessageDeleted: decoded.MessageDeleted}
-	return nil
+	ID             string                       `json:"id"`
+	RunID          string                       `json:"run_id"`
+	Sequence       int64                        `json:"-"`
+	EventType      string                       `json:"event_type"`
+	Message        *AgentManagerMessage         `json:"message"`
+	MessageDeleted *AgentManagerMessageDeletion `json:"message_deleted"`
 }
 
 type AgentManagerMessage struct {
@@ -82,42 +47,52 @@ type AgentManagerMessageDeletion struct {
 	TargetEventID string `json:"target_event_id"`
 }
 
-// AgentManagerHTTPReader implements the owner's bounded REST event projection.
-// Supply the authenticated HTTP client and the Agent Manager base URL from the
-// scenario's normal service wiring; this type does not manage credentials.
-type AgentManagerHTTPReader struct {
+// AgentManagerConnectReader uses the generated event RPC. A configured client
+// carries the scenario's authentication and transport policy.
+type AgentManagerConnectReader struct {
 	BaseURL string
-	Client  *http.Client
+	Client  apiconnect.AgentManagerServiceClient
 }
 
-func (r AgentManagerHTTPReader) GetRunEvents(ctx context.Context, runID string, after int64, limit int) (AgentManagerEventPage, error) {
+func NewAgentManagerConnectReader(baseURL string, client *http.Client) AgentManagerConnectReader {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	return AgentManagerConnectReader{BaseURL: baseURL, Client: apiconnect.NewAgentManagerServiceClient(client, baseURL)}
+}
+
+func (r AgentManagerConnectReader) GetRunEvents(ctx context.Context, runID string, after int64, limit int) (AgentManagerEventPage, error) {
 	var page AgentManagerEventPage
-	if r.Client == nil || strings.TrimSpace(r.BaseURL) == "" {
-		return page, fmt.Errorf("Agent Manager base URL and authenticated HTTP client are required")
+	if r.Client == nil || strings.TrimSpace(r.BaseURL) == "" || strings.TrimSpace(runID) == "" || limit < 1 || limit > 1000 {
+		return page, fmt.Errorf("Agent Manager Connect client, run ID and bounded page size are required")
 	}
-	base, err := url.Parse(strings.TrimRight(r.BaseURL, "/") + "/api/v1/runs/" + url.PathEscape(runID) + "/events")
-	if err != nil {
-		return page, fmt.Errorf("parse Agent Manager URL: %w", err)
-	}
-	query := base.Query()
-	query.Set("after_sequence", fmt.Sprint(after))
-	query.Set("limit", fmt.Sprint(limit))
-	query.Set("event_types", "message,message_deleted")
-	base.RawQuery = query.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
-	if err != nil {
-		return page, fmt.Errorf("build Agent Manager event request: %w", err)
-	}
-	response, err := r.Client.Do(req)
+	limit32 := int32(limit)
+	response, err := r.Client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
+		RunId: runID, AfterSequence: &after, Limit: &limit32,
+		EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE, domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED},
+	}))
 	if err != nil {
 		return page, fmt.Errorf("request Agent Manager events: %w", err)
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return page, fmt.Errorf("Agent Manager event request returned HTTP %d", response.StatusCode)
+	if response == nil || response.Msg == nil {
+		return page, fmt.Errorf("Agent Manager returned an empty Connect event response")
 	}
-	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
-		return page, fmt.Errorf("decode Agent Manager event page: %w", err)
+	page.HasMore = response.Msg.GetHasMore()
+	for _, event := range response.Msg.GetEvents() {
+		converted := AgentManagerEvent{
+			ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(), EventType: event.GetEventType().String(),
+		}
+		if message := event.GetMessage(); message != nil {
+			converted.Message = &AgentManagerMessage{
+				Role: message.GetRole(), Source: message.GetSource(), Content: message.GetContent(),
+				ConversationID: message.GetConversationId(), EvidenceOnly: message.GetEvidenceOnly(),
+			}
+		}
+		if deleted := event.GetMessageDeleted(); deleted != nil {
+			converted.MessageDeleted = &AgentManagerMessageDeletion{TargetEventID: deleted.GetTargetEventId()}
+		}
+		page.Events = append(page.Events, converted)
 	}
 	return page, nil
 }
@@ -137,6 +112,10 @@ type AgentManagerCallerRecord struct {
 func AuditedAgentManagerCallerCase(record AgentManagerCallerRecord, route GatewayRouteProof, review CallerLabelReview) (*evalv1.EvalCase, error) {
 	if record.MessageRole != "user" || record.MessageSource != "operator" || record.ConversationID == "" {
 		return nil, fmt.Errorf("caller record must be an operator-authored user message with a conversation identity")
+	}
+	expectedRequestID, err := searcheval.AgentManagerReplayRequestID(record.RunID, record.EventID, int64(record.Sequence), route.TaskRole, route.Consumer)
+	if err != nil || route.GatewayRequestID != expectedRequestID {
+		return nil, fmt.Errorf("Gateway request identity does not bind this Agent Manager source, task role, and consumer")
 	}
 	event := CallerEvent{
 		RunID: record.RunID, EventID: record.EventID, Sequence: record.Sequence,
@@ -187,15 +166,6 @@ func HarvestAgentManagerCallers(ctx context.Context, reader RunEventsReader, run
 				return nil, fmt.Errorf("Agent Manager returned an empty page with has_more for run %s", runID)
 			}
 			for _, event := range page.Events {
-				if event.SequenceOmitted {
-					// protojson omits proto3 scalar defaults. Agent Manager starts
-					// run event sequence at zero, so only the first retained item
-					// on the initial (-1) cursor may lawfully omit sequence.
-					if after != -1 || len(allEvents) != 0 {
-						return nil, fmt.Errorf("Agent Manager event page omitted a non-initial sequence for run %s", runID)
-					}
-					event.Sequence = 0
-				}
 				if event.RunID != runID || event.ID == "" || event.Sequence <= after {
 					return nil, fmt.Errorf("Agent Manager event page has invalid run/event/sequence identity for run %s", runID)
 				}

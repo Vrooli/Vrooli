@@ -37,6 +37,7 @@ import (
 	internalregistry "search-hub/internal/registry"
 
 	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 
@@ -77,9 +78,6 @@ const (
 	// The LLM fallback is intentionally looser because its warm path is
 	// model-dependent; cold residency is a host concern, not router code.
 	defaultLLMRerankTimeout = 8 * time.Second
-	// The in-process lexical fallback has a one-slot CPU gate and a hard
-	// candidate/text ceiling, so it receives a small wait budget.
-	defaultCPULexicalRerankTimeout = 500 * time.Millisecond
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
 	defaultResponseCushion = 500 * time.Millisecond
@@ -132,13 +130,6 @@ func fanoutWorstCase(activeProviders, concurrency int, perProviderTimeout time.D
 	return time.Duration(waves) * perProviderTimeout
 }
 
-func nonNegativeDelta(after, before int64) int64 {
-	if after < before {
-		return 0
-	}
-	return after - before
-}
-
 // URLResolver turns a logical scenario_id into the scenario's live API base URL
 // (scheme://host:port) at call-time. Production wraps api-core/discovery's
 // Resolver (which shells out to `vrooli scenario port`); tests inject a static
@@ -146,21 +137,6 @@ func nonNegativeDelta(after, before int64) int64 {
 // client-side; resolve via the backend" made into a seam.
 type URLResolver interface {
 	ResolveScenarioURL(ctx context.Context, scenarioID string) (baseURL string, err error)
-}
-
-// ResolutionCacheStats is an optional observability seam implemented by
-// resolvers that cache scenario addresses. The router never requires caching
-// for correctness; when available, it records before/after deltas in query
-// telemetry so operators can verify that fan-out cost scales with scenarios.
-type ResolutionCacheStats interface {
-	CacheStats() (hits, misses int64)
-}
-
-func resolutionCacheStats(resolver URLResolver) (hits, misses int64) {
-	if stats, ok := resolver.(ResolutionCacheStats); ok && stats != nil {
-		return stats.CacheStats()
-	}
-	return 0, 0
 }
 
 // EvalQualityEvidence is the router's narrow read model for a provider's
@@ -401,13 +377,13 @@ func (r *Router) RouterFactors() RouterFactorValues { return r.factors }
 func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
 	r.providerBreakers.restore(ctx)
 	start := r.deps.Now()
-	cacheHitsBefore, cacheMissesBefore := resolutionCacheStats(r.deps.Resolver)
 	qctx := ctx
 	cancelQuery := func() {}
 	if r.deps.QueryTimeout > 0 {
 		qctx, cancelQuery = context.WithTimeout(ctx, r.deps.QueryTimeout)
 	}
 	defer cancelQuery()
+	qctx, resolverCacheObservation := discovery.ObserveResolverCache(qctx)
 
 	query := strings.TrimSpace(req.GetQuery())
 	if query == "" {
@@ -654,9 +630,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample.QueuedProviderCount = max(0, len(targets)-r.deps.Concurrency)
 		sample.ClassifierLatencyMs = classifierLatency
 		sample.ResolverLatencyMs = resolverLatency
-		cacheHitsAfter, cacheMissesAfter := resolutionCacheStats(r.deps.Resolver)
-		sample.ResolverCacheHits = nonNegativeDelta(cacheHitsAfter, cacheHitsBefore)
-		sample.ResolverCacheMisses = nonNegativeDelta(cacheMissesAfter, cacheMissesBefore)
+		sample.ResolverCacheHits, sample.ResolverCacheMisses = resolverCacheObservation.Snapshot()
 		sample.FanoutLatencyMs = fanoutLatency
 		sample.RerankLatencyMs = rerankLatency
 		sample.RerankCandidateCount = len(fuseGroups(groups))
@@ -777,16 +751,22 @@ func (r *Router) probeProviderRecovery(ctx context.Context, providerID, query st
 		}
 		return false, nil
 	}
-	if probeResponse.GetDegraded() {
-		if failureClaimed {
-			r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "provider response degraded")
-		} else {
-			r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), "provider response degraded")
-		}
-		return false, nil
-	}
 	for _, group := range probeResponse.GetGroups() {
-		if group.GetProviderId() == providerID && len(group.GetHits()) > 0 {
+		if group.GetProviderId() != providerID {
+			continue
+		}
+		// Judge the probed provider's own group: the response-level flag also
+		// carries unrelated legs (reranker, siblings) and must not fail a probe.
+		if providerFailed(group) {
+			reason := "provider response degraded: " + group.GetNote()
+			if failureClaimed {
+				r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), reason)
+			} else {
+				r.providerBreakers.recoveryProbeFailed(providerID, r.deps.Now(), reason)
+			}
+			return false, nil
+		}
+		if len(group.GetHits()) > 0 {
 			if failureClaimed {
 				r.providerBreakers.finishFailureRecoveryProbe(providerID, r.deps.Now(), "")
 			}
@@ -1056,14 +1036,12 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 	}
 	if strings.HasPrefix(leg, "llm:") {
 		rankReason = "reranker_degraded_to_llm"
-	} else if strings.HasPrefix(leg, "cpu-lexical:") {
-		rankReason = "reranker_degraded_to_cpu_lexical"
 	}
 	explanation := fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg)
 	if rankReason != "" {
 		explanation += " (" + rankReason + ")"
 	}
-	return ranked, true, strings.HasPrefix(leg, "cpu-lexical:"), rankReason, leg, []string{explanation}
+	return ranked, true, false, rankReason, leg, []string{explanation}
 }
 
 func rerankPreference(targets []*registryv1.ProviderDescriptor) string {
@@ -1086,8 +1064,6 @@ func (r *Router) rerankBudgetForLeg(ctx context.Context, preference string) (tim
 			timeout = r.deps.CrossEncoderRerankTimeout
 		case strings.HasPrefix(active, "llm:") && r.deps.LLMRerankTimeout > 0:
 			timeout = r.deps.LLMRerankTimeout
-		case strings.HasPrefix(active, "cpu-lexical:"):
-			timeout = defaultCPULexicalRerankTimeout
 		}
 	}
 	return r.rerankBudgetWithTimeout(ctx, timeout)
@@ -1254,15 +1230,9 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 				}
 			}
 			selectorLeg = leg
-			if leg == selectorLegCPULexical {
-				selectionFallback = true
-				selectionReason = selectorLegCPULexical
-			}
 			switch leg {
 			case selectorLegLLM:
 				explain = append(explain, "cross-encoder provider pick unavailable; LLM provider pick selected the leading lexical candidate")
-			case selectorLegCPULexical:
-				explain = append(explain, "cross-encoder provider pick unavailable; CPU lexical provider pick selected the leading lexical candidate")
 			default:
 				explain = append(explain, "cross-encoder provider pick selected the leading lexical candidate")
 			}
@@ -1566,7 +1536,7 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			}
 			groups[i] = r.callProvider(ctx, t, query, limit, scope)
 			r.providerBreakers.recordGroup(t.GetProviderId(), groups[i], r.deps.Now(), probeClaimed)
-			r.providerBreakers.recordResult(t.GetProviderId(), len(groups[i].GetHits()), groups[i].GetDegraded(), explicit, r.deps.Now())
+			r.providerBreakers.recordResult(t.GetProviderId(), len(groups[i].GetHits()), providerFailed(groups[i]), explicit, r.deps.Now())
 		}(i, t)
 	}
 	wg.Wait()
@@ -1637,7 +1607,23 @@ func (r *Router) providerDescriptionQuery(ctx context.Context, query string, lim
 }
 
 func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
-	key := strings.Join([]string{d.GetProviderId(), query, fmt.Sprint(limit), scope, callerPartition(ctx)}, "\x00")
+	hj := d.GetEndpoint().GetHttpJson()
+	if hj == nil {
+		return degrade(&routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}, "unsupported endpoint kind (only http_json fan-out is implemented in Phase 4)")
+	}
+	resolveStarted := r.deps.Now()
+	base, err := r.deps.Resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
+	resolveLatency := r.deps.Now().Sub(resolveStarted).Milliseconds()
+	if err != nil {
+		if isScenarioNotRunning(err) {
+			r.providerBreakers.openImmediately(d.GetProviderId(), r.deps.Now())
+		}
+		return degrade(&routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}, fmt.Sprintf("provider scenario %q unreachable: %s", hj.GetScenarioId(), oneLine(err.Error())))
+	}
+	// Resolve on each query's own context before sharing the provider request.
+	// This keeps resolver-cache observations query-scoped even when the HTTP
+	// round-trip below is deduplicated across concurrent queries.
+	key := strings.Join([]string{d.GetProviderId(), base, query, fmt.Sprint(limit), scope, callerPartition(ctx)}, "\x00")
 	r.providerCallMu.Lock()
 	if call := r.providerCalls[key]; call != nil {
 		call.waiters++
@@ -1650,7 +1636,7 @@ func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescrip
 	r.providerCallMu.Unlock()
 	go func() {
 		defer cancel()
-		call.result = r.callProviderDirect(callCtx, d, query, limit, scope)
+		call.result = r.callProviderDirect(callCtx, d, base, resolveLatency, query, limit, scope)
 		close(call.done)
 		r.providerCallMu.Lock()
 		if r.providerCalls[key] == call {
@@ -1682,25 +1668,14 @@ func (r *Router) waitForProviderCall(ctx context.Context, key, providerID string
 	}
 }
 
-func (r *Router) callProviderDirect(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
+func (r *Router) callProviderDirect(ctx context.Context, d *registryv1.ProviderDescriptor, base string, resolveLatency int64, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
 	start := r.deps.Now()
 	g := &routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}
 	defer func() {
-		g.LatencyMs = r.deps.Now().Sub(start).Milliseconds()
+		g.LatencyMs = resolveLatency + r.deps.Now().Sub(start).Milliseconds()
 	}()
 
 	hj := d.GetEndpoint().GetHttpJson()
-	if hj == nil {
-		return degrade(g, "unsupported endpoint kind (only http_json fan-out is implemented in Phase 4)")
-	}
-
-	base, err := r.deps.Resolver.ResolveScenarioURL(ctx, hj.GetScenarioId())
-	if err != nil {
-		if isScenarioNotRunning(err) {
-			r.providerBreakers.openImmediately(d.GetProviderId(), r.deps.Now())
-		}
-		return degrade(g, fmt.Sprintf("provider scenario %q unreachable: %s", hj.GetScenarioId(), oneLine(err.Error())))
-	}
 
 	body, err := providers.RenderBodyWithScope(hj.GetBodyTemplate(), query, limit, d.GetType(), scope)
 	if err != nil {

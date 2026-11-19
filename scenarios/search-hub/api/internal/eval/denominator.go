@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func ValidateFixedDenominatorSnapshot(snapshot *evalv1.FixedDenominatorSnapshot)
 	sort.Strings(ids)
 	wantIDs := append([]string(nil), snapshot.GetCaseIds()...)
 	sort.Strings(wantIDs)
-	if !equalStrings(ids, wantIDs) {
+	if !slices.Equal(ids, wantIDs) {
 		return aisearch.FixedDenominator{}, fmt.Errorf("fixed denominator case IDs do not match its case snapshots")
 	}
 	sealed, err := aisearch.NewFixedDenominator(snapshot.GetSuiteId(), cases, snapshot.GetReviewerId(), snapshot.GetReviewEvidenceUri())

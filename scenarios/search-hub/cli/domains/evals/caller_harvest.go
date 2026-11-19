@@ -4,58 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-type callerHarvestHTTPClient interface {
-	Do(*http.Request) (*http.Response, error)
-}
-
-type callerHarvestRun struct {
-	ID string `json:"id"`
-}
-
-type callerHarvestRunPage struct {
-	Runs    []callerHarvestRun `json:"runs"`
-	HasMore bool               `json:"has_more"`
-}
-
-type callerHarvestEventPage struct {
-	Events  []callerHarvestEvent `json:"events"`
-	HasMore bool                 `json:"has_more"`
-}
-
-type callerHarvestEvent struct {
-	ID             string                 `json:"id"`
-	RunID          string                 `json:"run_id"`
-	Sequence       json.RawMessage        `json:"sequence"`
-	ParsedSequence int64                  `json:"-"`
-	EventType      string                 `json:"event_type"`
-	Message        *callerHarvestMessage  `json:"message"`
-	MessageDeleted *callerHarvestDeletion `json:"message_deleted"`
-}
-
-type callerHarvestMessage struct {
-	Role           string `json:"role"`
-	Source         string `json:"source"`
-	Content        string `json:"content"`
-	ConversationID string `json:"conversation_id"`
-	EvidenceOnly   bool   `json:"evidence_only"`
-}
-
-type callerHarvestDeletion struct {
-	TargetEventID string `json:"target_event_id"`
+type callerHarvestClient interface {
+	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error)
 }
 
 type callerHarvestRecord struct {
@@ -95,9 +61,10 @@ func bindCallerHarvest(core *cliapp.ScenarioApp) cliapp.PrimitiveHandler {
 			return err
 		}
 		httpClient, _ := cliapp.NewConnectHTTPClient(core)
+		agentManager := apiconnect.NewAgentManagerServiceClient(httpClient, managerURL)
 		requestCtx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 		defer cancel()
-		bundle, err := harvestSelectedCallers(requestCtx, httpClient, managerURL, runIDs)
+		bundle, err := harvestSelectedCallers(requestCtx, agentManager, runIDs)
 		if err != nil {
 			return err
 		}
@@ -150,31 +117,26 @@ func parseCallerRunIDs(raw string) ([]string, error) {
 		ids = append(ids, id)
 	}
 	if len(ids) == 0 {
-		return nil, fmt.Errorf("--run-ids is required; use Agent Manager's real run inventory to select runs")
+		return nil, fmt.Errorf("--run-ids is required; select IDs from Agent Manager run or conversation search")
 	}
 	sort.Strings(ids)
 	return ids, nil
 }
 
-func harvestSelectedCallers(ctx context.Context, client callerHarvestHTTPClient, base string, selected []string) (*callerHarvestBundle, error) {
+func harvestSelectedCallers(ctx context.Context, client callerHarvestClient, selected []string) (*callerHarvestBundle, error) {
 	if client == nil {
-		return nil, fmt.Errorf("authenticated Agent Manager HTTP client is required")
+		return nil, fmt.Errorf("generated Agent Manager Connect client is required")
 	}
 	if len(selected) == 0 {
 		return nil, fmt.Errorf("selected Agent Manager run IDs are required")
 	}
-	knownRuns, err := listAgentManagerRunIDs(ctx, client, base)
-	if err != nil {
-		return nil, err
-	}
-	for _, runID := range selected {
-		if !knownRuns[runID] {
-			return nil, fmt.Errorf("selected run %s is absent from the current Agent Manager run inventory", runID)
-		}
-	}
 	bundle := &callerHarvestBundle{SchemaVersion: "agent-manager-caller-audit/v1", Source: "Agent Manager run events", CreatedAt: time.Now().UTC()}
 	for _, runID := range selected {
-		records, err := readAgentManagerCallers(ctx, client, base, runID)
+		run, err := getAgentManagerRun(ctx, client, runID)
+		if err != nil {
+			return nil, fmt.Errorf("validate selected Agent Manager run %s: %w", runID, err)
+		}
+		records, err := readAgentManagerCallers(ctx, client, runID, run.GetHarnessSessionId())
 		if err != nil {
 			return nil, fmt.Errorf("harvest Agent Manager run %s: %w", runID, err)
 		}
@@ -183,107 +145,80 @@ func harvestSelectedCallers(ctx context.Context, client callerHarvestHTTPClient,
 	return bundle, nil
 }
 
-func listAgentManagerRunIDs(ctx context.Context, client callerHarvestHTTPClient, base string) (map[string]bool, error) {
-	known := map[string]bool{}
-	for offset := 0; ; offset += 5000 {
-		query := url.Values{"limit": {"5000"}, "offset": {strconv.Itoa(offset)}}
-		var page callerHarvestRunPage
-		if err := callerGETJSON(ctx, client, base+"/api/v1/runs?"+query.Encode(), &page); err != nil {
-			return nil, fmt.Errorf("read Agent Manager run inventory: %w", err)
-		}
-		for _, run := range page.Runs {
-			if run.ID != "" {
-				known[run.ID] = true
-			}
-		}
-		if !page.HasMore {
-			return known, nil
-		}
-		if len(page.Runs) == 0 {
-			return nil, fmt.Errorf("Agent Manager run inventory returned an empty page with has_more")
-		}
+func getAgentManagerRun(ctx context.Context, client callerHarvestClient, runID string) (*domain.Run, error) {
+	response, err := client.GetRun(ctx, connect.NewRequest(&api.GetRunRequest{RunId: runID}))
+	if err != nil {
+		return nil, fmt.Errorf("read Agent Manager run: %w", err)
 	}
+	if response.Msg.GetRun() == nil || response.Msg.GetRun().GetId() != runID {
+		return nil, fmt.Errorf("Agent Manager returned mismatched run identity")
+	}
+	return response.Msg.GetRun(), nil
 }
 
-func readAgentManagerCallers(ctx context.Context, client callerHarvestHTTPClient, base, runID string) ([]callerHarvestRecord, error) {
-	var events []callerHarvestEvent
+func readAgentManagerCallers(ctx context.Context, client callerHarvestClient, runID, harnessSessionID string) ([]callerHarvestRecord, error) {
+	var events []*domain.RunEvent
 	var after int64 = -1
 	for {
-		query := url.Values{"after_sequence": {strconv.FormatInt(after, 10)}, "limit": {"1000"}, "event_types": {"message,message_deleted"}}
-		var page callerHarvestEventPage
-		endpoint := base + "/api/v1/runs/" + url.PathEscape(runID) + "/events?" + query.Encode()
-		if err := callerGETJSON(ctx, client, endpoint, &page); err != nil {
-			return nil, err
+		limit := int32(1000)
+		response, err := client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
+			RunId: runID, AfterSequence: &after, Limit: &limit,
+			EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE, domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED},
+		}))
+		if err != nil {
+			return nil, fmt.Errorf("read Agent Manager run events: %w", err)
 		}
-		if len(page.Events) == 0 && page.HasMore {
+		page := response.Msg
+		if len(page.GetEvents()) == 0 && page.GetHasMore() {
 			return nil, fmt.Errorf("Agent Manager returned an empty event page with has_more")
 		}
-		for _, event := range page.Events {
-			sequence, err := callerSequence(event.Sequence)
-			if len(event.Sequence) == 0 && after == -1 && len(events) == 0 {
-				// Agent Manager's proto3 RunEvent.sequence field defaults to
-				// zero, which protojson omits when EmitUnpopulated is disabled.
-				sequence, err = 0, nil
-			}
-			if err != nil || event.ID == "" || event.RunID != runID || sequence <= after {
+		for _, event := range page.GetEvents() {
+			if event.GetId() == "" || event.GetRunId() != runID || event.GetSequence() <= after {
 				return nil, fmt.Errorf("Agent Manager event page contains invalid source identity")
 			}
-			after = sequence
-			event.ParsedSequence = sequence
+			after = event.GetSequence()
 			events = append(events, event)
 		}
-		if !page.HasMore {
+		if !page.GetHasMore() {
 			break
 		}
 	}
 	deleted := map[string]bool{}
+	conversationIDs := map[string]bool{}
 	for _, event := range events {
-		if event.EventType == "RUN_EVENT_TYPE_MESSAGE_DELETED" && event.MessageDeleted != nil {
-			deleted[event.MessageDeleted.TargetEventID] = true
+		if event.GetMessageDeleted() != nil {
+			deleted[event.GetMessageDeleted().GetTargetEventId()] = true
+		}
+		if message := event.GetMessage(); message != nil && strings.TrimSpace(message.GetConversationId()) != "" {
+			conversationIDs[strings.TrimSpace(message.GetConversationId())] = true
 		}
 	}
 	var records []callerHarvestRecord
 	for _, event := range events {
-		message := event.Message
-		sequence := event.ParsedSequence
-		if event.EventType != "RUN_EVENT_TYPE_MESSAGE" || message == nil || message.Role != "user" || message.Source != "operator" || message.EvidenceOnly || deleted[event.ID] || strings.TrimSpace(message.ConversationID) == "" || strings.TrimSpace(message.Content) == "" {
+		message := event.GetMessage()
+		if message == nil || message.GetRole() != "user" || message.GetSource() != "operator" || message.GetEvidenceOnly() || deleted[event.GetId()] || strings.TrimSpace(message.GetContent()) == "" {
 			continue
 		}
-		records = append(records, callerHarvestRecord{RunID: runID, EventID: event.ID, Sequence: uint64(sequence), ConversationID: message.ConversationID, MessageRole: message.Role, MessageSource: message.Source, Query: strings.TrimSpace(message.Content), Status: "candidate", AcceptanceEligible: false})
+		conversationID := strings.TrimSpace(message.GetConversationId())
+		if conversationID == "" {
+			// Older Agent Manager imports omit conversation_id on operator
+			// messages but retain it on assistant messages in the same run. Use
+			// that identity only when the run has exactly one; otherwise preserve
+			// the canonical harness session ID when available.
+			if len(conversationIDs) == 1 {
+				for id := range conversationIDs {
+					conversationID = id
+				}
+			} else if len(conversationIDs) == 0 {
+				conversationID = strings.TrimSpace(harnessSessionID)
+			}
+		}
+		if conversationID == "" {
+			continue
+		}
+		records = append(records, callerHarvestRecord{RunID: runID, EventID: event.GetId(), Sequence: uint64(event.GetSequence()), ConversationID: conversationID, MessageRole: message.GetRole(), MessageSource: message.GetSource(), Query: strings.TrimSpace(message.GetContent()), Status: "candidate", AcceptanceEligible: false})
 	}
 	return records, nil
-}
-
-func callerSequence(raw json.RawMessage) (int64, error) {
-	value := strings.TrimSpace(string(raw))
-	if strings.HasPrefix(value, "\"") {
-		var decoded string
-		if err := json.Unmarshal(raw, &decoded); err != nil {
-			return 0, err
-		}
-		value = decoded
-	}
-	return strconv.ParseInt(value, 10, 64)
-}
-
-func callerGETJSON(ctx context.Context, client callerHarvestHTTPClient, endpoint string, target any) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("build Agent Manager read request: %w", err)
-	}
-	request.Header.Set("Accept", "application/json")
-	response, err := client.Do(request)
-	if err != nil {
-		return fmt.Errorf("request Agent Manager read: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("Agent Manager read returned HTTP %d", response.StatusCode)
-	}
-	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<20)).Decode(target); err != nil {
-		return fmt.Errorf("decode Agent Manager read response: %w", err)
-	}
-	return nil
 }
 
 func writeCallerHarvestFile(path string, bundle *callerHarvestBundle) error {

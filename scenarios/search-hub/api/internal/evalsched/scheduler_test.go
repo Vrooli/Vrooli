@@ -36,6 +36,45 @@ type fakeStore struct {
 	validations []string
 }
 
+type historyStore struct {
+	base       *fakeStore
+	clock      *scheduletest.FakeClock
+	runs       []*evalv1.EvalRun
+	validation *internaleval.CorpusValidationRecord
+}
+
+func (s *historyStore) AppendRun(ctx context.Context, run *evalv1.EvalRun) error {
+	if run.GetCreatedAt() == "" {
+		run.CreatedAt = s.clock.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if err := s.base.AppendRun(ctx, run); err != nil {
+		return err
+	}
+	s.runs = append(s.runs, run)
+	return nil
+}
+
+func (s *historyStore) AppendCorpusValidation(ctx context.Context, suiteID string, result *evalv1.ValidateCorpusResponse, observedAt time.Time) error {
+	if err := s.base.AppendCorpusValidation(ctx, suiteID, result, observedAt); err != nil {
+		return err
+	}
+	s.validation = &internaleval.CorpusValidationRecord{CreatedAt: observedAt, Result: result}
+	return nil
+}
+
+func (s *historyStore) ListRuns(_ context.Context, filter internaleval.ListRunsFilter) ([]*evalv1.EvalRun, error) {
+	for _, run := range s.runs {
+		if run.GetSuiteId() == filter.SuiteID && run.GetTag() == filter.Tag {
+			return []*evalv1.EvalRun{run}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (s *historyStore) LatestCorpusValidation(_ context.Context, _ string) (*internaleval.CorpusValidationRecord, error) {
+	return s.validation, nil
+}
+
 func (s *fakeStore) AppendRun(_ context.Context, run *evalv1.EvalRun) error {
 	s.mu.Lock()
 	s.runs = append(s.runs, recordedRun{suite: run.GetSuiteId(), tag: run.GetTag()})
@@ -63,15 +102,22 @@ func (s *fakeStore) validationCount() int {
 }
 
 type fakeValidator struct {
-	mu    sync.Mutex
-	calls []string
+	mu             sync.Mutex
+	calls          []string
+	failRemaining  int
+	providerErrors int
 }
 
 func (v *fakeValidator) ValidateCorpus(_ context.Context, suite *evalv1.EvalSuite, _ int32) (*evalv1.ValidateCorpusResponse, error) {
 	v.mu.Lock()
 	v.calls = append(v.calls, suite.GetSuiteId())
+	if v.failRemaining > 0 {
+		v.failRemaining--
+		v.mu.Unlock()
+		return nil, context.DeadlineExceeded
+	}
 	v.mu.Unlock()
-	return &evalv1.ValidateCorpusResponse{Rollup: &evalv1.CorpusValidationRollup{Live: 1}}, nil
+	return &evalv1.ValidateCorpusResponse{Rollup: &evalv1.CorpusValidationRollup{Live: 1, ProviderErrors: int32(v.providerErrors)}}, nil
 }
 
 func (v *fakeValidator) count() int {
@@ -81,14 +127,15 @@ func (v *fakeValidator) count() int {
 }
 
 type fakeRunner struct {
-	name       string
-	mu         sync.Mutex
-	calls      []string
-	active     int
-	maxActive  int
-	errFor     map[string]bool
-	onStart    func(string)
-	onComplete func()
+	name          string
+	mu            sync.Mutex
+	calls         []string
+	active        int
+	maxActive     int
+	errFor        map[string]bool
+	failRemaining map[string]int
+	onStart       func(string)
+	onComplete    func()
 
 	budget    time.Duration
 	budgetSet bool
@@ -117,6 +164,11 @@ func (r *fakeRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		r.budgetSet = true
 	}
 	if r.errFor[id] {
+		r.mu.Unlock()
+		return nil, context.DeadlineExceeded
+	}
+	if r.failRemaining[id] > 0 {
+		r.failRemaining[id]--
 		r.mu.Unlock()
 		return nil, context.DeadlineExceeded
 	}
@@ -274,6 +326,16 @@ func TestOptionsFromEnvReadsFederatedTimeoutIndependently(t *testing.T) {
 	}
 }
 
+func TestOptionsFromEnvReadsBoundedRetryBackoff(t *testing.T) {
+	t.Setenv("SEARCH_HUB_EVAL_SCHEDULER_RETRY_BACKOFF", "35m")
+	if got := OptionsFromEnv(log.New(io.Discard, "", 0)).RetryBackoff; got != 35*time.Minute {
+		t.Fatalf("retry backoff = %s, want 35m", got)
+	}
+	if got := (Options{RetryBackoff: 48 * time.Hour}).withDefaults().RetryBackoff; got != MaxRetryBackoff {
+		t.Fatalf("oversized retry backoff = %s, want capped %s", got, MaxRetryBackoff)
+	}
+}
+
 func TestSchedulerDoesNotOverlapCycles(t *testing.T) {
 	scheduler, _, direct, _, store, _ := testScheduler(t, []*evalv1.EvalSuite{suite("one")}, 1)
 	started := make(chan struct{})
@@ -383,4 +445,264 @@ func TestSchedulerDelaysFirstTickForDependencyStartup(t *testing.T) {
 	close(release)
 	cancel()
 	<-done
+}
+
+func TestSchedulerRetriesFailedEvaluationAfterBoundedBackoff(t *testing.T) {
+	scheduler, _, direct, federated, store, clk := testScheduler(t, []*evalv1.EvalSuite{suite("one")}, 1)
+	direct.failRemaining = map[string]int{"one": 1}
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 1 {
+		t.Fatalf("initial direct calls = %d, want 1", got)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("initial receipts = %d, want degraded direct plus successful federated", got)
+	}
+
+	clk.Advance(DefaultRetryBackoff - time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("early retry tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 1 {
+		t.Fatalf("direct calls before retry deadline = %d, want 1", got)
+	}
+
+	clk.Advance(time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("retry tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 2 {
+		t.Fatalf("direct calls at retry deadline = %d, want 2", got)
+	}
+	if got, _ := federated.stats(); got != 2 {
+		t.Fatalf("federated calls = %d, want both tiers rerun for a complete suite receipt", got)
+	}
+	if got := store.count(); got != 4 {
+		t.Fatalf("receipts after retry = %d, want 4", got)
+	}
+
+	clk.Advance(DefaultRetryBackoff - time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("post-success tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 2 {
+		t.Fatalf("successful suite retried too early; direct calls = %d, want 2", got)
+	}
+}
+
+func TestSchedulerTreatsMissingTierRunnerAsDegradedAndRetries(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	federated := &fakeRunner{name: "federated"}
+	store := &fakeStore{}
+	scheduler := New(clk, &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}, nil, federated, store, Options{
+		Concurrency:  1,
+		CaseLimit:    2,
+		RetryBackoff: 15 * time.Minute,
+		Logger:       log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("initial receipts = %d, want degraded missing direct runner plus federated result", got)
+	}
+	clk.Advance(15 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("retry tick: %v", err)
+	}
+	if got := store.count(); got != 4 {
+		t.Fatalf("receipts after retry = %d, want missing tier re-attempt and federated result", got)
+	}
+}
+
+func TestSchedulerRetriesCorpusValidationWithoutRepeatingFreshEvaluation(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	source := &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}
+	direct := &fakeRunner{name: "direct"}
+	federated := &fakeRunner{name: "federated"}
+	store := &fakeStore{}
+	validator := &fakeValidator{failRemaining: 1}
+	scheduler := New(clk, source, direct, federated, store, Options{
+		Cadence:           7 * 24 * time.Hour,
+		ValidationCadence: 24 * time.Hour,
+		RetryBackoff:      15 * time.Minute,
+		Concurrency:       1,
+		Validation:        validator,
+		Logger:            log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("initial eval runs = %d, want 2", got)
+	}
+	if got := store.validationCount(); got != 0 {
+		t.Fatalf("validation receipts after failed validation = %d, want 0", got)
+	}
+
+	clk.Advance(15 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("validation retry tick: %v", err)
+	}
+	if got := store.validationCount(); got != 1 {
+		t.Fatalf("validation receipts after retry = %d, want 1", got)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("evaluation runs after validation-only retry = %d, want unchanged 2", got)
+	}
+	if got := validator.count(); got != 2 {
+		t.Fatalf("validation calls = %d, want initial failure and one retry", got)
+	}
+}
+
+func TestSchedulerRetriesPartialCorpusValidationWithProviderErrors(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	source := &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}
+	direct := &fakeRunner{name: "direct"}
+	federated := &fakeRunner{name: "federated"}
+	store := &fakeStore{}
+	validator := &fakeValidator{providerErrors: 1}
+	scheduler := New(clk, source, direct, federated, store, Options{
+		Cadence:           7 * 24 * time.Hour,
+		ValidationCadence: 24 * time.Hour,
+		RetryBackoff:      15 * time.Minute,
+		Concurrency:       1,
+		Validation:        validator,
+		Logger:            log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got := store.validationCount(); got != 1 {
+		t.Fatalf("partial validation receipts = %d, want retained evidence", got)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("initial eval runs = %d, want 2", got)
+	}
+
+	clk.Advance(15 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("validation retry tick: %v", err)
+	}
+	if got := store.validationCount(); got != 2 {
+		t.Fatalf("validation receipts after retry = %d, want 2", got)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("evaluation runs after validation-only retry = %d, want unchanged 2", got)
+	}
+	if got := validator.count(); got != 2 {
+		t.Fatalf("validation calls = %d, want initial partial receipt and one retry", got)
+	}
+}
+
+func TestSchedulerRestoresSuccessfulCadenceFromDurableHistory(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	base := &fakeStore{}
+	storedAt := clk.Now().Add(-30 * time.Minute).Format(time.RFC3339Nano)
+	store := &historyStore{base: base, clock: clk, runs: []*evalv1.EvalRun{
+		{SuiteId: "one", Tag: schedulerRunTag + ":provider_direct", CreatedAt: storedAt},
+		{SuiteId: "one", Tag: schedulerRunTag + ":federated", CreatedAt: storedAt},
+	}}
+	direct := &fakeRunner{name: "direct"}
+	federated := &fakeRunner{name: "federated"}
+	scheduler := New(clk, &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}, direct, federated, store, Options{
+		Cadence:     time.Hour,
+		Concurrency: 1,
+		Logger:      log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 0 {
+		t.Fatalf("direct calls before restored cadence = %d, want 0", got)
+	}
+	clk.Advance(29 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("pre-cadence tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 0 {
+		t.Fatalf("direct calls before cadence = %d, want 0", got)
+	}
+	clk.Advance(time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("cadence tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 1 {
+		t.Fatalf("direct calls at restored cadence = %d, want 1", got)
+	}
+}
+
+func TestSchedulerRestoresFailedTierBackoffFromDurableHistory(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	base := &fakeStore{}
+	storedAt := clk.Now().Add(-5 * time.Minute).Format(time.RFC3339Nano)
+	store := &historyStore{base: base, clock: clk, runs: []*evalv1.EvalRun{
+		{SuiteId: "one", Tag: schedulerRunTag + ":provider_direct", CreatedAt: storedAt, Degraded: true},
+		{SuiteId: "one", Tag: schedulerRunTag + ":federated", CreatedAt: storedAt},
+	}}
+	direct := &fakeRunner{name: "direct"}
+	federated := &fakeRunner{name: "federated"}
+	scheduler := New(clk, &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}, direct, federated, store, Options{
+		Cadence:      time.Hour,
+		RetryBackoff: 15 * time.Minute,
+		Concurrency:  1,
+		Logger:       log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 0 {
+		t.Fatalf("direct calls before restored retry deadline = %d, want 0", got)
+	}
+	clk.Advance(10 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("retry tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 1 {
+		t.Fatalf("direct calls at restored retry deadline = %d, want 1", got)
+	}
+	if got, _ := federated.stats(); got != 1 {
+		t.Fatalf("federated calls on complete-suite retry = %d, want 1", got)
+	}
+}
+
+func TestSchedulerRestoresValidationBackoffWithoutRerunningEvaluation(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 8, 12, 12, 0, 0, 0, time.UTC))
+	base := &fakeStore{}
+	storedAt := clk.Now().Add(-5 * time.Minute)
+	store := &historyStore{base: base, clock: clk, runs: []*evalv1.EvalRun{
+		{SuiteId: "one", Tag: schedulerRunTag + ":provider_direct", CreatedAt: storedAt.Format(time.RFC3339Nano)},
+		{SuiteId: "one", Tag: schedulerRunTag + ":federated", CreatedAt: storedAt.Format(time.RFC3339Nano)},
+	}, validation: &internaleval.CorpusValidationRecord{
+		CreatedAt: storedAt,
+		Result:    &evalv1.ValidateCorpusResponse{Rollup: &evalv1.CorpusValidationRollup{ProviderErrors: 1}},
+	}}
+	direct := &fakeRunner{name: "direct"}
+	federated := &fakeRunner{name: "federated"}
+	validator := &fakeValidator{}
+	scheduler := New(clk, &fakeSuites{suites: []*evalv1.EvalSuite{suite("one")}}, direct, federated, store, Options{
+		Cadence:           7 * 24 * time.Hour,
+		ValidationCadence: 24 * time.Hour,
+		RetryBackoff:      15 * time.Minute,
+		Concurrency:       1,
+		Validation:        validator,
+		Logger:            log.New(io.Discard, "", 0),
+	})
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("initial tick: %v", err)
+	}
+	if got, _ := direct.stats(); got != 0 {
+		t.Fatalf("direct calls before restored validation retry = %d, want 0", got)
+	}
+	clk.Advance(10 * time.Minute)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("validation retry tick: %v", err)
+	}
+	if got := validator.count(); got != 1 {
+		t.Fatalf("validation calls after restored retry = %d, want 1", got)
+	}
+	if got, _ := direct.stats(); got != 0 {
+		t.Fatalf("eval calls during validation-only retry = %d, want 0", got)
+	}
 }

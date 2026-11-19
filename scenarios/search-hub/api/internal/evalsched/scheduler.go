@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,8 +39,12 @@ const (
 	// defaultFederatedCaseTimeout).
 	DefaultFederatedCaseTimeout = 30 * time.Second
 	DefaultRunOverhead          = 10 * time.Second
-	DefaultStartupDelay         = 30 * time.Second
-	DefaultStartupJitter        = 15 * time.Second
+	// DefaultRetryBackoff retries transient provider or receipt failures soon
+	// enough to recover within a freshness window without hot-looping inference.
+	DefaultRetryBackoff  = 15 * time.Minute
+	MaxRetryBackoff      = 24 * time.Hour
+	DefaultStartupDelay  = 30 * time.Second
+	DefaultStartupJitter = 15 * time.Second
 	// DefaultValidationCadence keeps label drift visible inside the eval
 	// freshness window without probing providers on every scheduler tick.
 	DefaultValidationCadence = 24 * time.Hour
@@ -66,11 +71,24 @@ type RunStore interface {
 	AppendRun(context.Context, *evalv1.EvalRun) error
 }
 
+// RunHistoryStore is optional so small in-memory stores can keep their narrow
+// contract. Production restores cadence from immutable scheduler receipts so
+// a process restart cannot trigger every registered suite at once.
+type RunHistoryStore interface {
+	ListRuns(context.Context, internaleval.ListRunsFilter) ([]*evalv1.EvalRun, error)
+}
+
 // ValidationStore is optional so existing run stores and tests remain small;
 // production's eval store implements it to retain the latest three-way label
 // verdicts as durable evidence rather than only logging them.
 type ValidationStore interface {
 	AppendCorpusValidation(context.Context, string, *evalv1.ValidateCorpusResponse, time.Time) error
+}
+
+// ValidationHistoryStore restores the separate corpus-validation cadence
+// from durable receipts after the scheduler process restarts.
+type ValidationHistoryStore interface {
+	LatestCorpusValidation(context.Context, string) (*internaleval.CorpusValidationRecord, error)
 }
 
 type Options struct {
@@ -84,6 +102,7 @@ type Options struct {
 	// ordinary routed query rather than a single provider call.
 	FederatedCaseTimeout time.Duration
 	RunTimeout           time.Duration
+	RetryBackoff         time.Duration
 	// TierTimeout is retained as a source-compatible alias for operators that
 	// already set SEARCH_HUB_EVAL_SCHEDULER_TIMEOUT; it now means per-case.
 	TierTimeout   time.Duration
@@ -115,6 +134,11 @@ func (o Options) withDefaults() Options {
 	}
 	if o.FederatedCaseTimeout <= 0 {
 		o.FederatedCaseTimeout = DefaultFederatedCaseTimeout
+	}
+	if o.RetryBackoff <= 0 {
+		o.RetryBackoff = DefaultRetryBackoff
+	} else if o.RetryBackoff > MaxRetryBackoff {
+		o.RetryBackoff = MaxRetryBackoff
 	}
 	if o.StartupDelay < 0 {
 		o.StartupDelay = 0
@@ -183,6 +207,11 @@ func OptionsFromEnv(logger *log.Logger) Options {
 			o.FederatedCaseTimeout = value
 		}
 	}
+	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_RETRY_BACKOFF"); raw != "" {
+		if value, err := time.ParseDuration(raw); err == nil && value > 0 {
+			o.RetryBackoff = value
+		}
+	}
 	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_STARTUP_DELAY"); raw != "" {
 		if value, err := time.ParseDuration(raw); err == nil {
 			o.StartupDelay = value
@@ -225,14 +254,17 @@ type Scheduler struct {
 	validator CorpusValidator
 	opts      Options
 
-	mu             sync.Mutex
-	lastFire       map[string]time.Time
-	lastValidation map[string]time.Time
-	running        bool
+	mu                sync.Mutex
+	lastFire          map[string]time.Time
+	lastValidation    map[string]time.Time
+	evalRetryAt       map[string]time.Time
+	validationRetryAt map[string]time.Time
+	historyLoaded     bool
+	running           bool
 }
 
 func New(clk schedule.Clock, suites SuiteSource, direct, federated TierRunner, store RunStore, opts Options) *Scheduler {
-	return &Scheduler{clk: clk, suites: suites, direct: direct, federated: federated, store: store, validator: opts.Validation, opts: opts.withDefaults(), lastFire: make(map[string]time.Time), lastValidation: make(map[string]time.Time)}
+	return &Scheduler{clk: clk, suites: suites, direct: direct, federated: federated, store: store, validator: opts.Validation, opts: opts.withDefaults(), lastFire: make(map[string]time.Time), lastValidation: make(map[string]time.Time), evalRetryAt: make(map[string]time.Time), validationRetryAt: make(map[string]time.Time)}
 }
 
 // Tick performs one non-overlapping best-effort cycle. A provider or suite
@@ -256,6 +288,9 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 		return fmt.Errorf("list registered eval suites: %w", err)
 	}
 	now := s.clk.Now()
+	if err := s.restoreSchedule(ctx, suites); err != nil {
+		return fmt.Errorf("restore scheduler history: %w", err)
+	}
 	sem := make(chan struct{}, s.opts.Concurrency)
 	var wg sync.WaitGroup
 	for _, suite := range suites {
@@ -283,11 +318,20 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			if validationDue {
-				s.validateCorpus(ctx, suite, now)
+				if s.validateCorpus(ctx, suite, now) {
+					s.clearRetry(s.validationRetryAt, suite.GetSuiteId())
+				} else {
+					s.scheduleRetry(s.validationRetryAt, suite.GetSuiteId(), now)
+				}
 			}
 			if evalDue {
-				s.runTier(ctx, s.direct, suite, directTier)
-				s.runTier(ctx, s.federated, suite, federatedTier)
+				directOK := s.runTier(ctx, s.direct, suite, directTier)
+				federatedOK := s.runTier(ctx, s.federated, suite, federatedTier)
+				if directOK && federatedOK {
+					s.clearRetry(s.evalRetryAt, suite.GetSuiteId())
+				} else {
+					s.scheduleRetry(s.evalRetryAt, suite.GetSuiteId(), now)
+				}
 			}
 		}(suite, evalDue, validationDue)
 	}
@@ -295,33 +339,139 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) validateCorpus(ctx context.Context, suite *evalv1.EvalSuite, observedAt time.Time) {
+// restoreSchedule hydrates only once per scheduler instance. Immutable run and
+// validation records are the durable clock; retries remain bounded and do
+// not cause a restart to fan out a fresh batch before its prior cadence.
+func (s *Scheduler) restoreSchedule(ctx context.Context, suites []*evalv1.EvalSuite) error {
+	s.mu.Lock()
+	if s.historyLoaded {
+		s.mu.Unlock()
+		return nil
+	}
+	s.mu.Unlock()
+
+	runHistory, hasRunHistory := s.store.(RunHistoryStore)
+	validationHistory, hasValidationHistory := s.store.(ValidationHistoryStore)
+	lastFire := make(map[string]time.Time)
+	lastValidation := make(map[string]time.Time)
+	evalRetryAt := make(map[string]time.Time)
+	validationRetryAt := make(map[string]time.Time)
+	for _, suite := range suites {
+		if suite == nil || strings.TrimSpace(suite.GetSuiteId()) == "" {
+			continue
+		}
+		id := suite.GetSuiteId()
+		if hasRunHistory {
+			var tierTimes []time.Time
+			var latestFailure time.Time
+			complete := true
+			for _, tier := range []string{directTier, federatedTier} {
+				runs, err := runHistory.ListRuns(ctx, internaleval.ListRunsFilter{SuiteID: id, Tag: schedulerRunTag + ":" + tier, Limit: 1})
+				if err != nil {
+					return fmt.Errorf("read %s history for suite %q: %w", tier, id, err)
+				}
+				if len(runs) == 0 || runs[0] == nil {
+					complete = false
+					continue
+				}
+				createdAt, err := time.Parse(time.RFC3339Nano, runs[0].GetCreatedAt())
+				if err != nil {
+					return fmt.Errorf("parse %s history timestamp for suite %q: %w", tier, id, err)
+				}
+				tierTimes = append(tierTimes, createdAt)
+				if runs[0].GetDegraded() && createdAt.After(latestFailure) {
+					latestFailure = createdAt
+				}
+			}
+			if !latestFailure.IsZero() {
+				evalRetryAt[id] = latestFailure.Add(s.opts.RetryBackoff)
+			} else if complete && len(tierTimes) == 2 {
+				lastFire[id] = earlier(tierTimes[0], tierTimes[1])
+			}
+		}
+		if hasValidationHistory {
+			record, err := validationHistory.LatestCorpusValidation(ctx, id)
+			if err != nil {
+				return fmt.Errorf("read corpus validation history for suite %q: %w", id, err)
+			}
+			if record != nil && record.Result != nil {
+				if record.CreatedAt.IsZero() {
+					return fmt.Errorf("corpus validation history for suite %q has no timestamp", id)
+				}
+				if rollup := record.Result.GetRollup(); rollup == nil || rollup.GetProviderErrors() > 0 {
+					validationRetryAt[id] = record.CreatedAt.Add(s.opts.RetryBackoff)
+				} else {
+					lastValidation[id] = record.CreatedAt
+				}
+			}
+		}
+	}
+	s.mu.Lock()
+	if !s.historyLoaded {
+		for id, at := range lastFire {
+			s.lastFire[id] = at
+		}
+		for id, at := range lastValidation {
+			s.lastValidation[id] = at
+		}
+		for id, at := range evalRetryAt {
+			s.evalRetryAt[id] = at
+		}
+		for id, at := range validationRetryAt {
+			s.validationRetryAt[id] = at
+		}
+		s.historyLoaded = true
+	}
+	s.mu.Unlock()
+	return nil
+}
+
+func earlier(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func (s *Scheduler) validateCorpus(ctx context.Context, suite *evalv1.EvalSuite, observedAt time.Time) bool {
 	if s.validator == nil {
-		return
+		return true
 	}
 	validationCtx, cancel := context.WithTimeout(ctx, s.opts.CaseTimeout)
 	defer cancel()
 	result, err := s.validator.ValidateCorpus(validationCtx, suite, s.opts.CaseLimit)
 	if err != nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q corpus validation failed: %v", suite.GetSuiteId(), err)
-		return
+		return false
 	}
 	if store, ok := s.store.(ValidationStore); ok {
 		if err := store.AppendCorpusValidation(ctx, suite.GetSuiteId(), result, observedAt); err != nil {
 			s.opts.Logger.Printf("eval scheduler: suite %q corpus validation persist failed: %v", suite.GetSuiteId(), err)
+			return false
 		}
 	}
 	rollup := result.GetRollup()
 	if rollup == nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q corpus validation returned no rollup", suite.GetSuiteId())
-		return
+		return false
 	}
 	s.opts.Logger.Printf("eval scheduler: suite %q labels live=%d stale=%d provider_error=%d", suite.GetSuiteId(), rollup.GetLive(), rollup.GetStale(), rollup.GetProviderErrors())
+	// The validator records per-case provider failures in a successful response
+	// so the partial receipt is still valuable. Treat it as incomplete for
+	// scheduling: otherwise transient provider outages become a fresh 24-hour
+	// validation interval and the evidence remains degraded until the next day.
+	if rollup.GetProviderErrors() > 0 {
+		return false
+	}
+	return true
 }
 
 func (s *Scheduler) due(id string, now time.Time) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if retryAt, ok := s.evalRetryAt[id]; ok {
+		return !now.Before(retryAt)
+	}
 	last, ok := s.lastFire[id]
 	return !ok || now.Sub(last) >= s.opts.Cadence
 }
@@ -329,13 +479,19 @@ func (s *Scheduler) due(id string, now time.Time) bool {
 func (s *Scheduler) validationDue(id string, now time.Time) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if retryAt, ok := s.validationRetryAt[id]; ok {
+		return !now.Before(retryAt)
+	}
 	last, ok := s.lastValidation[id]
 	return !ok || now.Sub(last) >= s.opts.ValidationCadence
 }
 
-func (s *Scheduler) runTier(ctx context.Context, runner TierRunner, suite *evalv1.EvalSuite, tier string) {
+func (s *Scheduler) runTier(ctx context.Context, runner TierRunner, suite *evalv1.EvalSuite, tier string) bool {
 	if runner == nil {
-		return
+		err := fmt.Errorf("%s evaluation runner is unavailable", tier)
+		s.opts.Logger.Printf("eval scheduler: suite %q tier %s failed: %v", suite.GetSuiteId(), tier, err)
+		s.persistDegraded(ctx, suite, tier, err)
+		return false
 	}
 	caseTimeout := s.opts.caseTimeoutFor(tier)
 	runBudget := s.opts.runBudgetFor(tier)
@@ -345,17 +501,31 @@ func (s *Scheduler) runTier(ctx context.Context, runner TierRunner, suite *evalv
 	if err != nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q tier %s failed: %v", suite.GetSuiteId(), tier, err)
 		s.persistDegraded(ctx, suite, tier, err)
-		return
+		return false
 	}
 	if run == nil {
 		err := fmt.Errorf("runner returned no run")
 		s.opts.Logger.Printf("eval scheduler: suite %q tier %s returned no run", suite.GetSuiteId(), tier)
 		s.persistDegraded(ctx, suite, tier, err)
-		return
+		return false
 	}
 	if err := s.store.AppendRun(ctx, run); err != nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q tier %s persist failed: %v", suite.GetSuiteId(), tier, err)
+		return false
 	}
+	return true
+}
+
+func (s *Scheduler) scheduleRetry(retries map[string]time.Time, suiteID string, now time.Time) {
+	s.mu.Lock()
+	retries[suiteID] = now.Add(s.opts.RetryBackoff)
+	s.mu.Unlock()
+}
+
+func (s *Scheduler) clearRetry(retries map[string]time.Time, suiteID string) {
+	s.mu.Lock()
+	delete(retries, suiteID)
+	s.mu.Unlock()
 }
 
 func (s *Scheduler) persistDegraded(ctx context.Context, suite *evalv1.EvalSuite, tier string, cause error) {

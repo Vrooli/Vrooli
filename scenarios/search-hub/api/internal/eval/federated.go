@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -217,7 +218,7 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 			for index := range jobs {
 				if isExcludedEvaluationCase(cases[index]) {
 					reason := "candidate excluded from fixed acceptance denominator"
-					if cases[index] != nil && hasEvaluationTag(cases[index].GetTags(), "generated") {
+					if cases[index] != nil && slices.Contains(cases[index].GetTags(), "generated") {
 						reason = "generated case excluded until owner review"
 					}
 					observations[index] = federatedCaseObservation{result: &evalv1.CaseResult{
@@ -364,7 +365,7 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 		}
 		return federatedCaseObservation{result: cr, latency: latency}
 	}
-	cr.ProviderRouted = contains(routingResponse.GetCorporaSearched(), expectedProvider)
+	cr.ProviderRouted = slices.Contains(routingResponse.GetCorporaSearched(), expectedProvider)
 	top := routingResponse.GetRanked()
 	if len(top) == 0 {
 		top = flattenGroups(routingResponse.GetGroups())
@@ -585,13 +586,4 @@ func flattenGroups(groups []*routingv1.ProviderResultGroup) []*routingv1.SearchH
 		}
 	}
 	return out
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+	"github.com/vrooli/vrooli/packages/proto/searcheval"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -179,7 +181,7 @@ func isExcludedEvaluationCase(c *evalv1.EvalCase) bool {
 	if c == nil || c.GetStatus() == "candidate" {
 		return true
 	}
-	return hasEvaluationTag(c.GetTags(), aisearch.TagGenerated) && !hasEvaluationTag(c.GetTags(), aisearch.TagHeldout)
+	return slices.Contains(c.GetTags(), aisearch.TagGenerated) && !slices.Contains(c.GetTags(), aisearch.TagHeldout)
 }
 
 func validationReceiptMatchesSuite(suite *evalv1.EvalSuite, denominator []string, record *CorpusValidationRecord, now time.Time) bool {
@@ -194,7 +196,7 @@ func validationReceiptMatchesSuite(suite *evalv1.EvalSuite, denominator []string
 	if result.GetSuiteId() != suite.GetSuiteId() || result.GetProviderId() != suite.GetProviderId() ||
 		result.GetSuiteSha256() != corpusDigest(suite) ||
 		result.GetDenominatorSha256() != denominatorDigest(denominator) ||
-		!equalStrings(result.GetDenominatorCaseIds(), denominator) {
+		!slices.Equal(result.GetDenominatorCaseIds(), denominator) {
 		return false
 	}
 	rollup := result.GetRollup()
@@ -288,8 +290,8 @@ func ValidateComparableRuns(a, b *evalv1.EvaluationIdentity) error {
 		a.GetProviderValidationSha256() != b.GetProviderValidationSha256() ||
 		a.GetProviderValidationAt() != b.GetProviderValidationAt() ||
 		a.GetDenominatorSha256() != b.GetDenominatorSha256() ||
-		!equalStrings(a.GetDenominatorCaseIds(), b.GetDenominatorCaseIds()) ||
-		!equalStrings(a.GetHeldoutCaseIds(), b.GetHeldoutCaseIds()) ||
+		!slices.Equal(a.GetDenominatorCaseIds(), b.GetDenominatorCaseIds()) ||
+		!slices.Equal(a.GetHeldoutCaseIds(), b.GetHeldoutCaseIds()) ||
 		a.GetRerankerComparison() != b.GetRerankerComparison() {
 		return fmt.Errorf("comparison contract mismatch: caller, corpus, validation, split, evaluation version, or fixed denominator differs")
 	}
@@ -378,24 +380,11 @@ func ValidatePromotionIdentity(identity *evalv1.EvaluationIdentity) error {
 }
 
 func corpusDigest(suite *evalv1.EvalSuite) string {
-	canonical := proto.Clone(suite).(*evalv1.EvalSuite)
-	canonical.Name = ""
-	canonical.Description = ""
-	canonical.CreatedAt = ""
-	canonical.UpdatedAt = ""
-	bytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(canonical)
-	if err != nil {
-		return ""
-	}
-	digest := sha256.Sum256(bytes)
-	return hex.EncodeToString(digest[:])
+	return searcheval.SuiteCorpusDigest(suite)
 }
 
 func denominatorDigest(ids []string) string {
-	canonical := append([]string(nil), ids...)
-	sort.Strings(canonical)
-	digest := sha256.Sum256([]byte(strings.Join(canonical, "\n")))
-	return hex.EncodeToString(digest[:])
+	return searcheval.CaseIDsDigest(ids)
 }
 
 func recipeDigest(snapshot *evalv1.ConfigSnapshot) string {
@@ -418,18 +407,6 @@ func isSHA256(value string) bool {
 	return err == nil && len(decoded) == sha256.Size
 }
 
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func uniqueCaseIDs(ids []string) bool {
 	for index, id := range ids {
 		if id == "" || (index > 0 && ids[index-1] == id) {
@@ -442,13 +419,4 @@ func uniqueCaseIDs(ids []string) bool {
 func containsIdentityCase(ids []string, want string) bool {
 	index := sort.SearchStrings(ids, want)
 	return index < len(ids) && ids[index] == want
-}
-
-func hasEvaluationTag(tags []string, want string) bool {
-	for _, tag := range tags {
-		if tag == want {
-			return true
-		}
-	}
-	return false
 }

@@ -2,13 +2,16 @@ package eval
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
@@ -76,6 +79,9 @@ type Deps struct {
 	// A missing verifier leaves qualification blocked even when receipt JSON is
 	// structurally complete.
 	RerankOwnerReceipt internaleval.RerankCorpusOwnerReceiptVerifier
+	// DenominatorReviewReceipt authenticates the independent source-owner
+	// receipt before a fixed denominator can be frozen.
+	DenominatorReviewReceipt internaleval.IndependentDenominatorReviewVerifier
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
 	Generator CorpusGenerator
 	// Control + Tokens drive the corpus write-back: `generate --apply` persists the
@@ -150,11 +156,49 @@ func (h *connectHandler) FreezeFixedDenominator(ctx context.Context, req *connec
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("fixed denominator review storage is not configured"))
 	}
+	if h.deps.DenominatorReviewReceipt == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("independent denominator receipt verification is not configured"))
+	}
+	if err := h.deps.DenominatorReviewReceipt.VerifyIndependentDenominatorReview(ctx, suite, req.Msg.GetReviewerId(), req.Msg.GetReviewEvidenceUri()); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	snapshot, err := store.FreezeFixedDenominator(ctx, suite, req.Msg.GetReviewerId(), req.Msg.GetReviewEvidenceUri())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&evalv1.FreezeFixedDenominatorResponse{Snapshot: snapshot}), nil
+}
+
+// ReviewTemplate returns only the fields a source owner needs to construct an
+// independent review receipt. It deliberately omits query strings and provider
+// result text.
+func (h *connectHandler) ReviewTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	suiteID := strings.TrimSpace(mux.Vars(r)["suite_id"])
+	if suiteID == "" {
+		http.Error(w, "suite_id is required", http.StatusBadRequest)
+		return
+	}
+	suite, err := h.deps.Store.GetSuite(r.Context(), suiteID)
+	if err != nil {
+		var notFound internaleval.ErrSuiteNotFound
+		if errors.As(err, &notFound) {
+			http.Error(w, "eval suite not found", http.StatusNotFound)
+			return
+		}
+		h.deps.Logger.Printf("eval.ReviewTemplate(%q): %v", suiteID, err)
+		http.Error(w, "eval suite lookup failed", http.StatusInternalServerError)
+		return
+	}
+	template, err := internaleval.BuildIndependentReviewTemplate(suite)
+	if err != nil {
+		http.Error(w, "suite has no denominator review template", http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(template); err != nil {
+		h.deps.Logger.Printf("eval.ReviewTemplate(%q): encode response: %v", suiteID, err)
+	}
 }
 
 func (h *connectHandler) GetFixedDenominator(ctx context.Context, req *connect.Request[evalv1.GetFixedDenominatorRequest]) (*connect.Response[evalv1.GetFixedDenominatorResponse], error) {

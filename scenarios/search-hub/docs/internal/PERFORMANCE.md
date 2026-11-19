@@ -5,7 +5,6 @@ constraints, and regression procedures. The latest dated row is not necessarily
 the live state; use the current operational check below and rerun its commands
 before making routing decisions.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

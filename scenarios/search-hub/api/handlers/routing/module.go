@@ -106,7 +106,7 @@ func newRouterWithDescriptionIndex(db *database.RoutedDB, clk schedule.Clock, lo
 		Lister:                    store,
 		Resolver:                  newScenarioResolver(),
 		Doer:                      httpc.NewDefault(),
-		Reranker:                  internalrouting.NewDefaultRerankerChain(activeStrategy),
+		Reranker:                  internalrouting.NewDefaultRerankerChain(),
 		Recorder:                  recorder,
 		EvalQuality:               newEvalQualityReader(db, clk),
 		DescriptionIndex:          descriptionIndex,
@@ -364,8 +364,4 @@ func newScenarioResolver() *scenarioResolver {
 
 func (s *scenarioResolver) ResolveScenarioURL(ctx context.Context, scenarioID string) (string, error) {
 	return s.r.ResolveScenarioURLDefault(ctx, scenarioID)
-}
-
-func (s *scenarioResolver) CacheStats() (hits, misses int64) {
-	return s.r.CacheStats()
 }

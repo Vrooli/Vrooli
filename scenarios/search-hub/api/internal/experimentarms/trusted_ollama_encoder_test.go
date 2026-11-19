@@ -11,6 +11,10 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 )
 
+const trustedNomicModel = "nomic-embed-text:latest"
+const trustedNomicDimensions = 768
+const trustedNomicContextTokens = 2048
+
 type trustedEmbeddingFake struct {
 	calls int
 	value float64
@@ -41,7 +45,7 @@ func (f *trustedEmbeddingFake) vector() ([]float64, error) {
 }
 
 func TestTrustedOllamaFleetEncoderBindsRecipeAndNormalizesWithoutProviderInference(t *testing.T) {
-	fake := &trustedEmbeddingFake{value: 2, size: ollamaNomicDimensions}
+	fake := &trustedEmbeddingFake{value: 2, size: trustedNomicDimensions}
 	encoder, err := newTrustedOllamaFleetDescriptionEncoder(trustedNomicRole(), fake)
 	if err != nil {
 		t.Fatal(err)
@@ -50,14 +54,14 @@ func TestTrustedOllamaFleetEncoderBindsRecipeAndNormalizesWithoutProviderInferen
 	if err != nil {
 		t.Fatal(err)
 	}
-	if input.ArtifactSHA256 != ollamaNomicManifestSHA256 || input.TokenizerRevision != "gguf-tokenizer-layer:sha256:"+ollamaNomicModelLayerSHA || input.Dimensions != 768 || input.Precision != "f16" || input.Pooling != "gguf-mean" || input.Normalization != "l2" || input.QueryInstruction != "search_query: " || input.DocumentInstruction != "search_document: " || input.Truncation != "reject-input-over-1800-runes;gguf-context-2048" {
+	if input.ArtifactSHA256 != ollamaNomicManifestSHA256 || input.TokenizerRevision != "gguf-tokenizer-layer:sha256:"+ollamaNomicModelLayerSHA || input.Dimensions != trustedNomicDimensions || input.Precision != "f16" || input.Pooling != "gguf-mean" || input.Normalization != "l2" || input.QueryInstruction != "search_query: " || input.DocumentInstruction != "search_document: " || input.Truncation != "reject-input-over-1800-runes;gguf-context-2048" {
 		t.Fatalf("recipe lost exact model/runtime behavior: %+v", input)
 	}
 	vector, err := encoder.EmbedDocument(context.Background(), "hello")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fake.calls != 1 || len(vector) != ollamaNomicDimensions {
+	if fake.calls != 1 || len(vector) != trustedNomicDimensions {
 		t.Fatalf("calls=%d vector-dimensions=%d", fake.calls, len(vector))
 	}
 	var norm float64
@@ -78,17 +82,17 @@ func TestTrustedOllamaFleetEncoderRejectsIdentityDriftAndOversizedInput(t *testi
 		t.Run(name, func(t *testing.T) {
 			resolved := trustedNomicRole()
 			mutate(&resolved)
-			if _, err := newTrustedOllamaFleetDescriptionEncoder(resolved, &trustedEmbeddingFake{size: ollamaNomicDimensions}); err == nil {
+			if _, err := newTrustedOllamaFleetDescriptionEncoder(resolved, &trustedEmbeddingFake{size: trustedNomicDimensions}); err == nil {
 				t.Fatal("untrusted model identity was accepted")
 			}
 		})
 	}
-	fake := &trustedEmbeddingFake{size: ollamaNomicDimensions}
+	fake := &trustedEmbeddingFake{size: trustedNomicDimensions}
 	encoder, err := newTrustedOllamaFleetDescriptionEncoder(trustedNomicRole(), fake)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := encoder.EmbedQuery(context.Background(), strings.Repeat("x", ollamaNomicMaxInputRunes+1)); err == nil || fake.calls != 0 {
+	if _, err := encoder.EmbedQuery(context.Background(), strings.Repeat("x", ollamaMaxInputRunes+1)); err == nil || fake.calls != 0 {
 		t.Fatalf("oversized input reached embedder: err=%v calls=%d", err, fake.calls)
 	}
 	badVector := &trustedEmbeddingFake{size: 2}
@@ -102,6 +106,26 @@ func TestTrustedOllamaFleetEncoderRejectsIdentityDriftAndOversizedInput(t *testi
 	badVector.err = errors.New("owner gateway unavailable")
 	if _, err := badEncoder.Embed(context.Background(), "x"); err == nil {
 		t.Fatal("provider error was ignored")
+	}
+}
+
+func TestTrustedOllamaFleetEncoderUsesPolicyResolvedModelIdentity(t *testing.T) {
+	resolved := trustedNomicRole()
+	resolved.Model = "nomic-embed-text-alias:latest"
+	resolved.Rights.ArtifactID = "registry.ollama.ai/library/" + resolved.Model
+	resolved.Rights.Evidence.URL = "https://ollama.com/library/" + resolved.Model
+	resolved.RuntimeIdentity.Model = resolved.Model
+	resolved.RuntimeIdentity.ArtifactID = resolved.Rights.ArtifactID
+	encoder, err := newTrustedOllamaFleetDescriptionEncoder(resolved, &trustedEmbeddingFake{size: trustedNomicDimensions})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err := encoder.Recipe().Input()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input.ModelID != resolved.Model || input.ArtifactSHA256 != ollamaNomicManifestSHA256 {
+		t.Fatalf("recipe model identity = %q / %q; want policy-selected alias bound to pinned digest", input.ModelID, input.ArtifactSHA256)
 	}
 }
 
@@ -133,22 +157,22 @@ func TestProviderDescriptionFleetPeakEstimatorUsesRecipeAndOwnerPointCount(t *te
 }
 
 func trustedNomicRole() ollamapolicy.ResolvedRole {
-	artifactID := "registry.ollama.ai/library/" + ollamaNomicModel
+	artifactID := "registry.ollama.ai/library/" + trustedNomicModel
 	revision := "ollama-manifest:sha256:" + ollamaNomicManifestSHA256
 	rights := &ollamapolicy.ArtifactRights{
 		ArtifactID: artifactID, Revision: revision, SHA256: ollamaNomicManifestSHA256,
 		LicenseID: "Apache-2.0", Classification: "unrestricted",
-		Evidence:    ollamapolicy.RightsEvidence{URL: "https://ollama.com/library/nomic-embed-text:latest", Revision: ollamaNomicManifestSHA256, SHA256: ollamaNomicLicenseSHA, ObservedAt: "2026-11-12"},
+		Evidence:    ollamapolicy.RightsEvidence{URL: "https://ollama.com/library/" + trustedNomicModel, Revision: ollamaNomicManifestSHA256, SHA256: ollamaNomicLicenseSHA, ObservedAt: "2026-11-12"},
 		Obligations: []string{"retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"},
 	}
 	identity := &ollamapolicy.RuntimeArtifactIdentity{
-		Provider: "ollama", Model: ollamaNomicModel, ArtifactID: artifactID,
+		Provider: "ollama", Model: trustedNomicModel, ArtifactID: artifactID,
 		ArtifactRevision: revision, DigestKind: "ollama_model_contents",
 		Digest: ollamaNomicManifestSHA256, Source: "ollama /api/tags", ObservedAt: "2026-11-12",
 	}
 	return ollamapolicy.ResolvedRole{
 		SchemaVersion: "2026-06-10", PolicySHA256: strings.Repeat("a", 64), Role: ollamaEmbeddingRole,
-		Source: "role", Model: ollamaNomicModel, Capabilities: []string{"embedding"},
-		EmbeddingDimensions: ollamaNomicDimensions, Rights: rights, RuntimeIdentity: identity,
+		Source: "role", Model: trustedNomicModel, Capabilities: []string{"embedding"},
+		EmbeddingDimensions: trustedNomicDimensions, ContextWindowTokens: trustedNomicContextTokens, Rights: rights, RuntimeIdentity: identity,
 	}
 }

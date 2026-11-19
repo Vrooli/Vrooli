@@ -14,6 +14,20 @@ import (
 // asserts every rpc has exactly one entry here.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "evals_denominator_review_template",
+		Path:        "/eval/review-template/{suite_id}",
+		Method:      "GET",
+		Summary:     "Read query-free denominator review metadata",
+		Description: "Returns case IDs, query hashes, expected IDs, and corpus identity for independent source-owner review. Query text is never returned.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (path parameter)"}},
+		Response:    &module.Schema{Type: "IndependentReviewTemplate"},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No such suite"},
+			{Status: 409, Code: "failed_precondition", Description: "Suite has no denominator-eligible cases"},
+		},
+	},
+	{
 		ID:          "evals_register_suite",
 		Path:        evalconnect.EvalServiceRegisterSuiteProcedure,
 		Method:      "POST",
@@ -66,6 +80,31 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "failed_precondition", Description: "Suite's provider is not registered/reachable"},
 			{Status: 500, Code: "internal", Description: "Eval store write failure"},
 		},
+	},
+	{
+		ID:          "evals_freeze_fixed_denominator",
+		Path:        evalconnect.EvalServiceFreezeFixedDenominatorProcedure,
+		Method:      "POST",
+		Summary:     "Freeze a suite's reviewed denominator",
+		Description: "Requires a resolvable Source Ledger independent-review receipt bound to the current suite, case queries, expected IDs, verified reviewer and per-ID source references before recording an immutable snapshot.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)", "reviewer_id": "string", "review_evidence_uri": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"snapshot": "FixedDenominatorSnapshot"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing suite identity or invalid freeze request"},
+			{Status: 412, Code: "failed_precondition", Description: "Independent source review receipt is absent or does not match the current suite"},
+			{Status: 501, Code: "unimplemented", Description: "Fixed denominator storage or receipt verification is unavailable"},
+		},
+	},
+	{
+		ID:          "evals_get_fixed_denominator",
+		Path:        evalconnect.EvalServiceGetFixedDenominatorProcedure,
+		Method:      "POST",
+		Summary:     "Read a suite's frozen denominator",
+		Description: "Returns the latest frozen reviewed-case snapshot for a suite.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"snapshot": "FixedDenominatorSnapshot"}},
 	},
 	{
 		ID:          "evals_validate_corpus",

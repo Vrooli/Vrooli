@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS query_telemetry (
   resolver_latency_ms INTEGER NOT NULL DEFAULT 0,
   resolver_cache_hits INTEGER NOT NULL DEFAULT 0,
   resolver_cache_misses INTEGER NOT NULL DEFAULT 0,
+  resolver_cache_scope_version INTEGER NOT NULL DEFAULT 0,
   fanout_latency_ms INTEGER NOT NULL DEFAULT 0,
   rerank_latency_ms INTEGER NOT NULL DEFAULT 0,
   rerank_candidate_count INTEGER NOT NULL DEFAULT 0,

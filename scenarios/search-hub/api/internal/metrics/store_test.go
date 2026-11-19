@@ -41,6 +41,27 @@ func TestInsightsEmpty(t *testing.T) {
 	require.Empty(t, got.ProviderUsage)
 }
 
+func TestInsightsExcludesLegacyUnscopedResolverCacheSamples(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(metrics.Schema),
+	))
+	clock := scheduletest.New(time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC))
+	store := metrics.NewSQLiteStore(d, clock)
+
+	_, err := d.ExecContext(ctx, `INSERT INTO query_telemetry (query_hash, created_at, resolver_cache_hits, resolver_cache_misses) VALUES ('legacy', ?, 100, 100)`, clock.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	require.NoError(t, store.Record(ctx, metrics.Sample{QueryHash: "current", ResolverCacheHits: 2, ResolverCacheMisses: 1}))
+
+	got, err := store.Insights(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), got.ResolverCacheHits)
+	require.Equal(t, int64(1), got.ResolverCacheMisses)
+	require.InDelta(t, 2.0/3.0, got.ResolverCacheHitRate, 1e-9)
+}
+
 func TestRecordAndAggregate(t *testing.T) {
 	store, _ := newStore(t)
 	ctx := context.Background()
@@ -140,7 +161,7 @@ func TestRecordAndAggregate(t *testing.T) {
 	require.Equal(t, int64(150), auto.FanoutP95Ms)
 }
 
-func TestCPUFallbackLegAndDegradationPersistToInsights(t *testing.T) {
+func TestRerankerFallbackLegAndDegradationPersistToInsights(t *testing.T) {
 	store, _ := newStore(t)
 	ctx := context.Background()
 	require.NoError(t, store.Record(ctx, metrics.Sample{
@@ -151,8 +172,8 @@ func TestCPUFallbackLegAndDegradationPersistToInsights(t *testing.T) {
 		ResultCount:           2,
 		Degraded:              true,
 		Reranked:              true,
-		RerankerLeg:           "cpu-lexical:v1",
-		ResponseDegradeReason: "reranker_degraded_to_cpu_lexical",
+		RerankerLeg:           "llm:test",
+		ResponseDegradeReason: "reranker_degraded_to_llm",
 		LatencyMs:             18,
 		RerankLatencyMs:       1,
 		RerankCandidateCount:  2,
@@ -164,7 +185,7 @@ func TestCPUFallbackLegAndDegradationPersistToInsights(t *testing.T) {
 	require.Equal(t, int64(1), insights.DegradedQueries)
 	require.Equal(t, int64(1), insights.RerankedQueries)
 	require.Len(t, insights.ProviderUsage, 1)
-	require.Equal(t, "cpu-lexical:v1", insights.ProviderUsage[0].ActiveRerankerLeg)
+	require.Equal(t, "llm:test", insights.ProviderUsage[0].ActiveRerankerLeg)
 }
 
 func TestSharedSubstrateDegradationIsNotChargedToProviders(t *testing.T) {

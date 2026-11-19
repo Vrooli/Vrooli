@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -226,7 +227,7 @@ func (h *handlers) benchmarkCall(ctx cliapp.OperationContext) (benchmarkResult, 
 				measurement := benchmarkCaseMeasurement{latencyMs: time.Since(started).Milliseconds()}
 				if queryErr == nil && queryResponse != nil && queryResponse.Msg != nil && !queryResponse.Msg.GetDegraded() {
 					measurement.available = true
-					measurement.routed = contains(queryResponse.Msg.GetCorporaSearched(), testCase.GetExpectedProviderId())
+					measurement.routed = slices.Contains(queryResponse.Msg.GetCorporaSearched(), testCase.GetExpectedProviderId())
 					measurement.rank = expectedRank(testCase.GetExpectIds(), rankedHits(queryResponse.Msg))
 				}
 				measurements[index] = measurement
@@ -314,15 +315,6 @@ func expectedRank(expected []string, hits []*routingv1.SearchHit) int {
 		}
 	}
 	return 0
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 func percentile(values []int64, percentile int) int64 {
