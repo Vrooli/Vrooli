@@ -344,7 +344,7 @@
         {
           "type": "automated",
           "status": "in_progress",
-          "notes": "All eleven routes were swept in Chromium at 1440, 390 and 320: no document overflow, no page errors. Fixed during this pass: the share preview and in-context stage used max-content grid tracks, so a 1180px frame ignored `max-width:100%` and clipped on phones; in-context now defaults to the phone frame under 640px; the design studio exposes its layer tree and inspector as bottom sheets under 980px; and the 320px source-path row no longer sets document width. Adding, editing, duplicating, removing and accepting a revision were exercised at 390/320. Full keyboard focus-order certification, reduced-motion/forced-colors capture and permission states remain open."
+          "notes": "All eleven routes are axe-clean at 1440 and 390 (zero violations), with visible focus, no positive tabindex, roving-tabindex tabs, and focus traps that restore the trigger for the command palette, Present mode and phone studio sheets. Reduced motion removes every animation/transition above 10 ms in the workbench and its harness iframes; forced colors keeps text and graphical marks visible. 390/320 overflow and the source editor, studio sheets and in-context drag/resize are exercised. Remaining: permission-denied states do not exist in this local single-user scenario, and every loading/empty/partial/error state is not separately scripted."
         }
       ]
     },

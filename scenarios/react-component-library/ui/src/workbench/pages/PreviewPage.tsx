@@ -17,7 +17,8 @@ export function PreviewPage() {
   const bundle = useComponentBundle(id);
   const [device, setDevice] = useState<Device>(() => {
     const requested = searchParams.get("device");
-    if (requested === "desktop" || requested === "tablet" || requested === "phone") return requested;
+    if (requested === "desktop" || requested === "tablet" || requested === "phone")
+      return requested;
     // Opening a share link on a phone should show the phone composition, not a
     // 1180px frame clamped into a narrow column.
     if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
@@ -45,16 +46,35 @@ export function PreviewPage() {
     <div className="wb-root" data-workbench="nocturne" data-testid="preview-popout">
       <div className="wb-preview-page">
         <header className="wb-preview-bar">
+          <h1 className="rcl-visually-hidden">
+            {bundle.data?.asset.displayName ??
+              t("workbench.preview.heading", { defaultValue: "Component preview" })}
+          </h1>
           <div className="wb-row" style={{ minWidth: 0 }}>
-            <Link to={`/assets/${encodeURIComponent(id)}`} className="wb-iconbtn" aria-label={t("workbench.preview.back", { defaultValue: "Back to asset" })}>
+            <Link
+              to={`/assets/${encodeURIComponent(id)}`}
+              className="wb-iconbtn"
+              aria-label={t("workbench.preview.back", { defaultValue: "Back to asset" })}
+            >
               <ArrowLeft aria-hidden size={15} />
             </Link>
             <span style={{ minWidth: 0 }}>
-              <b style={{ display: "block", overflow: "hidden", fontSize: 13, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {bundle.data?.asset.displayName ?? t("workbench.preview.loading", { defaultValue: "Loading…" })}
+              <b
+                style={{
+                  display: "block",
+                  overflow: "hidden",
+                  fontSize: 13,
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {bundle.data?.asset.displayName ??
+                  t("workbench.preview.loading", { defaultValue: "Loading…" })}
               </b>
               <small className="wb-mono wb-muted-2">
-                {bundle.data?.asset ? `${assetVersion(bundle.data.asset)} · ${selectedStory?.name ?? "story"}` : ""}
+                {bundle.data?.asset
+                  ? `${assetVersion(bundle.data.asset)} · ${selectedStory?.name ?? "story"}`
+                  : ""}
               </small>
             </span>
           </div>
@@ -85,9 +105,21 @@ export function PreviewPage() {
                 setSearchParams(params, { replace: true });
               }}
               items={[
-                { id: "desktop", label: <Monitor aria-hidden size={13} /> },
-                { id: "tablet", label: <Tablet aria-hidden size={13} /> },
-                { id: "phone", label: <Smartphone aria-hidden size={13} /> },
+                {
+                  id: "desktop",
+                  label: <Monitor aria-hidden size={13} />,
+                  ariaLabel: t("workbench.preview.desktop", { defaultValue: "Desktop" }),
+                },
+                {
+                  id: "tablet",
+                  label: <Tablet aria-hidden size={13} />,
+                  ariaLabel: t("workbench.preview.tablet", { defaultValue: "Tablet" }),
+                },
+                {
+                  id: "phone",
+                  label: <Smartphone aria-hidden size={13} />,
+                  ariaLabel: t("workbench.preview.phone", { defaultValue: "Phone" }),
+                },
               ]}
             />
             <Chip tone={bundle.data?.experience?.evidenceStatus === "fresh" ? "green" : "amber"}>
@@ -95,7 +127,9 @@ export function PreviewPage() {
             </Chip>
             <button type="button" className="wb-btn ghost sm" onClick={() => void share()}>
               <Copy aria-hidden size={13} />
-              {copied ? t("workbench.preview.copied", { defaultValue: "Copied" }) : t("workbench.preview.share", { defaultValue: "Share" })}
+              {copied
+                ? t("workbench.preview.copied", { defaultValue: "Copied" })
+                : t("workbench.preview.share", { defaultValue: "Share" })}
             </button>
           </div>
         </header>
@@ -133,8 +167,14 @@ export function PreviewPage() {
             </div>
           ) : (
             <div className="wb-empty">
-              <div className="wb-empty-title">{t("workbench.preview.noStories", { defaultValue: "No story to preview" })}</div>
-              <p>{t("workbench.preview.noStoriesBody", { defaultValue: "This asset has no declared story." })}</p>
+              <div className="wb-empty-title">
+                {t("workbench.preview.noStories", { defaultValue: "No story to preview" })}
+              </div>
+              <p>
+                {t("workbench.preview.noStoriesBody", {
+                  defaultValue: "This asset has no declared story.",
+                })}
+              </p>
             </div>
           )}
         </main>

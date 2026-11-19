@@ -941,6 +941,39 @@ as such in `docs/concepts/WORKBENCH-REDESIGN.md`.
 These are pre-existing corpus findings, not redesign regressions. They are
 visible in Review and Coverage.
 
+### Resolved — the capture service was fenced by an 88-hour driver WebSocket
+
+`page capture` and `preview capture` returned `503 service unavailable:
+lifecycle admission closed` for every route. The message came from the shared
+`api-core/lifecycle` ingress gate, not from RCL. BAS had been in
+`LIFECYCLE_MAINTENANCE_PHASE_CLOSING` since 2026-11-15 because its
+`GET /ws/frames` driver socket stayed admitted for 88 hours; the drain inventory
+therefore never reached zero, and an abandoned restart left the process-local
+fence closed.
+
+Two fixes:
+
+1. **BAS releases the socket on maintenance.** `HandleDriverFrameStream`
+   watches `lifecycle.Closing(ctx)` and sends a 1001 close before the control
+   plane waits on it. A normal restart now drains immediately instead of hanging
+   or needing `--force-lifecycle`. Verified by holding a real `/ws/frames`
+   connection open, observing `admitting: 1`, and completing a normal restart;
+   the client received `1001 lifecycle maintenance`.
+2. **Build cleanup outlives the SQLite writer window.** The capacity lease
+   release was capped at 10 s by `Scope.Release` while the ledger's busy timeout
+   is also 10 s, so a transient writer failed a build after its artifacts were
+   already correct. The release window is now 45 s, and the lifecycle build
+   cleanup uses the same bound. A normal start then rebuilt and installed BAS
+   without the release timeout.
+
+A second capture limitation surfaced after admission opened: BAS's redaction
+prepass refused any page containing an iframe, so Component and Preview could
+not be captured. The driver now walks the Playwright frame tree, redacts each
+frame, and proves the declared iframe count matches the inspectable frames.
+Pages with RCL harnesses therefore capture with `redaction_status: complete`
+instead of being rejected. `TestCloseOnMaintenanceSignalEndsLongLivedSocket`
+and the frame-tree redaction tests cover both fixes.
+
 ### Resolved — in-browser source editing targets a draft, not a release
 
 The first Nocturne pass retired the legacy Monaco editor and printed the

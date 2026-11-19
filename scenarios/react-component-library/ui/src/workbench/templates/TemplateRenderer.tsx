@@ -292,7 +292,11 @@ export function TemplateRenderer({
       )}
       {showOverlay && placement ? (
         <div
-          className={cx("tpl-slot-float", slotEditable && "is-editable", selectedId === slotNode?.id && "is-selected")}
+          className={cx(
+            "tpl-slot-float",
+            slotEditable && "is-editable",
+            selectedId === slotNode?.id && "is-selected",
+          )}
           data-node-id={slotNode?.id}
           data-node-type="slot"
           style={{
@@ -371,7 +375,8 @@ function renderNode(
   const props = node.props;
   const children = node.children?.map((child) => renderNode(child, ctx, anchorRef));
   const attrs = nodeAttrs(node, ctx);
-  const textAlign = typeof props.align === "string" ? (props.align as CSSProperties["textAlign"]) : undefined;
+  const textAlign =
+    typeof props.align === "string" ? (props.align as CSSProperties["textAlign"]) : undefined;
 
   switch (node.type) {
     case "page":
@@ -446,7 +451,12 @@ function renderNode(
       );
 
     case "surface": {
-      const bg = props.bg === "accent" ? "var(--t-accent)" : props.bg === "surfaceAlt" ? "var(--t-surface-alt)" : "var(--t-surface)";
+      const bg =
+        props.bg === "accent"
+          ? "var(--t-accent)"
+          : props.bg === "surfaceAlt"
+            ? "var(--t-surface-alt)"
+            : "var(--t-surface)";
       const ink = props.bg === "accent" ? "var(--t-accent-ink)" : "var(--t-ink)";
       return (
         <div
@@ -473,7 +483,12 @@ function renderNode(
         <div
           key={node.id}
           {...attrs}
-          className={cx("tpl-text", `is-${String(props.variant ?? "body")}`, toneClass(props.tone), attrs.className)}
+          className={cx(
+            "tpl-text",
+            `is-${String(props.variant ?? "body")}`,
+            toneClass(props.tone),
+            attrs.className,
+          )}
           style={{ textAlign }}
         >
           {typeof props.text === "string" ? props.text : null}
@@ -484,7 +499,13 @@ function renderNode(
       return (
         <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
           <Button
-            variant={props.variant === "primary" ? "primary" : props.variant === "secondary" ? "secondary" : "ghost"}
+            variant={
+              props.variant === "primary"
+                ? "primary"
+                : props.variant === "secondary"
+                  ? "secondary"
+                  : "ghost"
+            }
             size={props.size === "sm" ? "sm" : "md"}
             shape="square"
             density="compact"
@@ -567,6 +588,7 @@ function renderNode(
         <span key={node.id} {...attrs} className={cx("tpl-meter", attrs.className)}>
           <BoundedMeter
             label={typeof props.label === "string" ? props.label : undefined}
+            ariaLabel={`${typeof props.label === "string" ? props.label : "Composition"} meter · ${node.id}`}
             value={typeof props.value === "number" ? props.value : 0}
             max={100}
             tone={
@@ -659,11 +681,11 @@ function renderNode(
               <span className="tpl-slot-hint">{ctx.labels.placed}</span>
             ) : null
           ) : (
-            ctx.slot ?? (
+            (ctx.slot ?? (
               <span className="tpl-slot-hint">
                 {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
               </span>
-            )
+            ))
           )}
           {editing && !placed && slotState ? (
             <button

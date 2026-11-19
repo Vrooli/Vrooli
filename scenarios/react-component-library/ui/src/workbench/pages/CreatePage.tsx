@@ -90,7 +90,8 @@ export function CreatePage() {
       }),
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: wbKeys.catalog });
-      if (response.component?.id) void navigate(`/assets/${encodeURIComponent(response.component.id)}`);
+      if (response.component?.id)
+        void navigate(`/assets/${encodeURIComponent(response.component.id)}`);
     },
   });
 
@@ -156,9 +157,11 @@ export function CreatePage() {
   const selectedAsset = assets.find((asset) => asset.id === adoptComponent);
   const versions = useMemo(() => {
     if (!selectedAsset) return [];
-    const values = [selectedAsset.latestVersion, selectedAsset.version, selectedAsset.draftVersion].filter(
-      (value): value is string => Boolean(value),
-    );
+    const values = [
+      selectedAsset.latestVersion,
+      selectedAsset.version,
+      selectedAsset.draftVersion,
+    ].filter((value): value is string => Boolean(value));
     return [...new Set(values)];
   }, [selectedAsset]);
 
@@ -196,8 +199,12 @@ export function CreatePage() {
     <div className="wb-page" data-testid="create-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
-          <p className="wb-kicker">{t("workbench.create.kicker", { defaultValue: "Library · New asset" })}</p>
-          <h1 className="wb-h1">{t("workbench.create.title", { defaultValue: "Add to the library" })}</h1>
+          <p className="wb-kicker">
+            {t("workbench.create.kicker", { defaultValue: "Library · New asset" })}
+          </p>
+          <h1 className="wb-h1">
+            {t("workbench.create.title", { defaultValue: "Add to the library" })}
+          </h1>
           <p className="wb-lede">
             {t("workbench.create.lede", {
               defaultValue:
@@ -237,31 +244,77 @@ export function CreatePage() {
           <PanelBody flush>
             {route === "create" ? (
               <div className="wb-form-grid">
-                <Field label={t("workbench.create.slug", { defaultValue: "Slug" })} htmlFor="create-slug">
-                  <TextInput id="create-slug" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={t("workbench.create.slugPlaceholder", { defaultValue: "AgentCard" })} />
+                <Field
+                  label={t("workbench.create.slug", { defaultValue: "Slug" })}
+                  htmlFor="create-slug"
+                >
+                  <TextInput
+                    id="create-slug"
+                    value={slug}
+                    onChange={(event) => setSlug(event.target.value)}
+                    placeholder={t("workbench.create.slugPlaceholder", {
+                      defaultValue: "AgentCard",
+                    })}
+                  />
                 </Field>
-                <Field label={t("workbench.create.libraryId", { defaultValue: "Library id" })} htmlFor="create-library">
+                <Field
+                  label={t("workbench.create.libraryId", { defaultValue: "Library id" })}
+                  htmlFor="create-library"
+                >
                   <TextInput
                     id="create-library"
                     value={libraryId}
                     onChange={(event) => setLibraryId(event.target.value)}
-                    placeholder={t("workbench.create.libraryPlaceholder", { defaultValue: "react-component-library:AgentCard" })}
+                    placeholder={t("workbench.create.libraryPlaceholder", {
+                      defaultValue: "react-component-library:AgentCard",
+                    })}
                   />
                 </Field>
-                <Field label={t("workbench.create.displayName", { defaultValue: "Display name" })} htmlFor="create-name">
-                  <TextInput id="create-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                <Field
+                  label={t("workbench.create.displayName", { defaultValue: "Display name" })}
+                  htmlFor="create-name"
+                >
+                  <TextInput
+                    id="create-name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                  />
                 </Field>
-                <Field label={t("workbench.create.version", { defaultValue: "Initial version" })} htmlFor="create-version">
-                  <TextInput id="create-version" value={initialVersion} onChange={(event) => setInitialVersion(event.target.value)} />
+                <Field
+                  label={t("workbench.create.version", { defaultValue: "Initial version" })}
+                  htmlFor="create-version"
+                >
+                  <TextInput
+                    id="create-version"
+                    value={initialVersion}
+                    onChange={(event) => setInitialVersion(event.target.value)}
+                  />
                 </Field>
                 <div className="is-full">
-                  <Field label={t("workbench.create.description", { defaultValue: "Description" })} htmlFor="create-desc">
-                    <TextArea id="create-desc" value={description} onChange={(event) => setDescription(event.target.value)} />
+                  <Field
+                    label={t("workbench.create.description", { defaultValue: "Description" })}
+                    htmlFor="create-desc"
+                  >
+                    <TextArea
+                      id="create-desc"
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                    />
                   </Field>
                 </div>
                 <div className="is-full">
-                  <Field label={t("workbench.create.tags", { defaultValue: "Tags" })} htmlFor="create-tags">
-                    <TextInput id="create-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("workbench.create.tagsPlaceholder", { defaultValue: "data-display, card" })} />
+                  <Field
+                    label={t("workbench.create.tags", { defaultValue: "Tags" })}
+                    htmlFor="create-tags"
+                  >
+                    <TextInput
+                      id="create-tags"
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      placeholder={t("workbench.create.tagsPlaceholder", {
+                        defaultValue: "data-display, card",
+                      })}
+                    />
                   </Field>
                 </div>
                 {create.isError ? (
@@ -274,7 +327,8 @@ export function CreatePage() {
                 <div className="is-full">
                   <p className="wb-muted-2 wb-small" style={{ marginBottom: 8 }}>
                     {t("workbench.create.requiredHint", {
-                      defaultValue: "Slug and display name are required before a draft can be created.",
+                      defaultValue:
+                        "Slug and display name are required before a draft can be created.",
                     })}
                   </p>
                 </div>
@@ -296,13 +350,18 @@ export function CreatePage() {
 
             {route === "extract" ? (
               <div className="wb-form-grid">
-                <Field label={t("workbench.create.sourceScenario", { defaultValue: "Source scenario" })} htmlFor="extract-scenario">
+                <Field
+                  label={t("workbench.create.sourceScenario", { defaultValue: "Source scenario" })}
+                  htmlFor="extract-scenario"
+                >
                   <Select
                     id="extract-scenario"
                     value={sourceScenario}
                     onChange={(event) => setSourceScenario(event.target.value)}
                   >
-                    <option value="">{t("workbench.create.chooseScenario", { defaultValue: "Choose a scenario" })}</option>
+                    <option value="">
+                      {t("workbench.create.chooseScenario", { defaultValue: "Choose a scenario" })}
+                    </option>
                     {(scenarios.data ?? []).map((entry) => (
                       <option key={entry.scenario} value={entry.scenario}>
                         {entry.scenario}
@@ -310,40 +369,94 @@ export function CreatePage() {
                     ))}
                   </Select>
                 </Field>
-                <Field label={t("workbench.create.sourcePath", { defaultValue: "Source path" })} htmlFor="extract-path">
+                <Field
+                  label={t("workbench.create.sourcePath", { defaultValue: "Source path" })}
+                  htmlFor="extract-path"
+                >
                   <TextInput
                     id="extract-path"
                     value={sourceFile}
                     onChange={(event) => setSourceFile(event.target.value)}
-                    placeholder={t("workbench.create.sourcePlaceholder", { defaultValue: "ui/src/components/AgentCard.tsx" })}
+                    placeholder={t("workbench.create.sourcePlaceholder", {
+                      defaultValue: "ui/src/components/AgentCard.tsx",
+                    })}
                   />
                 </Field>
-                <Field label={t("workbench.create.assetName", { defaultValue: "Asset name" })} htmlFor="extract-name">
-                  <TextInput id="extract-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                <Field
+                  label={t("workbench.create.assetName", { defaultValue: "Asset name" })}
+                  htmlFor="extract-name"
+                >
+                  <TextInput
+                    id="extract-name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                  />
                 </Field>
-                <Field label={t("workbench.create.slot", { defaultValue: "Slot" })} htmlFor="extract-slot">
-                  <TextInput id="extract-slot" value={slot} onChange={(event) => setSlot(event.target.value)} />
+                <Field
+                  label={t("workbench.create.slot", { defaultValue: "Slot" })}
+                  htmlFor="extract-slot"
+                >
+                  <TextInput
+                    id="extract-slot"
+                    value={slot}
+                    onChange={(event) => setSlot(event.target.value)}
+                  />
                 </Field>
-                <Field label={t("workbench.create.version", { defaultValue: "Initial version" })} htmlFor="extract-version">
-                  <TextInput id="extract-version" value={initialVersion} onChange={(event) => setInitialVersion(event.target.value)} />
+                <Field
+                  label={t("workbench.create.version", { defaultValue: "Initial version" })}
+                  htmlFor="extract-version"
+                >
+                  <TextInput
+                    id="extract-version"
+                    value={initialVersion}
+                    onChange={(event) => setInitialVersion(event.target.value)}
+                  />
                 </Field>
-                <Field label={t("workbench.create.slug", { defaultValue: "Slug" })} htmlFor="extract-slug">
-                  <TextInput id="extract-slug" value={slug} onChange={(event) => setSlug(event.target.value)} />
+                <Field
+                  label={t("workbench.create.slug", { defaultValue: "Slug" })}
+                  htmlFor="extract-slug"
+                >
+                  <TextInput
+                    id="extract-slug"
+                    value={slug}
+                    onChange={(event) => setSlug(event.target.value)}
+                  />
                 </Field>
                 <div className="is-full">
-                  <Field label={t("workbench.create.description", { defaultValue: "Description" })} htmlFor="extract-desc">
-                    <TextArea id="extract-desc" value={description} onChange={(event) => setDescription(event.target.value)} />
+                  <Field
+                    label={t("workbench.create.description", { defaultValue: "Description" })}
+                    htmlFor="extract-desc"
+                  >
+                    <TextArea
+                      id="extract-desc"
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                    />
                   </Field>
                 </div>
                 <div className="is-full">
-                  <Field label={t("workbench.create.provenance", { defaultValue: "Why this belongs in the library" })} htmlFor="extract-tags">
-                    <TextInput id="extract-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t("workbench.create.tagsPlaceholder", { defaultValue: "data-display, card" })} />
+                  <Field
+                    label={t("workbench.create.provenance", {
+                      defaultValue: "Why this belongs in the library",
+                    })}
+                    htmlFor="extract-tags"
+                  >
+                    <TextInput
+                      id="extract-tags"
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      placeholder={t("workbench.create.tagsPlaceholder", {
+                        defaultValue: "data-display, card",
+                      })}
+                    />
                   </Field>
                 </div>
                 {extract.isError ? (
                   <div className="is-full">
                     <Banner tone="red" icon={<CircleAlert aria-hidden size={15} />}>
-                      {extract.error instanceof Error ? extract.error.message : String(extract.error)}
+                      {extract.error instanceof Error
+                        ? extract.error.message
+                        : String(extract.error)}
                     </Banner>
                   </div>
                 ) : null}
@@ -365,7 +478,10 @@ export function CreatePage() {
 
             {route === "adopt" ? (
               <div className="wb-form-grid">
-                <Field label={t("workbench.create.asset", { defaultValue: "Asset" })} htmlFor="adopt-asset">
+                <Field
+                  label={t("workbench.create.asset", { defaultValue: "Asset" })}
+                  htmlFor="adopt-asset"
+                >
                   <Select
                     id="adopt-asset"
                     value={adoptComponent}
@@ -376,7 +492,9 @@ export function CreatePage() {
                       setAdoptVersion(asset?.latestVersion || asset?.version || "");
                     }}
                   >
-                    <option value="">{t("workbench.create.chooseAsset", { defaultValue: "Choose an asset" })}</option>
+                    <option value="">
+                      {t("workbench.create.chooseAsset", { defaultValue: "Choose an asset" })}
+                    </option>
                     {assets.slice(0, 200).map((asset) => (
                       <option key={asset.id} value={asset.id}>
                         {asset.displayName} · {asset.latestVersion || asset.version || "draft"}
@@ -384,7 +502,10 @@ export function CreatePage() {
                     ))}
                   </Select>
                 </Field>
-                <Field label={t("workbench.create.targetScenario", { defaultValue: "Target scenario" })} htmlFor="adopt-scenario">
+                <Field
+                  label={t("workbench.create.targetScenario", { defaultValue: "Target scenario" })}
+                  htmlFor="adopt-scenario"
+                >
                   <Select
                     id="adopt-scenario"
                     value={adoptScenario}
@@ -393,7 +514,9 @@ export function CreatePage() {
                       setPreflight(null);
                     }}
                   >
-                    <option value="">{t("workbench.create.chooseScenario", { defaultValue: "Choose a scenario" })}</option>
+                    <option value="">
+                      {t("workbench.create.chooseScenario", { defaultValue: "Choose a scenario" })}
+                    </option>
                     {(scenarios.data ?? []).map((entry) => (
                       <option key={entry.scenario} value={entry.scenario}>
                         {entry.scenario}
@@ -401,8 +524,15 @@ export function CreatePage() {
                     ))}
                   </Select>
                 </Field>
-                <Field label={t("workbench.create.version", { defaultValue: "Version" })} htmlFor="adopt-version">
-                  <Select id="adopt-version" value={adoptVersion} onChange={(event) => setAdoptVersion(event.target.value)}>
+                <Field
+                  label={t("workbench.create.version", { defaultValue: "Version" })}
+                  htmlFor="adopt-version"
+                >
+                  <Select
+                    id="adopt-version"
+                    value={adoptVersion}
+                    onChange={(event) => setAdoptVersion(event.target.value)}
+                  >
                     {versions.map((value) => (
                       <option key={value} value={value}>
                         {value}
@@ -474,16 +604,42 @@ export function CreatePage() {
           </PanelBody>
         </Panel>
 
-        <aside className="wb-stack">
+        <aside
+          className="wb-stack"
+          aria-label={t("workbench.create.help", { defaultValue: "Create guidance" })}
+        >
           <Panel>
-            <PanelHead title={t("workbench.create.next", { defaultValue: "What happens next" })} meta={t("workbench.create.steps", { defaultValue: "4 steps" })} />
+            <PanelHead
+              title={t("workbench.create.next", { defaultValue: "What happens next" })}
+              meta={t("workbench.create.steps", { defaultValue: "4 steps" })}
+            />
             <PanelBody flush>
               <div className="wb-steps">
                 {[
-                  [t("workbench.create.step1", { defaultValue: "Draft created" }), t("workbench.create.step1Body", { defaultValue: "A mutable version folder and manifest pointer." })],
-                  [t("workbench.create.step2", { defaultValue: "Derived artifacts" }), t("workbench.create.step2Body", { defaultValue: "Story contract, dependency lock, exports." })],
-                  [t("workbench.create.step3", { defaultValue: "Focused checks" }), t("workbench.create.step3Body", { defaultValue: "Types, stories and catalog gates." })],
-                  [t("workbench.create.step4", { defaultValue: "Publish successor" }), t("workbench.create.step4Body", { defaultValue: "Immutable release with provenance." })],
+                  [
+                    t("workbench.create.step1", { defaultValue: "Draft created" }),
+                    t("workbench.create.step1Body", {
+                      defaultValue: "A mutable version folder and manifest pointer.",
+                    }),
+                  ],
+                  [
+                    t("workbench.create.step2", { defaultValue: "Derived artifacts" }),
+                    t("workbench.create.step2Body", {
+                      defaultValue: "Story contract, dependency lock, exports.",
+                    }),
+                  ],
+                  [
+                    t("workbench.create.step3", { defaultValue: "Focused checks" }),
+                    t("workbench.create.step3Body", {
+                      defaultValue: "Types, stories and catalog gates.",
+                    }),
+                  ],
+                  [
+                    t("workbench.create.step4", { defaultValue: "Publish successor" }),
+                    t("workbench.create.step4Body", {
+                      defaultValue: "Immutable release with provenance.",
+                    }),
+                  ],
                 ].map(([title, body], index) => (
                   <div key={title} className="wb-step">
                     <b>{index + 1}</b>
@@ -498,7 +654,10 @@ export function CreatePage() {
           </Panel>
 
           <Panel>
-            <PanelHead title={t("workbench.create.summary", { defaultValue: "Summary" })} meta={t("workbench.create.beforeAnalysis", { defaultValue: "Before analysis" })} />
+            <PanelHead
+              title={t("workbench.create.summary", { defaultValue: "Summary" })}
+              meta={t("workbench.create.beforeAnalysis", { defaultValue: "Before analysis" })}
+            />
             <PanelBody>
               <div className="wb-summary">
                 <div className="wb-row-between">
@@ -515,7 +674,13 @@ export function CreatePage() {
                 </div>
                 <div className="wb-row-between">
                   <span>{t("workbench.create.target", { defaultValue: "Target" })}</span>
-                  <b>{route === "adopt" ? adoptScenario || "—" : route === "extract" ? slot : "catalog"}</b>
+                  <b>
+                    {route === "adopt"
+                      ? adoptScenario || "—"
+                      : route === "extract"
+                        ? slot
+                        : "catalog"}
+                  </b>
                 </div>
               </div>
               <p className="wb-muted-2 wb-small" style={{ marginTop: 10 }}>

@@ -3,6 +3,7 @@ import type { ButtonProps } from "@vrooli/react-component-library/Button/2";
 import {
   type CSSProperties,
   type ReactNode,
+  useRef,
   type SelectHTMLAttributes,
   type InputHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -112,10 +113,7 @@ export function Chip({
   title?: string;
 }) {
   return (
-    <span
-      className={cx("wb-chip", active && "is-active", tone && `is-${tone}`)}
-      title={title}
-    >
+    <span className={cx("wb-chip", active && "is-active", tone && `is-${tone}`)} title={title}>
       {children}
     </span>
   );
@@ -193,7 +191,13 @@ export function Empty({
   );
 }
 
-export function Skeleton({ height = 14, width = "100%" }: { height?: number; width?: number | string }) {
+export function Skeleton({
+  height = 14,
+  width = "100%",
+}: {
+  height?: number;
+  width?: number | string;
+}) {
   return <span className="wb-skeleton" style={{ display: "block", height, width }} aria-hidden />;
 }
 
@@ -207,7 +211,10 @@ export function Banner({
   children: ReactNode;
 }) {
   return (
-    <div className={cx("wb-banner", tone && `is-${tone}`)} role={tone === "red" ? "alert" : undefined}>
+    <div
+      className={cx("wb-banner", tone && `is-${tone}`)}
+      role={tone === "red" ? "alert" : undefined}
+    >
       {icon}
       <div>{children}</div>
     </div>
@@ -328,16 +335,44 @@ export function Tabs<T extends string>({
   onChange: (id: T) => void;
   label: string;
 }) {
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const move = (index: number) => {
+    if (items.length === 0) return;
+    const next = (index + items.length) % items.length;
+    const item = items[next];
+    if (!item) return;
+    onChange(item.id);
+    refs.current[next]?.focus();
+  };
   return (
     <div className="wb-tabs" role="tablist" aria-label={label}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <button
           key={item.id}
+          ref={(node) => {
+            refs.current[index] = node;
+          }}
           type="button"
           role="tab"
           aria-selected={value === item.id}
+          tabIndex={value === item.id ? 0 : -1}
           className="wb-tab"
           onClick={() => onChange(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              move(index + 1);
+            } else if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              move(index - 1);
+            } else if (event.key === "Home") {
+              event.preventDefault();
+              move(0);
+            } else if (event.key === "End") {
+              event.preventDefault();
+              move(items.length - 1);
+            }
+          }}
         >
           {item.label}
           {typeof item.count === "number" ? (
@@ -355,7 +390,7 @@ export function Segmented<T extends string>({
   onChange,
   label,
 }: {
-  items: Array<{ id: T; label: ReactNode }>;
+  items: Array<{ id: T; label: ReactNode; ariaLabel?: string }>;
   value: T;
   onChange: (id: T) => void;
   label: string;
@@ -366,6 +401,7 @@ export function Segmented<T extends string>({
         <button
           key={item.id}
           type="button"
+          aria-label={item.ariaLabel}
           aria-pressed={value === item.id}
           onClick={() => onChange(item.id)}
         >
@@ -396,6 +432,7 @@ export function Meter({
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <span
+      className="wb-meter"
       style={{
         display: "block",
         height: 4,
@@ -405,7 +442,10 @@ export function Meter({
       }}
       aria-hidden
     >
-      <span style={{ display: "block", width: `${clamped}%`, height: "100%", background: color }} />
+      <span
+        className="wb-meter-fill"
+        style={{ display: "block", width: `${clamped}%`, height: "100%", background: color }}
+      />
     </span>
   );
 }

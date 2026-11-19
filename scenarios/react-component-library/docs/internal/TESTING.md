@@ -39,6 +39,10 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | The studio edits text, layers and template presentation, and browser-local templates round-trip | `ui/src/workbench/templates/local.test.ts`; `ui/src/workbench/templates/spec.test.ts`; served browser sweep |
 | A browser edit is draft-bound, digest-guarded, checked and published through the authoring RPCs | `ui/src/workbench/component/SourceWorkbench.test.tsx`; Chromium save/check/restore sweep in `WORKBENCH-REDESIGN.md` |
 | Phones can reach the studio layer tree and inspector | `ui/src/workbench/pages.css` bottom-sheet rules; 390/320 Chromium interaction sweep |
+| Every route is axe-clean and keyboard-reachable at desktop and phone | Chromium axe-core sweep (0 violations at 1440/390); visible-focus/no-positive-tabindex scan; `primitives.test.tsx`; `useFocusTrap.test.tsx` |
+| Reduced motion and forced colors keep content visible | Chromium media emulation sweep; `nocturne.css` forced-colors rules; Settings reduce-motion switch |
+| A driver WebSocket cannot pin lifecycle admission | `scenarios/browser-automation-studio/api/handlers/ws_maintenance_test.go`; real `/ws/frames` + normal-restart sweep |
+| Capture redaction inspects embedded frames | `scenarios/browser-automation-studio/playwright-driver/tests/unit/capture/redaction.test.ts` |
 | A cold coverage pass is persisted, coalesced, and reported as preparing instead of timing out | `api/handlers/catalog/report_cache_test.go`; `docs/internal/PROBLEMS.md` (2026-11-19) |
 | Design ranks declared pages and retains access to empty scenarios | `ui/src/workbench/pages/DesignStudioPage.story.json`; `ui/src/workbench/data.test.ts` |
 | Preview source errors expose a retry control | `ui/src/workbench/pages/PreviewPage.story.json`; Asset data drawer source query |
@@ -102,6 +106,8 @@ The workbench's own focused tests are:
 - `ui/src/workbench/templates/TemplateRenderer.test.tsx` — every template renders a page root, slot and selection state; placed slots float above the page and respond to keyboard move/resize.
 - `ui/src/workbench/templates/local.test.ts` — browser-local template persistence, duplication, blank starter and malformed-storage recovery.
 - `ui/src/workbench/component/SourceWorkbench.test.tsx` — begin draft, digest-guarded save, focused check and publish over the authoring RPCs.
+- `ui/src/workbench/primitives.test.tsx` — segmented accessible names and roving-tabindex tab keyboard movement.
+- `ui/src/workbench/useFocusTrap.test.tsx` — focus entry, Tab wrap, Escape close and trigger restoration.
 - `ui/src/workbench/preferences.test.ts` — browser-local workbench preferences, round-trip and document application.
 - `api/handlers/catalog/report_cache_test.go` — persisted coverage, stale-while-refresh, single-flight cold compute and the preparing state.
 - `ui/src/App.test.tsx` — route resolution and one-shell continuity.

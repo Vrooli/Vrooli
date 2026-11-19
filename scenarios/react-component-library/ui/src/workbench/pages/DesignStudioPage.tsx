@@ -67,11 +67,13 @@ import {
   Segmented,
   Select,
   Skeleton,
+  Tabs,
   TextInput,
   Toggle,
   WbButton,
 } from "../primitives";
 import { cx } from "../cx";
+import { useFocusTrap } from "../useFocusTrap";
 
 type Device = "desktop" | "tablet" | "phone";
 type InspectorTab = "props" | "theme" | "contract" | "compare";
@@ -198,6 +200,13 @@ export function DesignStudioPage() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("props");
   const [presenting, setPresenting] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"layers" | "inspector" | null>(null);
+  const leftSheetRef = useFocusTrap<HTMLElement>(mobilePanel === "layers", () =>
+    setMobilePanel(null),
+  );
+  const rightSheetRef = useFocusTrap<HTMLElement>(mobilePanel === "inspector", () =>
+    setMobilePanel(null),
+  );
+  const presentRef = useFocusTrap<HTMLDivElement>(presenting, () => setPresenting(false));
   const [notice, setNotice] = useState<string | null>(null);
 
   const locals = useLocalTemplates();
@@ -491,7 +500,11 @@ export function DesignStudioPage() {
           onClick={() => setMobilePanel(null)}
         />
       ) : null}
-      <aside className="wb-studio-left">
+      <aside
+        ref={leftSheetRef}
+        className="wb-studio-left"
+        aria-label={t("workbench.studio.layersPanel", { defaultValue: "Pages and layers" })}
+      >
         <button
           type="button"
           className="wb-studio-sheet-close"
@@ -668,9 +681,21 @@ export function DesignStudioPage() {
                 updateURL({ device: next });
               }}
               items={[
-                { id: "desktop", label: <Monitor aria-hidden size={13} /> },
-                { id: "tablet", label: <Tablet aria-hidden size={13} /> },
-                { id: "phone", label: <Smartphone aria-hidden size={13} /> },
+                {
+                  id: "desktop",
+                  label: <Monitor aria-hidden size={13} />,
+                  ariaLabel: t("workbench.studio.desktop", { defaultValue: "Desktop" }),
+                },
+                {
+                  id: "tablet",
+                  label: <Tablet aria-hidden size={13} />,
+                  ariaLabel: t("workbench.studio.tablet", { defaultValue: "Tablet" }),
+                },
+                {
+                  id: "phone",
+                  label: <Smartphone aria-hidden size={13} />,
+                  ariaLabel: t("workbench.studio.phone", { defaultValue: "Phone" }),
+                },
               ]}
             />
             <WbButton variant="ghost" size="sm" onClick={() => setPresenting(true)}>
@@ -797,7 +822,11 @@ export function DesignStudioPage() {
         </div>
       </div>
 
-      <aside className="wb-studio-right">
+      <aside
+        ref={rightSheetRef}
+        className="wb-studio-right"
+        aria-label={t("workbench.studio.inspector", { defaultValue: "Inspector" })}
+      >
         <button
           type="button"
           className="wb-studio-sheet-close"
@@ -926,42 +955,31 @@ export function DesignStudioPage() {
         </div>
 
         <div className="wb-inspector-tabs">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={inspectorTab === "props"}
-            className="wb-tab"
-            onClick={() => setInspectorTab("props")}
-          >
-            {t("workbench.studio.props", { defaultValue: "Props" })}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={inspectorTab === "theme"}
-            className="wb-tab"
-            onClick={() => setInspectorTab("theme")}
-          >
-            {t("workbench.studio.theme", { defaultValue: "Theme" })}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={inspectorTab === "contract"}
-            className="wb-tab"
-            onClick={() => setInspectorTab("contract")}
-          >
-            {t("workbench.studio.contract", { defaultValue: "Contract" })}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={inspectorTab === "compare"}
-            className="wb-tab"
-            onClick={() => setInspectorTab("compare")}
-          >
-            {t("workbench.studio.compare", { defaultValue: "Compare" })}
-          </button>
+          <Tabs
+            label={t("workbench.studio.inspectorTabs", {
+              defaultValue: "Inspector sections",
+            })}
+            value={inspectorTab}
+            onChange={setInspectorTab}
+            items={[
+              {
+                id: "props",
+                label: t("workbench.studio.props", { defaultValue: "Props" }),
+              },
+              {
+                id: "theme",
+                label: t("workbench.studio.theme", { defaultValue: "Theme" }),
+              },
+              {
+                id: "contract",
+                label: t("workbench.studio.contract", { defaultValue: "Contract" }),
+              },
+              {
+                id: "compare",
+                label: t("workbench.studio.compare", { defaultValue: "Compare" }),
+              },
+            ]}
+          />
         </div>
 
         <div className="wb-inspector-section">
@@ -1129,6 +1147,7 @@ export function DesignStudioPage() {
 
       {presenting ? (
         <div
+          ref={presentRef}
           role="dialog"
           aria-modal="true"
           aria-label={t("workbench.studio.presentLabel", { defaultValue: "Present composition" })}

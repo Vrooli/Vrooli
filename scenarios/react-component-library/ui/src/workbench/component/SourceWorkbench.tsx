@@ -525,6 +525,11 @@ export function SourceWorkbench({
           <pre
             className="wb-source-code"
             aria-label={t("workbench.component.sourceCode", { defaultValue: "Source code" })}
+            role="region"
+            // A scrollable source block must be keyboard-reachable; axe's
+            // scrollable-region-focusable rule requires this tab stop.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={0}
           >
             {content.data.content}
           </pre>

@@ -13,16 +13,7 @@ import {
   type ActivityEvent,
   type ActivityKind,
 } from "../data";
-import {
-  Banner,
-  Empty,
-  Kpi,
-  Panel,
-  PanelBody,
-  PanelHead,
-  Select,
-  Skeleton,
-} from "../primitives";
+import { Banner, Empty, Kpi, Panel, PanelBody, PanelHead, Select, Skeleton } from "../primitives";
 
 const KINDS: Array<{ id: ActivityKind | "all"; label: string }> = [
   { id: "all", label: "All activity" },
@@ -72,8 +63,12 @@ export function ActivityPage() {
     <div className="wb-page" data-testid="activity-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
-          <p className="wb-kicker">{t("workbench.activity.kicker", { defaultValue: "Library · Activity" })}</p>
-          <h1 className="wb-h1">{t("workbench.activity.title", { defaultValue: "What changed, and who changed it" })}</h1>
+          <p className="wb-kicker">
+            {t("workbench.activity.kicker", { defaultValue: "Library · Activity" })}
+          </p>
+          <h1 className="wb-h1">
+            {t("workbench.activity.title", { defaultValue: "What changed, and who changed it" })}
+          </h1>
           <p className="wb-lede">
             {t("workbench.activity.lede", {
               defaultValue:
@@ -99,18 +94,44 @@ export function ActivityPage() {
 
       {catalog.isError ? (
         <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
-          <b>{t("workbench.activity.errorTitle", { defaultValue: "The catalog did not answer." })}</b>{" "}
+          <b>
+            {t("workbench.activity.errorTitle", { defaultValue: "The catalog did not answer." })}
+          </b>{" "}
           {t("workbench.activity.errorBody", {
-            defaultValue: "Activity cannot be derived without the catalog. Nothing is shown as “no changes”.",
+            defaultValue:
+              "Activity cannot be derived without the catalog. Nothing is shown as “no changes”.",
           })}
         </Banner>
       ) : null}
 
       <div className="wb-kpis">
-        <Kpi label={t("workbench.activity.kpiEvents", { defaultValue: "This week" })} value={week.total} detail={t("workbench.activity.kpiEventsDetail", { defaultValue: "Index-derived events" })} />
-        <Kpi label={t("workbench.activity.kpiDrafts", { defaultValue: "Drafts" })} value={week.drafts} tone="amber" detail={t("workbench.activity.kpiDraftsDetail", { defaultValue: "Open drafts" })} />
-        <Kpi label={t("workbench.activity.kpiIndex", { defaultValue: "Index events" })} value={week.index} tone="green" detail={t("workbench.activity.kpiIndexDetail", { defaultValue: "Source updated or re-indexed" })} />
-        <Kpi label={t("workbench.activity.kpiEventsTotal", { defaultValue: "Events" })} value={week.total} tone="signal" detail={t("workbench.activity.kpiEventsTotalDetail", { defaultValue: "In the last 7 days" })} />
+        <Kpi
+          label={t("workbench.activity.kpiEvents", { defaultValue: "This week" })}
+          value={week.total}
+          detail={t("workbench.activity.kpiEventsDetail", { defaultValue: "Index-derived events" })}
+        />
+        <Kpi
+          label={t("workbench.activity.kpiDrafts", { defaultValue: "Drafts" })}
+          value={week.drafts}
+          tone="amber"
+          detail={t("workbench.activity.kpiDraftsDetail", { defaultValue: "Open drafts" })}
+        />
+        <Kpi
+          label={t("workbench.activity.kpiIndex", { defaultValue: "Index events" })}
+          value={week.index}
+          tone="green"
+          detail={t("workbench.activity.kpiIndexDetail", {
+            defaultValue: "Source updated or re-indexed",
+          })}
+        />
+        <Kpi
+          label={t("workbench.activity.kpiEventsTotal", { defaultValue: "Events" })}
+          value={week.total}
+          tone="signal"
+          detail={t("workbench.activity.kpiEventsTotalDetail", {
+            defaultValue: "In the last 7 days",
+          })}
+        />
       </div>
 
       <div className="wb-activity-layout">
@@ -118,11 +139,7 @@ export function ActivityPage() {
           <PanelHead
             title={t("workbench.activity.trail", { defaultValue: "Change trail" })}
             meta={t("workbench.activity.trailMeta", {
-              defaultValue: pluralDefault(
-                filtered.length,
-                "{{count}} event",
-                "{{count}} events",
-              ),
+              defaultValue: pluralDefault(filtered.length, "{{count}} event", "{{count}} events"),
               count: filtered.length,
             })}
             actions={
@@ -137,9 +154,14 @@ export function ActivityPage() {
                 <Skeleton height={180} />
               </div>
             ) : filtered.length === 0 ? (
-              <Empty title={t("workbench.activity.emptyTitle", { defaultValue: "No events in this view" })}>
+              <Empty
+                title={t("workbench.activity.emptyTitle", {
+                  defaultValue: "No events in this view",
+                })}
+              >
                 {t("workbench.activity.emptyBody", {
-                  defaultValue: "Change the filter. The catalog answered; this view is simply empty.",
+                  defaultValue:
+                    "Change the filter. The catalog answered; this view is simply empty.",
                 })}
               </Empty>
             ) : (
@@ -152,11 +174,16 @@ export function ActivityPage() {
                     {dayEvents.map((event) => (
                       <div key={event.id} className="wb-event">
                         <span className={`wb-event-icon is-${event.kind}`} aria-hidden>
-                          {event.kind === "published" ? <Activity size={13} /> : <Boxes size={13} />}
+                          {event.kind === "published" ? (
+                            <Activity size={13} />
+                          ) : (
+                            <Boxes size={13} />
+                          )}
                         </span>
                         <div className="wb-event-body">
                           <b>
-                            {event.title} · {event.assetName} <span className="wb-muted-2">{event.version}</span>
+                            {event.title} · {event.assetName}{" "}
+                            <span className="wb-muted-2">{event.version}</span>
                           </b>
                           <small>
                             {event.detail} · {event.actor}
@@ -180,9 +207,15 @@ export function ActivityPage() {
           </PanelBody>
         </Panel>
 
-        <aside className="wb-stack">
+        <aside
+          className="wb-stack"
+          aria-label={t("workbench.activity.details", { defaultValue: "Activity details" })}
+        >
           <Panel>
-            <PanelHead title={t("workbench.activity.week", { defaultValue: "This week" })} meta="7 days" />
+            <PanelHead
+              title={t("workbench.activity.week", { defaultValue: "This week" })}
+              meta="7 days"
+            />
             <PanelBody>
               <div className="wb-week-grid">
                 <div className="wb-week-cell">
@@ -206,11 +239,18 @@ export function ActivityPage() {
           </Panel>
 
           <Panel>
-            <PanelHead title={t("workbench.activity.actors", { defaultValue: "Actors" })} meta={`${actors.length}`} />
+            <PanelHead
+              title={t("workbench.activity.actors", { defaultValue: "Actors" })}
+              meta={`${actors.length}`}
+            />
             <PanelBody>
               {actors.map(([actor, count]) => (
                 <div key={actor} className="wb-actor">
-                  <span className="wb-identity-mark" style={{ width: 24, height: 24, fontSize: 9 }} aria-hidden>
+                  <span
+                    className="wb-identity-mark"
+                    style={{ width: 24, height: 24, fontSize: 9 }}
+                    aria-hidden
+                  >
                     {actor.slice(0, 2).toUpperCase()}
                   </span>
                   <div className="wb-actor-bar">

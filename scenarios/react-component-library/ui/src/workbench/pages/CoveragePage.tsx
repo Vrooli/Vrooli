@@ -44,7 +44,10 @@ export function CoveragePage() {
 
   const matrix = useMemo(() => {
     if (!report) return [];
-    const byDomain = new Map<string, { order: number; bands: Record<string, number>; total: number }>();
+    const byDomain = new Map<
+      string,
+      { order: number; bands: Record<string, number>; total: number }
+    >();
     for (const row of report.rows) {
       const domain = row.domain || "uncategorized";
       const entry = byDomain.get(domain) ?? {
@@ -68,7 +71,10 @@ export function CoveragePage() {
     if (fromService.length > 0) return fromService;
     return [...(report?.rows ?? [])]
       .filter((row) => row.failedGates.length > 0)
-      .sort((left, right) => left.assetScore - right.assetScore || right.blocksDownstream - left.blocksDownstream)
+      .sort(
+        (left, right) =>
+          left.assetScore - right.assetScore || right.blocksDownstream - left.blocksDownstream,
+      )
       .slice(0, 10);
   }, [nextWork.data?.rows, report?.rows]);
 
@@ -91,11 +97,17 @@ export function CoveragePage() {
             </h1>
           </div>
           <div className="wb-actions">
-            <Chip tone="amber">{t("workbench.coverage.preparingChip", { defaultValue: "Preparing" })}</Chip>
+            <Chip tone="amber">
+              {t("workbench.coverage.preparingChip", { defaultValue: "Preparing" })}
+            </Chip>
           </div>
         </div>
         <Banner tone="amber" icon={<CircleAlert aria-hidden size={16} />}>
-          <b>{t("workbench.coverage.preparingTitle", { defaultValue: "Coverage is being prepared." })}</b>{" "}
+          <b>
+            {t("workbench.coverage.preparingTitle", {
+              defaultValue: "Coverage is being prepared.",
+            })}
+          </b>{" "}
           {t("workbench.coverage.preparingBody", {
             defaultValue:
               "The first full gate pass runs the TypeScript toolchain and the capture evidence join; it can take a few minutes on a cold cache. This page retries automatically. Nothing is rendered as zero while it waits.",
@@ -103,7 +115,9 @@ export function CoveragePage() {
         </Banner>
         <Panel>
           <PanelHead
-            title={t("workbench.coverage.preparingPanel", { defaultValue: "What is being measured" })}
+            title={t("workbench.coverage.preparingPanel", {
+              defaultValue: "What is being measured",
+            })}
             meta={t("workbench.coverage.preparingMeta", { defaultValue: "64 gates · 3 tiers" })}
           />
           <PanelBody>
@@ -123,8 +137,12 @@ export function CoveragePage() {
     <div className="wb-page" data-testid="coverage-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
-          <p className="wb-kicker">{t("workbench.coverage.kicker", { defaultValue: "Library · Coverage" })}</p>
-          <h1 className="wb-h1">{t("workbench.coverage.title", { defaultValue: "How mature is the library?" })}</h1>
+          <p className="wb-kicker">
+            {t("workbench.coverage.kicker", { defaultValue: "Library · Coverage" })}
+          </p>
+          <h1 className="wb-h1">
+            {t("workbench.coverage.title", { defaultValue: "How mature is the library?" })}
+          </h1>
           <p className="wb-lede">
             {t("workbench.coverage.lede", {
               defaultValue:
@@ -141,9 +159,16 @@ export function CoveragePage() {
               })}
             </Chip>
           ) : (
-            <Chip tone="amber">{t("workbench.coverage.notMeasured", { defaultValue: "Not measured" })}</Chip>
+            <Chip tone="amber">
+              {t("workbench.coverage.notMeasured", { defaultValue: "Not measured" })}
+            </Chip>
           )}
-          <WbButton variant="ghost" size="md" onClick={() => void coverage.refetch()} disabled={coverage.isFetching}>
+          <WbButton
+            variant="ghost"
+            size="md"
+            onClick={() => void coverage.refetch()}
+            disabled={coverage.isFetching}
+          >
             <RefreshCw aria-hidden size={14} />
             {t("workbench.coverage.refresh", { defaultValue: "Refresh" })}
           </WbButton>
@@ -152,7 +177,9 @@ export function CoveragePage() {
 
       {coverage.isError ? (
         <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
-          <b>{t("workbench.coverage.unavailableTitle", { defaultValue: "Coverage unavailable." })}</b>{" "}
+          <b>
+            {t("workbench.coverage.unavailableTitle", { defaultValue: "Coverage unavailable." })}
+          </b>{" "}
           {t("workbench.coverage.unavailableBody", {
             defaultValue:
               "The coverage service did not complete the report. No ratio, distribution or ranking is rendered as zero.",
@@ -164,7 +191,15 @@ export function CoveragePage() {
         <Kpi
           label={t("workbench.coverage.kpiFresh", { defaultValue: "Production ready" })}
           value={production ? formatPercent(production.ratio) : "—"}
-          tone={production ? (production.ratio >= 0.5 ? "green" : production.ratio > 0 ? "amber" : "red") : undefined}
+          tone={
+            production
+              ? production.ratio >= 0.5
+                ? "green"
+                : production.ratio > 0
+                  ? "amber"
+                  : "red"
+              : undefined
+          }
           detail={
             production
               ? t("workbench.coverage.kpiFreshDetail", {
@@ -222,41 +257,55 @@ export function CoveragePage() {
                   <Skeleton height={180} />
                 </div>
               ) : matrix.length === 0 ? (
-                <Empty title={t("workbench.coverage.noMatrix", { defaultValue: "No maturity rows" })}>
+                <Empty
+                  title={t("workbench.coverage.noMatrix", { defaultValue: "No maturity rows" })}
+                >
                   {t("workbench.coverage.noMatrixBody", {
-                    defaultValue: "The report returned no rows. That is not the same as a library with no assets.",
+                    defaultValue:
+                      "The report returned no rows. That is not the same as a library with no assets.",
                   })}
                 </Empty>
               ) : (
-                <div className="wb-matrix-scroll">
-                <div className="wb-matrix" data-testid="coverage-matrix">
-                  <div className="wb-matrix-row">
-                    <span />
-                    {BANDS.map((band) => (
-                      <span key={band.id} className="wb-matrix-head">
-                        {band.label}
-                      </span>
+                <div
+                  className="wb-matrix-scroll"
+                  role="region"
+                  // Scrollable data regions need a tab stop so keyboard users
+                  // can pan the matrix (axe scrollable-region-focusable).
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+                  tabIndex={0}
+                  aria-label={t("workbench.coverage.matrixLabel", {
+                    defaultValue: "Maturity matrix",
+                  })}
+                >
+                  <div className="wb-matrix" data-testid="coverage-matrix">
+                    <div className="wb-matrix-row">
+                      <span />
+                      {BANDS.map((band) => (
+                        <span key={band.id} className="wb-matrix-head">
+                          {band.label}
+                        </span>
+                      ))}
+                    </div>
+                    {matrix.map((row) => (
+                      <div key={row.domain} className="wb-matrix-row">
+                        <span className="wb-matrix-label">{row.domain}</span>
+                        {BANDS.map((band) => {
+                          const count = row.bands[band.id] ?? 0;
+                          const level = BANDS.findIndex((item) => item.id === band.id) + 1;
+                          return (
+                            <span
+                              key={band.id}
+                              className={`wb-matrix-cell is-${count === 0 ? 0 : level}`}
+                              title={`${row.domain} · ${band.label}: ${count}`}
+                              aria-label={`${row.domain}, ${band.label}: ${count}`}
+                            >
+                              {count}
+                            </span>
+                          );
+                        })}
+                      </div>
                     ))}
                   </div>
-                  {matrix.map((row) => (
-                    <div key={row.domain} className="wb-matrix-row">
-                      <span className="wb-matrix-label">{row.domain}</span>
-                      {BANDS.map((band) => {
-                        const count = row.bands[band.id] ?? 0;
-                        const level = BANDS.findIndex((item) => item.id === band.id) + 1;
-                        return (
-                          <span
-                            key={band.id}
-                            className={`wb-matrix-cell is-${count === 0 ? 0 : level}`}
-                            title={`${row.domain} · ${band.label}: ${count}`}
-                          >
-                            {count}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
                 </div>
               )}
             </PanelBody>
@@ -265,13 +314,18 @@ export function CoveragePage() {
           <Panel>
             <PanelHead
               title={t("workbench.coverage.nextWork", { defaultValue: "Next work" })}
-              meta={nextWork.isError ? t("workbench.coverage.nextUnavailable", { defaultValue: "Service unavailable" }) : t("workbench.coverage.nextMeta", { defaultValue: "Ranked" })}
+              meta={
+                nextWork.isError
+                  ? t("workbench.coverage.nextUnavailable", { defaultValue: "Service unavailable" })
+                  : t("workbench.coverage.nextMeta", { defaultValue: "Ranked" })
+              }
             />
             <PanelBody flush>
               {nextRows.length === 0 ? (
                 <Empty title={t("workbench.coverage.noNext", { defaultValue: "No ranked work" })}>
                   {t("workbench.coverage.noNextBody", {
-                    defaultValue: "Every asset with a failing gate is already accounted for, or the ranking is unavailable.",
+                    defaultValue:
+                      "Every asset with a failing gate is already accounted for, or the ranking is unavailable.",
                   })}
                 </Empty>
               ) : (
@@ -302,7 +356,10 @@ export function CoveragePage() {
           </Panel>
         </div>
 
-        <aside className="wb-stack">
+        <aside
+          className="wb-stack"
+          aria-label={t("workbench.coverage.details", { defaultValue: "Coverage details" })}
+        >
           <Panel>
             <PanelHead
               title={t("workbench.coverage.readiness", { defaultValue: "Definition of ready" })}
@@ -311,10 +368,18 @@ export function CoveragePage() {
             <PanelBody flush>
               <div className="wb-readiness">
                 {[
-                  t("workbench.coverage.ready1", { defaultValue: "Source and manifest agree on identity." }),
-                  t("workbench.coverage.ready2", { defaultValue: "Every declared state has a story and a capture." }),
-                  t("workbench.coverage.ready3", { defaultValue: "Usage-contract checks pass at phone width." }),
-                  t("workbench.coverage.ready4", { defaultValue: "Evidence is fresher than the release." }),
+                  t("workbench.coverage.ready1", {
+                    defaultValue: "Source and manifest agree on identity.",
+                  }),
+                  t("workbench.coverage.ready2", {
+                    defaultValue: "Every declared state has a story and a capture.",
+                  }),
+                  t("workbench.coverage.ready3", {
+                    defaultValue: "Usage-contract checks pass at phone width.",
+                  }),
+                  t("workbench.coverage.ready4", {
+                    defaultValue: "Evidence is fresher than the release.",
+                  }),
                 ].map((line, index) => (
                   <div key={line} className="wb-readiness-row">
                     <b>{index + 1}</b>
@@ -334,26 +399,45 @@ export function CoveragePage() {
               {report?.maturity ? (
                 <div className="wb-stack tight">
                   <div className="wb-row-between">
-                    <span className="wb-small wb-muted">{t("workbench.coverage.pass", { defaultValue: "Passing" })}</span>
+                    <span className="wb-small wb-muted">
+                      {t("workbench.coverage.pass", { defaultValue: "Passing" })}
+                    </span>
                     <b className="wb-mono">{formatNumber(report.maturity.passEvidence)}</b>
                   </div>
-                  <Meter value={(report.maturity.passEvidence / Math.max(1, report.maturity.passEvidence + report.maturity.failEvidence)) * 100} tone="green" />
+                  <Meter
+                    value={
+                      (report.maturity.passEvidence /
+                        Math.max(1, report.maturity.passEvidence + report.maturity.failEvidence)) *
+                      100
+                    }
+                    tone="green"
+                  />
                   <div className="wb-row-between">
-                    <span className="wb-small wb-muted">{t("workbench.coverage.fail", { defaultValue: "Failing" })}</span>
+                    <span className="wb-small wb-muted">
+                      {t("workbench.coverage.fail", { defaultValue: "Failing" })}
+                    </span>
                     <b className="wb-mono">{formatNumber(report.maturity.failEvidence)}</b>
                   </div>
                   <div className="wb-row-between">
-                    <span className="wb-small wb-muted">{t("workbench.coverage.unmeasured", { defaultValue: "Unmeasured" })}</span>
+                    <span className="wb-small wb-muted">
+                      {t("workbench.coverage.unmeasured", { defaultValue: "Unmeasured" })}
+                    </span>
                     <b className="wb-mono">{formatNumber(report.maturity.unmeasuredEvidence)}</b>
                   </div>
-                  <Link to={appRoutes.review} className="wb-btn ghost sm wide" style={{ marginTop: 8 }}>
+                  <Link
+                    to={appRoutes.review}
+                    className="wb-btn ghost sm wide"
+                    style={{ marginTop: 8 }}
+                  >
                     {t("workbench.coverage.openReview", { defaultValue: "Open review" })}
                     <ArrowUpRight aria-hidden size={13} />
                   </Link>
                 </div>
               ) : (
                 <p className="wb-small wb-muted">
-                  {t("workbench.coverage.noEvidence", { defaultValue: "No evidence summary is available." })}
+                  {t("workbench.coverage.noEvidence", {
+                    defaultValue: "No evidence summary is available.",
+                  })}
                 </p>
               )}
             </PanelBody>

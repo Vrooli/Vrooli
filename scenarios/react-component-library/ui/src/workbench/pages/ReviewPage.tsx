@@ -80,8 +80,12 @@ export function ReviewPage() {
     <div className="wb-page" data-testid="review-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
-          <p className="wb-kicker">{t("workbench.review.kicker", { defaultValue: "Library · Review" })}</p>
-          <h1 className="wb-h1">{t("workbench.review.title", { defaultValue: "What needs a person" })}</h1>
+          <p className="wb-kicker">
+            {t("workbench.review.kicker", { defaultValue: "Library · Review" })}
+          </p>
+          <h1 className="wb-h1">
+            {t("workbench.review.title", { defaultValue: "What needs a person" })}
+          </h1>
           <p className="wb-lede">
             {t("workbench.review.lede", {
               defaultValue:
@@ -93,7 +97,9 @@ export function ReviewPage() {
           <span className="wb-mono" style={{ fontSize: 26, letterSpacing: "-0.03em" }}>
             {findings.length}
           </span>
-          <span className="wb-muted wb-small">{t("workbench.review.open", { defaultValue: "open findings" })}</span>
+          <span className="wb-muted wb-small">
+            {t("workbench.review.open", { defaultValue: "open findings" })}
+          </span>
           <WbButton variant="ghost" size="md">
             <Filter aria-hidden size={14} />
             {t("workbench.review.filter", { defaultValue: "Filter" })}
@@ -103,7 +109,11 @@ export function ReviewPage() {
 
       {coverage.isError ? (
         <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
-          <b>{t("workbench.review.unavailableTitle", { defaultValue: "The findings projection did not complete." })}</b>{" "}
+          <b>
+            {t("workbench.review.unavailableTitle", {
+              defaultValue: "The findings projection did not complete.",
+            })}
+          </b>{" "}
           {t("workbench.review.unavailableBody", {
             defaultValue:
               "The coverage service is the only real owner of gate outcomes today. Review shows unavailable rather than an empty queue.",
@@ -112,17 +122,38 @@ export function ReviewPage() {
       ) : null}
 
       <div className="wb-kpis">
-        <Kpi label={t("workbench.review.kpiOpen", { defaultValue: "Open findings" })} value={findings.length} detail={t("workbench.review.kpiOpenDetail", {
-          defaultValue: pluralDefault(
-            stats.affectedAssets,
-            "Across {{count}} asset",
-            "Across {{count}} assets",
-          ),
-          count: stats.affectedAssets,
-        })} />
-        <Kpi label={t("workbench.review.kpiBlocking", { defaultValue: "Blocking" })} value={stats.blocking} tone="red" detail={t("workbench.review.kpiBlockingDetail", { defaultValue: "Blocks a release" })} />
-        <Kpi label={t("workbench.review.kpiWarning", { defaultValue: "Needs a decision" })} value={stats.warning} tone="amber" detail={t("workbench.review.kpiWarningDetail", { defaultValue: "Advisory gate failures" })} />
-        <Kpi label={t("workbench.review.kpiUnmeasured", { defaultValue: "Unmeasured" })} value={unmeasured.length} tone="signal" detail={t("workbench.review.kpiUnmeasuredDetail", { defaultValue: "No achieved rung" })} />
+        <Kpi
+          label={t("workbench.review.kpiOpen", { defaultValue: "Open findings" })}
+          value={findings.length}
+          detail={t("workbench.review.kpiOpenDetail", {
+            defaultValue: pluralDefault(
+              stats.affectedAssets,
+              "Across {{count}} asset",
+              "Across {{count}} assets",
+            ),
+            count: stats.affectedAssets,
+          })}
+        />
+        <Kpi
+          label={t("workbench.review.kpiBlocking", { defaultValue: "Blocking" })}
+          value={stats.blocking}
+          tone="red"
+          detail={t("workbench.review.kpiBlockingDetail", { defaultValue: "Blocks a release" })}
+        />
+        <Kpi
+          label={t("workbench.review.kpiWarning", { defaultValue: "Needs a decision" })}
+          value={stats.warning}
+          tone="amber"
+          detail={t("workbench.review.kpiWarningDetail", {
+            defaultValue: "Advisory gate failures",
+          })}
+        />
+        <Kpi
+          label={t("workbench.review.kpiUnmeasured", { defaultValue: "Unmeasured" })}
+          value={unmeasured.length}
+          tone="signal"
+          detail={t("workbench.review.kpiUnmeasuredDetail", { defaultValue: "No achieved rung" })}
+        />
       </div>
 
       <div className="wb-review-layout">
@@ -133,7 +164,11 @@ export function ReviewPage() {
           />
           <PanelBody flush>
             {findings.length === 0 && !coverage.isError ? (
-              <Empty title={t("workbench.review.emptyTitle", { defaultValue: "Nothing needs a decision" })}>
+              <Empty
+                title={t("workbench.review.emptyTitle", {
+                  defaultValue: "Nothing needs a decision",
+                })}
+              >
                 {t("workbench.review.emptyBody", {
                   defaultValue:
                     "No asset has a failing gate in the current report. The empty state names what was checked; it is not a substitute for a missing report.",
@@ -143,26 +178,34 @@ export function ReviewPage() {
               <div className="wb-board" style={{ padding: 12 }}>
                 <BoardColumn
                   title={t("workbench.review.blocking", { defaultValue: "Blocking" })}
-                  findings={findings.filter((finding) => finding.severity === "blocking").slice(0, 30)}
+                  findings={findings
+                    .filter((finding) => finding.severity === "blocking")
+                    .slice(0, 30)}
                   total={findings.filter((finding) => finding.severity === "blocking").length}
                   selectedId={selected?.id}
                   onSelect={setSelectedId}
                 />
                 <BoardColumn
                   title={t("workbench.review.decision", { defaultValue: "Needs a decision" })}
-                  findings={findings.filter((finding) => finding.severity === "warning").slice(0, 30)}
+                  findings={findings
+                    .filter((finding) => finding.severity === "warning")
+                    .slice(0, 30)}
                   total={findings.filter((finding) => finding.severity === "warning").length}
                   selectedId={selected?.id}
                   onSelect={setSelectedId}
                 />
                 <div className="wb-board-col">
                   <div className="wb-board-head">
-                    <span>{t("workbench.review.unmeasuredColumn", { defaultValue: "Unmeasured" })}</span>
+                    <span>
+                      {t("workbench.review.unmeasuredColumn", { defaultValue: "Unmeasured" })}
+                    </span>
                     <span>{unmeasured.length}</span>
                   </div>
                   {unmeasured.length === 0 ? (
                     <p className="wb-muted-2 wb-small" style={{ padding: 6 }}>
-                      {t("workbench.review.noUnmeasured", { defaultValue: "Every asset has an achieved rung." })}
+                      {t("workbench.review.noUnmeasured", {
+                        defaultValue: "Every asset has an achieved rung.",
+                      })}
                     </p>
                   ) : (
                     unmeasured.map((row) => (
@@ -172,7 +215,9 @@ export function ReviewPage() {
                           {row.domain} · {row.rungName || "no rung"}
                         </small>
                         <div className="wb-finding-meta">
-                          <Chip tone="ice">{t("workbench.review.unmeasuredChip", { defaultValue: "unmeasured" })}</Chip>
+                          <Chip tone="ice">
+                            {t("workbench.review.unmeasuredChip", { defaultValue: "unmeasured" })}
+                          </Chip>
                           <span className="wb-tag">{row.target || "no target"}</span>
                         </div>
                       </div>
@@ -196,13 +241,19 @@ export function ReviewPage() {
           </PanelBody>
         </Panel>
 
-        <aside className="wb-selected">
+        <aside
+          className="wb-selected"
+          aria-label={t("workbench.review.selected", { defaultValue: "Selected finding" })}
+        >
           {selected ? (
             <>
               <div className="wb-row-between">
-                <span className="wb-caption">{t("workbench.review.selected", { defaultValue: "Selected finding" })}</span>
+                <span className="wb-caption">
+                  {t("workbench.review.selected", { defaultValue: "Selected finding" })}
+                </span>
                 <span className="wb-tag">
-                  {findings.findIndex((finding) => finding.id === selected.id) + 1} / {findings.length}
+                  {findings.findIndex((finding) => finding.id === selected.id) + 1} /{" "}
+                  {findings.length}
                 </span>
               </div>
               <h2>{selected.title}</h2>
@@ -213,12 +264,16 @@ export function ReviewPage() {
                 </Chip>
                 <Chip>{selected.gate}</Chip>
                 <span className="wb-small wb-muted-2">
-                  {formatRelative(selected.newestEvidence ? new Date(selected.newestEvidence) : undefined)}
+                  {formatRelative(
+                    selected.newestEvidence ? new Date(selected.newestEvidence) : undefined,
+                  )}
                 </span>
               </div>
 
               <div>
-                <span className="wb-caption">{t("workbench.review.why", { defaultValue: "Why it matters" })}</span>
+                <span className="wb-caption">
+                  {t("workbench.review.why", { defaultValue: "Why it matters" })}
+                </span>
                 <p className="wb-small wb-muted" style={{ marginTop: 4, lineHeight: 1.6 }}>
                   {t("workbench.review.whyBody", {
                     defaultValue:
@@ -239,23 +294,34 @@ export function ReviewPage() {
               </div>
 
               <div>
-                <span className="wb-caption">{t("workbench.review.evidence", { defaultValue: "Evidence" })}</span>
+                <span className="wb-caption">
+                  {t("workbench.review.evidence", { defaultValue: "Evidence" })}
+                </span>
                 <div className="wb-evidence" style={{ marginTop: 6 }}>
                   <div className="wb-evidence-row">
                     <Inbox aria-hidden size={13} />
-                    <span>{t("workbench.review.coverageReport", { defaultValue: "{{gate}} · coverage report", gate: selected.gate })}</span>
+                    <span>
+                      {t("workbench.review.coverageReport", {
+                        defaultValue: "{{gate}} · coverage report",
+                        gate: selected.gate,
+                      })}
+                    </span>
                     <span className="wb-tag">{selected.severity}</span>
                   </div>
                   <div className="wb-evidence-row">
                     <ArrowUpRight aria-hidden size={13} />
-                    <span>{selected.assetName} · {selected.achieved || "unmeasured"}</span>
+                    <span>
+                      {selected.assetName} · {selected.achieved || "unmeasured"}
+                    </span>
                     <span className="wb-tag">{selected.rungName || "no rung"}</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <span className="wb-caption">{t("workbench.review.affected", { defaultValue: "Affected asset" })}</span>
+                <span className="wb-caption">
+                  {t("workbench.review.affected", { defaultValue: "Affected asset" })}
+                </span>
                 <div className="wb-row-between" style={{ marginTop: 4 }}>
                   <span className="wb-small">{selected.assetName}</span>
                   {assetByCatalogId.get(selected.assetId) ? (
@@ -268,7 +334,9 @@ export function ReviewPage() {
                     </Link>
                   ) : (
                     <span className="wb-small wb-muted-2">
-                      {t("workbench.review.notIndexed", { defaultValue: "Not in the catalog index" })}
+                      {t("workbench.review.notIndexed", {
+                        defaultValue: "Not in the catalog index",
+                      })}
                     </span>
                   )}
                 </div>
@@ -293,9 +361,12 @@ export function ReviewPage() {
               </div>
             </>
           ) : (
-            <Empty title={t("workbench.review.noSelection", { defaultValue: "No finding selected" })}>
+            <Empty
+              title={t("workbench.review.noSelection", { defaultValue: "No finding selected" })}
+            >
               {t("workbench.review.noSelectionBody", {
-                defaultValue: "Select a finding from the queue to see its evidence and affected asset.",
+                defaultValue:
+                  "Select a finding from the queue to see its evidence and affected asset.",
               })}
             </Empty>
           )}
@@ -311,26 +382,35 @@ export function ReviewPage() {
         <PanelBody>
           <div className="wb-grid-3">
             <div>
-              <span className="wb-caption">{t("workbench.review.ownerGates", { defaultValue: "Gate outcomes" })}</span>
+              <span className="wb-caption">
+                {t("workbench.review.ownerGates", { defaultValue: "Gate outcomes" })}
+              </span>
               <p className="wb-small wb-muted">
                 {t("workbench.review.ownerGatesBody", {
-                  defaultValue: "Failed gates and the nearest blocking gate come from the coverage report.",
+                  defaultValue:
+                    "Failed gates and the nearest blocking gate come from the coverage report.",
                 })}
               </p>
             </div>
             <div>
-              <span className="wb-caption">{t("workbench.review.ownerEvidence", { defaultValue: "Evidence age" })}</span>
+              <span className="wb-caption">
+                {t("workbench.review.ownerEvidence", { defaultValue: "Evidence age" })}
+              </span>
               <p className="wb-small wb-muted">
                 {t("workbench.review.ownerEvidenceBody", {
-                  defaultValue: "The newest evidence timestamp is shown; a missing capture stays unmeasured.",
+                  defaultValue:
+                    "The newest evidence timestamp is shown; a missing capture stays unmeasured.",
                 })}
               </p>
             </div>
             <div>
-              <span className="wb-caption">{t("workbench.review.ownerBlast", { defaultValue: "Blast radius" })}</span>
+              <span className="wb-caption">
+                {t("workbench.review.ownerBlast", { defaultValue: "Blast radius" })}
+              </span>
               <p className="wb-small wb-muted">
                 {t("workbench.review.ownerBlastBody", {
-                  defaultValue: "Downstream impact is the catalog's computed blocks-downstream count.",
+                  defaultValue:
+                    "Downstream impact is the catalog's computed blocks-downstream count.",
                 })}
               </p>
             </div>
@@ -378,15 +458,15 @@ function BoardColumn({
               {finding.assetName} · {finding.domain}
             </small>
             <div className="wb-finding-meta">
-              <Chip tone={finding.severity === "blocking" ? "red" : "amber"}>{finding.severity}</Chip>
+              <Chip tone={finding.severity === "blocking" ? "red" : "amber"}>
+                {finding.severity}
+              </Chip>
               <span className="wb-tag">{finding.gate}</span>
               {finding.failedCount > 1 ? (
                 <span className="wb-tag">{`+${finding.failedCount - 1}`}</span>
               ) : null}
               <span className="wb-tag">
-                {finding.blocksDownstream > 0
-                  ? `${finding.blocksDownstream} downstream`
-                  : "leaf"}
+                {finding.blocksDownstream > 0 ? `${finding.blocksDownstream} downstream` : "leaf"}
               </span>
             </div>
           </button>

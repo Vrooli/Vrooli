@@ -64,7 +64,10 @@ function coverageIndex(rows: CoverageRow[] | undefined): Map<string, CoverageRow
   return index;
 }
 
-function assetStatus(asset: CatalogAsset, row: CoverageRow | undefined): {
+function assetStatus(
+  asset: CatalogAsset,
+  row: CoverageRow | undefined,
+): {
   label: string;
   tone: "green" | "amber" | "red" | "ice";
 } {
@@ -97,7 +100,10 @@ export function ComponentsPage() {
 
   const rows = useMemo(() => coverageIndex(coverage.data?.rows), [coverage.data]);
   const findings = useMemo(() => findingsFromCoverage(coverage.data), [coverage.data]);
-  const reviewAssets = useMemo(() => new Set(findings.map((finding) => finding.assetId)), [findings]);
+  const reviewAssets = useMemo(
+    () => new Set(findings.map((finding) => finding.assetId)),
+    [findings],
+  );
 
   const assets = useMemo(() => catalog.data ?? [], [catalog.data]);
   const grouped = useMemo(() => {
@@ -123,7 +129,11 @@ export function ComponentsPage() {
       if (domain !== "all" && assetDomain(asset) !== domain) return false;
       const row = rows.get(asset.catalogId) ?? rows.get(asset.libraryId);
       if (status === "drafts" && !assetHasDraft(asset)) return false;
-      if (status === "review" && !reviewAssets.has(asset.catalogId) && !(row?.failedGates ?? []).length) {
+      if (
+        status === "review" &&
+        !reviewAssets.has(asset.catalogId) &&
+        !(row?.failedGates ?? []).length
+      ) {
         return false;
       }
       if (status === "verified") {
@@ -149,7 +159,9 @@ export function ComponentsPage() {
       const rightRow = rows.get(right.catalogId) ?? rows.get(right.libraryId);
       const leftFail = (leftRow?.failedGates ?? []).length;
       const rightFail = (rightRow?.failedGates ?? []).length;
-      return rightFail - leftFail || (rightRow?.blocksDownstream ?? 0) - (leftRow?.blocksDownstream ?? 0);
+      return (
+        rightFail - leftFail || (rightRow?.blocksDownstream ?? 0) - (leftRow?.blocksDownstream ?? 0)
+      );
     });
     return result;
   }, [assets, deferredQuery, domain, group, reviewAssets, rows, sort, status]);
@@ -177,11 +189,19 @@ export function ComponentsPage() {
   }, [assets, rows]);
 
   return (
-    <div className="wb-page" data-experience-surface="catalog-results" data-testid="components-page">
+    <div
+      className="wb-page"
+      data-experience-surface="catalog-results"
+      data-testid="components-page"
+    >
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
-          <p className="wb-kicker">{t("workbench.components.kicker", { defaultValue: "Library · Components" })}</p>
-          <h1 className="wb-h1">{t("workbench.components.title", { defaultValue: "Components" })}</h1>
+          <p className="wb-kicker">
+            {t("workbench.components.kicker", { defaultValue: "Library · Components" })}
+          </p>
+          <h1 className="wb-h1">
+            {t("workbench.components.title", { defaultValue: "Components" })}
+          </h1>
           <p className="wb-lede">
             {t("workbench.components.lede", {
               defaultValue:
@@ -239,16 +259,36 @@ export function ComponentsPage() {
           shortcut={t("workbench.components.searchKey", { defaultValue: "/" })}
         />
         <div className="wb-row" style={{ flexWrap: "wrap" }}>
-          <button type="button" onClick={() => setStatus("all")} className="wb-chip" aria-pressed={status === "all"}>
+          <button
+            type="button"
+            onClick={() => setStatus("all")}
+            className="wb-chip"
+            aria-pressed={status === "all"}
+          >
             {t("workbench.components.all", { defaultValue: "All" })} {filtered.length}
           </button>
-          <button type="button" onClick={() => setStatus("review")} className="wb-chip" aria-pressed={status === "review"}>
+          <button
+            type="button"
+            onClick={() => setStatus("review")}
+            className="wb-chip"
+            aria-pressed={status === "review"}
+          >
             {t("workbench.components.review", { defaultValue: "Needs review" })} {findings.length}
           </button>
-          <button type="button" onClick={() => setStatus("verified")} className="wb-chip" aria-pressed={status === "verified"}>
+          <button
+            type="button"
+            onClick={() => setStatus("verified")}
+            className="wb-chip"
+            aria-pressed={status === "verified"}
+          >
             {t("workbench.components.verified", { defaultValue: "Verified" })}
           </button>
-          <button type="button" onClick={() => setStatus("drafts")} className="wb-chip" aria-pressed={status === "drafts"}>
+          <button
+            type="button"
+            onClick={() => setStatus("drafts")}
+            className="wb-chip"
+            aria-pressed={status === "drafts"}
+          >
             {t("workbench.components.drafts", { defaultValue: "Drafts" })}{" "}
             {assets.filter(assetHasDraft).length}
           </button>
@@ -258,7 +298,9 @@ export function ComponentsPage() {
           value={domain}
           onChange={(event) => setDomain(event.target.value)}
         >
-          <option value="all">{t("workbench.components.allDomains", { defaultValue: "Domain: All" })}</option>
+          <option value="all">
+            {t("workbench.components.allDomains", { defaultValue: "Domain: All" })}
+          </option>
           {domains.map(([name, count]) => (
             <option key={name} value={name}>
               {name} ({count})
@@ -270,19 +312,39 @@ export function ComponentsPage() {
           value={sort}
           onChange={(event) => setSort(event.target.value as typeof sort)}
         >
-          <option value="attention">{t("workbench.components.sortAttention", { defaultValue: "Sort: Attention" })}</option>
-          <option value="recent">{t("workbench.components.sortRecent", { defaultValue: "Sort: Recent" })}</option>
-          <option value="adoptions">{t("workbench.components.sortAdoptions", { defaultValue: "Sort: Adoptions" })}</option>
-          <option value="name">{t("workbench.components.sortName", { defaultValue: "Sort: Name" })}</option>
+          <option value="attention">
+            {t("workbench.components.sortAttention", { defaultValue: "Sort: Attention" })}
+          </option>
+          <option value="recent">
+            {t("workbench.components.sortRecent", { defaultValue: "Sort: Recent" })}
+          </option>
+          <option value="adoptions">
+            {t("workbench.components.sortAdoptions", { defaultValue: "Sort: Adoptions" })}
+          </option>
+          <option value="name">
+            {t("workbench.components.sortName", { defaultValue: "Sort: Name" })}
+          </option>
         </Select>
         <Segmented
           label={t("workbench.components.view", { defaultValue: "Result view" })}
           value={view}
           onChange={setView}
           items={[
-            { id: "gallery", label: <Grid2X2 aria-hidden size={14} /> },
-            { id: "list", label: <List aria-hidden size={14} /> },
-            { id: "tree", label: <Network aria-hidden size={14} /> },
+            {
+              id: "gallery",
+              label: <Grid2X2 aria-hidden size={14} />,
+              ariaLabel: t("workbench.components.viewGallery", { defaultValue: "Gallery" }),
+            },
+            {
+              id: "list",
+              label: <List aria-hidden size={14} />,
+              ariaLabel: t("workbench.components.viewList", { defaultValue: "List" }),
+            },
+            {
+              id: "tree",
+              label: <Network aria-hidden size={14} />,
+              ariaLabel: t("workbench.components.viewTree", { defaultValue: "Tree" }),
+            },
           ]}
         />
       </div>
@@ -290,7 +352,11 @@ export function ComponentsPage() {
       {catalog.isError ? (
         <div style={{ marginTop: 14 }}>
           <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
-            <b>{t("workbench.components.errorTitle", { defaultValue: "The catalog could not be read." })}</b>{" "}
+            <b>
+              {t("workbench.components.errorTitle", {
+                defaultValue: "The catalog could not be read.",
+              })}
+            </b>{" "}
             {t("workbench.components.errorBody", {
               defaultValue: "The API did not answer. Nothing is shown as an empty library.",
             })}
@@ -331,9 +397,14 @@ export function ComponentsPage() {
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <Empty title={t("workbench.components.emptyTitle", { defaultValue: "No assets match these filters" })}>
+              <Empty
+                title={t("workbench.components.emptyTitle", {
+                  defaultValue: "No assets match these filters",
+                })}
+              >
                 {t("workbench.components.emptyBody", {
-                  defaultValue: "Clear the search or choose another domain. The library itself is not empty.",
+                  defaultValue:
+                    "Clear the search or choose another domain. The library itself is not empty.",
                 })}
               </Empty>
             ) : view === "gallery" ? (
@@ -379,7 +450,9 @@ export function ComponentsPage() {
               </div>
             )}
             {filtered.length > visible.length ? (
-              <div style={{ padding: 14, borderTop: "1px solid var(--wb-line)", textAlign: "center" }}>
+              <div
+                style={{ padding: 14, borderTop: "1px solid var(--wb-line)", textAlign: "center" }}
+              >
                 <WbButton variant="ghost" size="sm" onClick={() => setLimit((value) => value + 60)}>
                   {t("workbench.components.loadMore", {
                     defaultValue: "Show more · {{shown}} of {{total}}",
@@ -392,9 +465,15 @@ export function ComponentsPage() {
           </PanelBody>
         </Panel>
 
-        <aside className="wb-side-rail">
+        <aside
+          className="wb-side-rail"
+          aria-label={t("workbench.components.filters", { defaultValue: "Catalog filters" })}
+        >
           <Panel>
-            <PanelHead title={t("workbench.components.collections", { defaultValue: "Collections" })} meta={`${domains.length}`} />
+            <PanelHead
+              title={t("workbench.components.collections", { defaultValue: "Collections" })}
+              meta={`${domains.length}`}
+            />
             <PanelBody>
               <div className="wb-stack tight">
                 {collections.map((entry) => (
@@ -404,7 +483,11 @@ export function ComponentsPage() {
                     className="wb-collection-row"
                     onClick={() => setDomain(entry.name)}
                   >
-                    <span className="wb-dot" style={{ background: "var(--wb-signal)" }} aria-hidden />
+                    <span
+                      className="wb-dot"
+                      style={{ background: "var(--wb-signal)" }}
+                      aria-hidden
+                    />
                     <span className="wb-name">{entry.name}</span>
                     <span className="wb-collection-bar">
                       <span style={{ width: `${(entry.count / maxCollection) * 100}%` }} />
@@ -430,7 +513,11 @@ export function ComponentsPage() {
                 </Banner>
               ) : (
                 <div className="wb-health">
-                  <Ring value={verifiedRatio * 100} size={66} tone={verifiedRatio > 0.7 ? "green" : "amber"} />
+                  <Ring
+                    value={verifiedRatio * 100}
+                    size={66}
+                    tone={verifiedRatio > 0.7 ? "green" : "amber"}
+                  />
                   <div className="wb-health-copy">
                     <b>
                       {t("workbench.components.verifiedAssets", {
@@ -450,27 +537,39 @@ export function ComponentsPage() {
                   </div>
                 </div>
               )}
-              <Link to={appRoutes.coverage} className="wb-btn ghost sm wide" style={{ marginTop: 12 }}>
+              <Link
+                to={appRoutes.coverage}
+                className="wb-btn ghost sm wide"
+                style={{ marginTop: 12 }}
+              >
                 {t("workbench.components.openCoverage", { defaultValue: "Open coverage" })}
               </Link>
             </PanelBody>
           </Panel>
 
           <Panel>
-            <PanelHead title={t("workbench.components.health", { defaultValue: "Library pulse" })} />
+            <PanelHead
+              title={t("workbench.components.health", { defaultValue: "Library pulse" })}
+            />
             <PanelBody>
               <div className="wb-stack tight">
                 <div className="wb-row-between">
-                  <span className="wb-small wb-muted">{t("workbench.components.published", { defaultValue: "Published" })}</span>
+                  <span className="wb-small wb-muted">
+                    {t("workbench.components.published", { defaultValue: "Published" })}
+                  </span>
                   <b className="wb-mono">{formatNumber(assets.length)}</b>
                 </div>
                 <Meter value={(assets.length / Math.max(1, assets.length)) * 100} tone="green" />
                 <div className="wb-row-between">
-                  <span className="wb-small wb-muted">{t("workbench.components.draftsLabel", { defaultValue: "Drafts" })}</span>
+                  <span className="wb-small wb-muted">
+                    {t("workbench.components.draftsLabel", { defaultValue: "Drafts" })}
+                  </span>
                   <b className="wb-mono">{assets.filter(assetHasDraft).length}</b>
                 </div>
                 <div className="wb-row-between">
-                  <span className="wb-small wb-muted">{t("workbench.components.pages", { defaultValue: "Design pages" })}</span>
+                  <span className="wb-small wb-muted">
+                    {t("workbench.components.pages", { defaultValue: "Design pages" })}
+                  </span>
                   <b className="wb-mono">—</b>
                 </div>
               </div>
@@ -494,12 +593,7 @@ function AssetCard({ asset, row }: { asset: CatalogAsset; row?: CoverageRow }) {
             {t("workbench.components.previewPending", { defaultValue: "Preview pending" })}
           </span>
         ) : (
-          <img
-            src={previewURL(asset)}
-            alt=""
-            loading="lazy"
-            onError={() => setFailed(true)}
-          />
+          <img src={previewURL(asset)} alt="" loading="lazy" onError={() => setFailed(true)} />
         )}
         <span className="wb-asset-thumb-corner">
           {assetHasDraft(asset)
@@ -514,7 +608,10 @@ function AssetCard({ asset, row }: { asset: CatalogAsset; row?: CoverageRow }) {
         </small>
       </span>
       <span className="wb-asset-foot">
-        <Chip tone={status.tone} title={row?.failedGates.length ? `${row.failedGates.length} failed gates` : undefined}>
+        <Chip
+          tone={status.tone}
+          title={row?.failedGates.length ? `${row.failedGates.length} failed gates` : undefined}
+        >
           <Dot tone={status.tone} />
           {status.label}
         </Chip>

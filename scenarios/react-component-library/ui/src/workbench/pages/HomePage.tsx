@@ -15,7 +15,13 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@vrooli/react-component-library/Card/1";
 import { useTranslation } from "../../i18n";
 import { appRoutes } from "../../routes";
 import {
@@ -79,7 +85,8 @@ export function HomePage() {
   );
 
   const popular = useMemo(
-    () => [...assets].sort((left, right) => assetAdoptions(right) - assetAdoptions(left)).slice(0, 5),
+    () =>
+      [...assets].sort((left, right) => assetAdoptions(right) - assetAdoptions(left)).slice(0, 5),
     [assets],
   );
 
@@ -130,11 +137,17 @@ export function HomePage() {
                 defaultValue: "Search components, props, pages, or paste a component id",
               })}
             />
-            <kbd className="wb-kbd">{t("workbench.home.searchShortcut", { defaultValue: "⌘ K" })}</kbd>
+            <kbd className="wb-kbd">
+              {t("workbench.home.searchShortcut", { defaultValue: "⌘ K" })}
+            </kbd>
           </form>
 
           <div className="wb-home-actions">
-            <WbButton variant="primary" size="md" onClick={() => void navigate(appRoutes.components)}>
+            <WbButton
+              variant="primary"
+              size="md"
+              onClick={() => void navigate(appRoutes.components)}
+            >
               {t("workbench.home.browse", { defaultValue: "Browse components" })}
               <ArrowRight aria-hidden size={15} />
             </WbButton>
@@ -162,13 +175,18 @@ export function HomePage() {
         </div>
 
         <div className="wb-specimen">
+          <h2 className="rcl-visually-hidden">
+            {t("workbench.home.liveSpecimenHeading", { defaultValue: "Live specimen" })}
+          </h2>
           <div className="wb-specimen-stage">
             <div className="wb-specimen-label">
               <span className="wb-chip is-green">
                 <Dot tone="green" />
                 {t("workbench.home.liveSpecimen", { defaultValue: "Live specimen" })}
               </span>
-              <span className="wb-tag">{t("workbench.home.buttonAsset", { defaultValue: "Button · 2.2.14" })}</span>
+              <span className="wb-tag">
+                {t("workbench.home.buttonAsset", { defaultValue: "Button · 2.2.14" })}
+              </span>
             </div>
             <Card className="wb-specimen-card">
               <CardHeader>
@@ -201,7 +219,9 @@ export function HomePage() {
               </CardContent>
             </Card>
             <div className="wb-specimen-target">
-              <span className="wb-tag">{t("workbench.home.target", { defaultValue: "Target 44 × 44" })}</span>
+              <span className="wb-tag">
+                {t("workbench.home.target", { defaultValue: "Target 44 × 44" })}
+              </span>
             </div>
           </div>
           <p className="wb-specimen-caption">
@@ -265,7 +285,11 @@ export function HomePage() {
       {coverage.isError ? (
         <div style={{ marginBottom: 18 }}>
           <Banner tone="amber" icon={<CircleAlert aria-hidden size={16} />}>
-            <b>{t("workbench.home.coverageDownTitle", { defaultValue: "Coverage service did not complete." })}</b>{" "}
+            <b>
+              {t("workbench.home.coverageDownTitle", {
+                defaultValue: "Coverage service did not complete.",
+              })}
+            </b>{" "}
             {t("workbench.home.coverageDownBody", {
               defaultValue:
                 "Health, findings and maturity are shown as unavailable rather than zero. Retry from the Coverage page.",
@@ -295,7 +319,9 @@ export function HomePage() {
                   <Skeleton height={42} />
                 </div>
               ) : recent.length === 0 ? (
-                <Empty title={t("workbench.home.noAssets", { defaultValue: "No assets indexed yet" })}>
+                <Empty
+                  title={t("workbench.home.noAssets", { defaultValue: "No assets indexed yet" })}
+                >
                   {t("workbench.home.noAssetsBody", {
                     defaultValue: "Create the first component or reindex the library to begin.",
                   })}
@@ -351,7 +377,10 @@ export function HomePage() {
                     <span className="wb-caption">
                       {t("workbench.home.lastScenario", { defaultValue: "Scenario" })}
                     </span>
-                    <b>{featuredScenario?.scenario ?? t("workbench.home.noScenario", { defaultValue: "No pages yet" })}</b>
+                    <b>
+                      {featuredScenario?.scenario ??
+                        t("workbench.home.noScenario", { defaultValue: "No pages yet" })}
+                    </b>
                     <span className="wb-muted wb-small">
                       {t("workbench.home.pageCount", {
                         defaultValue: "{{count}} declared pages ready to compose",
@@ -400,9 +429,15 @@ export function HomePage() {
             <PanelBody>
               {report ? (
                 <div className="wb-health">
-                  <Ring value={freshRatio * 100} size={76} tone={freshRatio >= 0.8 ? "green" : "amber"} />
+                  <Ring
+                    value={freshRatio * 100}
+                    size={76}
+                    tone={freshRatio >= 0.8 ? "green" : "amber"}
+                  />
                   <div className="wb-health-copy">
-                    <b>{t("workbench.home.healthTitle", { defaultValue: "Production coverage" })}</b>
+                    <b>
+                      {t("workbench.home.healthTitle", { defaultValue: "Production coverage" })}
+                    </b>
                     <span>
                       {t("workbench.home.healthBody", {
                         defaultValue:
@@ -420,9 +455,14 @@ export function HomePage() {
               ) : coverage.isLoading ? (
                 <Skeleton height={76} />
               ) : (
-                <Empty title={t("workbench.home.coverageUnavailable", { defaultValue: "Coverage unavailable" })}>
+                <Empty
+                  title={t("workbench.home.coverageUnavailable", {
+                    defaultValue: "Coverage unavailable",
+                  })}
+                >
                   {t("workbench.home.coverageUnavailableBody", {
-                    defaultValue: "The service did not complete the report. Nothing is rendered as zero.",
+                    defaultValue:
+                      "The service did not complete the report. Nothing is rendered as zero.",
                   })}
                 </Empty>
               )}
@@ -450,7 +490,8 @@ export function HomePage() {
                     </b>
                     <small>
                       {t("workbench.home.signalCapabilitiesBody", {
-                        defaultValue: "Agent Manager, Experience Manager and UI Health are optional.",
+                        defaultValue:
+                          "Agent Manager, Experience Manager and UI Health are optional.",
                       })}
                     </small>
                   </span>
@@ -510,9 +551,14 @@ export function HomePage() {
             />
             <PanelBody>
               {assets.length === 0 ? (
-                <Empty title={t("workbench.home.emptyCollection", { defaultValue: "The collection is empty" })}>
+                <Empty
+                  title={t("workbench.home.emptyCollection", {
+                    defaultValue: "The collection is empty",
+                  })}
+                >
                   {t("workbench.home.emptyCollectionBody", {
-                    defaultValue: "Create a component, extract one from a scenario, or adopt an asset.",
+                    defaultValue:
+                      "Create a component, extract one from a scenario, or adopt an asset.",
                   })}
                 </Empty>
               ) : (

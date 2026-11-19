@@ -40,7 +40,9 @@ export function FixtureFrame({
   const [harnessStory, setHarnessStory] = useState<string>("");
   const [harnessVersion, setHarnessVersion] = useState<string>("");
 
-  const url = new URL(`${API_BASE.replace(/\/$/, "")}/preview/${encodeURIComponent(assetId)}/harness.html`);
+  const url = new URL(
+    `${API_BASE.replace(/\/$/, "")}/preview/${encodeURIComponent(assetId)}/harness.html`,
+  );
   url.searchParams.set("v", `${version}:${storyId}:${reloadKey}`);
   url.searchParams.set("story", storyId);
   url.searchParams.set("version", version);
@@ -112,13 +114,16 @@ export function FixtureFrame({
   }, [assetId, harnessStory, harnessVersion, override, status, storyId, version]);
 
   return (
-    <span style={{ display: "block", height }} data-fixture-frame="">
+    <span style={{ display: "block", height }} data-fixture-frame="" data-fixture-status={status}>
       {status === "loading" ? (
-        <span className="wb-fixture-state">{t("workbench.component.fixtureLoading", { defaultValue: "Loading specimen…" })}</span>
+        <span className="wb-fixture-state">
+          {t("workbench.component.fixtureLoading", { defaultValue: "Loading specimen…" })}
+        </span>
       ) : null}
       {status === "error" ? (
         <span className="wb-fixture-state" role="alert">
-          {message || t("workbench.component.fixtureError", { defaultValue: "The specimen did not render." })}
+          {message ||
+            t("workbench.component.fixtureError", { defaultValue: "The specimen did not render." })}
         </span>
       ) : null}
       <iframe

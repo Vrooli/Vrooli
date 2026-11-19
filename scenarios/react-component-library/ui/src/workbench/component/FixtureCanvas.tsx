@@ -128,9 +128,13 @@ export function FixtureCanvas({
     );
   }
 
+  const allReady = stories.every((story) => {
+    const status = statuses[story.id];
+    return status === "ready" || status === "applied";
+  });
   return (
     <div className="wb-canvas-wrap">
-      <div className="wb-fixture-canvas">
+      <div className="wb-fixture-canvas" data-fixtures-ready={allReady ? "true" : undefined}>
         {stories.map((story, index) => {
           const position = positions[story.id] ?? defaultPosition(index);
           const selected = selectedId === story.id;

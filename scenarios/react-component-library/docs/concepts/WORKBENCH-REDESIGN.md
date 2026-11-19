@@ -32,17 +32,22 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 
 - `pnpm build` (experience route guard, library pins, token census, selector manifest, string registry, usage-contract types, Vite build): pass.
 - `pnpm run catalog:check` (token check, export map, strict catalog TypeScript, catalog ESLint): pass.
-- UI unit suite: 93 files / 459 tests pass.
-- Go `handlers/preview`, `handlers/catalog`, `internal/catalogcoverage`: pass.
+- UI unit suite: 95 files / 462 tests pass.
+- Go `handlers/preview`, `handlers/catalog`, `handlers/components`, `internal/components`, `internal/catalogcoverage`: pass; `internal/gates` retains only the two accepted released-artifact findings.
 - Browser sweep: every route at 1440, 390 and 320; no horizontal document overflow, no page errors. The only console noise is two honest `404`s for asset previews that have no captured image (`TimeMention`, `RunLadder`), which the gallery renders as “Preview pending”.
 - Governed source editor exercised in Chromium: opened a draft, appended and saved through `UpdateComponentContent` with the read digest, ran `UpdateComponentContent` → `CheckComponentVersion` to a passing draft, then restored the exact original bytes (SHA matched) and re-checked. No console errors. Monaco is served from the scenario bundle; the editor chunk is fetched only on first edit.
 - Phone authoring: Source opens at 390/320 with a working Monaco surface, no overflow. Design studio at 390/320 exposes the layer tree and inspector as bottom sheets, and adding, editing, duplicating, removing and accepting a revision all worked. In-context defaults to the phone frame on a narrow viewport and the slot drag/resize stayed inside the frame.
 - Coverage cold path: the first full gate pass is minutes, so the API now persists its report (`~/.vrooli/data/vrooli/react-component-library/coverage-report-v1.json`), serves stale while refreshing, coalesces cold callers and returns an explicit “being prepared” state. The coverage page polls and never renders zero while waiting.
+- Governed capture: all eleven routes captured through BAS at phone (390) and desktop (1280), dark theme. Captures live in `~/.vrooli/data/react-component-library/ux-captures/workbench-20261119/<route>/` with the BAS bundle id, pixel SHA-256 and frozen page. Component and Preview use `[data-fixtures-ready]` / `[data-fixture-status="ready"]` wait selectors so the real harness is in frame.
+- Accessibility: axe-core reports **zero violations** on every route at 1440 and 390. Fixed critical button names on icon-only segmented controls, tablist structure, decorative-landmark duplication, scrollable-region focusability, heading order, and the muted-metadata contrast token (3.2:1 → 4.9:1). Added a focus trap with Escape/restore for the command palette, Present mode and the phone studio sheets; Tabs now use a roving tab index with Arrow/Home/End.
+- Reduced motion: with `prefers-reduced-motion: reduce`, no element in any route (or its harness iframes) has an animation or transition above 10 ms, and scroll behavior is `auto`. The Settings “Reduce motion” switch forces the same contract through `data-wb-reduce-motion`.
+- Forced colors: every route was rendered under `forced-colors: active`; no text with matching foreground/background was found. Primary buttons were painting their label as a solid block, so they now opt out and keep a 12:1 pair. Chart swatches, meters, matrix cells and dividers gain explicit `CanvasText` outlines so graphical meaning survives the palette flattening.
 
-### Still blocked
+### Still open
 
-- **Governed page/component captures** — `page capture` and `preview capture` return `503 lifecycle admission closed` from the capture service on this host. Pixel, accessibility-tree and console evidence for the new pages is therefore not fresh; the browser sweep above is diagnostic, not governed evidence.
-- **Full phone certification** — all eleven routes were exercised at 390 and 320 for overflow and navigation; the source editor, studio sheets and in-context drag/resize were exercised directly. Keyboard focus order, reduced-motion/forced-colors and governed captures for every state and gesture remain open.
+- **State breadth in governed captures** — each route has a default phone and desktop capture. Interaction states beyond the default (L6) are only captured when a `--step` is supplied; the workbench does not yet script every state for every route.
+- **Lens partials** — outline captures exceed the 8000-token outline budget on dense pages (L2 partial), and the Nocturne token scale is not projected into the RCL token family the style census recognizes (L3 partial). Neither is a missing capture.
+- **Phone state coverage** — all eleven routes were exercised at 390 and 320 for overflow/navigation; the source editor, studio sheets, in-context drag/resize and keyboard traps were exercised directly. Every loading/empty/partial/error state is not separately scripted.
 - **Pre-existing corpus findings** — five releases have no provenance record, `AppNotificationSettings@1.0.6` still carries library-owned utility classes, and the published `CommandCenterShell@1.0.5` type omits the `metrics[].id` its contract now requires. Coverage surfaces them as findings; they are not redesign regressions.
 - **Activity durability** — Activity remains an index-derived projection. A durable event store is still required before claiming human attribution.
 

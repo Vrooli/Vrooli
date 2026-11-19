@@ -25,7 +25,8 @@
   --wb-ink: #f7f1e8;
   --wb-ink-2: #ded4c8;
   --wb-muted: #a79b92;
-  --wb-muted-2: #71655e;
+  /* 4.9:1 against the darkest panel; the old #71655e was 3.2:1. */
+  --wb-muted-2: #8f8580;
   --wb-signal: #ffb35c;
   --wb-signal-strong: #ffc785;
   --wb-signal-soft: rgba(255, 179, 92, 0.13);
@@ -45,7 +46,8 @@
 
   /* Type */
   --wb-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-  --wb-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --wb-sans:
+    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --wb-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
   /* Geometry */
@@ -240,7 +242,10 @@
   font-size: 13px;
   font-weight: 550;
   text-align: left;
-  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .wb-nav-item:hover {
@@ -421,7 +426,10 @@
   border-radius: var(--wb-r-sm);
   background: #0d1018;
   color: var(--wb-muted);
-  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
 }
 
 .wb-iconbtn:hover {
@@ -539,7 +547,11 @@
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
 }
 
 .wb-btn:disabled {
@@ -929,7 +941,9 @@ button.wb-chip[aria-pressed="true"] {
   border: 1px solid var(--wb-line-2);
   border-radius: var(--wb-r-pill);
   background: #0d1018;
-  transition: background 160ms ease, border-color 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
 }
 
 .wb-toggle::after {
@@ -938,7 +952,9 @@ button.wb-chip[aria-pressed="true"] {
   height: 16px;
   border-radius: 50%;
   background: var(--wb-muted-2);
-  transition: transform 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
 }
 
 .wb-toggle[aria-checked="true"] {
@@ -1373,9 +1389,37 @@ button.wb-chip[aria-pressed="true"] {
     border-color: CanvasText;
   }
 
+  /* RCL's control surface keeps its own background through forced colors, so
+     Chromium paints the label as a solid block. Opt this one family out and
+     supply the system pair explicitly. */
   .wb-btn.primary {
-    background: Highlight;
-    color: HighlightText;
+    forced-color-adjust: none;
+    background: Highlight !important;
+    border-color: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  .wb-btn.primary svg {
+    forced-color-adjust: none;
+    color: HighlightText !important;
+  }
+
+  .wb-btn.primary[data-control-below-tap-target="true"] {
+    border-color: Highlight !important;
+  }
+
+  /* Forced colors flattens background colors, so purely graphical marks need
+     an explicit outline to remain meaning-bearing. */
+  .tpl-swatch,
+  .wb-meter,
+  .wb-matrix-cell,
+  .wb-swatch {
+    border: 1px solid CanvasText;
+  }
+
+  .tpl-divider,
+  .wb-meter-fill {
+    background: CanvasText !important;
   }
 }
 

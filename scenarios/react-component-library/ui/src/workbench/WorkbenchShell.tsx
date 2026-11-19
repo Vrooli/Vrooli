@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -27,6 +20,7 @@ import { useTranslation } from "../i18n";
 import { appRoutes } from "../routes";
 import { useCatalog, useDesignScenarios, useCoverage, findingsFromCoverage } from "./data";
 import { cx } from "./cx";
+import { useFocusTrap } from "./useFocusTrap";
 import { applyWorkbenchPreferences, readWorkbenchPreferences } from "./preferences";
 
 interface NavItem {
@@ -61,7 +55,8 @@ function crumbFor(pathname: string): { key: string; fallback: string } {
   }
   if (pathname === "/review") return { key: "workbench.nav.review", fallback: "Review" };
   if (pathname === "/coverage") return { key: "workbench.nav.coverage", fallback: "Coverage" };
-  if (pathname === "/capabilities") return { key: "workbench.nav.capabilities", fallback: "Capabilities" };
+  if (pathname === "/capabilities")
+    return { key: "workbench.nav.capabilities", fallback: "Capabilities" };
   if (pathname === "/activity") return { key: "workbench.nav.activity", fallback: "Activity" };
   if (pathname === "/settings") return { key: "workbench.nav.settings", fallback: "Settings" };
   if (pathname === "/new") return { key: "workbench.nav.create", fallback: "New asset" };
@@ -158,9 +153,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (commandOpen) commandInput.current?.focus();
-  }, [commandOpen]);
+  const commandLayerRef = useFocusTrap<HTMLDivElement>(commandOpen, () => setCommandOpen(false));
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -191,7 +184,10 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   return (
     <div className="wb-root" data-workbench="nocturne" data-testid="workbench-shell">
       <div className="wb-app">
-        <aside className="wb-rail">
+        <aside
+          className="wb-rail"
+          aria-label={t("workbench.nav.rail", { defaultValue: "Library navigation" })}
+        >
           <Link to={appRoutes.home} className="wb-brand">
             <span className="wb-brand-mark" aria-hidden>
               <LayoutGrid size={16} />
@@ -202,15 +198,26 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
             </span>
           </Link>
 
-          <nav className="wb-nav" aria-label={t("workbench.nav.label", { defaultValue: "Workbench" })}>
+          <nav
+            className="wb-nav"
+            aria-label={t("workbench.nav.label", { defaultValue: "Workbench" })}
+          >
             {items.slice(0, 3).map((item) => (
-              <NavItemLink key={item.id} item={item} current={isCurrent(location.pathname, item.href)} />
+              <NavItemLink
+                key={item.id}
+                item={item}
+                current={isCurrent(location.pathname, item.href)}
+              />
             ))}
             <div className="wb-nav-label">
               {t("workbench.nav.operations", { defaultValue: "Operations" })}
             </div>
             {items.slice(3).map((item) => (
-              <NavItemLink key={item.id} item={item} current={isCurrent(location.pathname, item.href)} />
+              <NavItemLink
+                key={item.id}
+                item={item}
+                current={isCurrent(location.pathname, item.href)}
+              />
             ))}
           </nav>
 
@@ -264,7 +271,11 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                 aria-label={t("workbench.command.open", { defaultValue: "Search the workbench" })}
               >
                 <Search aria-hidden size={14} />
-                <span>{t("workbench.command.placeholder", { defaultValue: "Search assets, props, evidence…" })}</span>
+                <span>
+                  {t("workbench.command.placeholder", {
+                    defaultValue: "Search assets, props, evidence…",
+                  })}
+                </span>
                 <kbd>{t("workbench.command.shortcut", { defaultValue: "⌘ K" })}</kbd>
               </button>
               <button
@@ -284,7 +295,10 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
         </div>
       </div>
 
-      <nav className="wb-mobile-nav" aria-label={t("workbench.nav.mobile", { defaultValue: "Workbench" })}>
+      <nav
+        className="wb-mobile-nav"
+        aria-label={t("workbench.nav.mobile", { defaultValue: "Workbench" })}
+      >
         {items.slice(0, 5).map((item) => (
           <NavLink
             key={item.id}
@@ -299,6 +313,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
 
       {commandOpen ? (
         <div
+          ref={commandLayerRef}
           className="wb-command-layer"
           role="dialog"
           aria-modal="true"
@@ -311,7 +326,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                 ref={commandInput}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                aria-label={t("workbench.command.input", { defaultValue: "Search assets and pages" })}
+                aria-label={t("workbench.command.input", {
+                  defaultValue: "Search assets and pages",
+                })}
                 placeholder={t("workbench.command.placeholder", {
                   defaultValue: "Search assets, props, evidence…",
                 })}
@@ -320,7 +337,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
             </div>
             <div className="wb-command-results">
               <div className="wb-command-group">
-                <span className="wb-caption">{t("workbench.command.assets", { defaultValue: "Assets" })}</span>
+                <span className="wb-caption">
+                  {t("workbench.command.assets", { defaultValue: "Assets" })}
+                </span>
                 {results.assets.length === 0 ? (
                   <p className="wb-muted wb-small" style={{ padding: "6px 10px" }}>
                     {t("workbench.command.noAssets", { defaultValue: "No matching assets." })}
@@ -340,7 +359,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                         <b>{asset.displayName}</b>
                         <small>{asset.catalogId || asset.libraryId}</small>
                       </span>
-                      <span className="wb-tag">{asset.latestVersion || asset.version || "draft"}</span>
+                      <span className="wb-tag">
+                        {asset.latestVersion || asset.version || "draft"}
+                      </span>
                     </button>
                   ))
                 )}
@@ -384,7 +405,11 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                 <Command aria-hidden size={12} />
                 {t("workbench.command.foot", { defaultValue: "Enter to open · Esc to close" })}
               </span>
-              <button type="button" className="wb-btn quiet sm" onClick={() => setCommandOpen(false)}>
+              <button
+                type="button"
+                className="wb-btn quiet sm"
+                onClick={() => setCommandOpen(false)}
+              >
                 {t("workbench.command.close", { defaultValue: "Close" })}
               </button>
             </div>
