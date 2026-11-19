@@ -74,7 +74,7 @@
             "minMembers": { "type": "integer", "minimum": 1 },
             "requireFor": { "type": "string", "minLength": 1, "description": "file or glob that activates the absence rule" },
             "requirePresent": { "type": "string", "minLength": 1, "description": "file or JSON pointer target required when requireFor matches" },
-            "forbidKind": { "enum": ["executable"], "description": "artifact kind forbidden when the absence rule matches" }
+            "forbidKind": { "enum": ["executable", "file"], "description": "artifact kind forbidden when the absence rule matches" }
           }
         },
         "scope": {

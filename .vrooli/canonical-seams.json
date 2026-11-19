@@ -460,7 +460,7 @@
       "canonical": "test-genie managed coverage output",
       "why": "Generated coverage output must remain ephemeral and must not become grader source.",
       "remediation": "Remove the committed coverage artifact and let test-genie regenerate it.",
-      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "coverage.out" },
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "coverage.out", "forbidKind": "file" },
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0
@@ -470,7 +470,7 @@
       "canonical": "test-genie managed test sources",
       "why": "Backup source files are not part of a scenario's reviewed implementation.",
       "remediation": "Remove the committed test backup artifact.",
-      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "smart_scanner_test.go.backup" },
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "smart_scanner_test.go.backup", "forbidKind": "file" },
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0
@@ -480,7 +480,7 @@
       "canonical": "test-genie managed logs",
       "why": "Test logs are run output and must not be committed as scenario source.",
       "remediation": "Remove the committed test log artifact.",
-      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "test-output.log" },
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "test-output.log", "forbidKind": "file" },
       "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
       "severity": "medium",
       "budget": 0

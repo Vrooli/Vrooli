@@ -192,8 +192,11 @@ func loadSeamsFile(path string, allowDisabled bool) ([]Seam, error) {
 			if seam.Bypass.RequireFor == "" || (seam.Bypass.RequirePresent == "" && seam.Bypass.ForbidKind == "") {
 				return nil, fmt.Errorf("canonical seam %q absence requires requireFor and either requirePresent or forbidKind", seam.ID)
 			}
-			if seam.Bypass.ForbidKind != "" && seam.Bypass.ForbidKind != "executable" {
+			if seam.Bypass.ForbidKind != "" && seam.Bypass.ForbidKind != "executable" && seam.Bypass.ForbidKind != "file" {
 				return nil, fmt.Errorf("canonical seam %q has unsupported forbidden kind %q", seam.ID, seam.Bypass.ForbidKind)
+			}
+			if seam.Bypass.ForbidKind == "file" && strings.TrimSpace(seam.Bypass.RequirePresent) == "" {
+				return nil, fmt.Errorf("canonical seam %q forbidden file requires requirePresent", seam.ID)
 			}
 		}
 		if seam.Bypass.ShapeKind != "" && !validShapeKind(seam.Bypass.ShapeKind) {
@@ -1078,6 +1081,26 @@ func scanAbsenceSeams(treeRoot string, files []seamTreeFile, seams []compiledSea
 				}
 				if executable {
 					hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: "executable artifact", Line: 1})
+				}
+				return nil
+			}
+			if candidate.seam.Bypass.ForbidKind == "file" {
+				target := strings.TrimSpace(candidate.seam.Bypass.RequirePresent)
+				if target == "" {
+					return nil
+				}
+				matched := false
+				if strings.Contains(target, "/") {
+					matched = seamGlob(target).MatchString(rel)
+				} else {
+					var matchErr error
+					matched, matchErr = filepath.Match(target, filepath.Base(rel))
+					if matchErr != nil {
+						return matchErr
+					}
+				}
+				if matched {
+					hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: target, Line: 1})
 				}
 				return nil
 			}

@@ -483,6 +483,24 @@ func TestScanSeamsReportsForbiddenExecutable(t *testing.T) {
 	}
 }
 
+func TestScanSeamsReportsForbiddenNamedFile(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "scenarios/app/coverage.out", "coverage")
+	writeSeamTestFile(t, root, "scenarios/app/kept.go", "package app\n")
+	seams := []Seam{{
+		ID: "no-coverage", Canonical: "ephemeral coverage", Why: "generated", Remediation: "remove it",
+		Bypass: SeamBypass{Kind: "absence", Pattern: "^$", RequireFor: "scenarios/app/**", RequirePresent: "coverage.out", ForbidKind: "file"},
+		Scope:  SeamScope{Include: []string{"scenarios/app/**"}}, Severity: "medium",
+	}}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].Path != "scenarios/app/coverage.out" {
+		t.Fatalf("forbidden file hits = %#v", hits)
+	}
+}
+
 func TestSeamFindingsReportSlackAndNeverMatchesWithoutHits(t *testing.T) {
 	seam := Seam{ID: "never", Canonical: "canonical", Why: "coverage", Remediation: "repair", Severity: "high", Budget: 5, Reserve: 1, ReserveReason: "one reviewed exception"}
 	findings := seamFindings("sample", []Seam{seam}, nil)
