@@ -101,3 +101,32 @@ func waitFor(t *testing.T, ok func() bool) {
 	}
 	t.Fatal("condition not reached")
 }
+
+// A cold cache after a restart must not hold the watchdog past its timeout: the
+// probe answers optimistically and the refresh lands on the next probe.
+func TestColdProbeAnswersWithinBudget(t *testing.T) {
+	now := time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)
+	inner := &slowPosture{release: make(chan struct{})}
+	inner.detail.Store("7 issues")
+	c := newCachedPosture(inner, 15*time.Second, 10*time.Minute, func() time.Time { return now })
+	c.budget = 10 * time.Millisecond
+
+	started := time.Now()
+	degraded, detail, err := c.OverdueOrFailed(context.Background())
+	if el := time.Since(started); el > time.Second {
+		t.Fatalf("cold probe blocked %v; it must answer within the budget", el)
+	}
+	if err != nil || degraded || detail != "" {
+		t.Fatalf("cold probe = %v %q %v, want an optimistic answer", degraded, detail, err)
+	}
+
+	close(inner.release)
+	waitFor(t, func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return !c.refreshing && c.have
+	})
+	if d, detail, _ := c.OverdueOrFailed(context.Background()); !d || detail != "7 issues" {
+		t.Fatalf("after refresh = %v %q, want the computed answer", d, detail)
+	}
+}

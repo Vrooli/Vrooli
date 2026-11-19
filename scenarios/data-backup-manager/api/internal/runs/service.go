@@ -441,7 +441,7 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 		evidenceErrs                         []string
 		wg                                   sync.WaitGroup
 	)
-	sem := make(chan struct{}, s.targetConcurrency())
+	sem := make(chan struct{}, s.targetConcurrencyFor(ctx, plan.DestinationIDs))
 	for _, u := range units {
 		wg.Add(1)
 		sem <- struct{}{}
@@ -566,6 +566,39 @@ func repoGrowth(pre, post map[string]int64) int64 {
 		}
 	}
 	return total
+}
+
+// targetConcurrencyFor keeps parallelism, except where the destination takes an
+// exclusive host volume lease for the whole snapshot. That lease is held until
+// the snapshot finishes, so parallel units to the same volume do not overlap:
+// they queue behind the holder and every waiter past the lease readiness bound
+// fails as destination_inaccessible. Running those units one at a time is the
+// only shape that both keeps the lease's safety property and lets a long
+// snapshot finish. A local filesystem destination without a strong device
+// identity keeps the configured parallelism.
+func (s *service) targetConcurrencyFor(ctx context.Context, destinationIDs []string) int {
+	concurrency := s.targetConcurrency()
+	if concurrency <= 1 || s.deps.Destinations == nil {
+		return concurrency
+	}
+	for _, id := range destinationIDs {
+		destination, err := s.deps.Destinations.DestinationForRun(ctx, id)
+		if err != nil {
+			continue
+		}
+		if requiresVolumeLease(destination) {
+			s.logf("serializing targets for destination %s: it holds an exclusive host volume lease", destination.Name)
+			return 1
+		}
+	}
+	return concurrency
+}
+
+// requiresVolumeLease mirrors destinations.service.withVolumeOperationLease:
+// a filesystem destination with a strong device identity and a bundle-relative
+// path serializes every write through the host owner's lease.
+func requiresVolumeLease(d DestinationForRun) bool {
+	return d.BackendKind == "filesystem" && d.DeviceIdentity != nil && d.DeviceIdentity.StrongIdentity()
 }
 
 // targetConcurrency bounds in-run target×destination parallelism (>= 1).

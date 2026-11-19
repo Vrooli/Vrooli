@@ -20,7 +20,14 @@ import (
 // `vrooli host volume lease` freezes an entire backup run indefinitely with a
 // stopped heartbeat and no operator-visible failure. The bound applies only to
 // the handshake; an acquired lease stays held for the whole operation.
-const DefaultLeaseReadyTimeout = 30 * time.Second
+//
+// Two minutes, not thirty seconds: the control plane inspects the volume before
+// it answers, and a restore, drill, or another read on the same spinning USB
+// disk can keep that inspection from finishing inside 30s. Writer fan-out is
+// already serialized per lease-bound destination (runs.targetConcurrencyFor),
+// so this bound only has to absorb read contention, not queue behind a whole
+// snapshot.
+const DefaultLeaseReadyTimeout = 2 * time.Minute
 
 // VolumeOperationLease holds the host owner's cooperative lock for a strong
 // volume identity. DBM keeps the returned release function alive across its

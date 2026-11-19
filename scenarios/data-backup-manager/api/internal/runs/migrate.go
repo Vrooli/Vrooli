@@ -61,7 +61,97 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_plan ON runs(plan_id) WHERE status IN ('pending', 'capturing', 'snapshotting')`); err != nil {
 		return fmt.Errorf("active plan run index migration failed: %w", err)
 	}
+	if err := ensureIncidentTargetKey(ctx, db); err != nil {
+		return err
+	}
 	return nil
+}
+
+// ensureIncidentTargetKey widens the run_incidents primary key to include the
+// target set. A target-scope cause belongs to exactly one target, so two
+// unreadable sources are two incidents even when code, scope, and destination
+// are equal. Without target_ids in the key the second one violated the
+// constraint and its evidence was dropped. SQLite cannot alter a primary key
+// in place, so the table is rebuilt and copied.
+func ensureIncidentTargetKey(ctx context.Context, db SQLExecutor) error {
+	columns, err := tableColumns(ctx, db, "run_incidents")
+	if err != nil {
+		return err
+	}
+	if len(columns) == 0 {
+		// A crash between DROP and RENAME leaves only the migrated table.
+		migrated, err := tableColumns(ctx, db, "run_incidents_migrated")
+		if err != nil {
+			return err
+		}
+		if len(migrated) == 0 {
+			return nil // EnsureSchemas creates the fresh table on the next boot.
+		}
+		_, err = db.ExecContext(ctx, `ALTER TABLE run_incidents_migrated RENAME TO run_incidents`)
+		return err
+	}
+	key, err := primaryKeyColumns(ctx, db, "run_incidents")
+	if err != nil {
+		return err
+	}
+	if key["target_ids"] {
+		return nil
+	}
+	statements := []string{
+		`DROP TABLE IF EXISTS run_incidents_migrated`,
+		`CREATE TABLE run_incidents_migrated (
+			run_id TEXT NOT NULL,
+			code TEXT NOT NULL,
+			category TEXT NOT NULL,
+			scope TEXT NOT NULL,
+			message TEXT NOT NULL DEFAULT '',
+			next_action TEXT NOT NULL DEFAULT '',
+			destination_id TEXT NOT NULL DEFAULT '',
+			target_ids TEXT NOT NULL DEFAULT '[]',
+			first_observed TEXT NOT NULL DEFAULT '',
+			last_observed TEXT NOT NULL DEFAULT '',
+			last_known_good TEXT NOT NULL DEFAULT '',
+			retryable INTEGER NOT NULL DEFAULT 0,
+			retry_after_seconds INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (run_id, code, scope, destination_id, target_ids),
+			FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
+		)`,
+		`INSERT OR IGNORE INTO run_incidents_migrated SELECT run_id, code, category, scope, message, next_action, destination_id, target_ids, first_observed, last_observed, last_known_good, retryable, retry_after_seconds FROM run_incidents`,
+		`DROP TABLE run_incidents`,
+		`ALTER TABLE run_incidents_migrated RENAME TO run_incidents`,
+	}
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("widen run_incidents key: %w", err)
+		}
+	}
+	return nil
+}
+
+func primaryKeyColumns(ctx context.Context, db SQLExecutor, table string) (map[string]bool, error) {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return nil, fmt.Errorf("introspect %s primary key: %w", table, err)
+	}
+	defer rows.Close()
+	key := map[string]bool{}
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			ctype      string
+			notNull    int
+			dfltValue  any
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &primaryKey); err != nil {
+			return nil, fmt.Errorf("scan %s primary key: %w", table, err)
+		}
+		if primaryKey > 0 {
+			key[name] = true
+		}
+	}
+	return key, rows.Err()
 }
 
 func tableColumns(ctx context.Context, db SQLExecutor, table ...string) (map[string]struct{}, error) {

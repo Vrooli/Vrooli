@@ -1403,6 +1403,29 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 	bad := 0
 	represented := 0
 	targetReasons := map[string]int{}
+	var enabledPlans []plansint.Plan
+	coveredTargets := map[string]bool{}
+	coverageKnown := false
+	// Health answers "are the backups we intend to take healthy?". A target
+	// that no enabled plan covers has no schedule to be overdue against, so its
+	// last historical failure must not keep the service degraded. Load the
+	// resolved plans once here and reuse them for the destination checks below.
+	if a.plans != nil {
+		list, err := a.plans.List(ctx, 100)
+		if err != nil {
+			return false, "", fmt.Errorf("load backup plans for health: %w", err)
+		}
+		coverageKnown = true
+		for _, plan := range list {
+			if !plan.Enabled {
+				continue
+			}
+			enabledPlans = append(enabledPlans, plan)
+			for _, targetID := range plan.TargetIDs {
+				coveredTargets[targetID] = true
+			}
+		}
+	}
 	if a.runs != nil {
 		statuses, err := a.runs.ListTargetStatus(ctx, nil)
 		if err != nil {
@@ -1410,6 +1433,9 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 		}
 		for _, s := range statuses {
 			if !s.Overdue {
+				continue
+			}
+			if coverageKnown && !coveredTargets[s.TargetID] {
 				continue
 			}
 			bad++
@@ -1434,15 +1460,8 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 	// freshness. Manifest enumeration is intentionally left to the per-run
 	// preflight: it can exceed the health probe's short timeout on large repos.
 	if a.plans != nil && a.destinations != nil && a.engine != nil {
-		plans, err := a.plans.List(ctx, 100)
-		if err != nil {
-			return false, "", fmt.Errorf("load backup plans for health: %w", err)
-		}
 		checked := map[string]bool{}
-		for _, plan := range plans {
-			if !plan.Enabled {
-				continue
-			}
+		for _, plan := range enabledPlans {
 			for _, id := range plan.DestinationIDs {
 				if checked[id] {
 					continue

@@ -1463,3 +1463,86 @@ resource-kopia repo connect --name baseline-safety --backend filesystem \
 ```
 
 The drive destinations self-heal because their rebind path runs `repo connect`.
+
+### 2026-11-19 — root-only host state is explicit, not excluded
+
+The current unreadable set is six paths, not four: the two `sudoers.d` files,
+`/etc/vrooli/local-service-admission.json`, `/var/log/vrooli/log-volume-bounds`,
+`/var/lib/rasdaemon/ras-mc_event.db`, and `/var/lib/docker`. Only the last two
+are kept out of the plans, because container layers are reacquirable and the
+rasdaemon database is a hardware event log owned by another service. The other
+four remain registered and in both selector plans on purpose: they are
+hand-authored privilege policy and audit evidence, and a silent exclusion would
+claim complete coverage for state with no copy. They will keep `/health`
+degraded until the control plane gains a supported privileged read for exact
+paths. Do not remove them from the plans to make the verdict green.
+
+The per-target cause is now attributed correctly (see the preflight incident
+merge fix), so each blocked path names itself instead of naming the first
+unreadable target in the run.
+
+### 2026-11-19 — `runs browse` restores the whole snapshot before listing it
+
+**Symptom:** browsing a large snapshot (`research-desk/research-home`, 73 GB)
+allocates multi-GB temp trees, runs for minutes, exceeds DBM's 512 KiB/128-entry
+response bounds, and can starve the host-volume lease handshake for every other
+target. Two browse attempts left about 10 GB in `/tmp/resource-kopia-browse-*`.
+
+**Root cause:** `resource-kopia snapshot browse` runs `kopia snapshot restore`
+into a temp directory and then walks it. Kopia has a native `list <object-path>`
+that reads the directory object without restoring contents, but the wrapper
+does not use it. `--path` does not reduce the restore cost.
+
+**Workaround:** do not browse a large snapshot; use `restores verify` or a
+path-scoped audit instead, and remove `/tmp/resource-kopia-browse-*` afterwards.
+
+**Real fix:** replace the restore-backed browse with `kopia list` (parse its
+long output, or add a JSON projection in the wrapper), and cap the response by
+paging rather than rejecting at 512 KiB.
+
+**Owner:** resource-kopia with Data Backup Manager.
+
+**Refs:** `resources/kopia/cli/internal/snapshot/snapshot.go` `Browse`,
+`scenarios/data-backup-manager/api/internal/engine/kopia.go` `BrowseSnapshot`.
+
+### 2026-11-19 — health's first post-restart probe caches cold-start failures
+
+**Symptom:** for up to ten minutes after a DBM restart, `/health` reports
+`repository <name> unavailable` and `destination <id> unavailable` for every
+destination, while `destinations usage` answers normally.
+
+**Root cause:** the first cached posture probe runs while resource-kopia is
+still warming/refreshing. Its failures are stored as the stale-but-servable
+result and only replaced when the next background probe finishes.
+
+**Workaround:** wait for the next probe (the log line changes from
+`+ N unavailable` to only the real target issues) before acting on the verdict.
+
+**Real fix:** do not publish the first cold-start probe as the cached verdict;
+retry failed destination connectivity once within the same probe, or mark the
+result "warming" instead of "unavailable".
+
+**Owner:** Data Backup Manager health adapter.
+
+**Refs:** `api/adapters.go` `backupPosture.OverdueOrFailed`,
+`api/handlers/health/cached_posture.go`.
+
+### 2026-11-19 — lease-bound destinations need serial target fan-out (fixed)
+
+**Symptom:** a drive plan with four-way target fan-out failed a large share of
+targets with `destination_inaccessible`, `acquire host volume operation lease:
+did not become ready within 30s; the control plane lease owner did not answer`.
+
+**Root cause:** each snapshot holds the exclusive host-volume lease until the
+snapshot ends, so three of four concurrent units were waiters. The 30-second
+bound is a handshake bound, not a queue bound, so waiters failed instead of
+waiting for the holder to finish.
+
+**Fix:** `runs.targetConcurrencyFor` now forces one target at a time when any
+destination has a strong filesystem identity and therefore takes the lease. A
+legacy path destination without device identity keeps the configured
+parallelism. The handshake bound rose to two minutes so a concurrent verify,
+drill, or browse on the same spinning disk cannot starve the control plane's
+volume inspection; it remains bounded for a genuinely hung control plane.
+
+**Refs:** `api/internal/runs/service.go`, `api/internal/runs/concurrency_test.go`.

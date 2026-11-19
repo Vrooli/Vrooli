@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"data-backup-manager/internal/destinationreadiness"
@@ -400,6 +401,54 @@ func (c *capacityAwareReadiness) Analyze(_ context.Context, in destinationreadin
 		}}}, nil
 	}
 	return destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityPass}, nil
+}
+
+func TestCheckKeepsEachUnreadableTargetsOwnCause(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission denial cannot be produced as root")
+	}
+	root := t.TempDir()
+	targets := map[string]Target{}
+	for _, name := range []string{"sealed-one", "sealed-two"} {
+		dir := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Join(dir, "inner"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "inner", "x"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(filepath.Join(dir, "inner"), 0); err != nil {
+			t.Fatal(err)
+		}
+		inner := filepath.Join(dir, "inner")
+		t.Cleanup(func() { _ = os.Chmod(inner, 0o755) })
+		targets[name] = Target{ID: name, Kind: sources.KindFilesystem, Locator: dir}
+	}
+
+	r := Check(context.Background(), Input{
+		Plan:         Plan{TargetIDs: []string{"sealed-one", "sealed-two"}, DestinationIDs: []string{"d1"}},
+		Targets:      targetLookup{targets: targets},
+		Destinations: destLookup{destinations: map[string]Destination{"d1": {ID: "d1", Name: "local", BackendKind: "filesystem", Location: "/mnt/local"}}},
+		Engine:       &engineFake{}, Sources: sources.NewRegistry(&captureFake{kind: sources.KindFilesystem}),
+		Readiness: &capacityAwareReadiness{}, CheckSourcePaths: true,
+	})
+
+	for _, name := range []string{"sealed-one", "sealed-two"} {
+		cause, blocked := r.BlockedTargets[name]
+		if !blocked {
+			t.Fatalf("%s must be blocked on its own: %+v", name, r.Incidents)
+		}
+		if !strings.Contains(cause.Message, name) {
+			t.Fatalf("%s was reported with another target's cause: %q", name, cause.Message)
+		}
+		other := "sealed-two"
+		if name == other {
+			other = "sealed-one"
+		}
+		if strings.Contains(cause.Message, other) {
+			t.Fatalf("%s was reported with %s's path: %q", name, other, cause.Message)
+		}
+	}
 }
 
 func TestCheckBlocksOnlyTheUnreadableTargetNotTheDestination(t *testing.T) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"testing"
@@ -313,16 +314,36 @@ func TestBackupPostureGroupsTargetFailuresByRedactedCause(t *testing.T) {
 	require.NotContains(t, detail, "secret-target-id", "health should group by cause instead of exposing opaque target IDs")
 }
 
+func TestBackupPostureIgnoresFailuresOutsideEnabledPlans(t *testing.T) {
+	runService := &runsmocks.FakeService{StatusOut: []runsint.TargetStatus{
+		{TargetID: "planned", LastRunStatus: runsint.RunCompleted, Overdue: false},
+		{TargetID: "excluded-after-failure", LastRunStatus: runsint.RunFailed, LastFailureCategory: "source", LastFailureCode: "source_missing", Overdue: true},
+	}}
+	planService := &planmocks.FakeService{ListOut: []plans.Plan{
+		{ID: "enabled", Enabled: true, TargetIDs: []string{"planned"}},
+		{ID: "disabled", Enabled: false, TargetIDs: []string{"excluded-after-failure"}},
+	}}
+
+	degraded, detail, err := (backupPosture{runs: runService, plans: planService}).OverdueOrFailed(context.Background())
+	require.NoError(t, err)
+	require.False(t, degraded, "a target no enabled plan covers must not keep health degraded: %s", detail)
+}
+
 func TestBackupPostureMoreCountCountsIssuesNotSummaryRows(t *testing.T) {
 	statuses := make([]runsint.TargetStatus, 0, 30)
+	covered := make([]string, 0, 30)
 	for i := 0; i < 21; i++ {
-		statuses = append(statuses, runsint.TargetStatus{TargetID: "missing", LastRunStatus: runsint.RunFailed, LastFailureCategory: "destination", LastFailureCode: "destination_missing", Overdue: true})
+		id := fmt.Sprintf("missing-%d", i)
+		covered = append(covered, id)
+		statuses = append(statuses, runsint.TargetStatus{TargetID: id, LastRunStatus: runsint.RunFailed, LastFailureCategory: "destination", LastFailureCode: "destination_missing", Overdue: true})
 	}
 	for i := 0; i < 9; i++ {
-		statuses = append(statuses, runsint.TargetStatus{TargetID: "unknown", LastRunStatus: runsint.RunFailed, LastFailureCategory: "destination", LastFailureCode: "destination_inaccessible", Overdue: true})
+		id := fmt.Sprintf("unknown-%d", i)
+		covered = append(covered, id)
+		statuses = append(statuses, runsint.TargetStatus{TargetID: id, LastRunStatus: runsint.RunFailed, LastFailureCategory: "destination", LastFailureCode: "destination_inaccessible", Overdue: true})
 	}
 	runService := &runsmocks.FakeService{StatusOut: statuses}
-	planService := &planmocks.FakeService{ListOut: []plans.Plan{{ID: "plan", Enabled: true, DestinationIDs: []string{"d1", "d2", "d3"}}}}
+	planService := &planmocks.FakeService{ListOut: []plans.Plan{{ID: "plan", Enabled: true, TargetIDs: covered, DestinationIDs: []string{"d1", "d2", "d3"}}}}
 	destinationService := &destmocks.FakeService{ResolveErr: errors.New("filesystem readiness unknown")}
 	engine := &backupmocks.FakeKopiaEngine{}
 	degraded, detail, err := (backupPosture{runs: runService, plans: planService, destinations: destinationService, engine: engine}).OverdueOrFailed(context.Background())

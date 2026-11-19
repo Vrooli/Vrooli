@@ -21,6 +21,7 @@ type cachedPosture struct {
 	fresh    time.Duration
 	maxStale time.Duration
 	timeout  time.Duration
+	budget   time.Duration
 	now      func() time.Time
 
 	mu         sync.Mutex
@@ -30,7 +31,16 @@ type cachedPosture struct {
 	detail     string
 	err        error
 	refreshing bool
+	done       chan struct{}
 }
+
+// postureProbeBudget bounds how long a probe waits for a first or too-old
+// answer. Posture reads every target's last run and every enabled repository;
+// while a large backup writes that can exceed the watchdog's health timeout, and
+// a cold cache after a restart would then time out, get restarted, and start
+// cold again — a restart loop that aborted runs every few minutes. Past this
+// budget the probe answers optimistically and the refresh lands on the next one.
+const postureProbeBudget = 2 * time.Second
 
 // NewCachedPosture wraps posture with the stale-while-revalidate cache above.
 func NewCachedPosture(posture BackupPosture, fresh, maxStale time.Duration) BackupPosture {
@@ -38,7 +48,7 @@ func NewCachedPosture(posture BackupPosture, fresh, maxStale time.Duration) Back
 }
 
 func newCachedPosture(posture BackupPosture, fresh, maxStale time.Duration, now func() time.Time) *cachedPosture {
-	return &cachedPosture{inner: posture, fresh: fresh, maxStale: maxStale, timeout: time.Minute, now: now}
+	return &cachedPosture{inner: posture, fresh: fresh, maxStale: maxStale, timeout: time.Minute, budget: postureProbeBudget, now: now}
 }
 
 func (c *cachedPosture) OverdueOrFailed(ctx context.Context) (bool, string, error) {
@@ -49,41 +59,58 @@ func (c *cachedPosture) OverdueOrFailed(ctx context.Context) (bool, string, erro
 		defer c.mu.Unlock()
 		return c.degraded, c.detail, c.err
 	case c.have && age < c.maxStale:
-		if !c.refreshing {
-			c.refreshing = true
-			go c.refresh()
-		}
+		// Serve the stale answer at once; one background refresh catches up.
+		c.startRefreshLocked()
 		defer c.mu.Unlock()
 		return c.degraded, c.detail, c.err
 	}
+	// Cold, or older than maxStale: wait briefly for a fresh answer, then answer
+	// from what we have rather than block the watchdog past its timeout.
+	done := c.startRefreshLocked()
+	have, degraded, detail := c.have, c.degraded, c.detail
 	c.mu.Unlock()
 
-	degraded, detail, err := c.inner.OverdueOrFailed(ctx)
-	c.store(degraded, detail, err)
-	return degraded, detail, err
+	timer := time.NewTimer(c.budget)
+	defer timer.Stop()
+	select {
+	case <-done:
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return c.degraded, c.detail, c.err
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+	if have {
+		return degraded, detail, nil
+	}
+	return false, "", nil
+}
+
+// startRefreshLocked starts the single in-flight refresh and returns the
+// channel that closes when it finishes. The caller must hold c.mu.
+func (c *cachedPosture) startRefreshLocked() chan struct{} {
+	if !c.refreshing {
+		c.refreshing = true
+		c.done = make(chan struct{})
+		go c.refresh(c.done)
+	}
+	return c.done
 }
 
 // refresh recomputes under its own deadline: it outlives the probe that started it.
-func (c *cachedPosture) refresh() {
+func (c *cachedPosture) refresh(done chan struct{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	degraded, detail, err := c.inner.OverdueOrFailed(ctx)
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.refreshing = false
-	c.mu.Unlock()
 	if err != nil {
-		// Keep the last good answer; it ages out at maxStale and is then recomputed
-		// in the open, where the error is shown.
-		return
+		// Keep the last good answer for the stale path, but surface the error so
+		// an answer older than maxStale reports why it could not be refreshed.
+		c.err = err
+	} else {
+		c.have, c.at, c.degraded, c.detail, c.err = true, c.now(), degraded, detail, nil
 	}
-	c.store(degraded, detail, nil)
-}
-
-func (c *cachedPosture) store(degraded bool, detail string, err error) {
-	if err != nil {
-		return
-	}
-	c.mu.Lock()
-	c.have, c.at, c.degraded, c.detail, c.err = true, c.now(), degraded, detail, nil
-	c.mu.Unlock()
+	close(done)
 }

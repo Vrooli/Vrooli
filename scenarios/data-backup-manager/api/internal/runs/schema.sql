@@ -68,6 +68,6 @@ CREATE TABLE IF NOT EXISTS run_incidents (
   last_known_good TEXT NOT NULL DEFAULT '',
   retryable INTEGER NOT NULL DEFAULT 0,
   retry_after_seconds INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (run_id, code, scope, destination_id),
+  PRIMARY KEY (run_id, code, scope, destination_id, target_ids),
   FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 );

@@ -457,7 +457,7 @@ func (r *Result) add(c failures.Cause) {
 	}
 	c.LastObserved = r.CheckedAt
 	for i := range r.Incidents {
-		if r.Incidents[i].Code != c.Code || r.Incidents[i].DestinationID != c.DestinationID || r.Incidents[i].Scope != c.Scope {
+		if !sameIncident(r.Incidents[i], c) {
 			continue
 		}
 		r.Incidents[i].TargetIDs = mergeIDs(r.Incidents[i].TargetIDs, c.TargetIDs)
@@ -487,6 +487,23 @@ func (r *Result) add(c failures.Cause) {
 	r.Ready, r.Blocked = false, true
 	sort.Slice(r.Incidents, func(i, j int) bool { return r.Incidents[i].Code < r.Incidents[j].Code })
 }
+
+// sameIncident reports whether two causes describe the same blocking incident.
+// Destination-scope causes are shared by every target the destination serves,
+// so they merge. A target-scope cause is a fact about exactly one source: two
+// unreadable targets must stay separate, or the merged incident keeps the
+// first path's message and every other target is reported with the wrong cause.
+func sameIncident(existing, incoming failures.Cause) bool {
+	if existing.Code != incoming.Code || existing.DestinationID != incoming.DestinationID || existing.Scope != incoming.Scope {
+		return false
+	}
+	if incoming.Scope == failures.ScopeTarget && incoming.DestinationID == "" {
+		return oneTarget(existing.TargetIDs) && oneTarget(incoming.TargetIDs) && existing.TargetIDs[0] == incoming.TargetIDs[0]
+	}
+	return true
+}
+
+func oneTarget(ids []string) bool { return len(ids) == 1 }
 
 func unique(ids []string) []string {
 	seen := map[string]bool{}
