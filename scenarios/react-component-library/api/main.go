@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	captureInternal "react-component-library/internal/designcapture"
@@ -29,6 +30,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	activityH "react-component-library/handlers/activity"
 	adoptionsH "react-component-library/handlers/adoptions"
 	brandH "react-component-library/handlers/brand"
 	catalogH "react-component-library/handlers/catalog"
@@ -38,18 +40,23 @@ import (
 	designsH "react-component-library/handlers/designs"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
+	libraryhealthH "react-component-library/handlers/libraryhealth"
 	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
+	reviewH "react-component-library/handlers/review"
+	searchH "react-component-library/handlers/search"
 	sketchH "react-component-library/handlers/sketch"
 	templatesH "react-component-library/handlers/templates"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
+	workspacesH "react-component-library/handlers/workspaces"
 	capabilitiesH "react-component-library/internal/capabilities"
 
 	"github.com/vrooli/api-core/uimanifest"
 	"react-component-library/internal/availability"
 
+	activityInternal "react-component-library/internal/activity"
 	adoptionsInternal "react-component-library/internal/adoptions"
 	brandInternal "react-component-library/internal/brand"
 	catalogcoverageInternal "react-component-library/internal/catalogcoverage"
@@ -58,11 +65,66 @@ import (
 	depsInternal "react-component-library/internal/deps"
 	designsInternal "react-component-library/internal/designs"
 	experienceInternal "react-component-library/internal/experience"
+	libraryhealthInternal "react-component-library/internal/libraryhealth"
+	reviewInternal "react-component-library/internal/review"
+	searchInternal "react-component-library/internal/search"
 	templatesInternal "react-component-library/internal/templates"
 	themesInternal "react-component-library/internal/themes"
 	versionledgerInternal "react-component-library/internal/versionledger"
 	workflowsInternal "react-component-library/internal/workflows"
 )
+
+// workspaceActivityRecorder is the one adapter from the workspace aggregate's
+// mutation seam to the append-only activity log. The workspace package owns
+// what changed; activity owns who/when and the durable trail.
+//
+// It also coalesces a search rebuild after a mutation burst. Workspace saves
+// autosave while a person edits, so rebuilding on every write would repeat the
+// same work; one rebuild after the burst keeps the index current without
+// turning typing into index churn.
+type workspaceActivityRecorder struct {
+	store  *activityInternal.Store
+	search *searchInternal.Service
+	mu     sync.Mutex
+	timer  *time.Timer
+}
+
+func (r *workspaceActivityRecorder) Record(ctx context.Context, action, subjectID string, before, after []byte) error {
+	if err := r.store.Record(ctx, activityInternal.Event{
+		Actor:       "local",
+		Action:      action,
+		SubjectKind: "workspace",
+		SubjectID:   subjectID,
+		Summary:     action,
+		BeforeJSON:  string(before),
+		AfterJSON:   string(after),
+	}); err != nil {
+		return err
+	}
+	r.scheduleReindex()
+	return nil
+}
+
+const workspaceReindexDelay = 5 * time.Second
+
+func (r *workspaceActivityRecorder) scheduleReindex() {
+	if r.search == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.timer != nil {
+		r.timer.Stop()
+	}
+	r.timer = time.AfterFunc(workspaceReindexDelay, func() {
+		count, _, err := r.search.Reindex(context.Background(), false)
+		if err != nil {
+			slog.Error("workspace search reindex failed", "error", err)
+			return
+		}
+		slog.Info("workspace search reindex complete", "documents", count)
+	})
+}
 
 // componentsDepsObserver is the bridge from the components indexer's
 // UpsertObserver seam to the deps service's SyncForComponent. Parses
@@ -209,6 +271,29 @@ func main() {
 	if err := templatesInternal.Migrate(context.Background(), primaryDB); err != nil {
 		log.Fatalf("templates schema migration failed: %v", err)
 	}
+	// The workspace aggregate is the replacement composition owner. Migrate
+	// imports legacy studio designs exactly once, guarded by
+	// workspace_migrations, so a design deleted after import cannot reappear.
+	if err := workspacesH.Migrate(context.Background(), primaryDB); err != nil {
+		log.Fatalf("workspace schema migration failed: %v", err)
+	}
+	activityStore := activityInternal.NewSQLiteStore(primaryDB)
+	healthProviders := libraryhealthInternal.DBProviders(primaryDB)
+	capabilityRegistry := capabilitiesH.NewRegistry()
+	healthProviders.Services = func(ctx context.Context) ([]libraryhealthInternal.Metric, error) {
+		states := capabilityRegistry.Resolve(ctx)
+		metrics := make([]libraryhealthInternal.Metric, 0, len(states))
+		for _, state := range states {
+			value := 0
+			if state.Status == capabilitiesH.StatusAvailable {
+				value = 1
+			}
+			metrics = append(metrics, libraryhealthInternal.Metric{
+				Key: state.ID, Label: state.Name, Value: value, Total: 1, Detail: string(state.Status),
+			})
+		}
+		return metrics, nil
+	}
 	if err := componentsInternal.EnsureMigrations(context.Background(), primaryDB); err != nil {
 		log.Fatalf("components schema migration failed: %v", err)
 	}
@@ -219,6 +304,17 @@ func main() {
 	sourceRoot, err := componentsH.DefaultSourceRoot()
 	if err != nil {
 		log.Fatalf("components source root: %v", err)
+	}
+	// The template shelf is reviewed JSON beside the library. A seed version
+	// bump applies a reviewed content change exactly once; a plain restart is a
+	// no-op. It runs after the legacy-design import so a curated id can never be
+	// confused with an imported one.
+	seedChanged := false
+	if seeded, err := workspacesH.SeedFromFile(context.Background(), primaryDB, filepath.Join(sourceRoot, "workspace-seeds.json")); err != nil {
+		slog.Error("workspace seed load failed", "error", err)
+	} else if seeded.Inserted+seeded.Updated+seeded.Removed > 0 {
+		seedChanged = true
+		slog.Info("workspace seeds applied", "inserted", seeded.Inserted, "updated", seeded.Updated, "removed", seeded.Removed)
 	}
 	componentsSvc, componentsRepo := componentsH.BuildService(primaryDB, schedule.System(), sourceRoot)
 	versionLedger := versionledgerInternal.NewRepository(primaryDB, sourceRoot)
@@ -319,9 +415,58 @@ func main() {
 	availabilityFactory := func(ctx context.Context) (*availability.Snapshot, error) {
 		return availability.NewSnapshot(ctx, componentsSvc, compileAsset)
 	}
+	// Search asks for availability once per document. Reuse one snapshot for a
+	// bounded window instead of rebuilding the published-version graph 478
+	// times during one reindex.
+	var searchSnapshotMu sync.Mutex
+	var searchSnapshot *availability.Snapshot
+	var searchSnapshotAt time.Time
+	searchAvailability := func(ctx context.Context, catalogID string) (bool, string, error) {
+		searchSnapshotMu.Lock()
+		if searchSnapshot == nil || time.Since(searchSnapshotAt) > time.Minute {
+			snapshot, err := availabilityFactory(ctx)
+			if err != nil {
+				searchSnapshotMu.Unlock()
+				return false, string(availability.Unavailable), err
+			}
+			searchSnapshot = snapshot
+			searchSnapshotAt = time.Now()
+		}
+		snapshot := searchSnapshot
+		searchSnapshotMu.Unlock()
+		result := snapshot.Resolve(ctx, catalogID, snapshot.Latest(catalogID))
+		return result.IsBuilt(), string(result.State), nil
+	}
+	// sourceRoot is <scenario>/library; the scenario root is its parent. Search
+	// reads catalog/ from that root, not the repository's scenarios/ directory.
+	scenarioRoot := filepath.Dir(sourceRoot)
+	searchSvc := searchH.NewService(primaryDB, scenarioRoot, searchAvailability)
+	// A seed change is a content change the index has no other way to observe:
+	// the loader writes directly, not through the API recorder.
+	if count, indexedAt, err := searchSvc.Reindex(context.Background(), seedChanged); err != nil {
+		slog.Error("startup search index failed", "error", err)
+	} else {
+		slog.Info("startup search index complete", "documents", count, "indexed_at", indexedAt)
+	}
+	// Review projects ~14k findings from the evidence corpus. Warming it once at
+	// boot keeps the first Review view fast and makes the projection cost part
+	// of startup rather than a surprise on the first request.
+	reviewSvc := reviewInternal.NewService(primaryDB, reviewInternal.NewEvidenceProjector(primaryDB))
+	if _, err := reviewSvc.List(context.Background(), reviewInternal.Filter{}, 1, 0); err != nil {
+		slog.Error("startup review projection failed", "error", err)
+	} else {
+		slog.Info("startup review projection complete")
+	}
+	workspaceRecorder := &workspaceActivityRecorder{store: activityStore, search: searchSvc}
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		capabilitiesH.Module(),
+		activityH.ModuleFromService(activityStore),
+		workspacesH.ModuleWithRecorderAndAssistant(primaryDB, workspaceRecorder,
+			inferenceInternal.NewService(inferenceInternal.NewSQLiteRepository(primaryDB))),
+		reviewH.ModuleFromService(reviewSvc),
+		searchH.ModuleWithService(searchSvc),
+		libraryhealthH.ModuleFromProviders(healthProviders),
 		pageH.Module(filepath.Dir(scenariosRoot)),
 		adoptionsH.ModuleFromService(
 			adoptionsSvc,

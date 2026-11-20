@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
 
 import { TemplateRenderer } from "./TemplateRenderer";
@@ -8,7 +9,7 @@ import { node, slotNode } from "./spec";
 describe("TemplateRenderer", () => {
   it("renders every template's page root and component slot", () => {
     for (const template of TEMPLATES) {
-      const { container, unmount } = render(
+      const { container, unmount } = renderWithProviders(
         <TemplateRenderer template={template} spec={template.spec} mode="preview" />,
       );
       expect(container.querySelector(".tpl-page")).not.toBeNull();
@@ -19,7 +20,7 @@ describe("TemplateRenderer", () => {
 
   it("renders a live slot without the placeholder hint", () => {
     const template = DEFAULT_TEMPLATE;
-    const { container } = render(
+    const { container } = renderWithProviders(
       <TemplateRenderer
         template={template}
         spec={template.spec}
@@ -42,7 +43,7 @@ describe("TemplateRenderer", () => {
         children: [node("metric.fallback", "text", { text: fallbackCopy })],
       }),
     ]);
-    const { container, rerender } = render(
+    const { container, rerender } = renderWithProviders(
       <TemplateRenderer template={DEFAULT_TEMPLATE} spec={spec} mode="preview" />,
     );
     expect(screen.getByText(fallbackCopy)).toBeInTheDocument();
@@ -62,7 +63,7 @@ describe("TemplateRenderer", () => {
 
   it("floats a placed component above the authored page and keeps the anchor", () => {
     const template = DEFAULT_TEMPLATE;
-    const { container } = render(
+    const { container } = renderWithProviders(
       <TemplateRenderer
         template={template}
         spec={template.spec}
@@ -85,7 +86,7 @@ describe("TemplateRenderer", () => {
   it("moves and resizes the placed component from the keyboard", () => {
     const template = DEFAULT_TEMPLATE;
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TemplateRenderer
         template={template}
         spec={template.spec}
@@ -120,7 +121,7 @@ describe("TemplateRenderer", () => {
 
   it("marks the selected node for the studio outline", () => {
     const template = DEFAULT_TEMPLATE;
-    const { container } = render(
+    const { container } = renderWithProviders(
       <TemplateRenderer
         template={template}
         spec={template.spec}

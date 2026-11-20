@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { AlertDialog } from "../../../library/components/AlertDialog/versions/2.0.13-draft.1/AlertDialog";
@@ -32,7 +33,7 @@ describe("AlertDialog 2.0.13 draft actions", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("keeps one row at phone width, shortens German labels, and focuses Cancel", async () => {
-    render(
+    renderWithProviders(
       <AlertDialog
         open
         title="Arbeitsbereich entfernen?"
@@ -66,7 +67,7 @@ describe("AlertDialog 2.0.13 draft actions", () => {
   it("preserves explicit cancel and destructive confirm callbacks, and disables both while busy", () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
-    render(
+    renderWithProviders(
       <AlertDialog
         open
         title="Delete?"
@@ -95,7 +96,7 @@ describe("AlertDialog 2.0.13 draft actions", () => {
     const onConfirm = vi.fn(
       () => new Promise<void>((resolve) => { finishConfirm = resolve; }),
     );
-    render(
+    renderWithProviders(
       <AlertDialog
         open
         title="Publish?"
@@ -120,7 +121,7 @@ describe("AlertDialog 2.0.13 draft actions", () => {
   it("runs confirm and cancel through their own action handlers", async () => {
     const onConfirm = vi.fn().mockResolvedValue(undefined);
     const onCancel = vi.fn();
-    render(
+    renderWithProviders(
       <AlertDialog
         open
         title="Publish?"

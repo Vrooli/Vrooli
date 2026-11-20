@@ -54,8 +54,10 @@ var expectedGrammarOwners = []string{
 	"packages/react-component-library/tooling/libspec.mjs",
 }
 
-const goGrammarFixture = "var grammar = regexp.MustCompile(`^@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\\d+))?`)"
-const jsGrammarFixture = "const grammar = /^@vrooli\\/react-component-library\\/([A-Za-z][A-Za-z0-9-]*)(?:\\/(\\d+))?$/;"
+const (
+	goGrammarFixture = "var grammar = regexp.MustCompile(`^@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\\d+))?`)"
+	jsGrammarFixture = "const grammar = /^@vrooli\\/react-component-library\\/([A-Za-z][A-Za-z0-9-]*)(?:\\/(\\d+))?$/;"
+)
 
 func grammarFixture(t *testing.T) string {
 	t.Helper()

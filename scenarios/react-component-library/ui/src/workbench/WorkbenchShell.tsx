@@ -1,26 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Activity,
-  ArrowRight,
   BarChart3,
   Bell,
   ClipboardCheck,
-  Command,
   House,
   LayoutGrid,
   PenTool,
   Plus,
   Search,
   Settings as SettingsIcon,
-  Sparkles,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useTranslation } from "../i18n";
 import { appRoutes } from "../routes";
-import { useCatalog, useDesignScenarios, useCoverage, findingsFromCoverage } from "./data";
+import { getReviewSummary } from "../api/review";
 import { cx } from "./cx";
-import { useFocusTrap } from "./useFocusTrap";
+import { SearchPalette } from "./search/SearchPalette";
 import { applyWorkbenchPreferences, readWorkbenchPreferences } from "./preferences";
 import { useBrand } from "./useBrand";
 import "./brand.css";
@@ -32,19 +29,35 @@ interface NavItem {
   short: string;
   icon: ReactNode;
   count?: number;
+  /** Supplemental hover/tooltip text; the visible label stays the destination. */
+  title?: string;
 }
 
 function isCurrent(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
-  if (href === "/components") {
-    return pathname === "/components" || pathname.startsWith("/assets/") || pathname === "/catalog";
+  if (href === "/library") {
+    return (
+      pathname === "/library" ||
+      pathname === "/components" ||
+      pathname === "/catalog" ||
+      pathname.startsWith("/assets/")
+    );
   }
   if (href === "/design") return pathname.startsWith("/design") || pathname.startsWith("/sketch/");
+  if (href === "/stats") {
+    return (
+      pathname === "/stats" ||
+      pathname === "/coverage" ||
+      pathname === "/activity" ||
+      pathname === "/capabilities"
+    );
+  }
   return pathname === href;
 }
 
 function crumbFor(pathname: string): { key: string; fallback: string } {
-  if (pathname === "/") return { key: "workbench.nav.home", fallback: "Home" };
+  if (pathname === "/") return { key: "workbench.nav.start", fallback: "Start" };
+  if (pathname === "/library") return { key: "workbench.nav.library", fallback: "Library" };
   if (pathname === "/components" || pathname === "/catalog") {
     return { key: "workbench.nav.components", fallback: "Components" };
   }
@@ -53,9 +66,10 @@ function crumbFor(pathname: string): { key: string; fallback: string } {
     return { key: "workbench.nav.component", fallback: "Component" };
   }
   if (pathname.startsWith("/design") || pathname.startsWith("/sketch/")) {
-    return { key: "workbench.nav.design", fallback: "Design studio" };
+    return { key: "workbench.nav.designShort", fallback: "Design" };
   }
   if (pathname === "/review") return { key: "workbench.nav.review", fallback: "Review" };
+  if (pathname === "/stats") return { key: "workbench.nav.stats", fallback: "Stats" };
   if (pathname === "/coverage") return { key: "workbench.nav.coverage", fallback: "Coverage" };
   if (pathname === "/capabilities")
     return { key: "workbench.nav.capabilities", fallback: "Capabilities" };
@@ -70,37 +84,35 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [commandOpen, setCommandOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const commandInput = useRef<HTMLInputElement>(null);
 
-  const catalog = useCatalog();
-  const coverage = useCoverage();
-  const scenarios = useDesignScenarios();
+  const review = useQuery({
+    queryKey: ["review", "summary"],
+    queryFn: getReviewSummary,
+    retry: 0,
+  });
   const brand = useBrand().data ?? null;
-
-  const findings = useMemo(() => findingsFromCoverage(coverage.data), [coverage.data]);
-  const openFindings = findings.length;
+  const openFindings = review.data?.open ?? 0;
 
   const items: NavItem[] = [
     {
-      id: "home",
-      href: appRoutes.home,
-      label: t("workbench.nav.home", { defaultValue: "Home" }),
-      short: t("workbench.nav.home", { defaultValue: "Home" }),
+      id: "start",
+      href: appRoutes.start,
+      label: t("workbench.nav.start", { defaultValue: "Start" }),
+      short: t("workbench.nav.start", { defaultValue: "Start" }),
       icon: <House aria-hidden size={17} />,
     },
     {
-      id: "components",
-      href: appRoutes.components,
-      label: t("workbench.nav.components", { defaultValue: "Components" }),
+      id: "library",
+      href: appRoutes.library,
+      label: t("workbench.nav.library", { defaultValue: "Library" }),
+      // "Browse" is the phone label the asset library has always used.
       short: t("workbench.nav.componentsShort", { defaultValue: "Browse" }),
       icon: <LayoutGrid aria-hidden size={17} />,
-      count: catalog.data?.length,
     },
     {
       id: "design",
       href: appRoutes.design,
-      label: t("workbench.nav.design", { defaultValue: "Design studio" }),
+      label: t("workbench.nav.designShort", { defaultValue: "Design" }),
       short: t("workbench.nav.designShort", { defaultValue: "Design" }),
       icon: <PenTool aria-hidden size={17} />,
     },
@@ -113,30 +125,15 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
       count: openFindings || undefined,
     },
     {
-      id: "coverage",
-      href: appRoutes.coverage,
-      label: t("workbench.nav.coverage", { defaultValue: "Coverage" }),
-      short: t("workbench.nav.coverage", { defaultValue: "Coverage" }),
+      id: "stats",
+      href: appRoutes.stats,
+      label: t("workbench.nav.stats", { defaultValue: "Stats" }),
+      short: t("workbench.nav.statsShort", { defaultValue: "Stats" }),
       icon: <BarChart3 aria-hidden size={17} />,
-    },
-    {
-      id: "capabilities",
-      href: appRoutes.capabilities,
-      label: t("workbench.nav.capabilities", { defaultValue: "Capabilities" }),
-      short: t("workbench.nav.capabilitiesShort", { defaultValue: "Capabilities" }),
-      icon: <Sparkles aria-hidden size={17} />,
-    },
-    {
-      id: "activity",
-      href: appRoutes.activity,
-      label: t("workbench.nav.activity", { defaultValue: "Activity" }),
-      short: t("workbench.nav.activity", { defaultValue: "Activity" }),
-      icon: <Activity aria-hidden size={17} />,
     },
   ];
 
   const openCommand = useCallback(() => {
-    setQuery("");
     setCommandOpen(true);
   }, []);
 
@@ -156,27 +153,6 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const commandLayerRef = useFocusTrap<HTMLDivElement>(commandOpen, () => setCommandOpen(false));
-
-  const results = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    const assets = (catalog.data ?? [])
-      .filter((asset) => {
-        if (!term) return true;
-        return (
-          asset.displayName.toLowerCase().includes(term) ||
-          asset.libraryId.toLowerCase().includes(term) ||
-          asset.catalogId.toLowerCase().includes(term) ||
-          asset.description.toLowerCase().includes(term)
-        );
-      })
-      .slice(0, 8);
-    const pages = (scenarios.data ?? [])
-      .filter((entry) => (entry.pageCount ?? 0) > 0 && (!term || entry.scenario.includes(term)))
-      .slice(0, 5);
-    return { assets, pages };
-  }, [catalog.data, scenarios.data, query]);
-
   const go = (href: string) => {
     setCommandOpen(false);
     void navigate(href);
@@ -192,8 +168,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
           aria-label={t("workbench.nav.rail", { defaultValue: "Library navigation" })}
         >
           <Link
-            to={appRoutes.home}
+            to={appRoutes.start}
             className="wb-brand"
+            title={t("workbench.nav.home", { defaultValue: "Home" })}
             aria-label={brand?.name ?? t("workbench.brand", { defaultValue: "React Component Library" })}
           >
             <span className={`wb-brand-mark${brand?.assigned ? "" : " is-fallback"}`} aria-hidden>
@@ -277,7 +254,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
         <div className="wb-main">
           <header className="wb-topbar">
             <div className="wb-crumb">
-              <Link to={appRoutes.home}>{t("workbench.brand", { defaultValue: "React Component Library" })}</Link>
+              <Link to={appRoutes.start}>{t("workbench.brand", { defaultValue: "React Component Library" })}</Link>
               <span aria-hidden>/</span>
               <b>{t(crumb.key, { defaultValue: crumb.fallback })}</b>
             </div>
@@ -291,7 +268,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
                 <Search aria-hidden size={14} />
                 <span>
                   {t("workbench.command.placeholder", {
-                    defaultValue: "Search assets, props, evidence…",
+                    defaultValue: "Search pages, states, assets, commands…",
                   })}
                 </span>
                 <kbd>{t("workbench.command.shortcut", { defaultValue: "⌘ K" })}</kbd>
@@ -317,7 +294,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
         className="wb-mobile-nav"
         aria-label={t("workbench.nav.mobile", { defaultValue: "Workbench" })}
       >
-        {items.slice(0, 5).map((item) => (
+        {items.map((item) => (
           <NavLink
             key={item.id}
             to={item.href}
@@ -329,111 +306,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
         ))}
       </nav>
 
-      {commandOpen ? (
-        <div
-          ref={commandLayerRef}
-          className="wb-command-layer"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("workbench.command.label", { defaultValue: "Workbench search" })}
-        >
-          <div className="wb-command-panel">
-            <div className="wb-search" style={{ margin: 12 }}>
-              <Search aria-hidden size={15} style={{ color: "var(--wb-muted-2)" }} />
-              <input
-                ref={commandInput}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                aria-label={t("workbench.command.input", {
-                  defaultValue: "Search assets and pages",
-                })}
-                placeholder={t("workbench.command.placeholder", {
-                  defaultValue: "Search assets, props, evidence…",
-                })}
-              />
-              <kbd className="wb-kbd">{t("workbench.command.escape", { defaultValue: "esc" })}</kbd>
-            </div>
-            <div className="wb-command-results">
-              <div className="wb-command-group">
-                <span className="wb-caption">
-                  {t("workbench.command.assets", { defaultValue: "Assets" })}
-                </span>
-                {results.assets.length === 0 ? (
-                  <p className="wb-muted wb-small" style={{ padding: "6px 10px" }}>
-                    {t("workbench.command.noAssets", { defaultValue: "No matching assets." })}
-                  </p>
-                ) : (
-                  results.assets.map((asset) => (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      className="wb-command-row"
-                      onClick={() => go(`/assets/${encodeURIComponent(asset.id)}`)}
-                    >
-                      <span className="wb-command-icon" aria-hidden>
-                        <LayoutGrid size={14} />
-                      </span>
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <b>{asset.displayName}</b>
-                        <small>{asset.catalogId || asset.libraryId}</small>
-                      </span>
-                      <span className="wb-tag">
-                        {asset.latestVersion || asset.version || "draft"}
-                      </span>
-                    </button>
-                  ))
-                )}
-              </div>
-              <div className="wb-command-group">
-                <span className="wb-caption">
-                  {t("workbench.command.pages", { defaultValue: "Design pages" })}
-                </span>
-                {results.pages.length === 0 ? (
-                  <p className="wb-muted wb-small" style={{ padding: "6px 10px" }}>
-                    {t("workbench.command.noPages", { defaultValue: "No matching scenarios." })}
-                  </p>
-                ) : (
-                  results.pages.map((entry) => (
-                    <button
-                      key={entry.scenario}
-                      type="button"
-                      className="wb-command-row"
-                      onClick={() => go(`/design/${encodeURIComponent(entry.scenario)}`)}
-                    >
-                      <span className="wb-command-icon" aria-hidden>
-                        <PenTool size={14} />
-                      </span>
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <b>{entry.scenario}</b>
-                        <small>
-                          {t("workbench.command.pageCount", {
-                            defaultValue: "{{count}} declared pages",
-                            count: entry.pageCount ?? 0,
-                          })}
-                        </small>
-                      </span>
-                      <ArrowRight aria-hidden size={13} />
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-            <div className="wb-command-foot">
-              <span>
-                <Command aria-hidden size={12} />
-                {t("workbench.command.foot", { defaultValue: "Enter to open · Esc to close" })}
-              </span>
-              <button
-                type="button"
-                className="wb-btn quiet sm"
-                onClick={() => setCommandOpen(false)}
-              >
-                {t("workbench.command.close", { defaultValue: "Close" })}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <SearchPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
 }
@@ -442,6 +315,7 @@ function NavItemLink({ item, current }: { item: NavItem; current: boolean }) {
   return (
     <Link
       to={item.href}
+      title={item.title}
       className={cx("wb-nav-item", current && "is-current")}
       aria-current={current ? "page" : undefined}
     >

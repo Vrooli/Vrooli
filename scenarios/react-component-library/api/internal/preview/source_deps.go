@@ -2,11 +2,12 @@ package preview
 
 import (
 	"fmt"
-	esbuild "github.com/evanw/esbuild/pkg/api"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	esbuild "github.com/evanw/esbuild/pkg/api"
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"

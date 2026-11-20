@@ -51,6 +51,7 @@ func (s Service) Attach(ctx context.Context, id string, observer Observer) (Oper
 	}
 	return s.Repository.Transition(ctx, op.ID, op.Version, observation.State, op.ProducerID, observation.Artifacts, observation.Detail)
 }
+
 func (d BASDispatcher) Observe(ctx context.Context, op Operation) (Observation, error) {
 	if op.ProducerID == "" {
 		return Observation{}, fmt.Errorf("producer identity is required")
@@ -91,6 +92,7 @@ func (d BASDispatcher) Observe(ctx context.Context, op Operation) (Observation, 
 	}
 	return observeTimeline(op, &timeline)
 }
+
 func observeTimeline(op Operation, timeline *timelinev1.ExecutionTimeline) (Observation, error) {
 	if timeline.GetExecutionId() != op.ProducerID {
 		return Observation{}, fmt.Errorf("producer timeline identity mismatch")
@@ -175,6 +177,7 @@ func observeTimeline(op Operation, timeline *timelinev1.ExecutionTimeline) (Obse
 	}
 	return Observation{State: Completed, Artifacts: artifacts}, nil
 }
+
 func jsonNumber(v *commonv1.JsonValue) (float64, error) {
 	switch n := v.GetKind().(type) {
 	case *commonv1.JsonValue_IntValue:

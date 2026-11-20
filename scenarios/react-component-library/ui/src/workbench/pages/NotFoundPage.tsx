@@ -16,7 +16,7 @@ export function NotFoundPage() {
             "The route is not part of the workbench. Legacy catalog and design links redirect to their new homes; anything else is genuinely missing.",
         })}
       </p>
-      <Link to={appRoutes.home} className="wb-btn primary">
+      <Link to={appRoutes.start} className="wb-btn primary">
         <ArrowLeft aria-hidden size={14} />
         {t("workbench.notFound.back", { defaultValue: "Back to Home" })}
       </Link>

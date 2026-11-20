@@ -12,15 +12,17 @@ import {
 describe("workspace route contract", () => {
   it("owns the route patterns used by the application shell", () => {
     expect(appRoutes).toEqual({
-      home: "/",
+      start: "/",
+      library: "/library",
       components: "/components",
       assetCatalog: "/catalog",
       asset: "/assets/:id",
       preview: "/assets/:id/preview",
+      stats: "/stats",
       coverage: "/coverage",
       capabilities: "/capabilities",
-      review: "/review",
       activity: "/activity",
+      review: "/review",
       settings: "/settings",
       create: "/new",
       design: "/design",

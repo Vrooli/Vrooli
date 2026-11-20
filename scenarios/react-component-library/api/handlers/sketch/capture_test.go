@@ -40,23 +40,27 @@ func (d *captureDispatch) Start(context.Context, designcapture.Operation) (strin
 	d.calls++
 	return "bas-fixture", nil
 }
+
 func (d *captureDispatch) Cancel(context.Context, designcapture.Operation) error {
 	d.cancellations++
 	return nil
 }
+
 func (d *captureDispatch) ResolveScreenshot(_ context.Context, op designcapture.Operation, artifact designcapture.Artifact) (designcapture.Screenshot, error) {
 	return designcapture.Screenshot{Reference: artifact.Reference, URL: "http://bas.local/image.png", Width: op.Request.Width, Height: op.Request.Height, ContentType: "image/png"}, nil
 }
+
 func (d *captureDispatch) Observe(_ context.Context, op designcapture.Operation) (designcapture.Observation, error) {
 	d.observations++
 	return designcapture.Observation{State: designcapture.Completed, Artifacts: []designcapture.Artifact{{Kind: "screenshot", Reference: "bas:fixture:screenshot"}, {Kind: "target", Reference: "bas:fixture:target", Evidence: &designcapture.TargetEvidence{RenderHash: op.Request.Target.RenderHash, Width: float64(op.Request.Width), Height: float64(op.Request.Height), Regions: []designcapture.RegionGeometry{{Region: "body", Width: 390, Height: 100}}}}}}, nil
 }
+
 func TestCaptureCandidateRequiresExactRenderAndPreservesRetry(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))
-	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0600))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600))
 	store := internal.NewStore(root)
 	base, err := store.Read("demo", "home")
 	require.NoError(t, err)
@@ -133,8 +137,8 @@ func TestCaptureCandidateRejectsHashFromDifferentPreviewState(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))
-	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0600))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600))
 	store := internal.NewStore(root)
 	base, err := store.Read("demo", "home")
 	require.NoError(t, err)
@@ -143,7 +147,9 @@ func TestCaptureCandidateRejectsHashFromDifferentPreviewState(t *testing.T) {
 		Render: &internal.RenderSettings{TemplateExport: "Page", Bindings: map[string]any{
 			"$template": map[string]any{}, "$preview": map[string]any{
 				"initial": "list", "states": map[string]any{"list": map[string]any{}, "detail": map[string]any{}}, "actions": map[string]any{},
-			}}}})
+			},
+		}},
+	})
 	require.NoError(t, err)
 	db := dbtest.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(designcapture.Schema)))

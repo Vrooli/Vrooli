@@ -3,17 +3,19 @@ package sketch
 import (
 	"bytes"
 	"context"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
+
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogsearch"
-	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
@@ -27,10 +29,10 @@ func TestWireEditsRequireExactRevisionAndPreserveRestoreData(t *testing.T) {
 	// [REQ:EPD-001]
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"claims":[{"id":"preserve"}],"sketch":{"viewport":"desktop","x-extension":true}}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"claims":[{"id":"preserve"}],"sketch":{"viewport":"desktop","x-extension":true}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, handler := sketchconnect.NewSketchServiceHandler(NewConnectHandler(Deps{Store: internal.NewStore(root)}))
@@ -114,10 +116,10 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 	seed := func(root, viewport string) string {
 		t.Helper()
 		path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(`{"sketch":{"viewport":"`+viewport+`"}}`), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(`{"sketch":{"viewport":"`+viewport+`"}}`), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		return path
@@ -173,11 +175,11 @@ func TestSketchMutationsUseLeaseAndNeverFallBackToLive(t *testing.T) {
 func TestImportDryRunConflictAndIdempotentPublication(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	original := []byte(`{"page":{"purpose":"Review important incoming work and respond."},"claims":[{"id":"preserve"}],"sketch":{"x-extension":true}}`)
-	if err := os.WriteFile(path, original, 0600); err != nil {
+	if err := os.WriteFile(path, original, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	h := NewConnectHandler(Deps{Store: internal.NewStore(root), ImportSearch: func(context.Context) (*catalogsearch.Index, error) { return catalogsearch.New(), nil }})
@@ -220,11 +222,11 @@ func TestImportDryRunConflictAndIdempotentPublication(t *testing.T) {
 func TestTemplateWireRequiresConfirmationAndRegionNotesUseDeclaredIdentity(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	original := []byte(`{"regions":[{"id":"semantic-region","purpose":"Keep its purpose"}],"sketch":{"regions":[{"id":"old"}],"placements":[{"region":"old","fills":{"asset":"controls.button"},"state":"declared"}]}}`)
-	if err := os.WriteFile(path, original, 0600); err != nil {
+	if err := os.WriteFile(path, original, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := internal.NewStore(root)
@@ -321,13 +323,14 @@ func (p *renderProbe) RenderPrepared(_ context.Context, prepared preview.Prepare
 	}
 	return connect.NewResponse(&previewv1.RenderCompositionResponse{Html: "<main>fixture</main>", RenderHash: prepared.Composition.Revision}), nil
 }
+
 func TestRenderSketchRejectsStaleInputsAndConcurrentEdits(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"sketch":{"template":{"asset":"templates.page","version":"1.0.0"},"render":{"templateExport":"Page","bindings":{"$template":{}}}}}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"sketch":{"template":{"asset":"templates.page","version":"1.0.0"},"render":{"templateExport":"Page","bindings":{"$template":{}}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := internal.NewStore(root)
@@ -363,10 +366,10 @@ func TestRenderSketchRejectsStaleInputsAndConcurrentEdits(t *testing.T) {
 func TestArchivedCandidateRenderIgnoresLaterPageEdits(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"sketch":{}}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := internal.NewStore(root)
@@ -418,13 +421,13 @@ func TestDesignConstraintsWirePreservesPresenceAndExplicitFalse(t *testing.T) {
 func TestProposalReadsRoutedSourceAndRejectsStaleSourceHash(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(dir, "experience", "pages"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "experience", "pages"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "experience", "pages", "home.json"), []byte(`{"sketch":{"viewport":"desktop"}}`), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "experience", "pages", "home.json"), []byte(`{"sketch":{"viewport":"desktop"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "DESIGN.md"), []byte("# Routed design\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "DESIGN.md"), []byte("# Routed design\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	routed := internal.NewStore(root)
@@ -440,8 +443,10 @@ func TestProposalReadsRoutedSourceAndRejectsStaleSourceHash(t *testing.T) {
 	}
 	request := &sketchv1.ProposeSketchRequest{
 		Target: &sketchv1.SketchTarget{Scenario: "demo", Page: "home"}, ExpectedContentHash: snapshot.ContentHash, CandidateLimit: 1,
-		Intent: &sketchv1.DesignIntent{Intent: "Browse", Users: []string{"Operator"}, PrimaryTasks: []string{"Find records"}, Target: "react-vite", Kit: "vrooli-default", Viewports: []string{"desktop"},
-			Constraints: &sketchv1.DesignConstraints{DesignSource: "path:DESIGN.md"}},
+		Intent: &sketchv1.DesignIntent{
+			Intent: "Browse", Users: []string{"Operator"}, PrimaryTasks: []string{"Find records"}, Target: "react-vite", Kit: "vrooli-default", Viewports: []string{"desktop"},
+			Constraints: &sketchv1.DesignConstraints{DesignSource: "path:DESIGN.md"},
+		},
 	}
 	first, err := h.ProposeSketch(context.Background(), connect.NewRequest(request))
 	if err != nil {
@@ -452,7 +457,7 @@ func TestProposalReadsRoutedSourceAndRejectsStaleSourceHash(t *testing.T) {
 		t.Fatalf("wrong source: %+v", source)
 	}
 	request.Intent.Constraints.DesignSourceHash = source.ContentHash
-	if err := os.WriteFile(filepath.Join(dir, "DESIGN.md"), []byte("# New design\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "DESIGN.md"), []byte("# New design\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := h.ProposeSketch(context.Background(), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeFailedPrecondition {

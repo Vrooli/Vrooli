@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	// Register the PNG decoder for image.DecodeConfig.
 	_ "image/png"
 	"os"
 	"path/filepath"

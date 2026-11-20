@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { ComponentSchema } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,7 +70,7 @@ function stage(overrides: { story?: WorkbenchStory; device?: "desktop" | "phone"
  * act warnings into the console contract.
  */
 async function settledRender(element: ReactElement) {
-  const utils = render(element);
+  const utils = renderWithProviders(element);
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 220));
   });

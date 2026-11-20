@@ -383,23 +383,6 @@ func (h *handlers) linkReport(_ cliapp.OperationContext, msg *adoptionsv1.LinkAd
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Linked %s through %s.", msg.Adoption.Id, msg.PackagePath)}, Changes: []string{formatAdoption(msg.Adoption)}}
 }
 
-func (h *handlers) eject(ctx cliapp.RunContext) error {
-	if strings.TrimSpace(ctx.Flag("reason")) == "" {
-		return fmt.Errorf("--reason is required for an ejection")
-	}
-	resp, err := h.client.EjectAdoption(context.Background(), connect.NewRequest(&adoptionsv1.EjectAdoptionRequest{
-		ComponentId: ctx.Positional("component-id"), Scenario: ctx.Positional("scenario"), AdoptedPath: ctx.Positional("adopted-path"), Version: ctx.Flag("version"), Reason: ctx.Flag("reason"),
-		ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true", ReplaceExisting: ctx.Flag("replace-existing") == "true",
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("eject adoption", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Adoption == nil {
-		return fmt.Errorf("server returned no ejected adoption")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Ejected %s to %s for reason: %s", resp.Msg.Adoption.Id, resp.Msg.WrittenPath, resp.Msg.Adoption.ForkReason)}, ResultsHeading: "Adoption", Results: []string{formatAdoption(resp.Msg.Adoption)}})
-}
-
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	if ctx.FlagDeclared("set") {
 		values := ctx.FlagValues("set")
@@ -471,49 +454,6 @@ func (h *handlers) batchApply(ctx cliapp.RunContext, items []*adoptionsv1.BatchA
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Batch-applied %d adoption(s); shared dependencies=%d.", len(rows), len(resp.Msg.SharedDependencies))}, ResultsHeading: "Adoptions", Results: rows})
 }
 
-func (h *handlers) batchApplyCommand(ctx cliapp.RunContext) error {
-	values := ctx.FlagValues("set")
-	if len(values) == 0 {
-		return fmt.Errorf("batch apply requires at least one --set value")
-	}
-	items := make([]*adoptionsv1.BatchApplyItem, 0, len(values))
-	for _, value := range values {
-		parts := strings.SplitN(value, ":", 4)
-		if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-			return fmt.Errorf("--set must be component-id:scenario:adopted-path[:version] (got %q)", value)
-		}
-		item := &adoptionsv1.BatchApplyItem{ComponentId: parts[0], Scenario: parts[1], AdoptedPath: parts[2], ConfirmOverwrite: ctx.Flag("confirm-overwrite") == "true", OverrideValidation: ctx.Flag("override-validation") == "true", ReplaceExisting: ctx.Flag("replace-existing") == "true"}
-		if len(parts) == 4 {
-			item.Version = parts[3]
-		}
-		items = append(items, item)
-	}
-	return h.batchApply(ctx, items)
-}
-
-func (h *handlers) suggest(ctx cliapp.RunContext) error {
-	req := &adoptionsv1.SuggestAdoptionsRequest{Scenario: ctx.Flag("scenario"), ComponentId: ctx.Flag("component-id")}
-	if raw := ctx.Flag("limit"); raw != "" {
-		limit, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
-		}
-		req.Limit = int32(limit)
-	}
-	resp, err := h.client.SuggestAdoptions(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError("suggest adoptions", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no suggestions")
-	}
-	rows := make([]string, 0, len(resp.Msg.Suggestions))
-	for _, suggestion := range resp.Msg.Suggestions {
-		rows = append(rows, fmt.Sprintf("[%s] %s → %s: %s", suggestion.Classification, suggestion.Scenario, suggestion.LibraryId, strings.Join(suggestion.Reasons, "; ")))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d adoption suggestion(s).", len(rows))}, ResultsHeading: "Suggestions", Results: rows, RetrievalHints: []string{"`adoptions apply <component-id> <scenario> <adopted-path>` — act on a suggestion"}})
-}
-
 func formatImportSites(sites []string) []string {
 	if len(sites) == 0 {
 		return []string{"No direct import sites found."}
@@ -545,15 +485,6 @@ func (h *handlers) reapply(ctx cliapp.RunContext) error {
 		ResultsHeading: "Adoption",
 		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 	})
-}
-
-func (h *handlers) delete(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.DeleteAdoption(context.Background(), connect.NewRequest(&adoptionsv1.DeleteAdoptionRequest{Id: id, ConfirmRemoveFiles: ctx.Flag("confirm-remove-files") == "true"}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("delete adoption %q", id), err, nil)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Deleted adoption %s; removed %d file(s).", id, len(resp.Msg.RemovedFiles))}, ResultsHeading: "Removable files", Results: resp.Msg.RemovableFiles})
 }
 
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
@@ -592,25 +523,6 @@ func (h *handlers) refresh(ctx cliapp.RunContext) error {
 		ResultsHeading: "Adoptions",
 		Results:        results,
 	})
-}
-
-func (h *handlers) reconcile(ctx cliapp.RunContext) error {
-	resp, err := h.client.ReconcileAdoptions(context.Background(), connect.NewRequest(&adoptionsv1.ReconcileAdoptionsRequest{Apply: ctx.Flag("apply") == "true"}))
-	if err != nil {
-		return cliapp.WrapAPIError("reconcile adoptions", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no reconcile response")
-	}
-	rows := make([]string, 0, len(resp.Msg.Findings))
-	for _, finding := range resp.Msg.Findings {
-		rows = append(rows, fmt.Sprintf("%s:%s (%s@%s): %s", finding.Scenario, finding.AdoptedPath, finding.LibraryId, finding.Version, finding.Detail))
-	}
-	mode := "Dry-run"
-	if resp.Msg.Created > 0 && ctx.Flag("apply") == "true" {
-		mode = "Applied"
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s reconciliation: scanned %d provenance file(s), already recorded %d, records to create/created %d.", mode, resp.Msg.Scanned, resp.Msg.AlreadyRecorded, resp.Msg.Created)}, ResultsHeading: "Unresolved provenance", Results: rows, RetrievalHints: []string{"`adoptions reconcile --apply true` — write the proposed missing records"}})
 }
 
 func (h *handlers) reconverge(ctx cliapp.RunContext) error {
@@ -734,75 +646,6 @@ func (h *handlers) confirmDiscovery(ctx cliapp.RunContext) error {
 		Results:        results,
 		RetrievalHints: []string{"`adoptions refresh --component-id " + a.ComponentId + "` — inspect drift on the freshly tracked copy"},
 	})
-}
-
-func (h *handlers) resolvePath(ctx cliapp.RunContext) error {
-	req := &adoptionsv1.ResolveAdoptionPathRequest{
-		ComponentId:  ctx.Positional("component-id"),
-		Scenario:     ctx.Positional("scenario"),
-		OverridePath: ctx.Flag("override"),
-		Feature:      ctx.Flag("feature"),
-		Version:      ctx.Flag("version"),
-		Template:     ctx.Flag("template"),
-	}
-	resp, err := h.client.ResolveAdoptionPath(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError("resolve adoption path", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no resolve response")
-	}
-	results := []string{
-		fmt.Sprintf("path:   %s", resp.Msg.Path),
-		fmt.Sprintf("source: %s", resolveSourceLabel(resp.Msg.Source)),
-		fmt.Sprintf("slot:   %s", nonEmpty(resp.Msg.Slot, "(unset)")),
-	}
-	// Full version file-set placement: where every companion lands. The tree
-	// mirrors the code panel's placement view so operators verify multi-file
-	// components (hooks, tokens) from the CLI.
-	if len(resp.Msg.Files) > 0 {
-		manifest := "no template manifest — flat fallback placement"
-		if resp.Msg.ManifestResolved {
-			manifest = fmt.Sprintf("template manifest: %s", nonEmpty(resp.Msg.Template, "(unknown)"))
-		}
-		results = append(results, "", "placement ("+manifest+"):")
-		for _, f := range resp.Msg.Files {
-			entry := ""
-			if f.IsEntry {
-				entry = " [entry]"
-			}
-			results = append(results, fmt.Sprintf("  %-22s -> %s  (%s · %s)%s",
-				f.LibraryPath, f.TargetPath, nonEmpty(f.Slot, "?"), f.SlotSource, entry))
-			for _, w := range f.Warnings {
-				results = append(results, "    warning: "+w)
-			}
-		}
-	}
-	for _, w := range resp.Msg.Warnings {
-		results = append(results, "warning: "+w)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Resolved %s -> %s", req.ComponentId, resp.Msg.Path)},
-		ResultsHeading: "Resolution",
-		Results:        results,
-		RetrievalHints: []string{
-			"`adoptions apply <component-id> <scenario> <adopted-path>` — copy the file into place",
-		},
-	})
-}
-
-func resolveSourceLabel(s adoptionsv1.ResolveSource) string {
-	switch s {
-	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_EXPLICIT:
-		return "explicit"
-	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_TEMPLATE_MANIFEST:
-		return "template-manifest"
-	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_HEURISTIC:
-		return "heuristic"
-	case adoptionsv1.ResolveSource_RESOLVE_SOURCE_FALLBACK:
-		return "fallback"
-	}
-	return "unspecified"
 }
 
 func nonEmpty(s, fallback string) string {

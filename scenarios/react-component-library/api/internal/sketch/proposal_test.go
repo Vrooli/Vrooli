@@ -3,11 +3,12 @@ package sketch
 import (
 	"context"
 	"fmt"
+	"strings"
+	"testing"
+
 	"react-component-library/internal/availability"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogsearch"
-	"strings"
-	"testing"
 )
 
 type proposalSearch []catalogsearch.Result
@@ -15,6 +16,7 @@ type proposalSearch []catalogsearch.Result
 func (p proposalSearch) SearchContext(context.Context, string, int, string, string, string) []catalogsearch.Result {
 	return p
 }
+
 func TestProposalFiltersCompatibilityAndPreservesAuthoredIntent(t *testing.T) {
 	var catalog []catalogcoverage.Asset
 	var search proposalSearch

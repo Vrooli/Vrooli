@@ -103,9 +103,11 @@ func (s *Snapshot) Get(ctx context.Context, id string) (components.Component, er
 	}
 	return asset, nil
 }
+
 func (s *Snapshot) GetByLibraryID(ctx context.Context, id string) (components.Component, error) {
 	return s.Get(ctx, id)
 }
+
 func (s *Snapshot) GetVersion(ctx context.Context, id, version string) (components.ComponentVersion, error) {
 	if err := ctx.Err(); err != nil {
 		return components.ComponentVersion{}, err

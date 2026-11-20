@@ -152,6 +152,7 @@ func regionOwnContent(d Document, id string) []byte {
 	raw, _ := json.Marshal(value)
 	return raw
 }
+
 func validateRegionLocks(before, after Document) error {
 	for _, r := range before.Regions {
 		if r.Locked && string(regionContent(before, r.ID)) != string(regionContent(after, r.ID)) {

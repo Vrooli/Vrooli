@@ -28,6 +28,7 @@ func TestTemplateSwapPreservesOrReportsEveryPlacement(t *testing.T) {
 		t.Fatal("repeat swap changed content")
 	}
 }
+
 func TestTemplateSwapRejectsAmbiguousAndUnknownMappings(t *testing.T) {
 	doc := Document{Regions: []Region{{ID: "a"}, {ID: "b"}, {ID: "main"}}}
 	for _, maps := range [][]RegionRemap{{{From: "a", To: "missing"}}, {{From: "unknown", To: "main"}}, {{From: "a", To: "main"}, {From: "a", To: "footer"}}, {{From: "a", To: "footer"}, {From: "b", To: "footer"}}, {{From: "a", To: "main"}}} {

@@ -11,7 +11,7 @@ import { Chip, Empty, Tabs } from "../primitives";
 import { NodeInspector } from "./NodeInspector";
 import { cx } from "../cx";
 import { VERDICT_ICON, VERDICT_KEY, type Verdict } from "../verdicts";
-import type { StudioProposal } from "./proposal";
+import type { ProposalTransport, StudioProposal } from "./proposal";
 import { StudioAssist, type AssistScope } from "./StudioAssist";
 
 export type InspectorTab = "inspect" | "checks" | "ai";
@@ -61,6 +61,8 @@ export function StudioInspector({
   onSelectFrame,
   onApplyProposal,
   onApplied,
+  assist = true,
+  propose,
 }: {
   tab: InspectorTab;
   onTab: (tab: InspectorTab) => void;
@@ -79,6 +81,13 @@ export function StudioInspector({
   onSelectFrame: (id: string) => void;
   onApplyProposal: (proposal: StudioProposal) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
   onApplied: (summary: string) => void;
+  /**
+   * AI assist is design-store backed. A surface that has no proposal endpoint
+   * hides the tab instead of presenting a control that cannot work.
+   */
+  assist?: boolean;
+  /** Required when assist is shown; the surface owns its transport. */
+  propose?: ProposalTransport;
 }) {
   const { t } = useTranslation();
   const size = FRAME_SIZE[frame.device];
@@ -156,7 +165,9 @@ export function StudioInspector({
               label: t("workbench.studio.checks", { defaultValue: "Checks" }),
               count: issueCount,
             },
-            { id: "ai", label: t("workbench.studio.ai", { defaultValue: "AI" }) },
+            ...(assist
+              ? [{ id: "ai" as const, label: t("workbench.studio.ai", { defaultValue: "AI" }) }]
+              : []),
           ]}
         />
       </div>
@@ -357,7 +368,7 @@ export function StudioInspector({
           </>
         ) : null}
 
-        {tab === "ai" ? (
+        {assist && propose && tab === "ai" ? (
           <StudioAssist
             design={design}
             frame={frame}
@@ -366,6 +377,7 @@ export function StudioInspector({
             onScope={onAiScope}
             onApply={onApplyProposal}
             onApplied={onApplied}
+            propose={propose}
           />
         ) : null}
       </div>

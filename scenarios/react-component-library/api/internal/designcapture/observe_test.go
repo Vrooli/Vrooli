@@ -24,6 +24,7 @@ func producerTimeline(t *testing.T) *timelinev1.ExecutionTimeline {
 	require.NoError(t, protojson.Unmarshal(raw, &timeline))
 	return &timeline
 }
+
 func TestBASCaptureEvidenceRequiresExactSuccessfulTarget(t *testing.T) {
 	op := Operation{State: Running, ProducerID: "bas-fixture", Version: 1, Request: captureRequest()}
 	observation, err := observeTimeline(op, producerTimeline(t))
@@ -62,6 +63,7 @@ type observerFunc func(context.Context, Operation) (Observation, error)
 func (f observerFunc) Observe(ctx context.Context, op Operation) (Observation, error) {
 	return f(ctx, op)
 }
+
 func TestAttachPersistsReceiptAndNeverRedispatches(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -91,6 +93,7 @@ func TestAttachPersistsReceiptAndNeverRedispatches(t *testing.T) {
 	require.Equal(t, done, again)
 	require.Equal(t, 1, calls)
 }
+
 func TestBASObserverReadsExistingProducerOnly(t *testing.T) {
 	raw, err := os.ReadFile("testdata/bas-target-timeline.json")
 	require.NoError(t, err)

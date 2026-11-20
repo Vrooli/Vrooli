@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Library",
+  "route": "/library",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/library"
+    }
+  ]
+}

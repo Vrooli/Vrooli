@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/gates"
 	"testing"
+
+	"react-component-library/internal/gates"
 )
 
 type fakeScanner struct {
@@ -170,7 +171,7 @@ func TestRealASTIgnoresCommentAndStringBindings(t *testing.T) {
 	source := `// data-testid="comment-only"
 const misleading = 'data-testid="string-only"';
 export const Fixture = () => <div data-testid="actual"><Card data-testid="unforwarded" /></div>;`
-	if err := os.WriteFile(sourcePath, []byte(source), 0600); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	facts, err := gates.ReadSourceFacts(context.Background(), repoRoot, sourcePath)
@@ -188,7 +189,7 @@ func TestSelectorBindingProvesLiteralSurfaceAttribute(t *testing.T) {
 	r, scanner := fixture(t)
 	page := filepath.Join(r.ScenariosRoot, "demo", "experience", "pages", "page.json")
 	body := `{"regions":[{"id":"results","component":{"local":"not-a-slug"}}],"bindings":{"regions":{"results":{"selector":"[data-experience-surface=\"catalog-results\"]"}}}}`
-	if err := os.WriteFile(page, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(page, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts = func(context.Context, string, ...string) (map[string]gates.SourceFacts, error) {
@@ -211,7 +212,7 @@ func TestUnsupportedSelectorReportsReason(t *testing.T) {
 	r, _ := fixture(t)
 	page := filepath.Join(r.ScenariosRoot, "demo", "experience", "pages", "page.json")
 	body := `{"regions":[{"id":"first-region","component":{"local":"First"}}],"bindings":{"regions":{"first-region":{"selector":"main > section:first-child"}}}}`
-	if err := os.WriteFile(page, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(page, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	results, err := r.Resolve(context.Background(), "demo", "page")
@@ -228,14 +229,18 @@ func TestCatalogSelectorResolvesThroughRealImportedSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := Resolver{ScenariosRoot: filepath.Join(root, "scenarios"), ToolingRoot: root, Scanner: &fakeScanner{files: []ObservedFile{{Path: "ui/src/App.tsx", Provenance: ProvenanceCustom}}}}
+	// The catalog results surface lives in ComponentsPage; App.tsx only hosts
+	// the router. The fixture follows the imported source that owns the
+	// selector so the binding is proved against real bytes.
+	sourcePath := "ui/src/workbench/pages/ComponentsPage.tsx"
+	r := Resolver{ScenariosRoot: filepath.Join(root, "scenarios"), ToolingRoot: root, Scanner: &fakeScanner{files: []ObservedFile{{Path: sourcePath, Provenance: ProvenanceCustom}}}}
 	results, err := r.Resolve(context.Background(), "react-component-library", "catalog-workspace")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, result := range results {
 		if result.Region == "catalog-results" {
-			if result.LibraryAsset != "experience-surface" || result.LibraryVersion != "1.0.3" || !result.Proven || result.JoinRule != "binding-selector" || result.FilePath != "ui/src/App.tsx" {
+			if result.LibraryAsset != "experience-surface" || result.LibraryVersion != "1.0.3" || !result.Proven || result.JoinRule != "binding-selector" || result.FilePath != sourcePath {
 				t.Fatalf("catalog binding not proved: %#v", result)
 			}
 			return
@@ -247,7 +252,7 @@ func TestCatalogSelectorResolvesThroughRealImportedSource(t *testing.T) {
 func TestRegionRequiredDefaultsToSchemaContract(t *testing.T) {
 	r, _ := fixture(t)
 	path := filepath.Join(r.ScenariosRoot, "demo", "experience", "pages", "page.json")
-	if err := os.WriteFile(path, []byte(`{"regions":[{"id":"default"},{"id":"optional","required":false},{"id":"required","required":true}]}`), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"regions":[{"id":"default"},{"id":"optional","required":false},{"id":"required","required":true}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	regions, err := loadRegions(r.ScenariosRoot, "demo", "page")

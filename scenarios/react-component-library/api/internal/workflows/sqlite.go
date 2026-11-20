@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"react-component-library/internal/sqliterows"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -100,7 +100,7 @@ func (r *sqliteRepository) Update(ctx context.Context, w Workflow) (Workflow, er
 	if err != nil {
 		return Workflow{}, fmt.Errorf("begin workflow update: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var current Status
 	if err := tx.QueryRowContext(ctx, `SELECT status FROM assisted_workflows WHERE id=?`, w.ID).Scan(&current); err != nil {

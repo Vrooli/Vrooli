@@ -13,12 +13,12 @@ import (
 func TestDesignSourceSnapshotExactBoundedAndConfined(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	write := func(name string, data []byte) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -47,7 +47,7 @@ func TestDesignSourceSnapshotExactBoundedAndConfined(t *testing.T) {
 	if err := os.Symlink("docs/DESIGN.md", filepath.Join(dir, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if err := syscall.Mkfifo(filepath.Join(dir, "pipe"), 0600); err != nil {
+	if err := syscall.Mkfifo(filepath.Join(dir, "pipe"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for _, source := range []string{"../demo/docs/DESIGN.md", "/etc/passwd", "missing", "docs", "large", "binary", "nul", "empty", "escape/scenarios/demo/docs/DESIGN.md", "pipe"} {

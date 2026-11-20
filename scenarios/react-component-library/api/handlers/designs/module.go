@@ -8,7 +8,6 @@ package designs
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 
 	"react-component-library/internal/designinference"
 	domain "react-component-library/internal/designs"
+	"react-component-library/internal/httprest"
 	"react-component-library/internal/module"
 )
 
@@ -466,36 +466,12 @@ func (h *Handler) removeAsset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func decodeBase64(raw string) ([]byte, error) {
-	value := strings.TrimSpace(raw)
-	if strings.HasPrefix(value, "data:") {
-		if comma := strings.Index(value, ","); comma >= 0 {
-			value = value[comma+1:]
-		}
-	}
-	if value == "" {
-		return nil, errors.New("dataBase64 is required")
-	}
-	decoded, err := base64.StdEncoding.DecodeString(value)
-	if err != nil {
-		return nil, errors.New("dataBase64 is not valid base64")
-	}
-	return decoded, nil
-}
+// decodeBase64 and etagMatches are the shared REST primitives; the designs
+// route keeps its local names so the retired surface does not churn before its
+// deletion, but there is one implementation.
+func decodeBase64(raw string) ([]byte, error) { return httprest.DecodeBase64Data(raw) }
 
-// etagMatches accepts the exact id or a quoted/weak form, as browsers resend
-// whatever was stored. `*` matches any existing asset.
-func etagMatches(header, etag string) bool {
-	for _, part := range strings.Split(header, ",") {
-		candidate := strings.TrimSpace(part)
-		candidate = strings.TrimPrefix(candidate, "W/")
-		candidate = strings.Trim(candidate, `"`)
-		if candidate == "*" || candidate == etag {
-			return true
-		}
-	}
-	return false
-}
+func etagMatches(header, etag string) bool { return httprest.EtagMatches(header, etag) }
 
 // --- errors ---------------------------------------------------------------
 
@@ -529,11 +505,9 @@ func decodeDocument(w http.ResponseWriter, r *http.Request, target *documentRequ
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	httprest.WriteJSON(w, status, payload)
 }
 
 func writeError(w http.ResponseWriter, status int, code, message string) {
-	writeJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
+	httprest.WriteError(w, status, code, message)
 }

@@ -33,7 +33,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/cli-core v0.0.0
-	github.com/vrooli/envkit-go v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect

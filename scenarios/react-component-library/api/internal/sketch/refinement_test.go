@@ -11,10 +11,10 @@ func refinementFixture(t *testing.T) (*Store, Candidate, Document) {
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"sketch":{},"claims":[{"id":"keep"}]}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"sketch":{},"claims":[{"id":"keep"}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(root)
@@ -29,6 +29,7 @@ func refinementFixture(t *testing.T) (*Store, Candidate, Document) {
 	}
 	return store, c, doc
 }
+
 func TestRefinementBudgetRetryAndExplicitContinuation(t *testing.T) {
 	store, parent, doc := refinementFixture(t)
 	request := RefinementRequest{Document: doc, RequestedRegions: []string{"a"}, Reason: "Improve task clarity"}
@@ -66,6 +67,7 @@ func TestRefinementBudgetRetryAndExplicitContinuation(t *testing.T) {
 		t.Fatal("ordinary branch reset budget", err)
 	}
 }
+
 func TestRefinementScopeExplanationCannotWaiveLocks(t *testing.T) {
 	store, parent, doc := refinementFixture(t)
 	request := RefinementRequest{Document: doc, RequestedRegions: []string{"a"}, Reason: "Improve task clarity"}
@@ -93,6 +95,7 @@ func TestRefinementScopeExplanationCannotWaiveLocks(t *testing.T) {
 		t.Fatal("broader explanation waived lock")
 	}
 }
+
 func TestRefinementEnvelopeSurvivesReadWithoutChangingLegacyIdentity(t *testing.T) {
 	store, parent, doc := refinementFixture(t)
 	raw, _ := json.Marshal(parent)

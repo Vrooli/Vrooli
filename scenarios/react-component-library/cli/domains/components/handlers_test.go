@@ -770,6 +770,7 @@ func (s *componentsService) RetireComponent(_ context.Context, req *connect.Requ
 	}
 	return connect.NewResponse(s.retireResp), nil
 }
+
 func TestRetireCommandForwardsApplyAndPreservesFailureReceipt(t *testing.T) {
 	for _, apply := range []bool{false, true} {
 		svc := &componentsService{}

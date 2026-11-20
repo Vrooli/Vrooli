@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup endpoints
+.PHONY: help start stop test logs status clean fmt fmt-go fmt-ui lint lint-go lint-ui check setup endpoints test-fleet-contract
 
 .DEFAULT_GOAL := help
 
@@ -52,6 +52,9 @@ logs: ## Show scenario logs
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
+test-fleet-contract: ## Run the non-hermetic fleet contract check alone
+	@cd api && GOWORK=off go test -count=1 -p 1 -tags integration ./handlers/componenttests/ -run TestConsumerContractPhaseRunsActualFleetChecker
+
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
@@ -65,7 +68,7 @@ fmt-ui: ## Format UI and published library source
 
 lint: lint-go lint-ui ## Lint all code
 
-check: fmt lint test ## Run full quality gates
+check: lint test ## Run read-only quality gates (use `make fmt` to rewrite files)
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"

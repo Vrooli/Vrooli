@@ -2,13 +2,10 @@ package components
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -23,8 +20,6 @@ import (
 	componenttestsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
-	sharedlibspec "github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
 
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
@@ -106,51 +101,6 @@ func shortRevision(revision string) string {
 	return revision
 }
 
-func (h *handlers) testShow(ctx cliapp.RunContext) error {
-	resp, err := h.testClient.GetComponentTestReport(context.Background(), connect.NewRequest(&componenttestsv1.GetComponentTestReportRequest{Id: ctx.Positional("report-id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("get component test report", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
-		return fmt.Errorf("server returned no component test report")
-	}
-	return renderTestReport(ctx, resp.Msg.Report, "Component test report.")
-}
-
-func (h *handlers) testRerun(ctx cliapp.RunContext) error {
-	resp, err := h.testClient.RerunComponentTest(context.Background(), connect.NewRequest(&componenttestsv1.RerunComponentTestRequest{ReportId: ctx.Positional("report-id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("rerun component test", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
-		return fmt.Errorf("server returned no component test report")
-	}
-	return renderTestReport(ctx, resp.Msg.Report, "Component test rerun completed.")
-}
-
-func (h *handlers) testList(ctx cliapp.RunContext) error {
-	limit := int32(0)
-	if raw := ctx.Flag("limit"); raw != "" {
-		value, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
-		}
-		limit = int32(value)
-	}
-	resp, err := h.testClient.ListComponentTestReports(context.Background(), connect.NewRequest(&componenttestsv1.ListComponentTestReportsRequest{ComponentId: ctx.Positional("component-id"), Limit: limit}))
-	if err != nil {
-		return cliapp.WrapAPIError("list component test reports", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no component test reports")
-	}
-	results := make([]string, 0, len(resp.Msg.Reports))
-	for _, report := range resp.Msg.Reports {
-		results = append(results, fmt.Sprintf("%s\t%s\t%s\t%s", report.Id, report.Verdict, report.RootVersion, report.CreatedAt.AsTime().Format(time.RFC3339)))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d component test report(s).", len(results))}, ResultsHeading: "Reports", Results: results, RetrievalHints: []string{"`components test-show <report-id>` — inspect stages and remediation"}})
-}
-
 func (h *handlers) sweepCall(ctx cliapp.OperationContext) (*componenttestsv1.SweepComponentTestsResponse, error) {
 	resp, err := h.testClient.SweepComponentTests(context.Background(), connect.NewRequest(&componenttestsv1.SweepComponentTestsRequest{
 		Resume: ctx.BoolFlag("resume"), IncludeClosure: ctx.BoolFlag("closure"), ComponentId: ctx.Flag("component-id"),
@@ -181,21 +131,6 @@ func (h *handlers) sweepReport(ctx cliapp.OperationContext, msg *componenttestsv
 		rows = append(rows, msg.Errors...)
 	}
 	return cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Version reports", Results: rows, RetrievalHints: []string{"`components sweep --resume` — retry only untested or blocked versions"}}
-}
-
-func renderTestReport(ctx cliapp.RunContext, report *componenttestsv1.ComponentTestReport, summary string) error {
-	results := make([]string, 0, len(report.Results))
-	for _, result := range report.Results {
-		line := fmt.Sprintf("%s\t%s@%s\t%s", result.Stage, result.AssetLibraryId, result.Version, result.Verdict)
-		if result.Message != "" {
-			line += "\t" + result.Message
-		}
-		if result.Remediation != "" {
-			line += "\t" + result.Remediation
-		}
-		results = append(results, line)
-	}
-	return cliapp.RenderProtoList(ctx, report, cliapp.ListReport{Summary: []string{summary, fmt.Sprintf("Report %s: %s.", report.Id, report.Verdict)}, ResultsHeading: "Stages", Results: results, RetrievalHints: []string{"`components test-show " + report.Id + "` — retrieve this durable report", "`components test-rerun " + report.Id + "` — rerun the same pinned closure"}})
 }
 
 // index calls ComponentsService.IndexComponents. The walk runs server-side;
@@ -568,158 +503,6 @@ func (h *handlers) versionPublishReport(_ cliapp.OperationContext, msg *componen
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Published %s@%s.", msg.Component.LibraryId, msg.Version.Version)}, Changes: results}
 }
 
-func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
-	asset := strings.TrimSpace(ctx.Positional("asset"))
-	if !strings.Contains(asset, ":") {
-		asset = "react-component-library:" + asset
-	}
-	targetVersion := strings.TrimSpace(ctx.Positional("version"))
-	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
-	if err != nil {
-		return cliapp.WrapAPIError("list dependent components", err, nil)
-	}
-	var dependents []*componentsv1.Component
-	for _, component := range listed.Msg.Components {
-		// The indexed dependency version is the resolved lock, not the
-		// authored selector. Inspect the latest authored source as well so a
-		// one-time migration can republish exact pins even when the selected
-		// release is already the dependency's latest release.
-		if hasExactLibrarySpecifier(component, asset) {
-			dependents = append(dependents, component)
-		}
-	}
-	sort.Slice(dependents, func(i, j int) bool {
-		if dependents[i].AssetKind == dependents[j].AssetKind {
-			return dependents[i].LibraryId < dependents[j].LibraryId
-		}
-		return dependents[i].AssetKind < dependents[j].AssetKind
-	})
-	results := make([]string, 0, len(dependents))
-	apply := ctx.Flag("apply") != ""
-	for _, component := range dependents {
-		line := fmt.Sprintf("%s current=%s", component.LibraryId, component.LatestVersion)
-		if apply {
-			draft, beginErr := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: component.LibraryId, Bump: "patch"}))
-			if beginErr != nil {
-				return cliapp.WrapAPIError("begin dependent draft", beginErr, nil)
-			}
-			if normalizeErr := h.normalizeDraftLibrarySpecifiers(component, draft.Msg.Version.Version, listed.Msg.Components); normalizeErr != nil {
-				return normalizeErr
-			}
-			published, publishErr := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: component.LibraryId, DraftVersion: draft.Msg.Version.Version}))
-			if publishErr != nil {
-				return cliapp.WrapAPIError("publish dependent", publishErr, nil)
-			}
-			line += " published=" + published.Msg.Version.Version
-		}
-		results = append(results, line)
-	}
-	mode := "dry-run"
-	if apply {
-		mode = "applied"
-	}
-	return cliapp.RenderProtoList(ctx, listed.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Dependent republish %s: %d asset(s) contain exact selectors for %s (requested target %s).", mode, len(dependents), asset, targetVersion)},
-		ResultsHeading: "Dependents in dependency-rank order", Results: results,
-	})
-}
-
-func (h *handlers) migrateSpecifiers(ctx cliapp.RunContext) error {
-	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
-	if err != nil {
-		return cliapp.WrapAPIError("list components for specifier migration", err, nil)
-	}
-	dependents := make([]*componentsv1.Component, 0)
-	for _, component := range listed.Msg.Components {
-		if hasAnyExactLibrarySpecifier(component) {
-			dependents = append(dependents, component)
-		}
-	}
-	sort.Slice(dependents, func(i, j int) bool { return dependents[i].LibraryId < dependents[j].LibraryId })
-	apply := ctx.Flag("apply") != ""
-	results := make([]string, 0, len(dependents))
-	for _, component := range dependents {
-		line := fmt.Sprintf("%s current=%s", component.LibraryId, component.LatestVersion)
-		if apply {
-			draft, beginErr := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: component.LibraryId, Bump: "patch"}))
-			if beginErr != nil {
-				return cliapp.WrapAPIError("begin specifier migration draft", beginErr, nil)
-			}
-			if normalizeErr := h.normalizeDraftLibrarySpecifiers(component, draft.Msg.Version.Version, listed.Msg.Components); normalizeErr != nil {
-				return normalizeErr
-			}
-			published, publishErr := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: component.LibraryId, DraftVersion: draft.Msg.Version.Version}))
-			if publishErr != nil {
-				return cliapp.WrapAPIError("publish specifier migration", publishErr, nil)
-			}
-			line += " published=" + published.Msg.Version.Version
-		}
-		results = append(results, line)
-	}
-	mode := "dry-run"
-	if apply {
-		mode = "applied"
-	}
-	return cliapp.RenderProtoList(ctx, listed.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Specifier migration %s: %d latest asset(s) contain exact selectors.", mode, len(dependents))},
-		ResultsHeading: "Assets requiring major-line migration", Results: results,
-	})
-}
-
-type specifierMigrationPlanItem struct {
-	Order          int    `json:"order"`
-	LibraryID      string `json:"library_id"`
-	Current        string `json:"current_version"`
-	Next           string `json:"next_version"`
-	DependencyRank int    `json:"dependency_rank"`
-}
-
-// republishPlan is deliberately read-only. It records the deterministic
-// migration order before any draft is opened, so an interrupted migration can
-// be resumed from an explicit plan rather than from a partially observed tree.
-func (h *handlers) republishPlan(ctx cliapp.RunContext) error {
-	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
-	if err != nil {
-		return cliapp.WrapAPIError("list components for republish plan", err, nil)
-	}
-	items := make([]specifierMigrationPlanItem, 0)
-	for _, component := range listed.Msg.Components {
-		if !hasAnyExactLibrarySpecifier(component) {
-			continue
-		}
-		rank := migrationDependencyRank(component)
-		items = append(items, specifierMigrationPlanItem{
-			LibraryID: component.LibraryId, Current: component.LatestVersion,
-			Next: patchVersion(component.LatestVersion), DependencyRank: rank,
-		})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].DependencyRank != items[j].DependencyRank {
-			return items[i].DependencyRank < items[j].DependencyRank
-		}
-		return items[i].LibraryID < items[j].LibraryID
-	})
-	for i := range items {
-		items[i].Order = i + 1
-	}
-	payload := struct {
-		SchemaVersion int                          `json:"schema_version"`
-		Count         int                          `json:"count"`
-		Items         []specifierMigrationPlanItem `json:"items"`
-	}{SchemaVersion: 1, Count: len(items), Items: items}
-	if ctx.JSON() {
-		return cliapp.PrintJSON(ctx.Stdout(), payload)
-	}
-	results := make([]string, 0, len(items))
-	for _, item := range items {
-		results = append(results, fmt.Sprintf("%03d rank=%d %s current=%s next=%s", item.Order, item.DependencyRank, item.LibraryID, item.Current, item.Next))
-	}
-	return ctx.RenderList(cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Specifier republish plan: %d asset(s).", len(items))},
-		ResultsHeading: "Dependency-rank-ordered migration", Results: results,
-	})
-}
-
 func patchVersion(version string) string {
 	parts := strings.Split(version, ".")
 	if len(parts) != 3 {
@@ -756,132 +539,6 @@ func migrationDependencyRank(component *componentsv1.Component) int {
 	default:
 		return 5
 	}
-}
-
-func hasExactLibrarySpecifier(component *componentsv1.Component, asset string) bool {
-	if component == nil || component.SourcePath == "" {
-		return false
-	}
-	root := cliutil.ResolveRepoRoot()
-	assetRoot := filepath.Join(root, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath))
-	marker := string(filepath.Separator) + "versions" + string(filepath.Separator)
-	if index := strings.Index(assetRoot, marker); index >= 0 {
-		assetRoot = assetRoot[:index]
-	}
-	manifestPath := filepath.Join(assetRoot, "component.json")
-	manifest, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return false
-	}
-	var metadata struct {
-		Latest string `json:"latest"`
-	}
-	if err := json.Unmarshal(manifest, &metadata); err != nil || metadata.Latest == "" {
-		return false
-	}
-	versionRoot := filepath.Join(assetRoot, "versions", metadata.Latest)
-	entries, err := os.ReadDir(versionRoot)
-	if err != nil {
-		return false
-	}
-	name := strings.TrimPrefix(asset, "react-component-library:")
-	exact := regexp.MustCompile(`@vrooli/react-component-library/` + regexp.QuoteMeta(name) + `/\d+\.\d+\.\d+`)
-	for _, entry := range entries {
-		if entry.IsDir() || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
-			continue
-		}
-		body, readErr := os.ReadFile(filepath.Join(versionRoot, entry.Name()))
-		if readErr == nil && exact.Match(body) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasAnyExactLibrarySpecifier(component *componentsv1.Component) bool {
-	if component == nil || component.SourcePath == "" {
-		return false
-	}
-	root := cliutil.ResolveRepoRoot()
-	assetRoot := filepath.Join(root, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath))
-	marker := string(filepath.Separator) + "versions" + string(filepath.Separator)
-	if index := strings.Index(assetRoot, marker); index >= 0 {
-		assetRoot = assetRoot[:index]
-	}
-	manifest, err := os.ReadFile(filepath.Join(assetRoot, "component.json"))
-	if err != nil {
-		return false
-	}
-	var metadata struct {
-		Latest string `json:"latest"`
-	}
-	if json.Unmarshal(manifest, &metadata) != nil || metadata.Latest == "" {
-		return false
-	}
-	versionRoot := filepath.Join(assetRoot, "versions", metadata.Latest)
-	exact := regexp.MustCompile(`@vrooli/react-component-library/[A-Za-z][A-Za-z0-9-]*/\d+\.\d+\.\d+`)
-	var found bool
-	_ = filepath.WalkDir(versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil || entry.IsDir() || found || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
-			return nil
-		}
-		body, readErr := os.ReadFile(path)
-		if readErr == nil && exact.Match(body) {
-			found = true
-		}
-		return nil
-	})
-	return found
-}
-
-// normalizeDraftLibrarySpecifiers changes only the newly-created draft. A
-// republish must migrate copied historical source whose exact dependency has
-// since been retired; the release publisher then freezes the major-line
-// imports into the new release and regenerates its exact-resolution lock.
-func (h *handlers) normalizeDraftLibrarySpecifiers(component *componentsv1.Component, draftVersion string, candidates []*componentsv1.Component) error {
-	latest := make(map[string]string, len(candidates))
-	for _, candidate := range candidates {
-		latest[candidate.LibraryId] = candidate.LatestVersion
-	}
-	repoRoot := cliutil.ResolveRepoRoot()
-	versionDir := filepath.Dir(filepath.Join(repoRoot, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath)))
-	draftDir := filepath.Join(filepath.Dir(versionDir), draftVersion)
-	entries, err := os.ReadDir(draftDir)
-	if err != nil {
-		return fmt.Errorf("read dependent draft %s: %w", component.LibraryId, err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
-			continue
-		}
-		path := filepath.Join(draftDir, entry.Name())
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read dependent draft file %s: %w", path, err)
-		}
-		normalized := sharedlibspec.Rewrite(string(body), func(specifier sharedlibspec.Specifier) string {
-			active := latest["react-component-library:"+specifier.Name]
-			if active == "" {
-				return ""
-			}
-			return sharedlibspec.Prefix + specifier.Name + "/" + strings.Split(active, ".")[0]
-		})
-		if normalized == string(body) {
-			continue
-		}
-		if _, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(&componentsv1.UpdateComponentContentRequest{Id: component.LibraryId, Path: entry.Name(), Content: normalized})); err != nil {
-			return cliapp.WrapAPIError("normalize dependent draft", err, nil)
-		}
-	}
-	contractPath := filepath.Join(draftDir, "experience-contract.json")
-	if _, err := os.Stat(contractPath); err == nil {
-		catalogSlug := strings.ToLower(strings.ReplaceAll(component.CatalogId, ".", "-"))
-		contract := fmt.Sprintf("{\n  \"kind\": \"experience-reference\",\n  \"component\": \"%s\",\n  \"ref\": \"../../../../../experience/components/%s.json\"\n}\n", component.CatalogId, catalogSlug)
-		if _, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(&componentsv1.UpdateComponentContentRequest{Id: component.LibraryId, Path: "experience-contract.json", Content: contract})); err != nil {
-			return cliapp.WrapAPIError("normalize dependent experience reference", err, nil)
-		}
-	}
-	return nil
 }
 
 func (h *handlers) manifestUpdateCall(ctx cliapp.OperationContext) (*componentsv1.UpdateComponentManifestResponse, error) {
@@ -963,54 +620,6 @@ func (h *handlers) contentGet(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Read %s (sha256=%s).", resp.Msg.SourcePath, resp.Msg.Sha256)},
-		ResultsHeading: "Content",
-		Results:        []string{resp.Msg.Content},
-	})
-}
-
-func (h *handlers) versions(ctx cliapp.RunContext) error {
-	componentID := ctx.Positional("component-id")
-	req := &componentsv1.ListComponentVersionsRequest{ComponentId: componentID}
-	if raw := ctx.Flag("limit"); raw != "" {
-		n, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil {
-			return fmt.Errorf("--limit must be an integer (got %q)", raw)
-		}
-		req.Limit = int32(n)
-	}
-	resp, err := h.client.ListComponentVersions(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("list versions for component %q", componentID), err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no versions response")
-	}
-	results := make([]string, 0, len(resp.Msg.Versions))
-	for _, v := range resp.Msg.Versions {
-		results = append(results, formatVersion(v))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d version(s).", len(resp.Msg.Versions))},
-		ResultsHeading: "Versions",
-		Results:        results,
-	})
-}
-
-func (h *handlers) showVersion(ctx cliapp.RunContext) error {
-	componentID := ctx.Positional("component-id")
-	version := ctx.Positional("version")
-	resp, err := h.client.GetComponentVersionContent(context.Background(), connect.NewRequest(&componentsv1.GetComponentVersionContentRequest{
-		ComponentId: componentID,
-		Version:     version,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("show version %q for component %q", version, componentID), err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no version response")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Read %s.", resp.Msg.Version.SourcePath)},
 		ResultsHeading: "Content",
 		Results:        []string{resp.Msg.Content},
 	})
@@ -1162,13 +771,6 @@ func formatStyleFitVerdict(v *componentsv1.ValidateStyleFitResponse) string {
 		formatStyleFitKind(v.Kind), v.Scenario, v.ScenarioStyle, v.ComponentId, version, affinity)
 }
 
-func formatVersion(v *componentsv1.ComponentVersion) string {
-	if v == nil {
-		return "(nil)"
-	}
-	return fmt.Sprintf("%s — %s %s sha=%s @ %s", v.Id, v.Version, v.Status.String(), v.ContentSha256, v.SourcePath)
-}
-
 func formatStory(story *componentsv1.ComponentStory) string {
 	if story == nil {
 		return "(nil)"
@@ -1186,6 +788,7 @@ func (h *handlers) retireCall(ctx cliapp.OperationContext) (*componentsv1.Retire
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) retireReport(_ cliapp.OperationContext, msg *componentsv1.RetireComponentResponse) cliapp.MutationReport {
 	report := cliapp.MutationReport{Result: []string{fmt.Sprintf("%s: ready=%t retired=%t", msg.LibraryId, msg.Ready, msg.Retired)}}
 	if msg.Error != "" {
@@ -1201,6 +804,7 @@ func (h *handlers) retireReport(_ cliapp.OperationContext, msg *componentsv1.Ret
 	}
 	return report
 }
+
 func retireOutcome(ctx cliapp.OperationContext, msg *componentsv1.RetireComponentResponse) error {
 	if msg.Error != "" {
 		return fmt.Errorf("retirement: %s", msg.Error)

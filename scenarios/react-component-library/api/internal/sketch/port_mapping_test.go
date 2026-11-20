@@ -45,6 +45,7 @@ func TestAuthoredRegionsReplaceOnlyGeneratedTemplatePlaceholders(t *testing.T) {
 		t.Fatal("root contract was renamed")
 	}
 }
+
 func TestPortMappingRefusesAuthoredDisplacementAndCollisions(t *testing.T) {
 	source := Snapshot{Document: Document{Regions: []Region{{ID: "collection", Note: "Existing authored purpose"}, {ID: "threads"}, {ID: "gate"}}, Render: &RenderSettings{Regions: []RenderRegion{{ID: "collection", TemplateRegion: "collection", Slot: []string{"regions", "collection"}}}}}}
 	for _, mapping := range [][]PortMapping{{{Region: "threads", TemplateRegion: "collection"}}, {{Region: "threads", TemplateRegion: "collection"}, {Region: "gate", TemplateRegion: "collection"}}, {{Region: "threads", TemplateRegion: "unknown"}}} {

@@ -333,7 +333,7 @@ func TestCompositionSourceCarriesPortableVerifiedProvenance(t *testing.T) {
 	oldHash := version.ContentSHA256
 	version.Content += "\n// Different verified source content\n"
 	version.ContentSHA256 = digest(version.Content)
-	if err := os.WriteFile(version.SourcePath, []byte(version.Content), 0600); err != nil {
+	if err := os.WriteFile(version.SourcePath, []byte(version.Content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	catalog.versions["test.card@1.0.0"] = version

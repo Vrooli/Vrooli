@@ -1,11 +1,18 @@
 # Workbench maturation — five places, one model
 
-Status: **proposal, not implemented**. This is the next information architecture and
-design model after the D · Nocturne workbench. It responds to the operator’s
-2026-11-19 direction: keep the Start/search index and the phone composition, re-home
-Home’s modules instead of deleting them, consolidate Coverage, Activity and
-Capabilities into one Stats page, and make the design studio a workspace with pages,
-displays and states.
+Status: **implemented slice; legacy-owner deletion, BAS state capture and the
+semantic search leg remain.** The five destinations, workspace aggregate, unified search,
+server-owned Review/Activity, a paginated Review queue, the CLI surface,
+workspace assets/assist/HTML import, curated template seeds and composed Stats
+are implemented and served. The workspace studio renders the
+mature studio surfaces (page tabs, layers, system, canvas, inspector, status bar,
+present, undo/redo, autosave). Evidence and remaining gaps are in
+[WORKBENCH-PROGRAM.md](../internal/WORKBENCH-PROGRAM.md#0-delivery-status-2026-11-19).
+This is the information architecture and design model after the D · Nocturne
+workbench. It responds to the operator’s 2026-11-19 direction: keep the
+Start/search index and the phone composition, re-home Home’s modules instead of
+deleting them, consolidate Coverage, Activity and Capabilities into one Stats
+page, and make the design studio a workspace with pages, displays and states.
 
 Visual prototype: [workbench-maturation.html](../mockups/workbench-maturation.html)
 Search decision record: [SEARCH-AND-COMPOSITION.md](SEARCH-AND-COMPOSITION.md)

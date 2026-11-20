@@ -119,16 +119,16 @@ describe("workbench routes", () => {
     emitShortcutIntentMock.mockClear();
   });
 
-  it("mounts the Nocturne shell and Home at /", async () => {
+  it("mounts the Nocturne shell and Start at /", async () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
     await waitFor(() => {
       expect(screen.getByTestId("workbench-shell")).toBeInTheDocument();
-      expect(screen.getByTestId("home-page")).toBeInTheDocument();
+      expect(screen.getByTestId("start-page")).toBeInTheDocument();
     });
-    expect(screen.getAllByRole("link", { name: /components/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /library/i }).length).toBeGreaterThan(0);
   });
 
-  it("redirects the legacy catalog route to Components", async () => {
+  it("redirects the legacy catalog route to Library", async () => {
     renderWithProviders(<App />, { routerEntries: ["/catalog"] });
     await waitFor(() => {
       expect(screen.getByTestId("components-page")).toBeInTheDocument();
@@ -150,13 +150,24 @@ describe("workbench routes", () => {
 
   it("keeps one shell while navigating between pages", async () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
-    await waitFor(() => expect(screen.getByTestId("home-page")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("start-page")).toBeInTheDocument());
     const shell = screen.getByTestId("workbench-shell");
-    const componentsLink = screen.getAllByRole("link", { name: /components/i })[0];
-    if (!componentsLink) throw new Error("the shell must expose a components link");
-    fireEvent.click(componentsLink);
+    const libraryLink = screen.getAllByRole("link", { name: /library/i })[0];
+    if (!libraryLink) throw new Error("the shell must expose a library link");
+    fireEvent.click(libraryLink);
     await waitFor(() => expect(screen.getByTestId("components-page")).toBeInTheDocument());
     expect(screen.getByTestId("workbench-shell")).toBe(shell);
+  });
+
+  it("routes the legacy measurement URLs to their Stats views", async () => {
+    renderWithProviders(<App />, { routerEntries: ["/coverage"] });
+    await waitFor(() => expect(screen.getByTestId("stats-page")).toBeInTheDocument());
+    expect(screen.getByRole("tab", { name: /Quality/i })).toHaveAttribute("aria-selected", "true");
+    cleanup();
+
+    renderWithProviders(<App />, { routerEntries: ["/capabilities"] });
+    await waitFor(() => expect(screen.getByTestId("stats-page")).toBeInTheDocument());
+    expect(screen.getByRole("tab", { name: /Services/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("renders an unknown route as the workbench not-found page", async () => {

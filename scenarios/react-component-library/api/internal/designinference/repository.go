@@ -25,6 +25,7 @@ func OperationID(key string) (string, error) {
 	digest := sha256.Sum256([]byte(key))
 	return "inference_" + hex.EncodeToString(digest[:]), nil
 }
+
 func (r *SQLiteRepository) Create(ctx context.Context, key string, request Request) (Operation, error) {
 	id, err := OperationID(key)
 	if err != nil {
@@ -44,6 +45,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, key string, request Reque
 	}
 	return op, err
 }
+
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Operation, error) {
 	var op Operation
 	var raw string
@@ -74,6 +76,7 @@ func (r *SQLiteRepository) Claim(ctx context.Context, id string) (bool, error) {
 	n, err := result.RowsAffected()
 	return n == 1, err
 }
+
 func (r *SQLiteRepository) Finish(ctx context.Context, id, state, response, detail string) (Operation, error) {
 	if (state != "completed" && state != "failed") || len(response) > 2*1024*1024 || !json.Valid([]byte(response)) || len(detail) > 4000 {
 		return Operation{}, fmt.Errorf("invalid inference result")

@@ -20,9 +20,11 @@ type gatewayFunc func(context.Context, *connect.Request[inferencev1.RunRequest])
 func (f gatewayFunc) Run(ctx context.Context, r *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
 	return f(ctx, r)
 }
+
 func request() Request {
 	return Request{Role: "extract.structured", MaxOutputTokens: 4096, Source: "Source document", Schema: `{"type":"object"}`, Instruction: "Extract requirements", Context: []byte(`{"revision":"one"}`)}
 }
+
 func TestConcurrentDispatchIsDurableAndReplayDoesNotChargeAgain(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -66,6 +68,7 @@ func TestConcurrentDispatchIsDurableAndReplayDoesNotChargeAgain(t *testing.T) {
 	_, err = svc.Run(ctx, "key", changed)
 	require.ErrorIs(t, err, ErrConflict)
 }
+
 func TestLostResponseAndCrashReservationAreNeverRedispatched(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -92,6 +95,7 @@ func TestLostResponseAndCrashReservationAreNeverRedispatched(t *testing.T) {
 	require.Equal(t, "dispatch_unknown", resumed.State)
 	require.Equal(t, 1, calls)
 }
+
 func TestReceivedFailureIsDurableAndResolutionFailureCanResume(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)

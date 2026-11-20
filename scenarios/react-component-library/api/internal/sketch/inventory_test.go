@@ -10,7 +10,7 @@ import (
 func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 	root := t.TempDir()
 	experience := filepath.Join(root, "scenarios", "demo", "experience")
-	if err := os.MkdirAll(filepath.Join(experience, "pages"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(experience, "pages"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for name, content := range map[string]string{
@@ -19,7 +19,7 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 		"pages/bad.json":    `{"sketch":null}`,
 		"pages/orphan.json": `{"page":{"title":"Orphan"}}`,
 	} {
-		if err := os.WriteFile(filepath.Join(experience, name), []byte(content), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(experience, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -45,11 +45,11 @@ func TestInventoryIncludesMissingInvalidAndUnregisteredPages(t *testing.T) {
 func TestInventoryRejectsTraversalAndSymlinkPage(t *testing.T) {
 	root := t.TempDir()
 	pages := filepath.Join(root, "scenarios", "demo", "experience", "pages")
-	if err := os.MkdirAll(pages, 0755); err != nil {
+	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	outside := filepath.Join(t.TempDir(), "secret.json")
-	if err := os.WriteFile(outside, []byte(`{"page":{"title":"secret"}}`), 0600); err != nil {
+	if err := os.WriteFile(outside, []byte(`{"page":{"title":"secret"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(outside, filepath.Join(pages, "linked.json")); err != nil {

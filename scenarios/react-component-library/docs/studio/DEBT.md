@@ -1,5 +1,19 @@
 # Design studio — debt inventory
 
+> **Re-baseline 2026-11-19 (workbench program).** This file is a dated audit,
+> not a current line-by-line truth. Items 1–11 below were resolved by the
+> Nocturne and workbench waves. The 2026-11-19 program added a workspace
+> aggregate, one search service, server-owned Review/Activity/Health, five
+> destinations and a shared search surface; it removed the browser findings and
+> activity reconstructions, the duplicate Home page and 126 unused catalog
+> strings. Remaining studio debt is tracked in
+> [PROBLEMS.md](../internal/PROBLEMS.md#2026-11-19--workbench-program-implemented-slice-and-remaining-gaps):
+> legacy design/template owners, workspace capture/assist, Review pagination and
+> the post-change capture sweep and workspace asset/assist/capture. The
+> workspace studio now reuses the mature studio surfaces (layers, system,
+> canvas, inspector, status bar, present) rather than a reduced layout.
+> Re-audit before acting on any line below.
+
 Snapshot: **2026-11-19 13:44 EST** (audited 13:19–13:44), HEAD `e1a86f6e83d`, working tree dirty (all
 items below reproduced in this tree). Read-only audit; no product file was changed.
 

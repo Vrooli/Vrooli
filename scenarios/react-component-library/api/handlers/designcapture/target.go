@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
-	"react-component-library/internal/preview"
 	"strings"
+
+	"react-component-library/internal/preview"
 
 	"github.com/gorilla/mux"
 	domain "react-component-library/internal/designcapture"
@@ -59,6 +60,7 @@ func (h TargetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = w.Write([]byte(op.Request.HTML))
 }
+
 func MountTarget(router *mux.Router, factory func(context.Context) (domain.Repository, error)) {
 	router.Handle("/design-captures/{id}/target.html", TargetHandler{RepositoryFor: factory}).Methods(http.MethodGet, http.MethodHead)
 }

@@ -1,8 +1,11 @@
 # Search and composition — findings and target model
 
-Status: **proposal, not implemented**. This document records what the workbench does
-today, why “landing page” fails, and the model and migration needed for one search
-system across workspaces, pages, displays, states, page types, assets and commands.
+Status: **implemented slice; semantic/Ask leg remains.** One FTS5 search service
+now indexes catalog assets, page types, workspaces/pages/displays/states, commands
+and findings, and the same `SearchSurface` serves Start and ⌘K. The semantic leg
+is deliberately reported as disabled until the shared `packages/ai-go/search`
+adapter is wired. This document records the original findings, the target model,
+and the remaining migration.
 The visual options are in [search-options.html](../mockups/search-options.html);
 the matured IA and workspace model are in
 [workbench-maturation.html](../mockups/workbench-maturation.html).

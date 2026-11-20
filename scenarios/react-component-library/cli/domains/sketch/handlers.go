@@ -257,6 +257,7 @@ func (h *handlers) history(ctx cliapp.RunContext) error {
 	}
 	return render(ctx, response.Msg, lines)
 }
+
 func (h *handlers) recover(ctx cliapp.RunContext) error {
 	target, err := parseTarget(ctx.Positional("target"))
 	if err != nil {

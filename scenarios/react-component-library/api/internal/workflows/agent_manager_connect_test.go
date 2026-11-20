@@ -11,6 +11,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -51,9 +52,11 @@ func TestAgentManagerDispatcherUsesGeneratedConnectProcedures(t *testing.T) {
 		apiconnect.AgentManagerServiceCancelWorkflowExecutionProcedure,
 		func(_ context.Context, req *connect.Request[apipb.WorkflowExecutionOperationRequest]) (*connect.Response[apipb.WorkflowExecutionOperationResponse], error) {
 			cancelRequest = req.Msg
-			cancelled := *execution
+			// A proto message carries a mutex; a value copy trips vet's copylocks
+			// check and shares internal state. Clone is the supported copy.
+			cancelled := proto.Clone(execution).(*domainpb.WorkflowExecution)
 			cancelled.Status = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED
-			return connect.NewResponse(&apipb.WorkflowExecutionOperationResponse{Execution: &cancelled}), nil
+			return connect.NewResponse(&apipb.WorkflowExecutionOperationResponse{Execution: cancelled}), nil
 		},
 	))
 	server := httptest.NewServer(mux)

@@ -2,9 +2,10 @@ package sketch
 
 import (
 	"context"
-	"react-component-library/internal/catalogsearch"
 	"reflect"
 	"testing"
+
+	"react-component-library/internal/catalogsearch"
 )
 
 type importSearchFixture struct {
@@ -19,6 +20,7 @@ func (f *importSearchFixture) SearchContext(_ context.Context, q string, _ int, 
 	}
 	return f.results[q]
 }
+
 func TestImportPreservesIntentAndRequiresBothSearchesForGap(t *testing.T) {
 	source := Snapshot{PagePurpose: "Help operators resolve urgent requests.", DeclaredRegions: []Region{{ID: "inbox", Note: "Urgent requests", Elements: []string{"list"}}}, PageElements: []string{"list", "unmapped"}, Document: Document{Notes: []Note{{Scope: "page", Text: "Preserve keyboard flow"}}}}
 	search := &importSearchFixture{}
@@ -44,6 +46,7 @@ func TestImportPreservesIntentAndRequiresBothSearchesForGap(t *testing.T) {
 		t.Fatalf("repeat import changed composition: %+v", again.Document)
 	}
 }
+
 func TestImportL0CreatesProposedRegionAndDoesNotPromoteSearchCandidates(t *testing.T) {
 	source := Snapshot{PagePurpose: "Review and resolve urgent requests.", PageElements: []string{"list"}}
 	search := &importSearchFixture{results: map[string][]catalogsearch.Result{"Review and resolve urgent requests. primary task": {{Document: catalogsearch.Document{CatalogID: "components.inbox", Kind: "component"}, Score: 3}}}}

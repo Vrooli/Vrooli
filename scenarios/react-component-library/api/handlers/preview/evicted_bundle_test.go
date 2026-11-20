@@ -16,9 +16,11 @@ type evictedBundleService struct{}
 func (evictedBundleService) GetBundle(context.Context, string) (internalpreview.Bundle, error) {
 	return internalpreview.Bundle{}, internalpreview.ErrEvictedDependency{LibraryID: "react-component-library:Child", Version: "1.2.3"}
 }
+
 func (evictedBundleService) GetBundleVersion(context.Context, string, string) (internalpreview.Bundle, error) {
 	return internalpreview.Bundle{}, nil
 }
+
 func (evictedBundleService) GetBundleVersionWithFrame(context.Context, string, string, *components.StoryFrame) (internalpreview.Bundle, error) {
 	return internalpreview.Bundle{}, nil
 }

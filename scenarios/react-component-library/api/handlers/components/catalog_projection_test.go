@@ -1,11 +1,12 @@
 package components
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"react-component-library/internal/assetgraph"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
-	"testing"
 )
 
 func TestCatalogKindFilterUsesSemanticKindBeforeLimit(t *testing.T) {

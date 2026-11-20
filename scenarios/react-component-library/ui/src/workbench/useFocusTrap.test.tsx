@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 
 import { useFocusTrap } from "./useFocusTrap";
 
@@ -24,7 +25,7 @@ function TrapFixture() {
 
 describe("useFocusTrap", () => {
   it("moves focus in, wraps Tab, closes on Escape and restores the trigger", async () => {
-    render(<TrapFixture />);
+    renderWithProviders(<TrapFixture />);
     const trigger = screen.getByRole("button", { name: "Open" });
     trigger.focus();
     fireEvent.click(trigger);

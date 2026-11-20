@@ -108,10 +108,10 @@ func revisionFixture(t *testing.T, content string) (*Store, string) {
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return NewStore(root), path
@@ -236,7 +236,7 @@ func TestSymlinkPageAndAncestorAreRejected(t *testing.T) {
 			outside := t.TempDir()
 			target := filepath.Join(outside, "home.json")
 			original := []byte(`{"external":true}`)
-			if err := os.WriteFile(target, original, 0600); err != nil {
+			if err := os.WriteFile(target, original, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			link := path
@@ -345,7 +345,7 @@ func TestRecoveryDoesNotOverwriteInterveningManualEdit(t *testing.T) {
 		t.Fatal("fault not triggered")
 	}
 	manual := []byte(`{"sketch":{"viewport":"manual"},"claims":[{"id":"keep"}]}`)
-	if err := os.WriteFile(path, manual, 0600); err != nil {
+	if err := os.WriteFile(path, manual, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err = NewStore(store.repoRoot).Recover("demo", "home")

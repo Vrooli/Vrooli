@@ -136,7 +136,7 @@ func (r *SQLiteSweepRepository) Save(ctx context.Context, sweep Sweep) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var currentStatus, currentResults, currentErrors string
 	err = tx.QueryRowContext(ctx, `SELECT status, results_json, errors_json FROM component_test_sweeps WHERE id = ?`, sweep.ID).Scan(&currentStatus, &currentResults, &currentErrors)
 	if errors.Is(err, sql.ErrNoRows) {

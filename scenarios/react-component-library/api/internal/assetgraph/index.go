@@ -252,6 +252,7 @@ func (e RetirementBlockedError) Error() string {
 	sort.Strings(ids)
 	return fmt.Sprintf("cannot retire %s: required by %v", e.AssetID, ids)
 }
+
 func (i *Index) CheckRetirement(id string) error {
 	direct, _, err := i.Dependents(id)
 	if err != nil {

@@ -33,12 +33,14 @@ func (s *proposalServer) GetSketch(context.Context, *connect.Request[sketchv1.Ge
 	s.gets++
 	return connect.NewResponse(&sketchv1.GetSketchResponse{ContentHash: "current-revision"}), nil
 }
+
 func (s *proposalServer) ProposeSketch(_ context.Context, r *connect.Request[sketchv1.ProposeSketchRequest]) (*connect.Response[sketchv1.ProposeSketchResponse], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.proposed = r.Msg
 	return connect.NewResponse(&sketchv1.ProposeSketchResponse{ContentHash: r.Msg.ExpectedContentHash, RetrievalMode: "lexical"}), nil
 }
+
 func (s *proposalServer) InferSketch(_ context.Context, r *connect.Request[sketchv1.InferSketchRequest]) (*connect.Response[sketchv1.SketchInferenceOperation], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -46,12 +48,14 @@ func (s *proposalServer) InferSketch(_ context.Context, r *connect.Request[sketc
 	s.dispatches++
 	return nil, connect.NewError(connect.CodeUnavailable, nil)
 }
+
 func (s *proposalServer) GetSketchInference(_ context.Context, r *connect.Request[sketchv1.GetSketchInferenceRequest]) (*connect.Response[sketchv1.SketchInferenceOperation], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recovered = r.Msg
 	return connect.NewResponse(&sketchv1.SketchInferenceOperation{Id: "existing", State: "dispatch_unknown"}), nil
 }
+
 func proposalCommands(t *testing.T, s *proposalServer) (*cliapp.ScenarioApp, []cliapp.SubcommandGroup) {
 	t.Helper()
 	path, handler := sketchconnect.NewSketchServiceHandler(s)
@@ -64,6 +68,7 @@ func proposalCommands(t *testing.T, s *proposalServer) (*cliapp.ScenarioApp, []c
 	require.NoError(t, err)
 	return core, []cliapp.SubcommandGroup{group}
 }
+
 func TestProposeCommandCarriesTypedIntentAndReadsRevision(t *testing.T) {
 	s := &proposalServer{}
 	core, groups := proposalCommands(t, s)
@@ -81,6 +86,7 @@ func TestProposeCommandCarriesTypedIntentAndReadsRevision(t *testing.T) {
 	require.True(t, s.proposed.Intent.Constraints.GetPreserveBusinessBehavior())
 	require.Equal(t, 0, s.dispatches)
 }
+
 func TestInferErrorProvidesRecoveryWithoutRepeatingDispatch(t *testing.T) {
 	s := &proposalServer{}
 	core, groups := proposalCommands(t, s)
@@ -101,12 +107,14 @@ func (s *proposalServer) AcceptCandidate(_ context.Context, r *connect.Request[s
 	s.accepted = r.Msg
 	return connect.NewResponse(&sketchv1.AcceptanceDecision{Id: "acceptance-one", State: "needs_evidence"}), nil
 }
+
 func (s *proposalServer) GetAcceptance(_ context.Context, r *connect.Request[sketchv1.GetAcceptanceRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.acceptanceRead = r.Msg
 	return connect.NewResponse(&sketchv1.AcceptanceDecision{Id: r.Msg.Id, State: "needs_evidence"}), nil
 }
+
 func TestAcceptanceCommandPreservesExactInputsAndSupportsReadOnlyRecovery(t *testing.T) {
 	s := &proposalServer{}
 	core, groups := proposalCommands(t, s)
@@ -130,6 +138,7 @@ func TestAcceptanceCommandPreservesExactInputsAndSupportsReadOnlyRecovery(t *tes
 func (s *proposalServer) RenderCandidate(_ context.Context, r *connect.Request[sketchv1.RenderCandidateRequest]) (*connect.Response[previewv1.RenderCompositionResponse], error) {
 	return connect.NewResponse(&previewv1.RenderCompositionResponse{RenderHash: "rendered-" + r.Msg.Candidate.Hash}), nil
 }
+
 func TestCandidateRenderCommandDoesNotRequireAcceptanceFlags(t *testing.T) {
 	s := &proposalServer{}
 	core, groups := proposalCommands(t, s)

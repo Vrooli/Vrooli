@@ -7,12 +7,12 @@
   },
   "schemaVersion": "1.1.0",
   "scenario": "react-component-library",
-  "description": "Experience contracts for reusable catalog primitives and the D · Nocturne workbench: shell, home, components, component workspace, design studio, review, coverage, capabilities, activity, settings, create and preview.",
+  "description": "Experience contracts for reusable catalog primitives and the five-destination workbench: Start, Library, Design, Review, Stats, plus component, preview, create and settings object routes.",
   "pages": [
     {
-      "id": "home",
-      "path": "pages/home.json",
-      "title": "Workbench home",
+      "id": "start",
+      "path": "pages/start.json",
+      "title": "Start",
       "status": "active"
     },
     {
@@ -91,6 +91,18 @@
       "id": "create",
       "path": "pages/create.json",
       "title": "Add to library",
+      "status": "active"
+    },
+    {
+      "id": "library",
+      "path": "pages/library.json",
+      "title": "Library",
+      "status": "active"
+    },
+    {
+      "id": "stats",
+      "path": "pages/stats.json",
+      "title": "Stats",
       "status": "active"
     }
   ],
@@ -441,7 +453,7 @@
     }
   ],
   "x-redesign": {
-    "direction": "D · Nocturne",
+    "direction": "D \u00b7 Nocturne",
     "status": "planned",
     "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
     "operator_experiment": "~/.vrooli/research/topics/experience-engineering/operator-experiments/rcl-workbench-redesign-20261118",

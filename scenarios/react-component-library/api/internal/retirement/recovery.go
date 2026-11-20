@@ -23,9 +23,11 @@ type pendingRetirement struct {
 func libraryRoot(root string) string {
 	return filepath.Join(root, "scenarios/react-component-library/library")
 }
+
 func pendingPath(root string) string {
 	return filepath.Join(libraryRoot(root), components.RetirementPendingFile)
 }
+
 func archivePaths(root string, c components.Component) components.RetirementArchive {
 	key := sha256.Sum256([]byte("asset:" + c.LibraryID))
 	base := filepath.Join(libraryRoot(root), ".retired", "asset-"+hex.EncodeToString(key[:]))
@@ -37,11 +39,12 @@ func persistJSON(path string, value any) error {
 	if err != nil {
 		return err
 	}
-	if err := storage.WriteFileAtomic(path, append(data, '\n'), 0600); err != nil {
+	if err := storage.WriteFileAtomic(path, append(data, '\n'), 0o600); err != nil {
 		return err
 	}
 	return syncDirectory(filepath.Dir(path))
 }
+
 func syncDirectory(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -50,6 +53,7 @@ func syncDirectory(path string) error {
 	defer f.Close()
 	return f.Sync()
 }
+
 func clearPending(root string) error {
 	if err := os.Remove(pendingPath(root)); err != nil {
 		return err

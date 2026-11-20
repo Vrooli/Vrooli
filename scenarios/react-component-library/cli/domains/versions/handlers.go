@@ -30,18 +30,6 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-func (h *handlers) retireCandidates(ctx cliapp.RunContext) error {
-	resp, err := h.lifecycleClient.ListRetireCandidates(context.Background(), connect.NewRequest(&versionsv1.ListRetireCandidatesRequest{ComponentId: ctx.Flag("component-id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("list retire candidates", err, nil)
-	}
-	results := make([]string, 0, len(resp.Msg.Candidates))
-	for _, item := range resp.Msg.Candidates {
-		results = append(results, fmt.Sprintf("%s %s@%s status=%s", item.ComponentId, item.LibraryId, item.Version, item.Status))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d retire candidate(s).", len(results))}, ResultsHeading: "Retire candidates", Results: results})
-}
-
 func cleanupScope(ctx cliapp.RunContext) (*versionsv1.CleanupScope, error) {
 	scope := &versionsv1.CleanupScope{ComponentId: ctx.Flag("component-id"), LibraryId: ctx.Flag("library-id")}
 	if raw := ctx.Flag("older-than-days"); raw != "" {
@@ -129,68 +117,6 @@ func (h *handlers) reap(ctx cliapp.RunContext) error {
 	return h.cleanupVersions(ctx)
 }
 
-func (h *handlers) cleanupDraft(ctx cliapp.RunContext) error {
-	days := int64(0)
-	if raw := ctx.Flag("older-than-days"); raw != "" {
-		parsed, err := strconv.ParseInt(raw, 10, 32)
-		if err != nil || parsed < 0 {
-			return fmt.Errorf("--older-than-days must be a non-negative integer (got %q)", raw)
-		}
-		days = parsed
-	}
-	resp, err := h.lifecycleClient.CleanupDraft(context.Background(), connect.NewRequest(&versionsv1.CleanupDraftRequest{ComponentId: ctx.Positional("component-id"), OlderThanDays: int32(days), Confirm: ctx.BoolFlag("confirm")}))
-	if err != nil {
-		return cliapp.WrapAPIError("cleanup draft", err, nil)
-	}
-	item := resp.Msg.Item
-	if item == nil {
-		return fmt.Errorf("server returned no draft cleanup result")
-	}
-	mode := "dry-run"
-	if resp.Msg.Applied {
-		mode = "applied"
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Draft cleanup %s: %s@%s (%s).", mode, item.Version.LibraryId, item.Version.Version, item.Reason)}, ResultsHeading: "Draft cleanup", Results: []string{fmt.Sprintf("eligible=%t age=%dd", item.Eligible, item.AgeDays)}})
-}
-
-func (h *handlers) progression(ctx cliapp.RunContext) error {
-	resp, err := h.lifecycleClient.ListVersionLedger(context.Background(), connect.NewRequest(&versionsv1.ListVersionLedgerRequest{LibraryId: ctx.Flag("library-id"), Window: ctx.Flag("window")}))
-	if err != nil {
-		return cliapp.WrapAPIError("list version progression", err, nil)
-	}
-	results := make([]string, 0, len(resp.Msg.Rows))
-	for _, row := range resp.Msg.Rows {
-		results = append(results, fmt.Sprintf("%s@%s state=%s gates=%d/%d tests=%d pass=%.2f adopters=%d size=%d LOC", row.LibraryId, row.Version, row.LifecycleState, row.GatePassCount, row.GateFailCount, row.TestRuns, row.TestPassRate, row.AdoptionCurrent, row.LinesOfCode))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d ledger row(s).", len(results))}, ResultsHeading: "Version progression", Results: results})
-}
-
-func (h *handlers) transition(ctx cliapp.RunContext, method string) error {
-	confirm := false
-	if method == "retire" || method == "archive" {
-		confirm = ctx.Flag("confirm") != ""
-	}
-	planHash := ""
-	if ctx.FlagDeclared("plan-hash") {
-		planHash = ctx.Flag("plan-hash")
-	}
-	req := &versionsv1.VersionLifecycleRequest{ComponentId: ctx.Positional("component-id"), Version: ctx.Positional("version"), Confirm: confirm, PlanHash: planHash}
-	var resp *connect.Response[versionsv1.VersionLifecycleResponse]
-	var err error
-	switch method {
-	case "deprecate":
-		resp, err = h.lifecycleClient.DeprecateVersion(context.Background(), connect.NewRequest(req))
-	case "archive":
-		resp, err = h.lifecycleClient.ArchiveVersion(context.Background(), connect.NewRequest(req))
-	default:
-		resp, err = h.lifecycleClient.RetireVersion(context.Background(), connect.NewRequest(req))
-	}
-	if err != nil {
-		return cliapp.WrapAPIError(method+" version", err, nil)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%s %s@%s.", method, req.ComponentId, req.Version)}, ResultsHeading: "Version lifecycle", Results: []string{fmt.Sprintf("%s state=%s", resp.Msg.Version.GetVersion(), resp.Msg.LifecycleState)}})
-}
-
 func (h *handlers) materialize(ctx cliapp.RunContext) error {
 	componentID := ctx.Positional("component-id")
 	version := ctx.Positional("version")
@@ -219,14 +145,6 @@ func (h *handlers) reconcilePresence(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("reconcile version presence", err, nil)
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Presence reconciliation: evict=%d materialize=%d unchanged=%d applied=%t.", len(resp.Msg.Evict), len(resp.Msg.Materialize), len(resp.Msg.Unchanged), resp.Msg.Applied)}, ResultsHeading: "Presence reconciliation", Results: append(renderCandidates(resp.Msg.Evict, "evict"), append(renderCandidates(resp.Msg.Materialize, "materialize"), renderCandidates(resp.Msg.Unchanged, "unchanged")...)...)})
-}
-
-func (h *handlers) exportArchive(ctx cliapp.RunContext) error {
-	resp, err := h.lifecycleClient.ExportArchive(context.Background(), connect.NewRequest(&versionsv1.ArchiveRequest{Path: ctx.Flag("out")}))
-	if err != nil {
-		return cliapp.WrapAPIError("export version archive", err, nil)
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Exported version archive to %s (checksum %s).", resp.Msg.Path, resp.Msg.Checksum)}, ResultsHeading: "Version archive", Results: []string{fmt.Sprintf("schema=%d rows=%v", resp.Msg.SchemaVersion, resp.Msg.RowCounts)}})
 }
 
 func (h *handlers) importArchive(ctx cliapp.RunContext) error {

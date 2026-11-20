@@ -1,11 +1,12 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
 import { FIXTURE_TIMEOUT_MS, FixtureFrame } from "./FixtureFrame";
 
 function renderFrame(onStatus = vi.fn(), onRetry?: () => void) {
-  const view = render(
+  const view = renderWithProviders(
     <FixtureFrame
       assetId="asset-1"
       storyId="default"

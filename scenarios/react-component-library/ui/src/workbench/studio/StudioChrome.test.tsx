@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
@@ -15,7 +16,7 @@ describe("StudioChrome", () => {
   it("emits a clamped radius and a display face", async () => {
     await setLocale("en");
     const onChange = vi.fn();
-    render(<StudioChrome options={{ radius: 14, display: "sans" }} onChange={onChange} />);
+    renderWithProviders(<StudioChrome options={{ radius: 14, display: "sans" }} onChange={onChange} />);
 
     const radius = screen.getByLabelText(labels.radius);
     fireEvent.change(radius, { target: { value: "99" } });
@@ -27,7 +28,7 @@ describe("StudioChrome", () => {
 
   it("falls back to the library defaults when options are absent", async () => {
     await setLocale("en");
-    render(<StudioChrome options={{}} onChange={vi.fn()} />);
+    renderWithProviders(<StudioChrome options={{}} onChange={vi.fn()} />);
     expect(screen.getByLabelText(labels.radius)).toHaveValue(16);
     expect(screen.getByRole("button", { name: labels.serif })).toHaveAttribute(
       "aria-pressed",
@@ -37,7 +38,7 @@ describe("StudioChrome", () => {
 
   it("has no axe violations", async () => {
     await setLocale("en");
-    const { container } = render(
+    const { container } = renderWithProviders(
       <StudioChrome options={{ radius: 14, display: "sans" }} onChange={vi.fn()} />,
     );
     await expectNoA11yViolations(container);

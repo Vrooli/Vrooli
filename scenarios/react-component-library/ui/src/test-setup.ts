@@ -50,6 +50,22 @@ if (typeof window.matchMedia !== "function") {
   });
 }
 
+// jsdom omits ResizeObserver, which the studio canvas and element-width hook
+// need to mount. A neutral observer never fires; layout assertions in tests
+// read the DOM directly.
+if (typeof globalThis.ResizeObserver !== "function") {
+  class TestResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    writable: true,
+    value: TestResizeObserver,
+  });
+}
+
 // useScrollLock restores the captured offset on teardown. jsdom deliberately
 // omits scrolling, so provide the browser seam without mutating layout state.
 Object.defineProperty(window, "scrollTo", {

@@ -28,8 +28,10 @@ import (
 //go:embed resolve.mjs
 var resolverScript string
 
-var scenarioName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-var captureBundleID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+var (
+	scenarioName    = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	captureBundleID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+)
 
 func redactRouteQuery(route string) string {
 	parsed, err := url.ParseRequestURI(route)

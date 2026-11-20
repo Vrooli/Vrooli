@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -36,6 +36,7 @@ var ProtoFile = sketchv1.File_react_component_library_v1_sketch_sketch_proto
 func Module(repoRoot string, logger *log.Logger, scanner reconcile.Scanner, routes ...*filerouting.RoutedRoots) module.Module {
 	return buildModule(repoRoot, logger, scanner, routes, nil, nil, nil)
 }
+
 func ModuleWithAvailability(repoRoot string, logger *log.Logger, scanner reconcile.Scanner, routes *filerouting.RoutedRoots, factory func(context.Context) (*availability.Snapshot, error), assets components.DependencyReader, renderers ...CompositionRenderer) module.Module {
 	var renderer CompositionRenderer
 	if len(renderers) > 0 {
@@ -54,6 +55,7 @@ type CaptureConfig struct {
 func ModuleWithCapture(repoRoot string, logger *log.Logger, scanner reconcile.Scanner, routes *filerouting.RoutedRoots, factory func(context.Context) (*availability.Snapshot, error), assets components.DependencyReader, renderer CompositionRenderer, captures CaptureConfig) module.Module {
 	return buildModule(repoRoot, logger, scanner, []*filerouting.RoutedRoots{routes}, factory, renderer, assets, captures)
 }
+
 func buildModule(repoRoot string, logger *log.Logger, scanner reconcile.Scanner, routes []*filerouting.RoutedRoots, factory func(context.Context) (*availability.Snapshot, error), renderer CompositionRenderer, assets components.DependencyReader, captures ...CaptureConfig) module.Module {
 	resolver := &reconcile.Resolver{ToolingRoot: repoRoot, ScenariosRoot: filepath.Join(repoRoot, "scenarios"), Scanner: scanner}
 	deps := Deps{Assets: assets, Renderer: renderer, Store: internal.NewStore(repoRoot), Reconciler: resolver, Logger: logger, Availability: factory}
@@ -236,6 +238,7 @@ func requestWorkspaceRoot(ctx context.Context, repoRoot string, roots *filerouti
 	}
 	return filepath.Join(selected, "workspace"), nil
 }
+
 func routedRepository(repoRoot string, roots *filerouting.RoutedRoots) func(context.Context) (internal.Repository, error) {
 	return func(ctx context.Context) (internal.Repository, error) {
 		root, err := requestWorkspaceRoot(ctx, repoRoot, roots)

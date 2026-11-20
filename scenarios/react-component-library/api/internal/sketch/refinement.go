@@ -33,6 +33,7 @@ func validateRefinement(r CandidateRefinement) error {
 	}
 	return nil
 }
+
 func refinementRegions(d Document) map[string]bool {
 	result := map[string]bool{}
 	for _, r := range d.Regions {
@@ -48,6 +49,7 @@ func refinementRegions(d Document) map[string]bool {
 	}
 	return result
 }
+
 func refinementContent(d Document, id string) string {
 	if id == "$page" {
 		value := map[string]any{"template": d.Template, "viewport": d.Viewport, "intent": d.Intent, "unplaced": d.Unplaced}
@@ -115,6 +117,7 @@ func refinementContent(d Document, id string) string {
 	}{regionContent(d, id), locked})
 	return string(raw)
 }
+
 func (s *Store) RefineCandidate(scenario, designID, parentHash string, request RefinementRequest) (RefinementResult, error) {
 	parent, err := s.ReadCandidate(scenario, designID, parentHash)
 	if err != nil {

@@ -27,9 +27,11 @@ const (
 	Failed          State = "failed"
 )
 
-var ErrConflict = errors.New("capture operation conflict")
-var hashPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
-var segmentPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)
+var (
+	ErrConflict    = errors.New("capture operation conflict")
+	hashPattern    = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	segmentPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)
+)
 
 type Target struct {
 	Scenario     string `json:"scenario"`
@@ -112,6 +114,7 @@ func validateRequest(r Request) error {
 	}
 	return nil
 }
+
 func requestIdentity(r Request) (string, []byte, error) {
 	if err := validateRequest(r); err != nil {
 		return "", nil, err
@@ -123,6 +126,7 @@ func requestIdentity(r Request) (string, []byte, error) {
 	digest := sha256.Sum256(raw)
 	return hex.EncodeToString(digest[:]), raw, nil
 }
+
 func allowed(from, to State) bool {
 	switch from {
 	case Prepared:

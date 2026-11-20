@@ -19,9 +19,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"VersionsService.DiffVersions":               cliapp.ProtoList(h.diffCall, h.diffReport),
 		"VersionLifecycleService.Doctor":             cliapp.ProtoList(h.doctorCall, h.doctorReport),
 		"VersionLifecycleService.MaterializeVersion": {Run: h.materialize},
-		"VersionLifecycleService.ReconcilePresence": {Run: h.reconcilePresence},
-		"reap":                                       {Run: h.reap},
-		"recover-button-224":                         {Run: h.recoverButton224},
+		"VersionLifecycleService.ReconcilePresence":  {Run: h.reconcilePresence},
+		"reap":               {Run: h.reap},
+		"recover-button-224": {Run: h.recoverButton224},
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

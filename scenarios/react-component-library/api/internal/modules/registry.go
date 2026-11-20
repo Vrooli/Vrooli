@@ -29,6 +29,7 @@ import (
 
 	localdb "react-component-library/internal/database"
 
+	activityH "react-component-library/handlers/activity"
 	adoptionsH "react-component-library/handlers/adoptions"
 	brandH "react-component-library/handlers/brand"
 	catalogH "react-component-library/handlers/catalog"
@@ -38,25 +39,34 @@ import (
 	designsH "react-component-library/handlers/designs"
 	healthH "react-component-library/handlers/health"
 	inventoryH "react-component-library/handlers/inventory"
+	libraryhealthH "react-component-library/handlers/libraryhealth"
 	pageH "react-component-library/handlers/page"
 	previewH "react-component-library/handlers/preview"
+	reviewH "react-component-library/handlers/review"
+	searchH "react-component-library/handlers/search"
 	sketchH "react-component-library/handlers/sketch"
 	templatesH "react-component-library/handlers/templates"
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
+	workspacesH "react-component-library/handlers/workspaces"
 
+	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/activity"
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
+	libraryhealthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/libraryhealth"
 	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
+	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/review"
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/search"
 	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
 	themesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/themes"
 	versionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions"
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workflows"
+	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/workspace"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 )
 
@@ -66,6 +76,7 @@ import (
 // .vrooli/endpoints.json meaningful.
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
+	out = append(out, activityH.Endpoints...)
 	out = append(out, adoptionsH.Endpoints...)
 	out = append(out, brandH.Endpoints...)
 	out = append(out, catalogH.Endpoints...)
@@ -75,13 +86,17 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, designsH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
+	out = append(out, libraryhealthH.Endpoints...)
 	out = append(out, pageH.Endpoints...)
 	out = append(out, previewH.Endpoints...)
+	out = append(out, reviewH.Endpoints...)
+	out = append(out, searchH.Endpoints...)
 	out = append(out, sketchH.Endpoints...)
 	out = append(out, templatesH.Endpoints...)
 	out = append(out, themesH.Endpoints...)
 	out = append(out, versionsH.Endpoints...)
 	out = append(out, workflowsH.Endpoints...)
+	out = append(out, workspacesH.Endpoints...)
 	return out
 }
 
@@ -99,19 +114,24 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "activity", File: activityv1.File_react_component_library_v1_activity_activity_proto},
 		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
 		{Module: "catalog", File: catalogv1.File_react_component_library_v1_catalog_catalog_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
 		{Module: "component-tests", File: componenttestsv1.File_react_component_library_v1_componenttests_component_tests_proto},
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},
 		{Module: "inventory", File: inventoryv1.File_ui_health_v1_inventory_inventory_proto},
+		{Module: "library-health", File: libraryhealthv1.File_react_component_library_v1_libraryhealth_library_health_proto},
 		{Module: "page", File: pagev1.File_react_component_library_v1_page_page_proto},
 		{Module: "preview", File: previewv1.File_react_component_library_v1_preview_preview_proto},
+		{Module: "review", File: reviewv1.File_react_component_library_v1_review_review_proto},
+		{Module: "search", File: searchv1.File_react_component_library_v1_search_search_proto},
 		{Module: "sketch", File: sketchv1.File_react_component_library_v1_sketch_sketch_proto},
 		{Module: "themes", File: themesv1.File_react_component_library_v1_themes_themes_proto},
 		{Module: "versions", File: versionsv1.File_react_component_library_v1_versions_versions_proto},
 		{Module: "versions-lifecycle", File: versionsv1.File_react_component_library_v1_versions_lifecycle_proto},
 		{Module: "workflows", File: workflowsv1.File_react_component_library_v1_workflows_workflows_proto},
+		{Module: "workspaces", File: workspacev1.File_react_component_library_v1_workspace_workspace_proto},
 	}
 }
 
@@ -131,12 +151,16 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(designinference.Schema),
 		apidb.SchemaProviderFunc(designsH.Schema),
 		apidb.SchemaProviderFunc(versionledger.Schema),
+		apidb.SchemaProviderFunc(activityH.Schema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
 		apidb.SchemaProviderFunc(depsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(reviewH.Schema),
+		apidb.SchemaProviderFunc(searchH.Schema),
 		apidb.SchemaProviderFunc(templatesH.Schema),
 		apidb.SchemaProviderFunc(themesH.Schema),
 		apidb.SchemaProviderFunc(workflowsH.Schema),
+		apidb.SchemaProviderFunc(workspacesH.Schema),
 	}
 }

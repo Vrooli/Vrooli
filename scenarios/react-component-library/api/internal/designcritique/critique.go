@@ -9,8 +9,10 @@ import (
 	"strings"
 )
 
-const RubricVersion = "visual-design/1"
-const PolicyVersion = "visual-floor/1"
+const (
+	RubricVersion = "visual-design/1"
+	PolicyVersion = "visual-floor/1"
+)
 
 var dimensions = []string{"task_clarity", "hierarchy", "navigation_continuity", "responsive_layout", "state_recovery", "accessibility", "terminology_i18n", "visual_consistency"}
 
@@ -114,6 +116,7 @@ func Evaluate(ctx context.Context, review Review, verifier EvidenceVerifier) (As
 	}
 	return aggregate(review), nil
 }
+
 func aggregate(review Review) Assessment {
 	result := Assessment{MinimumScore: 4, BlockingDimensions: []string{}, BlockingFindings: []int{}}
 	scores := map[string]int{}
@@ -183,6 +186,7 @@ func Validate(r Review) error {
 	}
 	return nil
 }
+
 func validateEvidence(e Evidence) error {
 	if e.RenderHash != "" && !hashPattern.MatchString(e.RenderHash) {
 		return fmt.Errorf("evidence render identity must be an exact hash")
@@ -192,6 +196,7 @@ func validateEvidence(e Evidence) error {
 	}
 	return nil
 }
+
 func bounded(value string, limit int) bool {
 	return strings.TrimSpace(value) != "" && len(value) <= limit
 }

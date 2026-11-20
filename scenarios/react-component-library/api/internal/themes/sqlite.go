@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"react-component-library/internal/sqliterows"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/sqliterows"
 )
 
 type sqliteRepository struct {

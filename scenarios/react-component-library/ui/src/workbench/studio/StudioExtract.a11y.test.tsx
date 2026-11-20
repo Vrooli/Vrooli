@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
@@ -27,7 +28,7 @@ describe("StudioExtract accessibility", () => {
 
   it("labels the section, the list and each select action", async () => {
     const onSelect = vi.fn();
-    const { container } = render(<StudioExtract spec={spec} onSelect={onSelect} />);
+    const { container } = renderWithProviders(<StudioExtract spec={spec} onSelect={onSelect} />);
 
     expect(screen.getByRole("heading", { name: /Extraction candidates/i })).toBeInTheDocument();
     expect(screen.getByRole("list")).toBeInTheDocument();
@@ -40,7 +41,7 @@ describe("StudioExtract accessibility", () => {
   });
 
   it("states the honest empty result", async () => {
-    const { container } = render(<StudioExtract spec={node("page", "page")} onSelect={vi.fn()} />);
+    const { container } = renderWithProviders(<StudioExtract spec={node("page", "page")} onSelect={vi.fn()} />);
 
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(screen.getByText(/No repeated custom structure/i)).toBeInTheDocument();

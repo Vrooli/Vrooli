@@ -210,9 +210,11 @@ func (h *connectHandler) RenderPrepared(ctx context.Context, prepared preview.Pr
 	bundle.SHA256 = renderHash
 	document := documentFor("composition-" + renderHash)
 	htmlDigest := sha256.Sum256([]byte(document))
-	out := &previewv1.RenderCompositionResponse{Html: document, RenderHash: renderHash,
+	out := &previewv1.RenderCompositionResponse{
+		Html: document, RenderHash: renderHash,
 		Target: &previewv1.CompositionRenderTarget{InputHashes: inputHashes, Revision: input.Revision, RenderHash: renderHash, HtmlSha256: hex.EncodeToString(htmlDigest[:]), InputsSha256: hex.EncodeToString(inputDigest[:]), Kind: "preview", Kit: kit, Theme: theme, Direction: direction},
-		Bundle: &previewv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: renderHash, Warnings: bundle.Warnings}}
+		Bundle: &previewv1.GetCompositionBundleResponse{Revision: bundle.Revision, Source: bundle.Source, Js: bundle.JS, Sha256: renderHash, Warnings: bundle.Warnings},
+	}
 	for _, gap := range bundle.Gaps {
 		out.Bundle.Gaps = append(out.Bundle.Gaps, &previewv1.CompositionGap{Region: gap.Region, Code: gap.Code, Message: gap.Message, Required: gap.Required})
 	}

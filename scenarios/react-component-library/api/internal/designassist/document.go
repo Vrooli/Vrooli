@@ -98,10 +98,9 @@ type treeNode struct {
 }
 
 type tree struct {
-	root   *treeNode
-	frame  *Frame
-	byID   map[string]*treeNode
-	frames []*tree
+	root  *treeNode
+	frame *Frame
+	byID  map[string]*treeNode
 }
 
 func newTree(frame *Frame) (*tree, error) {

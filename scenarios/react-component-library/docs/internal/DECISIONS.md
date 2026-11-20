@@ -2,6 +2,72 @@
 
 Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
 
+## 2026-11-20 — Curated templates are seeded content, not mintable state
+
+`library/workspace-seeds.json` is the reviewed shelf: eight curated workspace
+snapshots derived from the code templates. Boot inserts each by stable id and
+never overwrites an existing row, so editing the seed cannot change a workspace
+someone already forked. Curated is immutable in the aggregate: `Save` and
+`Delete` return `FailedPrecondition`, the create RPC refuses the provenance, and
+the studio opens a curated workspace behind a read-only shield whose only action
+is Fork. This replaces the code template shelf without letting an unreviewed
+"template" enter the shelf.
+
+## 2026-11-20 — Workspace assets are REST; assist is Connect
+
+Reference images are the one workspace concept whose payload is binary. Their
+routes (`/api/workspaces/{id}/assets`) are REST so the browser can render bytes
+with `Content-Type`, `Cache-Control` and an `ETag`, while failures still use the
+one JSON error envelope. AI proposals are JSON and travel over the typed
+Connect RPC `AssistWorkspace`, so there is no second JSON authoring transport.
+Both use the same proposal decoder, so one transport cannot accept an answer the
+other refuses.
+
+## 2026-11-19 — Published bytes are repaired, never re-hashed
+
+`library/released-version-hashes.json` records what was published. When a later
+commit edits released source, the correction is recorded in
+`library/release-repairs.json` with the published digest, the repaired digest and
+a reason; the indexer accepts the repaired digest for that exact path only. A
+repair that does not name the published digest, or that has no reason, is an
+error. `generate-release-hashes.mjs --check` now verifies the bytes instead of
+only the entry list, so an unexplained drift fails the build.
+
+The alternative — regenerating the ledger from the working tree — was rejected:
+it makes the oracle describe whatever is on disk and removes the only signal
+that a published file changed. Seven released files from the Nocturne wave are
+repaired this way; no startup index error remains.
+
+## 2026-11-19 — Review projects behind the read
+
+The findings projection covers ~14k rows. Startup projects it once so the first
+Review view is fast; after that, a TTL expiry refreshes in the background and the
+previous queue stays readable. A request never pays the projection cost twice,
+and a failed background projection leaves the last queue intact for the next TTL
+window. Review is a queue with dispositions, not a browser reconstruction of
+coverage rows.
+
+## 2026-11-19 — Five destinations and one composition owner
+
+The workbench IA is **Start, Library, Design, Review, Stats**. Home becomes
+Start; Components becomes Library; Coverage, Activity and Capabilities become
+Stats views; Review remains a queue with actions; Create becomes a global New
+action. This supersedes the eleven-page rail as the product target while the
+historical implementation record remains in
+[WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md).
+
+A design is a **workspace** with pages, displays and states. A page is one
+screen/route; a display is one device; a state is a named prop/state variant of
+a display, addressable as `workspace/page/display/state`. A curated template is
+a workspace snapshot with `provenance=curated`; it forks on use and the original
+is immutable.
+
+The RCL database owns composition. Scenario `experience/pages/*.json` owns
+intent and claims only. There is no second composition store and no silent local
+fallback. The contracts are `workspace.proto`, `search.proto`, `review.proto`,
+`activity.proto` and `libraryhealth.proto`; the delivery program is
+[WORKBENCH-PROGRAM.md](WORKBENCH-PROGRAM.md).
+
 ## 2026-11-18 — Workbench direction: D · Nocturne
 
 The operator selected **D · Nocturne** for every page after the three-direction study and the B/D expansion. The workbench target is eleven pages, two component modes (Fixtures / In context), an Asset data drawer preserving the current seven asset tabs, a consolidated Design studio, and first-class Review, Activity and Create pages. The implementation is in `ui/src/workbench/` and was served on 2026-11-19; current behavior remains only what the [behavior claim register](TESTING.md#behavior-claim-register) proves. Full page map, implementation record, data contracts, migration and open capture limits are in [WORKBENCH-REDESIGN.md](../concepts/WORKBENCH-REDESIGN.md).

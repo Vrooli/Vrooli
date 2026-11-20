@@ -2,26 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles, Wand2 } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import {
-  DesignProposalError,
-  proposeDesignPatch,
-  type DesignPatchOperation,
-} from "../designs";
 import type { DesignDocument, DesignFrame } from "../designs";
 import { findNode, type TemplateNode } from "../templates/spec";
 import { layerLabel } from "../templates/spec";
 import { cx } from "../cx";
 import { Segmented, WbButton } from "../primitives";
 import { docSignature } from "./model";
-import type { StudioProposal } from "./proposal";
+import {
+  DesignProposalError,
+  type DesignPatchOperation,
+  type ProposalTransport,
+  type StudioProposal,
+} from "./proposal";
 
 export type AssistScope = "layer" | "frame" | "design";
-
-const SCOPE_KEY: Record<AssistScope, string> = {
-  layer: "workbench.studio.aiScopeLayer",
-  frame: "workbench.studio.aiScopeFrame",
-  design: "workbench.studio.aiScopeDesign",
-};
 
 /** A stable key without depending on `crypto.randomUUID` being present. */
 function requestKey(): string {
@@ -55,6 +49,7 @@ export function StudioAssist({
   onScope,
   onApply,
   onApplied,
+  propose,
 }: {
   design: DesignDocument;
   frame: DesignFrame | undefined;
@@ -63,8 +58,17 @@ export function StudioAssist({
   onScope: (scope: AssistScope) => void;
   onApply: (proposal: StudioProposal) => { ok: true } | { ok: false; reason: "stale" | "invalid"; detail: string };
   onApplied: (summary: string) => void;
+  /** The transport for this surface: design studio or workspace studio. */
+  propose: ProposalTransport;
 }) {
   const { t } = useTranslation();
+  // Literal t() calls, not a key table: the string catalog is built from the
+  // callsites, and an indirect key would be pruned as an orphan.
+  const scopeLabel: Record<AssistScope, string> = {
+    layer: t("workbench.studio.aiScopeLayer", { defaultValue: "Selected layer" }),
+    frame: t("workbench.studio.aiScopeFrame", { defaultValue: "Active display" }),
+    design: t("workbench.studio.aiScopeDesign", { defaultValue: "Whole page" }),
+  };
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,8 +110,7 @@ export function StudioAssist({
         : scope === "frame"
           ? { kind: "frame" as const, frameId: frame?.id }
           : { kind: "design" as const };
-    void proposeDesignPatch(
-      design.id,
+    void propose(
       {
         prompt: trimmed,
         scope: scopePayload,
@@ -280,9 +283,9 @@ export function StudioAssist({
           label={t("workbench.studio.aiScope", { defaultValue: "Context to send" })}
           value={scope}
           onChange={onScope}
-          items={(Object.keys(SCOPE_KEY) as AssistScope[]).map((id) => ({
+          items={(Object.keys(scopeLabel) as AssistScope[]).map((id) => ({
             id,
-            label: t(SCOPE_KEY[id], { defaultValue: id }),
+            label: scopeLabel[id],
           }))}
         />
         <div className="studio-kv">

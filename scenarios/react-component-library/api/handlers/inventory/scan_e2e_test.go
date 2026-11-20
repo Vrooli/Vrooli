@@ -98,10 +98,10 @@ func TestScanIncludesApplicationSourcesOutsideAdoptionSlots(t *testing.T) {
 	}
 	for path, source := range files {
 		abs := filepath.Join(scenario, path)
-		if err := os.MkdirAll(filepath.Dir(abs), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(abs, []byte(source), 0644); err != nil {
+		if err := os.WriteFile(abs, []byte(source), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

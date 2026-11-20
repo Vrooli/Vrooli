@@ -34,12 +34,12 @@ func TestEveryDeclarationIsIndexed(t *testing.T) {
 func TestRefreshFailurePreservesLastGoodProjection(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "catalog", "assets", "controls", "button.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	write := func(value string) {
 		t.Helper()
-		if err := os.WriteFile(path, []byte(value), 0600); err != nil {
+		if err := os.WriteFile(path, []byte(value), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

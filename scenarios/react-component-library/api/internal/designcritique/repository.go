@@ -9,10 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"react-component-library/internal/sqliterows"
 	"reflect"
 	"time"
+
+	"react-component-library/internal/sqliterows"
 )
 
 //go:embed schema.sql
@@ -48,6 +48,7 @@ func identity(review Review) (string, []byte, error) {
 	digest := sha256.Sum256(raw)
 	return hex.EncodeToString(digest[:]), raw, nil
 }
+
 func (r *SQLiteRepository) Create(ctx context.Context, key string, review Review, assessment Assessment) (Record, error) {
 	if !bounded(key, 200) {
 		return Record{}, fmt.Errorf("critique idempotency key is required")
@@ -78,6 +79,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, key string, review Review
 	}
 	return record, nil
 }
+
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Record, error) {
 	var record Record
 	var raw, result string
@@ -87,6 +89,7 @@ func (r *SQLiteRepository) Get(ctx context.Context, id string) (Record, error) {
 	}
 	return decodeRecord(record, raw, result)
 }
+
 func decodeRecord(record Record, raw, result string) (Record, error) {
 	var err error
 	if err = json.Unmarshal([]byte(raw), &record.Review); err != nil {

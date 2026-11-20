@@ -3,9 +3,8 @@ import { Crop, ImagePlus, Plus, Trash2, Upload } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
 import { Empty, WbButton } from "../primitives";
-import { designAssetUrl, listAllDesignAssets, type DesignAsset } from "../designs";
+import type { ReferenceUpload } from "./assets";
 import { RegionCapture } from "./RegionCapture";
-import type { ReferenceAsset } from "./useStudio";
 import "./region-capture.css";
 
 function formatBytes(bytes: number): string {
@@ -14,39 +13,50 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * The Assets pane for a composition. It owns no storage: the page supplies the
+ * uploads, their byte URL builder and the callbacks. That keeps the same pane
+ * usable by the workspace studio (workspace assets) and by any future
+ * composition surface without a second copy of the grid, cropper or copy.
+ */
 export function StudioAssets({
-  designId,
   assets,
+  assetUrl,
   onImport,
   onRemove,
   onPlace,
+  loadOther,
 }: {
-  designId: string;
-  assets: ReferenceAsset[];
-  onImport: (file: File, fidelity: "reference" | "captured") => void;
+  assets: ReferenceUpload[];
+  /** Absolute URL for one upload's bytes. */
+  assetUrl: (asset: ReferenceUpload) => string;
+  onImport: (file: File, fidelity: "reference" | "captured") => void | Promise<void>;
   onRemove: (id: string) => void;
-  onPlace: (asset: DesignAsset) => void;
+  onPlace: (asset: ReferenceUpload) => void;
+  /** Optional loader for uploads that belong to other compositions. */
+  loadOther?: () => Promise<ReferenceUpload[]>;
 }) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [other, setOther] = useState<DesignAsset[] | null>(null);
+  const [other, setOther] = useState<ReferenceUpload[] | null>(null);
   const [loadingOther, setLoadingOther] = useState(false);
-  const [cropping, setCropping] = useState<DesignAsset | null>(null);
+  const [cropping, setCropping] = useState<ReferenceUpload | null>(null);
 
-  const loadOther = () => {
+  const load = () => {
+    if (!loadOther) return;
     setLoadingOther(true);
-    void listAllDesignAssets()
-      .then((list) => setOther(list.filter((asset) => asset.designId !== designId)))
+    void loadOther()
+      .then(setOther)
       .catch(() => setOther([]))
       .finally(() => setLoadingOther(false));
   };
 
-  const fidelityLabel = (asset: DesignAsset): string =>
+  const fidelityLabel = (asset: ReferenceUpload): string =>
     asset.fidelity === "captured"
       ? t("workbench.studio.fidelityCaptured", { defaultValue: "captured" })
       : t("workbench.studio.reference", { defaultValue: "reference" });
 
-  const fidelityTitle = (asset: DesignAsset): string =>
+  const fidelityTitle = (asset: ReferenceUpload): string =>
     asset.fidelity === "captured"
       ? t("workbench.studio.fidelityCapturedTitle", { defaultValue: "captured from this image" })
       : t("workbench.studio.fidelityReferenceTitle", { defaultValue: "uploaded as reference" });
@@ -70,7 +80,7 @@ export function StudioAssets({
         <p className="studio-note">
           {t("workbench.studio.assetsNote", {
             defaultValue:
-              "Imports are references for this design. They are not components and are never converted silently.",
+              "Imports are references for this workspace. They are not components and are never converted silently.",
           })}
         </p>
 
@@ -82,7 +92,7 @@ export function StudioAssets({
           aria-label={t("workbench.studio.importAsset", { defaultValue: "Import a reference image" })}
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) onImport(file, "reference");
+            if (file) void onImport(file, "reference");
             event.target.value = "";
           }}
         />
@@ -96,14 +106,14 @@ export function StudioAssets({
           <Empty title={t("workbench.studio.assetsEmpty", { defaultValue: "No references yet" })}>
             {t("workbench.studio.assetsEmptyBody", {
               defaultValue:
-                "Import a screenshot or image to keep it beside this design. It stays labelled reference fidelity.",
+                "Import a screenshot or image to keep it beside this workspace. It stays labelled reference fidelity.",
             })}
           </Empty>
         ) : (
           <ul className="studio-asset-grid">
             {assets.map((asset) => (
               <li key={asset.id} className="studio-asset">
-                <img src={designAssetUrl(asset)} alt={asset.name} className="studio-asset-image" />
+                <img src={assetUrl(asset)} alt={asset.name} className="studio-asset-image" />
                 <div className="studio-asset-meta">
                   <b title={asset.name}>{asset.name}</b>
                   <span>
@@ -160,46 +170,55 @@ export function StudioAssets({
           </ul>
         )}
 
-        <div className="studio-asset-other">
-          <div className="studio-asset-other-head">
-            <span className="studio-pane-title">
-              {t("workbench.studio.otherDesigns", { defaultValue: "Other designs" })}
-            </span>
-            <button type="button" className="studio-link-btn" onClick={loadOther} disabled={loadingOther}>
-              {other === null
-                ? t("workbench.studio.showOtherAssets", { defaultValue: "Show uploads" })
-                : t("workbench.studio.refreshOtherAssets", { defaultValue: "Refresh" })}
-            </button>
+        {loadOther ? (
+          <div className="studio-asset-other">
+            <div className="studio-asset-other-head">
+              <span className="studio-pane-title">
+                {t("workbench.studio.otherDesigns", { defaultValue: "Other workspaces" })}
+              </span>
+              <button
+                type="button"
+                className="studio-link-btn"
+                onClick={load}
+                disabled={loadingOther}
+              >
+                {other === null
+                  ? t("workbench.studio.showOtherAssets", { defaultValue: "Show uploads" })
+                  : t("workbench.studio.refreshOtherAssets", { defaultValue: "Refresh" })}
+              </button>
+            </div>
+            {other === null ? null : other.length === 0 ? (
+              <p className="studio-note">
+                {t("workbench.studio.otherAssetsEmpty", {
+                  defaultValue: "No uploads in the other workspaces yet.",
+                })}
+              </p>
+            ) : (
+              <ul className="studio-asset-grid">
+                {other.map((asset) => (
+                  <li key={asset.id} className="studio-asset">
+                    <img src={assetUrl(asset)} alt={asset.name} className="studio-asset-image" />
+                    <div className="studio-asset-meta">
+                      <b title={asset.name}>{asset.name}</b>
+                      <span>
+                        <small>{formatBytes(asset.bytes)}</small>
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {other === null ? null : other.length === 0 ? (
-            <p className="studio-note">
-              {t("workbench.studio.otherAssetsEmpty", {
-                defaultValue: "No uploads in the other designs yet.",
-              })}
-            </p>
-          ) : (
-            <ul className="studio-asset-grid">
-              {other.map((asset) => (
-                <li key={asset.id} className="studio-asset">
-                  <img src={designAssetUrl(asset)} alt={asset.name} className="studio-asset-image" />
-                  <div className="studio-asset-meta">
-                    <b title={asset.name}>{asset.name}</b>
-                    <span>
-                      <small>{formatBytes(asset.bytes)}</small>
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        ) : null}
       </div>
 
       {cropping ? (
         <RegionCapture
-          asset={cropping}
+          asset={{ id: cropping.id, name: cropping.name, url: assetUrl(cropping) }}
           onClose={() => setCropping(null)}
-          onImport={onImport}
+          onImport={async (file, fidelity) => {
+            await onImport(file, fidelity);
+          }}
         />
       ) : null}
     </>

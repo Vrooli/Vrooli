@@ -1,16 +1,18 @@
 package designinference
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/api-core/discovery"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
-	"net/http"
-	"time"
 )
 
 const (
@@ -37,6 +39,7 @@ func NewService(repo Repository) *Service {
 		return inferenceconnect.NewInferenceServiceClient(&http.Client{Timeout: 3 * time.Minute}, url), nil
 	}}
 }
+
 func (s *Service) Run(ctx context.Context, key string, request Request) (Operation, error) {
 	op, err := s.Repository.Create(ctx, key, request)
 	if err != nil || op.State != "prepared" {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"testing"
+
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
-	"testing"
 )
 
 type regionAssetReader struct {
@@ -17,10 +18,12 @@ type regionAssetReader struct {
 func (r regionAssetReader) Get(_ context.Context, id string) (components.Component, error) {
 	return components.Component{ID: id, CatalogID: id, Slug: "Card"}, nil
 }
+
 func (r regionAssetReader) GetVersion(_ context.Context, id, version string) (components.ComponentVersion, error) {
 	h := sha256.Sum256([]byte(r.story))
 	return components.ComponentVersion{ComponentID: id, Version: version, Status: components.VersionStatusReleased, DependencyLockPresent: true, Files: []components.ComponentVersionFile{{Path: "story.json", Content: r.story, ContentSHA256: hex.EncodeToString(h[:])}}}, nil
 }
+
 func TestRegionAssetUsesPublishedStoryAndPreservesCandidate(t *testing.T) {
 	reader := regionAssetReader{story: `{"schemaVersion":5,"kind":"component","args":{"fields":[{"path":"children","kind":"text","required":true,"default":"A record"}]},"environment":{"fixtures":[]},"stories":[{"id":"ready","name":"Ready","role":"anatomy","args":{}}]}`}
 	source := Snapshot{ContentHash: "candidate", Document: Document{Template: &AssetRef{Asset: "templates.page", Version: "1.0.0"}, Regions: []Region{{ID: "records"}}, Render: &RenderSettings{TemplateExport: "Page", Regions: []RenderRegion{{ID: "records", TemplateRegion: "body", Slot: []string{"regions", "body"}}}, Bindings: map[string]any{"$template": map[string]any{}}}}}

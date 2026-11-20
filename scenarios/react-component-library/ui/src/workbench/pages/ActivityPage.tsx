@@ -1,65 +1,85 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Activity, ArrowUpRight, Boxes, CircleAlert, Filter } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, ArrowUpRight, CircleAlert, Filter, Search } from "lucide-react";
 
+import { getActivitySummary, listActivity, type ActivityEvent } from "../../api/activity";
 import { useTranslation } from "../../i18n";
-import { appRoutes } from "../../routes";
+import { formatDay, formatNumber, formatTime } from "../data";
 import {
-  activityFromCatalog,
-  formatDay,
-  formatTime,
-  useCatalog,
-  type ActivityEvent,
-  type ActivityKind,
-} from "../data";
-import { Banner, Empty, Kpi, Panel, PanelBody, PanelHead, Select, Skeleton } from "../primitives";
+  Banner,
+  Empty,
+  Kpi,
+  Panel,
+  PanelBody,
+  PanelHead,
+  Skeleton,
+} from "../primitives";
 
-const KINDS: Array<{ id: ActivityKind | "all"; label: string }> = [
-  { id: "all", label: "All activity" },
-  { id: "draft", label: "Drafts" },
-  { id: "indexed", label: "Index" },
-];
-
-export function ActivityPage() {
+/**
+ * Activity is the append-only event log owned by ActivityService. It no longer
+ * derives "who changed what" from catalog timestamps; an empty log is a
+ * measured zero and an unreachable log is unavailable.
+ */
+export function ActivityPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
-  const catalog = useCatalog();
-  const [kind, setKind] = useState<ActivityKind | "all">("all");
+  const [action, setAction] = useState("all");
+  const [term, setTerm] = useState("");
 
-  const events = useMemo(() => activityFromCatalog(catalog.data ?? []), [catalog.data]);
-  const filtered = useMemo(
-    () => (kind === "all" ? events : events.filter((event) => event.kind === kind)),
-    [events, kind],
+  const events = useQuery({
+    queryKey: ["activity", "events"],
+    queryFn: () => listActivity({ limit: 200 }),
+    retry: 0,
+  });
+  const summary = useQuery({
+    queryKey: ["activity", "summary", 7],
+    queryFn: () => getActivitySummary(7),
+    retry: 0,
+  });
+
+  const rows = events.data ?? [];
+  const actions = useMemo(
+    () => [...new Set(rows.map((event) => event.action))].sort(),
+    [rows],
   );
-
-  const visible = useMemo(() => filtered.slice(0, 200), [filtered]);
+  const filtered = useMemo(() => {
+    const needle = term.trim().toLowerCase();
+    return rows.filter((event) => {
+      if (action !== "all" && event.action !== action) return false;
+      if (!needle) return true;
+      return [event.actor, event.action, event.subjectId, event.summary]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [rows, action, term]);
 
   const groups = useMemo(() => {
     const map = new Map<string, ActivityEvent[]>();
-    for (const event of visible) {
-      const day = formatDay(event.at);
+    for (const event of filtered) {
+      const at = new Date(event.at);
+      const day = Number.isNaN(at.getTime()) ? "Unknown day" : formatDay(at);
       map.set(day, [...(map.get(day) ?? []), event]);
     }
     return [...map.entries()];
-  }, [visible]);
-
-  const week = useMemo(() => {
-    const cutoff = Date.now() - 7 * 86_400_000;
-    const recent = events.filter((event) => event.at.getTime() >= cutoff);
-    return {
-      total: recent.length,
-      drafts: recent.filter((event) => event.kind === "draft").length,
-      index: recent.filter((event) => event.kind === "indexed").length,
-    };
-  }, [events]);
-
-  const actors = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const event of filtered) map.set(event.actor, (map.get(event.actor) ?? 0) + 1);
-    return [...map.entries()].sort(([, left], [, right]) => right - left);
   }, [filtered]);
 
+  const week = summary.data;
+  const actors = week?.byActor.length ?? 0;
+
+  if (events.isLoading) {
+    return (
+      <div className={embedded ? "wb-page is-embedded" : "wb-page"} data-testid="activity-page">
+        <Skeleton height={40} width={340} />
+        <div style={{ height: 18 }} />
+        <Skeleton height={90} />
+        <div style={{ height: 18 }} />
+        <Skeleton height={420} />
+      </div>
+    );
+  }
+
   return (
-    <div className="wb-page" data-testid="activity-page">
+    <div className={embedded ? "wb-page is-embedded" : "wb-page"} data-testid="activity-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
           <p className="wb-kicker">
@@ -71,64 +91,83 @@ export function ActivityPage() {
           <p className="wb-lede">
             {t("workbench.activity.lede", {
               defaultValue:
-                "Releases, drafts and index events behind the current state. This is catalog index activity, not a durable event store — the distinction is shown, not hidden.",
+                "Durable events written with the mutation they describe. Attribution is recorded, not inferred from a timestamp.",
             })}
           </p>
         </div>
         <div className="wb-actions">
-          <Select
+          <label className="wb-search" style={{ minWidth: 190 }}>
+            <Search aria-hidden size={14} />
+            <input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              aria-label={t("workbench.activity.search", { defaultValue: "Search activity" })}
+              placeholder={t("workbench.activity.searchPlaceholder", {
+                defaultValue: "Actor, subject or action",
+              })}
+            />
+          </label>
+          <select
+            className="wb-select"
             aria-label={t("workbench.activity.filter", { defaultValue: "Filter activity" })}
-            value={kind}
-            onChange={(event) => setKind(event.target.value as ActivityKind | "all")}
+            value={action}
+            onChange={(event) => setAction(event.target.value)}
             style={{ width: "auto", minWidth: 150 }}
           >
-            {KINDS.map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.label}
+            <option value="all">
+              {t("workbench.activity.allActions", { defaultValue: "All actions" })}
+            </option>
+            {actions.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
               </option>
             ))}
-          </Select>
+          </select>
         </div>
       </div>
 
-      {catalog.isError ? (
+      {events.isError ? (
         <Banner tone="red" icon={<CircleAlert aria-hidden size={16} />}>
           <b>
-            {t("workbench.activity.errorTitle", { defaultValue: "The catalog did not answer." })}
+            {t("workbench.activity.errorTitle", { defaultValue: "The activity service did not answer." })}
           </b>{" "}
           {t("workbench.activity.errorBody", {
             defaultValue:
-              "Activity cannot be derived without the catalog. Nothing is shown as “no changes”.",
+              "Activity shows unavailable rather than “no changes”. Retry when the API is reachable.",
           })}
         </Banner>
       ) : null}
 
       <div className="wb-kpis">
         <Kpi
-          label={t("workbench.activity.kpiEvents", { defaultValue: "This week" })}
-          value={week.total}
-          detail={t("workbench.activity.kpiEventsDetail", { defaultValue: "Index-derived events" })}
-        />
-        <Kpi
-          label={t("workbench.activity.kpiDrafts", { defaultValue: "Drafts" })}
-          value={week.drafts}
-          tone="amber"
-          detail={t("workbench.activity.kpiDraftsDetail", { defaultValue: "Open drafts" })}
-        />
-        <Kpi
-          label={t("workbench.activity.kpiIndex", { defaultValue: "Index events" })}
-          value={week.index}
-          tone="green"
-          detail={t("workbench.activity.kpiIndexDetail", {
-            defaultValue: "Source updated or re-indexed",
+          label={t("workbench.activity.kpiEvents", { defaultValue: "Last 7 days" })}
+          value={week ? formatNumber(week.total) : "—"}
+          detail={t("workbench.activity.kpiEventsDetail", {
+            defaultValue: "Recorded events",
           })}
         />
         <Kpi
-          label={t("workbench.activity.kpiEventsTotal", { defaultValue: "Events" })}
-          value={week.total}
+          label={t("workbench.activity.kpiActors", { defaultValue: "Actors" })}
+          value={week ? formatNumber(actors) : "—"}
           tone="signal"
-          detail={t("workbench.activity.kpiEventsTotalDetail", {
-            defaultValue: "In the last 7 days",
+          detail={t("workbench.activity.kpiActorsDetail", {
+            defaultValue: "Durable attribution",
+          })}
+        />
+        <Kpi
+          label={t("workbench.activity.kpiActions", { defaultValue: "Action kinds" })}
+          value={week ? formatNumber(week.byAction.length) : "—"}
+          tone="green"
+          detail={t("workbench.activity.kpiActionsDetail", {
+            defaultValue: "Distinct mutations",
+          })}
+        />
+        <Kpi
+          label={t("workbench.activity.kpiShown", { defaultValue: "Shown" })}
+          value={formatNumber(filtered.length)}
+          detail={t("workbench.activity.kpiShownDetail", {
+            defaultValue: "Filtered from the latest {{count}}",
+            count: rows.length,
           })}
         />
       </div>
@@ -137,9 +176,7 @@ export function ActivityPage() {
         <Panel>
           <PanelHead
             title={t("workbench.activity.trail", { defaultValue: "Change trail" })}
-            meta={t("workbench.activity.trailMeta", {
-              count: filtered.length,
-            })}
+            meta={t("workbench.activity.trailMeta", { count: filtered.length })}
             actions={
               <span className="wb-muted-2" aria-hidden>
                 <Filter size={13} />
@@ -147,20 +184,20 @@ export function ActivityPage() {
             }
           />
           <PanelBody flush>
-            {catalog.isLoading ? (
-              <div style={{ padding: 16 }}>
-                <Skeleton height={180} />
-              </div>
-            ) : filtered.length === 0 ? (
+            {filtered.length === 0 ? (
               <Empty
                 title={t("workbench.activity.emptyTitle", {
                   defaultValue: "No events in this view",
                 })}
               >
-                {t("workbench.activity.emptyBody", {
-                  defaultValue:
-                    "Change the filter. The catalog answered; this view is simply empty.",
-                })}
+                {events.isError
+                  ? t("workbench.activity.emptyUnavailable", {
+                      defaultValue: "The log is unreachable, so this is not an empty trail.",
+                    })
+                  : t("workbench.activity.emptyBody", {
+                      defaultValue:
+                        "The log answered with zero events for this filter. Workspace saves, forks and deletes write here.",
+                    })}
               </Empty>
             ) : (
               <div className="wb-trail">
@@ -171,124 +208,75 @@ export function ActivityPage() {
                     </div>
                     {dayEvents.map((event) => (
                       <div key={event.id} className="wb-event">
-                        <span className={`wb-event-icon is-${event.kind}`} aria-hidden>
-                          {event.kind === "published" ? (
-                            <Activity size={13} />
-                          ) : (
-                            <Boxes size={13} />
-                          )}
+                        <span className="wb-event-icon is-published" aria-hidden>
+                          <Activity size={13} />
                         </span>
                         <div className="wb-event-body">
                           <b>
-                            {event.title} · {event.assetName}{" "}
-                            <span className="wb-muted-2">{event.version}</span>
+                            {event.action} · {event.subjectId}
                           </b>
                           <small>
-                            {event.detail} · {event.actor}
+                            {event.summary || event.subjectKind} · {event.actor}
                           </small>
+                          {event.beforeJson || event.afterJson ? (
+                            <details>
+                              <summary className="wb-muted-2 wb-small">
+                                {t("workbench.activity.payload", { defaultValue: "Payload" })}
+                              </summary>
+                              <pre style={{ whiteSpace: "pre-wrap", margin: "6px 0" }}>
+                                {event.afterJson || event.beforeJson}
+                              </pre>
+                            </details>
+                          ) : null}
                         </div>
-                        <span className="wb-event-time">{formatTime(event.at)}</span>
+                        <span className="wb-event-time">{formatTime(new Date(event.at))}</span>
                       </div>
                     ))}
                   </div>
                 ))}
               </div>
             )}
-            {filtered.length > visible.length ? (
-              <p className="wb-muted-2 wb-small" style={{ padding: "0 16px 12px" }}>
-                {t("workbench.activity.truncated", {
-                  defaultValue: "Showing the 200 most recent events of {{count}}.",
-                  count: filtered.length,
-                })}
-              </p>
-            ) : null}
           </PanelBody>
         </Panel>
 
-        <aside
-          className="wb-stack"
-          aria-label={t("workbench.activity.details", { defaultValue: "Activity details" })}
-        >
-          <Panel>
-            <PanelHead
-              title={t("workbench.activity.week", { defaultValue: "This week" })}
-              meta="7 days"
-            />
-            <PanelBody>
-              <div className="wb-week-grid">
-                <div className="wb-week-cell">
-                  <b>{week.drafts}</b>
-                  <span>{t("workbench.activity.drafts", { defaultValue: "Drafts" })}</span>
-                </div>
-                <div className="wb-week-cell">
-                  <b>{week.index}</b>
-                  <span>{t("workbench.activity.indexed", { defaultValue: "Indexed" })}</span>
-                </div>
-                <div className="wb-week-cell">
-                  <b>{week.total}</b>
-                  <span>{t("workbench.activity.events", { defaultValue: "Events" })}</span>
-                </div>
-                <div className="wb-week-cell">
-                  <b>{week.total}</b>
-                  <span>{t("workbench.activity.window", { defaultValue: "7 days" })}</span>
-                </div>
-              </div>
-            </PanelBody>
-          </Panel>
-
-          <Panel>
-            <PanelHead
-              title={t("workbench.activity.actors", { defaultValue: "Actors" })}
-              meta={`${actors.length}`}
-            />
-            <PanelBody>
-              {actors.map(([actor, count]) => (
-                <div key={actor} className="wb-actor">
-                  <span
-                    className="wb-identity-mark"
-                    style={{ width: 24, height: 24, fontSize: 9 }}
-                    aria-hidden
-                  >
-                    {actor.slice(0, 2).toUpperCase()}
-                  </span>
-                  <div className="wb-actor-bar">
-                    <div className="wb-row-between">
-                      <span className="wb-small">{actor}</span>
-                      <span className="wb-mono wb-small wb-muted-2">{count}</span>
+        <Panel>
+          <PanelHead
+            title={t("workbench.activity.actors", { defaultValue: "Actors and actions" })}
+            meta={t("workbench.activity.window", { defaultValue: "Last 7 days" })}
+          />
+          <PanelBody>
+            {week ? (
+              <>
+                {week.byActor.length === 0 ? (
+                  <p className="wb-muted wb-small">
+                    {t("workbench.activity.noActors", { defaultValue: "No actors in this window." })}
+                  </p>
+                ) : (
+                  week.byActor.map((entry) => (
+                    <div key={entry.actor} className="wb-row-between">
+                      <span>{entry.actor}</span>
+                      <span className="wb-tag">{entry.count}</span>
                     </div>
-                    <span style={{ width: `${(count / Math.max(1, filtered.length)) * 100}%` }} />
+                  ))
+                )}
+                <div style={{ height: 12 }} />
+                {week.byAction.map((entry) => (
+                  <div key={entry.action} className="wb-row-between">
+                    <span className="wb-mono wb-small">{entry.action}</span>
+                    <span className="wb-tag">{entry.count}</span>
                   </div>
-                </div>
-              ))}
-              <p className="wb-muted-2 wb-small" style={{ marginTop: 10 }}>
-                {t("workbench.activity.actorNote", {
-                  defaultValue:
-                    "Actor is the catalog process today. Human attribution arrives with the durable event projection.",
+                ))}
+              </>
+            ) : (
+              <p className="wb-muted wb-small">
+                <ArrowUpRight aria-hidden size={12} />{" "}
+                {t("workbench.activity.summaryUnavailable", {
+                  defaultValue: "The summary is unavailable.",
                 })}
               </p>
-            </PanelBody>
-          </Panel>
-
-          <Panel>
-            <PanelHead title={t("workbench.activity.related", { defaultValue: "Related" })} />
-            <PanelBody>
-              <div className="wb-stack tight">
-                <Link to={appRoutes.review} className="wb-row-between wb-small">
-                  {t("workbench.activity.openReview", { defaultValue: "Review queue" })}
-                  <ArrowUpRight aria-hidden size={13} />
-                </Link>
-                <Link to={appRoutes.coverage} className="wb-row-between wb-small">
-                  {t("workbench.activity.openCoverage", { defaultValue: "Coverage" })}
-                  <ArrowUpRight aria-hidden size={13} />
-                </Link>
-                <Link to={appRoutes.components} className="wb-row-between wb-small">
-                  {t("workbench.activity.openComponents", { defaultValue: "Components" })}
-                  <ArrowUpRight aria-hidden size={13} />
-                </Link>
-              </div>
-            </PanelBody>
-          </Panel>
-        </aside>
+            )}
+          </PanelBody>
+        </Panel>
       </div>
     </div>
   );

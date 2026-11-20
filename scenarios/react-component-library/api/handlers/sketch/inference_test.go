@@ -46,6 +46,7 @@ func TestInferredAlternativesPreserveExactCatalogIdentityAndGroundQuotes(t *test
 		require.Error(t, err, invalid)
 	}
 }
+
 func TestInferenceDispatchRefusesTestModeBeforeAnyGatewayOrRepositoryAccess(t *testing.T) {
 	h := NewConnectHandler(Deps{})
 	_, err := h.InferSketch(apidb.WithTestMode(context.Background()), connect.NewRequest(&sketchv1.InferSketchRequest{}))

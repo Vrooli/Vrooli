@@ -1,9 +1,10 @@
 package reconcile
 
 import (
-	"react-component-library/internal/availability"
 	"strings"
 	"testing"
+
+	"react-component-library/internal/availability"
 )
 
 func TestVerdictVocabularyIsClosed(t *testing.T) {
@@ -83,6 +84,7 @@ func TestCoverageRequiresExactProvenImplementation(t *testing.T) {
 		})
 	}
 }
+
 func TestCoverageDenominatorIncludesMissingAndRejectsDuplicateRegions(t *testing.T) {
 	evidence := map[string]availability.Result{"body": {CatalogID: "components.body", Version: "1.0.0", State: availability.Built}}
 	row := Result{Region: "body", Required: true, Proven: true, FilePath: "Body.tsx", Provenance: ProvenanceAdoptedUnmodified, ObservedAsset: "components.body", ObservedVersion: "1.0.0"}
@@ -140,7 +142,8 @@ func TestEveryFindingHasACompleteReason(t *testing.T) {
 	joins := []Result{
 		{Region: "local", Proven: true, FilePath: "Local.tsx", Provenance: ProvenanceCustom},
 		{Region: "unknown", Proven: true, FilePath: "Unknown.tsx", Provenance: ProvenanceUnknown},
-		{Region: "missing"}, {Region: "extra", Extra: true, FilePath: "Extra.tsx"},
+		{Region: "missing"},
+		{Region: "extra", Extra: true, FilePath: "Extra.tsx"},
 	}
 	got := Verify("/scenarios", "demo", "page", joins, nil)
 	for _, row := range got.Regions {

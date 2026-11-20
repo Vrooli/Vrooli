@@ -2,17 +2,18 @@ package sketch
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"database/sql"
-	"fmt"
 	apidb "github.com/vrooli/api-core/database"
 	previewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview"
 	"react-component-library/internal/availability"
@@ -25,7 +26,6 @@ import (
 	"react-component-library/internal/preview"
 	"react-component-library/internal/reconcile"
 	internal "react-component-library/internal/sketch"
-	"strings"
 
 	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
 )
@@ -581,6 +581,7 @@ func placementToProto(value *internal.Placement) *sketchv1.Placement {
 	}
 	return toProto(internal.Document{Placements: []internal.Placement{*value}}).Placements[0]
 }
+
 func placementFromProto(value *sketchv1.Placement) *internal.Placement {
 	if value == nil {
 		return nil
@@ -643,6 +644,7 @@ func (h *connectHandler) GetHistory(ctx context.Context, req *connect.Request[sk
 	}
 	return connect.NewResponse(response), nil
 }
+
 func (h *connectHandler) RecoverSketch(ctx context.Context, req *connect.Request[sketchv1.RecoverSketchRequest]) (*connect.Response[sketchv1.PutSketchResponse], error) {
 	h, routeErr := h.forRequest(ctx)
 	if routeErr != nil {
@@ -759,6 +761,7 @@ func intentFromProto(i *sketchv1.DesignIntent) internal.DesignIntent {
 	}
 	return out
 }
+
 func (h *connectHandler) ProposeSketch(ctx context.Context, req *connect.Request[sketchv1.ProposeSketchRequest]) (*connect.Response[sketchv1.ProposeSketchResponse], error) {
 	h, err := h.forRequest(ctx)
 	if err != nil {
@@ -842,6 +845,7 @@ func candidateResponse(scenario string, c internal.Candidate) (*connect.Response
 	}
 	return connect.NewResponse(&sketchv1.CandidateResponse{Refinement: refinement, Candidate: &sketchv1.CandidateReference{Scenario: scenario, DesignId: c.DesignID, Hash: c.Hash}, Page: c.Page, BaseHash: c.BaseHash, ParentHash: c.ParentHash, Sketch: toProto(snapshot.Document), DeclaredRegions: toProto(internal.Document{Regions: snapshot.DeclaredRegions}).Regions}), nil
 }
+
 func (h *connectHandler) SaveCandidate(ctx context.Context, req *connect.Request[sketchv1.SaveCandidateRequest]) (*connect.Response[sketchv1.CandidateResponse], error) {
 	h, err := h.forRequest(ctx)
 	if err != nil {
@@ -867,6 +871,7 @@ func (h *connectHandler) SaveCandidate(ctx context.Context, req *connect.Request
 	}
 	return candidateResponse(target.scenario, c)
 }
+
 func (h *connectHandler) candidate(ctx context.Context, ref *sketchv1.CandidateReference) (*connectHandler, internal.Candidate, error) {
 	h, err := h.forRequest(ctx)
 	if err != nil {
@@ -882,6 +887,7 @@ func (h *connectHandler) candidate(ctx context.Context, ref *sketchv1.CandidateR
 	}
 	return h, c, nil
 }
+
 func (h *connectHandler) GetCandidate(ctx context.Context, req *connect.Request[sketchv1.CandidateReference]) (*connect.Response[sketchv1.CandidateResponse], error) {
 	_, c, err := h.candidate(ctx, req.Msg)
 	if err != nil {
@@ -889,6 +895,7 @@ func (h *connectHandler) GetCandidate(ctx context.Context, req *connect.Request[
 	}
 	return candidateResponse(req.Msg.GetScenario(), c)
 }
+
 func (h *connectHandler) RenderCandidate(ctx context.Context, req *connect.Request[sketchv1.RenderCandidateRequest]) (*connect.Response[previewv1.RenderCompositionResponse], error) {
 	h, c, err := h.candidate(ctx, req.Msg.GetCandidate())
 	if err != nil {
@@ -1030,10 +1037,12 @@ func (h *connectHandler) ListCandidates(ctx context.Context, req *connect.Reques
 
 func captureOperation(op designcapture.Operation) *sketchv1.CaptureOperation {
 	t := op.Request.Target
-	out := &sketchv1.CaptureOperation{Id: op.ID, State: string(op.State), ProducerId: op.ProducerID,
+	out := &sketchv1.CaptureOperation{
+		Id: op.ID, State: string(op.State), ProducerId: op.ProducerID,
 		Candidate: &sketchv1.CandidateReference{Scenario: t.Scenario, DesignId: t.DesignID, Hash: t.Revision},
 		Target:    &previewv1.CompositionRenderTarget{Revision: t.Revision, RenderHash: t.RenderHash, HtmlSha256: t.HTMLSHA256, InputsSha256: t.InputsSHA256, Kind: t.Kind, Kit: t.Kit, Theme: t.Theme, Direction: t.Direction},
-		Width:     int32(op.Request.Width), Height: int32(op.Request.Height), Detail: op.Detail, Version: op.Version, PreviousId: op.Request.PreviousID}
+		Width:     int32(op.Request.Width), Height: int32(op.Request.Height), Detail: op.Detail, Version: op.Version, PreviousId: op.Request.PreviousID,
+	}
 	for _, a := range op.Artifacts {
 		item := &sketchv1.CaptureArtifact{Kind: a.Kind, Reference: a.Reference}
 		if e := a.Evidence; e != nil {
@@ -1046,6 +1055,7 @@ func captureOperation(op designcapture.Operation) *sketchv1.CaptureOperation {
 	}
 	return out
 }
+
 func (h *connectHandler) CaptureCandidate(ctx context.Context, req *connect.Request[sketchv1.CaptureCandidateRequest]) (*connect.Response[sketchv1.CaptureOperation], error) {
 	if h.deps.CapturesFor == nil || h.deps.CaptureDispatcher == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capture service unavailable"))
@@ -1087,6 +1097,7 @@ func (h *connectHandler) CaptureCandidate(ctx context.Context, req *connect.Requ
 	}
 	return connect.NewResponse(captureOperation(op)), nil
 }
+
 func (h *connectHandler) GetCapture(ctx context.Context, req *connect.Request[sketchv1.GetCaptureRequest]) (*connect.Response[sketchv1.CaptureOperation], error) {
 	if h.deps.CapturesFor == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capture repository unavailable"))

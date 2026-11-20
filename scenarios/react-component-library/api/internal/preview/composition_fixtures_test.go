@@ -10,6 +10,7 @@ import (
 func fixtureBindings() map[string]any {
 	return map[string]any{"$template": map[string]any{}, "$labels": map[string]any{"missing": "Missing fixture", "failed": "Region failed"}, "inspector": map[string]any{"onClick": map[string]any{"$handler": "inspect"}}}
 }
+
 func TestCompositionFixturesReuseDeterministicFamilies(t *testing.T) {
 	_, input := compositionFixture(t)
 	bindings := fixtureBindings()
@@ -33,6 +34,7 @@ func TestCompositionFixturesReuseDeterministicFamilies(t *testing.T) {
 		t.Fatal("invented fixture version accepted")
 	}
 }
+
 func TestMissingFixtureBecomesScopedGap(t *testing.T) {
 	_, input := compositionFixture(t)
 	bindings := fixtureBindings()
@@ -45,6 +47,7 @@ func TestMissingFixtureBecomesScopedGap(t *testing.T) {
 		t.Fatalf("fixture gap lost: %+v", got)
 	}
 }
+
 func TestCompositionRejectsExecutableAndExternalFixtureBindings(t *testing.T) {
 	_, input := compositionFixture(t)
 	for _, props := range []map[string]any{{"onClick": "fetch('/production')"}, {"$node": "script"}, {"dangerouslySetInnerHTML": map[string]any{"__html": "<script/>"}}, {"href": "https://production.invalid"}, {"__proto__": map[string]any{}}, {"onClick": map[string]any{"$handler": "click", "extra": true}}} {

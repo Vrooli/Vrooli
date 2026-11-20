@@ -1,0 +1,141 @@
+/* Workspace-specific studio additions. Every colour and type value comes from
+   Nocturne tokens; the only locals are layout proportions owned here. */
+
+.studio-tablist {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.studio-center {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.studio-center > .studio-canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.studio-statebar {
+  display: flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--wb-line);
+  background: var(--wb-panel);
+}
+
+.studio-statebar-label {
+  margin-right: 4px;
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-save-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--wb-line);
+  border-radius: 999px;
+  color: var(--wb-muted);
+  font: 10px/1 var(--wb-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.studio-save-chip.is-readonly {
+  border-color: color-mix(in srgb, var(--wb-ice) 45%, var(--wb-line));
+  color: var(--wb-ice);
+}
+
+.studio-save-chip.is-saved {
+  border-color: color-mix(in srgb, var(--wb-green, #6fbf8b) 45%, var(--wb-line));
+  color: var(--wb-green, #6fbf8b);
+}
+
+.studio-save-chip.is-pending {
+  border-color: color-mix(in srgb, var(--wb-signal) 45%, var(--wb-line));
+  color: var(--wb-signal);
+}
+
+.studio-save-chip.is-danger {
+  border-color: color-mix(in srgb, var(--wb-red) 55%, var(--wb-line));
+  color: var(--wb-red);
+}
+
+.studio-page-fields {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid var(--wb-line);
+}
+
+.studio-page-fields label {
+  display: grid;
+  gap: 3px;
+}
+
+.studio-page-fields .studio-shelf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .studio-statebar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  /* The status bar already reports the save state on a phone; the chip would
+     add a third top-bar row. */
+  .studio-save-chip {
+    display: none;
+  }
+
+  .studio-statebar-label {
+    display: none;
+  }
+}
+
+/* A curated template previews behind a shield: the composition is visible and
+   presentable, but no control can pretend an edit will be stored. */
+.studio-body {
+  position: relative;
+}
+
+.studio-readonly-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: color-mix(in srgb, var(--wb-bg) 82%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.studio-readonly-shield b {
+  font: 600 16px/1.3 var(--wb-sans);
+  color: var(--wb-ink);
+}
+
+.studio-readonly-shield p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--wb-muted);
+  font: 12px/1.55 var(--wb-sans);
+}

@@ -34,7 +34,7 @@ const BANDS = [
   { id: "production-ready", label: "Production" },
 ] as const;
 
-export function CoveragePage() {
+export function CoveragePage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const coverage = useCoverage();
   const nextWork = useNextWork(10);
@@ -85,7 +85,7 @@ export function CoveragePage() {
 
   if (!report && isCoverageWarming(coverage.error)) {
     return (
-      <div className="wb-page" data-testid="coverage-page">
+      <div className={embedded ? "wb-page is-embedded" : "wb-page"} data-testid="coverage-page">
         <div className="wb-pagehead">
           <div className="wb-pagehead-copy">
             <p className="wb-kicker">
@@ -133,7 +133,7 @@ export function CoveragePage() {
   }
 
   return (
-    <div className="wb-page" data-testid="coverage-page">
+    <div className={embedded ? "wb-page is-embedded" : "wb-page"} data-testid="coverage-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
           <p className="wb-kicker">

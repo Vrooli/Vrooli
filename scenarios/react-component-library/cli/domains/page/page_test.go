@@ -1,10 +1,11 @@
 package page
 
 import (
-	"github.com/stretchr/testify/require"
-	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	pagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/page"
 )
 
 func TestHumanInspectionReportsUnstampedAndUnresolvedHonestly(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	// Register the JPEG and PNG decoders for image.DecodeConfig.
 	_ "image/jpeg"
 	_ "image/png"
 	"io"

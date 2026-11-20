@@ -73,6 +73,23 @@ export type TemplateCategory =
   | "onboarding"
   | "operations";
 
+/** Narrow an arbitrary tag to a template category without a second list. */
+export function isTemplateCategory(value: string): value is TemplateCategory {
+  switch (value) {
+    case "analytics":
+    case "commerce":
+    case "ai":
+    case "climate":
+    case "portfolio":
+    case "health":
+    case "onboarding":
+    case "operations":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export interface TemplatePalette {
   bg: string;
   surface: string;

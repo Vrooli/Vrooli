@@ -27,9 +27,11 @@ import (
 	"react-component-library/internal/components"
 )
 
-var basStoryResult = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*>(.*?)</pre>`)
-var captureScenarioSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
-var captureBundleID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+var (
+	basStoryResult      = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*>(.*?)</pre>`)
+	captureScenarioSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+	captureBundleID     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+)
 
 // BASCaptureExecutor delegates story execution to BAS's canonical UX capture bundle. It is
 // intentionally small so the runner remains independently testable while
@@ -50,8 +52,10 @@ func (BASCaptureExecutor) ReportFreshnessKey() string {
 	return "ux-capture-componenttests=1;policy=4"
 }
 
-const uxScenarioCapturePath = "/ux-capture/scenario"
-const uxArtifactPathPrefix = "/ux-capture/bundles/"
+const (
+	uxScenarioCapturePath = "/ux-capture/scenario"
+	uxArtifactPathPrefix  = "/ux-capture/bundles/"
+)
 
 // BASProviderInspection is the read-only observation of the BAS endpoint
 // selected by this executor. It intentionally contains no response body or
@@ -712,9 +716,12 @@ func (e BASCaptureExecutor) readBundleArtifact(ctx context.Context, capture uxCa
 
 func (e BASCaptureExecutor) componentArtifacts(ctx context.Context, bundle uxCaptureBundle, libraryID, version, storyID string) ([]Artifact, error) {
 	wanted := []struct{ kind, label string }{
-		{"region-pixels", "story-region"}, {"accessibility-snapshot", "accessibility"},
-		{"region-style-sample", "region-style"}, {"console-summary", "console"},
-		{"performance-metrics", "performance"}, {"frozen-page", "frozen-page"},
+		{"region-pixels", "story-region"},
+		{"accessibility-snapshot", "accessibility"},
+		{"region-style-sample", "region-style"},
+		{"console-summary", "console"},
+		{"performance-metrics", "performance"},
+		{"frozen-page", "frozen-page"},
 	}
 	result := make([]Artifact, 0, len(wanted))
 	base, err := e.basBaseURL(ctx)

@@ -1,3 +1,5 @@
+// provider-free-exception: this test mounts RegionCorrectionProvider itself; the canonical
+// wrapper would nest a second provider and fight over the same context.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 

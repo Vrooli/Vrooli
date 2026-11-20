@@ -45,7 +45,7 @@ func (s *sqliteRepository) DeleteRetiredComponent(ctx context.Context, id, libra
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var actual string
 	if err := tx.QueryRowContext(ctx, `SELECT library_id FROM components WHERE id = ?`, id).Scan(&actual); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

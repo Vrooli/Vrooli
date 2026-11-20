@@ -53,6 +53,7 @@ func (h *handlers) proposalInput(ctx cliapp.RunContext) (*sketchv1.ProposeSketch
 		Constraints: &sketchv1.DesignConstraints{DesignSource: strings.TrimSpace(ctx.Flag("design-source")), PreserveRoutes: &preserveRoutes, PreserveBusinessBehavior: &preserveBehavior},
 	}}, nil
 }
+
 func proposalLines(result *sketchv1.ProposeSketchResponse) []string {
 	lines := []string{fmt.Sprintf("Alternatives: %d; mode: %s", len(result.Candidates), result.RetrievalMode)}
 	for i, c := range result.Candidates {
@@ -64,6 +65,7 @@ func proposalLines(result *sketchv1.ProposeSketchResponse) []string {
 	}
 	return append(lines, result.Diagnostics...)
 }
+
 func (h *handlers) propose(ctx cliapp.RunContext) error {
 	request, err := h.proposalInput(ctx)
 	if err != nil {
@@ -75,6 +77,7 @@ func (h *handlers) propose(ctx cliapp.RunContext) error {
 	}
 	return render(ctx, response.Msg, proposalLines(response.Msg))
 }
+
 func (h *handlers) infer(ctx cliapp.RunContext) error {
 	key := ctx.Flag("key")
 	if strings.TrimSpace(key) == "" || len(key) > 200 {
@@ -90,6 +93,7 @@ func (h *handlers) infer(ctx cliapp.RunContext) error {
 	}
 	return renderInference(ctx, response.Msg)
 }
+
 func (h *handlers) inference(ctx cliapp.RunContext) error {
 	id, key := ctx.Flag("id"), ctx.Flag("key")
 	if (id == "") == (key == "") {
@@ -101,6 +105,7 @@ func (h *handlers) inference(ctx cliapp.RunContext) error {
 	}
 	return renderInference(ctx, response.Msg)
 }
+
 func renderInference(ctx cliapp.RunContext, result *sketchv1.SketchInferenceOperation) error {
 	lines := []string{fmt.Sprintf("Inference: %s; state: %s", result.Id, result.State)}
 	if result.Detail != "" {

@@ -45,6 +45,7 @@ func TestCaptureDispatchPersistsBeforeProducerAndDoesNotRepeat(t *testing.T) {
 	require.Equal(t, op, retry)
 	require.Equal(t, 1, calls)
 }
+
 func TestCaptureDispatchUncertaintyCannotRedispatch(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -68,6 +69,7 @@ func TestCaptureDispatchUncertaintyCannotRedispatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Failed, rejected.State)
 }
+
 func TestBASDispatcherUsesTypedExactTargetWorkflow(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

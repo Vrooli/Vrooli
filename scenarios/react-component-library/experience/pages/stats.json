@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "stats",
+    "title": "Stats",
+    "routes": [
+      "/stats"
+    ],
+    "purpose": "Read library health as one surface: overview, quality, activity and services, with measured zero distinguished from unavailable.",
+    "prd_refs": [
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Health sections are legible and honest before any detailed matrix or event trail."
+    }
+  ],
+  "claims": [
+    {
+      "id": "stats-sections-state-covered",
+      "type": "state-covered",
+      "statement": "Stats renders available, empty and unavailable sections without a false zero.",
+      "tier": "aspirational",
+      "states": [
+        "overview",
+        "quality",
+        "activity",
+        "services",
+        "loading",
+        "unavailable"
+      ],
+      "rationale": "Sections compose owned sources; captures and section tests move the claim to machine tier."
+    }
+  ],
+  "states": [
+    {
+      "id": "overview",
+      "description": "Compact health counts across quality, activity and services."
+    },
+    {
+      "id": "quality",
+      "description": "Coverage and maturity detail."
+    },
+    {
+      "id": "activity",
+      "description": "The durable event trail."
+    },
+    {
+      "id": "services",
+      "description": "Capability and recovery detail."
+    },
+    {
+      "id": "loading",
+      "description": "The selected section is loading."
+    },
+    {
+      "id": "unavailable",
+      "description": "The selected section is unavailable with a reason and recovery path."
+    }
+  ],
+  "regions": [
+    {
+      "id": "stats-sections",
+      "required": true,
+      "purpose": "Render the selected health section with its own availability.",
+      "component": {
+        "local": "stats-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "stats-sections": {
+        "testid": "stats-page"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "Start · Library · Design · Review · Stats",
+    "status": "active",
+    "plan": "docs/concepts/WORKBENCH-MATURATION.md",
+    "changes": [
+      "Coverage becomes the Quality view",
+      "Activity becomes the Activity view",
+      "Capabilities becomes the Services view"
+    ]
+  }
+}

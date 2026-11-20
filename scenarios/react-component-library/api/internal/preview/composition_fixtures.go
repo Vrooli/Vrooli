@@ -150,9 +150,11 @@ func PrepareComposition(c Composition, bindings map[string]any, fixtures []Compo
 	}
 	return out, nil
 }
+
 func unsafeCompositionKey(key string) bool {
 	return key == "__proto__" || key == "constructor" || key == "prototype"
 }
+
 func validateFixtureValues(value any, depth int) error {
 	if depth > 16 {
 		return fmt.Errorf("fixture bindings exceed nesting limit")

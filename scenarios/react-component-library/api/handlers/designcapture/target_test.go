@@ -45,6 +45,7 @@ func TestTargetServesExactIsolatedBytesAndRejectsCorruption(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusConflict, get().Code)
 }
+
 func TestTargetRefusesMissingRoutedRepository(t *testing.T) {
 	router := mux.NewRouter()
 	MountTarget(router, func(context.Context) (domain.Repository, error) { return nil, errors.New("missing test lease") })

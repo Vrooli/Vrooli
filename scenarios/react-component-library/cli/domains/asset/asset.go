@@ -18,17 +18,6 @@ import (
 
 const GroupName = "asset"
 
-func shortRevision(revision string) string {
-	revision = strings.TrimSpace(revision)
-	if revision == "" {
-		return "unknown"
-	}
-	if len(revision) > 8 {
-		return revision[:8]
-	}
-	return revision
-}
-
 type handlers struct {
 	catalog      catalogClient
 	buildCatalog func(string) error

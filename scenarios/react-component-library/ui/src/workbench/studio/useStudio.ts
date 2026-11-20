@@ -16,6 +16,7 @@ import type { DesignAsset, DesignDocument, DesignFrame, DesignOptions } from "..
 import type { Template, TemplateNode, TemplatePalette } from "../templates/spec";
 import { findNode } from "../templates/spec";
 import { DEFAULT_TEMPLATE } from "../templates/library";
+import { assertImageUpload } from "./assets";
 import {
   anonymousFrame,
   docSignature,
@@ -40,7 +41,7 @@ const AUTOSAVE_DELAY_MS = 700;
 /** Remember the design the person was last editing (tab restore, not data). */
 const ACTIVE_DESIGN_KEY = "rcl.studio.active-design";
 /** Mirrors the API limit so an oversized file never leaves the browser. */
-const MAX_ASSET_BYTES = 8 * 1024 * 1024;
+
 
 export interface SavedState {
   revision: number;
@@ -52,16 +53,6 @@ export interface SavedState {
 
 /** Kept as an alias so the Assets pane and callers share one asset shape. */
 export type ReferenceAsset = DesignAsset;
-
-export class AssetImportError extends Error {
-  reason: "type" | "size";
-
-  constructor(reason: "type" | "size") {
-    super(reason);
-    this.name = "AssetImportError";
-    this.reason = reason;
-  }
-}
 
 interface StudioSeed {
   doc: DesignDocument;
@@ -134,9 +125,9 @@ function savedFromDoc(doc: DesignDocument): SavedState {
   };
 }
 
-export type ProposalApplication =
-  | { ok: true }
-  | { ok: false; reason: "stale" | "invalid"; detail: string };
+import type { ProposalApplication } from "./proposal";
+
+export type { ProposalApplication } from "./proposal";
 
 export interface StudioApi {
   ready: boolean;
@@ -835,8 +826,7 @@ export function useStudio(binding: DesignBinding = {}): StudioApi {
   }, [activeId, ready]);
 
   const importAsset = useCallback(async (file: File, fidelity: "reference" | "captured" = "reference") => {
-    if (!file.type.startsWith("image/")) throw new AssetImportError("type");
-    if (file.size > MAX_ASSET_BYTES) throw new AssetImportError("size");
+    assertImageUpload(file);
     const designId = activeIdRef.current;
     const asset = await uploadDesignAsset(designId, file, fidelity);
     setAssets((prev) => ({ ...prev, [designId]: [asset, ...(prev[designId] ?? [])] }));

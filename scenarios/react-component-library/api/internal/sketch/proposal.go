@@ -160,6 +160,7 @@ func Propose(ctx context.Context, snapshot Snapshot, intent DesignIntent, limit 
 	}
 	return out, ctx.Err()
 }
+
 func includes(values []string, value string) bool {
 	for _, v := range values {
 		if v == value {

@@ -23,12 +23,15 @@ func (r *retirementRepo) GetByLibraryID(context.Context, string) (components.Com
 	}
 	return r.component, nil
 }
+
 func (r *retirementRepo) ListVersions(context.Context, string, int) ([]components.ComponentVersion, error) {
 	return nil, nil
 }
+
 func (r *retirementRepo) ListStories(context.Context, components.StoryQuery) ([]components.ComponentStory, error) {
 	return nil, nil
 }
+
 func (r *retirementRepo) DeleteRetiredComponent(_ context.Context, id, libraryID string) error {
 	if id != r.component.ID || libraryID != r.component.LibraryID {
 		return errors.New("wrong deletion identity")
@@ -51,10 +54,10 @@ func retirementFixture(t *testing.T) (string, *retirementRepo, string, string) {
 		filepath.Join(filepath.Dir(manifest), "versions/1.0.0/Old.tsx"): "export const Old = () => null;",
 		catalog: `{"kind":"catalog-asset","asset":{"id":"navigation.old","kind":"component","domain":"navigation","target":{"maturity":"deprecated"}}}`,
 	} {
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(data), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -120,10 +123,10 @@ func TestRetireRejectsWrongManifestAndConsumersBeforeMutation(t *testing.T) {
 				repo.component.ManifestPath = "../Old/component.json"
 			case "consumer":
 				path := filepath.Join(root, "scenarios/consumer/public/app.js")
-				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(path, []byte(`import Old from '@vrooli/react-component-library/Old/1';`), 0644); err != nil {
+				if err := os.WriteFile(path, []byte(`import Old from '@vrooli/react-component-library/Old/1';`), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}

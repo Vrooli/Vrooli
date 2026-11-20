@@ -2,9 +2,11 @@ package sketch
 
 import (
 	"context"
-	"github.com/vrooli/api-core/uimanifest"
 	"log"
 	"path/filepath"
+
+	"github.com/vrooli/api-core/uimanifest"
+
 	inventory "react-component-library/handlers/inventory"
 
 	"connectrpc.com/connect"
@@ -28,6 +30,7 @@ func NewInventoryScannerAdapter(repoRoot string, logger *log.Logger, adoptions i
 	}
 	return InventoryScannerAdapter{Scanner: factory(repoRoot), forRoot: factory}
 }
+
 func (a InventoryScannerAdapter) ForWorkspace(root string) reconcile.Scanner {
 	if a.forRoot == nil {
 		return nil

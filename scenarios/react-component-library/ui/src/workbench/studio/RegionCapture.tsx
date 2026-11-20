@@ -11,7 +11,6 @@ import { Crop, X } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
 import { WbButton } from "../primitives";
-import { designAssetUrl, type DesignAsset } from "../designs";
 import { useFocusTrap } from "../useFocusTrap";
 import {
   MIN_REGION,
@@ -59,7 +58,8 @@ interface FieldDraft {
 }
 
 export interface RegionCaptureProps {
-  asset: DesignAsset;
+  /** The upload being cropped. The URL is already absolute. */
+  asset: { id: string; name: string; url: string };
   onImport: (file: File, fidelity: "captured") => void | Promise<void>;
   onClose: () => void;
 }
@@ -401,7 +401,7 @@ export function RegionCapture({ asset, onImport, onClose }: RegionCaptureProps) 
             <img
               ref={imageRef}
               className="rc-image"
-              src={designAssetUrl(asset)}
+              src={asset.url}
               alt={t("workbench.studio.cropImageAlt", {
                 defaultValue: "{{name}}, full image for region capture",
                 name: asset.name,

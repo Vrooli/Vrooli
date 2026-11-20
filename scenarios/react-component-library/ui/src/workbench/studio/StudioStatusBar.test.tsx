@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
@@ -48,14 +49,14 @@ describe("studio status honesty", () => {
   });
 
   it("never calls a browser-only write saved", () => {
-    render(bar(true));
+    renderWithProviders(bar(true));
     expect(screen.getByText(/Local draft · revision 3/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
     expect(screen.queryByText(/Saved · revision/)).toBeNull();
   });
 
   it("shows a durable server save as saved", () => {
-    render(bar(false));
+    renderWithProviders(bar(false));
     expect(screen.getByText(/Saved · revision 3/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });

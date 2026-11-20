@@ -1,5 +1,44 @@
 # Problems — React Component Library
 
+## 2026-11-20 — Workbench program: current gaps
+
+The workspace is now the studio's authoring model: assets, AI assist, HTML
+import, page/display/state editing, curated templates and forking all belong to
+it. These are the gaps that remain; none is hidden behind a passing UI.
+
+- **Legacy composition owners still exist.** `internal/designs`, `/api/designs`,
+  `internal/templates`, `/api/templates`, `studio_templates`, the browser-local
+  template shelf and the legacy studio remain. Workspace assets, assist and HTML
+  import are implemented, and `/design/:scenario/:page` opens the workspace that
+  owns a binding, so the old studio now survives for two specific jobs:
+  component-context authoring (`/design?template=…&component=…`, which needs the
+  live component slot to be stored on the workspace) and unbound experience
+  pages with no workspace yet. Deleting the stores requires those two flows.
+  Owner: program phase 2/6.
+- **Search semantic leg is disabled.** `SearchService` reports
+  `SEMANTIC_LEG_STATE_DISABLED`; lexical FTS5 is the only active leg. The
+  `Semantic` seam exists, but the shared `packages/ai-go/search` adapter,
+  citation packing and Ask mode are not wired. Owner: phase 3.
+- **State capture through the evidence pipeline is missing.** Region capture from
+  a reference image is implemented (it stores a `captured` asset). Rendering a
+  composed state through BAS into durable evidence, and setting
+  `WorkspaceState.status`/`capture_id` from it, is not. Owner: phase 2.
+- **AI assist needs a running gateway.** `AssistWorkspace` now exists and the
+  studio offers the AI tab, but this environment has no ai-gateway, so a live
+  proposal returns `Unavailable` honestly. Proposal application is covered by
+  handler and UI tests with a fake gateway. Owner: environment.
+- **Test-infra seams.** `unit-health` still reports `MISSING_INJECTABLE_SEAM`
+  for direct `os.Getenv`/`net/http` use in the API. It is pre-existing debt: the
+  workbench work did not widen it, but making those calls injectable is the next
+  unit-phase improvement. The non-hermetic fleet scan is now
+  `make test-fleet-contract`, so the fast suite has no cross-package scan race.
+- **Actor identity is local.** Activity and dispositions record `local` unless a
+  caller supplies an actor. Multi-user attribution remains out of scope until
+  the platform identity seam is wired.
+
+**Environment note.** The installed `golangci-lint` was rebuilt with Go 1.26 on
+2026-11-20; `api` and `cli` both lint clean, so `make check` can run its Go gate.
+
 ## 2026-11-18 — Workbench redesign discovery findings (open, with fixes landed)
 
 The D · Nocturne redesign preparation captured the served workbench and found these defects. They are recorded here because a redesign cannot fix a missing data contract by styling it. The 2026-11-18 implementation addressed the shell and page surface; the items marked **fixed** were repaired in source and need a served re-check.
@@ -22,9 +61,9 @@ The D · Nocturne workbench is implemented in source, but these capabilities are
 
 - **In-context move/resize.** The component is placed in the template's declared slot; freeform move/resize inside the page is not implemented. The studio edits the composition instead.
 - **Collaborators and comments.** The studio shows a local, single-user draft. Multi-user presence and comment threads are not implemented.
-- **Findings disposition.** Review can open the affected asset and copy evidence; assignment and triage writes wait for a findings projection that owns dispositions.
-- **Durable activity.** Activity is derived from catalog timestamps and says so. A durable event store is not implemented.
-- **Phone certification.** Home at 390 px is captured; Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview still need 390/320 px captures and keyboard checks.
+- **Findings disposition — fixed 2026-11-19.** Review reads server-owned findings and writes durable dispositions and owner assignments; the browser reconstruction is gone.
+- **Durable activity — fixed 2026-11-19.** Activity is an append-only event log with actor, action, subject and before/after snapshots; workspace mutations write to it.
+- **Phone certification — captured 2026-11-20.** Start, Library, Design, Review, Stats and the workspace studio have 1440, 390 and 320 captures; the five destinations have no horizontal overflow at 320 in Chromium; reduced-motion reports no animated element over 50 ms and forced-colors renders legibly. A full keyboard journey sweep is still owed.
 - **Token leak proof.** Nocturne is scoped to `.wb-root`, but the collision/leak check that fails if a published component imports the scoped file does not exist yet.
 - **Legacy page deletion.** The old page components are no longer routed but remain in source. They need focused replacement tests before deletion.
 

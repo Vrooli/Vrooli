@@ -11,7 +11,7 @@
  * merged in.
  */
 import { API_BASE, AUTHORING_TIMEOUT_MS, boundedFetch, createBoundedFetch } from "../api/client";
-import type { TemplateNode, TemplateNodeType, TemplatePalette } from "./templates/spec";
+import type { TemplateNode, TemplatePalette } from "./templates/spec";
 
 export type DesignDevice = "desktop" | "tablet" | "phone";
 
@@ -360,7 +360,7 @@ export async function deleteDesign(id: string): Promise<void> {
 
 // --- design assets ---------------------------------------------------------
 
-export function designAssetUrl(asset: DesignAsset): string {
+export function designAssetUrl(asset: Pick<DesignAsset, "url">): string {
   if (/^https?:\/\//i.test(asset.url)) return asset.url;
   return apiUrl(asset.url);
 }
@@ -428,60 +428,26 @@ export async function deleteDesignAsset(designId: string, assetId: string): Prom
 
 /* ── AI proposals ────────────────────────────────────────────────────────── */
 
-/**
- * A model-generated patch. The wire shape is deliberately flat (one `kind`
- * plus optional fields) because that is what models follow reliably; the
- * studio validates every field before it touches the document.
- */
-export interface DesignPatchOperation {
-  kind: "setText" | "setProp" | "addLayer" | "removeLayer" | "moveLayer" | "setTheme";
-  nodeId?: string;
-  parentId?: string;
-  key?: string;
-  value?: string | number | boolean;
-  text?: string;
-  node?: DesignNewLayer;
-  index?: number;
-}
+// The patch shape and its error live in studio/proposal.ts so the workspace
+// studio shares them without importing this legacy transport module.
+import {
+  DesignProposalError,
+  PROPOSAL_CODES,
+  type DesignPatchOperation,
+  type DesignProposal,
+  type DesignProposalErrorCode,
+  type ProposeInput,
+} from "./studio/proposal";
 
-export interface DesignNewLayer {
-  type: TemplateNodeType;
-  props: Record<string, string | number | boolean>;
-  children?: DesignNewLayer[];
-}
-
-export interface DesignProposal {
-  summary: string;
-  operations: DesignPatchOperation[];
-  /** The design revision this proposal was computed against. */
-  revision: number;
-  operationId: string;
-  state: string;
-  provider?: string;
-  model?: string;
-  inputTokens?: number;
-  outputTokens?: number;
-}
-
-export type DesignProposalErrorCode =
-  | "ai_unavailable"
-  | "ai_failed"
-  | "invalid_proposal"
-  | "invalid_argument"
-  | "conflict"
-  | "unknown";
-
-export class DesignProposalError extends Error {
-  readonly code: DesignProposalErrorCode;
-  readonly status: number;
-
-  constructor(code: DesignProposalErrorCode, status: number, message: string) {
-    super(message);
-    this.name = "DesignProposalError";
-    this.code = code;
-    this.status = status;
-  }
-}
+export {
+  DesignProposalError,
+  PROPOSAL_CODES,
+  type DesignNewLayer,
+  type DesignPatchOperation,
+  type DesignProposal,
+  type DesignProposalErrorCode,
+  type ProposeInput,
+} from "./studio/proposal";
 
 /**
  * A proposal takes as long as a local model needs. Five seconds — the bound
@@ -489,21 +455,6 @@ export class DesignProposalError extends Error {
  * gets the authoring deadline and an explicit timeout error.
  */
 const assistFetch = createBoundedFetch(AUTHORING_TIMEOUT_MS);
-
-const PROPOSAL_CODES: readonly DesignProposalErrorCode[] = [
-  "ai_unavailable",
-  "ai_failed",
-  "invalid_proposal",
-  "invalid_argument",
-  "conflict",
-];
-
-export interface ProposeInput {
-  prompt: string;
-  scope: { kind: "design" | "frame" | "layer"; frameId?: string; nodeId?: string };
-  revision: number;
-  idempotencyKey: string;
-}
 
 export async function proposeDesignPatch(
   designId: string,

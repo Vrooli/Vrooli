@@ -402,7 +402,8 @@ func TestNextWorkPrefersBuiltMaturityGap(t *testing.T) {
 
 func TestDisplayNameNormalization(t *testing.T) {
 	for _, test := range []struct{ raw, want string }{
-		{`"Button"`, "Button"}, {`{"default":"Button"}`, "Button"},
+		{`"Button"`, "Button"},
+		{`{"default":"Button"}`, "Button"},
 		{`{"fr":"Bouton","en":"Button"}`, "Button"},
 		{`{"fr":"Bouton","de":"Taste"}`, "Taste"},
 	} {
@@ -422,11 +423,11 @@ func TestDisplayNameNormalization(t *testing.T) {
 func TestCatalogRejectsDuplicateIdentity(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "assets", "controls")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"one", "two"} {
-		if err := os.WriteFile(filepath.Join(dir, name+".json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component"}}`), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name+".json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component"}}`), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

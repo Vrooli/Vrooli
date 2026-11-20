@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/encoding/protojson"
 	"os"
-	internal "react-component-library/internal/sketch"
 	"strings"
+
+	"google.golang.org/protobuf/encoding/protojson"
+
+	internal "react-component-library/internal/sketch"
 
 	"connectrpc.com/connect"
 	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
@@ -164,6 +166,7 @@ func (h *connectHandler) AcceptCandidate(ctx context.Context, req *connect.Reque
 	}
 	return acceptanceResponse(decision)
 }
+
 func (h *connectHandler) GetAcceptance(ctx context.Context, req *connect.Request[sketchv1.GetAcceptanceRequest]) (*connect.Response[sketchv1.AcceptanceDecision], error) {
 	h, err := h.forRequest(ctx)
 	if err != nil {
@@ -184,6 +187,7 @@ func (h *connectHandler) GetAcceptance(ctx context.Context, req *connect.Request
 	}
 	return acceptanceResponse(d)
 }
+
 func acceptanceResponse(d internal.AcceptanceDecision) (*connect.Response[sketchv1.AcceptanceDecision], error) {
 	raw, err := json.Marshal(d)
 	if err != nil {

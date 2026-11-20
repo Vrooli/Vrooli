@@ -4,8 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"react-component-library/internal/components"
 	"testing"
+
+	"react-component-library/internal/components"
 )
 
 type templatePortReader struct {
@@ -16,9 +17,11 @@ type templatePortReader struct {
 func (r templatePortReader) Get(context.Context, string) (components.Component, error) {
 	return components.Component{ID: "id", CatalogID: "templates.page", Slug: "Page"}, nil
 }
+
 func (r templatePortReader) GetVersion(context.Context, string, string) (components.ComponentVersion, error) {
 	return r.version, nil
 }
+
 func TestPublishedTemplatePortsPrepareWireframeWithoutInventingBindings(t *testing.T) {
 	story := `{"schemaVersion":5,"kind":"component","args":{"fields":[{"path":"regions.main","region":"main","kind":"text"},{"path":"title","kind":"text","required":true,"default":"Records"}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","role":"anatomy","args":{"data":{"items":["One record"]}}}]}`
 	digest := sha256.Sum256([]byte(story))

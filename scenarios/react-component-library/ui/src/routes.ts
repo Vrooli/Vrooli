@@ -6,15 +6,21 @@
  * reviewable set of routes to protect.
  */
 export const appRoutes = {
-  home: "/",
+  /** Start: the search and browse front door. */
+  start: "/",
+  library: "/library",
+  /** Legacy asset-catalog URL; redirects to `/library`. */
   components: "/components",
+  /** Legacy asset-catalog alias; redirects to `/library`. */
   assetCatalog: "/catalog",
   asset: "/assets/:id",
   preview: "/assets/:id/preview",
+  stats: "/stats",
+  /** Legacy measurement URLs; each redirects to its Stats view. */
   coverage: "/coverage",
   capabilities: "/capabilities",
-  review: "/review",
   activity: "/activity",
+  review: "/review",
   settings: "/settings",
   create: "/new",
   design: "/design",
@@ -22,6 +28,40 @@ export const appRoutes = {
   designPage: "/design/:scenario/:page",
   legacySketch: "/sketch/:scenario/:page",
 } as const;
+
+export const statsViews = ["overview", "quality", "activity", "services"] as const;
+export type StatsView = (typeof statsViews)[number];
+
+const statsViewSet = new Set<string>(statsViews);
+
+/** Read the Stats tab from `?view=`, defaulting to Overview. */
+export function statsView(search: URLSearchParams): StatsView {
+  const view = search.get("view");
+  return view !== null && statsViewSet.has(view) ? (view as StatsView) : "overview";
+}
+
+/** Canonical Stats URL. Overview omits the parameter so `/stats` stays clean. */
+export function statsPath(view: StatsView = "overview"): string {
+  return view === "overview" ? appRoutes.stats : `${appRoutes.stats}?view=${view}`;
+}
+
+/** Workspace studio URL. Page/display/state default to the workspace's first. */
+export function workspacePath(
+  id: string,
+  selection: { page?: string; display?: string; state?: string } = {},
+): string {
+  const search = new URLSearchParams({ workspace: id });
+  if (selection.page) search.set("page", selection.page);
+  if (selection.display) search.set("display", selection.display);
+  if (selection.state) search.set("state", selection.state);
+  return `${appRoutes.design}?${search.toString()}`;
+}
+
+/** Library URL carrying an optional search term for the asset index. */
+export function libraryPath(query?: string): string {
+  const term = query?.trim();
+  return term ? `${appRoutes.library}?q=${encodeURIComponent(term)}` : appRoutes.library;
+}
 
 export type AssetInfoTab =
   | "preview"

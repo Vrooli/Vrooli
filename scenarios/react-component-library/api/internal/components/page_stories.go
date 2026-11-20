@@ -13,8 +13,10 @@ import (
 	"react-component-library/internal/librarywalk"
 )
 
-const PageStoryPrefix = "page:"
-const PageStoryVersion = "workspace"
+const (
+	PageStoryPrefix  = "page:"
+	PageStoryVersion = "workspace"
+)
 
 // PageStorySubject is a working application subject, not a published asset.
 // It shares the declarative contract and runner with released components.

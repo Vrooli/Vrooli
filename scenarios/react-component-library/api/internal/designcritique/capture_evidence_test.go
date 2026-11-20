@@ -20,9 +20,11 @@ type captureFixtureRepository struct{ op designcapture.Operation }
 func (r captureFixtureRepository) Get(context.Context, string) (designcapture.Operation, error) {
 	return r.op, nil
 }
+
 func (captureFixtureRepository) Create(context.Context, string, designcapture.Request) (designcapture.Operation, error) {
 	return designcapture.Operation{}, errors.New("unexpected write")
 }
+
 func (captureFixtureRepository) Transition(context.Context, string, int64, designcapture.State, string, []designcapture.Artifact, string) (designcapture.Operation, error) {
 	return designcapture.Operation{}, errors.New("unexpected write")
 }
@@ -32,6 +34,7 @@ type imageResolver struct{ url string }
 func (r imageResolver) ResolveScreenshot(context.Context, designcapture.Operation, designcapture.Artifact) (designcapture.Screenshot, error) {
 	return designcapture.Screenshot{URL: r.url, Width: 390, Height: 844, ContentType: "image/png"}, nil
 }
+
 func TestCaptureEvidenceRequiresAvailableMatchingImage(t *testing.T) {
 	var encoded bytes.Buffer
 	require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 390, 844))))

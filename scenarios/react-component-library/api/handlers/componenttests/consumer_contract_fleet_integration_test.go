@@ -1,3 +1,10 @@
+//go:build integration
+
+// This check runs the real fleet scanner against the live workspace. It is an
+// integration check, not a unit test: the scan reads every scenario UI and its
+// verdict changes when another writer touches the tree, so running it in the
+// parallel `go test ./...` sweep made an unrelated scenario's edit look like
+// this package's failure. Run it alone with `make test-fleet-contract`.
 package componenttests
 
 import (

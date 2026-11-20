@@ -33,6 +33,7 @@ type critiqueDispatcher struct {
 func (d *critiqueDispatcher) ResolveScreenshot(_ context.Context, op designcapture.Operation, a designcapture.Artifact) (designcapture.Screenshot, error) {
 	return designcapture.Screenshot{Reference: a.Reference, URL: d.url, Width: 390, Height: 844, ContentType: "image/png"}, nil
 }
+
 func TestCritiqueRPCVerifiesEvidenceAndPreservesHistoricalRecord(t *testing.T) {
 	ctx := apidb.WithTestMode(context.Background())
 	db := dbtest.NewSQLite(t)

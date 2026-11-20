@@ -22,6 +22,7 @@ func reviewFixture() Review {
 	}
 	return r
 }
+
 func TestVisualFloorCannotHideFailedDimensionOrEstablishAcceptance(t *testing.T) {
 	r := reviewFixture()
 	calls := 0
@@ -44,6 +45,7 @@ func TestVisualFloorCannotHideFailedDimensionOrEstablishAcceptance(t *testing.T)
 	require.False(t, result.VisualFloorMet)
 	require.Equal(t, []int{0}, result.BlockingFindings)
 }
+
 func TestCritiqueRequiresCompleteAttributableEvidence(t *testing.T) {
 	for _, name := range []string{"invalid evidence render", "missing dimension", "duplicate dimension", "missing evidence", "missing rationale", "missing critic", "missing profile", "unknown policy", "invalid score", "finding lacks correction"} {
 		t.Run(name, func(t *testing.T) {

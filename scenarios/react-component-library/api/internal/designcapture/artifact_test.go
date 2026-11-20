@@ -73,6 +73,7 @@ type screenshotFunc func(context.Context, Operation, Artifact) (Screenshot, erro
 func (f screenshotFunc) ResolveScreenshot(ctx context.Context, op Operation, a Artifact) (Screenshot, error) {
 	return f(ctx, op, a)
 }
+
 func TestScreenshotRequiresCompletedReceiptMembership(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)

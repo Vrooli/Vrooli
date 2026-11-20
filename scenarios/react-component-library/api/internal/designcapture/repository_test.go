@@ -18,6 +18,7 @@ func captureRequest() Request {
 	hash := strings.Repeat("a", 64)
 	return Request{Target: Target{Scenario: "demo", DesignID: "home", Revision: hash, RenderHash: hash, HTMLSHA256: hex.EncodeToString(digest[:]), InputsSHA256: hash, Kind: "preview", Kit: "vrooli-default", Theme: "light", Direction: "ltr"}, HTML: html, Width: 390, Height: 844}
 }
+
 func TestDurableCaptureIntentAndDispatchRecovery(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -65,6 +66,7 @@ func TestDurableCaptureIntentAndDispatchRecovery(t *testing.T) {
 	_, err = repo.Get(ctx, op.ID)
 	require.ErrorContains(t, err, "identity mismatch")
 }
+
 func TestCaptureIntentRejectsStaleHTMLAndInvalidDimensions(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)

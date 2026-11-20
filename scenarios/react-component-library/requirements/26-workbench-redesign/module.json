@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "D · Nocturne workbench redesign: eleven-page information architecture, component workspace, design studio, evidence pages, responsive/accessibility and honest data states.",
+    "description": "Historical D \u00b7 Nocturne eleven-page workbench redesign. Superseded as a product target by the five-destination Start/Library/Design/Review/Stats IA and the workspace aggregate in docs/concepts/WORKBENCH-MATURATION.md; retained as implementation evidence.",
     "module": "workbench-redesign",
     "prd_ref": "OT-P0-014",
     "priority": "P0",
@@ -108,7 +108,7 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "In context exercised against eight templates: device switch to 390px, drag the live slot (persisted), corner resize (persisted 779→872px), keyboard resize, and Reset position."
+          "notes": "In context exercised against eight templates: device switch to 390px, drag the live slot (persisted), corner resize (persisted 779\u2192872px), keyboard resize, and Reset position."
         }
       ]
     },

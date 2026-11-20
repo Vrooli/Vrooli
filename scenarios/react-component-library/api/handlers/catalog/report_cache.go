@@ -17,6 +17,8 @@ import (
 	"react-component-library/internal/librarywalk"
 
 	"react-component-library/internal/catalogcoverage"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ErrReportWarming means the first full gate pass is still running. It is a
@@ -233,7 +235,11 @@ func coverageCachePath() string {
 	if err != nil || home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".vrooli", "data", "vrooli", "react-component-library", "coverage-report-v1.json")
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(root, "data", "vrooli", "react-component-library", "coverage-report-v1.json")
 }
 
 func (c *reportCache) get(ctx context.Context, repoRoot string, compute func(context.Context) (*catalogcoverage.Report, error)) (*catalogcoverage.Report, error) {

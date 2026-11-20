@@ -4,8 +4,24 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "80e07101be0ef92b68f236ef78bd6d1b78c7577c70f8fd10fbeaa0416b971403",
+  "manifest_hash": "3523733d634f3604d042b22ee98a23c28a0ddfb3c4fd2590f45ce9fb8fea5438",
   "commands": [
+    {
+      "path": "activity events",
+      "group": "activity",
+      "command": "events",
+      "binding": "ActivityService.ListActivity",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "activity summary",
+      "group": "activity",
+      "command": "summary",
+      "binding": "ActivityService.GetActivitySummary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
     {
       "path": "adoptions link",
       "group": "adoptions",
@@ -209,6 +225,14 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "health show",
+      "group": "health",
+      "command": "show",
+      "binding": "LibraryHealthService.GetLibraryHealth",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "page capture",
       "group": "page",
       "command": "capture",
@@ -247,6 +271,78 @@
       "group": "preview",
       "command": "populate-store",
       "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "review assign",
+      "group": "review",
+      "command": "assign",
+      "binding": "ReviewService.AssignFinding",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "review disposition",
+      "group": "review",
+      "command": "disposition",
+      "binding": "ReviewService.RecordDisposition",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "review finding",
+      "group": "review",
+      "command": "finding",
+      "binding": "ReviewService.GetFinding",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review findings",
+      "group": "review",
+      "command": "findings",
+      "binding": "ReviewService.ListFindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review summary",
+      "group": "review",
+      "command": "summary",
+      "binding": "ReviewService.GetReviewSummary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "search query",
+      "group": "search",
+      "command": "query",
+      "binding": "SearchService.Search",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "search reindex",
+      "group": "search",
+      "command": "reindex",
+      "binding": "SearchService.Reindex",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "search status",
+      "group": "search",
+      "command": "status",
+      "binding": "SearchService.GetSearchStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "search suggest",
+      "group": "search",
+      "command": "suggest",
+      "binding": "SearchService.Suggest",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "sketch accept",
@@ -472,6 +568,78 @@
       "binding": "WorkflowsService.StartWorkflow",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces assist",
+      "group": "workspaces",
+      "command": "assist",
+      "binding": "WorkspaceService.AssistWorkspace",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces create",
+      "group": "workspaces",
+      "command": "create",
+      "binding": "WorkspaceService.CreateWorkspace",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces delete",
+      "group": "workspaces",
+      "command": "delete",
+      "binding": "WorkspaceService.DeleteWorkspace",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces fork",
+      "group": "workspaces",
+      "command": "fork",
+      "binding": "WorkspaceService.ForkWorkspace",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces get",
+      "group": "workspaces",
+      "command": "get",
+      "binding": "WorkspaceService.GetWorkspace",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspaces list",
+      "group": "workspaces",
+      "command": "list",
+      "binding": "WorkspaceService.ListWorkspaces",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspaces revisions",
+      "group": "workspaces",
+      "command": "revisions",
+      "binding": "WorkspaceService.ListWorkspaceRevisions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workspaces save",
+      "group": "workspaces",
+      "command": "save",
+      "binding": "WorkspaceService.SaveWorkspace",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces validate",
+      "group": "workspaces",
+      "command": "validate",
+      "binding": "WorkspaceService.ValidateWorkspace",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     }
   ]
 }

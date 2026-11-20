@@ -3,9 +3,10 @@ package reconcile
 import (
 	"fmt"
 	"path/filepath"
-	"react-component-library/internal/availability"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/availability"
 
 	"react-component-library/internal/gates"
 )

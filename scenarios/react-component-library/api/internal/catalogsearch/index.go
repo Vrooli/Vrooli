@@ -76,10 +76,12 @@ func (i *Index) ReindexContext(ctx context.Context, scenarioRoot string) (err er
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		docs = append(docs, Document{CatalogID: asset.ID, Name: asset.Name, Kind: asset.Kind,
+		docs = append(docs, Document{
+			CatalogID: asset.ID, Name: asset.Name, Kind: asset.Kind,
 			Slot: asset.Slot, Domain: asset.Domain, Surface: asset.Surface, Description: asset.Description,
 			DeclarationPath: asset.DeclarationPath, RequiredCapabilities: asset.Capabilities,
-			Regions: asset.Regions, Layer: LayerRank(asset.Kind)})
+			Regions: asset.Regions, Layer: LayerRank(asset.Kind),
+		})
 	}
 	i.mu.Lock()
 	i.docs = docs
@@ -115,6 +117,7 @@ func LayerRank(kind string) int {
 func (i *Index) Search(query string, limit int, kind, domain, accepts string) []Result {
 	return i.SearchContext(context.Background(), query, limit, kind, domain, accepts)
 }
+
 func (i *Index) SearchContext(ctx context.Context, query string, limit int, kind, domain, accepts string) []Result {
 	i.mu.RLock()
 	docs := append([]Document(nil), i.docs...)
@@ -130,7 +133,7 @@ func (i *Index) SearchContext(ctx context.Context, query string, limit int, kind
 		score := 0.0
 		for _, term := range terms {
 			if strings.Contains(haystack, term) {
-				score += 1
+				score++
 			}
 		}
 		if score == 0 {
@@ -169,6 +172,7 @@ func (i *Index) Status() (int, time.Time) {
 	defer i.mu.RUnlock()
 	return len(i.docs), i.indexedAt
 }
+
 func tokenize(value string) []string {
 	return strings.FieldsFunc(strings.ToLower(value), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
 }

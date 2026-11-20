@@ -31,6 +31,8 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const captureSetSchema = "ux-capture-set.v1"
@@ -408,8 +410,15 @@ func captureRoot() string {
 	if root := os.Getenv("RCL_UX_CAPTURE_ROOT"); root != "" {
 		return root
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".vrooli", "data", "react-component-library", "ux-captures")
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(root, "data", "react-component-library", "ux-captures")
 }
 
 func slug(value string) string {
@@ -492,7 +501,10 @@ func (h captureHandlers) capture(rc cliapp.RunContext) error {
 	now := time.Now()
 	set := captureSet{Schema: captureSetSchema, CapturedAt: now.UTC().Format(time.RFC3339)}
 	route := defaultString(rc.Flag("route"), "/")
-	kind, request := "", map[string]any{}
+	// Every branch below assigns both; declaring them avoids an ineffectual
+	// initial value while keeping the switch readable.
+	var kind string
+	var request map[string]any
 	var html []byte
 	switch {
 	case scenario != "":

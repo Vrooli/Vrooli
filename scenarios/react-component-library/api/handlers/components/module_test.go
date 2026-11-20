@@ -1,9 +1,7 @@
 package components_test
 
 import (
-	"connectrpc.com/connect"
 	"context"
-	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -484,12 +486,15 @@ type retirementHandlerRepo struct {
 func (r *retirementHandlerRepo) GetByLibraryID(context.Context, string) (internalcomponents.Component, error) {
 	return r.component, nil
 }
+
 func (r *retirementHandlerRepo) ListVersions(context.Context, string, int) ([]internalcomponents.ComponentVersion, error) {
 	return nil, nil
 }
+
 func (r *retirementHandlerRepo) ListStories(context.Context, internalcomponents.StoryQuery) ([]internalcomponents.ComponentStory, error) {
 	return nil, nil
 }
+
 func (r *retirementHandlerRepo) DeleteRetiredComponent(context.Context, string, string) error {
 	r.deleted = true
 	return nil
@@ -501,8 +506,8 @@ func TestRetireHandlerPreflightThenApply(t *testing.T) {
 	manifest := filepath.Join(source, "components/Old/component.json")
 	catalog := filepath.Join(root, "scenarios/react-component-library/catalog/assets/navigation/old.json")
 	for path, data := range map[string]string{manifest: `{"libraryId":"library:Old","catalogId":"navigation.old"}`, catalog: `{"kind":"catalog-asset","asset":{"id":"navigation.old","kind":"component","target":{"maturity":"deprecated"}}}`} {
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
-		require.NoError(t, os.WriteFile(path, []byte(data), 0644))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(data), 0o644))
 	}
 	repo := &retirementHandlerRepo{component: internalcomponents.Component{ID: "old", LibraryID: "library:Old", CatalogID: "navigation.old", Slug: "Old", ManifestPath: "components/Old/component.json"}}
 	h := components.NewConnectHandler(components.Deps{Repo: repo, SourceRoot: source})

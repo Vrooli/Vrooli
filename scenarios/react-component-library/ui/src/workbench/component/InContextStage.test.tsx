@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { ComponentSchema } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
@@ -38,7 +39,7 @@ const story: WorkbenchStory = {
 
 function renderStage(overrides: Partial<Parameters<typeof InContextStage>[0]> = {}) {
   const onReport = vi.fn<(report: InContextReport) => void>();
-  const utils = render(
+  const utils = renderWithProviders(
     <InContextStage
       asset={asset}
       story={story}

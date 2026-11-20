@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"react-component-library/internal/gates"
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/gates"
 )
 
 type Provenance string

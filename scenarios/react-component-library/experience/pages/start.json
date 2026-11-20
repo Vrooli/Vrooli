@@ -3,12 +3,12 @@
   "kind": "experience-page",
   "schemaVersion": "1.1.0",
   "page": {
-    "id": "home",
-    "title": "Workbench home",
+    "id": "start",
+    "title": "Start",
     "routes": [
       "/"
     ],
-    "purpose": "Resume the current design work, read library health and freshness, and start a component or a page without hunting through menus.",
+    "purpose": "Search the library, browse by intent, continue a workspace, or start from a curated template.",
     "prd_refs": [
       "OT-P0-014"
     ]
@@ -20,10 +20,10 @@
   ],
   "claims": [
     {
-      "id": "home-state-covered",
+      "id": "start-state-covered",
       "type": "state-covered",
       "tier": "aspirational",
-      "statement": "Home is captured in default, loading, partial and catalog-unavailable states.",
+      "statement": "Start is captured in default, loading, partial and catalog-unavailable states.",
       "states": [
         "default",
         "loading",
@@ -53,7 +53,7 @@
   ],
   "regions": [
     {
-      "id": "home-launchpad",
+      "id": "start-launchpad",
       "required": true,
       "purpose": "Render the launchpad, health, continuation and signals without hiding unavailable evidence.",
       "component": {
@@ -75,14 +75,19 @@
   ],
   "bindings": {
     "regions": {
-      "home-launchpad": {
-        "selector": "[data-experience-surface=\"home\"]"
+      "start-launchpad": {
+        "selector": "[data-experience-surface=\"start\"]"
       }
     }
   },
   "x-redesign": {
-    "direction": "D · Nocturne",
-    "status": "implemented-local",
-    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+    "direction": "Start \u00b7 Library \u00b7 Design \u00b7 Review \u00b7 Stats",
+    "status": "active",
+    "plan": "docs/concepts/WORKBENCH-MATURATION.md",
+    "changes": [
+      "Home becomes Start",
+      "Search is server-ranked",
+      "Continue reads workspaces, not legacy designs"
+    ]
   }
 }

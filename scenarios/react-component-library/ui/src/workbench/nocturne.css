@@ -658,6 +658,14 @@
   font-family: var(--wb-mono);
 }
 
+.wb-page.is-embedded {
+  padding-top: 0;
+}
+
+.wb-page.is-embedded > .wb-pagehead {
+  display: none;
+}
+
 .wb-muted {
   color: var(--wb-muted);
 }
@@ -862,6 +870,7 @@ button.wb-chip[aria-pressed="true"] {
 }
 
 .wb-field > label,
+.wb-field > span,
 .wb-label {
   color: var(--wb-muted-2);
   font: 10px/1.4 var(--wb-mono);
@@ -1187,11 +1196,15 @@ button.wb-chip[aria-pressed="true"] {
   max-height: min(52vh, 460px);
   overflow: auto;
   padding: 0 12px 12px;
+  /* A grid track defaults to max-content. A long result title would then widen
+     the whole surface past a 320px phone instead of truncating inside the row. */
+  min-width: 0;
 }
 
 .wb-command-group {
   display: grid;
   gap: 3px;
+  min-width: 0;
 }
 
 .wb-command-group > .wb-caption {
@@ -1203,6 +1216,7 @@ button.wb-chip[aria-pressed="true"] {
   align-items: center;
   gap: 10px;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 7px 10px;
   border: 0;
@@ -1212,7 +1226,8 @@ button.wb-chip[aria-pressed="true"] {
 }
 
 .wb-command-row:hover,
-.wb-command-row:focus-visible {
+.wb-command-row:focus-visible,
+.wb-command-row[data-active="true"] {
   background: rgba(255, 179, 92, 0.08);
 }
 
@@ -1343,8 +1358,21 @@ button.wb-chip[aria-pressed="true"] {
 }
 
 @media (max-width: 560px) {
+  /* A title, a count and an action cannot share 320px. Wrapping keeps the
+     action reachable instead of pushing it past the viewport. */
+  .wb-panel-head {
+    flex-wrap: wrap;
+  }
+
+  /* Four full-width KPI cards push the actual work below the fold on a
+     phone. Two columns keep the numbers scannable without the scroll. */
   .wb-kpis {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .wb-kpi {
+    padding: 11px 12px;
   }
 
   .wb-pagehead {

@@ -2,11 +2,13 @@ package sketch
 
 import "fmt"
 
-type RegionRemap struct{ From, To string }
-type TemplateChange struct {
-	Document      Document
-	NewlyUnplaced []Unplaced
-}
+type (
+	RegionRemap    struct{ From, To string }
+	TemplateChange struct {
+		Document      Document
+		NewlyUnplaced []Unplaced
+	}
+)
 
 // ChangeTemplate computes a reviewable result without mutating its input. The
 // caller decides whether to publish after inspecting every displaced occupant.

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setLocale } from "../../i18n";
@@ -41,6 +42,7 @@ function assist() {
       onScope={vi.fn()}
       onApply={vi.fn(() => ({ ok: true as const }))}
       onApplied={vi.fn()}
+      propose={() => new Promise(() => undefined)}
     />
   );
 }
@@ -55,7 +57,7 @@ describe("StudioAssist accessibility", () => {
 
   it("has no axe violations and labels the request field", async () => {
     const promptLabel = "What should change?";
-    const { container } = render(assist());
+    const { container } = renderWithProviders(assist());
     expect(screen.getByLabelText(promptLabel)).toBeInstanceOf(HTMLTextAreaElement);
     expect(screen.getByRole("button", { name: /Propose a patch/i })).toBeDisabled();
     await expectNoA11yViolations(container);

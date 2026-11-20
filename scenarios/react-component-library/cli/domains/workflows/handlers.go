@@ -84,39 +84,6 @@ func (h *handlers) getReport(_ cliapp.OperationContext, msg *workflowspb.GetWork
 	return cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(msg.Workflow)}}
 }
 
-func (h *handlers) refresh(ctx cliapp.RunContext) error {
-	resp, err := h.client.RefreshWorkflow(context.Background(), connect.NewRequest(&workflowspb.RefreshWorkflowRequest{Id: ctx.Positional("id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("refresh workflow", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Workflow == nil {
-		return fmt.Errorf("server returned no workflow")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
-}
-
-func (h *handlers) stop(ctx cliapp.RunContext) error {
-	resp, err := h.client.StopWorkflow(context.Background(), connect.NewRequest(&workflowspb.StopWorkflowRequest{Id: ctx.Positional("id")}))
-	if err != nil {
-		return cliapp.WrapAPIError("stop workflow", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Workflow == nil {
-		return fmt.Errorf("server returned no workflow")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
-}
-
-func (h *handlers) retry(ctx cliapp.RunContext) error {
-	resp, err := h.client.RetryWorkflow(context.Background(), connect.NewRequest(&workflowspb.RetryWorkflowRequest{Id: ctx.Positional("id"), IdempotencyKey: ctx.Flag("idempotency-key")}))
-	if err != nil {
-		return cliapp.WrapAPIError("retry workflow", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Workflow == nil {
-		return fmt.Errorf("server returned no workflow")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Workflow queued with depth %d.", resp.Msg.QueueDepth)}, ResultsHeading: "Workflow", Results: []string{format(resp.Msg.Workflow)}})
-}
-
 func (h *handlers) promotionReadinessCall(ctx cliapp.OperationContext) (*workflowspb.GetPromotionReadinessResponse, error) {
 	resp, err := h.client.GetPromotionReadiness(context.Background(), connect.NewRequest(&workflowspb.GetPromotionReadinessRequest{AssetId: ctx.Positional("asset-id"), OriginScenario: ctx.Flag("origin-scenario"), Version: ctx.Flag("version")}))
 	if err != nil {

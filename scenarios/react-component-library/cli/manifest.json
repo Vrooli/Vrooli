@@ -931,12 +931,12 @@
             {
               "name": "from",
               "required": true,
-              "description": "Source \u2014 @version value or adoption:<id>"
+              "description": "Source — @version value or adoption:<id>"
             },
             {
               "name": "to",
               "required": true,
-              "description": "Target \u2014 @version value or adoption:<id>"
+              "description": "Target — @version value or adoption:<id>"
             }
           ],
           "binding": {
@@ -2604,6 +2604,773 @@
               "description": "Wait for a visible page state before capturing"
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "workspaces",
+      "description": "Author and version the durable workspace composition (pages, displays, states)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List workspace summaries newest-updated first",
+          "flags": [
+            {
+              "name": "provenance",
+              "description": "Optional provenance filter: authored, curated, imported, or forked"
+            },
+            {
+              "name": "query",
+              "description": "Case-insensitive name/summary/tag substring"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (0 = server default, capped)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ListWorkspaces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get the full workspace aggregate including pages, displays and states",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "GetWorkspace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an authored workspace at revision 1",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Workspace name",
+              "required": true
+            },
+            {
+              "name": "summary",
+              "description": "Short human summary"
+            },
+            {
+              "name": "provenance",
+              "description": "Workspace provenance: authored, curated, imported, or forked"
+            },
+            {
+              "name": "tags",
+              "description": "Tag (repeat for more)",
+              "repeatable": true
+            },
+            {
+              "name": "binding-scenario",
+              "description": "Optional scenario experience binding"
+            },
+            {
+              "name": "binding-page",
+              "description": "Optional page binding inside binding-scenario"
+            },
+            {
+              "name": "theme-json",
+              "description": "Opaque client-owned theme JSON"
+            },
+            {
+              "name": "options-json",
+              "description": "Opaque client-owned workspace chrome JSON"
+            },
+            {
+              "name": "pages",
+              "description": "Proto-JSON array of WorkspacePage objects, or an object with a pages array",
+              "bind": {
+                "field": "pages",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "CreateWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "save",
+          "description": "Replace the aggregate and append a revision snapshot using an optimistic base revision",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "base-revision",
+              "description": "Revision observed when editing; a stale base is rejected",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "description": "Actor recorded on the revision snapshot"
+            },
+            {
+              "name": "workspace",
+              "description": "Proto-JSON Workspace document path; the id positional overrides workspace.id",
+              "required": true,
+              "bind": {
+                "field": "workspace",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "SaveWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a workspace and its revision snapshots",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "DeleteWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "fork",
+          "description": "Copy a workspace into an editable fork and keep origin provenance",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id to copy",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Name for the editable fork"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ForkWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List bounded workspace revision snapshots newest-first",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of snapshots (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ListWorkspaceRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Check ids, ordering, devices and addressability without writing",
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Proto-JSON Workspace document path to validate",
+              "required": true,
+              "bind": {
+                "field": "workspace",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ValidateWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "assist",
+          "description": "Propose a validated AI patch for one workspace page (never writes)",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "prompt",
+              "description": "What should change (1 to 2000 characters)",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "description": "What the patch may touch: design, frame or layer (default design)"
+            },
+            {
+              "name": "display",
+              "description": "Display id for frame or layer scope"
+            },
+            {
+              "name": "node",
+              "description": "Layer id for layer scope"
+            },
+            {
+              "name": "page",
+              "description": "Page id (default the first page)"
+            },
+            {
+              "name": "state",
+              "description": "display=<state> pair selecting the state on screen (repeat for more)",
+              "repeatable": true
+            },
+            {
+              "name": "base-revision",
+              "description": "Revision the proposal must match (default: read the current one)"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable request key (default generated; retries with the same key do not re-dispatch)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "AssistWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search workspaces, pages, assets, commands and findings with honest index status",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search the unified index and report ranked results with index and semantic-leg status",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Free-text query; an empty query browses the curated destinations",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "ask",
+              "description": "Ask mode: an explicit mode that never silently replaces lexical results",
+              "bool": true
+            },
+            {
+              "name": "kind",
+              "description": "Result kind filter (repeatable): workspace, page, display, state, page-type, asset, command, evidence",
+              "repeatable": true,
+              "bind": {
+                "field": "kinds",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum results (0 = server default, capped)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "suggest",
+          "description": "Suggest query completions derived from indexed titles and tags",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Prefix or term to complete",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum suggestions (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Suggest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report index freshness and semantic-leg availability",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "GetSearchStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reindex",
+          "description": "Rebuild the lexical index from owned sources",
+          "flags": [
+            {
+              "name": "force",
+              "description": "Rebuild even when the index is current",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Triage server-owned findings and record durable dispositions",
+      "commands": [
+        {
+          "name": "findings",
+          "description": "List findings newest-first with optional filters",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Finding status: open, acknowledged, accepted, fixed, retired"
+            },
+            {
+              "name": "severity",
+              "description": "Severity: blocker, high, medium, low, info"
+            },
+            {
+              "name": "subject-kind",
+              "description": "Only findings for this subject kind"
+            },
+            {
+              "name": "query",
+              "description": "Case-insensitive message/evidence substring"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows (0 = server default)"
+            },
+            {
+              "name": "offset",
+              "description": "Zero-based offset into the filtered queue"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "ListFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "finding",
+          "description": "Get one finding with its durable dispositions",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetFinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "disposition",
+          "description": "Record a decision with a reason and actor",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "decision",
+              "description": "Durable decision recorded on the finding",
+              "required": true,
+              "values": [
+                "acknowledge",
+                "accept-risk",
+                "fix",
+                "retire"
+              ]
+            },
+            {
+              "name": "reason",
+              "description": "Reason recorded with the decision"
+            },
+            {
+              "name": "actor",
+              "description": "Actor recording the decision"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "RecordDisposition"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Set the accountable owner for a finding",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "owner",
+              "description": "Accountable owner",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "AssignFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "summary",
+          "description": "Return queue counts by severity and status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetReviewSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "activity",
+      "description": "Read the append-only mutation log and its bounded summary",
+      "commands": [
+        {
+          "name": "events",
+          "description": "List activity events newest-first with optional subject filters",
+          "flags": [
+            {
+              "name": "subject-kind",
+              "description": "Only events for this subject kind"
+            },
+            {
+              "name": "subject-id",
+              "description": "Only events for this subject id"
+            },
+            {
+              "name": "actor",
+              "description": "Only events attributed to this actor"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum events (0 = server default, capped)"
+            },
+            {
+              "name": "since",
+              "description": "Inclusive RFC3339 lower bound"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActivityService",
+            "method": "ListActivity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "summary",
+          "description": "Return bounded activity counts for the Stats activity view",
+          "flags": [
+            {
+              "name": "days",
+              "description": "Bounded window in days (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActivityService",
+            "method": "GetActivitySummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Read the composed library-health snapshot with per-section availability",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show every library-health section with its state and reason",
+          "flags": [
+            {
+              "name": "activity-days",
+              "description": "Bounded activity window in days (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryHealthService",
+            "method": "GetLibraryHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     }

@@ -47,7 +47,7 @@ func TestCompositionBindingsCompileWithoutDuplicatingOwnedSlots(t *testing.T) {
 	raw, _ := json.Marshal(config)
 	files["tsconfig.json"] = string(raw)
 	for name, body := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

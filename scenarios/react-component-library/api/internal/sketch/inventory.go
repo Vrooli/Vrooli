@@ -203,6 +203,7 @@ func (s *Store) pageInventory(ctx context.Context, scenario string) (DesignInven
 	sort.Slice(out.Pages, func(i, j int) bool { return out.Pages[i].Page < out.Pages[j].Page })
 	return out, nil
 }
+
 func joinIssue(before, next string) string {
 	if before == "" {
 		return next

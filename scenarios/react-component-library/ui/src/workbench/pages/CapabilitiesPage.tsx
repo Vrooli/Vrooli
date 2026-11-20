@@ -16,7 +16,7 @@ import {
   WbButton,
 } from "../primitives";
 
-export function CapabilitiesPage() {
+export function CapabilitiesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const capabilities = useCapabilities();
   const [copied, setCopied] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function CapabilitiesPage() {
   };
 
   return (
-    <div className="wb-page" data-testid="capabilities-page">
+    <div className={embedded ? "wb-page is-embedded" : "wb-page"} data-testid="capabilities-page">
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
           <p className="wb-kicker">

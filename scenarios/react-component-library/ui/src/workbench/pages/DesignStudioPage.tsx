@@ -29,18 +29,19 @@ import {
   setProp,
   setSlotPlacement,
   slotPlacement,
-  walk,
   type Template,
   type TemplateNode,
 } from "../templates/spec";
 import { Select, Skeleton, Tabs } from "../primitives";
 import { cx } from "../cx";
 import { useFocusTrap } from "../useFocusTrap";
-import { AssetImportError, useStudio } from "../studio/useStudio";
+import { AssetImportError } from "../studio/assets";
+import { useStudio } from "../studio/useStudio";
 import { CONTAINER_TYPES } from "../studio/model";
 import { historyShortcut } from "../studio/shortcuts";
 import { TEMPLATE_ERROR_EVENT } from "../templates/local";
-import type { DesignAsset } from "../designs";
+import { designAssetUrl, proposeDesignPatch } from "../designs";
+import type { ReferenceUpload } from "../studio/assets";
 import { StudioTopBar } from "../studio/StudioTopBar";
 import { HtmlImport } from "../studio/HtmlImport";
 import { StudioLayers } from "../studio/StudioLayers";
@@ -64,7 +65,8 @@ import {
   visibleLayerRows,
 } from "../studio/model";
 import { designCoverage, frameCoverage, type Coverage } from "../studio/rcl";
-import { captureEvidenceVerdict, primaryActionVerdict, stateAudit } from "../studio/checks";
+import { stateAudit } from "../studio/checks";
+import { claimsFor } from "../studio/claims";
 import { useElementWidth, useFrameAudit } from "../studio/useFrameAudit";
 import type { DesignDevice } from "../designs";
 import type { TemplatePalette } from "../templates/spec";
@@ -202,11 +204,11 @@ export function DesignStudioPage() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 2600);
   };
 
-  const placeAsset = (asset: DesignAsset) => {
+  const placeAsset = (asset: ReferenceUpload) => {
     if (!frame) return;
     const parentId =
       selected && CONTAINER_TYPES.has(selected.type) ? selected.id : frame.spec.id;
-    const src = `/api/designs/${asset.designId}/assets/${asset.id}`;
+    const src = asset.url;
     commitFrame(
       (spec) =>
         appendChild(
@@ -340,88 +342,10 @@ export function DesignStudioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [design?.id, studio.ready]);
 
-  const claims = useMemo<StudioClaim[]>(() => {
-    if (!frame) return [];
-    let primary = 0;
-    let displays = 0;
-    let titles = 0;
-    let bodies = 0;
-    let slots = 0;
-    walk(frame.spec, (current) => {
-      if (current.type === "button" && current.props.variant === "primary") primary += 1;
-      if (current.type === "slot") slots += 1;
-      if (current.type === "text" && current.props.variant === "display") displays += 1;
-      if (current.type === "text" && current.props.variant === "title") titles += 1;
-      if (current.type === "text" && current.props.variant === "body") bodies += 1;
-    });
-    return [
-      {
-        id: "slot",
-        label: t("workbench.studio.checkSlot", {
-          defaultValue: "Composition declares a component slot",
-        }),
-        verdict: slots > 0 ? "pass" : "warn",
-        detail: componentId
-          ? placement
-            ? t("workbench.studio.slotPlaced", {
-                defaultValue: "Live component placed · {{width}} × {{height}}",
-                width: Math.round(placement.w),
-                height: Math.round(placement.h),
-              })
-            : t("workbench.studio.slotInFlow", {
-                defaultValue: "Live component sits in the designed slot",
-              })
-          : t("workbench.studio.slotCount", {
-              count: slots,
-            }),
-      },
-      {
-        id: "primary",
-        label: t("workbench.studio.checkPrimary", { defaultValue: "A primary action is declared" }),
-        verdict: primaryActionVerdict(primary),
-        detail: t("workbench.studio.primaryCount", {
-          defaultValue: "{{buttons}} primary buttons · {{slots}} component slots",
-          buttons: primary,
-          slots,
-        }),
-      },
-      {
-        id: "hierarchy",
-        label: t("workbench.studio.checkHierarchy", {
-          defaultValue: "Display, title and body hierarchy exists",
-        }),
-        verdict: displays > 0 && titles > 0 && bodies > 0 ? "pass" : "warn",
-        detail: t("workbench.studio.hierarchyCount", {
-          defaultValue: "{{display}} display · {{title}} title · {{body}} body",
-          display: displays,
-          title: titles,
-          body: bodies,
-        }),
-      },
-      {
-        id: "evidence",
-        label: t("workbench.studio.checkEvidence", {
-          defaultValue: "Capture evidence is attached",
-        }),
-        verdict: captureEvidenceVerdict(false),
-        detail: componentId
-          ? t("workbench.studio.evidenceLiveOnly", {
-              defaultValue: "Live component attached · no capture for this revision",
-            })
-          : t("workbench.studio.evidenceNone", {
-              defaultValue: "No captured evidence for this revision",
-            }),
-      },
-      {
-        id: "contrast",
-        label: t("workbench.studio.checkContrast", { defaultValue: "Contrast is measured" }),
-        verdict: "unmeasured",
-        detail: t("workbench.studio.contrastNote", {
-          defaultValue: "Not captured for this local composition",
-        }),
-      },
-    ];
-  }, [componentId, frame, placement, t]);
+  const claims = useMemo<StudioClaim[]>(
+    () => (frame ? claimsFor(frame.spec, t, { componentId, placement }) : []),
+    [componentId, frame, placement, t],
+  );
 
   const claimIssues = claims.filter(
     (claim) => claim.verdict === "warn" || claim.verdict === "fail",
@@ -951,8 +875,8 @@ export function DesignStudioPage() {
 
               {leftTab === "assets" ? (
                 <StudioAssets
-                  designId={design.id}
                   assets={assets}
+                  assetUrl={designAssetUrl}
                   onImport={(file, fidelity) => {
                     void studio
                       .importAsset(file, fidelity)
@@ -1077,6 +1001,7 @@ export function DesignStudioPage() {
                   }),
                 )
               }
+              propose={(input, signal) => proposeDesignPatch(design.id, input, signal)}
             />
           </aside>
         </div>

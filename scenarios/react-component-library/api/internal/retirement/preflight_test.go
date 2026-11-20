@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
-	"testing"
 )
 
 func TestCatalogPreflightPreservesRequiredAndSuggestedConsumers(t *testing.T) {

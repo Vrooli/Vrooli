@@ -19,6 +19,7 @@ type compositionRenderService struct{ domain.Service }
 func (compositionRenderService) GetCompositionBundle(_ context.Context, c domain.Composition) (domain.CompositionBundle, error) {
 	return domain.CompositionBundle{Bundle: domain.Bundle{JS: "export default function Composition(){return null}", SHA256: "source-hash"}, Revision: c.Revision}, nil
 }
+
 func TestCompositionRenderIdentityTracksFixturesAndAppearance(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: compositionRenderService{}})
 	bindings, err := structpb.NewStruct(map[string]any{"$template": map[string]any{}, "$labels": map[string]any{"missing": "Missing", "failed": "Failed"}})
@@ -102,6 +103,7 @@ func (s parsedDependencyRenderService) GetCompositionBundle(ctx context.Context,
 	}
 	return bundle, nil
 }
+
 func TestCompositionIdentityStableWithObjectDependencyHeaders(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: parsedDependencyRenderService{}})
 	bindings, err := structpb.NewStruct(map[string]any{"$template": map[string]any{}, "$labels": map[string]any{"missing": "Missing", "failed": "Failed"}})

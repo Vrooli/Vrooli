@@ -479,6 +479,13 @@
   object-fit: contain;
 }
 
+/* A failed preview must never paint the light specimen background. The image
+   stays hidden until it actually decodes, so a 404 reads as "pending". */
+.wb-asset-thumb img[data-state="loading"],
+.wb-asset-thumb img[data-state="failed"] {
+  visibility: hidden;
+}
+
 .wb-asset-thumb-state {
   color: var(--wb-muted-2);
   font: 9px/1.4 var(--wb-mono);
@@ -1049,6 +1056,29 @@
   color: var(--wb-red, #ff7a7a);
 }
 
+@media (max-width: 560px) {
+  /* A workspace name, provenance chip and Open button cannot share one 320px
+     line without truncating the name to three characters. Put the name on its
+     own line and let the actions follow. */
+  .wb-home-row {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .wb-home-row-copy {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .wb-home-row .wb-home-thumb {
+    display: none;
+  }
+
+  .wb-home-row > .wb-btn {
+    margin-left: auto;
+  }
+}
+
 @media (max-width: 640px) {
   .wb-source-code {
     max-height: 240px;
@@ -1169,7 +1199,7 @@
   padding: 11px;
   border: 1px solid var(--wb-line);
   border-radius: 10px;
-  background: #151118;
+  background: var(--wb-surface);
   text-align: left;
 }
 
@@ -1815,6 +1845,13 @@
 }
 
 @media (max-width: 720px) {
+  /* A two-column template shelf leaves ~120px per card on a 320px phone,
+     where the actions and the preview cannot fit. One column is the honest
+     reading width. */
+  .wb-new-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .wb-gallery {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1855,4 +1892,31 @@
   .wb-modebar {
     padding-inline: 16px;
   }
+}
+
+/* Curated template thumbnail: the real first page, scaled and cropped. */
+.wb-template-thumb {
+  position: relative;
+  display: block;
+  height: 132px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border: 1px solid var(--wb-line);
+  border-radius: 8px;
+  background: #0b0a0d;
+}
+
+.wb-template-thumb.is-pending {
+  display: grid;
+  place-items: center;
+}
+
+.wb-template-thumb-stage {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1180px;
+  transform: translateX(-50%) scale(0.34);
+  transform-origin: top center;
+  pointer-events: none;
 }

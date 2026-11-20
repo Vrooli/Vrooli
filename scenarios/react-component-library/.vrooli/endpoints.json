@@ -3,6 +3,61 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "activity_list",
+      "path": "/vrooli.react_component_library.v1.activity.ActivityService/ListActivity",
+      "method": "POST",
+      "summary": "List activity events",
+      "description": "Returns durable mutation events newest-first. Optional subject_kind, subject_id and actor filters narrow the log; since is an inclusive RFC3339 lower bound. limit defaults to 100 and is clamped to 500.",
+      "category": "activity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string",
+          "limit": "integer (default 100, max 500)",
+          "since": "string (RFC3339, inclusive)",
+          "subject_id": "string",
+          "subject_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<ActivityEvent>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "since is not RFC3339"
+        }
+      ]
+    },
+    {
+      "id": "activity_summary",
+      "path": "/vrooli.react_component_library.v1.activity.ActivityService/GetActivitySummary",
+      "method": "POST",
+      "summary": "Get the activity summary",
+      "description": "Returns total, by_day, by_actor and by_action counts for the last days (0 means 30, capped at 365). empty=true is a measured zero, not an unavailable source.",
+      "category": "activity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "days": "integer (0 means 30, max 365)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "by_action": "array<ActivityAction>",
+          "by_actor": "array<ActivityActor>",
+          "by_day": "array<ActivityDay>",
+          "empty": "boolean",
+          "total": "integer"
+        }
+      }
+    },
+    {
       "id": "adoptions_list_scenarios",
       "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios",
       "method": "POST",
@@ -2070,6 +2125,26 @@
       ]
     },
     {
+      "id": "library_health_get",
+      "path": "/vrooli.react_component_library.v1.libraryhealth.LibraryHealthService/GetLibraryHealth",
+      "method": "POST",
+      "summary": "Get the library health snapshot",
+      "description": "Returns overview, quality, activity and services sections, each with available/empty/partial/unavailable state and a reason when degraded. activity_days defaults to 30 and is capped at 365. Unavailable sources carry no zero-valued metrics.",
+      "category": "library-health",
+      "request": {
+        "type": "object",
+        "properties": {
+          "activity_days": "integer (0 means 30, max 365)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "LibraryHealth {overview, quality, activity, services, counts, generated_at}"
+        }
+      }
+    },
+    {
       "id": "page_inspect",
       "path": "/vrooli.react_component_library.v1.page.PageService/Inspect",
       "method": "POST",
@@ -2132,6 +2207,175 @@
           "description": "Filesystem read or bundler internal failure"
         }
       ]
+    },
+    {
+      "id": "review_findings_list",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/ListFindings",
+      "method": "POST",
+      "summary": "List findings",
+      "description": "Returns one page of the server-owned findings queue newest-first plus the filtered total. status and severity are optional enum filters; subject_kind and query narrow further. limit defaults to 100 and is clamped to 500; offset is zero-based and must not be negative.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "integer (default 100, max 500)",
+          "offset": "integer (default 0, non-negative)",
+          "query": "string",
+          "severity": "FindingSeverity",
+          "status": "FindingStatus",
+          "subject_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<Finding>",
+          "total": "integer (filtered count before limit/offset)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "status, severity, or offset is not accepted"
+        }
+      ]
+    },
+    {
+      "id": "review_findings_get",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetFinding",
+      "method": "POST",
+      "summary": "Get a finding",
+      "description": "Returns one finding with its full disposition history, newest first.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_disposition_record",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/RecordDisposition",
+      "method": "POST",
+      "summary": "Record a disposition",
+      "description": "Appends a durable triage decision with a required reason and actor, then applies the status transition: acknowledge -> acknowledged, accept_risk -> accepted, fix -> open, retire -> retired.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (required)",
+          "decision": "DispositionDecision (required)",
+          "id": "string (required)",
+          "reason": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Decision, reason, or actor is missing or unknown"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_finding_assign",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/AssignFinding",
+      "method": "POST",
+      "summary": "Assign a finding",
+      "description": "Sets the accountable owner. An empty owner clears the assignment; both forms are explicit writes.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "owner": "string (empty clears)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_summary",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetReviewSummary",
+      "method": "POST",
+      "summary": "Get the review queue summary",
+      "description": "Returns open, unresolved blocker/high, acknowledged, accepted and fixed counts. Blockers and high count statuses open or acknowledged so a triaged item is not mistaken for an untouched one.",
+      "category": "review",
+      "response": {
+        "type": "object",
+        "properties": {
+          "summary": "ReviewSummary"
+        }
+      }
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search the unified workbench index",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_suggest",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Suggest",
+      "method": "POST",
+      "summary": "Suggest indexed titles and tags",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/GetSearchStatus",
+      "method": "POST",
+      "summary": "Report search index freshness and semantic leg state",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_reindex",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Reindex",
+      "method": "POST",
+      "summary": "Rebuild the unified search index",
+      "description": "",
+      "category": "search"
     },
     {
       "id": "sketch_infer",
@@ -2917,6 +3161,522 @@
       "summary": "Read promotion readiness evidence",
       "description": "",
       "category": "workflows"
+    },
+    {
+      "id": "workspaces_list",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaces",
+      "method": "POST",
+      "summary": "List workspaces",
+      "description": "Returns workspace summaries newest-updated first, with page/display/state counts. Optional provenance filters the collection; query is a case-insensitive substring over name, summary and tags.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (0 = server default, capped)",
+          "provenance": "WorkspaceProvenance (optional)",
+          "query": "string (optional substring)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspaces": "array<WorkspaceSummary>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown provenance filter"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Storage read failure"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_get",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/GetWorkspace",
+      "method": "POST",
+      "summary": "Get a workspace aggregate",
+      "description": "Returns the workspace with its pages, displays and states in stored order.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_create",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CreateWorkspace",
+      "method": "POST",
+      "summary": "Create an authored workspace",
+      "description": "Persists a workspace at revision 1, assigning ids to any page/display/state that lacks one. An empty page list seeds one page, one desktop display and one default state.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "binding_page": "string",
+          "binding_scenario": "string",
+          "name": "string (required)",
+          "options_json": "opaque JSON",
+          "pages": "array<WorkspacePage>",
+          "provenance": "WorkspaceProvenance",
+          "summary": "string",
+          "tags": "array<string>",
+          "theme_json": "opaque JSON"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name is missing, provenance is curated (seed only), or the aggregate fails validation; issues carry paths"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_save",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/SaveWorkspace",
+      "method": "POST",
+      "summary": "Replace a workspace aggregate",
+      "description": "Replaces pages/displays/states in one transaction, normalizes ordering to 0..n-1, bumps the revision and appends a protojson revision snapshot. base_revision is required; a stale base returns ABORTED and writes nothing.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (recorded on the snapshot)",
+          "base_revision": "int32 (required)",
+          "workspace": "Workspace (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing workspace/base_revision or an aggregate validation issue"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "base_revision did not match the stored revision"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_delete",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/DeleteWorkspace",
+      "method": "POST",
+      "summary": "Delete a workspace",
+      "description": "Deletes the aggregate, its nested rows and its revision history in one transaction.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_fork",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ForkWorkspace",
+      "method": "POST",
+      "summary": "Fork a workspace",
+      "description": "Copies the aggregate with fresh page/display/state ids, sets provenance FORKED and origin_workspace_id, and starts the fork at revision 1. An empty name means \"Copy of <origin name>\".",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "name": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_validate",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ValidateWorkspace",
+      "method": "POST",
+      "summary": "Validate a workspace without writing",
+      "description": "Checks the required name, aggregate-wide id uniqueness, concrete devices and per-display state-name uniqueness, and returns path-specific issues.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<ValidationIssue>",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "workspaces_assist",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/AssistWorkspace",
+      "method": "POST",
+      "summary": "Propose a patch for one workspace page",
+      "description": "Ask the AI gateway for a validated patch against one page, at an explicit revision and with the state on screen selected per display. The proposal is returned as opaque JSON and never written; the studio applies it as one undoable command or discards it.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "active_states": "array<{display_id,state_id}>",
+          "base_revision": "int32 (required)",
+          "id": "string (required)",
+          "idempotency_key": "string (8..200, required)",
+          "page_id": "string (optional; first page)",
+          "prompt": "string (1..2000 chars)",
+          "scope": "{kind: design|frame|layer, display_id?, node_id?}"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "WorkspaceAssistOperation",
+          "proposal_json": "opaque validated patch JSON",
+          "revision": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id/key, a bad scope, an unknown page/state, or an unreadable composition"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "base_revision did not match the stored revision"
+        },
+        {
+          "status": 422,
+          "code": "failed_precondition",
+          "description": "The model returned a patch this page cannot apply"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The AI gateway is not configured or could not be reached"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_revisions",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaceRevisions",
+      "method": "POST",
+      "summary": "List workspace revision snapshots",
+      "description": "Returns revision snapshots newest-first, bounded by limit (0 = server default).",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "limit": "int32 (0 = server default, capped)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "revisions": "array<WorkspaceRevision>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_assets_list",
+      "path": "/api/workspaces/{id}/assets",
+      "method": "GET",
+      "summary": "List a workspace's reference assets",
+      "description": "Returns upload metadata newest-first. Bytes are served by the per-asset route. A missing workspace is 404.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<WorkspaceAsset>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_create",
+      "path": "/api/workspaces/{id}/assets",
+      "method": "POST",
+      "summary": "Upload a reference asset",
+      "description": "Stores one image as a workspace reference. name is required; mime must be png, jpeg, webp, gif or svg+xml; decoded bytes are capped at 8 MiB; fidelity is reference (default) or captured. Dimensions are read from the header when the type carries them.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dataBase64": "string (required; bare base64 or data URL)",
+          "fidelity": "\"reference\"|\"captured\" (optional)",
+          "mime": "string (required)",
+          "name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "WorkspaceAsset"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or invalid name/mime/dataBase64/fidelity, or bytes over 8 MiB"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_list_all",
+      "path": "/api/workspace-assets",
+      "method": "GET",
+      "summary": "List uploads across every workspace",
+      "description": "Returns metadata for uploads in any workspace, newest-first and bounded, so a reference already uploaded elsewhere can be found. Bytes remain scoped to the owning workspace.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<WorkspaceAsset>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_get",
+      "path": "/api/workspaces/{id}/assets/{assetId}",
+      "method": "GET",
+      "summary": "Read a reference asset's bytes",
+      "description": "Serves the stored image with its Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
+      "category": "workspaces",
+      "response": {
+        "type": "binary",
+        "properties": {
+          "body": "image bytes"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id for that workspace"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The byte route is browser-native: it sets Content-Type, Cache-Control and an ETag and answers If-None-Match with 304. Wrapping the bytes in Connect JSON would force base64 on every image render.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_delete",
+      "path": "/api/workspaces/{id}/assets/{assetId}",
+      "method": "DELETE",
+      "summary": "Delete a reference asset",
+      "description": "Deletes the asset scoped to that workspace. Idempotent for an existing workspace; an asset belonging to another workspace is untouched.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "204 No Content"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
     }
   ]
 }

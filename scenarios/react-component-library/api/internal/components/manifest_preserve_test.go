@@ -254,8 +254,8 @@ export function MarkdownRenderer() { return null; }
 func TestFSContentStore_MajorAliasRetirement(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "components", "Panel", "component.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
-	require.NoError(t, os.WriteFile(path, []byte(`{"libraryId":"react-component-library:Panel","latest":"2.0.0","custom":"keep"}`), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(`{"libraryId":"react-component-library:Panel","latest":"2.0.0","custom":"keep"}`), 0o644))
 	store := NewFSContentStore(root)
 	c := Component{Slug: "Panel", LibraryID: "react-component-library:Panel", LatestVersion: "2.0.0"}
 	require.NoError(t, store.UpdateManifest(t.Context(), c, UpdateComponentManifestInput{RetiredMajorAliases: []string{"1"}}))
@@ -282,11 +282,11 @@ func TestFSContentStore_MajorAliasRetirement(t *testing.T) {
 func TestFSContentStore_ArchiveComponentPreservesReleasedBytes(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "components", "Panel")
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0o755))
 	manifest := []byte(`{"libraryId":"react-component-library:Panel","latest":"1.0.0"}`)
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0o644))
 	source := []byte("// immutable release\nexport const Panel = () => null;\n")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Panel.tsx"), source, 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Panel.tsx"), source, 0o644))
 	store := NewFSContentStore(root)
 	c := Component{LibraryID: "react-component-library:Panel", ManifestPath: "components/Panel/component.json"}
 	wrong := c
@@ -303,8 +303,8 @@ func TestFSContentStore_ArchiveComponentPreservesReleasedBytes(t *testing.T) {
 	got, err = os.ReadFile(filepath.Join(archive, "component.json"))
 	require.NoError(t, err)
 	require.Equal(t, manifest, got)
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0644))
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0o644))
 	_, err = store.ArchiveComponentSource(c)
 	require.Error(t, err)
 	require.FileExists(t, filepath.Join(dir, "component.json"))
@@ -316,9 +316,9 @@ func TestFSContentStore_ArchiveComponentRejectsSymlinkPaths(t *testing.T) {
 			root := t.TempDir()
 			outside := t.TempDir()
 			dir := filepath.Join(root, "components", "Panel")
-			require.NoError(t, os.MkdirAll(dir, 0755))
+			require.NoError(t, os.MkdirAll(dir, 0o755))
 			manifest := []byte(`{"libraryId":"react-component-library:Panel","latest":"1.0.0"}`)
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0644))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), manifest, 0o644))
 			var link, target string
 			switch location {
 			case "kind":
@@ -355,15 +355,18 @@ type retirementSnapshotRepository struct {
 func (r retirementSnapshotRepository) ListVersions(context.Context, string, int) ([]ComponentVersion, error) {
 	return []ComponentVersion{{Version: "1.0.0", Presence: "evicted"}}, nil
 }
+
 func (r retirementSnapshotRepository) GetVersion(context.Context, string, string) (ComponentVersion, error) {
 	if r.fail {
 		return ComponentVersion{}, os.ErrNotExist
 	}
 	return ComponentVersion{Version: "1.0.0", Presence: "evicted", Files: []ComponentVersionFile{{Path: "Panel.tsx", Content: "immutable"}}}, nil
 }
+
 func (r retirementSnapshotRepository) ListStories(context.Context, StoryQuery) ([]ComponentStory, error) {
 	return []ComponentStory{{}}, nil
 }
+
 func TestComponentRetirementSnapshotRetainsEvictedFileMirror(t *testing.T) {
 	snapshot, err := prepareComponentRetirementSnapshot(t.Context(), retirementSnapshotRepository{}, Component{ID: "panel"})
 	require.NoError(t, err)
@@ -405,9 +408,9 @@ func TestComponentArchiveRequiresPersistedHistory(t *testing.T) {
 		t.Run(failure, func(t *testing.T) {
 			root := t.TempDir()
 			dir := filepath.Join(root, "components", "Panel")
-			require.NoError(t, os.MkdirAll(dir, 0755))
+			require.NoError(t, os.MkdirAll(dir, 0o755))
 			manifest := filepath.Join(dir, "component.json")
-			require.NoError(t, os.WriteFile(manifest, []byte(`{"libraryId":"react-component-library:Panel","latest":"1.0.0"}`), 0644))
+			require.NoError(t, os.WriteFile(manifest, []byte(`{"libraryId":"react-component-library:Panel","latest":"1.0.0"}`), 0o644))
 			store := NewFSContentStore(root)
 			c := Component{ID: "panel", LibraryID: "react-component-library:Panel", ManifestPath: "components/Panel/component.json"}
 			repo := retirementSnapshotRepository{fail: failure == "read"}

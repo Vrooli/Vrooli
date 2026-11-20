@@ -142,6 +142,7 @@ func (s *service) List(ctx context.Context, asset, target string, active bool, l
 	}
 	return workflows, nil
 }
+
 func (s *service) Get(ctx context.Context, id string) (Workflow, error) {
 	w, err := s.repo.Get(ctx, id)
 	if err != nil {
@@ -149,6 +150,7 @@ func (s *service) Get(ctx context.Context, id string) (Workflow, error) {
 	}
 	return s.reconcileActive(ctx, w)
 }
+
 func (s *service) Refresh(ctx context.Context, id string) (Workflow, error) {
 	w, err := s.repo.Get(ctx, id)
 	if err != nil {

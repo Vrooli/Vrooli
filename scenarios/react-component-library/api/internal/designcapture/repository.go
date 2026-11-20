@@ -41,6 +41,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, key string, request Reque
 	}
 	return op, nil
 }
+
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Operation, error) {
 	var op Operation
 	var raw, artifacts string
@@ -66,6 +67,7 @@ func (r *SQLiteRepository) Get(ctx context.Context, id string) (Operation, error
 	}
 	return op, nil
 }
+
 func (r *SQLiteRepository) Transition(ctx context.Context, id string, version int64, next State, producer string, artifacts []Artifact, detail string) (Operation, error) {
 	op, err := r.Get(ctx, id)
 	if err != nil {

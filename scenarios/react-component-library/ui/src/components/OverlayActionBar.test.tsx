@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   OverlayActionBar,
@@ -47,7 +48,7 @@ describe("OverlayActionBar usage contract", () => {
 
   it("keeps five long German actions in one row and moves the extra actions to overflow", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    render(<OverlayActionBar actions={unsafeFiveGermanActions} />);
+    renderWithProviders(<OverlayActionBar actions={unsafeFiveGermanActions} />);
 
     const group = screen.getByRole("group", { name: "Actions" });
     expect(within(group).getAllByRole("button")).toHaveLength(3);
@@ -63,7 +64,7 @@ describe("OverlayActionBar usage contract", () => {
   });
 
   it("opens a menu for the remaining actions without stacking the row", () => {
-    render(<OverlayActionBar actions={unsafeFiveGermanActions} />);
+    renderWithProviders(<OverlayActionBar actions={unsafeFiveGermanActions} />);
 
     fireEvent.click(screen.getByRole("button", { name: "More 3 actions" }));
 
@@ -75,7 +76,7 @@ describe("OverlayActionBar usage contract", () => {
 
   it("does not let tuning props raise the contract's row or label limits", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    render(
+    renderWithProviders(
       <OverlayActionBar actions={unsafeFiveGermanActions} maxVisible={5} maxLabelLength={80} />,
     );
 
@@ -97,7 +98,7 @@ describe("OverlayActionBar usage contract", () => {
 
   it("reports malformed inputs without crashing the rendered action bar", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    render(<OverlayActionBar actions={unsafeMissingIDActions} />);
+    renderWithProviders(<OverlayActionBar actions={unsafeMissingIDActions} />);
 
     expect(screen.getByRole("group", { name: "Actions" })).toBeInTheDocument();
     expect(warning).toHaveBeenCalledWith(expect.stringContaining("has no id"), expect.any(Object));
@@ -112,7 +113,7 @@ describe("OverlayActionBar usage contract", () => {
 
     it("translates the group label, the More trigger and its screen-reader count through the host's strings", () => {
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
-      render(
+      renderWithProviders(
         <LibraryStringsProvider translate={translate}>
           <OverlayActionBar actions={unsafeFiveGermanActions} />
         </LibraryStringsProvider>,
@@ -126,7 +127,7 @@ describe("OverlayActionBar usage contract", () => {
 
     it("lets a caller's explicit label win over the translated default", () => {
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
-      render(
+      renderWithProviders(
         <LibraryStringsProvider translate={translate}>
           <OverlayActionBar actions={unsafeFiveGermanActions} label="Archivo" />
         </LibraryStringsProvider>,
@@ -137,7 +138,7 @@ describe("OverlayActionBar usage contract", () => {
 
     it("falls back to English for keys the host does not translate", () => {
       vi.spyOn(console, "warn").mockImplementation(() => undefined);
-      render(
+      renderWithProviders(
         <LibraryStringsProvider translate={(_key, fallback) => fallback}>
           <OverlayActionBar actions={unsafeFiveGermanActions} />
         </LibraryStringsProvider>,

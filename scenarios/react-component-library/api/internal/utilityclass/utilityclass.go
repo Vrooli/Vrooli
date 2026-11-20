@@ -21,10 +21,16 @@ var declarationStartRE = regexp.MustCompile(`\b(?:const|let)\s+([A-Za-z_$][A-Za-
 var exactUtilities = map[string]string{
 	"absolute": "layout", "block": "layout", "fixed": "layout", "flex": "layout",
 	"grid": "layout", "hidden": "layout", "inline": "layout", "inline-block": "layout",
-	"inline-flex": "layout", "relative": "layout", "sr-only": "layout",
+	"inline-flex": "layout", "relative": "layout",
 	"touch-target": "sizing", "truncate": "typography", "uppercase": "typography",
 	"whitespace-nowrap": "typography",
 }
+
+// accessibilityUtilities are the only utility classes that are not style
+// escapes. `sr-only` carries accessible text into the accessibility tree; it
+// has no visual ownership to replace with a token. Every other utility class
+// remains catalog debt.
+var accessibilityUtilities = map[string]bool{"sr-only": true}
 
 var utilityPrefixes = []struct {
 	prefix   string
@@ -190,6 +196,9 @@ type literal struct {
 func categoryOf(token string) string {
 	token = strings.TrimPrefix(token, "!")
 	if token == "" || strings.Contains(token, "${") || strings.ContainsAny(token, "{};'\"`") {
+		return ""
+	}
+	if accessibilityUtilities[token] || accessibilityUtilities[strings.TrimPrefix(token, "!")] {
 		return ""
 	}
 	base := token

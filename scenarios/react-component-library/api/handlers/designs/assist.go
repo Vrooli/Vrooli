@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/santhosh-tekuri/jsonschema/v5"
 	aiinference "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -165,34 +163,10 @@ func (h *Handler) assist(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// decodeProposal re-checks the JSON the gateway claimed to validate and then
-// decodes it strictly. Two independent checks are cheap; a lenient decode is
-// how an unknown field silently becomes an operation nobody validated.
+// decodeProposal delegates to the designassist owner so the workspace RPC and
+// this route accept exactly the same answers.
 func decodeProposal(schemaJSON, valueJSON string) (designassist.Proposal, error) {
-	if strings.TrimSpace(valueJSON) == "" {
-		return designassist.Proposal{}, errors.New("the model returned no value")
-	}
-	var value any
-	if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
-		return designassist.Proposal{}, fmt.Errorf("value is not JSON: %w", err)
-	}
-	schema, err := jsonschema.CompileString("design-assist.json", schemaJSON)
-	if err != nil {
-		return designassist.Proposal{}, fmt.Errorf("patch schema is invalid: %w", err)
-	}
-	if err := schema.Validate(value); err != nil {
-		return designassist.Proposal{}, err
-	}
-	var proposal designassist.Proposal
-	decoder := json.NewDecoder(strings.NewReader(valueJSON))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&proposal); err != nil {
-		return designassist.Proposal{}, err
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return designassist.Proposal{}, errors.New("value has trailing JSON")
-	}
-	return proposal, nil
+	return designassist.DecodeProposal(schemaJSON, valueJSON)
 }
 
 func messageOf(err error) string {

@@ -18,8 +18,10 @@ export function StudioStatusBar({
   unavailable,
   fallback,
   openCount,
+  openUnit = "design",
   issueCount,
   zoom,
+  readOnly = false,
 }: {
   doc: DesignDocument;
   coverage: Coverage;
@@ -32,11 +34,17 @@ export function StudioStatusBar({
   unavailable: number;
   fallback: boolean;
   openCount: number;
+  /** What the count names: designs in a document shelf, pages in a workspace. */
+  openUnit?: "design" | "page";
   issueCount: number;
   zoom: number;
+  /** A curated template is never saved; the bar says so instead of "Saved". */
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const state = saveFailed
+  const state = readOnly
+    ? "template"
+    : saveFailed
     ? "failed"
     : saving
       ? "saving"
@@ -50,9 +58,16 @@ export function StudioStatusBar({
   return (
     <footer className="studio-status">
       <span className="studio-status-state">
-        <Dot tone={state === "saved" ? "green" : state === "failed" ? "red" : "amber"} />
+        <Dot
+          tone={state === "saved" ? "green" : state === "failed" ? "red" : state === "template" ? "ice" : "amber"}
+        />
         <b>
-          {state === "saved"
+          {state === "template"
+            ? t("workbench.studio.templateRevision", {
+                defaultValue: "Template · revision {{revision}}",
+                revision: doc.revision,
+              })
+            : state === "saved"
             ? t("workbench.studio.savedRevision", {
                 defaultValue: "Saved · revision {{revision}}",
                 revision: saved?.revision ?? doc.revision,
@@ -69,9 +84,11 @@ export function StudioStatusBar({
                   : t("workbench.studio.draft", { defaultValue: "Draft" })}
         </b>
         <span>
-          {saved
-            ? formatRelative(new Date(saved.at))
-            : t("workbench.studio.notSaved", { defaultValue: "not saved yet" })}
+          {readOnly
+            ? t("workbench.workspace.readOnly", { defaultValue: "read-only" })
+            : saved
+              ? formatRelative(new Date(saved.at))
+              : t("workbench.studio.notSaved", { defaultValue: "not saved yet" })}
         </span>
         {state === "failed" || state === "local" ? (
           <button type="button" className="studio-status-retry" onClick={onRetrySave}>
@@ -84,10 +101,19 @@ export function StudioStatusBar({
         ·
       </span>
       <span className="studio-status-item studio-status-open">
-        {t("workbench.studio.openCount", {
-          defaultValue: "{{count}} designs open",
-          count: openCount,
-        })}
+        {openUnit === "page"
+          ? openCount === 1
+            ? t("workbench.studio.pageCountOne", { defaultValue: "1 page" })
+            : t("workbench.studio.pageCountMany", {
+                defaultValue: "{{count}} pages",
+                count: openCount,
+              })
+          : openCount === 1
+            ? t("workbench.studio.openCountOne", { defaultValue: "1 design open" })
+            : t("workbench.studio.openCountMany", {
+                defaultValue: "{{count}} designs open",
+                count: openCount,
+              })}
       </span>
 
       {fallback ? (

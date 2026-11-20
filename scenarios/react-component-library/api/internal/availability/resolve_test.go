@@ -18,12 +18,15 @@ type catalogFixture struct {
 func (f *catalogFixture) List(context.Context, components.SearchQuery) ([]components.Component, error) {
 	return f.assets, nil
 }
+
 func (f *catalogFixture) Get(context.Context, string) (components.Component, error) {
 	panic("snapshot must own identity reads")
 }
+
 func (f *catalogFixture) GetByLibraryID(context.Context, string) (components.Component, error) {
 	panic("snapshot must own identity reads")
 }
+
 func (f *catalogFixture) GetVersion(_ context.Context, id, version string) (components.ComponentVersion, error) {
 	f.reads++
 	v, ok := f.versions[id+"@"+version]
@@ -32,10 +35,12 @@ func (f *catalogFixture) GetVersion(_ context.Context, id, version string) (comp
 	}
 	return v, nil
 }
+
 func fixture() *catalogFixture {
 	source := "export const Card = () => null;"
 	return &catalogFixture{assets: []components.Component{{ID: "uuid", CatalogID: "components.card", LibraryID: "card", LatestVersion: "1.0.0"}}, versions: map[string]components.ComponentVersion{"uuid@1.0.0": {ComponentID: "uuid", Version: "1.0.0", Status: components.VersionStatusReleased, DependencyLockPresent: true, SourcePath: "Card.tsx", Content: source, ContentSHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(source)))}}}
 }
+
 func TestResolveRequiresPublishedImmutableBuild(t *testing.T) {
 	cases := []struct {
 		name, code string
@@ -82,6 +87,7 @@ func TestResolveRequiresPublishedImmutableBuild(t *testing.T) {
 		})
 	}
 }
+
 func TestResolveIdentityCancellationAndSnapshotReuse(t *testing.T) {
 	f := fixture()
 	calls := 0

@@ -1,22 +1,25 @@
 package sketch
 
 import (
-	"connectrpc.com/connect"
 	"context"
-	"github.com/stretchr/testify/require"
-	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
 	"os"
 	"path/filepath"
-	internal "react-component-library/internal/sketch"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	"github.com/stretchr/testify/require"
+	sketchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch"
+
+	internal "react-component-library/internal/sketch"
 )
 
 func TestAcceptancePreflightDetectsStaleInputsWithoutAccepting(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))
-	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0600))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600))
 	store := internal.NewStore(root)
 	base, err := store.Read("demo", "home")
 	require.NoError(t, err)
@@ -68,6 +71,7 @@ func TestAcceptancePreflightDetectsStaleInputsWithoutAccepting(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "phone", current.Document.Viewport)
 }
+
 func TestAcceptancePreflightRequiresExactRender(t *testing.T) {
 	h := NewConnectHandler(Deps{})
 	_, err := h.CheckCandidateAcceptance(context.Background(), connect.NewRequest(&sketchv1.CheckCandidateAcceptanceRequest{}))

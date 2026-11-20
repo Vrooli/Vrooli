@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Boxes,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
-import { appRoutes } from "../../routes";
+import { appRoutes, statsPath } from "../../routes";
 import type { CatalogAsset, CoverageRow } from "../data";
 import {
   assetAdoptions,
@@ -20,7 +21,6 @@ import {
   assetGroup,
   assetHasDraft,
   assetVersion,
-  findingsFromCoverage,
   formatNumber,
   formatRelative,
   useCatalog,
@@ -28,6 +28,7 @@ import {
   timestampToDate,
   type AssetGroup,
 } from "../data";
+import { getReviewSummary } from "../../api/review";
 import {
   Banner,
   Chip,
@@ -98,11 +99,14 @@ export function ComponentsPage() {
   const [limit, setLimit] = useState(60);
 
   const rows = useMemo(() => coverageIndex(coverage.data?.rows), [coverage.data]);
-  const findings = useMemo(() => findingsFromCoverage(coverage.data), [coverage.data]);
-  const reviewAssets = useMemo(
-    () => new Set(findings.map((finding) => finding.assetId)),
-    [findings],
-  );
+  // The queue count is a server aggregate. Listing findings here capped the
+  // number at the page size and under-reported a 13.9k backlog as "400".
+  const review = useQuery({
+    queryKey: ["review", "summary"],
+    queryFn: getReviewSummary,
+    retry: 0,
+  });
+  const reviewCount = review.isError ? null : (review.data?.open ?? null);
 
   const assets = useMemo(() => catalog.data ?? [], [catalog.data]);
   const grouped = useMemo(() => {
@@ -128,13 +132,7 @@ export function ComponentsPage() {
       if (domain !== "all" && assetDomain(asset) !== domain) return false;
       const row = rows.get(asset.catalogId) ?? rows.get(asset.libraryId);
       if (status === "drafts" && !assetHasDraft(asset)) return false;
-      if (
-        status === "review" &&
-        !reviewAssets.has(asset.catalogId) &&
-        !(row?.failedGates ?? []).length
-      ) {
-        return false;
-      }
+      if (status === "review" && !(row?.failedGates ?? []).length) return false;
       if (status === "verified") {
         if (!row || row.failedGates.length > 0 || !row.achieved) return false;
       }
@@ -163,7 +161,7 @@ export function ComponentsPage() {
       );
     });
     return result;
-  }, [assets, deferredQuery, domain, group, reviewAssets, rows, sort, status]);
+  }, [assets, deferredQuery, domain, group, rows, sort, status]);
 
   const visible = useMemo(() => filtered.slice(0, limit), [filtered, limit]);
 
@@ -196,18 +194,22 @@ export function ComponentsPage() {
       <div className="wb-pagehead">
         <div className="wb-pagehead-copy">
           <p className="wb-kicker">
-            {t("workbench.components.kicker", { defaultValue: "Library · Components" })}
+            {t("workbench.components.kicker", { defaultValue: "Library · Assets" })}
           </p>
           <h1 className="wb-h1">
-            {t("workbench.components.title", { defaultValue: "Components" })}
+            {t("workbench.components.title", { defaultValue: "Library" })}
           </h1>
           <p className="wb-lede">
-            {t("workbench.components.lede", {
-              defaultValue:
-                "{{count}} published assets across {{domains}} domains. Search the surface, inspect the evidence, or open a component into a real page.",
-              count: assets.length,
-              domains: new Set(assets.map(assetDomain)).size,
-            })}
+            {catalog.isLoading
+              ? t("workbench.components.loadingLede", {
+                  defaultValue: "Loading the published library…",
+                })
+              : t("workbench.components.lede", {
+                  defaultValue:
+                    "{{count}} published assets across {{domains}} domains. Search the surface, inspect the evidence, or open a component into a real page.",
+                  count: assets.length,
+                  domains: new Set(assets.map(assetDomain)).size,
+                })}
           </p>
         </div>
         <div className="wb-actions">
@@ -251,9 +253,9 @@ export function ComponentsPage() {
         <SearchBox
           value={query}
           onChange={setQuery}
-          label={t("workbench.components.search", { defaultValue: "Search assets" })}
+          label={t("workbench.components.search", { defaultValue: "Filter assets" })}
           placeholder={t("workbench.components.searchPlaceholder", {
-            defaultValue: "Search assets, ids, props, evidence",
+            defaultValue: "Filter assets, ids, domains",
           })}
           shortcut={t("workbench.components.searchKey", { defaultValue: "/" })}
         />
@@ -272,7 +274,7 @@ export function ComponentsPage() {
             className="wb-chip"
             aria-pressed={status === "review"}
           >
-            {t("workbench.components.review", { defaultValue: "Needs review" })} {findings.length}
+            {t("workbench.components.review", { defaultValue: "Needs review" })} {reviewCount ?? "—"}
           </button>
           <button
             type="button"
@@ -525,14 +527,14 @@ export function ComponentsPage() {
                     <span>
                       {t("workbench.components.coverageBody", {
                         defaultValue: "{{count}} need attention",
-                        count: findings.length,
+                        count: reviewCount ?? 0,
                       })}
                     </span>
                   </div>
                 </div>
               )}
               <Link
-                to={appRoutes.coverage}
+                to={statsPath("quality")}
                 className="wb-btn ghost sm wide"
                 style={{ marginTop: 12 }}
               >
@@ -577,18 +579,26 @@ export function ComponentsPage() {
 
 function AssetCard({ asset, row }: { asset: CatalogAsset; row?: CoverageRow }) {
   const { t } = useTranslation();
-  const [failed, setFailed] = useState(false);
+  const [preview, setPreview] = useState<"loading" | "ready" | "failed">("loading");
   const status = assetStatus(asset, row);
   return (
     <Link to={`/assets/${encodeURIComponent(asset.id)}`} className="wb-asset-card">
       <span className="wb-asset-thumb">
-        {failed ? (
+        {preview === "ready" ? null : (
           <span className="wb-asset-thumb-state">
-            {t("workbench.components.previewPending", { defaultValue: "Preview pending" })}
+            {preview === "failed"
+              ? t("workbench.components.previewPending", { defaultValue: "Preview pending" })
+              : null}
           </span>
-        ) : (
-          <img src={previewURL(asset)} alt="" loading="lazy" onError={() => setFailed(true)} />
         )}
+        <img
+          src={previewURL(asset)}
+          alt=""
+          loading="lazy"
+          data-state={preview}
+          onLoad={() => setPreview("ready")}
+          onError={() => setPreview("failed")}
+        />
         <span className="wb-asset-thumb-corner">
           {assetHasDraft(asset)
             ? t("workbench.components.draft", { defaultValue: "draft" })

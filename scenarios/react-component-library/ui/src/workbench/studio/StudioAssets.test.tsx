@@ -26,8 +26,8 @@ function makeAsset(overrides: Partial<DesignAsset> & { id: string }): DesignAsse
 function renderAssets(assets: DesignAsset[], onImport = vi.fn()) {
   renderWithProviders(
     <StudioAssets
-      designId="design-1"
       assets={assets}
+      assetUrl={(asset) => asset.url}
       onImport={onImport}
       onRemove={() => undefined}
       onPlace={() => undefined}
