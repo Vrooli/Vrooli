@@ -15,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	"connectrpc.com/connect"
+
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 )
 
@@ -31,12 +33,25 @@ type Deps struct {
 // UsageRecorder is the summarize transport's narrow usage submission port.
 type UsageRecorder interface{ Enqueue(store.UsageRow) }
 
+// DefaultMaxRequestBytes bounds one summarize message before Connect decodes
+// it. Summarize input is text; 4 MiB is far above any realistic document while
+// preventing an unbounded unary body from being buffered.
+const DefaultMaxRequestBytes = 4 << 20
+
 func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder) modulekit.Module {
+	return ModuleWithLimit(chain, getCfg, setCfg, listModels, logger, clk, usage, DefaultMaxRequestBytes)
+}
+
+// ModuleWithLimit is Module with an explicit request-body ceiling.
+func ModuleWithLimit(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder, maxRequestBytes int) modulekit.Module {
 	if logger == nil {
 		panic("summarize.Module requires logger")
 	}
 	if clk == nil {
 		panic("summarize.Module requires clock")
+	}
+	if maxRequestBytes <= 0 {
+		panic("summarize.ModuleWithLimit requires a positive maxRequestBytes")
 	}
 	connectPath, connectHandler := summconnect.NewSummarizeServiceHandler(NewConnectHandler(Deps{
 		Chain:               chain,
@@ -46,7 +61,7 @@ func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, 
 		SetSummarizeConfig:  setCfg,
 		ListSummarizeModels: listModels,
 		Usage:               usage,
-	}))
+	}), connect.WithReadMaxBytes(maxRequestBytes))
 	return modulekit.Module{
 		Name: "summarize",
 		Mount: func(r *mux.Router) {

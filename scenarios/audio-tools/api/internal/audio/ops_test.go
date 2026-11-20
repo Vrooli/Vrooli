@@ -58,9 +58,18 @@ func TestTrimArgvIncludesStartAndEnd(t *testing.T) {
 	if _, err := audio.Trim(context.Background(), []byte("X"), "mp3", 1.5, 4.0, ""); err != nil {
 		t.Fatalf("Trim: %v", err)
 	}
-	args := fake.Calls[0].Args
-	if !containsAll(args, "-ss", "1.5", "-to", "4") {
-		t.Fatalf("missing -ss/-to in argv: %v", args)
+	args := lastFfmpegCall(t, fake).Args
+	// -ss is an input seek (before -i); the window length is expressed as
+	// an output -t duration. An output -to would be measured on the
+	// post-seek output timeline and would not stop at end_seconds.
+	if !containsAll(args, "-ss", "1.5", "-t", "2.5") {
+		t.Fatalf("missing -ss/-t in argv: %v", args)
+	}
+	if containsAny(args, "-to") {
+		t.Fatalf("output -to is relative to the post-seek timeline; got %v", args)
+	}
+	if indexOf(args, "-ss") > indexOf(args, "-i") {
+		t.Fatalf("-ss must precede -i (input seek): %v", args)
 	}
 	if !containsAll(args, "-f", "mp3") {
 		t.Fatalf("expected outFormat default to input format mp3, got %v", args)
@@ -171,4 +180,14 @@ func containsAny(haystack []string, needles ...string) bool {
 		}
 	}
 	return false
+}
+
+// indexOf returns the position of needle in haystack, or -1.
+func indexOf(haystack []string, needle string) int {
+	for i, h := range haystack {
+		if h == needle {
+			return i
+		}
+	}
+	return -1
 }

@@ -10,9 +10,14 @@ type Chain struct {
 	localFirst bool
 }
 
-type Options = tiered.CredentialOptions[LocalProvider, BYOKProvider, VrooliProvider]
+type Options = tiered.CredentialOptions[Request, LocalProvider, BYOKProvider, VrooliProvider]
 
 func NewChain(opts Options) *Chain {
+	if opts.Redact == nil {
+		opts.Redact = func(req Request) []string {
+			return tiered.RequestCredentialValues(req.BYOKKey, req.LPBSToken)
+		}
+	}
 	return &Chain{CredentialProviderChain: tiered.NewCredentialProviderChain(opts,
 		(*LocalProvider).Synthesize, (*LocalProvider).IsAvailable,
 		(*BYOKProvider).Synthesize, (*BYOKProvider).IsAvailable,

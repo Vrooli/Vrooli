@@ -165,7 +165,7 @@ describe("experiment service", () => {
   });
 
   it("streams normalized provider-neutral experiment events with the caller signal", async () => {
-    async function* events() {
+    function* events() {
       yield { experimentId: "experiment-1", status: ExperimentStatus.QUEUED, progress: 0.1, message: "queued", at: { seconds: 1n } };
       yield { experimentId: "experiment-1", status: ExperimentStatus.SUCCEEDED, progress: 1, message: "complete" };
     }

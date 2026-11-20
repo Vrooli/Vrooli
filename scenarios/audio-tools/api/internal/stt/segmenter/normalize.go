@@ -2,6 +2,9 @@ package segmenter
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sync"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
@@ -75,10 +78,18 @@ func (s *Segmenter) normalizeChunks(
 
 	pcmCh := make(chan sttchain.AudioChunk, 16)
 	nctx, ncancel := context.WithCancel(ctx)
+	// Cleanup must not return while the feeder or adapter can still touch the
+	// decoder, pcmCh, or the session buffer. The previous teardown cancelled
+	// and closed the decoder but did not join these goroutines, so a caller
+	// could start the next session (or its own teardown) while the previous
+	// ones were still unwinding.
+	var workers sync.WaitGroup
+	workers.Add(2)
 
 	// Feeder: inbound chunks → decoder stdin. CloseInput on clean EOF so
 	// the decoder flushes its tail; exit on nctx cancel.
 	go func() {
+		defer workers.Done()
 		var fed int
 		write := func(b []byte) (stop bool) {
 			if err := dec.Write(b); err != nil {
@@ -122,6 +133,7 @@ func (s *Segmenter) normalizeChunks(
 	// when the decoder's Frames channel closes (clean EOF / process death)
 	// or on nctx cancel, so the strategy's chunk loop terminates.
 	go func() {
+		defer workers.Done()
 		defer close(pcmCh)
 		var sequence uint64
 		var sampleCursor int64
@@ -129,6 +141,13 @@ func (s *Segmenter) normalizeChunks(
 			select {
 			case f, ok := <-dec.Frames():
 				if !ok {
+					// A closed frame channel is a clean EOF only when the decoder
+					// reports none. A mid-stream ffmpeg failure otherwise looks
+					// identical and silently truncates the turn.
+					if decodeErr := dec.Err(); decodeErr != nil && ctx.Err() == nil && !errors.Is(decodeErr, context.Canceled) {
+						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError,
+							Error: fmt.Errorf("%w: %v", audioformat.ErrStreamDecode, decodeErr)}
+					}
 					return
 				}
 				chunk := sttchain.AudioChunk{Audio: f, Sequence: sequence, StartSample: sampleCursor, EndSample: sampleCursor + int64(len(f)/2)}
@@ -150,6 +169,10 @@ func (s *Segmenter) normalizeChunks(
 	cleanup := func() {
 		ncancel()
 		_ = dec.Close()
+		// Close first (it unblocks any Write/Read), then wait for the two
+		// workers. Waiting before Close could deadlock a feeder parked in
+		// dec.Write against a process that has not been killed yet.
+		workers.Wait()
 	}
 	return pcmCh, nstart, cleanup, nil
 }

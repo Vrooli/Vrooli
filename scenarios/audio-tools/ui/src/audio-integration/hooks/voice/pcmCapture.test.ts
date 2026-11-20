@@ -110,7 +110,7 @@ describe("createScriptProcessorPcmCapture", () => {
 
   it("falls back to ScriptProcessor when AudioWorklet is unavailable", async () => {
     const capture = await createCanonicalPcmCapture(makeFakeStream(), vi.fn());
-    expect(capture.stop).toBeTypeOf("function");
+    expect(typeof capture.stop).toBe("function");
     expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 
@@ -118,7 +118,7 @@ describe("createScriptProcessorPcmCapture", () => {
     vi.useFakeTimers();
     const addModule = vi.fn(() => new Promise<void>(() => undefined));
     Object.assign(ctx, { audioWorklet: { addModule } });
-    vi.stubGlobal("AudioWorkletNode", class {});
+    vi.stubGlobal("AudioWorkletNode", vi.fn());
     vi.stubGlobal("URL", {
       createObjectURL: vi.fn(() => "blob:stalled-worklet"),
       revokeObjectURL: vi.fn(),
@@ -129,7 +129,7 @@ describe("createScriptProcessorPcmCapture", () => {
     const capture = await capturePromise;
 
     expect(addModule).toHaveBeenCalledOnce();
-    expect(capture.stop).toBeTypeOf("function");
+    expect(typeof capture.stop).toBe("function");
     expect(ctx.createScriptProcessor).toHaveBeenCalledWith(1024, 1, 1);
   });
 

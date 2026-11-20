@@ -36,12 +36,19 @@ import (
 // Footprint is one observation of what a resource currently holds.
 type Footprint struct {
 	// Bytes is the resource's current footprint. Zero means it holds nothing,
-	// which is a release.
+	// which is a release unless Parked is set.
 	Bytes int64
 	// Activity is "active" or "idle". Empty leaves the ledger's current
 	// activity state alone: idleness is the work-owner's truth to report, and
 	// an observer that cannot tell must not guess.
 	Activity string
+	// Parked marks a resource that is alive but deliberately holds no device
+	// memory at its fallback rung (for example, degraded to CPU). Its claim is
+	// the record of that operating mode, so a zero footprint must heartbeat it
+	// rather than release it: releasing would erase the degraded state and the
+	// broker could never upshift it back. Model-holding resources never set
+	// this; for them zero really is an unload.
+	Parked bool
 }
 
 // Observer is the resource-specific half: look at this resource and say what it
@@ -212,9 +219,17 @@ func (r *Runner) SyncOnce(ctx context.Context) {
 		return
 	}
 	if footprint.Bytes <= 0 {
-		if active != nil {
-			r.release(ctx, active.ClaimID)
+		if active == nil {
+			return
 		}
+		if footprint.Parked {
+			// The resource is alive at a zero-memory rung. Keep the claim (and
+			// its mode state) warm so the broker's upshift pass can climb it
+			// back when headroom returns.
+			r.heartbeat(ctx, active.ClaimID, active.Generation)
+			return
+		}
+		r.release(ctx, active.ClaimID)
 		return
 	}
 	switch {
@@ -285,6 +300,7 @@ func validClaim(c LedgerClaim) bool {
 		(c.ResourceKind == "vram" || c.ResourceKind == "ram" || c.ResourceKind == "cpu") && c.Generation > 0 &&
 		(activeStatus(c.Status) || c.Status == "released" || c.Status == "expired" || c.Status == "preempted") && (c.ResourceKind != "vram" || c.GPUIndex != nil)
 }
+
 func resourceKind(kind string) string {
 	if kind = strings.TrimSpace(kind); kind != "" {
 		return kind

@@ -14,15 +14,16 @@ func (h *connectHandler) Transcode(ctx context.Context, req *connect.Request[aud
 	if err := requireBytes(req.Msg.Audio); err != nil {
 		return nil, err
 	}
+	inFmt := audioFormatString(req.Msg.GetInputFormat())
 	outFmt := audioFormatString(req.Msg.GetOutputFormat())
-	out, err := intaudio.TranscodeOpts(ctx, req.Msg.Audio, outFmt,
+	out, err := intaudio.TranscodeWithInput(ctx, req.Msg.Audio, inFmt, outFmt,
 		int(req.Msg.SampleRate), int(req.Msg.Channels), int(req.Msg.Bitrate))
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	ct := "audio/wav"
-	if outFmt != "" {
-		ct = contentTypeFor(outFmt)
-	}
-	return connect.NewResponse(&audiov1.TranscodeResponse{Audio: out, ContentType: ct}), nil
+	return connect.NewResponse(&audiov1.TranscodeResponse{
+		Audio:           out,
+		ContentType:     intaudio.ContentTypeFor(outFmt),
+		DurationSeconds: intaudio.DurationSeconds(ctx, out),
+	}), nil
 }

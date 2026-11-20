@@ -85,24 +85,20 @@ func (p *LocalProvider) SynthesizeStreaming(_ context.Context, _ Request) (<-cha
 }
 
 // resolveLocalVoice maps canonical voice IDs to Kokoro voice names using the
-// shared canonical voice catalog. Overrides keyed "local:kokoro-local" win.
+// shared canonical voice catalog. Overrides keyed by the catalog adapter id win;
+// the pre-catalog key is still honoured so stored overrides survive the rename.
 func resolveLocalVoice(canonical string, overrides map[string]string) string {
-	if v, ok := overrides["local:kokoro-local"]; ok && v != "" {
+	// Explicit overrides win before the canonical mapping; the current adapter id
+	// takes precedence over the pre-catalog key when both are present.
+	if v, ok := overrides[tts.AdapterLocalKokoro]; ok && v != "" {
 		return v
 	}
-	// Fallback table — kept here until internal/tts/voice_catalog.go is wired.
-	switch canonical {
-	case "voice.feminine.warm":
-		return "af_bella"
-	case "voice.feminine.neutral":
-		return "af_sarah"
-	case "voice.masculine.warm":
-		return "am_adam"
-	case "voice.masculine.neutral":
-		return "am_michael"
-	case "voice.neutral.default":
-		return "af_nicole"
-	default:
-		return canonical
+	if v, ok := overrides[tts.LegacyAdapterLocalKokoro]; ok && v != "" {
+		return v
 	}
+	if v, ok := tts.LocalKokoroMapping[canonical]; ok && v != "" {
+		return v
+	}
+	// Unknown canonical ids pass through to Kokoro unchanged.
+	return canonical
 }

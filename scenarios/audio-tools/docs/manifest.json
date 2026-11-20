@@ -1345,6 +1345,42 @@
           }
         },
         {
+          "path": "reference/models.md",
+          "docType": "models-registry",
+          "title": "Model and voice registry",
+          "aliases": [
+            "models",
+            "model-registry",
+            "voice-registry"
+          ],
+          "description": "Generated model/voice facts: provider and engine ids, licence, readiness, hardware, and default selection",
+          "audience": [
+            "developers",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "model-registry",
+            "model-selection",
+            "model-licensing"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "How selection works",
+              "Declared defaults",
+              "Provider and engine vocabulary"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "reference/eval-harness.md",
           "docType": "reference",
           "title": "STT evaluation harness + corpus",
@@ -1737,6 +1773,76 @@
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/SUMMARIZE-MODEL-BENCHMARK.md",
+          "docType": "benchmark-evidence",
+          "title": "Summarize model benchmark",
+          "aliases": [
+            "summarize-benchmark",
+            "summarize-model-evidence"
+          ],
+          "description": "Dated local evidence behind the summarize default and the candidates that may not be promoted without a new receipt",
+          "audience": [
+            "developers",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "summarize-model-evidence"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Local Environment",
+              "Smoke Benchmark",
+              "Decision"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/MATURATION-PROGRAM.md",
+          "docType": "maturation-program",
+          "title": "Maturation Program",
+          "aliases": [
+            "maturation",
+            "debt-program",
+            "catalog-program"
+          ],
+          "description": "Phased program for declaration consolidation, capability completion, debt removal, and model qualification",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "maturation-program",
+            "debt-register",
+            "catalog-substrate"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Why this program exists",
+              "Baseline (2026-11-19)",
+              "Workstreams",
+              "Phase plan and exit gates",
+              "Model policy",
+              "Gates to add",
+              "Non-goals"
             ]
           }
         },

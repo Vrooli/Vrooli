@@ -101,40 +101,28 @@
       "category": "provider_lifecycle"
     },
     {
+      "id": "models.list",
+      "path": "/vrooli.audio_tools.v1.models.ModelRegistryService/ListModels",
+      "method": "POST",
+      "summary": "List the validated model/voice registry with readiness, licence, and hardware facts",
+      "description": "",
+      "category": "models"
+    },
+    {
+      "id": "models.resolve",
+      "path": "/vrooli.audio_tools.v1.models.ModelRegistryService/ResolveModel",
+      "method": "POST",
+      "summary": "Resolve the deterministic default model for a capability and language (licence-fail-closed)",
+      "description": "",
+      "category": "models"
+    },
+    {
       "id": "audio.transcode",
       "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
       "method": "POST",
       "summary": "Transcode audio (Connect-RPC)",
       "description": "",
       "category": "audio"
-    },
-    {
-      "id": "audio.transcode_multipart",
-      "path": "/api/v1/audio/transcode",
-      "method": "POST",
-      "summary": "Multipart audio transcode",
-      "description": "",
-      "category": "audio",
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Audio bytes via multipart form-data.",
-        "proto_payloads": {
-          "request": {
-            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeRequest",
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "transport": "none",
-            "conformance": "none"
-          }
-        }
-      }
     },
     {
       "id": "audio.trim",
@@ -452,63 +440,9 @@
       "id": "stt.transcribe_stream",
       "path": "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
       "method": "POST",
-      "summary": "Bidi-stream Connect mirror of /api/v1/voice/stream for non-browser consumers",
+      "summary": "Bidi-stream Connect speech transcription",
       "description": "",
       "category": "stt"
-    },
-    {
-      "id": "stt.transcribe_multipart",
-      "path": "/api/v1/voice/transcribe",
-      "method": "POST",
-      "summary": "Multipart upload variant of Transcribe",
-      "description": "",
-      "category": "stt",
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON.",
-        "proto_payloads": {
-          "request": {
-            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeRequest",
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "transport": "none",
-            "conformance": "none"
-          }
-        }
-      }
-    },
-    {
-      "id": "stt.stream_ws",
-      "path": "/api/v1/voice/stream",
-      "method": "GET",
-      "summary": "Browser-voice WebSocket transport",
-      "description": "",
-      "category": "stt",
-      "rest_exception": {
-        "reason": "ops_probe",
-        "note": "WebSocket transport - see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO).",
-        "proto_payloads": {
-          "request": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "response": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "error": {
-            "transport": "none",
-            "conformance": "none"
-          }
-        }
-      }
     },
     {
       "id": "stt.get_supported_formats",
@@ -691,7 +625,7 @@
       "path": "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
       "method": "POST",
       "summary": "Synthesize speech audio via the TTS provider chain",
-      "description": "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
+      "description": "Local -> BYOK -> Vrooli. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
       "category": "tts"
     },
     {

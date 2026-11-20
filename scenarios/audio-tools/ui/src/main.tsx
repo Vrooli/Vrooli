@@ -91,4 +91,4 @@ function bootstrap() {
   );
 }
 
-void bootstrap();
+bootstrap();

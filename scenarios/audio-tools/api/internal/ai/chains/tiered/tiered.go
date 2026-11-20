@@ -11,6 +11,7 @@ package tiered
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,6 +108,12 @@ type Options[Req, Resp any] struct {
 	// Clock seam for TTL comparisons. Defaults to schedule.System().
 	Clock schedule.Clock
 
+	// Redact returns credential values that must never appear in a
+	// fallback Reason. Fallback reasons are logged and forwarded to
+	// clients, so a provider error that echoes a BYOK key or LPBS token
+	// would otherwise leak it.
+	Redact func(req Req) []string
+
 	// OnFallback, when non-nil, is invoked whenever Execute returns a
 	// successful result from a tier OTHER than the first-eligible tier
 	// for the request. The callback is also invoked when a per-request
@@ -125,6 +132,7 @@ type Coordinator[Req, Resp any] struct {
 	isTerminal func(slot Slot, err error) bool
 	allFailed  error
 	onFallback func(ctx context.Context, ev FallbackEvent)
+	redact     func(req Req) []string
 
 	clk schedule.Clock
 
@@ -137,6 +145,11 @@ type Coordinator[Req, Resp any] struct {
 	ttlVrooli    time.Duration
 	byokAvail    cachedAvail
 	vrooliAvail  cachedAvail
+	// availGeneration increments on Reconfigure. A probe captures it before
+	// calling IsAvailable and only stores its result when the generation is
+	// unchanged, so a probe that started before an invalidation cannot
+	// resurrect the stale value.
+	availGeneration uint64
 }
 
 type cachedAvail struct {
@@ -177,6 +190,7 @@ func NewCoordinator[Req, Resp any](opts Options[Req, Resp]) *Coordinator[Req, Re
 		isTerminal:   opts.IsTerminal,
 		allFailed:    opts.AllFailed,
 		onFallback:   opts.OnFallback,
+		redact:       opts.Redact,
 		clk:          opts.Clock,
 	}
 }
@@ -220,7 +234,7 @@ func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, er
 			return zero, err
 		}
 		if slot == firstSlot && firstReason == "" {
-			firstReason = classifyReason(err)
+			firstReason = c.classifyReason(req, err)
 		}
 		lastErr = err
 	}
@@ -243,13 +257,21 @@ func (c *Coordinator[Req, Resp]) emitFallback(ctx context.Context, ev FallbackEv
 }
 
 // classifyReason maps an error to a short stable code used as the
-// `reason` field in fallback events. Currently a best-effort string;
-// callers that need typed reasons should wrap their errors with codes.
-func classifyReason(err error) string {
+// `reason` field in fallback events. It scrubs known credential values because
+// fallback reasons are logged and forwarded to clients.
+func (c *Coordinator[Req, Resp]) classifyReason(req Req, err error) string {
 	if err == nil {
 		return ""
 	}
-	return err.Error()
+	reason := err.Error()
+	if c.redact != nil {
+		for _, secret := range c.redact(req) {
+			if secret != "" {
+				reason = strings.ReplaceAll(reason, secret, "[redacted]")
+			}
+		}
+	}
+	return reason
 }
 
 // Eligible reports whether the given tier should be tried for this
@@ -287,6 +309,7 @@ func (c *Coordinator[Req, Resp]) Reconfigure(enableBYOK, enableVrooli, enableLoc
 	}
 	c.byokAvail = cachedAvail{}
 	c.vrooliAvail = cachedAvail{}
+	c.availGeneration++
 }
 
 // ProbeResult is the per-tier availability snapshot.
@@ -365,14 +388,20 @@ func (c *Coordinator[Req, Resp]) cachedAvailability(ctx context.Context, t *Tier
 		c.mu.Unlock()
 		return v
 	}
+	generation := c.availGeneration
 	c.mu.Unlock()
 
 	// IsAvailable may do I/O — call outside the lock.
 	ok := t.IsAvailable(ctx)
 
 	c.mu.Lock()
-	slot.value = ok
-	slot.checkedAt = now
+	// Reconfigure invalidated the cache while the probe was in flight.
+	// Discard this result instead of resurrecting a value the caller
+	// explicitly invalidated; the next request probes again.
+	if generation == c.availGeneration {
+		slot.value = ok
+		slot.checkedAt = c.clk.Now()
+	}
 	c.mu.Unlock()
 	return ok
 }

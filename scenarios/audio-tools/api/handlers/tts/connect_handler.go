@@ -12,6 +12,7 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
@@ -199,7 +200,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		ContentType:  res.ContentType,
 		ContentHash:  res.ContentHash,
 		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
-		ProviderId:   res.ProviderID,
+		ProviderId:   capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:      res.ModelID,
 		VoiceUsed:    res.VoiceUsed,
 		LatencyMs:    float64(res.Latency.Milliseconds()),

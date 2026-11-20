@@ -59,7 +59,11 @@ new seams at their shared owner, not as duplicated consumer implementations.
 | `sttengine.Registry` | Concrete (engine-capability manifest) | `internal/sttengine/registry.go` (`//go:embed manifest.json`) | `stt.Selector` (Local-tier eligible strategies) + `stt.Segmenter` (egress stage set) + `Registry.Resolve` (capability-derived engine selection); the single source of truth for selectable engines + speaker-isolation axis. Also `EgressStages` (manifest-derived stage set), `RequiresPCM` (passthrough normalization), `ScanResourceConsumers` (cross-scenario engine-switch impact via an injected `fs.FS`) |
 | `sttchain.ProviderTraits` | Struct (replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
 | `capabilities.ResourceController` | Interface | `internal/capabilities/lifecycle.go` (production impl: `CLIController` in `lifecycle_cli.go` shells out to `vrooli resource …`) | `handlers/provider_lifecycle/connect_handler.go` — single chokepoint for lifecycle shell-outs; tests substitute recording fakes |
+| `provider_lifecycle.IdempotencyStore` | Concrete (single-flight + TTL cache) | `handlers/provider_lifecycle/idempotency.go` | `StartProvider`/`StopProvider`/`RestartProvider`/`PullModel` — dedupes retries on `(Idempotency-Key, operation, target)`; `Deps.Idempotency` injects a store with a fake clock and small TTL in tests. Errors are never cached; dry runs bypass it |
+| `tts.CanonicalAdapterMappings` | Data + startup gate | `internal/tts/voice_catalog.go` (`VerifyCatalog` called from `bootstrap.BuildWithDeps`) | TTS adapters (`local:kokoro`, `byok:openai-tts`, `byok:elevenlabs`) resolve canonical voices through one mapping; `catalogconformance` proves the ids match the provider catalog's `adapter_id` and the settings edge rejects unknown pairs |
 | `capabilities.Registry.ResolveForce` | Concrete (additive) | `internal/capabilities/registry.go` | `handlers/health_status` (RefreshProviderHealth) and `handlers/provider_lifecycle` (post-mutation cache-bust) |
+| `capabilities.LatencyRecorder` | Concrete (checker wrapper) | `internal/capabilities/latency.go` | `bootstrap` wraps the liveness checker map; `handlers/health_status` reports the last measured duration as `latency_ms` |
+| `modelcatalog.DefaultFootprintBudgetMB` | Data + build gate | `internal/modelcatalog/footprint.go` | Resolved defaults must fit the per-capability budget; `docs/reference/models.md`, `model list`, and the Models page expose the resulting footprint |
 | `experiment.Repository` | Interface | `internal/experiment/sqlite.go` | `internal/experiment.Service` and the experiment async runner — persists experiment lifecycle rows and per-condition metric cells; tests substitute repository fakes or the SQLite impl over a temp DB |
 | `experiment.BlobBytes` | Interface | `internal/experiment/blobstore.go` | `internal/experiment.Service` — stores large reports/artifacts under variant-aware `experiment-blobs`; tests can use an in-memory or temp filesystem blob store |
 | `experiment.Runner` / `experiment.Manager` | Function seam + concrete lifecycle owner | `internal/experiment/runner.go` | `internal/bootstrap` wires the current eval harness as the runner body; `handlers/experiment` exposes lifecycle RPCs. Work runs under server lifetime context, not request context, so Wait cancellation does not abort the experiment. Default execution is one worker; queue visibility is surfaced through `StreamExperimentEvents` messages like `queued; N experiments ahead` rather than unbounded concurrency |
@@ -351,7 +355,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | The `.vrooli/endpoints.json` API documentation manifest. |
-| **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modules.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []module.EndpointDescriptor` slice plus `cli_commands_seed.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
+| **Interface** | `api/cmd/gen-endpoints/main.go` reads `internal/modules.AllEndpoints()` — the shared registry that collects each handler's static `Endpoints []module.EndpointDescriptor` slice and cross-checks it against `cli/manifest.json`. Output is the canonical envelope at `.vrooli/endpoints.json`. |
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
 | **Test fake** | `api/cmd/gen-endpoints/main_test.go` exercises the codegen with hand-built fixtures and asserts the output is valid JSON with the canonical envelope. `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The manifest coverage gate (every Connect endpoint is bound or explicitly omitted in `cli/manifest.json`) has its own unit test. |
 | **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
@@ -555,8 +559,8 @@ Connect service metadata plus each handler module's
 2. Keep the descriptor metadata in `api/handlers/<dom>/module.go`
    aligned with the operation. Connect paths use the generated service
    path; REST exceptions use the explicit REST path and error envelope.
-3. If the operation has a CLI mirror, add or update the matching row in
-   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+3. If the operation has a CLI mirror, add or update the matching command in
+   `cli/manifest.json` (the generator cross-checks the binding).
 4. Run `make endpoints` to regenerate `.vrooli/endpoints.json`.
 5. Commit both the descriptor edit AND the regenerated manifest.
 

@@ -27,6 +27,9 @@ type Deps struct {
 	Registry *capabilities.Registry
 	Logger   logx.Logger
 	Clock    schedule.Clock
+	// Latency is optional. When wired, provider health reports the last
+	// measured liveness-check duration instead of a permanent zero.
+	Latency *capabilities.LatencyRecorder
 }
 
 // Module returns the health_status module contribution.

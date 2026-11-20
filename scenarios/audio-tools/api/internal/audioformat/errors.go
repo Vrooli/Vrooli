@@ -16,3 +16,9 @@ var ErrFfmpegRequired = errors.New("audio-tools/audioformat: ffmpeg required for
 // ErrUnsupportedOutput is returned by Encode for an output format outside
 // the {mp3,wav,opus,flac} set.
 var ErrUnsupportedOutput = errors.New("audio-tools/audioformat: unsupported output format")
+
+// ErrStreamDecode is wrapped around a decode subprocess failure observed while
+// frames were streaming. Callers must surface it: a closed Frames channel alone
+// is indistinguishable from a clean end-of-stream, so treating it as EOF
+// silently truncates the turn and marks incomplete audio as complete.
+var ErrStreamDecode = errors.New("audio-tools/audioformat: stream decode failed")

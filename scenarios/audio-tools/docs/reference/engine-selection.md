@@ -34,7 +34,7 @@ the resource manifests.
 
 | Property | Whisper (`whisper-local`) | Kyutai (`kyutai`) |
 |---|---|---|
-| Model and languages | `ggml-medium`; multilingual | `stt-1b-en_fr`; English and French |
+| Model and languages | `ggml-small` by default (turbo/medium/base/tiny on demand); multilingual | `stt-1b-en_fr`; English and French |
 | Transport | Batch HTTP `/asr` | Native streaming `/v1/stream` |
 | Batch transcription | Yes | No batch endpoint |
 | Native streaming | No | Yes |

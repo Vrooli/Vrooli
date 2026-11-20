@@ -131,14 +131,27 @@ func TestChain_Execute_PrecedenceAndShortCircuits(t *testing.T) {
 	}
 }
 
-func TestChain_Probe(t *testing.T) {
-	byok := sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"x": &sttmocks.FakeBYOK{IDStr: "x", Available: true}})
-	vrooli := sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true})
-	c := sttchain.NewChain(sttchain.Options{EnableBYOK: true, EnableVrooli: true, BYOK: byok, Vrooli: vrooli})
-	r := c.Probe(context.Background())
-	require.True(t, r.BYOK)
-	require.True(t, r.Vrooli)
-	require.False(t, r.Local)
+func TestChain_Probe_ReportsEachTierIndependently(t *testing.T) {
+	cases := []struct {
+		name      string
+		vrooliUp  bool
+		wantBYOK  bool
+		wantVrool bool
+	}{
+		{name: "both_remote_tiers_up", vrooliUp: true, wantBYOK: true, wantVrool: true},
+		{name: "vrooli_down_does_not_hide_byok", vrooliUp: false, wantBYOK: true, wantVrool: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			byok := sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"x": &sttmocks.FakeBYOK{IDStr: "x", Available: true}})
+			vrooli := sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: tc.vrooliUp})
+			c := sttchain.NewChain(sttchain.Options{EnableBYOK: true, EnableVrooli: true, BYOK: byok, Vrooli: vrooli})
+			r := c.Probe(context.Background())
+			require.Equal(t, tc.wantBYOK, r.BYOK)
+			require.Equal(t, tc.wantVrool, r.Vrooli)
+			require.False(t, r.Local, "no local provider is wired")
+		})
+	}
 }
 
 func TestChain_Reconfigure_InvalidatesAvailabilityCache(t *testing.T) {

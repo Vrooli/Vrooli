@@ -300,9 +300,17 @@ describe("ExperimentLabView", () => {
     );
     expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({ title: strings.dictationStudio.experimentStarted }));
     await waitFor(() => expect(streamExperimentEvents).toHaveBeenCalledWith("exp-2", expect.any(Function), expect.any(AbortSignal)));
-    await act(async () => emit?.({ experimentId: "exp-2", status: "running", progress: 45, message: "evaluating strategies", at: "" }));
+    await act(async () => {
+      emit?.({ experimentId: "exp-2", status: "running", progress: 45, message: "evaluating strategies", at: "" });
+      // Async act yields one microtask so React can flush the state update.
+      await Promise.resolve();
+    });
     expect(await screen.findByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("evaluating strategies");
-    await act(async () => emit?.({ experimentId: "exp-2", status: "succeeded", progress: 100, message: "storing report", at: "" }));
+    await act(async () => {
+      emit?.({ experimentId: "exp-2", status: "succeeded", progress: 100, message: "storing report", at: "" });
+      // Async act yields one microtask so React can flush the state update.
+      await Promise.resolve();
+    });
     await waitFor(() => expect(getExperimentReport).toHaveBeenCalledWith("exp-2"));
   });
 

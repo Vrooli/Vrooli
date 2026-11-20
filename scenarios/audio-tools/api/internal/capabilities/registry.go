@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"audio-tools/internal/providercatalog"
+
 	"github.com/vrooli/api-core/schedule"
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
@@ -108,22 +110,10 @@ const (
 	CriticalityOptional       = capabilityregistry.CriticalityOptional
 )
 
-var Known = []Def{
-	{ID: "audio-tools", Name: "Audio Tools", Description: "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input", "voice-streaming", "voice-speaker-verification", "voice-enrollment", "voice-output", "tts-summarization", "tts-cache", "tts-paragraph-split", "audio-provider-routing"}, Criticality: CriticalityOptional, ActionKind: ActionKindScenarioStart, OperatorCommand: "vrooli scenario start audio-tools", Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "audio capability depends on the selected provider and host media path"}},
-	{ID: "whisper-stt", Name: "Whisper STT", Description: "Local batch speech-to-text provider", DependencyKind: DependencyResource, DependencySlug: "whisper", Features: []string{"voice-input"}, Criticality: CriticalityOptional, ActionKind: ActionKindOperatorCommand, OperatorCommand: "vrooli resource start whisper"},
-	{ID: "kyutai-stt", Name: "Kyutai STT", Description: "Local streaming speech-to-text provider", DependencyKind: DependencyResource, DependencySlug: "kyutai-stt", Features: []string{"voice-streaming"}, Criticality: CriticalityOptional, ActionKind: ActionKindOperatorCommand, OperatorCommand: "vrooli resource start kyutai-stt"},
-	{ID: "kokoro-tts", Name: "Kokoro TTS", Description: "Local text-to-speech provider", DependencyKind: DependencyResource, DependencySlug: "kokoro", Features: []string{"voice-output"}, Criticality: CriticalityOptional, ActionKind: ActionKindOperatorCommand, OperatorCommand: "vrooli resource start kokoro"},
-	{ID: "speaker-verification", Name: "Speaker Verification", Description: "Local speaker enrollment and verification provider", DependencyKind: DependencyResource, DependencySlug: "sherpa-onnx", Features: []string{"voice-speaker-verification", "voice-enrollment"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "vrooli resource status sherpa-onnx --json"},
-	{ID: "ollama", Name: "Ollama Summarize", Description: "Local language-model summarization provider", DependencyKind: DependencyResource, DependencySlug: "ollama", Features: []string{"ai-command-generation"}, Criticality: CriticalityOptional, ActionKind: ActionKindOperatorCommand, OperatorCommand: "vrooli resource start ollama"},
-	{ID: "openrouter", Name: "OpenRouter", Description: "BYOK cloud language-model provider", DependencyKind: DependencyResource, DependencySlug: "openrouter", Features: []string{"ai-command-generation"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "openai-whisper", Name: "OpenAI Whisper (BYOK)", Description: "BYOK cloud speech-to-text provider", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "deepgram", Name: "Deepgram (BYOK)", Description: "BYOK cloud streaming speech-to-text provider", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-streaming"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "openai-tts", Name: "OpenAI TTS (BYOK)", Description: "BYOK cloud text-to-speech provider", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-output"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "elevenlabs", Name: "ElevenLabs (BYOK)", Description: "BYOK cloud text-to-speech provider", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-output"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "browser-stt", Name: "Browser Speech Input", Description: "Browser Web Speech API last-resort speech-to-text; server transcript quality stages do not apply", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input", "voice-streaming"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "browser-tts", Name: "Browser Speech Output", Description: "Browser speech synthesis last-resort text-to-speech; voice quality is browser-dependent", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-output"}, Criticality: CriticalityOptional, ActionKind: ActionKindOwnerGuidance, OperatorCommand: "audio-tools settings providers"},
-	{ID: "audio-transcode", Name: "Audio Transcode", Description: "In-process audio format conversion capability", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"transcode"}, Criticality: CriticalityRequired, ActionKind: ActionKindOperatorCommand, OperatorCommand: "audio-tools health show"},
-}
+// Known is the generated provider catalogue. It is rendered from
+// api/internal/providercatalog/catalog.seed.json by `make catalog-gen`; do not
+// hand-edit catalog.generated.go.
+var Known = generatedKnown
 
 // KnownForPlatform returns the catalogue with resource-backed platform
 // verdicts applied. Keeping this construction in the catalogue makes the
@@ -138,6 +128,13 @@ func KnownForPlatform(goos string) []Def {
 		}
 	}
 	return defs
+}
+
+// LocalProviderIDs returns the active local-resource provider IDs that own a
+// lifecycle row, in catalogue order and deduplicated by resource slug. It is a
+// thin wrapper over the generated provider catalogue.
+func LocalProviderIDs() []string {
+	return providercatalog.LocalProviderIDs()
 }
 
 func NewRegistry(defs []Def, checkers map[string]Checker, cacheTTL time.Duration) *Registry {

@@ -45,6 +45,38 @@ func TestServiceSpeakerConfigSnapshot(t *testing.T) {
 	}
 }
 
+func TestSpeakerConfigSnapshotIsDetached(t *testing.T) {
+	s := newServiceForTest()
+	input := SpeakerConfig{Enabled: true, ProfileIDs: []string{"p1"}}
+	s.SetSpeakerConfig(input)
+	input.ProfileIDs[0] = "mutated-after-set"
+
+	got := s.SpeakerConfigSnapshot()
+	if got.ProfileIDs[0] != "p1" {
+		t.Fatalf("SetSpeakerConfig retained caller slice: %v", got.ProfileIDs)
+	}
+	got.ProfileIDs[0] = "mutated-snapshot"
+	if again := s.SpeakerConfigSnapshot(); again.ProfileIDs[0] != "p1" {
+		t.Fatalf("snapshot shares backing array with service state: %v", again.ProfileIDs)
+	}
+}
+
+func TestWakeWordTemplateSnapshotIsDetached(t *testing.T) {
+	s := newServiceForTest()
+	input := &WakeWordTemplate{Samples: []AudioFeatures{{Kind: "original"}}}
+	s.SetWakeWordTemplate(input)
+	input.Samples[0].Kind = "mutated-after-set"
+
+	got := s.GetWakeWordTemplate()
+	if got == nil || got.Samples[0].Kind != "original" {
+		t.Fatalf("SetWakeWordTemplate retained caller slice: %+v", got)
+	}
+	got.Samples[0].Kind = "mutated-snapshot"
+	if again := s.GetWakeWordTemplate(); again.Samples[0].Kind != "original" {
+		t.Fatalf("snapshot shares backing array with service state: %+v", again)
+	}
+}
+
 func TestServicePathSetters(t *testing.T) {
 	s := newServiceForTest()
 	s.SetConfigPath("/tmp/cfg")

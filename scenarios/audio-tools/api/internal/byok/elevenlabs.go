@@ -9,6 +9,7 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/httpc"
+	"audio-tools/internal/tts"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -43,24 +44,13 @@ func (a *ElevenLabsTTS) SynthesizeStreaming(_ context.Context, _ string, _ ttsch
 }
 
 // canonicalToElevenVoiceID returns the ElevenLabs voice_id for a canonical
-// voice. Public ElevenLabs IDs are stable; users override via voice_overrides.
+// voice using the shared catalog. Public ElevenLabs IDs are stable; users
+// override via voice_overrides keyed by the catalog adapter id.
 func canonicalToElevenVoiceID(canonical string, overrides map[string]string) string {
-	if v, ok := overrides["byok:elevenlabs"]; ok && v != "" {
+	if v, ok := tts.ElevenLabsMapping.Resolve(canonical, overrides, tts.AdapterElevenLabs); ok {
 		return v
 	}
-	switch canonical {
-	case "voice.feminine.warm":
-		return "EXAVITQu4vr4xnSDxMaL" // "Bella" public ID
-	case "voice.feminine.neutral":
-		return "21m00Tcm4TlvDq8ikWAM" // "Rachel"
-	case "voice.masculine.warm":
-		return "ErXwobaYiN019PkySvjV" // "Antoni"
-	case "voice.masculine.neutral":
-		return "29vD33N1CtxCmqQRPOHJ" // "Drew"
-	case "voice.neutral.default":
-		return "21m00Tcm4TlvDq8ikWAM" // "Rachel"
-	}
-	return "21m00Tcm4TlvDq8ikWAM"
+	return "21m00Tcm4TlvDq8ikWAM" // Rachel
 }
 
 func (a *ElevenLabsTTS) Synthesize(ctx context.Context, key string, req ttschain.Request) (*ttschain.Result, error) {

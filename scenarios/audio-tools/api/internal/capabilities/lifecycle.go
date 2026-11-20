@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+
+	"audio-tools/internal/providercatalog"
 )
 
 // ResourceController is the lifecycle seam (SEAMS.md row
@@ -39,32 +41,27 @@ var ErrControllerUnavailable = errors.New("vrooli resource controller unavailabl
 
 // ResourceSlugForProviderID maps a stable provider_id (capabilities.Known[].ID)
 // to the resource slug accepted by `vrooli resource <verb> <slug>`. The
-// second return is false for provider_ids that are not local-tier
+// second return is false for provider_ids that are not active local resources
 // (e.g. "openrouter") or unknown.
 func ResourceSlugForProviderID(id string) (string, bool) {
-	switch id {
-	case "whisper-stt":
-		return "whisper", true
-	case "kokoro-tts":
-		return "kokoro", true
-	case "speaker-verification":
-		return "sherpa-onnx", true
-	case "ollama":
-		return "ollama", true
-	default:
-		return "", false
-	}
+	return providercatalog.ResourceSlugForProviderID(id)
 }
 
-// IsLocalProvider reports whether a provider_id corresponds to a
+// IsLocalProvider reports whether a provider_id corresponds to an active
 // local-tier resource we own.
 func IsLocalProvider(id string) bool {
-	_, ok := ResourceSlugForProviderID(id)
-	return ok
+	return providercatalog.IsLocalProvider(id)
 }
 
-// SupportsPullModel reports whether a provider_id accepts PullModel.
-// Currently only `ollama`.
+// SupportsPullModel reports whether a provider_id accepts PullModel. Only
+// ollama declares the pull_model action.
 func SupportsPullModel(id string) bool {
-	return id == "ollama"
+	return providercatalog.SupportsPullModel(id)
+}
+
+// ActionsForProvider returns the lifecycle verbs advertised by an active local
+// resource provider. The data is generated from the provider catalogue into
+// catalog.generated.go.
+func ActionsForProvider(id string) []string {
+	return generatedActionsForProvider(id)
 }

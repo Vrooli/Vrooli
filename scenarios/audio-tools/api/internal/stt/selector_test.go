@@ -3,10 +3,12 @@ package stt_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/stt"
+	"audio-tools/internal/sttengine"
 )
 
 // TestSelectorMatrix asserts every cell of the compatibility matrix
@@ -124,5 +126,41 @@ func TestSelectorNoEligibleProvider(t *testing.T) {
 	}
 	if out.Strategy == nil {
 		t.Fatalf("expected non-nil fallback strategy")
+	}
+}
+
+// TestSelectorHonorsCanceledContextDuringEngineResolution pins the cancellation
+// boundary: strategy eligibility asks the live resolver which engine is active,
+// and that probe must inherit the session context. With a Background context it
+// could keep probing for up to the resolver's 10s bound after the caller left.
+func TestSelectorHonorsCanceledContextDuringEngineResolution(t *testing.T) {
+	probeStarted := make(chan struct{}, 8)
+	resolver := sttengine.NewLiveResolver(func(ctx context.Context, _ ...string) ([]byte, error) {
+		select {
+		case probeStarted <- struct{}{}:
+		default:
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}, time.Hour)
+
+	sel := stt.NewSelectorWithRegistry(&sttmocks.FakeBatchExecutor{}, nil, sttengine.Default())
+	sel.EngineResolver = resolver
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = sel.Select(ctx, stt.StreamConfig{Mode: stt.ModeAuto}, sttchain.StreamStart{}, []stt.ProviderEligibility{
+			{Provider: sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Batch: true, Strategies: []sttchain.StrategyKind{sttchain.StrategyVADSegment}}), Tier: sttchain.TierLocal, Available: true},
+		})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Select blocked on engine resolution after the session context was canceled")
 	}
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { dispatchStreamMessage, type StreamMessageHandlers } from "@vrooli/audio-capture-browser";
 
-function handlers(): StreamMessageHandlers {
+function handlers(overrides: Partial<StreamMessageHandlers> = {}): StreamMessageHandlers {
   return {
     onStatus: vi.fn(),
     onPartial: vi.fn(),
@@ -12,24 +12,27 @@ function handlers(): StreamMessageHandlers {
     onVadState: vi.fn(),
     onFinal: vi.fn(),
     onError: vi.fn(),
+    ...overrides,
   };
 }
 
 describe("dispatchStreamMessage", () => {
   it("[REQ:ATD-P0-004] forwards processed acknowledgements as durable bigint cursors", () => {
-    const target = handlers();
+    const onStatus = vi.fn();
+    const target = handlers({ onStatus });
     dispatchStreamMessage(JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 4 }), target, new Set());
-    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", 4n);
+    expect(onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", 4n);
   });
 
   it("forwards provider-cell identity only when the server supplies it", () => {
-    const target = handlers();
+    const onStatus = vi.fn();
+    const target = handlers({ onStatus });
     dispatchStreamMessage(
       JSON.stringify({ type: "status", code: "ready", providerId: "kyutai", modelId: "kyutai/stt-1b-en_fr" }),
       target,
       new Set(),
     );
-    expect(target.onStatus).toHaveBeenCalledWith(
+    expect(onStatus).toHaveBeenCalledWith(
       "ready",
       "",
       undefined,
@@ -38,36 +41,40 @@ describe("dispatchStreamMessage", () => {
   });
 
   it("forwards explicit native speaker policy on durable segments", () => {
-    const target = handlers();
+    const onSegmentFinal = vi.fn();
+    const target = handlers({ onSegmentFinal });
     dispatchStreamMessage(
       JSON.stringify({ type: "segment-final", text: "degraded text", segmentIndex: 1, speakerPolicy: "degraded" }),
       target,
       new Set(),
     );
-    expect(target.onSegmentFinal).toHaveBeenCalledWith("degraded text", 1, "degraded");
+    expect(onSegmentFinal).toHaveBeenCalledWith("degraded text", 1, "degraded");
   });
 
   it("[REQ:ATD-P0-001] de-duplicates a durable segment identity across replay", () => {
-    const target = handlers();
+    const onSegmentFinal = vi.fn();
+    const target = handlers({ onSegmentFinal });
     const delivered = new Set<string>();
     const frame = JSON.stringify({ type: "segment-final", text: "only once", segmentId: "segment-1", segmentIndex: 2 });
     dispatchStreamMessage(frame, target, delivered);
     dispatchStreamMessage(frame, target, delivered);
-    expect(target.onSegmentFinal).toHaveBeenCalledTimes(1);
-    expect(target.onSegmentFinal).toHaveBeenCalledWith("only once", 2);
+    expect(onSegmentFinal).toHaveBeenCalledTimes(1);
+    expect(onSegmentFinal).toHaveBeenCalledWith("only once", 2);
   });
 
   it("ignores malformed frames without changing delivery state", () => {
-    const target = handlers();
+    const onError = vi.fn();
+    const target = handlers({ onError });
     const delivered = new Set<string>();
     dispatchStreamMessage("not-json", target, delivered);
     expect(delivered).toEqual(new Set());
-    expect(target.onError).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("does not turn an invalid acknowledgement cursor into a handler exception", () => {
-    const target = handlers();
+    const onStatus = vi.fn();
+    const target = handlers({ onStatus });
     expect(() => dispatchStreamMessage(JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0.5 }), target, new Set())).not.toThrow();
-    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", undefined);
+    expect(onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", undefined);
   });
 });

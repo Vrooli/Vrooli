@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"context"
 	"errors"
 
 	intaudio "audio-tools/internal/audio"
@@ -20,8 +21,12 @@ func requireBytes(b []byte) error {
 //
 //   - ErrFFmpegMissing → FailedPrecondition: a dependency is present in the
 //     deployment contract but not installed; the operator must install ffmpeg.
-//   - ErrFfmpegExec → InvalidArgument: ffmpeg ran but rejected the input
-//     (unsupported/corrupt audio or an unsupported output format). This is a
+//   - context.Canceled / context.DeadlineExceeded → Canceled / DeadlineExceeded:
+//     the caller's own signal timed out; reporting InvalidArgument would blame
+//     the request body for a transport-level abort.
+//   - ErrInvalidArgument / ErrFfmpegExec → InvalidArgument: ffmpeg ran but
+//     rejected the input (unsupported/corrupt audio or an unsupported output
+//     format), or a request parameter is out of range. This is a
 //     caller-fixable problem, not a server bug — the underlying ffmpeg stderr
 //     is preserved in the wrapped error so the message stays diagnosable.
 //   - everything else → Internal: a genuine unexpected failure.
@@ -33,6 +38,12 @@ func mapAudioErr(err error) error {
 	switch {
 	case errors.Is(err, intaudio.ErrFFmpegMissing):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, context.Canceled):
+		return connect.NewError(connect.CodeCanceled, err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
+	case errors.Is(err, intaudio.ErrInvalidArgument):
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, intaudio.ErrFfmpegExec):
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	default:

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"audio-tools/internal/httpc"
 	"audio-tools/internal/testutil/mocks"
@@ -69,4 +70,13 @@ func TestDoer_TestPath(t *testing.T) {
 	require.Len(t, fake.Requests, 1)
 	require.Equal(t, http.MethodGet, fake.Requests[0].Method)
 	require.True(t, strings.HasSuffix(fake.Requests[0].URL.Path, "/path"))
+}
+
+func TestReadinessDoerTimeout(t *testing.T) {
+	client, ok := httpc.ReadinessDoer().(*http.Client)
+	require.True(t, ok, "ReadinessDoer must return an *http.Client")
+	require.Equal(t, 30*time.Second, client.Timeout, "readiness probes need a bounded timeout below the generation timeout")
+	if generation, ok := httpc.DefaultDoer().(*http.Client); ok {
+		require.Less(t, client.Timeout, generation.Timeout, "readiness must be shorter than generation")
+	}
 }

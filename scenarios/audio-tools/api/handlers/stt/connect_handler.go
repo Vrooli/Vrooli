@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -15,6 +16,7 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
@@ -57,6 +59,23 @@ type Deps struct {
 	Sessions *session.Registry
 }
 
+// isNilDependency reports whether an optional dependency is absent, including a
+// typed nil pointer stored in an interface. Optional repositories are commonly
+// wired as (*store.T)(nil); the interface comparison alone would be non-nil and
+// the first method call would panic.
+func isNilDependency(dep any) bool {
+	if dep == nil {
+		return true
+	}
+	value := reflect.ValueOf(dep)
+	switch value.Kind() {
+	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
 func (h *connectHandler) applyDefaultCredential(ctx context.Context, capability, provider, key string) (string, string) {
 	if key != "" || h.deps.DefaultCredential == nil {
 		return provider, key
@@ -92,7 +111,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 	// mode/threshold/profile bindings survive a restart (profiles always
 	// persisted; bindings used to be lost). Best-effort: a missing/corrupt row
 	// leaves the documented defaults in place.
-	if d.SpeakerConfig != nil {
+	// A nil *store assigned to the interface is a non-nil interface holding a
+	// nil pointer (typed nil). Treat it as unconfigured rather than letting the
+	// first method call panic during construction.
+	if !isNilDependency(d.SpeakerConfig) {
 		loadPersistedSpeakerCfg(context.Background(), d.SpeakerConfig, d.Logger)
 	}
 	return &connectHandler{deps: d}
@@ -290,7 +312,7 @@ func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.R
 		DetectedLanguage: res.DetectedLanguage,
 		DurationSeconds:  res.DurationSeconds,
 		ProviderTier:     protomap.ProviderTierToProto(string(res.Tier)),
-		ProviderId:       res.ProviderID,
+		ProviderId:       capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:          res.ModelID,
 		LatencyMs:        float64(res.Latency.Milliseconds()),
 		Filtered:         decision.Filtered,
@@ -352,16 +374,18 @@ func mapChainError(err error) error {
 		}
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	switch err {
-	case sttchain.ErrInsufficientCredits:
+	// errors.Is, not ==, so a provider that wraps a sentinel keeps its
+	// actionable code instead of flattening to Internal.
+	switch {
+	case errors.Is(err, sttchain.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
-	case sttchain.ErrUnknownBYOKProvider, sttchain.ErrMissingBYOKProvider:
+	case errors.Is(err, sttchain.ErrUnknownBYOKProvider), errors.Is(err, sttchain.ErrMissingBYOKProvider):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case sttchain.ErrAllProvidersFailed:
+	case errors.Is(err, sttchain.ErrAllProvidersFailed):
 		return connect.NewError(connect.CodeUnavailable, err)
-	case sttpkg.ErrIncompatibleStrategyProvider, sttpkg.ErrStreamingDisabled:
+	case errors.Is(err, sttpkg.ErrIncompatibleStrategyProvider), errors.Is(err, sttpkg.ErrStreamingDisabled):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
-	case sttpkg.ErrNoEligibleProvider:
+	case errors.Is(err, sttpkg.ErrNoEligibleProvider):
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)

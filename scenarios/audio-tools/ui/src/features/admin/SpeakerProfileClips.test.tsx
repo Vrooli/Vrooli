@@ -3,6 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { strings } from "../../consts/strings";
 
 const listClipsMock = vi.hoisted(() => vi.fn());
 const deleteClipMock = vi.hoisted(() => vi.fn());
@@ -24,26 +25,30 @@ describe("SpeakerProfileClips", () => {
     listClipsMock.mockResolvedValueOnce([]);
     renderClips();
 
-    await waitFor(() => expect(screen.getByText("speakerAdmin.clipsEmpty")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(strings.speakerAdmin.clipsEmpty)).toBeInTheDocument());
   });
 
   it("renders clip metadata and deletes the selected clip", async () => {
+    const clipLabel = "desk mic";
+    // voicedSeconds 2.34 renders at one decimal place with a unit suffix.
+    const formattedVoicedSeconds = "2.3s";
     listClipsMock
-      .mockResolvedValueOnce([{ clipId: "clip-1", label: "desk mic", voicedSeconds: 2.34 }])
+      .mockResolvedValueOnce([{ clipId: "clip-1", label: clipLabel, voicedSeconds: 2.34 }])
       .mockResolvedValueOnce([]);
     deleteClipMock.mockResolvedValueOnce(undefined);
     renderClips();
 
-    await waitFor(() => expect(screen.getByText("desk mic")).toBeInTheDocument());
-    expect(screen.getByText("2.3s")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(clipLabel)).toBeInTheDocument());
+    expect(screen.getByText(formattedVoicedSeconds)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "speakerAdmin.deleteClipButton" }));
     await waitFor(() => expect(deleteClipMock).toHaveBeenCalledWith("profile-1", "clip-1"));
   });
 
   it("falls back to the clip id when no label is supplied", async () => {
-    listClipsMock.mockResolvedValueOnce([{ clipId: "clip-unlabeled", label: "", voicedSeconds: 1 }]);
+    const clipId = "clip-unlabeled";
+    listClipsMock.mockResolvedValueOnce([{ clipId, label: "", voicedSeconds: 1 }]);
     renderClips();
 
-    await waitFor(() => expect(screen.getByText("clip-unlabeled")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(clipId)).toBeInTheDocument());
   });
 });

@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
@@ -209,6 +210,12 @@ func (h *connectHandler) TranscribeStream(
 	var terminal *sttchain.StreamEvent
 	segmentOrdinal := 0
 	for ev := range events {
+		if ev.Kind == sttchain.StreamEventError && errors.Is(ev.Error, audioformat.ErrStreamDecode) {
+			// The decoder died mid-stream. Frames closed, so the strategy will
+			// still emit Done for the audio it received; without this the ledger
+			// would mark the turn complete and hide the truncation.
+			ledger.Fail(session.TerminalReason("input_decode_failed"))
+		}
 		if ev.Kind == sttchain.StreamEventDone {
 			copy := ev
 			terminal = &copy

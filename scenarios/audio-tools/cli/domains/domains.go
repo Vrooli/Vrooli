@@ -8,6 +8,7 @@ import (
 	"audio-tools/cli/domains/diagnostics"
 	"audio-tools/cli/domains/experiment"
 	"audio-tools/cli/domains/health"
+	"audio-tools/cli/domains/model"
 	"audio-tools/cli/domains/provider"
 	"audio-tools/cli/domains/settings"
 	"audio-tools/cli/domains/soak"
@@ -74,6 +75,10 @@ func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time
 	if err != nil {
 		return nil, err
 	}
+	modelGroup, err := model.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	diagnosticsGroup, err := diagnostics.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -103,6 +108,7 @@ func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time
 		audioGroup,
 		settingsGroup,
 		usageGroup,
+		modelGroup,
 		diagnosticsGroup,
 		healthGroup,
 		providerGroup,

@@ -8,16 +8,25 @@ import (
 	"strconv"
 
 	"audio-tools/internal/controlplane"
+	"audio-tools/internal/providercatalog"
 )
 
 // allowedSlugs is the whitelist of resource slugs CLIController will
-// ever pass to `vrooli resource <verb> <slug>`. Production wiring
+// ever pass to `vrooli resource <verb> <slug>`. It is derived from the
+// provider catalog so adding an active local provider cannot leave the
+// lifecycle surface unable to act on it. Production wiring still
 // constrains the inbound provider_id through ResourceSlugForProviderID;
-// this second check is defence-in-depth against future regressions.
-var allowedSlugs = map[string]struct{}{
-	"whisper":     {},
-	"sherpa-onnx": {},
-	"ollama":      {},
+// this second check is defence-in-depth.
+var allowedSlugs = buildAllowedSlugs()
+
+func buildAllowedSlugs() map[string]struct{} {
+	out := make(map[string]struct{})
+	for _, id := range providercatalog.LocalProviderIDs() {
+		if slug, ok := providercatalog.ResourceSlugForProviderID(id); ok {
+			out[slug] = struct{}{}
+		}
+	}
+	return out
 }
 
 // allowedVerbs is the whitelist of `vrooli resource …` subcommands the

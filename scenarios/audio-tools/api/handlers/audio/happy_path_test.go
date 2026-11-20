@@ -93,6 +93,9 @@ func TestVolume_HappyPath(t *testing.T) {
 }
 
 func TestNormalize_HappyPath(t *testing.T) {
+	// The fake runner exposes no stderr, so loudnorm cannot report a
+	// measurement; measured_lufs must stay unknown (0) rather than echo
+	// the requested target.
 	withRunner(t, audiomocks.NewFakeRunner([]byte("NORM"), nil))
 	c := newClient(t)
 	res, err := c.Normalize(context.Background(), connect.NewRequest(&audiov1.NormalizeRequest{
@@ -103,7 +106,7 @@ func TestNormalize_HappyPath(t *testing.T) {
 		OutputFormat: commonv1.AudioFormat_AUDIO_FORMAT_WAV,
 	}))
 	require.NoError(t, err)
-	require.Equal(t, float64(-14), res.Msg.GetMeasuredLufs())
+	require.Zero(t, res.Msg.GetMeasuredLufs())
 	require.Equal(t, []byte("NORM"), res.Msg.GetAudio())
 }
 

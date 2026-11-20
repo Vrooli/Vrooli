@@ -72,7 +72,7 @@ func (e *Engine) NewStreamDecoder(ctx context.Context, codec Codec) (StreamDecod
 		return nil, ErrFfmpegRequired
 	}
 	args := []string{
-		"-loglevel", "error",
+		"-nostdin", "-hide_banner", "-loglevel", "error",
 		"-i", "pipe:0",
 		"-f", "s16le",
 		"-ar", fmt.Sprint(CanonicalSampleRate),
@@ -105,7 +105,7 @@ func (e *Engine) NewStreamFilter(ctx context.Context, filter string) (StreamDeco
 		return nil, ErrFfmpegRequired
 	}
 	args := []string{
-		"-loglevel", "error",
+		"-nostdin", "-hide_banner", "-loglevel", "error",
 		"-f", "s16le",
 		"-ar", fmt.Sprint(CanonicalSampleRate),
 		"-ac", fmt.Sprint(CanonicalChannels),
@@ -182,6 +182,11 @@ func (d *identityDecoder) Err() error { return nil }
 type processDecoder struct {
 	proc   Process
 	frames chan []byte
+	// done unblocks a readLoop parked on a full frames buffer when the
+	// session is torn down without draining. Without it, Close killed the
+	// child but left the reader goroutine blocked forever, holding frames
+	// open (the segmenter then waited on a channel nobody would close).
+	done chan struct{}
 
 	mu  sync.Mutex
 	err error
@@ -193,6 +198,7 @@ func newProcessDecoder(proc Process) *processDecoder {
 	d := &processDecoder{
 		proc:   proc,
 		frames: make(chan []byte, 8),
+		done:   make(chan struct{}),
 	}
 	go d.readLoop()
 	return d
@@ -219,7 +225,11 @@ func (d *processDecoder) readLoop() {
 			if len(chunk) > 0 {
 				out := make([]byte, len(chunk))
 				copy(out, chunk)
-				d.frames <- out
+				select {
+				case d.frames <- out:
+				case <-d.done:
+					return
+				}
 			}
 		}
 		if err != nil {
@@ -253,6 +263,9 @@ func (d *processDecoder) CloseInput() error {
 func (d *processDecoder) Close() error {
 	var err error
 	d.closeOnce.Do(func() {
+		// Signal first: the read loop may already be parked on a full frame
+		// buffer, and proc.Close cannot unblock a channel send.
+		close(d.done)
 		err = d.proc.Close()
 	})
 	return err

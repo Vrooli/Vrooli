@@ -8,11 +8,20 @@ import (
 	"go.uber.org/goleak"
 )
 
+// ignoreSharedGlobals keeps goleak focused on goroutines this package creates.
+// api-core/database opens a package-level foreignPinPool (sql.OpenDB) during
+// init, whose connectionOpener is process-lifetime infrastructure. Ignoring
+// the current snapshot is narrower than ignoring every DB opener, so a real
+// leak created inside a test still fails.
+func ignoreSharedGlobals() goleak.Option {
+	return goleak.IgnoreCurrent()
+}
+
 // TestStream_BufferedFallback_NoStreamingCapableProvider verifies that
 // the chain falls back to Execute()+synthetic events when nothing can
 // stream.
 func TestStream_BufferedFallback_NoStreamingCapableProvider(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreSharedGlobals())
 
 	// Build a chain with a Local-only stub. We use the real chain shape
 	// (concrete *LocalProvider etc) but with the local nil — exercising
@@ -53,7 +62,7 @@ func TestStream_BufferedFallback_NoStreamingCapableProvider(t *testing.T) {
 }
 
 func TestStream_RequireStreamingFailsClosedWithoutProvider(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreSharedGlobals())
 
 	chain := NewChain(Options{EnableLocal: false, EnableBYOK: false, EnableVrooli: false})
 	chunks := make(chan AudioChunk)
@@ -71,7 +80,7 @@ func TestStream_RequireStreamingFailsClosedWithoutProvider(t *testing.T) {
 // TestStream_ClientCancelDrains verifies that cancelling the context
 // closes the event channel without leaking goroutines.
 func TestStream_ClientCancelDrains(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreSharedGlobals())
 
 	chain := NewChain(Options{EnableLocal: false, EnableBYOK: false, EnableVrooli: false})
 	chunks := make(chan AudioChunk)

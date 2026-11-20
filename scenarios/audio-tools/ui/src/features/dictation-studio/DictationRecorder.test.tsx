@@ -329,7 +329,7 @@ describe("DictationRecorder", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
-      arrayBuffer: async () => new ArrayBuffer(2),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(2)),
     } as Response);
     const user = userEvent.setup();
 
@@ -344,14 +344,15 @@ describe("DictationRecorder", () => {
   });
 
   it("surfaces durable recovery and queue status without developer tools", async () => {
+    const queueMessage = "Waiting for the local Kyutai decoder.";
     const user = userEvent.setup();
     renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
     await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
     await waitFor(() => expect(constructed[0]).toBeTruthy());
     act(() => {
-      constructed[0]!.onStatus?.({ code: "queued", message: "Waiting for the local Kyutai decoder." });
+      constructed[0]!.onStatus?.({ code: "queued", message: queueMessage });
     });
-    expect(await screen.findByText("Waiting for the local Kyutai decoder.")).toBeInTheDocument();
+    expect(await screen.findByText(queueMessage)).toBeInTheDocument();
   });
 
   it("[REQ:ATD-P1-002] shows coverage and exports a metadata-only turn diagnostic", async () => {

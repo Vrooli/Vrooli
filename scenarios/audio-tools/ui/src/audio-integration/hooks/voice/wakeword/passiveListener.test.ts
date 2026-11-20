@@ -108,7 +108,7 @@ const testSeams: PassiveListenerSeams = {
   })) as unknown as PassiveListenerSeams["createCapturePipeline"],
   downsample: (buf) => buf,
   createVadRefs: () => vadState as unknown as ReturnType<PassiveListenerSeams["createVadRefs"]>,
-  vadTick: (vad) => vadTickImpl(vad as unknown as FakeVad) as unknown as ReturnType<PassiveListenerSeams["vadTick"]>,
+  vadTick: (vad) => vadTickImpl(vad) as unknown as ReturnType<PassiveListenerSeams["vadTick"]>,
 };
 
 function makeListener(options: Omit<PassiveListenerOpts, "seams">): PassiveListener {

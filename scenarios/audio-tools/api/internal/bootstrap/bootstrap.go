@@ -71,6 +71,12 @@ type Deps struct {
 // dev-only routed-pool service before requests reach the scenario handler.
 func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, error) {
 	env := Load()
+	// Static voice coverage is a build-time defect, not a runtime condition:
+	// fail before opening the DB or starting the manager when an adapter has no
+	// mapping for a canonical voice.
+	if err := inttts.VerifyCatalog(inttts.CanonicalAdapterMappings); err != nil {
+		return nil, nil, nil, fmt.Errorf("validate TTS voice catalog: %w", err)
+	}
 	if resolved, resolveErr := discovery.ResolveScenarioURLDefault(ctx, "landing-page-business-suite"); resolveErr == nil {
 		env.LPBSBaseURL = resolved
 	}
@@ -87,23 +93,25 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	// every capability and the STT/TTS/Summarize chains report "all
 	// providers failed" even when the underlying resources are healthy.
 	doer := httpc.DefaultDoer()
+	readinessDoer := httpc.ReadinessDoer()
 	livenessDoer := httpc.LivenessDoer()
 	summCfg := intsumm.DefaultSummarizeConfig()
 	summCfg.Model = env.SummarizeDefaultModel
-	whisperChecker := &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: doer}
-	kokoroChecker := &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: doer}
-	speakerChecker := &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: doer}
-	ollamaChecker := &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: doer, ModelFn: func() string {
+	whisperChecker := &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: readinessDoer}
+	kokoroChecker := &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: readinessDoer}
+	speakerChecker := &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: readinessDoer}
+	ollamaChecker := &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: readinessDoer, ModelFn: func() string {
 		return summCfg.Model
 	}}
-	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: doer}
+	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: readinessDoer}
 	livenessOpenRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: livenessDoer}
 	defs := capabilities.KnownForPlatform("")
 	capsCheckers := map[string]capabilities.Checker{
 		"whisper-stt":          whisperChecker,
-		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
+		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: readinessDoer},
 		"kokoro-tts":           kokoroChecker,
 		"speaker-verification": speakerChecker,
+		"sherpa-stt":           &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: readinessDoer},
 		"ollama":               ollamaChecker,
 		"openrouter":           openRouterChecker,
 		"audio-transcode":      &capabilities.TranscodeChecker{},
@@ -117,6 +125,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: livenessDoer},
 		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
 		"speaker-verification": &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
+		"sherpa-stt":           &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
 		"ollama":               &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
 		"openrouter":           livenessOpenRouterChecker,
 		"audio-transcode":      &capabilities.TranscodeChecker{},
@@ -251,7 +260,11 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	}
 	livenessCheckers["browser-stt"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech input is available as a last resort" }}
 	livenessCheckers["browser-tts"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech output is available as a last resort" }}
-	capsRegistry.SetLivenessCheckers(livenessCheckers)
+	// Time the liveness checks at the registry seam so the health response can
+	// report a measured latency instead of a permanent zero. Readiness checks
+	// keep their own path; only the liveness tier feeds Get/Refresh/Stream.
+	livenessLatency := capabilities.NewLatencyRecorder()
+	capsRegistry.SetLivenessCheckers(livenessLatency.WrapAll(livenessCheckers))
 
 	sessionRegistry := intsession.NewRegistry()
 	// The streaming ledger owns recoverable captured PCM until processed
@@ -366,14 +379,14 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	}
 
 	srv := server.Compose(server.CompositionDeps{
-		DB: db, Capabilities: capsRegistry, Logger: logger,
+		DB: db, Capabilities: capsRegistry, Logger: logger, CapabilityLivenessLatency: livenessLatency,
 		Env: server.Env{
 			OllamaURL: env.OllamaURL,
 			TestIsolationActive: func() bool {
 				return db.HasTestPool() && fileRoots.HasTestRoots()
 			},
 		},
-		Chains: server.Chains{STT: chs.STT, TTS: chs.TTS, Summarize: chs.Summarize, Coordinator: chs.Coordinator},
+		Chains:          server.Chains{STT: chs.STT, TTS: chs.TTS, Summarize: chs.Summarize, Coordinator: chs.Coordinator},
 		SpeakerResource: speakerClient, AudioEngine: audioEngine, EngineRegistry: engineRegistry, Usage: usageRecorder,
 		Stores:   server.CompositionStores{ProviderConfig: stores.ProviderConfig, VoiceOverrides: stores.VoiceOverrides, BYOK: stores.BYOK, STTStream: stores.STTStream, STTSpeaker: stores.STTSpeaker, Wakeword: stores.Wakeword, Speaker: stores.Speaker, TTSConfig: stores.TTSConfig, Playback: stores.Playback, Usage: stores.Usage},
 		Sessions: sessionRegistry, StreamLedgers: streamLedgers, TTS: ttsSvc, Cache: ttsCache, SummarizeConfig: &summCfg, Corpus: corpusSvc, ExperimentManager: experimentMgr, Experiments: experimentSvc,

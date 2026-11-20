@@ -32,27 +32,31 @@ type BYOKAdapter interface {
 // BYOKProvider routes per-request to the adapter named by req.BYOKProvider.
 type BYOKProvider struct {
 	registry map[string]BYOKAdapter
+	dispatch *tiered.BYOKDispatcher[BYOKAdapter, Result]
 }
 
 func NewBYOKProvider(registry map[string]BYOKAdapter) *BYOKProvider {
-	return &BYOKProvider{registry: registry}
+	return &BYOKProvider{
+		registry: registry,
+		dispatch: tiered.NewBYOKDispatcher(registry, "sttchain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider, stampBYOKResult),
+	}
+}
+
+// stampBYOKResult keeps the capability-specific Result shape local while the
+// shared helper owns the tier/provider/model stamping sequence.
+func stampBYOKResult(result *Result, adapter BYOKAdapter) {
+	tiered.StampIdentity(&result.Tier, TierBYOK, &result.ProviderID, &result.ModelID, adapter.ID(), adapter.Model(), true)
 }
 
 func (p *BYOKProvider) Type() ProviderTier { return TierBYOK }
 
-func (p *BYOKProvider) IsAvailable(ctx context.Context) bool {
-	return tiered.RegistryConfigured(p.registry)
+func (p *BYOKProvider) IsAvailable(context.Context) bool {
+	return p != nil && p.dispatch.Configured()
 }
 
 func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
-	return tiered.ExecuteBYOK(p.registry, req.BYOKKey, req.BYOKProvider, "sttchain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider,
-		func(adapter BYOKAdapter) (*Result, error) { return adapter.Transcribe(ctx, req.BYOKKey, req) },
-		func(result *Result, adapter BYOKAdapter) {
-			result.Tier, result.ProviderID = TierBYOK, adapter.ID()
-			if result.ModelID == "" {
-				result.ModelID = adapter.Model()
-			}
-		})
+	return p.dispatch.Execute(req.BYOKKey, req.BYOKProvider,
+		func(adapter BYOKAdapter) (*Result, error) { return adapter.Transcribe(ctx, req.BYOKKey, req) })
 }
 
 func (p *BYOKProvider) Model() string { return tiered.DispatchedModel() }
@@ -87,7 +91,7 @@ func (p *BYOKProvider) Traits() ProviderTraits {
 // returns (nil, nil) when the resolved adapter declined streaming so the
 // chain falls back to the next tier or unary mode.
 func (p *BYOKProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
-	adapter, err := tiered.ResolveBYOKAdapter(p.registry, start.BYOKKey, start.BYOKProvider, "sttchain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider)
+	adapter, err := p.dispatch.Resolve(start.BYOKKey, start.BYOKProvider)
 	if err != nil {
 		return nil, err
 	}

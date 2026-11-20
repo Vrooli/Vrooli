@@ -43,15 +43,15 @@ if (typeof window.matchMedia !== "function") {
         media: query,
         onchange: null,
         addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
-          if (typeof listener === "function") listeners.add(listener as MatchMediaListener);
+          if (typeof listener === "function") listeners.add(listener);
         },
         removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
-          if (typeof listener === "function") listeners.delete(listener as MatchMediaListener);
+          if (typeof listener === "function") listeners.delete(listener);
         },
         addListener: (listener: MatchMediaListener) => listeners.add(listener),
         removeListener: (listener: MatchMediaListener) => listeners.delete(listener),
         dispatchEvent: (event) => {
-          matches = Boolean((event as MediaQueryListEvent).matches);
+          matches = (event as MediaQueryListEvent).matches;
           for (const listener of listeners) listener(event as MediaQueryListEvent);
           return true;
         },

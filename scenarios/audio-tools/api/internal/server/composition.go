@@ -11,6 +11,7 @@ import (
 	experimentH "audio-tools/handlers/experiment"
 	healthH "audio-tools/handlers/health"
 	hsH "audio-tools/handlers/health_status"
+	modelsH "audio-tools/handlers/models"
 	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
@@ -37,6 +38,7 @@ import (
 	expreport "audio-tools/internal/experiment/report"
 	"audio-tools/internal/httpc"
 	"audio-tools/internal/logx"
+	"audio-tools/internal/modelcatalog"
 	intsession "audio-tools/internal/session"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
@@ -79,24 +81,25 @@ type (
 		Usage          *store.UsageStore
 	}
 	CompositionDeps struct {
-		DB                *database.RoutedDB
-		Capabilities      *capabilities.Registry
-		Logger            logx.Logger
-		Env               Env
-		Chains            Chains
-		SpeakerResource   *sttpipeline.SpeakerClient
-		AudioEngine       *audioformat.Engine
-		EngineRegistry    *sttengine.Registry
-		Usage             *usagereport.AsyncRecorder
-		Stores            CompositionStores
-		Sessions          *intsession.Registry
-		StreamLedgers     *sttsession.Registry
-		TTS               *inttts.Service
-		Cache             *inttts.Cache
-		SummarizeConfig   *intsumm.SummarizeConfig
-		Corpus            *intcorpus.Service
-		ExperimentManager *intexp.Manager
-		Experiments       *intexp.Service
+		DB                        *database.RoutedDB
+		Capabilities              *capabilities.Registry
+		CapabilityLivenessLatency *capabilities.LatencyRecorder
+		Logger                    logx.Logger
+		Env                       Env
+		Chains                    Chains
+		SpeakerResource           *sttpipeline.SpeakerClient
+		AudioEngine               *audioformat.Engine
+		EngineRegistry            *sttengine.Registry
+		Usage                     *usagereport.AsyncRecorder
+		Stores                    CompositionStores
+		Sessions                  *intsession.Registry
+		StreamLedgers             *sttsession.Registry
+		TTS                       *inttts.Service
+		Cache                     *inttts.Cache
+		SummarizeConfig           *intsumm.SummarizeConfig
+		Corpus                    *intcorpus.Service
+		ExperimentManager         *intexp.Manager
+		Experiments               *intexp.Service
 	}
 )
 
@@ -173,8 +176,12 @@ func Compose(d CompositionDeps) *Server {
 			BuildTime:      buildidentity.RuntimeBuildTime(),
 			SourceIdentity: buildidentity.SourceIdentity,
 		}),
-		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: schedule.System()}),
+		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: schedule.System(), Latency: d.CapabilityLivenessLatency}),
 		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: schedule.System(), InvalidateEngineCache: engineResolver.Invalidate}),
+		// The model registry is static, validated data: one embedded seed, one
+		// projection. It is mounted here so the CLI, UI, and operators read the
+		// same facts the selector uses instead of hardcoding model ids.
+		modelsH.Module(modelsH.Deps{Catalog: modelcatalog.Default()}),
 		audioH.Module(logger),
 		sessionH.Module(sessions, logger, schedule.System()),
 		settingsH.Module(settingsH.Deps{Logger: logger, ProviderConfig: stores.ProviderConfig, BYOK: stores.BYOK, VoiceOverrides: stores.VoiceOverrides, Coordinator: chains.Coordinator}),

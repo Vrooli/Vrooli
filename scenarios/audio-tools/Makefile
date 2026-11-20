@@ -3,7 +3,7 @@
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/audio-tools-api). ALWAYS use these commands.
 
-.PHONY: help start run stop restart test soak-accelerated logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test soak-accelerated lab-test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -22,11 +22,17 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make lab-test                   Run lab/qualification package tests\n"
 	@printf "  make soak-accelerated           Run the gated 60-minute accelerated browser soak\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make catalog-gen                Regenerate provider catalogue Go/TS artifacts\n"
+	@printf "  make operations-gen             Regenerate the audio operation UI specs\n"
+	@printf "  make models-doc                 Regenerate docs/reference/models.md\n"
+	@printf "  make catalog-check              Run catalog drift + cross-catalog conformance gates\n"
+	@printf "  make portability                Cross-compile the API and CLI for Windows and macOS\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -49,6 +55,11 @@ logs: ## Show scenario logs
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
+
+# Lab/qualification packages are product-mounted but are not serving paths.
+# The boundary contract and its conformance test live in api/internal/lab.
+lab-test: ## Run lab/qualification package tests
+	@cd api && go test -count=1 ./internal/lab/... ./internal/experiment/... ./internal/eval/... ./internal/soak/... ./handlers/experiment/... ./handlers/eval/... ./handlers/soak/... ./handlers/validation/...
 
 # This gate runs through the same Test Genie lease and BAS Broker contract as
 # the registered soak provider. The API selects the Dictation Studio UI and
@@ -89,6 +100,23 @@ orient: ## Show generated-scenario orientation progress
 
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+catalog-gen: ## Regenerate provider catalogue artifacts (Go + TypeScript)
+	@cd api && go run ./cmd/gen-catalog
+
+operations-gen: ## Regenerate the audio operation UI specs from the operation catalog
+	@cd api && go run ./cmd/gen-operations
+
+models-doc: ## Regenerate docs/reference/models.md from the model catalog
+	@cd api && go run ./internal/modelcatalog/cmd/render-models
+
+portability: ## Cross-compile the API and CLI for Windows and macOS
+	@cd api && GOOS=windows GOARCH=amd64 go build ./... && GOOS=darwin GOARCH=arm64 go build ./...
+	@cd cli && GOOS=windows GOARCH=amd64 go build ./... && GOOS=darwin GOARCH=arm64 go build ./...
+	@echo "portability: windows/amd64 and darwin/arm64 builds passed"
+
+catalog-check: ## Run catalog drift + cross-catalog conformance gates
+	@cd api && go test ./internal/providercatalog ./internal/operationcatalog ./internal/modelcatalog ./internal/catalogconformance ./internal/capabilities ./internal/sttengine ./internal/stt/whisperinfo ./handlers/models
 
 run: start
 

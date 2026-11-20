@@ -67,7 +67,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	}
 	profile := firstNonEmpty(ctx.Flag("profile"), "realistic")
 	request := map[string]any{
-		"lane":    lane, "profile": profile, "turns": turns, "feed_ms": feedMS,
+		"lane": lane, "profile": profile, "turns": turns, "feed_ms": feedMS,
 		"fault": ctx.Flag("fault"), "reference_text": ctx.Flag("reference-text"),
 		"reference_cycle_ms": referenceCycleMS,
 		"engine_id":          engineID,

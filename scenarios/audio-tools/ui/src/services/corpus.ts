@@ -276,7 +276,9 @@ export interface EvalReportData {
   warnings: WarningRow[];
   normalizationPolicy: NormalizationPolicyRow | null;
   latencyHonesty: string;
-	promotionVerdicts: PromotionVerdictRow[];
+	// Optional because the UI also renders sparse report objects (older
+	// payloads and fixtures) that omit promotion evidence entirely.
+	promotionVerdicts?: PromotionVerdictRow[];
 }
 
 export interface PromotionVerdictRow {
@@ -471,7 +473,10 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
 }
 
 export function decodeEvalReport(report?: EvalReport): EvalReportData {
-	const promotionReport = report as (EvalReport & {
+	// The proto decoder fills promotionVerdicts, but this decoder is also handed
+	// sparse plain objects (tests, older payloads). Omit the required field so
+	// the optional shape below describes what is actually accepted.
+	const promotionReport = report as (Omit<EvalReport, "promotionVerdicts"> & {
 		promotionVerdicts?: Array<{ engineId?: string; modelId?: string; strategy?: string; policyProfile?: string; stable?: boolean; reasons?: string[] }>;
 	}) | undefined;
 	return {

@@ -45,12 +45,14 @@ func toProtoSummarizeModel(m intsumm.SummarizeModelInfo) *summv1.SummarizeModel 
 }
 
 func mapChainError(err error) error {
-	switch err {
-	case summarizechain.ErrInsufficientCredits:
+	// errors.Is, not ==, so a provider that wraps a sentinel keeps its
+	// actionable code instead of flattening to Internal.
+	switch {
+	case errors.Is(err, summarizechain.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
-	case summarizechain.ErrUnknownBYOKProvider, summarizechain.ErrMissingBYOKProvider:
+	case errors.Is(err, summarizechain.ErrUnknownBYOKProvider), errors.Is(err, summarizechain.ErrMissingBYOKProvider):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case summarizechain.ErrAllProvidersFailed:
+	case errors.Is(err, summarizechain.ErrAllProvidersFailed):
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	if errors.Is(err, intsumm.ErrSummarizeModelNotInstalled) {

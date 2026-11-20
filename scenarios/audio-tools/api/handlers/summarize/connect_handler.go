@@ -12,6 +12,7 @@ import (
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/protoint"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
@@ -96,7 +97,7 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 		PromptTokens: protoint.FromInt64(int64(res.PromptTokens)),
 		OutputTokens: protoint.FromInt64(int64(res.OutputTokens)),
 		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
-		ProviderId:   res.ProviderID,
+		ProviderId:   capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:      res.ModelID,
 		LatencyMs:    float64(res.Latency.Milliseconds()),
 	}

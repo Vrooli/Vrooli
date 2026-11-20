@@ -105,7 +105,7 @@ func TestQualityEvidenceRejectsSafetyFailureEvenWhenWERIsInBand(t *testing.T) {
 	report.PerStrategy[0].Safety = inteval.SafetyGateReport{
 		RetractionFree: true, DroppedSpanFree: false, MaxDroppedSpanWords: 27,
 		DroppedSpanThresholdWords: inteval.DefaultDroppedSpanThresholdWords,
-		Reasons: []string{"max contiguous dropped span is 27 words (threshold 4)"},
+		Reasons:                   []string{"max contiguous dropped span is 27 words (threshold 4)"},
 	}
 	evidence := QualityEvidenceForReport(clips, report, "build-1")
 	require.Len(t, evidence, 1)

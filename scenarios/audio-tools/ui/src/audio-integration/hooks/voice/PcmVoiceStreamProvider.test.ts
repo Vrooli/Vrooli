@@ -10,7 +10,7 @@ describe("scenario PCM provider transport adapter", () => {
       close: vi.fn(),
     };
     const openStream = vi.fn(() => connection);
-    const transcribeRetained = vi.fn(async () => "recovered transcript");
+    const transcribeRetained = vi.fn(() => Promise.resolve("recovered transcript"));
     registerVoiceTransport({ openStream, transcribeRetained });
     const transport = getDefaultVoiceTransport();
     expect(transport).not.toBeNull();

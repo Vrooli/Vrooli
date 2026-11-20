@@ -24,5 +24,5 @@ func (h *connectHandler) Volume(ctx context.Context, req *connect.Request[audiov
 	if ct == "" {
 		ct = inFmt
 	}
-	return connect.NewResponse(&audiov1.VolumeResponse{Audio: out, ContentType: contentTypeFor(ct)}), nil
+	return connect.NewResponse(&audiov1.VolumeResponse{Audio: out, ContentType: intaudio.ContentTypeFor(ct)}), nil
 }

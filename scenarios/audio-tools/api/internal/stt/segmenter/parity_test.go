@@ -100,7 +100,7 @@ func runDirect(t *testing.T, audio []byte, cfg stt.StreamConfig) []EventProjecti
 // to the Connect bidi transport; Phase D extends it to the browser WS
 // transport.
 func TestStreamingParity(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreDependencyGoroutines())
 
 	cases := []struct {
 		name  string

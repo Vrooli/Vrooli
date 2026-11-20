@@ -29,18 +29,37 @@ func TestFakeBYOK_Smoke(t *testing.T) {
 }
 
 func TestFakeVrooliClient_Smoke(t *testing.T) {
-	c := &FakeVrooliClient{Available: true}
-	require.True(t, c.IsAvailable(context.Background()))
-	require.Equal(t, "lpbs-model", c.Model())
-	res, _ := c.Summarize(context.Background(), "t", "u", summarizechain.Request{})
-	require.Equal(t, "vrooli-summary", res.Text)
-	c.Err = errors.New("e")
-	_, err := c.Summarize(context.Background(), "t", "u", summarizechain.Request{})
-	require.Error(t, err)
-	c.Err = nil
-	c.SummarizeFn = func(context.Context, string, string, summarizechain.Request) (*summarizechain.Result, error) {
-		return &summarizechain.Result{Text: "fn"}, nil
+	cases := []struct {
+		name      string
+		configure func(*FakeVrooliClient)
+		wantText  string
+		wantErr   bool
+	}{
+		{name: "default", configure: func(*FakeVrooliClient) {}, wantText: "vrooli-summary"},
+		{name: "error", configure: func(c *FakeVrooliClient) { c.Err = errors.New("e") }, wantErr: true},
+		{name: "result override", configure: func(c *FakeVrooliClient) {
+			c.Result = &summarizechain.Result{Text: "explicit"}
+		}, wantText: "explicit"},
+		{name: "function override wins over error", configure: func(c *FakeVrooliClient) {
+			c.Err = errors.New("ignored")
+			c.SummarizeFn = func(context.Context, string, string, summarizechain.Request) (*summarizechain.Result, error) {
+				return &summarizechain.Result{Text: "fn"}, nil
+			}
+		}, wantText: "fn"},
 	}
-	res, _ = c.Summarize(context.Background(), "t", "u", summarizechain.Request{})
-	require.Equal(t, "fn", res.Text)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &FakeVrooliClient{Available: true}
+			tc.configure(c)
+			require.True(t, c.IsAvailable(context.Background()))
+			require.Equal(t, "lpbs-model", c.Model())
+			res, err := c.Summarize(context.Background(), "t", "u", summarizechain.Request{})
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantText, res.Text)
+		})
+	}
 }

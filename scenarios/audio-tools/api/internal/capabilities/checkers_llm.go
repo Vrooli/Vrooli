@@ -28,6 +28,9 @@ type OllamaChecker struct {
 }
 
 func (c *OllamaChecker) Check(ctx context.Context) (Status, string) {
+	if c == nil || c.Doer == nil {
+		return StatusUnknown, "checker is not configured"
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/api/tags", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
@@ -106,8 +109,14 @@ type OpenRouterChecker struct {
 }
 
 func (c *OpenRouterChecker) Check(ctx context.Context) (Status, string) {
+	if c == nil {
+		return StatusUnknown, "checker is not configured"
+	}
 	if c.APIKey == "" {
 		return StatusUnavailable, "OPENROUTER_API_KEY not configured"
+	}
+	if c.Doer == nil {
+		return StatusUnknown, "checker is not configured"
 	}
 
 	baseURL := c.BaseURL

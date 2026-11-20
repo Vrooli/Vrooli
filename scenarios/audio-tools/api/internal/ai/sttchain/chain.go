@@ -67,9 +67,19 @@ type Options struct {
 	// priority tier. Nil disables the chain-level log; per-request
 	// callbacks attached via tiered.WithOnFallback still fire.
 	Logx logx.Logger
+
+	// Redact names the per-request credential values scrubbed from
+	// fallback reasons before they are logged or returned. Nil uses the
+	// chain defaults (BYOK key and LPBS token).
+	Redact func(req Request) []string
 }
 
 func NewChain(opts Options) *Chain {
+	if opts.Redact == nil {
+		opts.Redact = func(req Request) []string {
+			return tiered.RequestCredentialValues(req.BYOKKey, req.LPBSToken)
+		}
+	}
 	c := &Chain{
 		local:        opts.Local,
 		byok:         opts.BYOK,
@@ -86,6 +96,7 @@ func NewChain(opts Options) *Chain {
 		HasVrooli:   func(req Request) bool { return req.LPBSToken != "" },
 		UnknownBYOK: ErrUnknownBYOKProvider, MissingBYOK: ErrMissingBYOKProvider,
 		InsufficientCredits: ErrInsufficientCredits, AllFailed: ErrAllProvidersFailed,
+		Redact: opts.Redact,
 	}, tiered.ChainOptions{
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,

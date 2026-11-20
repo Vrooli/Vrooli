@@ -2,7 +2,6 @@ package ttschain
 
 import (
 	"context"
-	"errors"
 
 	"audio-tools/internal/ai/chains/tiered"
 )
@@ -22,17 +21,24 @@ func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, err
 	}
 	if c.BYOK != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.BYOK.StreamingCapability() {
 		out, err := c.BYOK.SynthesizeStreaming(ctx, req)
-		if err != nil {
-			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
+		switch {
+		case err != nil:
+			if tiered.StreamingTerminal(tiered.SlotBYOK, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
 				return nil, err
 			}
-		} else if out != nil {
+		case out != nil:
 			return out, nil
 		}
 	}
 	if c.Vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.Vrooli.StreamingCapability() {
 		out, err := c.Vrooli.SynthesizeStreaming(ctx, req)
-		if err == nil && out != nil {
+		switch {
+		case err != nil:
+			// Credit exhaustion must not be masked by a buffered fallback.
+			if tiered.StreamingTerminal(tiered.SlotVrooli, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
+				return nil, err
+			}
+		case out != nil:
 			return out, nil
 		}
 	}

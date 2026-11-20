@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 import {
   ProviderTier,
@@ -209,27 +208,27 @@ describe("timestampToISO", () => {
   });
 
   it("converts a proto Timestamp with bigint seconds to ISO", () => {
-    // Unix epoch — cast needed because Message<> brand is not constructable from plain objects
-    const result = timestampToISO({ seconds: 0n, nanos: 0 } as unknown as Timestamp);
+    // Unix epoch — TimestampLike accepts plain {seconds, nanos} objects.
+    const result = timestampToISO({ seconds: 0n, nanos: 0 });
     expect(result).toBe("1970-01-01T00:00:00.000Z");
   });
 
   it("converts a proto Timestamp with number seconds to ISO (runtime number fallback)", () => {
-    // protomap.ts handles `typeof ts.seconds !== "bigint"` at runtime; test via cast
-    const result = timestampToISO({ seconds: 0 as unknown as bigint, nanos: 0 } as unknown as Timestamp);
+    // TimestampLike accepts number seconds for the runtime non-bigint fallback.
+    const result = timestampToISO({ seconds: 0, nanos: 0 });
     expect(result).toBe("1970-01-01T00:00:00.000Z");
   });
 
   it("includes sub-second precision from nanos", () => {
     // 500ms = 500_000_000 nanos
-    const result = timestampToISO({ seconds: 0n, nanos: 500_000_000 } as unknown as Timestamp);
+    const result = timestampToISO({ seconds: 0n, nanos: 500_000_000 });
     expect(result).toBe("1970-01-01T00:00:00.500Z");
   });
 
   it("converts a realistic timestamp (2023-11-14 17:00:00 UTC)", () => {
     const epochMs = new Date("2023-11-14T17:00:00.000Z").getTime();
     const seconds = BigInt(Math.floor(epochMs / 1000));
-    const result = timestampToISO({ seconds, nanos: 0 } as unknown as Timestamp);
+    const result = timestampToISO({ seconds, nanos: 0 });
     expect(result).toBe("2023-11-14T17:00:00.000Z");
   });
 });

@@ -10,6 +10,7 @@
 | `AudioProcessingService` | `api/handlers/audio` |
 | `CorpusService` and `ExperimentService` | `api/handlers/corpus`, `api/handlers/experiment` |
 | `SettingsService`, `UsageService`, and `DiagnosticsService` | their matching handler domains |
+| `ModelRegistryService` | `api/handlers/models` |
 | `HealthService` | `api/handlers/health_status` |
 
 The authoritative wire contracts are the generated schemas under
@@ -27,6 +28,13 @@ stream. Browser clients use the generated Connect client through their
 scenario-owned adapter. The server emits partial, segment, error, and terminal
 events. A terminal event that falls back to unary transcription explicitly
 identifies buffered mode.
+
+`ModelRegistryService` is a read-only projection of the validated model/voice
+seed (`api/internal/modelcatalog`). `ListModels` filters the registry;
+`ResolveModel` applies the default-selection policy and fails closed on
+licence when `commercial = true`. Neither method writes state, installs
+weights, or probes a provider — live availability belongs to `health_status`,
+`provider_lifecycle`, and `stt.ListEngines`.
 
 ## Adding a new endpoint
 

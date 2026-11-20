@@ -276,7 +276,7 @@ describe("getLastSuiteRun", () => {
 describe("transcribe", () => {
   function file(): File {
     const input = new File([new Uint8Array([1, 2, 3])], "clip.wav", { type: "audio/wav" });
-    Object.defineProperty(input, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
+    Object.defineProperty(input, "arrayBuffer", { value: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer) });
     return input;
   }
 

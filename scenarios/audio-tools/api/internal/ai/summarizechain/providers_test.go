@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -61,16 +62,24 @@ func TestVrooliProvider_ErrorPath(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestChain_Probe(t *testing.T) {
+func TestChain_Probe_RespectsEnableFlagsAndMissingLocal(t *testing.T) {
 	byok := summarizechain.NewBYOKProvider(map[string]summarizechain.BYOKAdapter{
 		"openrouter": &summocks.FakeBYOK{IDStr: "openrouter", Available: true},
 	})
 	vrooli := summarizechain.NewVrooliProvider(&summocks.FakeVrooliClient{Available: true})
-	c := summarizechain.NewChain(summarizechain.Options{EnableBYOK: true, EnableVrooli: true, BYOK: byok, Vrooli: vrooli})
+	c := summarizechain.NewChain(summarizechain.Options{
+		EnableBYOK: true, EnableVrooli: true, EnableLocal: true,
+		BYOK: byok, Vrooli: vrooli,
+	})
 	r := c.Probe(context.Background())
 	require.True(t, r.BYOK)
 	require.True(t, r.Vrooli)
-	require.False(t, r.Local)
+	require.False(t, r.Local, "local is enabled but not configured")
+
+	c.Reconfigure(false, true, true, time.Minute, time.Second)
+	r = c.Probe(context.Background())
+	require.False(t, r.BYOK, "disabled tiers are not probed")
+	require.True(t, r.Vrooli)
 }
 
 func TestFakeMocks_Coverage(t *testing.T) {

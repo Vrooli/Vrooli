@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 
+// lib.dom declares navigator.clipboard as always present, but browsers expose
+// it only in secure contexts. Return the honest type so the guard stays real.
+function clipboardOrUndefined(): Clipboard | undefined {
+  return navigator.clipboard;
+}
+
 export function CopyableCommand({ command, copyLabel, copiedLabel }: {
   command: string;
   copyLabel: string;
@@ -17,7 +23,8 @@ export function CopyableCommand({ command, copyLabel, copiedLabel }: {
         variant="ghost"
         size="sm"
         onClick={() => {
-          if (navigator.clipboard) void navigator.clipboard.writeText(command);
+          const clipboard = clipboardOrUndefined();
+          if (clipboard) void clipboard.writeText(command);
           setCopied(true);
         }}
       >

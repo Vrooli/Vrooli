@@ -15,6 +15,24 @@ import (
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
+// Scenario: the broker's upshift callback is accepted by every adopter.
+//
+// The actuator appends --upshift to the declared verb. Rejecting the flag made
+// every declared upshift:true profile fail at the adopter boundary.
+func TestCapacityCommandsAcceptTheActuatorUpshiftDirective(t *testing.T) {
+	var calls []string
+	commands := companion.CapacityCommands("demo", []string{"gpu", "cpu"}, func(_ context.Context, label string) error {
+		calls = append(calls, "upshift:"+label)
+		return nil
+	}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	if err := commands.Subcommands[1].Run([]string{"--to", "gpu", "--upshift", "--json"}); err != nil {
+		t.Fatalf("shared upshift command rejected the actuator directive: %v", err)
+	}
+	if len(calls) != 1 || calls[0] != "upshift:gpu" {
+		t.Fatalf("calls = %v, want one validated upshift", calls)
+	}
+}
+
 func TestCapacityCommandsAcceptBrokerJSONFlagAndDeclaredLabels(t *testing.T) {
 	var calls []string
 	commands := companion.CapacityCommands("demo", []string{"large", "small"}, func(_ context.Context, label string) error {
@@ -272,6 +290,36 @@ func TestOneClaimIDSurvivesTheWholeCycle(t *testing.T) {
 				t.Fatalf("calls = %v, must not contain %q", rec.calls, step.banned)
 			}
 		})
+	}
+}
+
+// Scenario: a resource parked at a zero-memory rung keeps its claim.
+//
+// A device-mode resource degraded to CPU holds no VRAM but is still alive. Its
+// claim is the record of that mode; releasing it would erase the degraded state
+// and the broker could never upshift it back.
+func TestParkedZeroFootprintHeartbeatsInsteadOfReleasing(t *testing.T) {
+	rec := &recorder{list: oneClaim(0)}
+	runner := runnerFor(t, rec, companion.Footprint{Bytes: 0, Parked: true}, nil)
+
+	runner.SyncOnce(context.Background())
+
+	if !rec.sawCall("capacity heartbeat --claim-id clm-o") {
+		t.Fatalf("calls = %v, want a heartbeat for the parked claim", rec.calls)
+	}
+	if rec.sawCall("capacity release") {
+		t.Fatalf("calls = %v, a parked claim must not be released", rec.calls)
+	}
+}
+
+func TestUnparkedZeroFootprintStillReleases(t *testing.T) {
+	rec := &recorder{list: oneClaim(0)}
+	runner := runnerFor(t, rec, companion.Footprint{Bytes: 0}, nil)
+
+	runner.SyncOnce(context.Background())
+
+	if !rec.sawCall("capacity release --claim-id clm-o") {
+		t.Fatalf("calls = %v, an unparked zero footprint is an unload", rec.calls)
 	}
 }
 

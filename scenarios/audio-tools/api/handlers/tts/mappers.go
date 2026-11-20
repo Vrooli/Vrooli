@@ -4,6 +4,8 @@
 package tts
 
 import (
+	"errors"
+
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/ttschain"
@@ -23,12 +25,14 @@ func configToProto(c inttts.Config) *ttsv1.Config {
 }
 
 func mapChainError(err error) error {
+	// errors.Is, not ==, so a provider that wraps a sentinel keeps its
+	// actionable code instead of flattening to Internal.
 	switch {
-	case err == ttschain.ErrInsufficientCredits:
+	case errors.Is(err, ttschain.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
-	case err == ttschain.ErrUnknownBYOKProvider, err == ttschain.ErrMissingBYOKProvider:
+	case errors.Is(err, ttschain.ErrUnknownBYOKProvider), errors.Is(err, ttschain.ErrMissingBYOKProvider):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case err == ttschain.ErrAllProvidersFailed:
+	case errors.Is(err, ttschain.ErrAllProvidersFailed):
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)

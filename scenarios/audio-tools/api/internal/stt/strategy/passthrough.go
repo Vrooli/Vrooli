@@ -86,6 +86,19 @@ func (p *Passthrough) Run(
 		return err
 	}
 	sawDone := false
+	forwardedDone := false
+	// Cancellation is still a stream end: the strategy contract requires a
+	// terminal Done, and consumers use its absence to count a dropped tail.
+	// Tear the tracked feeder down before emitting it so no provider event can
+	// arrive after Done.
+	terminateOnCancel := func() error {
+		cancel()
+		<-trackedDone
+		if !forwardedDone {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
+		}
+		return ctx.Err()
+	}
 	for {
 		var ev sttchain.StreamEvent
 		var ok bool
@@ -95,17 +108,18 @@ func (p *Passthrough) Run(
 				goto vendorDrained
 			}
 		case <-ctx.Done():
-			cancel()
-			<-trackedDone
-			return ctx.Err()
+			return terminateOnCancel()
 		}
 		if ev.Kind == sttchain.StreamEventDone {
 			sawDone = true
 		}
 		select {
 		case events <- ev:
+			if ev.Kind == sttchain.StreamEventDone {
+				forwardedDone = true
+			}
 		case <-ctx.Done():
-			return ctx.Err()
+			return terminateOnCancel()
 		}
 	}
 

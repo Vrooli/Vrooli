@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"audio-tools/internal/protoint"
@@ -97,6 +98,7 @@ type Ledger struct {
 	cfg               Config
 	received          map[uint64]retainedChunk
 	committed         map[string]Segment
+	committedOrder    []string
 	receivedSequence  int64
 	processedSequence int64
 	retainedBytes     int
@@ -175,6 +177,9 @@ func (l *Ledger) Commit(segment Segment) (bool, error) {
 		return false, nil
 	}
 	l.committed[segment.ID] = segment
+	// Commit order is the canonical order for backends that do not report
+	// sample cursors (OverlapAgree today). A map cannot preserve it.
+	l.committedOrder = append(l.committedOrder, segment.ID)
 	return true, nil
 }
 
@@ -238,9 +243,7 @@ func (l *Ledger) PersistedState() PersistedState {
 			state.Received = append(state.Received, copy)
 		}
 	}
-	for _, segment := range l.committed {
-		state.Committed = append(state.Committed, segment)
-	}
+	state.Committed = committedInSampleOrder(l.committed, l.committedOrder)
 	return state
 }
 
@@ -278,8 +281,36 @@ func (l *Ledger) snapshotLocked() Snapshot {
 			s.Replay = append(s.Replay, chunk.Chunk)
 		}
 	}
-	for _, segment := range l.committed {
-		s.Committed = append(s.Committed, segment)
-	}
+	s.Committed = committedInSampleOrder(l.committed, l.committedOrder)
 	return s
+}
+
+// committedInSampleOrder projects the committed map into canonical order:
+// ascending sample range when the backend reports one, otherwise commit order
+// (OverlapAgree does not populate sample cursors). Reconnect replay and
+// persisted recovery promise a stable order, and map iteration order is random.
+func committedInSampleOrder(committed map[string]Segment, order []string) []Segment {
+	out := make([]Segment, 0, len(committed))
+	seen := make(map[string]struct{}, len(order))
+	for _, id := range order {
+		segment, ok := committed[id]
+		if !ok {
+			continue
+		}
+		out = append(out, segment)
+		seen[id] = struct{}{}
+	}
+	// Defensive: a segment restored without an order entry must still appear.
+	for id, segment := range committed {
+		if _, ok := seen[id]; !ok {
+			out = append(out, segment)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].StartSample != out[j].StartSample {
+			return out[i].StartSample < out[j].StartSample
+		}
+		return out[i].EndSample < out[j].EndSample
+	})
+	return out
 }

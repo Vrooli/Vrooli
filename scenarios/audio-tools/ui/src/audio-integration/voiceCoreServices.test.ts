@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./api/voice", () => mocks);
-vi.mock("./hooks/voice/WhisperProvider", () => ({ WhisperProvider: class {} }));
-vi.mock("./hooks/voice/PcmVoiceStreamProvider", () => ({ PcmVoiceStreamProvider: class {} }));
+vi.mock("./hooks/voice/WhisperProvider", () => ({ WhisperProvider: vi.fn() }));
+vi.mock("./hooks/voice/PcmVoiceStreamProvider", () => ({ PcmVoiceStreamProvider: vi.fn() }));
 
 import { voiceCoreServices } from "./voiceCoreServices";
 

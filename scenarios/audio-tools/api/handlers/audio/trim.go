@@ -19,5 +19,9 @@ func (h *connectHandler) Trim(ctx context.Context, req *connect.Request[audiov1.
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.TrimResponse{Audio: out, ContentType: contentTypeFor(inFmt)}), nil
+	return connect.NewResponse(&audiov1.TrimResponse{
+		Audio:           out,
+		ContentType:     intaudio.ContentTypeFor(inFmt),
+		DurationSeconds: intaudio.DurationSeconds(ctx, out),
+	}), nil
 }

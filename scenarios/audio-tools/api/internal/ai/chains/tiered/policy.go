@@ -39,6 +39,26 @@ func CredentialTerminal(unknownBYOK, missingBYOK, insufficientCredits error) fun
 	}
 }
 
+// RequestCredentialValues is the credential set every capability chain scrubs
+// from fallback reasons. A non-empty value is redacted wherever it appears.
+func RequestCredentialValues(byokKey, lpbsToken string) []string {
+	return []string{byokKey, lpbsToken}
+}
+
+// StreamingTerminal is the stream-negotiation counterpart to CredentialTerminal.
+// Credit exhaustion is terminal at any tier because falling back would mask a
+// billing failure as a capability failure. BYOK credential errors are terminal
+// only for the BYOK slot; other tiers report their own error identities.
+func StreamingTerminal(slot Slot, err error, unknownBYOK, missingBYOK, insufficientCredits error) bool {
+	if errors.Is(err, insufficientCredits) {
+		return true
+	}
+	if slot == SlotBYOK {
+		return errors.Is(err, unknownBYOK) || errors.Is(err, missingBYOK)
+	}
+	return false
+}
+
 // FallbackLogger returns an optional structured fallback hook shared by all
 // capability chains. A nil logger leaves coordinator execution allocation-free.
 func FallbackLogger(capability string, logger logx.Logger) func(context.Context, FallbackEvent) {

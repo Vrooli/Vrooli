@@ -9,6 +9,7 @@ import (
 
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/httpc"
+	"audio-tools/internal/tts"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -41,23 +42,11 @@ func (a *OpenAITTS) SynthesizeStreaming(_ context.Context, _ string, _ ttschain.
 	return nil, nil
 }
 
-// canonicalToOpenAIVoice maps canonical voice IDs to OpenAI voice names.
-// Overrides keyed "byok:openai-tts" win.
+// canonicalToOpenAIVoice maps canonical voice IDs to OpenAI voice names using
+// the shared catalog. Overrides keyed by the catalog adapter id win.
 func canonicalToOpenAIVoice(canonical string, overrides map[string]string) string {
-	if v, ok := overrides["byok:openai-tts"]; ok && v != "" {
+	if v, ok := tts.OpenAIMapping.Resolve(canonical, overrides, tts.AdapterOpenAITTS); ok {
 		return v
-	}
-	switch canonical {
-	case "voice.feminine.warm":
-		return "shimmer"
-	case "voice.feminine.neutral":
-		return "nova"
-	case "voice.masculine.warm":
-		return "onyx"
-	case "voice.masculine.neutral":
-		return "echo"
-	case "voice.neutral.default":
-		return "alloy"
 	}
 	return "alloy"
 }

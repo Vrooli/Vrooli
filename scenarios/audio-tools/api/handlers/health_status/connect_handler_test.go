@@ -167,3 +167,80 @@ func TestStreamProviderHealth_ClosesOnCtxCancel(t *testing.T) {
 		t.Fatal("StreamProviderHealth did not exit after ctx cancel")
 	}
 }
+
+type slowChecker struct{ delay time.Duration }
+
+func (c slowChecker) Check(context.Context) (capabilities.Status, string) {
+	time.Sleep(c.delay)
+	return capabilities.StatusAvailable, "slow but healthy"
+}
+
+// TestGetProviderHealth_ReportsMeasuredLatency proves the previously
+// permanent latency_ms=0 field is now a real measurement from the checker
+// seam, not a placeholder.
+func TestGetProviderHealth_ReportsMeasuredLatency(t *testing.T) {
+	recorder := capabilities.NewLatencyRecorder()
+	checkers := map[string]capabilities.Checker{
+		"whisper-stt": recorder.Wrap("whisper-stt", slowChecker{delay: 5 * time.Millisecond}),
+	}
+	registry := capabilities.NewRegistry(testDefs(), checkers, time.Minute)
+	registry.SetLivenessCheckers(checkers)
+	deps := health_status.Deps{
+		Registry: registry,
+		Logger:   mocks.NewFakeLogger(),
+		Clock:    scheduletest.New(canonicalNow),
+		Latency:  recorder,
+	}
+	h := health_status.NewConnectHandler(deps)
+
+	resp, err := h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
+	require.NoError(t, err)
+	var stt *hsv1.CapabilityHealth
+	for _, capability := range resp.Msg.GetCapabilities() {
+		if capability.GetCapability() == diagv1.Capability_CAPABILITY_STT {
+			stt = capability
+		}
+	}
+	require.NotNil(t, stt)
+	require.Len(t, stt.GetProviders(), 1)
+	require.GreaterOrEqual(t, stt.GetProviders()[0].GetLatencyMs(), 1.0)
+	require.Less(t, stt.GetProviders()[0].GetLatencyMs(), 1000.0)
+}
+
+type instantChecker struct{}
+
+func (instantChecker) Check(context.Context) (capabilities.Status, string) {
+	return capabilities.StatusAvailable, "ok"
+}
+
+// TestGetProviderHealth_ReportsSubMillisecondLatency pins the precision fix:
+// integer milliseconds turned every fast localhost check into 0, which looked
+// identical to "never measured".
+func TestGetProviderHealth_ReportsSubMillisecondLatency(t *testing.T) {
+	recorder := capabilities.NewLatencyRecorder()
+	checkers := map[string]capabilities.Checker{
+		"whisper-stt": recorder.Wrap("whisper-stt", instantChecker{}),
+	}
+	registry := capabilities.NewRegistry(testDefs(), checkers, time.Minute)
+	registry.SetLivenessCheckers(checkers)
+	deps := health_status.Deps{
+		Registry: registry,
+		Logger:   mocks.NewFakeLogger(),
+		Clock:    scheduletest.New(canonicalNow),
+		Latency:  recorder,
+	}
+	h := health_status.NewConnectHandler(deps)
+
+	resp, err := h.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
+	require.NoError(t, err)
+	for _, capability := range resp.Msg.GetCapabilities() {
+		for _, provider := range capability.GetProviders() {
+			if provider.GetProviderId() != "whisper-stt" {
+				continue
+			}
+			require.Positive(t, provider.GetLatencyMs(), "a measured check must not render as zero")
+			return
+		}
+	}
+	t.Fatal("whisper-stt row not found")
+}

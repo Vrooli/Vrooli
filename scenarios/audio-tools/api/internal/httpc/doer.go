@@ -41,6 +41,14 @@ func LivenessDoer() Doer {
 	return &http.Client{Timeout: 3 * time.Second}
 }
 
+// ReadinessDoer bounds a readiness probe that may trigger real work (a tiny ASR
+// request, a one-word synthesis, a model inventory) without inheriting the
+// long generation timeout. A hung dependency must fail the probe, not hold a
+// health request open for two minutes.
+func ReadinessDoer() Doer {
+	return &http.Client{Timeout: 30 * time.Second}
+}
+
 // seam: Doer is the outbound-HTTP seam (SEAMS.md row "httpc.Doer").
 // Production wires *http.Client; tests wire mocks.FakeDoer.
 //

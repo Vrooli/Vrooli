@@ -41,6 +41,17 @@ func (t *AudioTimeline) Append(chunk sttchain.AudioChunk) error {
 	if chunk.EndSample < chunk.StartSample {
 		return fmt.Errorf("audio timeline: invalid sample range")
 	}
+	// The timeline is sample-addressed and Lookup slices Audio by sample
+	// offsets. Accepting a range that disagrees with the byte count makes
+	// Lookup return Missing (or, worse, bytes from a neighbouring range) for
+	// audio that was actually captured, so reject it at the seam.
+	if len(chunk.Audio)%2 != 0 {
+		return fmt.Errorf("audio timeline: %d-byte PCM is not a whole number of int16 samples", len(chunk.Audio))
+	}
+	if want := int64(len(chunk.Audio) / 2); chunk.EndSample-chunk.StartSample != want {
+		return fmt.Errorf("audio timeline: sample range %d..%d does not match %d bytes of PCM (%d samples)",
+			chunk.StartSample, chunk.EndSample, len(chunk.Audio), want)
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if len(t.chunks) > 0 {

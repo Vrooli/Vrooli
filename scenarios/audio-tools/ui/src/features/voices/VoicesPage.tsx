@@ -1,14 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Pencil } from "lucide-react";
+
 import { Panel } from "../../components/ui/panel";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
 import { StatusDot } from "../../components/ui/status-dot";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { pushToast } from "../../components/ui/toast";
 import { PageHeader } from "../../components/composites/PageHeader";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
-import { getVoiceOverrides } from "../../services/settings";
+import { getVoiceOverrides, setVoiceOverride, type VoiceOverrideRow } from "../../services/settings";
 import { getStatus } from "../../services/tts";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { TTS_ADAPTERS } from "../providers/providerCatalog.generated";
 
 const CANONICAL_VOICES = [
   "voice.feminine.warm",
@@ -18,12 +25,61 @@ const CANONICAL_VOICES = [
   "voice.neutral.default",
 ];
 
-const ADAPTERS = ["local:kokoro", "byok:openai-tts", "byok:elevenlabs"];
+interface EditTarget {
+  canonicalVoice: string;
+  tierProvider: string;
+}
 
 export function VoicesPage() {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const overrides = useQuery({ queryKey: ["settings", "voices"], queryFn: getVoiceOverrides });
   const ttsStatus = useQuery({ queryKey: ["tts", "status"], queryFn: getStatus, refetchInterval: 30_000 });
+
+  // A single edit target keeps the matrix unambiguous: starting an edit on a
+  // second cell replaces the first editor instead of opening two at once.
+  const [editing, setEditing] = useState<EditTarget | null>(null);
+  const [draft, setDraft] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const editorRef = useRef<HTMLInputElement>(null);
+
+  // The cell that opens the editor removes its own trigger, so move focus into
+  // the input explicitly (autofocus is disallowed by the a11y lint rule).
+  useEffect(() => {
+    if (editing) editorRef.current?.focus();
+  }, [editing]);
+
+  const saveOverride = useMutation({
+    mutationFn: (vars: EditTarget & { adapterVoice: string }) =>
+      setVoiceOverride(vars.canonicalVoice, vars.tierProvider, vars.adapterVoice),
+    onSuccess: (result, vars) => {
+      if (!result.ok) {
+        setSaveError(t(strings.voices.saveError));
+        pushToast({
+          title: t(strings.voices.saveError),
+          body: result.error.message,
+        });
+        return;
+      }
+      qc.setQueryData<typeof result>(["settings", "voices"], result);
+      setEditing(null);
+      setDraft("");
+      setSaveError(null);
+      pushToast({
+        title:
+          vars.adapterVoice === ""
+            ? t(strings.voices.deleted)
+            : t(strings.voices.saved),
+      });
+    },
+    onError: (error) => {
+      setSaveError(t(strings.voices.saveError));
+      pushToast({
+        title: t(strings.voices.saveError),
+        body: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
 
   const probes = ttsStatus.data?.ok
     ? ttsStatus.data.data.availability.map((a) => ({
@@ -39,6 +95,26 @@ export function VoicesPage() {
     return overrides.data.data.find(
       (o) => o.canonicalVoice === canonical && o.tierProvider === adapter,
     );
+  };
+
+  const startEdit = (target: EditTarget, current: VoiceOverrideRow | undefined) => {
+    setEditing(target);
+    setDraft(current?.adapterVoice ?? "");
+    setSaveError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft("");
+    setSaveError(null);
+  };
+
+  const commitEdit = () => {
+    if (!editing || saveOverride.isPending) return;
+    setSaveError(null);
+    // An empty value deletes the override server-side; the adapter falls back
+    // to its own default voice (see the Settings proto contract).
+    saveOverride.mutate({ ...editing, adapterVoice: draft.trim() });
   };
 
   return (
@@ -57,7 +133,7 @@ export function VoicesPage() {
             <THead>
               <TR>
                 <TH>{t(strings.voices.canonicalHeader)}</TH>
-                {ADAPTERS.map((a) => (
+                {TTS_ADAPTERS.map((a) => (
                   <TH key={a}>{a}</TH>
                 ))}
               </TR>
@@ -66,12 +142,88 @@ export function VoicesPage() {
               {CANONICAL_VOICES.map((c) => (
                 <TR key={c}>
                   <TD className="font-mono text-xs">{c}</TD>
-                  {ADAPTERS.map((a) => {
+                  {TTS_ADAPTERS.map((a) => {
                     const o = overrideFor(c, a);
+                    const isEditing =
+                      editing !== null &&
+                      editing.canonicalVoice === c &&
+                      editing.tierProvider === a;
+                    const isSaving = isEditing && saveOverride.isPending;
+                    const labelVars = { voice: c, adapter: a };
+
                     return (
-                      <TD key={a} className="font-mono text-xs">
-                        {o ? o.adapterVoice : (
-                          <span className="text-app-muted-foreground">{t(strings.common.default)}</span>
+                      <TD key={a} className="font-mono text-xs" aria-busy={isSaving}>
+                        {isEditing ? (
+                          <form
+                            className="flex flex-col gap-1"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              commitEdit();
+                            }}
+                          >
+                            <Input
+                              ref={editorRef}
+                              value={draft}
+                              disabled={isSaving}
+                              aria-label={t(strings.voices.editorAria, labelVars)}
+                              placeholder={t(strings.voices.placeholder)}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancelEdit();
+                                }
+                              }}
+                              className="h-8 min-w-24"
+                            />
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                type="submit"
+                                size="sm"
+                                disabled={isSaving}
+                                aria-label={t(strings.voices.saveAria, labelVars)}
+                              >
+                                {isSaving ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                                ) : null}
+                                {isSaving
+                                  ? t(strings.voices.saving)
+                                  : t(strings.voices.saveButton)}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                disabled={isSaving}
+                                aria-label={t(strings.voices.cancelAria, labelVars)}
+                                onClick={cancelEdit}
+                              >
+                                {t(strings.voices.cancelButton)}
+                              </Button>
+                            </div>
+                            {saveError ? (
+                              <p role="alert" className="text-xs text-app-danger">
+                                {saveError}
+                              </p>
+                            ) : null}
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={saveOverride.isPending}
+                            aria-label={t(strings.voices.editAria, labelVars)}
+                            title={t(strings.voices.editButton)}
+                            onClick={() => startEdit({ canonicalVoice: c, tierProvider: a }, o)}
+                            className="flex w-full items-center justify-between gap-1 rounded-control px-1 py-0.5 text-left transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-focus/60 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <span className={o ? "" : "text-app-muted-foreground"}>
+                              {o ? o.adapterVoice : t(strings.common.default)}
+                            </span>
+                            <Pencil
+                              className="h-3 w-3 shrink-0 text-app-muted-foreground"
+                              aria-hidden="true"
+                            />
+                          </button>
                         )}
                       </TD>
                     );

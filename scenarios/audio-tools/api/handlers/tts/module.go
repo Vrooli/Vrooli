@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	"connectrpc.com/connect"
+
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
 
@@ -42,11 +44,26 @@ type Deps struct {
 // UsageRecorder is the TTS transport's narrow usage submission port.
 type UsageRecorder interface{ Enqueue(store.UsageRow) }
 
+// DefaultMaxRequestBytes bounds one TTS message before Connect decodes it.
+// Synthesis input is text; 8 MiB admits a very large document while keeping a
+// single request from buffering unbounded memory.
+const DefaultMaxRequestBytes = 8 << 20
+
 // Module returns the TTS domain's contribution to the API. Deps.Logger
 // and Deps.Clock are required seams; nil values panic via the
 // NewConnectHandler check.
 func Module(d Deps) modulekit.Module {
-	connectPath, h := ttsconnect.NewTTSServiceHandler(NewConnectHandler(d))
+	return ModuleWithLimit(d, DefaultMaxRequestBytes)
+}
+
+// ModuleWithLimit is Module with an explicit request-body ceiling. The limit is
+// a parameter so the transport test can prove the rejection path without
+// allocating a production-sized body.
+func ModuleWithLimit(d Deps, maxRequestBytes int) modulekit.Module {
+	if maxRequestBytes <= 0 {
+		panic("tts.ModuleWithLimit requires a positive maxRequestBytes")
+	}
+	connectPath, h := ttsconnect.NewTTSServiceHandler(NewConnectHandler(d), connect.WithReadMaxBytes(maxRequestBytes))
 	return modulekit.Module{
 		Name: "tts",
 		Mount: func(r *mux.Router) {

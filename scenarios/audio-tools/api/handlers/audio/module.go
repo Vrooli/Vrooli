@@ -5,6 +5,7 @@ import (
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
@@ -15,13 +16,34 @@ type Deps struct {
 	Logger logx.Logger
 }
 
+// DefaultMaxRequestBytes bounds one transform request before Connect decodes
+// it. Audio transforms accept a whole payload in a single unary message, and
+// Connect otherwise buffers the entire body: without a ceiling a client can
+// exhaust process memory with one upload. 256 MiB covers a ~190 MiB audio file
+// after base64 expansion and is generous for the scenario's largest fixture
+// (a 112 MiB 61-minute WAV).
+const DefaultMaxRequestBytes = 256 << 20
+
 // Module returns the audio domain's contribution to the API. logger is
 // required; a nil value panics so a forgotten wire-up surfaces at boot.
 func Module(logger logx.Logger) modulekit.Module {
+	return ModuleWithLimit(logger, DefaultMaxRequestBytes)
+}
+
+// ModuleWithLimit is Module with an explicit request-body ceiling. The limit
+// is a parameter so the transport test can prove the rejection path without
+// allocating the production-sized payload.
+func ModuleWithLimit(logger logx.Logger, maxRequestBytes int) modulekit.Module {
 	if logger == nil {
 		panic("audio.Module requires logger")
 	}
-	connectPath, h := audioconnect.NewAudioProcessingServiceHandler(NewConnectHandler(Deps{Logger: logger}))
+	if maxRequestBytes <= 0 {
+		panic("audio.ModuleWithLimit requires a positive maxRequestBytes")
+	}
+	connectPath, h := audioconnect.NewAudioProcessingServiceHandler(
+		NewConnectHandler(Deps{Logger: logger}),
+		connect.WithReadMaxBytes(maxRequestBytes),
+	)
 	return modulekit.Module{
 		Name: "audio",
 		Mount: func(r *mux.Router) {

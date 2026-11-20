@@ -3,6 +3,7 @@ package segmenter
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -131,7 +132,7 @@ func feed(audio []byte, n int) chan sttchain.AudioChunk {
 // that a decode process was started (normalization ran) and the strategy
 // produced a transcript from the stub Whisper.
 func TestSegmenterNormalizesWebMThroughVAD(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreDependencyGoroutines())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -155,7 +156,7 @@ func TestSegmenterNormalizesWebMThroughVAD(t *testing.T) {
 // TestSegmenterPCMFastPathNoDecodeProcess declares PCM, so no ffmpeg
 // process is started — the browser fast-path.
 func TestSegmenterPCMFastPathNoDecodeProcess(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreDependencyGoroutines())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -179,7 +180,7 @@ func TestSegmenterPCMFastPathNoDecodeProcess(t *testing.T) {
 // non-PCM stream with no ffmpeg runs BufferedFallback (whole file →
 // Whisper) and starts no decode process.
 func TestSegmenterNoFfmpegFallsBackToBuffered(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, ignoreDependencyGoroutines())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -198,4 +199,49 @@ func TestSegmenterNoFfmpegFallsBackToBuffered(t *testing.T) {
 	require.Empty(t, proc.Calls, "no decode process when ffmpeg is absent")
 	require.Equal(t, "hello", final)
 	require.True(t, fellBack, "buffered fallback must mark FellBackToUnary")
+}
+
+type decodeFailureProcess struct{}
+
+func (p *decodeFailureProcess) Write(b []byte) (int, error) { return len(b), nil }
+func (p *decodeFailureProcess) Read([]byte) (int, error) {
+	return 0, errors.New("ffmpeg decode exploded")
+}
+func (p *decodeFailureProcess) CloseInput() error { return nil }
+func (p *decodeFailureProcess) Close() error      { return nil }
+
+type decodeFailureRunner struct{}
+
+func (decodeFailureRunner) Start(context.Context, string, []string) (audioformat.Process, error) {
+	return &decodeFailureProcess{}, nil
+}
+
+// TestNormalizeChunksReportsDecoderFailure pins the difference between a clean
+// EOF and a dead decoder. Before this guard, a mid-stream ffmpeg failure closed
+// the Frames channel exactly like EOF, so the turn was marked complete and the
+// missing audio was invisible.
+func TestNormalizeChunksReportsDecoderFailure(t *testing.T) {
+	engine := audioformat.New(
+		audioformat.WithProcessRunner(decodeFailureRunner{}),
+		audioformat.WithFfmpegProbe(func() bool { return true }),
+	)
+	chunks := make(chan sttchain.AudioChunk, 1)
+	chunks <- sttchain.AudioChunk{Audio: []byte{1, 2, 3, 4}}
+	close(chunks)
+	events := make(chan sttchain.StreamEvent, 4)
+
+	out, _, cleanup, err := New(Deps{Engine: engine}).normalizeChunks(context.Background(), sttchain.StreamStart{InputFormat: "webm"}, chunks, events)
+	require.NoError(t, err)
+	defer cleanup()
+
+	for range out {
+	}
+
+	select {
+	case event := <-events:
+		require.Equal(t, sttchain.StreamEventError, event.Kind)
+		require.ErrorIs(t, event.Error, audioformat.ErrStreamDecode)
+	case <-time.After(2 * time.Second):
+		t.Fatal("decoder failure was not reported to the event stream")
+	}
 }

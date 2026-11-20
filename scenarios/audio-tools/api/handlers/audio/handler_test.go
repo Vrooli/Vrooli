@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
+	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/testutil/mocks"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
@@ -91,6 +92,6 @@ func TestContentTypeFor_MapsKnownFormats(t *testing.T) {
 		"???":  "application/octet-stream",
 	}
 	for in, want := range cases {
-		require.Equal(t, want, contentTypeFor(in), "format=%q", in)
+		require.Equal(t, want, intaudio.ContentTypeFor(in), "format=%q", in)
 	}
 }

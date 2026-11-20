@@ -65,9 +65,9 @@ func TestListLocalProviders_ShapeAndOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := resp.Msg.GetProviders()
-	require.Len(t, providers, 4, "must list exactly the four local-tier providers")
+	require.Len(t, providers, 5, "must list the active local-tier lifecycle rows")
 
-	wantOrder := []string{"whisper-stt", "kokoro-tts", "speaker-verification", "ollama"}
+	wantOrder := []string{"whisper-stt", "kyutai-stt", "kokoro-tts", "speaker-verification", "ollama"}
 	for i, p := range providers {
 		require.Equal(t, wantOrder[i], p.GetProviderId())
 	}
@@ -77,10 +77,12 @@ func TestListLocalProviders_ShapeAndOrder(t *testing.T) {
 		byID[p.GetProviderId()] = p
 	}
 	require.Equal(t, "whisper", byID["whisper-stt"].GetResourceSlug())
+	require.Equal(t, "kyutai-stt", byID["kyutai-stt"].GetResourceSlug())
 	require.Equal(t, "ollama", byID["ollama"].GetResourceSlug())
 	require.Equal(t, plv1.ProcessState_PROCESS_STATE_RUNNING, byID["whisper-stt"].GetProcessState())
 	require.Equal(t, plv1.ProcessState_PROCESS_STATE_STOPPED, byID["kokoro-tts"].GetProcessState())
 	require.Equal(t, plv1.ProcessState_PROCESS_STATE_UNKNOWN, byID["speaker-verification"].GetProcessState())
+	require.Equal(t, plv1.ProcessState_PROCESS_STATE_UNKNOWN, byID["kyutai-stt"].GetProcessState())
 
 	// Only ollama advertises PULL_MODEL.
 	require.Contains(t, byID["ollama"].GetSupportedActions(), plv1.Action_ACTION_PULL_MODEL)

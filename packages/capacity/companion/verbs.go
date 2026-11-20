@@ -105,11 +105,12 @@ func (v Verbs) Run(args []string) error {
 	subcommand, rest := args[0], args[1:]
 	switch subcommand {
 	case "degrade", "upshift":
-		label, dryRun, err := parseStepFlags(subcommand, rest, stderr)
+		step, err := parseStepFlags(subcommand, rest, stderr)
 		if err != nil {
 			return err
 		}
-		if dryRun {
+		label := step.Label
+		if step.DryRun {
 			if v.Preview == nil {
 				return fmt.Errorf("resource %s does not declare a read-only capacity step preview", v.Resource)
 			}
@@ -155,24 +156,40 @@ func (v Verbs) usage(w io.Writer) {
 `, v.Resource, v.Resource, v.Resource)
 }
 
-func parseStepFlags(name string, args []string, stderr io.Writer) (string, bool, error) {
+// stepRequest is one parsed `capacity degrade|upshift` invocation.
+type stepRequest struct {
+	Label  string
+	DryRun bool
+	// Upshift is the actuator's compatibility directive. The actuator appends
+	// it to the adopter verb so a model-sized resource recreates LARGER and
+	// clears a degrade pin. The target label is authoritative for every
+	// adopter, so this is accepted rather than interpreted here; a resource
+	// whose upshift needs a distinct action binds it through Verbs.Upshift.
+	Upshift bool
+}
+
+func parseStepFlags(name string, args []string, stderr io.Writer) (stepRequest, error) {
 	set := flag.NewFlagSet("capacity "+name, flag.ContinueOnError)
 	set.SetOutput(stderr)
 	to := set.String("to", "", "target profile step label")
 	dryRun := set.Bool("dry-run", false, "describe the declared target action without applying it")
+	// The broker actuator appends --upshift when it climbs a degraded claim.
+	// Rejecting it made every upshift callback fail with "flag provided but not
+	// defined", so the declared upshift:true lever could never actuate.
+	upshift := set.Bool("upshift", false, "recreate larger and clear a degrade pin (broker upshift callback)")
 	// Broker probes commonly request JSON from every resource CLI. The shared
 	// contract accepts the flag even when the confirmation is intentionally
 	// human-readable; resource-specific result payloads remain available from
 	// their domain commands.
 	_ = set.Bool("json", false, "emit a machine-readable result when supported")
 	if err := set.Parse(args); err != nil {
-		return "", false, err
+		return stepRequest{}, err
 	}
 	label := strings.TrimSpace(*to)
 	if label == "" {
-		return "", false, fmt.Errorf("capacity %s requires --to <label>", name)
+		return stepRequest{}, fmt.Errorf("capacity %s requires --to <label>", name)
 	}
-	return label, *dryRun, nil
+	return stepRequest{Label: label, DryRun: *dryRun, Upshift: *upshift}, nil
 }
 
 func parseActivityFlags(args []string, stderr io.Writer) (string, error) {

@@ -37,7 +37,8 @@ const segmentOrdinals = new Map<string, SegmentOrdinalState>();
 const voiceConnectCodec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeStreamEvent> = {
   start: (start) => {
     const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
-    const config = params.get("stt_engine_id") ? { engineId: params.get("stt_engine_id")! } : undefined;
+    const engineId = params.get("stt_engine_id");
+    const config = engineId ? { engineId } : undefined;
     return create(TranscribeStreamRequestSchema, { payload: { case: "start", value: {
       language: start.language, initialPrompt: start.initialPrompt ?? "", skipSpeakerVerification: start.skipSpeakerVerification ?? false,
       inputFormat: AudioFormat.PCM_S16LE, inputSampleRateHz: start.sampleRateHz, protocolVersion: start.protocolVersion,

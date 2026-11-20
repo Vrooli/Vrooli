@@ -17,6 +17,13 @@ class FakeAudioWorkletNode extends FakeNode {
   }
 }
 
+// Minimal structural stand-in for the deprecated AudioProcessingEvent the
+// ScriptProcessor fallback receives. Using the local shape keeps the test off
+// the deprecated DOM type while asserting the same inputBuffer contract.
+interface FakeAudioProcessingEvent {
+  inputBuffer: { getChannelData: () => Float32Array };
+}
+
 describe("createCanonicalPcmCapture", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -36,15 +43,15 @@ describe("createCanonicalPcmCapture", () => {
     const gain = new FakeNode() as FakeNode & { gain: { value: number } };
     gain.gain = { value: 1 };
     const processor = new FakeNode() as FakeNode & {
-      onaudioprocess: ((event: AudioProcessingEvent) => void) | null;
+      onaudioprocess: ((event: FakeAudioProcessingEvent) => void) | null;
     };
-    processor.onaudioprocess = null;
+    const createScriptProcessor = vi.fn(() => processor);
     const context = {
       sampleRate: 16_000,
-      audioWorklet: { addModule: vi.fn(async () => undefined) },
+      audioWorklet: { addModule: vi.fn(() => Promise.resolve()) },
       createMediaStreamSource: vi.fn(() => source),
       createGain: vi.fn(() => gain),
-      createScriptProcessor: vi.fn(() => processor),
+      createScriptProcessor,
       destination: new FakeNode(),
     } as unknown as AudioContext;
     const onFrame = vi.fn();
@@ -57,12 +64,12 @@ describe("createCanonicalPcmCapture", () => {
     const [worklet] = FakeAudioWorkletNode.instances;
     if (!worklet) throw new Error("AudioWorklet capture should have been attached");
     expect(worklet.disconnect).toHaveBeenCalledOnce();
-    expect(context.createScriptProcessor).toHaveBeenCalledOnce();
-    const processFrame = processor.onaudioprocess as ((event: AudioProcessingEvent) => void) | null;
+    expect(createScriptProcessor).toHaveBeenCalledOnce();
+    const processFrame = processor.onaudioprocess;
     if (!processFrame) throw new Error("ScriptProcessor fallback should receive a callback");
     processFrame({
       inputBuffer: { getChannelData: () => new Float32Array([0.25, -0.25]) },
-    } as unknown as AudioProcessingEvent);
+    });
     expect(onFrame).toHaveBeenCalledWith(new Float32Array([0.25, -0.25]), 16_000);
 
     capture.stop();

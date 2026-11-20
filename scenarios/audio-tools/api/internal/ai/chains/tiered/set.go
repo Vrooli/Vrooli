@@ -40,7 +40,9 @@ func ExecuteBYOK[Adapter, Response any](registry map[string]Adapter, key, provid
 	if err != nil {
 		return nil, err
 	}
-	decorate(response, adapter)
+	if decorate != nil {
+		decorate(response, adapter)
+	}
 	return response, nil
 }
 
@@ -60,6 +62,9 @@ type ProviderSet[Req, Resp any] struct {
 	Route      func(slot Slot, req Req) bool
 	IsTerminal func(slot Slot, err error) bool
 	AllFailed  error
+	// Redact names per-request credential values scrubbed from fallback
+	// reasons before they are logged or returned to clients.
+	Redact func(req Req) []string
 }
 
 // CredentialSet is the common three-tier shape used by capability chains
@@ -77,11 +82,15 @@ type CredentialSet[Req, Resp any] struct {
 	MissingBYOK         error
 	InsufficientCredits error
 	AllFailed           error
+
+	// Redact names per-request credential values scrubbed from fallback
+	// reasons before they are logged or returned to clients.
+	Redact func(req Req) []string
 }
 
 // CredentialOptions holds the common provider pointers and runtime knobs for
 // capability chains using the default BYOK -> Vrooli -> Local routing policy.
-type CredentialOptions[Local, BYOK, Vrooli any] struct {
+type CredentialOptions[Req, Local, BYOK, Vrooli any] struct {
 	Local  *Local
 	BYOK   *BYOK
 	Vrooli *Vrooli
@@ -98,6 +107,10 @@ type CredentialOptions[Local, BYOK, Vrooli any] struct {
 
 	Clock schedule.Clock
 	Logx  logx.Logger
+
+	// Redact names the per-request credential values that must be scrubbed
+	// from fallback reasons before they are logged or returned to clients.
+	Redact func(req Req) []string
 }
 
 // CredentialProviderChain keeps the typed provider pointers needed by
@@ -144,6 +157,7 @@ func NewChainFromSet[Req, Resp any](set ProviderSet[Req, Resp], opts ChainOption
 		IsTerminal:   set.IsTerminal,
 		AllFailed:    set.AllFailed,
 		OnFallback:   opts.OnFallback,
+		Redact:       set.Redact,
 		Clock:        opts.Clock,
 	})
 }
@@ -159,12 +173,13 @@ func NewCredentialChain[Req, Resp any](set CredentialSet[Req, Resp], opts ChainO
 		Route:      CredentialRoute(set.HasBYOK, set.HasVrooli),
 		IsTerminal: CredentialTerminal(set.UnknownBYOK, set.MissingBYOK, set.InsufficientCredits),
 		AllFailed:  set.AllFailed,
+		Redact:     set.Redact,
 	}, opts)
 }
 
 // NewCredentialCoordinator adapts concrete provider pointers and constructs
 // the common credential-routed coordinator in one place.
-func NewCredentialCoordinator[Req, Resp, Local, BYOK, Vrooli any](opts CredentialOptions[Local, BYOK, Vrooli], localTier func(*Local) *Tier[Req, Resp], byokTier func(*BYOK) *Tier[Req, Resp], vrooliTier func(*Vrooli) *Tier[Req, Resp], hasBYOK, hasVrooli func(Req) bool, unknownBYOK, missingBYOK, insufficientCredits, allFailed error, capability string) *Coordinator[Req, Resp] {
+func NewCredentialCoordinator[Req, Resp, Local, BYOK, Vrooli any](opts CredentialOptions[Req, Local, BYOK, Vrooli], localTier func(*Local) *Tier[Req, Resp], byokTier func(*BYOK) *Tier[Req, Resp], vrooliTier func(*Vrooli) *Tier[Req, Resp], hasBYOK, hasVrooli func(Req) bool, unknownBYOK, missingBYOK, insufficientCredits, allFailed error, capability string) *Coordinator[Req, Resp] {
 	return NewCredentialChain(CredentialSet[Req, Resp]{
 		BYOK:                byokTier(opts.BYOK),
 		Vrooli:              vrooliTier(opts.Vrooli),
@@ -175,6 +190,7 @@ func NewCredentialCoordinator[Req, Resp, Local, BYOK, Vrooli any](opts Credentia
 		MissingBYOK:         missingBYOK,
 		InsufficientCredits: insufficientCredits,
 		AllFailed:           allFailed,
+		Redact:              opts.Redact,
 	}, ChainOptions{
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
@@ -190,7 +206,7 @@ func NewCredentialCoordinator[Req, Resp, Local, BYOK, Vrooli any](opts Credentia
 // NewCredentialProviderChain builds the common coordinator and retains the
 // typed providers for capability-specific paths such as TTS streaming. The
 // caller supplies only its concrete execute and availability methods.
-func NewCredentialProviderChain[Req, Resp, Local, BYOK, Vrooli any](opts CredentialOptions[Local, BYOK, Vrooli], localExecute func(*Local, context.Context, Req) (Resp, error), localAvailable func(*Local, context.Context) bool, byokExecute func(*BYOK, context.Context, Req) (Resp, error), byokAvailable func(*BYOK, context.Context) bool, vrooliExecute func(*Vrooli, context.Context, Req) (Resp, error), vrooliAvailable func(*Vrooli, context.Context) bool, hasBYOK, hasVrooli func(Req) bool, unknownBYOK, missingBYOK, insufficientCredits, allFailed error, capability string) *CredentialProviderChain[Req, Resp, Local, BYOK, Vrooli] {
+func NewCredentialProviderChain[Req, Resp, Local, BYOK, Vrooli any](opts CredentialOptions[Req, Local, BYOK, Vrooli], localExecute func(*Local, context.Context, Req) (Resp, error), localAvailable func(*Local, context.Context) bool, byokExecute func(*BYOK, context.Context, Req) (Resp, error), byokAvailable func(*BYOK, context.Context) bool, vrooliExecute func(*Vrooli, context.Context, Req) (Resp, error), vrooliAvailable func(*Vrooli, context.Context) bool, hasBYOK, hasVrooli func(Req) bool, unknownBYOK, missingBYOK, insufficientCredits, allFailed error, capability string) *CredentialProviderChain[Req, Resp, Local, BYOK, Vrooli] {
 	return &CredentialProviderChain[Req, Resp, Local, BYOK, Vrooli]{
 		Coordinator: NewCredentialCoordinator(opts,
 			func(provider *Local) *Tier[Req, Resp] { return TierFor(provider, localExecute, localAvailable) },

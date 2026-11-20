@@ -91,7 +91,7 @@ export type QualityStatus = "pass" | "warn" | "fail" | "unknown";
 /** One quality-smoke fixture's verdict, decoded from the STT step details. */
 export interface QualityFixtureResult {
   fixtureId: string;
-  expectedKind: "no_speech" | "speech" | string;
+  expectedKind: string;
   status: QualityStatus;
   wer: number;
   werThreshold: number;
@@ -144,6 +144,12 @@ function qualityStatusKey(s: string): QualityStatus {
  * state. Returns undefined when quality was not assessed so callers can fall
  * back to the readiness-only presentation.
  */
+// detailString extracts only declared string details. Passing an arbitrary
+// object through String() would produce "[object Object]" in the report.
+function detailString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 function parseQuality(details: Record<string, string>): QualitySmoke | undefined {
   if (details.quality_assessed !== "true") return undefined;
   let fixtures: QualityFixtureResult[] = [];
@@ -152,16 +158,16 @@ function parseQuality(details: Record<string, string>): QualitySmoke | undefined
     try {
       const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
       fixtures = parsed.map((f) => ({
-        fixtureId: String(f.fixture_id ?? ""),
-        expectedKind: String(f.expected_kind ?? ""),
-        status: qualityStatusKey(String(f.status ?? "")),
+        fixtureId: detailString(f.fixture_id),
+        expectedKind: detailString(f.expected_kind),
+        status: qualityStatusKey(detailString(f.status)),
         wer: Number(f.wer ?? 0),
         werThreshold: Number(f.wer_threshold ?? 0),
-        filtered: Boolean(f.transcript_filtered),
-        filterReason: String(f.filter_reason ?? ""),
-        hallucinationDetected: Boolean(f.hallucination_detected),
-        preview: String(f.preview ?? ""),
-        note: String(f.note ?? ""),
+        filtered: f.transcript_filtered === true,
+        filterReason: detailString(f.filter_reason),
+        hallucinationDetected: f.hallucination_detected === true,
+        preview: detailString(f.preview),
+        note: detailString(f.note),
       }));
     } catch {
       fixtures = [];

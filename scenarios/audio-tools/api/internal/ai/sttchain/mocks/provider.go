@@ -39,11 +39,11 @@ func NewFakeProvider(tier sttchain.ProviderTier, traits sttchain.ProviderTraits)
 // repeating an inline construction literal at every call site. Build returns
 // a fresh fake, so one test cannot accidentally share call counts with another.
 type FakeProviderBuilder struct {
-	provider FakeProvider
+	provider *FakeProvider
 }
 
 func NewFakeProviderBuilder(tier sttchain.ProviderTier) *FakeProviderBuilder {
-	return &FakeProviderBuilder{provider: FakeProvider{Tier: tier}}
+	return &FakeProviderBuilder{provider: &FakeProvider{Tier: tier}}
 }
 
 func (b *FakeProviderBuilder) WithTraits(traits sttchain.ProviderTraits) *FakeProviderBuilder {
@@ -62,8 +62,15 @@ func (b *FakeProviderBuilder) WithError(err error) *FakeProviderBuilder {
 }
 
 func (b *FakeProviderBuilder) Build() *FakeProvider {
-	provider := b.provider
-	return &provider
+	// Copy fields explicitly rather than copying the value: FakeProvider owns a
+	// mutex, and copying it would trip go vet (and share a lock with the
+	// builder's template).
+	return &FakeProvider{
+		Tier:    b.provider.Tier,
+		Traits_: b.provider.Traits_,
+		Result:  b.provider.Result,
+		Err:     b.provider.Err,
+	}
 }
 
 func (p *FakeProvider) Type() sttchain.ProviderTier      { return p.Tier }

@@ -53,7 +53,42 @@ type Service struct {
 	// multi-session ceiling, upstream of the audio-format layer; the format
 	// substrate must not mask it. nil disables the bound.
 	whisperSem chan struct{}
-	Logger     logx.Logger
+
+	// depMu guards the mutable runtime dependencies below. They are wired at
+	// boot today, but SetWhisperConcurrency/SetEngine/SetHTTPClient are also
+	// operator/test seams; a concurrent setter must not race a live request.
+	depMu sync.RWMutex
+
+	Logger logx.Logger
+}
+
+// runtimeDeps is a consistent snapshot of the mutable dependencies a request
+// reads. Holding depMu across network I/O would serialize every stream, so
+// callers snapshot once and use the values locally.
+type runtimeDeps struct {
+	whisperURL      string
+	httpClient      HTTPDoer
+	engine          *audioformat.Engine
+	ensurer         sttbackend.Ensurer
+	backendResource string
+	autoEnsure      bool
+	whisperSem      chan struct{}
+	speakerClient   *SpeakerClient
+}
+
+func (s *Service) snapshotDeps() runtimeDeps {
+	s.depMu.RLock()
+	defer s.depMu.RUnlock()
+	return runtimeDeps{
+		whisperURL:      s.whisperURL,
+		httpClient:      s.httpClient,
+		engine:          s.engine,
+		ensurer:         s.ensurer,
+		backendResource: s.backendResource,
+		autoEnsure:      s.autoEnsure,
+		whisperSem:      s.whisperSem,
+		speakerClient:   s.speakerClient,
+	}
 }
 
 // log returns the injected Logger or falls back to logx.Std with the
@@ -109,11 +144,19 @@ func NewService(
 }
 
 // SetWhisperURL is provided for tests that point the Service at an httptest server.
-func (s *Service) SetWhisperURL(u string) { s.whisperURL = u }
+func (s *Service) SetWhisperURL(u string) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
+	s.whisperURL = u
+}
 
 // SetHTTPClient is provided for tests that need to substitute outbound
 // transcription transport.
-func (s *Service) SetHTTPClient(c HTTPDoer) { s.httpClient = c }
+func (s *Service) SetHTTPClient(c HTTPDoer) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
+	s.httpClient = c
+}
 
 // SetBackendEnsurer wires the on-demand recovery seam (plan L1): when a
 // transcribe hits a down backend, the Service asks the ensurer to start
@@ -122,6 +165,8 @@ func (s *Service) SetHTTPClient(c HTTPDoer) { s.httpClient = c }
 // (the default) preserves the legacy behavior — a down backend returns the typed
 // error without an auto-start.
 func (s *Service) SetBackendEnsurer(e sttbackend.Ensurer, resource string) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
 	s.ensurer = e
 	s.backendResource = resource
 }
@@ -129,16 +174,26 @@ func (s *Service) SetBackendEnsurer(e sttbackend.Ensurer, resource string) {
 // SetAutoEnsure toggles on-demand recovery at runtime (STT_AUTO_ENSURE). When
 // false, a down backend returns the typed operator-action error immediately
 // without attempting a `resource start`.
-func (s *Service) SetAutoEnsure(on bool) { s.autoEnsure = on }
+func (s *Service) SetAutoEnsure(on bool) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
+	s.autoEnsure = on
+}
 
 // SetEngine overrides the audio-format engine. Tests use this to inject
 // an Engine wired to a fake ffmpeg Runner / process.
-func (s *Service) SetEngine(e *audioformat.Engine) { s.engine = e }
+func (s *Service) SetEngine(e *audioformat.Engine) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
+	s.engine = e
+}
 
 // SetWhisperConcurrency resizes the Whisper concurrency bound. n<=0
 // disables the bound. Intended for operator config and tests; existing
 // in-flight calls keep their slot until they finish.
 func (s *Service) SetWhisperConcurrency(n int) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
 	if n <= 0 {
 		s.whisperSem = nil
 		return
@@ -147,10 +202,14 @@ func (s *Service) SetWhisperConcurrency(n int) {
 }
 
 // SetSpeakerClient is provided for tests that need a custom resource client.
-func (s *Service) SetSpeakerClient(c *SpeakerClient) { s.speakerClient = c }
+func (s *Service) SetSpeakerClient(c *SpeakerClient) {
+	s.depMu.Lock()
+	defer s.depMu.Unlock()
+	s.speakerClient = c
+}
 
 // SpeakerClient returns the configured resource client (may be nil).
-func (s *Service) SpeakerClient() *SpeakerClient { return s.speakerClient }
+func (s *Service) SpeakerClient() *SpeakerClient { return s.snapshotDeps().speakerClient }
 
 // ----- Config accessors -----
 
@@ -173,50 +232,73 @@ func (s *Service) SetSpeakerConfigPath(p string) { s.speakerPath = p }
 func (s *Service) WakeWordPath() string          { return s.wakeWordPath }
 func (s *Service) SetWakeWordPath(p string)      { s.wakeWordPath = p }
 
-// SpeakerConfigSnapshot returns the in-memory speaker config.
+// cloneSpeakerConfig detaches the mutable slice a caller would otherwise share
+// with service state. The struct is small; the slice is the only reference.
+func cloneSpeakerConfig(c SpeakerConfig) SpeakerConfig {
+	c.ProfileIDs = append([]string(nil), c.ProfileIDs...)
+	return c
+}
+
+// cloneWakeWordTemplate detaches the Samples slice. Data is JSON-shaped and
+// treated as immutable by contract; the slice backing array is the mutable part.
+func cloneWakeWordTemplate(tmpl *WakeWordTemplate) *WakeWordTemplate {
+	if tmpl == nil {
+		return nil
+	}
+	out := *tmpl
+	out.Samples = append([]AudioFeatures(nil), tmpl.Samples...)
+	return &out
+}
+
+// SpeakerConfigSnapshot returns a detached copy of the in-memory speaker config.
 func (s *Service) SpeakerConfigSnapshot() SpeakerConfig {
 	s.speakerMu.RLock()
 	defer s.speakerMu.RUnlock()
-	return s.speaker
+	return cloneSpeakerConfig(s.speaker)
 }
 
 func (s *Service) SetSpeakerConfig(c SpeakerConfig) {
 	s.speakerMu.Lock()
 	defer s.speakerMu.Unlock()
-	s.speaker = c
+	s.speaker = cloneSpeakerConfig(c)
 }
 
 func (s *Service) GetWakeWordTemplate() *WakeWordTemplate {
 	s.wakeWordMu.RLock()
 	defer s.wakeWordMu.RUnlock()
-	return s.wakeWord
+	return cloneWakeWordTemplate(s.wakeWord)
 }
 
 func (s *Service) SetWakeWordTemplate(tmpl *WakeWordTemplate) {
 	s.wakeWordMu.Lock()
 	defer s.wakeWordMu.Unlock()
-	s.wakeWord = tmpl
+	s.wakeWord = cloneWakeWordTemplate(tmpl)
 }
 
 func (s *Service) transcribe(ctx context.Context, audio []byte, format, language, initialPrompt string, vadFilter bool) (TranscriptionResult, error) {
+	d := s.snapshotDeps()
+
 	// Bound concurrent Whisper calls to the resource cap; block (queue),
 	// never error, when full. ctx-aware so a cancelled session releases its
 	// place in line instead of deadlocking.
-	if s.whisperSem != nil {
+	if d.whisperSem != nil {
 		select {
-		case s.whisperSem <- struct{}{}:
-			defer func() { <-s.whisperSem }()
+		case d.whisperSem <- struct{}{}:
+			defer func() { <-d.whisperSem }()
 		case <-ctx.Done():
 			return TranscriptionResult{}, ctx.Err()
 		}
 	}
 
-	res, err := TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
+	call := func() (TranscriptionResult, error) {
+		return TranscribeBytes(ctx, d.whisperURL, d.httpClient, d.engine, audio, format, language, initialPrompt, vadFilter)
+	}
+	res, err := call()
 	if err == nil {
 		return res, err
 	}
 	if isBackendTimeout(err) {
-		resource := s.backendResource
+		resource := d.backendResource
 		if resource == "" {
 			resource = "whisper"
 		}
@@ -234,19 +316,19 @@ func (s *Service) transcribe(ctx context.Context, audio []byte, format, language
 	// `resource start`. When recovery is off (no ensurer / autoEnsure disabled /
 	// no backend resource) we return the typed operator-action error — never the
 	// raw dial string (plan L2).
-	resource := s.backendResource
-	if s.ensurer == nil || !s.autoEnsure || resource == "" {
-		s.log().Printf("event=stt_backend_down resource=%q auto_ensure=%t recovered=false err=%v", resource, s.autoEnsure, err)
+	resource := d.backendResource
+	if d.ensurer == nil || !d.autoEnsure || resource == "" {
+		s.log().Printf("event=stt_backend_down resource=%q auto_ensure=%t recovered=false err=%v", resource, d.autoEnsure, err)
 		return TranscriptionResult{}, newBackendNeedsOperator(resource)
 	}
 
 	s.log().Printf("event=stt_backend_down resource=%q action=ensure err=%v", resource, err)
-	if ensureErr := s.ensurer.EnsureRunning(ctx, resource); ensureErr != nil {
+	if ensureErr := d.ensurer.EnsureRunning(ctx, resource); ensureErr != nil {
 		s.log().Printf("event=stt_backend_ensure_failed resource=%q err=%v", resource, ensureErr)
 		return TranscriptionResult{}, newBackendNeedsOperator(resource)
 	}
 
-	res, err = TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
+	res, err = call()
 	if err == nil {
 		s.log().Printf("event=stt_backend_recovered resource=%q", resource)
 		return res, nil
@@ -281,12 +363,13 @@ func (s *Service) EnsureWhisperAvailable(ctx context.Context) bool {
 	if s.WhisperAvailable(ctx) {
 		return true
 	}
-	resource := s.backendResource
-	if s.capabilities == nil || s.ensurer == nil || !s.autoEnsure || resource == "" {
+	d := s.snapshotDeps()
+	resource := d.backendResource
+	if s.capabilities == nil || d.ensurer == nil || !d.autoEnsure || resource == "" {
 		return false
 	}
 	s.log().Printf("event=stt_backend_unavailable resource=%q action=ensure_probe", resource)
-	if err := s.ensurer.EnsureRunning(ctx, resource); err != nil {
+	if err := d.ensurer.EnsureRunning(ctx, resource); err != nil {
 		s.log().Printf("event=stt_backend_ensure_probe_failed resource=%q err=%v", resource, err)
 		return false
 	}
@@ -319,7 +402,7 @@ func (s *Service) SpeakerCapability(ctx context.Context) (string, string) {
 }
 
 func (s *Service) EvaluateSpeaker(ctx context.Context, audio []byte) SpeakerDecision {
-	return EvaluateSpeaker(ctx, s.SpeakerConfigSnapshot(), s.speakerClient, audio)
+	return EvaluateSpeaker(ctx, s.SpeakerConfigSnapshot(), s.snapshotDeps().speakerClient, audio)
 }
 
 func (s *Service) FormatSpeakerDecisionError(d SpeakerDecision) string {
@@ -405,21 +488,23 @@ func (s *Service) DefaultSpeakerProfileID() string {
 	return DefaultSpeakerProfileID()
 }
 
-func (s *Service) SpeakerClientConfigured() bool { return s.speakerClient != nil }
+func (s *Service) SpeakerClientConfigured() bool { return s.snapshotDeps().speakerClient != nil }
 
 func (s *Service) SpeakerReady(ctx context.Context) bool {
-	if s.speakerClient == nil {
+	client := s.snapshotDeps().speakerClient
+	if client == nil {
 		return false
 	}
-	ready, err := s.speakerClient.Ready(ctx)
+	ready, err := client.Ready(ctx)
 	return err == nil && ready.Status == "ready"
 }
 
 func (s *Service) ListSpeakerProfiles(ctx context.Context) ([]SpeakerProfile, int, error) {
-	if s.speakerClient == nil {
+	client := s.snapshotDeps().speakerClient
+	if client == nil {
 		return nil, 0, errors.New("speaker verification resource is not configured")
 	}
-	list, err := s.speakerClient.ListProfiles(ctx)
+	list, err := client.ListProfiles(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -427,10 +512,11 @@ func (s *Service) ListSpeakerProfiles(ctx context.Context) ([]SpeakerProfile, in
 }
 
 func (s *Service) SpeakerInfo(ctx context.Context) (SpeakerResourceInfo, bool) {
-	if s.speakerClient == nil {
+	client := s.snapshotDeps().speakerClient
+	if client == nil {
 		return SpeakerResourceInfo{}, false
 	}
-	info, err := s.speakerClient.Info(ctx)
+	info, err := client.Info(ctx)
 	if err != nil {
 		return SpeakerResourceInfo{}, false
 	}
@@ -438,8 +524,9 @@ func (s *Service) SpeakerInfo(ctx context.Context) (SpeakerResourceInfo, bool) {
 }
 
 func (s *Service) DeleteSpeakerBackend(ctx context.Context, profileID string) error {
-	if s.speakerClient == nil {
+	client := s.snapshotDeps().speakerClient
+	if client == nil {
 		return errors.New("speaker verification resource is not configured")
 	}
-	return s.speakerClient.DeleteProfile(ctx, profileID)
+	return client.DeleteProfile(ctx, profileID)
 }

@@ -103,7 +103,7 @@ func runSimulatedQualification() simulatedQualification {
 
 func simulatedProviderCellsPass() bool {
 	for _, cell := range []struct{ engine, model, strategy string }{
-		{"whisper-local", "whisper-medium", "vad_segment"},
+		{"whisper-local", "whisper-small", "vad_segment"},
 		{"kyutai-local", "kyutai-streaming", "passthrough"},
 	} {
 		if cell.engine == "" || cell.model == "" || cell.strategy == "" {

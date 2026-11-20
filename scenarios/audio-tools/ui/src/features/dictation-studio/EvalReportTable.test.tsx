@@ -2,7 +2,12 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { strings } from "../../consts/strings";
 import { EvalReportTable } from "./EvalReportTable";
+
+const winnerRecommendation = "Use stream";
+const batchRecommendation = "Use batch";
+const promotionReason = "evidence missing";
 
 const report = {
   qualityMeasured: true,
@@ -10,8 +15,8 @@ const report = {
   latencyHonesty: "Intra-run timing only.",
   normalizationPolicy: { werPolicy: "normalized", overlapAgreementPolicy: "strict" },
   warnings: [{ code: "fixture", severity: "warning", message: "fixture warning" }],
-  promotionVerdicts: [{ engineId: "kyutai", modelId: "model", strategy: "stream", policyProfile: "strict", stable: false, reasons: ["evidence missing"] }],
-  summary: { winnerStrategy: "stream", winnerLabel: "stream", recommendation: "Use stream", confidence: "low", reasons: ["faster"], confidenceNotes: ["small sample"] },
+  promotionVerdicts: [{ engineId: "kyutai", modelId: "model", strategy: "stream", policyProfile: "strict", stable: false, reasons: [promotionReason] }],
+  summary: { winnerStrategy: "stream", winnerLabel: "stream", recommendation: winnerRecommendation, confidence: "low", reasons: ["faster"], confidenceNotes: ["small sample"] },
   perStrategy: [{
     strategy: "stream",
     label: "Streaming",
@@ -46,8 +51,8 @@ describe("EvalReportTable", () => {
   it("renders safety, promotion, scaling, curve, and worst-clip evidence", () => {
     render(<EvalReportTable report={report} />);
 
-    expect(screen.getByText("Use stream")).toBeInTheDocument();
-    expect(screen.getByText("evidence missing")).toBeInTheDocument();
+    expect(screen.getByText(winnerRecommendation)).toBeInTheDocument();
+    expect(screen.getByText(promotionReason)).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "dictationStudio.lengthCurveTitle" })).toBeInTheDocument();
   });
 
@@ -77,8 +82,8 @@ describe("EvalReportTable", () => {
       }],
     } as never} />);
 
-    expect(screen.getByText("dictationStudio.qualityNotMeasured")).toBeInTheDocument();
-    expect(screen.getByText("dictationStudio.latencyNotMeasured")).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.qualityNotMeasured)).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.latencyNotMeasured)).toBeInTheDocument();
     expect(screen.queryByTestId("dictation-promotion-verdicts")).not.toBeInTheDocument();
   });
 
@@ -88,7 +93,7 @@ describe("EvalReportTable", () => {
       latencyMeasured: false,
       warnings: [],
       promotionVerdicts: [{ engineId: "local", modelId: "", strategy: "batch", policyProfile: "", stable: true, reasons: [] }],
-      summary: { winnerStrategy: "batch", recommendation: "Use batch", confidence: "high", reasons: [], confidenceNotes: [] },
+      summary: { winnerStrategy: "batch", recommendation: batchRecommendation, confidence: "high", reasons: [], confidenceNotes: [] },
       perStrategy: [{
         strategy: "batch", label: "Batch", wer: 0, substitutions: 0, insertions: 0, deletions: 0,
         whisperCalls: 0, whisperAudioSeconds: 0, rtf: 0, finalizationLatencyP50Ms: 0,
@@ -100,7 +105,7 @@ describe("EvalReportTable", () => {
       }],
     } as never} />);
 
-    expect(screen.getByText("Use batch")).toBeInTheDocument();
-    expect(screen.getByText("dictationStudio.promotionStable")).toBeInTheDocument();
+    expect(screen.getByText(batchRecommendation)).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.promotionStable)).toBeInTheDocument();
   });
 });

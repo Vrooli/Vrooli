@@ -1,6 +1,9 @@
 package tiered
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // LPBSProvider owns the provider-neutral client state shared by each Vrooli
 // tier. Domain providers retain their typed execute method and response
@@ -16,6 +19,21 @@ type LPBSProvider[Client any] struct {
 // injected because the concrete client is an interface in each capability.
 func NewLPBSProvider[Client any](client Client, isNil func(Client) bool, isAvailable func(Client, context.Context) bool, model func(Client) string) *LPBSProvider[Client] {
 	return &LPBSProvider[Client]{Client: client, isNil: isNil, isAvailable: isAvailable, model: model}
+}
+
+// LPBSClient is the client shape every capability's Vrooli tier exposes.
+type LPBSClient interface {
+	IsAvailable(context.Context) bool
+	Model() string
+}
+
+// NewLPBSClientProvider builds LPBS provider state for an interface-typed
+// client. The capability supplies only its nil test; availability and model
+// delegation are identical for every LPBS tier.
+func NewLPBSClientProvider[Client LPBSClient](client Client, isNil func(Client) bool) *LPBSProvider[Client] {
+	return NewLPBSProvider(client, isNil,
+		func(c Client, ctx context.Context) bool { return c.IsAvailable(ctx) },
+		func(c Client) string { return c.Model() })
 }
 
 // Configured reports whether the capability supplied an LPBS client.
@@ -65,21 +83,70 @@ func SafeModel[Client any](carrier LPBSStateCarrier[Client]) string {
 	return provider.Model()
 }
 
+// LPBSNotConfigured is the shared Vrooli-tier configuration error.
+func LPBSNotConfigured(capability string) error {
+	return fmt.Errorf("audio-tools/%s: vrooli client not configured", capability)
+}
+
+// LPBSTokenRequired is the shared Vrooli-tier credential error.
+func LPBSTokenRequired(capability string) error {
+	return fmt.Errorf("audio-tools/%s: LPBS token required", capability)
+}
+
+// StampLPBSResult stamps the shared Vrooli/LPBS identity on a result. A
+// provider-reported id wins; the LPBS model is a fallback.
+func StampLPBSResult[T ~string](tier *T, tierValue T, providerID, modelID *string, model string) {
+	StampIdentity(tier, tierValue, providerID, modelID, "lpbs", model, false)
+}
+
+func lpbsGuard(configured bool, token string, notConfigured, tokenRequired error) error {
+	if !configured {
+		return notConfigured
+	}
+	if token == "" {
+		return tokenRequired
+	}
+	return nil
+}
+
 // ExecuteLPBS centralizes the common Vrooli/LPBS guard sequence: an absent
 // client and absent credential are terminal configuration errors, while the
 // capability-specific call and result decoration remain injected.
 func ExecuteLPBS[Response any](configured bool, token string, notConfigured, tokenRequired error, call func() (*Response, error), decorate func(*Response)) (*Response, error) {
-	if !configured {
-		return nil, notConfigured
-	}
-	if token == "" {
-		return nil, tokenRequired
+	if err := lpbsGuard(configured, token, notConfigured, tokenRequired); err != nil {
+		return nil, err
 	}
 	response, err := call()
 	if err != nil {
 		return nil, err
 	}
-	decorate(response)
+	if decorate != nil {
+		decorate(response)
+	}
+	return response, nil
+}
+
+// ExecuteLPBSCarrier is the nil-safe form used by capability providers: it
+// resolves the carrier's LPBS state, applies the shared guards, invokes the
+// capability call, and stamps the result identity.
+func ExecuteLPBSCarrier[Client LPBSClient, Response any](carrier LPBSStateCarrier[Client], token string, notConfigured, tokenRequired error, call func(Client) (*Response, error), stamp func(*Response, *LPBSProvider[Client])) (*Response, error) {
+	if carrier == nil {
+		return nil, notConfigured
+	}
+	state := carrier.LPBSState()
+	if state == nil || !state.Configured() {
+		return nil, notConfigured
+	}
+	if err := lpbsGuard(true, token, notConfigured, tokenRequired); err != nil {
+		return nil, err
+	}
+	response, err := call(state.Client)
+	if err != nil {
+		return nil, err
+	}
+	if stamp != nil {
+		stamp(response, state)
+	}
 	return response, nil
 }
 

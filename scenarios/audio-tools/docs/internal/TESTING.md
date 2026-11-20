@@ -38,6 +38,19 @@ Run focused checks during development:
 cd api && GOWORK=off go test ./internal/ai/sttchain
 ```
 
+### Lab/qualification tests
+
+Lab packages (`internal/experiment`, `internal/eval`, `internal/soak`, and the
+`handlers/{experiment,eval,soak,validation}` transports) are product-mounted but
+are not serving paths. Their contract — no transitive import from serving code,
+and an explicit allowlist at the composition roots — is documented and enforced
+by `api/internal/lab`. Run their tests with:
+
+```bash
+cd scenarios/audio-tools && make lab-test
+cd api && go test ./internal/lab/... -count=1
+```
+
 ## CLI tests
 
 Place command tests under `cli/domains/<domain>/`. Every runtime command must
@@ -57,12 +70,36 @@ assert user-visible behavior, including failure and accessibility paths. Run:
 cd ui && pnpm test:coverage
 ```
 
+## Declaration and registry gates
+
+Generated surfaces are gated, not trusted:
+
+```bash
+cd scenarios/audio-tools && make catalog-check   # provider, operation, model, cross-catalog
+make catalog-gen                                  # provider catalogue -> Go + TS
+make operations-gen                               # operation catalogue -> UI specs
+make models-doc                                   # model seed -> docs/reference/models.md
+make endpoints                                    # modules -> .vrooli/endpoints.json
+```
+
+Each generator has a drift test that regenerates in memory and compares
+byte-for-byte. A hand-edited generated file fails the suite. The
+cross-catalog conformance test (`api/internal/catalogconformance`) also proves
+that provider, engine, and model references resolve in both directions, that
+the STT engine manifest and the provider catalogue agree, and that the
+summarize records mirror `resources/ollama/model-policy.json`.
+
 ## Coverage thresholds
 
-Use the thresholds in `.vrooli/testing.json` and the owning package's test
-configuration; this guide does not maintain a second set of numeric floors.
-The coverage gate is a regression boundary. Add behavior-focused tests before
-raising its threshold. Do not weaken the configured threshold to pass a run.
+The enforced floors live in `api/coverage_policy_test.go`; `.vrooli/testing.json`
+configures the harness, not a second numeric list. A floor is a measured
+regression baseline: add behavior-focused tests before raising it, and lower it
+only with a comment naming what regressed. An unlisted package is unenforced,
+not exempt by design.
+
+```bash
+cd api && go test -run TestCoverageFloors -v .
+```
 
 ## Streaming checks
 

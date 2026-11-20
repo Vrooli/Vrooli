@@ -24,5 +24,5 @@ func (h *connectHandler) Fade(ctx context.Context, req *connect.Request[audiov1.
 	if ct == "" {
 		ct = inFmt
 	}
-	return connect.NewResponse(&audiov1.FadeResponse{Audio: out, ContentType: contentTypeFor(ct)}), nil
+	return connect.NewResponse(&audiov1.FadeResponse{Audio: out, ContentType: intaudio.ContentTypeFor(ct)}), nil
 }

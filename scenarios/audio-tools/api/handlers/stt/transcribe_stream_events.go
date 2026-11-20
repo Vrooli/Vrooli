@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/protomap"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 
@@ -22,6 +24,9 @@ import (
 func streamErrorCode(err error) string {
 	if err != nil && strings.Contains(err.Error(), "stt_busy") {
 		return "stt_busy"
+	}
+	if errors.Is(err, audioformat.ErrStreamDecode) {
+		return "input_decode_failed"
 	}
 	var backendErr *sttpipeline.STTBackendError
 	if errors.As(err, &backendErr) {
@@ -130,7 +135,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 				Done: &sttv1.StreamDone{
 					FinalText:          done.FinalText,
 					ProviderTier:       protomap.ProviderTierToProto(string(done.LockedTier)),
-					ProviderId:         done.ProviderID,
+					ProviderId:         capabilities.CanonicalProviderID(done.ProviderID),
 					ModelId:            done.ModelID,
 					LatencyMs:          done.LatencyMs,
 					FellBackToUnary:    done.FellBackToUnary,

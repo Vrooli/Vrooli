@@ -157,7 +157,15 @@ func (o *OverlapAgree) Run(
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 		return err
 	}
-	o.applyDefaults()
+	// Resolve defaults on a private copy. OverlapAgree is documented as
+	// stateless across sessions and may be shared by concurrent sessions;
+	// mutating the receiver here made a zero-value instance change underneath
+	// its caller and raced two concurrent Run calls on every config field.
+	// The local receiver variable now points at this call's resolved copy, so
+	// the rest of Run (including its closures) is unchanged.
+	resolved := *o
+	resolved.applyDefaults()
+	o = &resolved
 	logger := o.Logger
 	if logger == nil {
 		logger = logx.Std{}
@@ -229,7 +237,7 @@ func (o *OverlapAgree) Run(
 		}}
 	}
 
-	transcribe := func(audio []byte) (*sttchain.Result, error) {
+	transcribeWith := func(callCtx context.Context, audio []byte) (*sttchain.Result, error) {
 		// Whisper's initial_prompt is context, not a second transcript
 		// channel. Passing the entire committed turn causes prompt
 		// regurgitation and grows the model's conditioning cost with session
@@ -256,9 +264,12 @@ func (o *OverlapAgree) Run(
 			clk = schedule.System()
 		}
 		t0 := clk.Now()
-		res, err := o.Provider.Transcribe(ctx, req)
+		res, err := o.Provider.Transcribe(callCtx, req)
 		totalLatencyMs += float64(clk.Now().Sub(t0).Milliseconds())
 		return res, err
+	}
+	transcribe := func(audio []byte) (*sttchain.Result, error) {
+		return transcribeWith(ctx, audio)
 	}
 
 	emitSegment := func(text string, result *sttchain.Result) {
@@ -340,6 +351,46 @@ func (o *OverlapAgree) Run(
 		return -1
 	}
 
+	// compactConsumed releases PCM that the coverage cursor has already moved
+	// past. The growing-window algorithm only needs the uncommitted tail plus
+	// any retained force-commit overlap; without this the raw session buffer
+	// grows for the whole turn even though committed audio can never be read
+	// again. Offsets are translated in place so the VAD scanner and the
+	// trigger/retry bookkeeping keep their meaning.
+	compactConsumed := func() {
+		if committedAudioBytes <= 0 || committedAudioBytes > len(pcm) {
+			return
+		}
+		// Amortise the copy: a word-timestamp advance can move the cursor by
+		// only a few milliseconds per commit. One second of retained audio is
+		// small relative to MaxWindowMs's default 10s ceiling.
+		if committedAudioBytes < o.SampleRate*sampleBytes {
+			return
+		}
+		prefix := committedAudioBytes
+		remaining := len(pcm) - prefix
+		compacted := make([]byte, remaining)
+		copy(compacted, pcm[prefix:])
+		pcm = compacted
+		committedAudioBytes = 0
+		nextFrame -= prefix
+		if nextFrame < 0 {
+			nextFrame = 0
+		}
+		if nextFrame > len(pcm) {
+			nextFrame = len(pcm)
+		}
+		nextTriggerAt -= prefix
+		if nextTriggerAt < 0 {
+			nextTriggerAt = 0
+		}
+		// silentFrames is a count over audio that may have just been dropped;
+		// clamp it to the frames still present so the cut math stays in bounds.
+		if maxFrames := nextFrame / frameBytes; silentFrames > maxFrames {
+			silentFrames = maxFrames
+		}
+	}
+
 	// forceCommitAll transcribes ALL uncommitted audio as a single
 	// single-shot commit and advances the cursor to the end of the
 	// buffer. This is the safety-net path for "no commit happened for
@@ -405,6 +456,7 @@ func (o *OverlapAgree) Run(
 			newCursor = committedAudioBytes
 		}
 		committedAudioBytes = newCursor
+		compactConsumed()
 		forceRetryAfterBytes = 0
 		recent = nil
 		lastAdvanced = true
@@ -487,6 +539,7 @@ func (o *OverlapAgree) Run(
 			forceRetryAfterBytes = 0
 			if rightEdge > committedAudioBytes && rightEdge <= len(pcm) {
 				committedAudioBytes = rightEdge
+				compactConsumed()
 			}
 			recent = nil
 			lastAdvanced = true
@@ -554,6 +607,7 @@ func (o *OverlapAgree) Run(
 				// the next iteration starts on genuinely new audio.
 				if rightEdge > committedAudioBytes && rightEdge <= len(pcm) {
 					committedAudioBytes = rightEdge
+					compactConsumed()
 				}
 				recent = nil
 				lastAdvanced = true
@@ -588,6 +642,7 @@ func (o *OverlapAgree) Run(
 						newOffset = len(pcm)
 					}
 					committedAudioBytes = newOffset
+					compactConsumed()
 					// Stale pre-advance hypotheses would block future
 					// agreement (they share no first-word with post-advance
 					// hypotheses), so clear them and switch to
@@ -606,59 +661,70 @@ func (o *OverlapAgree) Run(
 		}
 	}
 
+	// flushTail is the "last-chance" path for audio the provider has received
+	// but no agreement/boundary has committed yet. It MUST run for both a clean
+	// end-of-stream and a cancelled session: long utterances that never hit a
+	// clean agreement boundary would otherwise silently lose everything after
+	// the first commit. It transcribes the tail, runs only the
+	// prompt-regurgitation defense (not the full divergence detector), and emits
+	// a Segment with whatever new content remains. The egress hallucination
+	// filter still drops known Whisper silence-hallucination phrases downstream.
+	flushTail := func(callCtx context.Context) {
+		if len(pcm)-committedAudioBytes <= 0 {
+			return
+		}
+		tailBytes := make([]byte, len(pcm)-committedAudioBytes)
+		copy(tailBytes, pcm[committedAudioBytes:])
+		res, err := transcribeWith(callCtx, tailBytes)
+		if err != nil {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: final transcription failed for %d bytes; audio was not committed: %w", len(tailBytes), err)}
+		} else if res == nil {
+			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+				"overlap-agree: final transcription returned no result for %d bytes; audio was not committed", len(tailBytes))}
+		} else if strings.TrimSpace(res.Text) == "" {
+			// An empty terminal result is expected when the remaining
+			// bytes are only trailing silence (the VAD state has no
+			// voiced audio after the last boundary). It is a real
+			// provider failure only when the tail contained speech;
+			// preserve that diagnostic and retry contract in that case.
+			if hasVoiced {
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
+					"overlap-agree: final transcription returned an empty transcript for %d bytes; audio was not committed", len(tailBytes))}
+			}
+		} else {
+			newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
+			if len(newCommit) > len(committed) && tail != "" {
+				events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+					Text:         tail,
+					ProviderTier: res.Tier,
+					ProviderID:   res.ProviderID,
+					ModelID:      res.ModelID,
+					Confidence:   res.Confidence,
+				}}
+				committed = newCommit
+			}
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			// Cancellation is a stream end. Before the terminal Done, make one
+			// bounded, best-effort attempt to transcribe the tail the caller
+			// already delivered. Without it a request cancel mid-utterance
+			// reported a clean Done while the last audio was never committed.
+			if len(pcm)-committedAudioBytes > 0 {
+				if flushCtx, cancel, ok := bestEffortTailContext(ctx); ok {
+					flushTail(flushCtx)
+					cancel()
+				}
+			}
 			emitDone()
 			return ctx.Err()
 		case ch, ok := <-chunks:
 			if !ok {
-				// Final transcribe over the remaining uncommitted tail.
-				// This is the "last-chance" path: unsettled audio MUST
-				// reach the user, otherwise long utterances that never
-				// hit a clean agreement boundary silently lose
-				// everything after the first commit.
-				//
-				// Strategy: transcribe the tail, run only the
-				// prompt-regurgitation defense (not the full divergence
-				// detector), and emit a Segment with whatever new
-				// content remains. The egress hallucination filter
-				// still drops known Whisper silence-hallucination
-				// phrases downstream.
-				if len(pcm)-committedAudioBytes > 0 {
-					tailBytes := make([]byte, len(pcm)-committedAudioBytes)
-					copy(tailBytes, pcm[committedAudioBytes:])
-					res, err := transcribe(tailBytes)
-					if err != nil {
-						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-							"overlap-agree: final transcription failed for %d bytes; audio was not committed: %w", len(tailBytes), err)}
-					} else if res == nil {
-						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-							"overlap-agree: final transcription returned no result for %d bytes; audio was not committed", len(tailBytes))}
-					} else if strings.TrimSpace(res.Text) == "" {
-						// An empty terminal result is expected when the remaining
-						// bytes are only trailing silence (the VAD state has no
-						// voiced audio after the last boundary). It is a real
-						// provider failure only when the tail contained speech;
-						// preserve that diagnostic and retry contract in that case.
-						if hasVoiced {
-							events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-								"overlap-agree: final transcription returned an empty transcript for %d bytes; audio was not committed", len(tailBytes))}
-						}
-					} else {
-						newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
-						if len(newCommit) > len(committed) && tail != "" {
-							events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-								Text:         tail,
-								ProviderTier: res.Tier,
-								ProviderID:   res.ProviderID,
-								ModelID:      res.ModelID,
-								Confidence:   res.Confidence,
-							}}
-							committed = newCommit
-						}
-					}
-				}
+				flushTail(ctx)
 				emitDone()
 				return nil
 			}

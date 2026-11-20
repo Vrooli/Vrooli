@@ -3,6 +3,7 @@ package stt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -258,6 +259,11 @@ func TestMapChainError_Codes(t *testing.T) {
 		{"unknown_byok", sttchain.ErrUnknownBYOKProvider, connect.CodeInvalidArgument},
 		{"missing_byok", sttchain.ErrMissingBYOKProvider, connect.CodeInvalidArgument},
 		{"all_failed", sttchain.ErrAllProvidersFailed, connect.CodeUnavailable},
+		// Wrapped sentinels must keep their actionable code; a provider that
+		// adds context must not flatten a billing failure to Internal.
+		{"wrapped_credits", fmt.Errorf("provider: %w", sttchain.ErrInsufficientCredits), connect.CodeResourceExhausted},
+		{"wrapped_missing_byok", fmt.Errorf("provider: %w", sttchain.ErrMissingBYOKProvider), connect.CodeInvalidArgument},
+		{"wrapped_all_failed", fmt.Errorf("provider: %w", sttchain.ErrAllProvidersFailed), connect.CodeUnavailable},
 		{"generic", errors.New("other"), connect.CodeInternal},
 	}
 	for _, tc := range cases {

@@ -346,7 +346,7 @@ func (s *Selector) Select(
 	// every other case falls back to the provider's declared traits. This is
 	// the only place engine selection touches strategy eligibility — no engine
 	// id appears in branch logic anywhere else.
-	supports := s.eligibleStrategy(cfg, chosen, traits)
+	supports := s.eligibleStrategy(ctx, cfg, chosen, traits)
 
 	// Compatibility matrix (docs/domains/stt/streaming-pipeline.md):
 	//   - Stream=true, Strategies=[passthrough] → Passthrough only
@@ -475,11 +475,14 @@ func explicitStrategyPreference(pref StrategyPreference) (sttchain.StrategyKind,
 // engine's strategies[] whitelist; everything else (no registry, unknown
 // engine id, or a non-Local tier) falls back to the provider's declared
 // ProviderTraits — preserving the "empty whitelist means any" semantics.
-func (s *Selector) eligibleStrategy(cfg StreamConfig, chosen ProviderEligibility, traits sttchain.ProviderTraits) func(sttchain.StrategyKind) bool {
+func (s *Selector) eligibleStrategy(ctx context.Context, cfg StreamConfig, chosen ProviderEligibility, traits sttchain.ProviderTraits) func(sttchain.StrategyKind) bool {
 	if s.Registry != nil && chosen.Tier == sttchain.TierLocal {
 		engineID := cfg.EngineID
 		if engineID == "" && s.EngineResolver != nil {
-			if resolution, err := s.EngineResolver.Resolve(context.Background(), s.Registry); err == nil {
+			// Resolve under the session's context: the live resolver bounds each
+			// control-plane probe with a 10s timeout, so using Background would
+			// let a canceled session keep probing after its caller left.
+			if resolution, err := s.EngineResolver.Resolve(ctx, s.Registry); err == nil {
 				engineID = resolution.Selected
 			}
 		}

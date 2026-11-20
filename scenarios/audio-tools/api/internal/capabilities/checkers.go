@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"time"
 
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/httpc"
+	"audio-tools/internal/providercatalog"
 )
 
 // ResourceChecker is the generic HTTP-probe Checker used for resources whose
@@ -70,43 +72,45 @@ func (c *BYOKCredentialChecker) Check(ctx context.Context) (Status, string) {
 	return StatusUnavailable, "no BYOK credential configured; use audio-tools settings providers"
 }
 
+// byokProbeTimeout bounds a provider readiness probe so a hung provider cannot
+// stall a capability health check.
+const byokProbeTimeout = 5 * time.Second
+
 // ProbeBYOKEndpoint performs a cheap authenticated provider check. It accepts
 // a plaintext key only at the request boundary and never includes it in an
-// error or response.
+// error or response. The endpoint and header shape come from the provider
+// catalogue; the outbound request is bounded by byokProbeTimeout (or the
+// caller's earlier deadline).
 func ProbeBYOKEndpoint(providerID string) func(context.Context, string) error {
 	return func(ctx context.Context, key string) error {
-		endpoint, header, valuePrefix := byokProbeEndpoint(providerID)
-		if endpoint == "" {
+		probe, ok := providercatalog.ProbeFor(providerID)
+		if !ok {
 			return fmt.Errorf("provider endpoint is not configured")
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-		if err != nil {
-			return fmt.Errorf("create provider probe: %w", err)
-		}
-		req.Header.Set(header, valuePrefix+key)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("provider probe failed")
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-			return fmt.Errorf("provider probe returned status %d", resp.StatusCode)
-		}
-		return nil
+		return probeBYOK(ctx, probe, key, http.DefaultClient)
 	}
 }
 
-func byokProbeEndpoint(providerID string) (string, string, string) {
-	switch providerID {
-	case "openai-whisper", "openai-tts":
-		return "https://api.openai.com/v1/models", "Authorization", "Bearer "
-	case "deepgram":
-		return "https://api.deepgram.com/v1/projects", "Authorization", "Token "
-	case "elevenlabs":
-		return "https://api.elevenlabs.io/v1/user", "xi-api-key", ""
-	default:
-		return "", "", ""
+func probeBYOK(ctx context.Context, probe providercatalog.Probe, key string, doer httpc.Doer) error {
+	if probe.URL == "" {
+		return fmt.Errorf("provider endpoint is not configured")
 	}
+	ctx, cancel := context.WithTimeout(ctx, byokProbeTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probe.URL, nil)
+	if err != nil {
+		return fmt.Errorf("create provider probe: %w", err)
+	}
+	req.Header.Set(probe.Header, probe.ValuePrefix+key)
+	resp, err := doer.Do(req)
+	if err != nil {
+		return fmt.Errorf("provider probe failed")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("provider probe returned status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // TranscodeChecker verifies the in-process audio conversion dependency. The
@@ -128,6 +132,9 @@ func (c *TranscodeChecker) Check(context.Context) (Status, string) {
 }
 
 func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {
+	if c == nil || c.Doer == nil {
+		return StatusUnknown, "checker is not configured"
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", c.URL, nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()

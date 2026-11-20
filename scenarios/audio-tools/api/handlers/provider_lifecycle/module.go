@@ -32,6 +32,10 @@ type Deps struct {
 	// InvalidateEngineCache is called after a successful lifecycle mutation so
 	// the next STT selection observes the new resource state immediately.
 	InvalidateEngineCache func()
+	// Idempotency deduplicates mutating lifecycle RPCs keyed by the
+	// Idempotency-Key header. Nil means NewConnectHandler builds the
+	// production default store (5m TTL, 1024 entries, wall clock).
+	Idempotency *IdempotencyStore
 }
 
 // Module returns the provider_lifecycle module contribution.

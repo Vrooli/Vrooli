@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type verifiedDemandLease struct {
@@ -30,7 +31,7 @@ func VerifyAudioToolsDemandLease(ctx context.Context, baseURL, receipt string, c
 	}
 	req.Header.Set("X-Test-Genie-Lease-Receipt", strings.TrimSpace(receipt))
 	if client == nil {
-		client = &http.Client{}
+		client = &http.Client{Timeout: 5 * time.Second}
 	}
 	resp, err := client.Do(req)
 	if err != nil {

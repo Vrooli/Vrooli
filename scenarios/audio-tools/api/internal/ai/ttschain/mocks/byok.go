@@ -17,6 +17,7 @@ type FakeBYOK struct {
 	Err          error
 	SynthesizeFn func(ctx context.Context, key string, req ttschain.Request) (*ttschain.Result, error)
 	Streaming    bool
+	StreamFn     func(ctx context.Context, key string, req ttschain.Request) (<-chan ttschain.AudioFrame, error)
 }
 
 func (f *FakeBYOK) ID() string                               { return f.IDStr }
@@ -35,7 +36,10 @@ func (f *FakeBYOK) Synthesize(ctx context.Context, key string, req ttschain.Requ
 	return &ttschain.Result{Audio: []byte("byok-audio"), ContentType: "audio/mpeg"}, nil
 }
 func (f *FakeBYOK) StreamingCapability() bool { return f.Streaming }
-func (f *FakeBYOK) SynthesizeStreaming(context.Context, string, ttschain.Request) (<-chan ttschain.AudioFrame, error) {
+func (f *FakeBYOK) SynthesizeStreaming(ctx context.Context, key string, req ttschain.Request) (<-chan ttschain.AudioFrame, error) {
+	if f.StreamFn != nil {
+		return f.StreamFn(ctx, key, req)
+	}
 	return nil, nil
 }
 

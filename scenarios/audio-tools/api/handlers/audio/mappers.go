@@ -1,32 +1,11 @@
 package audio
 
 import (
+	"strings"
+
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
-
-// contentTypeFor maps the canonical audio format short-code to its
-// matching HTTP content-type. The empty string and "wav" both map to
-// "audio/wav"; unknown formats fall back to "application/octet-stream".
-func contentTypeFor(format string) string {
-	switch format {
-	case "wav", "":
-		return "audio/wav"
-	case "mp3":
-		return "audio/mpeg"
-	case "flac":
-		return "audio/flac"
-	case "aac":
-		return "audio/aac"
-	case "ogg":
-		return "audio/ogg"
-	case "webm":
-		return "audio/webm"
-	case "opus":
-		return "audio/opus"
-	}
-	return "application/octet-stream"
-}
 
 // audioFormatString maps the proto AudioFormat enum to the ffmpeg
 // short-code string the internal audio pipeline consumes. UNSPECIFIED
@@ -53,24 +32,28 @@ func audioFormatString(f commonv1.AudioFormat) string {
 
 // audioFormatFromString is the inverse of audioFormatString, used by
 // the ExtractMetadata response path to populate AudioMetadata.format
-// from ffmpeg's reported container short-code. Unknown short-codes map
-// to AUDIO_FORMAT_UNSPECIFIED.
+// from ffmpeg's reported container short-code. ffprobe often reports a
+// comma-separated alias list (e.g. "matroska,webm" for WebM), so each
+// token is tried in turn. Unknown short-codes map to
+// AUDIO_FORMAT_UNSPECIFIED.
 func audioFormatFromString(s string) commonv1.AudioFormat {
-	switch s {
-	case "wav":
-		return commonv1.AudioFormat_AUDIO_FORMAT_WAV
-	case "mp3":
-		return commonv1.AudioFormat_AUDIO_FORMAT_MP3
-	case "flac":
-		return commonv1.AudioFormat_AUDIO_FORMAT_FLAC
-	case "ogg":
-		return commonv1.AudioFormat_AUDIO_FORMAT_OGG
-	case "webm":
-		return commonv1.AudioFormat_AUDIO_FORMAT_WEBM
-	case "opus":
-		return commonv1.AudioFormat_AUDIO_FORMAT_OPUS
-	case "aac":
-		return commonv1.AudioFormat_AUDIO_FORMAT_AAC
+	for _, token := range strings.Split(s, ",") {
+		switch strings.TrimSpace(token) {
+		case "wav":
+			return commonv1.AudioFormat_AUDIO_FORMAT_WAV
+		case "mp3":
+			return commonv1.AudioFormat_AUDIO_FORMAT_MP3
+		case "flac":
+			return commonv1.AudioFormat_AUDIO_FORMAT_FLAC
+		case "ogg":
+			return commonv1.AudioFormat_AUDIO_FORMAT_OGG
+		case "webm":
+			return commonv1.AudioFormat_AUDIO_FORMAT_WEBM
+		case "opus":
+			return commonv1.AudioFormat_AUDIO_FORMAT_OPUS
+		case "aac":
+			return commonv1.AudioFormat_AUDIO_FORMAT_AAC
+		}
 	}
 	return commonv1.AudioFormat_AUDIO_FORMAT_UNSPECIFIED
 }

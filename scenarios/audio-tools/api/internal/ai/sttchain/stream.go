@@ -2,7 +2,6 @@ package sttchain
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"audio-tools/internal/ai/chains/tiered"
@@ -82,60 +81,51 @@ func (c *Chain) resolveLocalEngine(engineID string) Provider {
 // The returned channel is closed after the final Done. Caller must drain.
 func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	req := Request{BYOKKey: start.BYOKKey, LPBSToken: start.LPBSToken}
-	if c.localFirst {
-		if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
-			out, err := local.TranscribeStreaming(ctx, start, chunks)
-			if err != nil && start.RequireStreaming {
+
+	// attemptLocal runs the Local tier once. It returns (out, nil) on
+	// success, (nil, nil) when negotiation should continue, and
+	// (nil, err) when the fail-closed boundary requires an immediate
+	// return. Both precedence positions share this implementation.
+	attemptLocal := func() (<-chan StreamEvent, error) {
+		local := c.resolveLocalEngine(start.EngineID)
+		if local == nil || !c.enableLocal || !local.IsAvailable(ctx) || !local.Traits().Stream {
+			return nil, nil
+		}
+		out, err := local.TranscribeStreaming(ctx, start, chunks)
+		if err != nil {
+			if start.RequireStreaming {
 				return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
 			}
-			if err == nil && out != nil {
-				return out, nil
-			}
-			if start.RequireStreaming && err == nil {
-				return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
-			}
+			return nil, nil
+		}
+		if out != nil {
+			return out, nil
+		}
+		if start.RequireStreaming {
+			return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
+		}
+		return nil, nil
+	}
+
+	if c.localFirst {
+		if out, err := attemptLocal(); out != nil || err != nil {
+			return out, err
 		}
 	}
 
-	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.Traits().Stream {
-		out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
-		if err != nil {
-			if start.RequireStreaming {
-				return nil, fmt.Errorf("%w: byok: %v", ErrStreamingUnavailable, err)
-			}
-			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
-				return nil, err
-			}
-		} else if out != nil {
-			return out, nil
-		} else if start.RequireStreaming {
-			return nil, fmt.Errorf("%w: byok returned no event channel", ErrStreamingUnavailable)
+	if c.byok != nil {
+		if out, err := c.attemptRemoteStream(ctx, tiered.SlotBYOK, c.byok, req, start, chunks); out != nil || err != nil {
+			return out, err
 		}
 	}
-	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.Traits().Stream {
-		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
-		if err != nil && start.RequireStreaming {
-			return nil, fmt.Errorf("%w: vrooli: %v", ErrStreamingUnavailable, err)
-		}
-		if err == nil && out != nil {
-			return out, nil
-		}
-		if start.RequireStreaming && err == nil {
-			return nil, fmt.Errorf("%w: vrooli returned no event channel", ErrStreamingUnavailable)
+	if c.vrooli != nil {
+		if out, err := c.attemptRemoteStream(ctx, tiered.SlotVrooli, c.vrooli, req, start, chunks); out != nil || err != nil {
+			return out, err
 		}
 	}
 	if !c.localFirst {
-		if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
-			out, err := local.TranscribeStreaming(ctx, start, chunks)
-			if err != nil && start.RequireStreaming {
-				return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
-			}
-			if err == nil && out != nil {
-				return out, nil
-			}
-			if start.RequireStreaming && err == nil {
-				return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
-			}
+		if out, err := attemptLocal(); out != nil || err != nil {
+			return out, err
 		}
 	}
 
@@ -144,6 +134,33 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 	}
 
 	return c.bufferedFallback(ctx, start, chunks), nil
+}
+
+// attemptRemoteStream negotiates one remote tier. It returns (out, nil) when
+// the tier accepted the stream, (nil, nil) when negotiation should continue to
+// the next tier, and (nil, err) when the fail-closed boundary or a terminal
+// provider error requires an immediate return.
+func (c *Chain) attemptRemoteStream(ctx context.Context, slot tiered.Slot, provider Provider, req Request, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
+	if !c.Eligible(ctx, slot, req) || !provider.Traits().Stream {
+		return nil, nil
+	}
+	out, err := provider.TranscribeStreaming(ctx, start, chunks)
+	switch {
+	case err != nil:
+		if start.RequireStreaming {
+			return nil, fmt.Errorf("%w: %s: %v", ErrStreamingUnavailable, slot.String(), err)
+		}
+		// Credit exhaustion is terminal at every tier: falling through
+		// would mask a billing failure as a capability failure.
+		if tiered.StreamingTerminal(slot, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
+			return nil, err
+		}
+	case out != nil:
+		return out, nil
+	case start.RequireStreaming:
+		return nil, fmt.Errorf("%w: %s returned no event channel", ErrStreamingUnavailable, slot.String())
+	}
+	return nil, nil
 }
 
 // bufferedFallback consumes the chunks channel, runs the unary chain on

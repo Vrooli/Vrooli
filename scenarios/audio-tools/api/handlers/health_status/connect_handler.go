@@ -30,29 +30,53 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) GetProviderHealth(ctx context.Context, _ *connect.Request[hsv1.GetProviderHealthRequest]) (*connect.Response[hsv1.GetProviderHealthResponse], error) {
-	if h.deps.Registry == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
+	snapshot, err := h.snapshot(ctx, false)
+	if err != nil {
+		return nil, err
 	}
-	states := h.deps.Registry.ResolveLiveness(ctx)
-	resp := &hsv1.GetProviderHealthResponse{
-		Capabilities:    buildCapabilities(states),
-		GeneratedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
-		CacheTtlSeconds: ttlSeconds(h.deps.Registry.CacheTTL()),
-	}
-	return connect.NewResponse(resp), nil
+	return connect.NewResponse(&hsv1.GetProviderHealthResponse{
+		Capabilities:    snapshot.capabilities,
+		GeneratedAt:     snapshot.generatedAt,
+		CacheTtlSeconds: snapshot.cacheTTLSeconds,
+	}), nil
 }
 
 func (h *connectHandler) RefreshProviderHealth(ctx context.Context, _ *connect.Request[hsv1.RefreshProviderHealthRequest]) (*connect.Response[hsv1.RefreshProviderHealthResponse], error) {
+	snapshot, err := h.snapshot(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&hsv1.RefreshProviderHealthResponse{
+		Capabilities:    snapshot.capabilities,
+		GeneratedAt:     snapshot.generatedAt,
+		CacheTtlSeconds: snapshot.cacheTTLSeconds,
+	}), nil
+}
+
+// healthSnapshot is the shared Get/Refresh body so a cache-TTL or latency
+// change cannot land in one RPC and miss the other. force bypasses the
+// registry's liveness cache.
+type healthSnapshot struct {
+	capabilities    []*hsv1.CapabilityHealth
+	generatedAt     string
+	cacheTTLSeconds int32
+}
+
+func (h *connectHandler) snapshot(ctx context.Context, force bool) (healthSnapshot, error) {
 	if h.deps.Registry == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
+		return healthSnapshot{}, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
 	}
-	states := h.deps.Registry.ResolveForce(ctx)
-	resp := &hsv1.RefreshProviderHealthResponse{
-		Capabilities:    buildCapabilities(states),
-		GeneratedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
-		CacheTtlSeconds: ttlSeconds(h.deps.Registry.CacheTTL()),
+	var states []capabilities.State
+	if force {
+		states = h.deps.Registry.ResolveForce(ctx)
+	} else {
+		states = h.deps.Registry.ResolveLiveness(ctx)
 	}
-	return connect.NewResponse(resp), nil
+	return healthSnapshot{
+		capabilities:    buildCapabilities(states, h.deps.Latency),
+		generatedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
+		cacheTTLSeconds: ttlSeconds(h.deps.Registry.CacheTTL()),
+	}, nil
 }
 
 func (h *connectHandler) StreamProviderHealth(ctx context.Context, _ *connect.Request[hsv1.StreamProviderHealthRequest], stream *connect.ServerStream[hsv1.ProviderHealthEvent]) error {
@@ -74,7 +98,7 @@ func (h *connectHandler) StreamProviderHealth(ctx context.Context, _ *connect.Re
 			states := h.deps.Registry.ResolveLiveness(ctx)
 			event := &hsv1.ProviderHealthEvent{
 				GeneratedAt:  h.deps.Clock.Now().UTC().Format(time.RFC3339),
-				Capabilities: buildCapabilities(states),
+				Capabilities: buildCapabilities(states, h.deps.Latency),
 			}
 			if err := stream.Send(event); err != nil {
 				return err
@@ -95,10 +119,11 @@ func ttlSeconds(d time.Duration) int32 {
 // mapping) or more capabilities — one ProviderHealth row per
 // (provider, mapped capability) pair.
 //
-// Phase-1 fields TODO:
-//   - serving: requires routing visibility, not yet plumbed.
-//   - latency_ms: registry.State doesn't carry per-check latency yet.
-func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
+// A remaining Phase-1 field: serving requires routing visibility (which
+// provider the chain would actually select), which the registry does not own.
+// latency_ms is measured at the checker seam; a cache hit reports the last real
+// check's duration rather than a synthetic zero.
+func buildCapabilities(states []capabilities.State, latency *capabilities.LatencyRecorder) []*hsv1.CapabilityHealth {
 	groups := capabilities.Serviceability(states)
 	out := make([]*hsv1.CapabilityHealth, 0, len(groups))
 	for _, group := range groups {
@@ -111,7 +136,14 @@ func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
 				State:         stateToProto(st.Status),
 				LastCheckedAt: st.CheckedAt,
 				Serving:       false,
-				LatencyMs:     0,
+			}
+			if latency != nil {
+				if duration, ok := latency.Last(st.Def.ID); ok {
+					// Keep sub-millisecond precision. Integer milliseconds turned
+					// every localhost check (often 100-800 µs) into a literal 0,
+					// which the UI and CLI then rendered as "unmeasured".
+					row.LatencyMs = duration.Seconds() * 1000
+				}
 			}
 			if st.Status == capabilities.StatusUnavailable {
 				row.ErrorCode = "provider_unavailable"

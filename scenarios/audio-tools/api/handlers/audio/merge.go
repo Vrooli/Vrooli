@@ -3,6 +3,7 @@ package audio
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	intaudio "audio-tools/internal/audio"
 
@@ -17,7 +18,10 @@ func (h *connectHandler) Merge(ctx context.Context, req *connect.Request[audiov1
 	}
 	bs := make([][]byte, 0, len(req.Msg.Sources))
 	fmts := make([]string, 0, len(req.Msg.Sources))
-	for _, s := range req.Msg.Sources {
+	for i, s := range req.Msg.Sources {
+		if len(s.GetAudio()) == 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("sources[%d].audio is required", i))
+		}
 		bs = append(bs, s.Audio)
 		fmts = append(fmts, audioFormatString(s.GetFormat()))
 	}
@@ -26,5 +30,9 @@ func (h *connectHandler) Merge(ctx context.Context, req *connect.Request[audiov1
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
-	return connect.NewResponse(&audiov1.MergeResponse{Audio: out, ContentType: contentTypeFor(outFmt)}), nil
+	return connect.NewResponse(&audiov1.MergeResponse{
+		Audio:           out,
+		ContentType:     intaudio.ContentTypeFor(outFmt),
+		DurationSeconds: intaudio.DurationSeconds(ctx, out),
+	}), nil
 }

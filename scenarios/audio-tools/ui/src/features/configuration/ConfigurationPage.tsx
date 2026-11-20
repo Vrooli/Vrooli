@@ -17,9 +17,32 @@ import {
 } from "../../services/settings";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
+import { ACTIVE_PROVIDERS, type ProviderMeta } from "../providers/providerCatalog.generated";
 import { TierBadge } from "./components/TierBadge";
 
 const CAPABILITIES = ["STT", "TTS", "Summarize"] as const;
+
+/**
+ * Credentials can only be stored for providers that hold their own key
+ * material (BYOK) or proxy it behind a gateway. Local resources and browser
+ * providers are configured through their lifecycle, not a credential.
+ */
+const CREDENTIAL_PROVIDER_KINDS: ReadonlySet<ProviderMeta["kind"]> = new Set(["byok_api", "gateway"]);
+
+const CAPABILITY_LABEL_KEYS = {
+  stt: strings.config.capabilityStt,
+  tts: strings.config.capabilityTts,
+  summarize: strings.config.capabilitySummarize,
+} as const;
+
+type ByokCapability = keyof typeof CAPABILITY_LABEL_KEYS;
+
+const credentialProvidersFor = (capability: string): ProviderMeta[] =>
+  ACTIVE_PROVIDERS.filter(
+    (provider) =>
+      CREDENTIAL_PROVIDER_KINDS.has(provider.kind) &&
+      (provider.capabilities as readonly string[]).includes(capability),
+  );
 
 const ENV_VARS = [
   "AUDIO_AI_ENABLE_BYOK",
@@ -53,7 +76,16 @@ export function ConfigurationPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["settings", "byok"] }),
   });
 
-  const [byokForm, setByokForm] = useState({ providerId: "", capability: "tts", apiKey: "" });
+  const [byokForm, setByokForm] = useState<{ providerId: string; capability: ByokCapability; apiKey: string }>({
+    providerId: "",
+    capability: "tts",
+    apiKey: "",
+  });
+
+  const credentialProviders = credentialProvidersFor(byokForm.capability);
+  const selectedProvider = credentialProviders.find((provider) => provider.id === byokForm.providerId);
+  const capabilityLabel = t(CAPABILITY_LABEL_KEYS[byokForm.capability]);
+  const canSubmitByok = Boolean(selectedProvider && byokForm.apiKey);
 
   return (
     <div className="flex max-w-6xl flex-col gap-4 md:gap-6">
@@ -153,22 +185,64 @@ export function ConfigurationPage() {
               className="flex flex-wrap items-end gap-2 px-4 py-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!byokForm.providerId || !byokForm.apiKey) return;
+                if (!selectedProvider || !byokForm.apiKey) return;
                 upsertMut.mutate(byokForm);
                 setByokForm({ ...byokForm, apiKey: "" });
               }}
             >
-              <label htmlFor="byok-provider" className="flex flex-col gap-1 text-xs">
-                {t(strings.config.providerFieldLabel)}
-                <Input id="byok-provider" value={byokForm.providerId} onChange={(e) => setByokForm({ ...byokForm, providerId: e.currentTarget.value })} placeholder={t(strings.config.providerPlaceholder)} />
-              </label>
+              <div className="flex flex-col gap-1 text-xs">
+                <label htmlFor="byok-provider">{t(strings.config.providerFieldLabel)}</label>
+                {credentialProviders.length > 0 ? (
+                  <>
+                    <select
+                      id="byok-provider"
+                      className="rounded-control border border-app-border bg-app-surface px-2 py-1"
+                      value={byokForm.providerId}
+                      aria-describedby="byok-provider-hint"
+                      onChange={(e) => setByokForm({ ...byokForm, providerId: e.currentTarget.value })}
+                    >
+                      <option value="">{t(strings.config.providerSelectPlaceholder)}</option>
+                      {credentialProviders.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {`${provider.name} (${provider.id})`}
+                        </option>
+                      ))}
+                    </select>
+                    <p id="byok-provider-hint" className="text-[11px] text-app-muted-foreground">
+                      {selectedProvider
+                        ? t(strings.config.providerSelectedHint, {
+                            provider: selectedProvider.name,
+                            capability: capabilityLabel,
+                          })
+                        : t(strings.config.providerSelectHint, { capability: capabilityLabel })}
+                    </p>
+                  </>
+                ) : (
+                  <p id="byok-provider-empty" role="status" className="max-w-xs text-[11px] text-app-warning">
+                    {t(strings.config.providerNoneForCapability, { capability: capabilityLabel })}
+                  </p>
+                )}
+              </div>
               <label htmlFor="byok-capability" className="flex flex-col gap-1 text-xs">
                 {t(strings.config.capabilityFieldLabel)}
                 <select
                   id="byok-capability"
                   className="rounded-control border border-app-border bg-app-surface px-2 py-1"
                   value={byokForm.capability}
-                  onChange={(e) => setByokForm({ ...byokForm, capability: e.currentTarget.value })}
+                  onChange={(e) => {
+                    const capability = e.currentTarget.value as ByokCapability;
+                    setByokForm((previous) => ({
+                      ...previous,
+                      capability,
+                      // A provider that does not serve the new capability would
+                      // fail server validation, so clear the stale selection.
+                      providerId: credentialProvidersFor(capability).some(
+                        (provider) => provider.id === previous.providerId,
+                      )
+                        ? previous.providerId
+                        : "",
+                    }));
+                  }}
                 >
                   <option value="stt">{t(strings.config.capabilityStt)}</option>
                   <option value="tts">{t(strings.config.capabilityTts)}</option>
@@ -179,7 +253,7 @@ export function ConfigurationPage() {
                 {t(strings.config.apiKeyFieldLabel)}
                 <Input id="byok-apikey" type="password" value={byokForm.apiKey} onChange={(e) => setByokForm({ ...byokForm, apiKey: e.currentTarget.value })} placeholder={t(strings.config.apiKeyPlaceholder)} />
               </label>
-              <Button type="submit" disabled={upsertMut.isPending || !byokForm.providerId || !byokForm.apiKey}>{t(strings.config.addCredential)}</Button>
+              <Button type="submit" disabled={upsertMut.isPending || !canSubmitByok}>{t(strings.config.addCredential)}</Button>
             </form>
           </div>
         ) : null}

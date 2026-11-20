@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { makeApiError } from "../../api/client";
 import { strings } from "../../consts/strings";
+import { i18n } from "../../i18n";
 
 vi.mock("../../services/settings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../services/settings")>();
@@ -18,6 +19,35 @@ vi.mock("../../services/settings", async (importOriginal) => {
   };
 });
 
+type TestProvider = {
+  id: string;
+  name: string;
+  kind: "byok_api" | "gateway" | "local_resource";
+  capabilities: string[];
+};
+
+/**
+ * Mutable catalogue backing the generated-module mock. Tests seed it per
+ * case so option filtering and the empty state are exercised without
+ * depending on toggling real catalogue entries.
+ */
+const catalog = vi.hoisted(() => ({
+  providers: [] as Array<{
+    id: string;
+    name: string;
+    kind: "byok_api" | "gateway" | "local_resource";
+    capabilities: string[];
+  }>,
+}));
+
+vi.mock("../providers/providerCatalog.generated", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../providers/providerCatalog.generated")>();
+  return {
+    ...actual,
+    ACTIVE_PROVIDERS: catalog.providers,
+  };
+});
+
 import { ConfigurationPage } from "./ConfigurationPage";
 import {
   getProviderConfig,
@@ -26,6 +56,20 @@ import {
   updateProviderConfig,
   deleteByokCredential,
 } from "../../services/settings";
+
+const TEST_PROVIDERS: TestProvider[] = [
+  { id: "openai-whisper", name: "OpenAI Whisper (BYOK)", kind: "byok_api", capabilities: ["stt"] },
+  { id: "deepgram", name: "Deepgram (BYOK)", kind: "byok_api", capabilities: ["stt"] },
+  { id: "openai-tts", name: "OpenAI TTS (BYOK)", kind: "byok_api", capabilities: ["tts"] },
+  { id: "elevenlabs", name: "ElevenLabs (BYOK)", kind: "byok_api", capabilities: ["tts"] },
+  { id: "openrouter", name: "OpenRouter", kind: "byok_api", capabilities: ["summarize"] },
+  // Non-credential provider with TTS support must never appear in the select.
+  { id: "kokoro-tts", name: "Kokoro TTS", kind: "local_resource", capabilities: ["tts"] },
+];
+
+const setProviders = (providers: TestProvider[]) => {
+  catalog.providers.splice(0, catalog.providers.length, ...providers);
+};
 
 const happyProvider = {
   ok: true as const,
@@ -44,7 +88,16 @@ const happyCreds = {
   ],
 };
 
+const providerSelect = () => screen.getByLabelText<HTMLSelectElement>(strings.config.providerFieldLabel);
+const capabilitySelect = () =>
+  screen.getByLabelText<HTMLSelectElement>(strings.config.capabilityFieldLabel);
+const optionValues = (select: HTMLSelectElement) =>
+  Array.from(select.options).map((option) => option.value);
+const addButton = () =>
+  screen.getByRole("button", { name: strings.config.addCredential });
+
 beforeEach(() => {
+  setProviders(TEST_PROVIDERS);
   vi.mocked(getProviderConfig).mockResolvedValue(happyProvider);
   vi.mocked(listByokCredentials).mockResolvedValue(happyCreds);
   vi.mocked(updateProviderConfig).mockResolvedValue({ ok: true, data: undefined as never });
@@ -61,8 +114,8 @@ describe("ConfigurationPage", () => {
   it("renders happy data with tier flags and credentials table", async () => {
     renderWithProviders(<ConfigurationPage />);
     expect(await screen.findByText(strings.config.title)).toBeInTheDocument();
-    expect(await screen.findByText(/openai-tts/)).toBeInTheDocument();
-    expect(screen.getByText(/fp_abc123/)).toBeInTheDocument();
+    expect(await screen.findByText(/fp_abc123/)).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "openai-tts" })).toBeInTheDocument();
   });
 
   it("renders empty state for BYOK credentials", async () => {
@@ -80,18 +133,75 @@ describe("ConfigurationPage", () => {
     await waitFor(() => expect(screen.getByText(/boom/)).toBeInTheDocument());
   });
 
-  it("submits a new BYOK credential through upsertByokCredential exactly once", async () => {
+  it("filters provider options by the selected capability and credential kind", async () => {
+    renderWithProviders(<ConfigurationPage />);
+    await screen.findByText(/fp_abc123/);
+
+    expect(optionValues(providerSelect())).toEqual(["", "openai-tts", "elevenlabs"]);
+    expect(
+      screen.getByRole("option", { name: "ElevenLabs (BYOK) (elevenlabs)" }),
+    ).toBeInTheDocument();
+    // Local-resource TTS provider is excluded; other capabilities are excluded.
+    expect(screen.queryByRole("option", { name: /Kokoro/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /OpenAI Whisper/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /OpenRouter/ })).not.toBeInTheDocument();
+  });
+
+  it("resets an invalid provider when the capability changes", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationPage />);
-    await screen.findByText(/openai-tts/);
+    await screen.findByText(/fp_abc123/);
 
-    await user.type(screen.getByPlaceholderText(strings.config.providerPlaceholder), "elevenlabs");
-    await user.type(screen.getByPlaceholderText(strings.config.apiKeyPlaceholder), "sk-test");
-    await user.click(screen.getByRole("button", { name: strings.config.addCredential }));
+    await user.selectOptions(providerSelect(), "elevenlabs");
+    expect(providerSelect().value).toBe("elevenlabs");
+
+    await user.selectOptions(capabilitySelect(), "stt");
+
+    expect(providerSelect().value).toBe("");
+    expect(optionValues(providerSelect())).toEqual(["", "openai-whisper", "deepgram"]);
+    await user.type(
+      screen.getByPlaceholderText(strings.config.apiKeyPlaceholder),
+      "sk-test",
+    );
+    expect(addButton()).toBeDisabled();
+  });
+
+  it("submits a new BYOK credential with the exact provider id", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationPage />);
+    await screen.findByText(/fp_abc123/);
+
+    await user.selectOptions(providerSelect(), "elevenlabs");
+    await user.type(
+      screen.getByPlaceholderText(strings.config.apiKeyPlaceholder),
+      "sk-test",
+    );
+    await user.click(addButton());
 
     await waitFor(() => {
       expect(vi.mocked(upsertByokCredential)).toHaveBeenCalledTimes(1);
     });
     expect(vi.mocked(upsertByokCredential)).toHaveBeenCalledWith("elevenlabs", "tts", "sk-test");
+  });
+
+  it("shows an announced empty state when no credential provider supports the capability", async () => {
+    setProviders(TEST_PROVIDERS.filter((provider) => !provider.capabilities.includes("summarize")));
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationPage />);
+    await screen.findByText(/fp_abc123/);
+
+    await user.selectOptions(capabilitySelect(), "summarize");
+
+    const emptyHint = await screen.findByText(
+      i18n.t(strings.config.providerNoneForCapability, { capability: "summarize" }),
+    );
+    expect(emptyHint).toHaveAttribute("role", "status");
+    expect(screen.queryByLabelText(strings.config.providerFieldLabel)).not.toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText(strings.config.apiKeyPlaceholder),
+      "sk-test",
+    );
+    expect(addButton()).toBeDisabled();
   });
 });

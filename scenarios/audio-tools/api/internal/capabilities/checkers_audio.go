@@ -54,6 +54,9 @@ func generateSilentWAV() []byte {
 }
 
 func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
+	if c == nil || c.Doer == nil {
+		return StatusUnknown, "checker is not configured"
+	}
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()
@@ -121,6 +124,9 @@ type KokoroChecker struct {
 }
 
 func (c *KokoroChecker) Check(ctx context.Context) (Status, string) {
+	if c == nil || c.Doer == nil {
+		return StatusUnknown, "checker is not configured"
+	}
 	liveReq, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/v1/audio/voices", nil)
 	if err != nil {
 		return StatusUnavailable, "failed to create request: " + err.Error()

@@ -80,14 +80,25 @@ func TestVrooliProvider_TranscribeErrorPath(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestChain_Probe(t *testing.T) {
-	byok := ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"x": &ttsmocks.FakeBYOK{IDStr: "x", Available: true}})
-	vrooli := ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{Available: true})
-	c := ttschain.NewChain(ttschain.Options{EnableBYOK: true, EnableVrooli: true, BYOK: byok, Vrooli: vrooli})
-	r := c.Probe(context.Background())
-	require.True(t, r.BYOK)
-	require.True(t, r.Vrooli)
-	require.False(t, r.Local)
+func TestChain_Probe_BypassesAvailabilityCache(t *testing.T) {
+	client := &ttsmocks.FakeVrooliClient{Available: true}
+	c := ttschain.NewChain(ttschain.Options{
+		EnableBYOK: true, EnableVrooli: true,
+		BYOK:           ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{"x": &ttsmocks.FakeBYOK{IDStr: "x", Available: true}}),
+		Vrooli:         ttschain.NewVrooliProvider(client),
+		AvailTTLVrooli: time.Hour,
+	})
+
+	first := c.Probe(context.Background())
+	require.True(t, first.BYOK)
+	require.True(t, first.Vrooli)
+	require.False(t, first.Local)
+
+	// A cache hit would keep reporting the old value for an hour.
+	client.Available = false
+	second := c.Probe(context.Background())
+	require.True(t, second.BYOK)
+	require.False(t, second.Vrooli, "Probe must run a fresh availability check")
 }
 
 func TestChain_Reconfigure_InvalidatesCache(t *testing.T) {

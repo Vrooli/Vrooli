@@ -201,7 +201,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
       const virtual = virtualCaptureConfig();
       const p = new PcmVoiceStreamProvider(virtual ? {
         fastFirstWireBatch: true,
-        getUserMedia: async () => emptyMediaStream(),
+        getUserMedia: () => Promise.resolve(emptyMediaStream()),
         captureFactory: (_stream, onFrame) => createVirtualCapture(virtual, onFrame),
         // The accelerated source is not a realtime/device claim. Preserve
         // exact sample-range accounting while reducing browser persistence
@@ -261,8 +261,14 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
   // the diagnostics voice hook. Once permission is granted, opening the
   // transport ahead of the click removes WebSocket negotiation from the
   // user's first spoken turn. The provider now reuses this socket in start().
+  //
+  // Route through a ref: ensureProvider is re-created every render, and
+  // including it in the deps below would call preConnect again on every
+  // parent render instead of only when permission changes.
+  const ensureProviderRef = useRef(ensureProvider);
+  ensureProviderRef.current = ensureProvider;
   useEffect(() => {
-    if (micPermission === "granted") ensureProvider().preConnect("en");
+    if (micPermission === "granted") ensureProviderRef.current().preConnect("en");
   }, [micPermission]);
 
   const start = async () => {

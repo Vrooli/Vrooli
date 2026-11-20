@@ -76,6 +76,8 @@ for a focused change. Dependency installation follows
 | Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
 | Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Plan debt removal, catalog consolidation, and model upgrades | [`docs/internal/MATURATION-PROGRAM.md`](docs/internal/MATURATION-PROGRAM.md) |
+| Choose or qualify a model/voice | [`docs/reference/models.md`](docs/reference/models.md) |
 | Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |

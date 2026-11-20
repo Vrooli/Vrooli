@@ -12,6 +12,7 @@ const DiagnosticsPage = lazy(() => import("./features/diagnostics/DiagnosticsPag
 const StatusPage = lazy(() => import("./features/status/StatusPage").then((m) => ({ default: m.StatusPage })));
 const ConfigurationPage = lazy(() => import("./features/configuration/ConfigurationPage").then((m) => ({ default: m.ConfigurationPage })));
 const VoicesPage = lazy(() => import("./features/voices/VoicesPage").then((m) => ({ default: m.VoicesPage })));
+const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const UsagePage = lazy(() => import("./features/usage/UsagePage").then((m) => ({ default: m.UsagePage })));
 const DocsPage = lazy(() => import("./features/docs/DocsPage").then((m) => ({ default: m.DocsPage })));
 const DocViewerPage = lazy(() => import("./features/docs/DocViewerPage").then((m) => ({ default: m.DocViewerPage })));
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="status" element={<StatusPage />} />
               <Route path="configuration" element={<ConfigurationPage />} />
               <Route path="voices" element={<VoicesPage />} />
+              <Route path="models" element={<ModelsPage />} />
               <Route path="usage" element={<UsagePage />} />
               <Route path="docs" element={<DocsPage />} />
               <Route path="docs/*" element={<DocViewerPage />} />

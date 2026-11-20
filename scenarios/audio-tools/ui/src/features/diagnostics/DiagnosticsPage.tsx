@@ -6,7 +6,7 @@ import { SuiteCard } from "./SuiteCard";
 import { TranscribeTryIt } from "./TranscribeTryIt";
 import { SynthesizeTryIt } from "./SynthesizeTryIt";
 import { SummarizeTryIt } from "./SummarizeTryIt";
-import { TranscodeTryIt } from "./TranscodeTryIt";
+import { AudioOpsPanel } from "./AudioOpsPanel";
 import { ProviderTraceCard, type TraceEntry, type TraceFilter } from "./ProviderTraceCard";
 
 // DiagnosticsPage — dashboard layout.
@@ -62,7 +62,7 @@ export function DiagnosticsPage() {
             <SummarizeTryIt onTrace={(tr) => recordTrace("summarize", tr)} />
           </div>
           <div ref={panelRefs.transcode} className="scroll-mt-24" tabIndex={-1}>
-            <TranscodeTryIt />
+            <AudioOpsPanel initialOperationId="transcode" />
           </div>
         </div>
         <ProviderTraceCard

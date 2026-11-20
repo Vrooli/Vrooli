@@ -128,3 +128,62 @@ func TestSettings_VoiceOverrides(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got.Msg.GetOverrides(), 0)
 }
+
+func TestSettings_BYOKRejectsProviderCapabilityMismatch(t *testing.T) {
+	_, c := newServer(t)
+	ctx := context.Background()
+
+	cases := map[string]struct{ provider, capability string }{
+		"unknown provider":          {"not-a-provider", "stt"},
+		"wrong capability":          {"openai-whisper", "tts"},
+		"local provider not byok":   {"whisper-stt", "stt"},
+		"capability provider lacks": {"elevenlabs", "stt"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := c.UpsertBYOKCredential(ctx, connect.NewRequest(&settv1.UpsertBYOKCredentialRequest{
+				ProviderId: tc.provider,
+				Capability: tc.capability,
+				Secret:     &settv1.UpsertBYOKCredentialRequest_ApiKey{ApiKey: "sk-test"},
+			}))
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "got: %v", err)
+		})
+	}
+
+	list, err := c.ListBYOKCredentials(ctx, connect.NewRequest(&settv1.ListBYOKCredentialsRequest{}))
+	require.NoError(t, err)
+	require.Empty(t, list.Msg.GetCredentials(), "rejected pairs must not be persisted")
+}
+
+func TestSettings_VoiceOverrideValidation(t *testing.T) {
+	_, c := newServer(t)
+	ctx := context.Background()
+
+	invalid := map[string]*settv1.VoiceOverride{
+		"unknown canonical voice": {CanonicalVoice: "voice.nope", TierProvider: "local:kokoro", AdapterVoice: "x"},
+		"unknown adapter":         {CanonicalVoice: "voice.feminine.warm", TierProvider: "local:nope", AdapterVoice: "x"},
+		"legacy adapter id":       {CanonicalVoice: "voice.feminine.warm", TierProvider: "local:kokoro-local", AdapterVoice: "x"},
+	}
+	for name, o := range invalid {
+		t.Run(name, func(t *testing.T) {
+			_, err := c.SetVoiceOverride(ctx, connect.NewRequest(&settv1.SetVoiceOverrideRequest{Override: o}))
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "got: %v", err)
+		})
+	}
+
+	saved, err := c.SetVoiceOverride(ctx, connect.NewRequest(&settv1.SetVoiceOverrideRequest{
+		Override: &settv1.VoiceOverride{CanonicalVoice: "voice.feminine.warm", TierProvider: "local:kokoro", AdapterVoice: "af_custom"},
+	}))
+	require.NoError(t, err)
+	require.Len(t, saved.Msg.GetOverrides(), 1)
+	require.Equal(t, "af_custom", saved.Msg.GetOverrides()[0].GetAdapterVoice())
+
+	// Empty adapter_voice deletes the override, returning to the adapter default.
+	cleared, err := c.SetVoiceOverride(ctx, connect.NewRequest(&settv1.SetVoiceOverrideRequest{
+		Override: &settv1.VoiceOverride{CanonicalVoice: "voice.feminine.warm", TierProvider: "local:kokoro"},
+	}))
+	require.NoError(t, err)
+	require.Empty(t, cleared.Msg.GetOverrides())
+}

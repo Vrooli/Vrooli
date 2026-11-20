@@ -96,14 +96,15 @@ func formatCapabilities(caps []*hsv1.CapabilityHealth) []string {
 		return []string{"(no capabilities reported)"}
 	}
 	var out []string
-	out = append(out, fmt.Sprintf("%-10s %-22s %-7s %-12s %-22s %s", "CAP", "PROVIDER", "TIER", "STATE", "LAST_CHECK", "ERROR"))
+	out = append(out, fmt.Sprintf("%-10s %-22s %-7s %-12s %-9s %-22s %s", "CAP", "PROVIDER", "TIER", "STATE", "LATENCY", "LAST_CHECK", "ERROR"))
 	for _, c := range caps {
 		for _, p := range c.GetProviders() {
-			out = append(out, fmt.Sprintf("%-10s %-22s %-7s %-12s %-22s %s",
+			out = append(out, fmt.Sprintf("%-10s %-22s %-7s %-12s %-9s %-22s %s",
 				capabilityLabel(c.GetCapability()),
 				truncate(p.GetProviderId(), 22),
 				tierLabel(p.GetTier()),
 				stateLabel(p.GetState()),
+				latencyLabel(p.GetLatencyMs()),
 				truncate(p.GetLastCheckedAt(), 22),
 				truncate(p.GetErrorMessage(), 80),
 			))
@@ -119,6 +120,18 @@ func capabilityLabel(c diagv1.Capability) string {
 
 func tierLabel(t commonv1.ProviderTier) string {
 	return labels.Enum(t, "PROVIDER_TIER_", "-", labels.LowerWords)
+}
+
+// latencyLabel renders the last measured liveness-check duration. 0 means the
+// provider has not been measured yet, not "instant".
+func latencyLabel(ms float64) string {
+	if ms <= 0 {
+		return "-"
+	}
+	if ms < 10 {
+		return fmt.Sprintf("%.1fms", ms)
+	}
+	return fmt.Sprintf("%.0fms", ms)
 }
 
 func stateLabel(s sharedv1.ProviderState) string {

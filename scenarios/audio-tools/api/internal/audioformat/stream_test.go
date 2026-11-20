@@ -57,6 +57,10 @@ func TestStreamDecoderFfmpegDecode(t *testing.T) {
 	require.Equal(t, "ffmpeg", proc.Calls[0].Name)
 	require.Contains(t, proc.Calls[0].Args, "-flush_packets")
 	require.Contains(t, proc.Calls[0].Args, "s16le")
+	// Non-interactive, banner-free invocation is required for reliable
+	// pipe behavior on headless hosts and Windows.
+	require.Contains(t, proc.Calls[0].Args, "-nostdin")
+	require.Contains(t, proc.Calls[0].Args, "-hide_banner")
 
 	go func() {
 		_ = dec.Write([]byte{0xAA, 0xBB, 0xCC, 0xDD})
@@ -110,4 +114,21 @@ func TestNewStreamDecoderNoFfmpeg(t *testing.T) {
 	dec, err := e.NewStreamDecoder(context.Background(), audioformat.CodecPCMS16LE)
 	require.NoError(t, err)
 	require.NoError(t, dec.Close())
+}
+
+func TestNewStreamFilterUsesExplicitPCMContract(t *testing.T) {
+	proc := &afmocks.FakeProcessRunner{}
+	e := audioformat.New(audioformat.WithProcessRunner(proc), audioformat.WithFfmpegProbe(func() bool { return true }))
+
+	dec, err := e.NewStreamFilter(context.Background(), "afftdn")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = dec.Close() })
+
+	require.Len(t, proc.Calls, 1)
+	args := proc.Calls[0].Args
+	for _, want := range []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-af", "afftdn", "s16le", "-flush_packets"} {
+		require.Contains(t, args, want)
+	}
+	require.Contains(t, args, "16000")
+	require.Contains(t, args, "1")
 }

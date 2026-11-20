@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"audio-tools/internal/byokstore"
+	"audio-tools/internal/providercatalog"
 )
 
 func TestBYOKCredentialCheckerProbesConfiguredEndpointWithoutExposingSecret(t *testing.T) {
@@ -156,6 +157,77 @@ func TestProbeBYOKEndpointUsesProviderAuthentication(t *testing.T) {
 	if err := ProbeBYOKEndpoint("unknown")(context.Background(), "secret"); err == nil {
 		t.Fatal("unknown provider unexpectedly probed")
 	}
+}
+
+// TestBYOKProbeFactsMatchLegacyTuples pins the catalogue rows that replaced the
+// hand-maintained byokProbeEndpoint switch. A behaviour change here is a
+// provider fact change and belongs in catalog.seed.json.
+func TestBYOKProbeFactsMatchLegacyTuples(t *testing.T) {
+	cases := map[string][3]string{
+		"openai-whisper": {"https://api.openai.com/v1/models", "Authorization", "Bearer "},
+		"openai-tts":     {"https://api.openai.com/v1/models", "Authorization", "Bearer "},
+		"deepgram":       {"https://api.deepgram.com/v1/projects", "Authorization", "Token "},
+		"elevenlabs":     {"https://api.elevenlabs.io/v1/user", "xi-api-key", ""},
+	}
+	for providerID, want := range cases {
+		probe, ok := providercatalog.ProbeFor(providerID)
+		if !ok {
+			t.Fatalf("%s must declare a probe", providerID)
+		}
+		if got := [3]string{probe.URL, probe.Header, probe.ValuePrefix}; got != want {
+			t.Errorf("%s probe = %v; want %v", providerID, got, want)
+		}
+	}
+	if _, ok := providercatalog.ProbeFor("unknown"); ok {
+		t.Fatal("unknown provider must not resolve a probe")
+	}
+}
+
+func TestProbeBYOKEndpointBoundsRequests(t *testing.T) {
+	t.Run("outbound request carries a deadline", func(t *testing.T) {
+		var hasDeadline bool
+		var remaining time.Duration
+		doer := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			deadline, ok := req.Context().Deadline()
+			hasDeadline = ok
+			remaining = time.Until(deadline)
+			return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader(""))}, nil
+		})}
+		probe := providercatalog.Probe{URL: "https://provider.test/v1/models", Header: "Authorization", ValuePrefix: "Bearer "}
+		if err := probeBYOK(context.Background(), probe, "secret", doer); err != nil {
+			t.Fatalf("probe: %v", err)
+		}
+		if !hasDeadline {
+			t.Fatal("outbound probe request carries no deadline")
+		}
+		if remaining <= 0 || remaining > byokProbeTimeout {
+			t.Fatalf("probe deadline %v is outside (0, %v]", remaining, byokProbeTimeout)
+		}
+	})
+
+	t.Run("hung provider cannot outlive the caller bound", func(t *testing.T) {
+		slow := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			select {
+			case <-r.Context().Done():
+			case <-time.After(3 * time.Second):
+			}
+		}))
+		defer slow.Close()
+
+		// A short parent bound stands in for the 5s production bound so the test
+		// stays fast while proving the probe derives its deadline from the caller.
+		parent, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		start := time.Now()
+		err := probeBYOK(parent, providercatalog.Probe{URL: slow.URL, Header: "Authorization"}, "secret", slow.Client())
+		elapsed := time.Since(start)
+		if err == nil {
+			t.Fatal("hung provider probe unexpectedly succeeded")
+		}
+		if elapsed > time.Second {
+			t.Fatalf("probe blocked for %v past the 50ms caller bound", elapsed)
+		}
+	})
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

@@ -27,7 +27,16 @@
 | `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |
 | `audio-tools tts voices` | List canonical voices | `TTSService.ListVoices` |
 | `audio-tools summarize text --text TEXT [--level light\|moderate\|heavy]` | Summarize text | `SummarizeService.Summarize` |
-| `audio-tools audio transcode --input PATH --output PATH` | Transcode to WAV | `AudioProcessingService.Transcode` |
+| `audio-tools audio transcode --input PATH --output PATH [--output-format wav\|mp3\|flac\|aac\|ogg\|webm\|opus] [--sample-rate N] [--channels N] [--bitrate N]` | Re-encode an audio file (WAV 16 kHz mono by default) | `AudioProcessingService.Transcode` |
+| `audio-tools audio trim --input PATH --output PATH --start-seconds N [--end-seconds N] [--format FMT]` | Cut a time window | `AudioProcessingService.Trim` |
+| `audio-tools audio merge --input PATH --input PATH … --output PATH [--format FMT] [--output-format FMT] [--crossfade-seconds N]` | Concatenate or crossfade several files | `AudioProcessingService.Merge` |
+| `audio-tools audio split --input PATH --output DIR (--chunk-seconds N \| --boundaries-seconds a,b,c) [--format FMT] [--output-format FMT]` | Split into chunks written as `chunk-NNN.<ext>` | `AudioProcessingService.Split` |
+| `audio-tools audio fade --input PATH --output PATH [--format FMT] [--fade-in-seconds N] [--fade-out-seconds N] [--output-format FMT]` | Apply fade-in/fade-out | `AudioProcessingService.Fade` |
+| `audio-tools audio volume --input PATH --output PATH --gain-db N [--format FMT] [--output-format FMT]` | Apply gain | `AudioProcessingService.Volume` |
+| `audio-tools audio normalize --input PATH --output PATH [--format FMT] [--method peak\|rms\|ebu_r128] [--target-lufs N] [--output-format FMT]` | Loudness/peak normalise | `AudioProcessingService.Normalize` |
+| `audio-tools audio extract-metadata --input PATH --output PATH\|- [--format FMT]` | Emit container/codec/tag metadata as JSON (`-` = stdout) | `AudioProcessingService.ExtractMetadata` |
+| `audio-tools model list [--capability stt\|tts\|summarize\|speaker] [--language en-US] [--commercial-only] [--only-ready]` | List the validated model/voice registry | `ModelRegistryService.ListModels` |
+| `audio-tools model resolve --capability stt\|tts\|summarize\|speaker [--language en-US] [--commercial]` | Resolve the deterministic default and print the policy explanation | `ModelRegistryService.ResolveModel` |
 | `audio-tools settings provider` | Show the current provider-routing config | `SettingsService.GetProviderConfig` |
 | `audio-tools settings providers` | Provider routing + TTS-tier availability matrix (folded from former `diagnose providers` on 2026-05-17) | composite: `SettingsService.GetProviderConfig` + `TTSService.GetStatus` |
 | `audio-tools settings byok-list` | List stored BYOK credentials (redacted) | `SettingsService.ListBYOKCredentials` |

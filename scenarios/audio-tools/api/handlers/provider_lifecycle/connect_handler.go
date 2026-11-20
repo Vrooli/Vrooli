@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/logx"
@@ -22,39 +23,58 @@ import (
 // (kept inline so the API doesn't pull cli-core as a dep).
 const dryRunHeader = "X-Dry-Run"
 
-// localProviderOrder pins ListLocalProviders' output order so the UI
-// and CLI render deterministically regardless of the registry's
-// internal map iteration.
-var localProviderOrder = []string{
-	"whisper-stt",
-	"kokoro-tts",
-	"speaker-verification",
-	"ollama",
+// actionsForProvider translates the generated provider-catalogue action
+// vocabulary into the provider_lifecycle proto enum. The set of actions is
+// owned by providercatalog; this function only translates enum values.
+func actionsForProvider(id string) []plv1.Action {
+	names := capabilities.ActionsForProvider(id)
+	out := make([]plv1.Action, 0, len(names))
+	for _, name := range names {
+		if action, ok := lifecycleAction(name); ok {
+			out = append(out, action)
+		}
+	}
+	return out
 }
 
-// localProviderActions defines which Action enum values each local
-// provider advertises. Ollama is the only one that supports
-// PULL_MODEL; everyone else gets START/STOP/RESTART/VIEW_LOGS.
-var localProviderActions = map[string][]plv1.Action{
-	"whisper-stt":          {plv1.Action_ACTION_START, plv1.Action_ACTION_STOP, plv1.Action_ACTION_RESTART, plv1.Action_ACTION_VIEW_LOGS},
-	"kokoro-tts":           {plv1.Action_ACTION_START, plv1.Action_ACTION_STOP, plv1.Action_ACTION_RESTART, plv1.Action_ACTION_VIEW_LOGS},
-	"speaker-verification": {plv1.Action_ACTION_START, plv1.Action_ACTION_STOP, plv1.Action_ACTION_RESTART, plv1.Action_ACTION_VIEW_LOGS},
-	"ollama":               {plv1.Action_ACTION_START, plv1.Action_ACTION_STOP, plv1.Action_ACTION_RESTART, plv1.Action_ACTION_PULL_MODEL, plv1.Action_ACTION_VIEW_LOGS},
+func lifecycleAction(name string) (plv1.Action, bool) {
+	switch name {
+	case "start":
+		return plv1.Action_ACTION_START, true
+	case "stop":
+		return plv1.Action_ACTION_STOP, true
+	case "restart":
+		return plv1.Action_ACTION_RESTART, true
+	case "view_logs":
+		return plv1.Action_ACTION_VIEW_LOGS, true
+	case "pull_model":
+		return plv1.Action_ACTION_PULL_MODEL, true
+	default:
+		return plv1.Action_ACTION_UNSPECIFIED, false
+	}
 }
 
 type connectHandler struct {
-	deps Deps
+	deps        Deps
+	idempotency *IdempotencyStore
 }
 
 // NewConnectHandler builds the Connect handler. All Deps fields are
-// required; no fallbacks.
+// required; no fallbacks. The idempotency store is the one exception:
+// production gets the default in-memory store when Deps.Idempotency is
+// nil, so wiring requires zero extra configuration.
 func NewConnectHandler(d Deps) *connectHandler {
-	return &connectHandler{deps: d}
+	store := d.Idempotency
+	if store == nil {
+		store = NewIdempotencyStore(IdempotencyOptions{})
+	}
+	return &connectHandler{deps: d, idempotency: store}
 }
 
-// ListLocalProviders enumerates the four local-tier providers
-// audio-tools owns with their current process_state (derived from the
-// in-process registry).
+// ListLocalProviders enumerates the active local-tier providers that own a
+// lifecycle row, with their current process_state (derived from the in-process
+// registry). The order and membership come from the generated provider
+// catalogue, deduplicated by resource slug.
 func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Request[plv1.ListLocalProvidersRequest]) (*connect.Response[plv1.ListLocalProvidersResponse], error) {
 	if h.deps.Registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
@@ -67,8 +87,9 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 		nameByID[s.Def.ID] = s.Def.Name
 	}
 
-	out := make([]*plv1.LocalProvider, 0, len(localProviderOrder))
-	for _, id := range localProviderOrder {
+	order := capabilities.LocalProviderIDs()
+	out := make([]*plv1.LocalProvider, 0, len(order))
+	for _, id := range order {
 		slug, ok := capabilities.ResourceSlugForProviderID(id)
 		if !ok {
 			continue
@@ -78,7 +99,7 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 			DisplayName:      defaultedName(nameByID[id], id),
 			ResourceSlug:     slug,
 			ProcessState:     processStateFor(stateByID[id]),
-			SupportedActions: localProviderActions[id],
+			SupportedActions: actionsForProvider(id),
 		})
 	}
 	return connect.NewResponse(&plv1.ListLocalProvidersResponse{Providers: out}), nil
@@ -87,31 +108,40 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 // StartProvider wraps ResourceController.Start.
 func (h *connectHandler) StartProvider(ctx context.Context, req *connect.Request[plv1.StartProviderRequest]) (*connect.Response[plv1.StartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	result, err := h.runProviderAction(ctx, id, req.Header(), "StartProvider", "started", h.deps.Controller.Start)
+	msg, err := runProviderAction(h, ctx, id, req.Header(), "StartProvider", "started", h.deps.Controller.Start,
+		func(result providerActionResult) *plv1.StartProviderResponse {
+			return &plv1.StartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
+		})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&plv1.StartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
+	return connect.NewResponse(msg), nil
 }
 
 // StopProvider wraps ResourceController.Stop.
 func (h *connectHandler) StopProvider(ctx context.Context, req *connect.Request[plv1.StopProviderRequest]) (*connect.Response[plv1.StopProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	result, err := h.runProviderAction(ctx, id, req.Header(), "StopProvider", "stopped", h.deps.Controller.Stop)
+	msg, err := runProviderAction(h, ctx, id, req.Header(), "StopProvider", "stopped", h.deps.Controller.Stop,
+		func(result providerActionResult) *plv1.StopProviderResponse {
+			return &plv1.StopProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
+		})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&plv1.StopProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
+	return connect.NewResponse(msg), nil
 }
 
 // RestartProvider wraps ResourceController.Restart.
 func (h *connectHandler) RestartProvider(ctx context.Context, req *connect.Request[plv1.RestartProviderRequest]) (*connect.Response[plv1.RestartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	result, err := h.runProviderAction(ctx, id, req.Header(), "RestartProvider", "restarted", h.deps.Controller.Restart)
+	msg, err := runProviderAction(h, ctx, id, req.Header(), "RestartProvider", "restarted", h.deps.Controller.Restart,
+		func(result providerActionResult) *plv1.RestartProviderResponse {
+			return &plv1.RestartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
+		})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&plv1.RestartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
+	return connect.NewResponse(msg), nil
 }
 
 type providerActionResult struct {
@@ -126,15 +156,61 @@ func (r providerActionResult) message(id string) string {
 	return fmt.Sprintf("%s %s", id, r.verb)
 }
 
-func (h *connectHandler) runProviderAction(ctx context.Context, id string, headers http.Header, operation, verb string, action func(context.Context, string) error) (providerActionResult, error) {
+// runProviderAction is the shared Start/Stop/Restart flow: validate the
+// provider, honor dry-run, then execute the controller action at most once
+// per (Idempotency-Key, operation, provider).
+func runProviderAction[T proto.Message](
+	h *connectHandler,
+	ctx context.Context,
+	id string,
+	headers http.Header,
+	operation, verb string,
+	action func(context.Context, string) error,
+	build func(providerActionResult) T,
+) (T, error) {
+	var zero T
 	slug, err := h.validateLocalProvider(id)
 	if err != nil {
-		return providerActionResult{}, err
+		return zero, err
 	}
-	logIdempotency(h.deps.Logger, operation, id, headers)
+	requestKey := headers.Get(idempotencyKeyHeader)
+
+	// Dry runs never reach the controller and never enter the store, so a
+	// dry-run response can never satisfy a real request (or vice versa).
 	if isDryRun(headers) {
-		return providerActionResult{dryRun: true, verb: verb}, nil
+		logIdempotency(h.deps.Logger, operation, id, requestKey, outcomeBypass)
+		return build(providerActionResult{dryRun: true, verb: verb}), nil
 	}
+
+	msg, outcome, dedupErr := executeIdempotent(h, ctx, requestKey, operation, id, func(ctx context.Context) (T, error) {
+		result, actionErr := h.applyProviderAction(ctx, slug, operation, verb, action)
+		if actionErr != nil {
+			return zero, actionErr
+		}
+		return build(result), nil
+	})
+	logIdempotency(h.deps.Logger, operation, id, requestKey, outcome)
+	if dedupErr != nil {
+		return zero, h.mapDedupErr(ctx, operation, dedupErr)
+	}
+	return msg, nil
+}
+
+// mapDedupErr keeps a deduplicated action's error contract intact. A leader
+// already returns a *connect.Error from mapControllerErr; a joiner can instead
+// surface its own context.Canceled/DeadlineExceeded, which must still reach the
+// caller as Canceled/DeadlineExceeded rather than Connect's generic Unknown.
+func (h *connectHandler) mapDedupErr(ctx context.Context, operation string, err error) error {
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		return err
+	}
+	return h.mapControllerErr(ctx, operation, err)
+}
+
+// applyProviderAction runs the controller shell-out and its post-success
+// cache busting. Only the leader of an idempotent request reaches here.
+func (h *connectHandler) applyProviderAction(ctx context.Context, slug, operation, verb string, action func(context.Context, string) error) (providerActionResult, error) {
 	if err := action(ctx, slug); err != nil {
 		return providerActionResult{}, h.mapControllerErr(ctx, operation, err)
 	}
@@ -143,6 +219,36 @@ func (h *connectHandler) runProviderAction(ctx context.Context, id string, heade
 	}
 	h.scheduleResolveForce()
 	return providerActionResult{verb: verb}, nil
+}
+
+// executeIdempotent routes fn through the dedup store. An empty key or a
+// nil store executes fn directly (pre-dedup behavior). Returned messages
+// are always clones, never shared state.
+func executeIdempotent[T proto.Message](
+	h *connectHandler,
+	ctx context.Context,
+	requestKey, operation, target string,
+	fn func(context.Context) (T, error),
+) (T, idempotencyOutcome, error) {
+	var zero T
+	if requestKey == "" || h.idempotency == nil {
+		msg, err := fn(ctx)
+		return msg, outcomeBypass, err
+	}
+
+	msg, outcome, err := h.idempotency.Do(ctx,
+		idempotencyKey{key: requestKey, operation: operation, target: target, dryRun: false},
+		func(ctx context.Context) (proto.Message, error) {
+			return fn(ctx)
+		})
+	if err != nil {
+		return zero, outcome, err
+	}
+	typed, ok := msg.(T)
+	if !ok {
+		return zero, outcome, connect.NewError(connect.CodeInternal, fmt.Errorf("%s: idempotency store returned %T", operation, msg))
+	}
+	return typed, outcome, nil
 }
 
 // PullModel is ollama-only.
@@ -161,14 +267,23 @@ func (h *connectHandler) PullModel(ctx context.Context, req *connect.Request[plv
 	if h.deps.Controller == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("resource controller not configured"))
 	}
-	logIdempotency(h.deps.Logger, "PullModel", id+"/"+model, req.Header())
+	requestKey := req.Header().Get(idempotencyKeyHeader)
+	target := id + "/" + model
 	if isDryRun(req.Header()) {
+		logIdempotency(h.deps.Logger, "PullModel", target, requestKey, outcomeBypass)
 		return connect.NewResponse(&plv1.PullModelResponse{ProviderId: id, ModelName: model, DryRun: true, Message: "dry run; no action taken"}), nil
 	}
-	if err := h.deps.Controller.PullModel(ctx, model); err != nil {
-		return nil, h.mapControllerErr(ctx, "PullModel", err)
+	msg, outcome, err := executeIdempotent(h, ctx, requestKey, "PullModel", target, func(ctx context.Context) (*plv1.PullModelResponse, error) {
+		if pullErr := h.deps.Controller.PullModel(ctx, model); pullErr != nil {
+			return nil, h.mapControllerErr(ctx, "PullModel", pullErr)
+		}
+		return &plv1.PullModelResponse{ProviderId: id, ModelName: model, Message: fmt.Sprintf("model %q pulled on %s", model, id)}, nil
+	})
+	logIdempotency(h.deps.Logger, "PullModel", target, requestKey, outcome)
+	if err != nil {
+		return nil, h.mapDedupErr(ctx, "PullModel", err)
 	}
-	return connect.NewResponse(&plv1.PullModelResponse{ProviderId: id, ModelName: model, Message: fmt.Sprintf("model %q pulled on %s", model, id)}), nil
+	return connect.NewResponse(msg), nil
 }
 
 // GetProviderLogs streams log lines until the controller closes the
@@ -243,13 +358,16 @@ func (h *connectHandler) validateLocalProvider(id string) (string, *connect.Erro
 
 // mapControllerErr converts controller-layer errors to typed Connect
 // errors. ErrControllerUnavailable → Unavailable; context cancel →
-// Canceled; everything else → Internal.
+// Canceled; deadline → DeadlineExceeded; everything else → Internal.
 func (h *connectHandler) mapControllerErr(ctx context.Context, op string, err error) *connect.Error {
 	if errors.Is(err, capabilities.ErrControllerUnavailable) {
 		return connect.NewError(connect.CodeUnavailable, err)
 	}
 	if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
 		return connect.NewError(connect.CodeCanceled, err)
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
 	}
 	h.deps.Logger.Printf("provider_lifecycle %s failed: %v", op, err)
 	return connect.NewError(connect.CodeInternal, err)
@@ -293,11 +411,14 @@ func isDryRun(h interface{ Get(string) string }) bool {
 	return h.Get(dryRunHeader) == "true"
 }
 
-// logIdempotency emits a best-effort log line carrying the
-// Idempotency-Key header. Phase 2 does NOT dedup; this is observability
-// only. TODO(phase3): wire a real dedup store.
-func logIdempotency(logger logx.Logger, op, target string, h interface{ Get(string) string }) {
-	if key := h.Get("Idempotency-Key"); key != "" {
-		logger.Printf("provider_lifecycle %s idempotency_key=%q target=%q (best-effort; no dedup yet)", op, key, target)
+// logIdempotency emits a best-effort log line describing how the dedup
+// store handled the request. outcome is "miss" (leader executed), "join"
+// (shared an in-flight execution), "hit" (replayed a cached result), or
+// "bypass" (empty key or dry run: no dedup). Requests without an
+// Idempotency-Key are not logged, preserving the pre-dedup noise level.
+func logIdempotency(logger logx.Logger, op, target, key string, outcome idempotencyOutcome) {
+	if key == "" {
+		return
 	}
+	logger.Printf("provider_lifecycle %s idempotency_key=%q target=%q outcome=%s", op, key, target, outcome)
 }

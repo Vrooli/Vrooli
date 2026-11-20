@@ -7,11 +7,175 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+## Program view (2026-11-19)
+
+The dated entries below are the incident register. The *program* view of debt,
+sequencing, and exit gates lives in
+[MATURATION-PROGRAM.md](MATURATION-PROGRAM.md). As of 2026-11-19 the
+highest-leverage open classes are:
+
+- **Declaration drift (fixed in the 2026-11-19 tranche, kept as the motivating
+  example)** — `sttengine` declared two engines while bootstrap constructed
+  three; provider ids were spread across ~20 hand-synced files. The provider
+  catalog and conformance gate now make that shape fail the build.
+- **Unshipped capability (fixed in the 2026-11-19 tranche)** — seven of the
+  eight audio transforms existed in proto/handlers but had no CLI or UI
+  journey; all eight are now declared in `operationcatalog` and reachable from
+  both surfaces.
+- **Model provenance (registry delivered; qualification partial)** — the
+  registry now declares licence, readiness, hardware, per-language facts, and
+  the resource artifact that supplies local weights, and serves them through
+  `ModelRegistryService`, the CLI, and the UI. A 2026-11-19 receipt (below)
+  qualifies Whisper turbo versus medium on one Linux/Vulkan host. What remains
+  is breadth: most defaults still lack a dated real-duration receipt, the
+  runtime primary for summarization (`qwen3.5:9b`) is not the evidence-backed
+  default (`llama3.2:3b`), and no device/browser/OS matrix exists. See the
+  2026-05-17 summarize entry and the 2026-11-19 receipt note under it.
+- **Unenforced lab code** — `experiment`, `eval`, `soak`, and `validation` had
+  no coverage floor; `stt/pipeline` was enforced at 20%. Floors now exist for
+  all of them, and the chain/handler floors are back at their original values;
+  raising them further is test work, not a policy change.
+- **Long-tail reliability** — the 2026-09 long-turn recovery, Kyutai admission,
+  and latency entries below remain the evidence backlog, not closed claims.
+
+Do not treat a green unit suite or a source-presence check as evidence that any
+of these is closed. Close them with the gates named in the maturation program.
+
 The 2026-09-16 50 ms PCM wire-batch experiment is rejected. Focused package
 tests showed duplicate replay frames after reconnect and a simulated-hour wire
 rate of 20/s against the 15/s bound. The production batch remains 1,600
 samples (about 100 ms); startup p95 must be repaired at the decoder/admission
 owner rather than by increasing transport event pressure.
+
+### 2026-11-20 — The machine footprint was an accident, not a decision
+
+Measured on this host: the whisper service was running `ggml-medium` and holding
+1,864 MiB of VRAM while the registry claimed `large-v3-turbo` as the default,
+and the shared `summarize.default` role resolved to `qwen3.5:9b` (~5.9 GB
+resident). Two defaults, roughly 8 GB of accelerator memory, and neither was
+chosen with the rest of the machine in mind.
+
+Fixed:
+
+- `resources/whisper` now ships `ggml-small.bin` (488 MB, sha256
+  `1be3a9b2…a987b`) as the eager artifact and runtime default. Turbo, medium,
+  base, and tiny are on-demand groups. The capacity claim dropped from 2 GiB to
+  1 GiB.
+- The model registry declares `whisper-small` as the STT default, turbo/medium
+  as quality tiers, and base/tiny as fast/edge tiers, each with its own artifact.
+- `whisper recommend-model` returns `small` by default; `--quality` is the
+  explicit accuracy opt-in. CPU hosts no longer auto-pick medium.
+- resource-ollama's `summarize.default` role moved to `qwen3.5:4b` (~2.6 GB),
+  which was already the role's qualification candidate. `qwen3.5:9b` remains a
+  quality tier and can never be a commercial default because its licence is
+  unverified.
+- Each capability has a declared default footprint budget (STT 600 MB, TTS
+  400 MB, summarize 3 GB, speaker 100 MB). A seed edit that promotes a larger
+  default fails `TestCapabilityDefaultsFitResourceBudget`;
+  `TestLocalDefaultArtifactsAreEager` fails if a default names an on-demand
+  artifact.
+
+Receipt (one Linux/Vulkan host, canonical `the quick brown fox jumps` clip):
+all four Whisper tiers transcribe the clip exactly; warm wall time 0.16 s
+(tiny), 0.18 s (base), 0.31 s (small), 0.30 s (turbo) for 1.95 s of audio. A
+live `audio-tools stt transcribe` against the restarted service returned the
+exact text in 84 ms, and the running server held 716 MiB of VRAM instead of
+1,864 MiB. This is a smoke receipt, not a dictation-quality or timestamp-drift
+claim.
+
+The operational consequence is explicit: restarting the whisper resource now
+loads small instead of medium. The larger tiers remain one acquisition command
+away, and selecting one does not require a code change.
+
+Also fixed in the same tranche:
+
+- **Sub-millisecond health latency was invisible.** `latency_ms` used integer
+  milliseconds, so a healthy localhost check (100-800 µs) rounded to 0 and
+  looked identical to "never measured". The handler now reports fractional
+  milliseconds and `audio-tools health show` renders a LATENCY column.
+- **The Models page had two nested "Registry" panels.** `ModelsTable` rendered
+  its own panel inside the page's panel, producing duplicate headings and
+  ambiguous aria labels. The table now lives inside the page panel, and a
+  Resource footprint panel shows each capability's default and weight size.
+- **Lab code had no measured boundary.** Experiment/eval/soak/validation now
+  have coverage floors, `make lab-test`, and a parser-based import gate proving
+  the serving handlers and chains cannot reach them. Only `bootstrap` and
+  `server` cross the boundary, as enumerated composition exceptions.
+
+### 2026-11-19 — Local Kokoro voice overrides were stored under the wrong key
+
+The Voices page wrote overrides keyed by the provider catalog's adapter id,
+`local:kokoro`. The local TTS provider looked up `local:kokoro-local`. The
+override was persisted, rendered as configured, and **silently never applied** —
+a correctness bug that no transport test could see because both sides were
+internally consistent.
+
+Fix: one `tts.AdapterLocalKokoro = "local:kokoro"` constant owns the key, the
+provider resolves through the central `LocalKokoroMapping`, and the pre-catalog
+key is still honoured so stored overrides survive the rename. The same pass
+moved the OpenAI and ElevenLabs canonical-voice switches into
+`internal/tts/voice_catalog.go`, wired `VerifyCatalog` into `bootstrap` (it was
+only called from tests), and made the settings edge reject an unknown canonical
+voice or adapter id. `TestTTSAdapterMappingsMatchProviderCatalog` fails when the
+code-side adapter ids and the provider catalog's `adapter_id` drift.
+
+Also fixed in the same tranche:
+
+- **Typed-nil panic**: an optional `*store` repository assigned to an interface
+  is non-nil as an interface value; `stt.NewConnectHandler` called `Get` on it
+  and panicked during construction. `isNilDependency` now treats typed nils as
+  absent. `TestCompose_MountsEveryDeclaredEndpoint` found it by composing the
+  server with absent optional services.
+- **Silent empty transforms**: ffmpeg can exit 0 and write nothing (for example,
+  an `acrossfade` longer than the source). `runFfmpeg` now treats empty output as
+  `ErrFfmpegExec`, merge rejects the impossible crossfade before spawning
+  ffmpeg, and trim/split reject windows past the measured end.
+- **Silent truncated streams**: a decoder failure closed the Frames channel
+  exactly like EOF, so the turn looked complete. The adapter now emits
+  `ErrStreamDecode`, the wire code is `input_decode_failed`, and the handler
+  fails the replay ledger instead of marking incomplete audio complete.
+- **Provider identity**: runtime aliases and BYOK probe facts moved into the
+  provider catalog; the hand switches in `capabilities` are gone. Active remote
+  providers must declare a probe or an explicit absence reason.
+- **Timeout hygiene**: readiness probes use a 30 s doer instead of the 120 s
+  generation doer, and BYOK probes are bounded at 5 s.
+- **Health telemetry**: provider liveness is timed at the checker seam, so the
+  health response's `latency_ms` is a measurement instead of a permanent zero.
+
+### 2026-11-19 — Whisper turbo became the shipped runtime model, with a first host receipt
+
+The registry declared `whisper-large-v3-turbo` as the promoted default while
+`resources/whisper` still pinned `ggml-medium.bin`. That is the same
+declaration/runtime drift class as the old `sherpa-streaming` gap, just in the
+model layer. Fixed by shipping turbo as the eager, checksum-verified artifact
+(sha256 `1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69`,
+1,624,555,275 bytes), moving medium to the on-demand `medium-model` rollback
+group, and updating the capacity profile to the turbo digest.
+
+New gates make the class impossible to reintroduce:
+
+- `TestWhisperRuntimeArtifactMatchesRegistryDefault` fails when the registry
+  default and the artifact the resource actually starts disagree, and when the
+  runtime default artifact is on-demand.
+- `TestAvailableLocalModelsNameShippedResourceArtifacts` fails when an
+  `available` local model names no artifact, or names one the owning resource
+  does not declare.
+
+Receipt (this host: RTX 4070 Ti SUPER, Vulkan whisper.cpp 1.9.2, 12 threads):
+
+- Canonical `quality_speech.wav` reference `the quick brown fox jumps`: WER
+  0.00 for both turbo and medium. This is a five-word smoke reference, not a
+  corpus.
+- 61-minute `dictation-reference-long.wav`: turbo 30.3 s wall (RTF 120.8x),
+  medium 52.8 s (RTF 69.3x); word-sequence agreement 0.9993 over 8,996 words.
+- Steady-state short-clip p50 71.7 ms (turbo) vs 70.7 ms (medium).
+- Vulkan GPU residency 1,817 MiB (turbo) vs 1,861 MiB (medium), so the
+  resource's 2 GiB capacity claim still holds.
+
+Not claimed: long-form timestamp stability (unscored; turbo is known to be
+weaker than large-v3 there), multi-language WER, a device/browser/OS matrix, or
+CPU-only throughput. The receipt is one host, one corpus shape, and agreement is
+not ground-truth WER.
 
 ### 2026-09-17 — Long-turn recovery exceeded the browser terminal wait
 
@@ -877,6 +1041,16 @@ show `ollama pull <model>` commands for manual installation.
 representative assistant-output fixtures. Change the default only if a
 non-reasoning candidate beats `llama3.2:3b` on latency and preserves key facts
 without prompt leakage or visible reasoning.
+
+**2026-11-19 registry note:** `resources/ollama/model-policy.json` now names
+`qwen3.5:9b` as the `summarize.default` primary (with `qwen3.5:4b` and
+`llama3.2:3b` as fallbacks), which is newer than the 2026-05-17 benchmark. The
+model registry reflects that reality: `DefaultFor(summarize)` is the runtime
+primary `qwen3.5:9b`, while `CommercialDefaultFor(summarize)` is the
+evidence-backed, licence-verified `llama3.2:3b`. This entry is not closed: there
+is still no local receipt that `qwen3.5:9b` is non-reasoning, fast enough, or
+licence-clear. A drift test fails if the registry stops mirroring the policy,
+so this tension cannot be forgotten silently.
 
 **Owner:** unassigned.
 
@@ -2629,3 +2803,24 @@ removes the 1,024 ms p95 latency failure, but Kyutai still has a localized
 long-form quality-stability dip under repeated product sessions. Provider
 parity and the acceptance join remain unresolved until a fresh cohort meets
 the quality floor without exclusions.
+
+## 2026-11-19 — Audio response metadata is partly unimplemented
+
+`TranscodeResponse.duration_seconds`, `TrimResponse.duration_seconds`, and
+`MergeResponse.duration_seconds` are always zero, and
+`NormalizeResponse.measured_lufs` echoes the requested target. None of the
+proto comments say "0 = unknown", so a client can read the value as a
+measurement.
+
+**Cause:** the handlers return transformed bytes without a post-transform
+probe, and Normalize does not parse `loudnorm`/`ebur128` output.
+
+**Why it was not fixed in this tranche:** populating the fields correctly costs
+an extra ffprobe per operation (or per merge source) and must degrade to
+"unknown" when ffprobe is absent. That is a deliberate latency/portability
+trade, not a one-line change.
+
+**Real fix:** either (a) probe the output once behind a bounded cache and
+document "0 = unknown", or (b) remove the fields rather than ship a value that
+looks measured. Until then, clients must not treat zero as a duration and must
+not display `measured_lufs` as a measurement.

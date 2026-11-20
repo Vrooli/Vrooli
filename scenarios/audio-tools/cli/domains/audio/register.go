@@ -21,7 +21,14 @@ const GroupName = "audio"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"AudioProcessingService.Transcode": h.transcode,
+		"AudioProcessingService.Transcode":       h.transcode,
+		"AudioProcessingService.Trim":            h.trim,
+		"AudioProcessingService.Merge":           h.merge,
+		"AudioProcessingService.Split":           h.split,
+		"AudioProcessingService.Fade":            h.fade,
+		"AudioProcessingService.Volume":          h.volume,
+		"AudioProcessingService.Normalize":       h.normalize,
+		"AudioProcessingService.ExtractMetadata": h.extractMetadata,
 	}
 	return climanifest.LoadGroup(manifest, GroupName, bindings)
 }

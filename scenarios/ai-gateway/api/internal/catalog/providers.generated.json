@@ -1857,17 +1857,17 @@
             }
           },
           "summarize.default": {
-            "model": "qwen3.5:9b",
+            "model": "qwen3.5:4b",
             "fallbacks": [
-              "qwen3.5:4b",
-              "llama3.2:3b"
+              "llama3.2:3b",
+              "llama3.2:1b"
             ],
             "required_capabilities": [
               "generate",
               "chat",
               "summarize"
             ],
-            "description": "Default summarization and distillation role for text-heavy scenario outputs.",
+            "description": "Default summarization and distillation role for text-heavy scenario outputs. Pinned to the 4B tier so a summarize request does not reserve ~6 GB of VRAM; 9B remains available as an explicit quality choice.",
             "preference": 40,
             "sampling_support": {
               "temperature": "honored"
@@ -1876,8 +1876,8 @@
             "provenance": {
               "source_kind": "manual_policy",
               "confidence": "medium",
-              "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
-              "observed_at": "2026-06-23",
+              "source": "Audio-tools resource-footprint review 2026-11-19; qwen3.5:4b was already chat.small primary and the summarize.faithful qualification candidate",
+              "observed_at": "2026-11-19",
               "sample_count": 0
             }
           },

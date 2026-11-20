@@ -150,6 +150,21 @@ func TestEmbeddedManifestValid(t *testing.T) {
 	require.True(t, ok, "active speaker method must resolve")
 }
 
+// TestEmbeddedManifestDeclaresSherpaStreaming pins the native streaming engine
+// the provider catalogue represents as sherpa-stt.
+func TestEmbeddedManifestDeclaresSherpaStreaming(t *testing.T) {
+	engine, ok := Default().Engine("sherpa-streaming")
+	require.True(t, ok, "manifest must declare sherpa-streaming")
+	require.Equal(t, KindLocalResource, engine.Kind)
+	require.Equal(t, "sherpa-onnx", engine.Resource)
+	require.True(t, engine.Provides.NativeStreaming)
+	require.False(t, engine.Provides.BuiltinVad)
+	require.Empty(t, engine.Provides.ConfidenceSignals)
+	require.False(t, engine.Provides.WordTimestamps)
+	require.True(t, engine.Requires.PCM16kMono)
+	require.Equal(t, []string{"passthrough"}, engine.Strategies)
+}
+
 // TestSchemaJSONIsValidJSON guards against a malformed schema doc.
 func TestSchemaJSONIsValidJSON(t *testing.T) {
 	var v any

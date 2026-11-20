@@ -17,7 +17,7 @@ func (h *connectHandler) Normalize(ctx context.Context, req *connect.Request[aud
 	inFmt := audioFormatString(req.Msg.GetFormat())
 	outFmt := audioFormatString(req.Msg.GetOutputFormat())
 	method := normalizationMethodString(req.Msg.GetMethod())
-	out, err := intaudio.Normalize(ctx, req.Msg.Audio, inFmt, method, req.Msg.TargetLufs, outFmt)
+	out, measured, err := intaudio.NormalizeMeasured(ctx, req.Msg.Audio, inFmt, method, req.Msg.TargetLufs, outFmt)
 	if err != nil {
 		return nil, mapAudioErr(err)
 	}
@@ -25,5 +25,9 @@ func (h *connectHandler) Normalize(ctx context.Context, req *connect.Request[aud
 	if ct == "" {
 		ct = inFmt
 	}
-	return connect.NewResponse(&audiov1.NormalizeResponse{Audio: out, ContentType: contentTypeFor(ct), MeasuredLufs: req.Msg.TargetLufs}), nil
+	return connect.NewResponse(&audiov1.NormalizeResponse{
+		Audio:        out,
+		ContentType:  intaudio.ContentTypeFor(ct),
+		MeasuredLufs: measured,
+	}), nil
 }

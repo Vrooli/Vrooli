@@ -15,6 +15,7 @@ package segmenter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -152,6 +153,10 @@ func (s *Segmenter) Run(
 	// Whisper, the latter's native provider decodes for itself).
 	pcmChunks := chunks
 	var timeline *AudioTimeline
+	// captureFailure carries a terminal timeline-capture error to the egress
+	// stage. It stays nil for the raw (non-normalized) path, which has no
+	// timeline capture.
+	var captureFailure <-chan error
 	// A browser PCM stream already satisfies the manifest's
 	// `requires.pcm16kMono` contract. Avoid inserting even the otherwise cheap
 	// identity decoder: its extra goroutine/channel boundary delays the first
@@ -167,7 +172,7 @@ func (s *Segmenter) Run(
 		}
 		defer cleanup()
 		timeline = NewAudioTimeline(0)
-		pcmChunks = captureTimeline(ctx, timeline, normalized)
+		pcmChunks, captureFailure = captureTimeline(ctx, timeline, normalized)
 		start = nstart
 	}
 
@@ -198,8 +203,8 @@ func (s *Segmenter) Run(
 	// forwards the surviving events. Strategies never see the gate.
 	gate := quality.New(cfg, s.deps.Registry, s.deps.SpeakerIsolation).Gate()
 	inner := make(chan sttchain.StreamEvent)
-	forwardDone := make(chan struct{})
-	go runEgress(ctx, gate, timeline, inner, events, forwardDone)
+	forwardDone := make(chan error, 1)
+	go runEgress(ctx, gate, timeline, inner, events, captureFailure, forwardDone)
 	cursor := sttchain.NewConsumptionCursor(func(ev sttchain.StreamEvent) {
 		select {
 		case inner <- ev:
@@ -210,8 +215,11 @@ func (s *Segmenter) Run(
 	err = selection.Strategy.Run(ctx, start, pcmChunks, inner, cursor)
 	cursor.Flush()
 	close(inner)
-	<-forwardDone
-	return err
+	captureErr := <-forwardDone
+	// Preserve both failures when both happened (for example ctx.Canceled plus
+	// a rejected timeline range) so a caller cannot mistake a truncation for a
+	// clean cancellation. errors.Is still matches either cause.
+	return errors.Join(err, captureErr)
 }
 
 func shouldNormalizeInput(kind sttchain.StrategyKind, inputFormat string, s *Segmenter, engineID string) bool {
@@ -268,12 +276,31 @@ func (s *Segmenter) buildIngress(cfg stt.StreamConfig) *ingress.Pipeline {
 // segments are suppressed; rejected segments become a speaker-rejection
 // event. When any segment was suppressed, the terminal Done's FinalText is
 // rebuilt from the surviving segment texts so the final transcript matches
-// what the consumer actually saw. It closes done when in is drained so the
-// Segmenter can sequence the events-channel close after the strategy returns.
-func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, done chan<- struct{}) {
-	defer close(done)
+// what the consumer actually saw.
+//
+// captureFailure reports a terminal timeline-capture error. The capture
+// goroutine closes the strategy's input after reporting it, so the strategy
+// sees EOF and emits its usual Done. A rejected range must not look like a
+// clean end-of-stream, so an Error event is inserted immediately before that
+// Done. runEgress reports the error on done (buffered, so Run can join it into
+// the returned error) after in is drained.
+func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, captureFailure <-chan error, done chan<- error) {
+	var captureErr error
+	// captureError latches the first capture failure. It never blocks: the
+	// capture goroutine buffers the error before closing the chunk channel.
+	captureError := func() error {
+		if captureErr != nil {
+			return captureErr
+		}
+		select {
+		case captureErr = <-captureFailure:
+		default:
+		}
+		return captureErr
+	}
 	var finalParts []string
 	gatedAny := false
+	sawDone := false
 	for ev := range in {
 		switch ev.Kind {
 		case sttchain.StreamEventSegment:
@@ -318,6 +345,10 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 				out <- ev
 			}
 		case sttchain.StreamEventDone:
+			sawDone = true
+			if err := captureError(); err != nil {
+				out <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+			}
 			if gatedAny && ev.Done != nil {
 				ev.Done.FinalText = strings.Join(finalParts, " ")
 			}
@@ -326,15 +357,32 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 			out <- ev
 		}
 	}
+	// Strategies always emit Done, but a strategy that returned an error
+	// without one must still surface a truncation rather than ending silently.
+	if !sawDone {
+		if err := captureError(); err != nil {
+			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+		}
+	}
+	done <- captureErr
 }
 
 // captureTimeline appends canonical PCM before any strategy or ingress stage
 // consumes it. Provider adapters only translate recognition output; they never
 // own a duplicate cross-cutting audio buffer.
-func captureTimeline(ctx context.Context, timeline *AudioTimeline, in <-chan sttchain.AudioChunk) <-chan sttchain.AudioChunk {
+//
+// The returned failure channel carries at most one terminal error (a range
+// rejected by AudioTimeline) and is closed when capture stops. A rejected range
+// stops the stream; silently closing the chunk channel, as the previous
+// signature did, made a truncated tail indistinguishable from a clean
+// end-of-stream. Callers that genuinely want best-effort capture may ignore the
+// channel, but must then accept that a rejected range is invisible.
+func captureTimeline(ctx context.Context, timeline *AudioTimeline, in <-chan sttchain.AudioChunk) (<-chan sttchain.AudioChunk, <-chan error) {
 	out := make(chan sttchain.AudioChunk, 16)
+	failure := make(chan error, 1)
 	go func() {
 		defer close(out)
+		defer close(failure)
 		for {
 			select {
 			case chunk, ok := <-in:
@@ -342,6 +390,9 @@ func captureTimeline(ctx context.Context, timeline *AudioTimeline, in <-chan stt
 					return
 				}
 				if err := timeline.Append(chunk); err != nil {
+					// Buffered: this must not block teardown if the strategy
+					// has already stopped reading events.
+					failure <- fmt.Errorf("audio-tools/stt/segmenter: capture canonical audio timeline: %w", err)
 					return
 				}
 				select {
@@ -354,7 +405,7 @@ func captureTimeline(ctx context.Context, timeline *AudioTimeline, in <-chan stt
 			}
 		}
 	}()
-	return out
+	return out, failure
 }
 
 // requiresPCMDecode mirrors stt.Selector's gate: only VADSegment and

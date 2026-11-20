@@ -703,11 +703,11 @@
     },
     {
       "name": "audio",
-      "description": "Audio processing (transcode, trim, merge, ...)",
+      "description": "Audio processing (transcode, trim, merge, split, fade, volume, normalize, metadata)",
       "commands": [
         {
           "name": "transcode",
-          "description": "Transcode an audio file to WAV (16 kHz mono)",
+          "description": "Re-encode an audio file (default WAV) with optional sample rate, channels, and bitrate.",
           "flags": [
             {
               "name": "input",
@@ -723,6 +723,28 @@
               "required": true,
               "description": "Output path",
               "local_only": true
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "input-format",
+              "description": "Input format hint: auto|wav|mp3|flac|ogg|aac (default auto)"
+            },
+            {
+              "name": "sample-rate",
+              "description": "Output sample rate in Hz; 0 = passthrough (default 0)"
+            },
+            {
+              "name": "channels",
+              "description": "Output channel count; 0 = passthrough (default 0)"
+            },
+            {
+              "name": "bitrate",
+              "description": "Output bitrate in bps; 0 = format default (default 0)"
             }
           ],
           "binding": {
@@ -733,9 +755,338 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "trim",
+          "description": "Cut audio between --start-seconds and --end-seconds (0 end = EOF).",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "start-seconds",
+              "required": true,
+              "description": "Start offset in seconds (>= 0)"
+            },
+            {
+              "name": "end-seconds",
+              "description": "End offset in seconds; 0 = end of file (default 0)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Trim"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "merge",
+          "description": "Concatenate audio files; repeat --input for every source. Optional crossfade between sources.",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "repeatable": true,
+              "description": "Source audio path (repeat for each source)"
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Source format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "crossfade-seconds",
+              "description": "Crossfade duration in seconds; 0 = hard concat (default 0)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Merge"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "split",
+          "description": "Split audio into equal chunks (--chunk-seconds) or explicit boundaries (comma-separated). Writes chunk-000.<ext>, chunk-001.<ext>, ... into the --output directory.",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output directory (created when missing)",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "chunk-seconds",
+              "description": "Equal chunk length in seconds (0 = use explicit boundaries)"
+            },
+            {
+              "name": "boundaries-seconds",
+              "description": "Comma-separated cut points in seconds (e.g. 10,20,30)"
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Split"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "fade",
+          "description": "Apply a fade-in and/or fade-out window.",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "fade-in-seconds",
+              "description": "Fade-in duration in seconds (default 0)"
+            },
+            {
+              "name": "fade-out-seconds",
+              "description": "Fade-out duration in seconds (default 0)"
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Fade"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "volume",
+          "description": "Scale audio by a gain in decibels (for example --gain-db -6).",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "gain-db",
+              "required": true,
+              "description": "Gain in dB; -60..24 (required)"
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Volume"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "normalize",
+          "description": "Normalize loudness with EBU R128 (default), RMS, or peak normalization.",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            },
+            {
+              "name": "method",
+              "description": "Normalization method: ebu_r128|rms|peak (default ebu_r128)",
+              "default": "ebu_r128",
+              "values": ["ebu_r128", "rms", "peak"]
+            },
+            {
+              "name": "target-lufs",
+              "description": "Target loudness for EBU R128; -40..-5 (default -16)",
+              "default": "-16"
+            },
+            {
+              "name": "output-format",
+              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Normalize"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "extract-metadata",
+          "description": "Print duration, sample rate, channels, bitrate, codec, format, and tags as JSON (or write them to --output).",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "JSON output path ('-' writes to stdout)",
+              "local_only": true
+            },
+            {
+              "name": "format",
+              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "default": "wav",
+              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "ExtractMetadata"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
           }
         }
       ]
@@ -866,6 +1217,80 @@
             "kind": "connect-rpc",
             "service": "UsageService",
             "method": "GetSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "model",
+      "description": "Inspect the validated model/voice registry and resolve deterministic defaults",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List registry models, optionally filtered by capability, language, commercial eligibility, or readiness",
+          "flags": [
+            {
+              "name": "capability",
+              "description": "Capability filter: stt | tts | summarize | speaker (empty = every capability)"
+            },
+            {
+              "name": "language",
+              "description": "Language filter by primary subtag (en-US matches en; mul/und match every language)"
+            },
+            {
+              "name": "commercial-only",
+              "bool": true,
+              "description": "Only models whose commercial use is explicitly allowed"
+            },
+            {
+              "name": "only-ready",
+              "bool": true,
+              "description": "Only models whose readiness is available"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelRegistryService",
+            "method": "ListModels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Resolve the model to use for a capability (and optional language), with the policy explanation",
+          "flags": [
+            {
+              "name": "capability",
+              "required": true,
+              "description": "Capability to resolve: stt | tts | summarize | speaker"
+            },
+            {
+              "name": "language",
+              "description": "Optional language hint (e.g. en-US)"
+            },
+            {
+              "name": "commercial",
+              "bool": true,
+              "description": "Fail closed on licence: only explicitly commercial-allowed models are eligible"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelRegistryService",
+            "method": "ResolveModel"
           },
           "governance": {
             "effect": "read",
@@ -1729,41 +2154,6 @@
       "service": "HealthStatusService",
       "method": "RefreshProviderHealth",
       "reason": "Reached via `health show --refresh`, which shares the `health show` command with GetProviderHealth; cli-manifest/v1 binds one method per command."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Trim",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Merge",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Split",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Fade",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Volume",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "Normalize",
-      "reason": "Exposed via API/UI only; no CLI command today."
-    },
-    {
-      "service": "AudioProcessingService",
-      "method": "ExtractMetadata",
-      "reason": "Exposed via API/UI only; no CLI command today."
     },
     {
       "service": "DiagnosticsService",

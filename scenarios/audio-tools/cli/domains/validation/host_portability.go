@@ -63,7 +63,7 @@ func (h *handlers) runHostPortability(ctx cliapp.RunContext) error {
 		"target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1",
 		"cohort": "voice-pilot-en-v1", "build": build, "device_profile": "D1",
 		"policy_revision": "policy-v1", "corpus_revision": "voice-pilot-en-v1",
-		"execution_lane": "native", "provider_cell": map[string]string{"engine_id": "whisper-local", "model_id": "ggml-medium", "strategy": "vad_segment"},
+		"execution_lane": "native", "provider_cell": map[string]string{"engine_id": "whisper-local", "model_id": "whisper-small", "strategy": "vad_segment"},
 		"acceptance": map[string]any{"host-portability": map[string]any{"in_band": true, "negative_controls_passed": true}},
 		"details":    details,
 	})
@@ -72,7 +72,7 @@ func (h *handlers) runHostPortability(ctx cliapp.RunContext) error {
 	}
 	artifact := fmt.Sprintf("audio-tools:host-portability:%s:%s", h.now().UTC().Format("20060102T150405.000000000Z"), strings.ToLower(runtime.GOARCH))
 	if _, err := experimentClient.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: &experimentv1.QualificationEvidence{
-		EngineId: "whisper-local", ModelId: "ggml-medium", Strategy: "vad_segment", PolicyProfile: "policy-v1",
+		EngineId: "whisper-local", ModelId: "whisper-small", Strategy: "vad_segment", PolicyProfile: "policy-v1",
 		Kind:   experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH,
 		Passed: true, ArtifactRef: artifact, Notes: "owner-backed D1 CPU/accelerator inventory and explicit D2 unavailable state; D3-D6 not claimed", MachineJson: string(machine),
 	}})); err != nil {

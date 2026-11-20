@@ -201,8 +201,10 @@ probe.
 
 `vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService` is
 the operator-facing surface for starting, stopping, restarting, and
-pulling models on the four local-tier providers audio-tools owns
-(`whisper-stt`, `kokoro-tts`, `speaker-verification`, `ollama`). The native
+pulling models on the local-tier providers audio-tools owns. The row set is
+generated from the provider catalog (`whisper-stt`, `kyutai-stt`, `kokoro-tts`,
+`speaker-verification`, `ollama` today; providers sharing a resource slug such as
+`sherpa-stt`/`speaker-verification` collapse to one lifecycle row). The native
 `sherpa-onnx` resource backs the Kokoro-compatible TTS, streaming STT, speaker,
 and source-separation capabilities while those logical capability names remain
 stable for API and UI consumers. `whisper` remains the native batch STT
@@ -221,6 +223,29 @@ streaming uses Connect server-streaming. The UI `/status` page renders
 the action buttons advertised by `ListLocalProviders.supported_actions`
 and opens a `LogsDrawer` for `View logs`. The CLI mirrors the surface
 under `audio-tools provider {list,start,stop,restart,pull-model,logs}`.
+
+### Model and voice registry (`models` domain)
+
+`vrooli.audio_tools.v1.models.ModelRegistryService` is a read-only projection
+of `api/internal/modelcatalog/models.seed.json`. `ListModels` returns the
+validated catalogue with readiness, licence/commercial eligibility, runtime,
+languages, size, hardware envelope, and benchmark evidence; `ResolveModel`
+applies the deterministic default policy for a capability and language and
+fails closed on licence when `commercial = true`.
+
+The registry is a declaration, not an installer: it never starts a resource,
+pulls weights, or probes health. Live availability stays with
+`health_status`, `provider_lifecycle`, and `stt.ListEngines`. A record is
+`available` only when an adapter exists and is expected to run; `candidate`,
+`experimental`, and `watch` are honest states that cannot become a commercial
+default by accident. Promotion is a seed edit plus a dated qualification
+receipt, not a code branch.
+
+Three ids are deliberately distinct: the **provider id** (stable for health,
+lifecycle, settings, usage), the **engine id** (STT stream selection), and the
+**model id** (weights/runtime identity). `engine_ids` on a model record join
+`stt.ListEngines` to the registry without the STT manifest importing the model
+package.
 
 ### Silent-fallback observability (`x-audio-tools-fallback` header)
 
@@ -301,6 +326,13 @@ piece back into the owning domain or split a new domain first.
 
 Add product behavior by adding or updating the owning domain, not by
 growing generic buckets.
+
+The target for provider/operation growth is the declaration substrate in
+[`../internal/MATURATION-PROGRAM.md`](../internal/MATURATION-PROGRAM.md): one
+provider/model catalog and one operation manifest, with generated CLI/UI/health
+projections and drift gates. Until that lands, the proto-domain steps below
+remain the implementation path; when adding a provider or operation, prefer the
+declaration shape described there rather than adding another hand-synced table.
 
 For a normal proto-backed domain:
 

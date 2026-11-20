@@ -3,11 +3,13 @@ package stt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/sttengine"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -108,6 +110,7 @@ func TestProtoForEvent_NilPayloadsAndUnknownDrop(t *testing.T) {
 
 func TestStreamErrorCode_UsesBackendState(t *testing.T) {
 	require.Equal(t, "stt_busy", streamErrorCode(errors.New("stt_busy: capacity exhausted")))
+	require.Equal(t, "input_decode_failed", streamErrorCode(fmt.Errorf("wrap: %w", audioformat.ErrStreamDecode)))
 	require.Equal(t, "provider_failure", streamErrorCode(nil))
 }
 

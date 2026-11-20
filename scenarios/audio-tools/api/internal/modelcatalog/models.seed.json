@@ -1,0 +1,1303 @@
+{
+  "schema_version": "1.0.0",
+  "generated": "2026-11-19",
+  "source": "audio-tools model-policy review (MATURATION-PROGRAM.md Phase 4) plus vendor model cards; uncertain values are stated as uncertain in notes",
+  "notes": [
+    "Model choice is data plus evidence. This seed declares static facts; the selector applies policy; the qualification harness promotes.",
+    "readiness=available means an adapter exists and the model is expected to run. candidate, experimental, and watch are honest non-runnable or unqualified states.",
+    "Only available records are default-eligible. A default candidate must also carry the default role; a merely available record is an alternative, not a default.",
+    "A non-available record with the default role must set allow_default=true, and availability still ranks first among default candidates, so an available promoted default is never displaced by an opt-in candidate.",
+    "provider_ids are stable health/lifecycle ids owned by internal/capabilities. engine_ids are STT stream-selection ids owned by internal/sttengine; non-STT records leave engine_ids empty.",
+    "For remote BYOK streaming providers and batch-only adapters, engine_ids is empty: they are chain-routed and do not participate in StreamConfig.EngineID selection until sttengine (and the provider catalog) declares a real engine.",
+    "WER is a percentage, SIM is a 0..1 similarity score, RTF is an x-realtime factor. Benchmark numbers are copied from the named source, not scenario-measured.",
+    "size_mb_approx=0 means the artifact size is not established in this seed; it is not a claim that the model is weightless.",
+    "Summarize records mirror resources/ollama/model-policy.json; a drift test fails when the summarize.default or chat.small model (or a declared fallback) has no record.",
+    "artifact names the resource data artifact that supplies local weights. A conformance test proves every readiness=available local model names a declared artifact, that the artifact the whisper resource pins for WHISPER_MODEL_PATH is the registry default for whisper-local, and that each capability's default fits the declared resource budget."
+  ],
+  "field_reference": {
+    "id": "stable kebab-case identifier; registry key",
+    "name": "human display name",
+    "provider_ids": "stable provider ids used for health, lifecycle, and settings (must appear in known_provider_ids)",
+    "engine_ids": "STT stream-selection ids (sttengine manifest ids for local engines); empty for non-STT records, BYOK/gateway/browser providers, and batch adapters with no engine",
+    "capability": "stt | tts | summarize | speaker",
+    "runtime": "execution backend (whisper.cpp | kyutai | sherpa-onnx | kokoro | onnxruntime | pytorch | vllm | byok | gateway | browser)",
+    "artifact": "resource artifact identity for local weights: {resource, name}; resource.json owns URL, checksum, size, and install layout. Required for readiness=available local runtimes.",
+    "languages": "language tags; mul=multiple, und=undetermined",
+    "size_mb_approx": "approximate primary artifact download size in MB; 0 = not established",
+    "params": "parameter count as published, or unknown",
+    "license": "weight/runtime licence as published",
+    "commercial_use": "yes | no | unknown; no and unknown require license_notes",
+    "readiness": "available | candidate | experimental | watch",
+    "allow_default": "explicit opt-in allowing a non-available record to carry the default role",
+    "roles": "default | fast | quality | edge",
+    "hardware": "cpu_capable, gpu_required, min_vram_gb, min_ram_gb, os_arch (empty = no constraint)",
+    "benchmarks": "wer, sim, rtf, or notes; nil means not established"
+  },
+  "known_provider_ids": [
+    "whisper-stt",
+    "kyutai-stt",
+    "sherpa-stt",
+    "kokoro-tts",
+    "ollama",
+    "openai-whisper",
+    "deepgram",
+    "openai-tts",
+    "elevenlabs",
+    "openrouter",
+    "browser-stt",
+    "browser-tts",
+    "rumble-stt",
+    "kale-tts",
+    "reverb-tts",
+    "verba-tts",
+    "speaker-verification"
+  ],
+  "selection_policy": {
+    "readiness_rank": [
+      "available",
+      "candidate",
+      "experimental",
+      "watch"
+    ],
+    "role_order": [
+      "default",
+      "fast",
+      "quality",
+      "edge"
+    ],
+    "language_fallback": "none"
+  },
+  "models": [
+    {
+      "id": "whisper-medium",
+      "name": "Whisper Medium (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "artifact": {
+        "resource": "whisper",
+        "name": "medium-model"
+      },
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 1530,
+      "params": "769M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-medium",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.0,
+        "rtf": 69.3,
+        "notes": "audio-tools receipt 2026-11-19, same host and harness as the turbo receipt: canonical clip WER 0.00; 61-minute fixture 52.8 s wall (RTF 69.3x); Vulkan GPU residency 1,861 MiB. Retained as the rollback/comparison baseline, not as a broad quality claim."
+      },
+      "notes": "ggml-medium.bin is about 1.5 GB and is acquired on demand (group \"medium-model\") rather than installed with every resource. Batch-only in audio-tools; whisper.cpp declares no native streaming. It carries the quality role as the rollback/comparison model, not the default."
+    },
+    {
+      "id": "whisper-large-v3",
+      "name": "Whisper Large v3 (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 3100,
+      "params": "1550M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-large-v3",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 6,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Quality tier only. Not promoted: CPU throughput and real-duration latency are unmeasured in this scenario."
+      },
+      "notes": "~3.1 GB ggml artifact. The 6 GB VRAM figure is an operational comfort estimate, not a measured floor; CPU inference works but is slow."
+    },
+    {
+      "id": "whisper-large-v3-turbo",
+      "name": "Whisper Large v3 Turbo (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "artifact": {
+        "resource": "whisper",
+        "name": "turbo-model"
+      },
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 1620,
+      "params": "809M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-large-v3-turbo",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 6,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.0,
+        "rtf": 120.8,
+        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical clip WER 0.00; 61-minute fixture 30.3 s wall (RTF 120x); Vulkan residency 1,817 MiB. Quality tier; not a device matrix."
+      },
+      "notes": "ggml-large-v3-turbo.bin is the accuracy tier, not the shipped default. It is an on-demand artifact (group \"turbo-model\") because the resource-conscious default is whisper-small. Choose it when dictation accuracy matters more than ~1.3 GB of GPU/VRAM."
+    },
+    {
+      "id": "whisper-small",
+      "name": "Whisper Small (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "artifact": {
+        "resource": "whisper",
+        "name": "small-model"
+      },
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 488,
+      "params": "244M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-small",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "available",
+      "roles": [
+        "default"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.0,
+        "rtf": 6.3,
+        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical 'the quick brown fox jumps' clip transcribed exactly (WER 0.00); warm wall 0.31 s for 1.95 s audio (RTF 6.3x). One clip on one host, not a dictation-quality or device-matrix claim."
+      },
+      "notes": "ggml-small.bin is the shipped runtime default (eager artifact): 488 MB on disk, about one third of turbo. It preserves multilingual support and passes the canonical quality clip exactly, while cutting the resident footprint enough to leave the GPU free for other work."
+    },
+    {
+      "id": "whisper-base",
+      "name": "Whisper Base (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "artifact": {
+        "resource": "whisper",
+        "name": "base-model"
+      },
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 148,
+      "params": "74M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-base",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "available",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.0,
+        "rtf": 10.5,
+        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical 'the quick brown fox jumps' clip transcribed exactly (WER 0.00); warm wall 0.18 s for 1.95 s audio (RTF 10.5x). One clip on one host, not a dictation-quality or device-matrix claim."
+      },
+      "notes": "On-demand fast tier: 148 MB, about 3x less disk than small and faster on constrained hosts. Accuracy on real dictation is below small; use it only where footprint dominates."
+    },
+    {
+      "id": "whisper-tiny",
+      "name": "Whisper Tiny (multilingual)",
+      "provider_ids": [
+        "whisper-stt"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "capability": "stt",
+      "runtime": "whisper.cpp",
+      "artifact": {
+        "resource": "whisper",
+        "name": "tiny-model"
+      },
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 78,
+      "params": "39M",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI Whisper weights and the whisper.cpp runtime are MIT-licensed.",
+      "source": {
+        "url": "https://huggingface.co/openai/whisper-tiny",
+        "repo": "https://github.com/ggml-org/whisper.cpp"
+      },
+      "readiness": "available",
+      "roles": [
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.0,
+        "rtf": 12.5,
+        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical 'the quick brown fox jumps' clip transcribed exactly (WER 0.00); warm wall 0.16 s for 1.95 s audio (RTF 12.5x). One clip on one host, not a dictation-quality or device-matrix claim."
+      },
+      "notes": "On-demand edge tier: 78 MB. It transcribes clean speech acceptably but degrades quickly on accented, noisy, or long-form audio; it is not a dictation default."
+    },
+    {
+      "id": "kyutai-stt-1b-en-fr",
+      "name": "Kyutai STT 1B (English/French, streaming)",
+      "provider_ids": [
+        "kyutai-stt"
+      ],
+      "engine_ids": [
+        "kyutai"
+      ],
+      "capability": "stt",
+      "runtime": "kyutai",
+      "artifact": {
+        "resource": "kyutai-stt",
+        "name": "moshi-weights"
+      },
+      "languages": [
+        "en",
+        "fr"
+      ],
+      "size_mb_approx": 2000,
+      "params": "1B",
+      "license": "CC-BY-4.0",
+      "commercial_use": "yes",
+      "license_notes": "CC-BY-4.0 requires attribution and licence propagation.",
+      "source": {
+        "url": "https://huggingface.co/kyutai/stt-1b-en_fr",
+        "repo": "https://github.com/kyutai-labs/delayed-streams-modeling"
+      },
+      "readiness": "available",
+      "roles": [
+        "fast"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 8,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Native streaming only; no batch endpoint and no confidence signals. Date-stamped PROBLEMS entries show product-path latency is backend-bound after capture, so no latency claim is made here."
+      },
+      "notes": "GPU-required. The 8 GB VRAM figure is an operational estimate; the resource has not been qualified on CPU. Emits no confidence signals, so the egress hallucination signal stage is skipped for this engine."
+    },
+    {
+      "id": "kyutai-stt-2.6b-en",
+      "name": "Kyutai STT 2.6B (English, streaming)",
+      "provider_ids": [
+        "kyutai-stt"
+      ],
+      "engine_ids": [
+        "kyutai"
+      ],
+      "capability": "stt",
+      "runtime": "kyutai",
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 5200,
+      "params": "2.6B",
+      "license": "CC-BY-4.0",
+      "commercial_use": "yes",
+      "license_notes": "CC-BY-4.0 requires attribution and licence propagation.",
+      "source": {
+        "url": "https://huggingface.co/kyutai/stt-2.6b-en",
+        "repo": "https://github.com/kyutai-labs/delayed-streams-modeling"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 16,
+        "min_ram_gb": 16,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Higher-capacity Kyutai checkpoint. No audio-tools receipt exists for quality, latency, or concurrency; the resource enforces one streaming session per model instance."
+      },
+      "notes": "Candidate quality tier. The 16 GB VRAM figure is an estimate for the 2.6B checkpoint plus decoder overhead and is not measured on this host."
+    },
+    {
+      "id": "sherpa-zipformer-en-2023-06-26",
+      "name": "sherpa-onnx Zipformer English (2023-06-26, streaming)",
+      "provider_ids": [
+        "sherpa-stt"
+      ],
+      "engine_ids": [
+        "sherpa-streaming"
+      ],
+      "capability": "stt",
+      "runtime": "sherpa-onnx",
+      "artifact": {
+        "resource": "sherpa-onnx",
+        "name": "streaming-zipformer-en-2023-06-26"
+      },
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 0,
+      "params": "unknown",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "k2-fsa publishes the sherpa-onnx toolkit and model exports under Apache-2.0.",
+      "source": {
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models",
+        "repo": "https://github.com/k2-fsa/sherpa-onnx"
+      },
+      "readiness": "available",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Native English streaming with punctuation and casing restoration in the sherpa-onnx resource. No scenario WER is pinned."
+      },
+      "notes": "Native English streaming engine declared in sttengine/manifest.json as sherpa-streaming and mapped to a Local provider in bootstrap. It is an alternative, not the promoted STT default; artifact size is not pinned in this seed."
+    },
+    {
+      "id": "rumble-2-flash",
+      "name": "Rumble 2 Flash (batch ASR, 45 languages)",
+      "provider_ids": [
+        "rumble-stt"
+      ],
+      "engine_ids": [],
+      "capability": "stt",
+      "runtime": "vllm",
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 1000,
+      "params": "0.5B",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Apache-2.0 per the upstream model card.",
+      "source": {
+        "url": "https://huggingface.co/Reson8/Rumble-2-Flash",
+        "repo": ""
+      },
+      "readiness": "candidate",
+      "roles": [
+        "default",
+        "quality"
+      ],
+      "allow_default": true,
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 6.6,
+        "rtf": 6338,
+        "notes": "Open ASR Leaderboard English average WER 6.60; RTFx 6338. Batch benchmark only, not an audio-tools latency receipt."
+      },
+      "notes": "Batch ASR, not native streaming. Candidate default for local batch/multilingual work; allow_default is explicit so promotion is a seed decision backed by a receipt. engine_ids is empty until a real rumble engine/adapter exists in sttengine and the provider catalog. The vLLM adapter is GPU-oriented in practice, so CPU viability is not claimed even though the weights fit in CPU RAM. Artifact size ~1 GB is an estimate from 0.5B parameters."
+    },
+    {
+      "id": "openai-whisper-1",
+      "name": "OpenAI Whisper (BYOK)",
+      "provider_ids": [
+        "openai-whisper"
+      ],
+      "engine_ids": [],
+      "capability": "stt",
+      "runtime": "byok",
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "vendor-managed",
+      "license": "Proprietary service terms",
+      "commercial_use": "yes",
+      "license_notes": "Vendor-hosted service under OpenAI terms; usage is billed by the provider. No self-hosted weights.",
+      "source": {
+        "url": "https://platform.openai.com/docs/guides/speech-to-text",
+        "repo": ""
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Quality and latency depend on the vendor endpoint. No audio-tools receipt is pinned."
+      },
+      "notes": "Requires a BYOK credential in settings. No engine_ids: this provider is chain-routed and does not participate in StreamConfig.EngineID selection."
+    },
+    {
+      "id": "deepgram-nova-3",
+      "name": "Deepgram Nova-3 (BYOK, streaming)",
+      "provider_ids": [
+        "deepgram"
+      ],
+      "engine_ids": [],
+      "capability": "stt",
+      "runtime": "byok",
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "vendor-managed",
+      "license": "Proprietary service terms",
+      "commercial_use": "yes",
+      "license_notes": "Vendor-hosted service under Deepgram terms; usage is billed by the provider. No self-hosted weights.",
+      "source": {
+        "url": "https://deepgram.com/learn/introducing-nova-3-speech-to-text-api",
+        "repo": ""
+      },
+      "readiness": "available",
+      "roles": [
+        "fast"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Vendor-reported multilingual accuracy; no independent audio-tools receipt."
+      },
+      "notes": "Requires a BYOK credential in settings. No engine_ids: this provider is chain-routed and does not participate in StreamConfig.EngineID selection."
+    },
+    {
+      "id": "kokoro-82m-v1.0",
+      "name": "Kokoro 82M v1.0 (multilingual TTS)",
+      "provider_ids": [
+        "kokoro-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "kokoro",
+      "artifact": {
+        "resource": "kokoro",
+        "name": "kokoro-model"
+      },
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "hi",
+        "it",
+        "ja",
+        "pt",
+        "zh"
+      ],
+      "size_mb_approx": 330,
+      "params": "82M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Kokoro-82M weights are Apache-2.0.",
+      "source": {
+        "url": "https://huggingface.co/hexgrad/Kokoro-82M",
+        "repo": "https://github.com/hexgrad/kokoro"
+      },
+      "readiness": "available",
+      "roles": [
+        "default"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "No scenario-measured naturalness or WER is pinned. Voice catalogue and per-voice quality are owned by the tts domain."
+      },
+      "notes": "Multilingual TTS baseline and shipped local default. The 330 MB figure reflects the FP32 ONNX artifact; int8 is smaller. Language coverage depends on the loaded voice packs."
+    },
+    {
+      "id": "kale-tts-1-nano",
+      "name": "Kale TTS 1 Nano (English)",
+      "provider_ids": [
+        "kale-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "onnxruntime",
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 14.8,
+      "params": "7.5M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Weights, training code, dataset, and recipe are published Apache-2.0.",
+      "source": {
+        "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano",
+        "repo": ""
+      },
+      "readiness": "candidate",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.79,
+        "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 90 ms to first sound on CPU and 44x realtime."
+      },
+      "notes": "Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact."
+    },
+    {
+      "id": "kale-tts-1-tiny",
+      "name": "Kale TTS 1 Tiny (English)",
+      "provider_ids": [
+        "kale-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "onnxruntime",
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 79.9,
+      "params": "45.7M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Weights, training code, dataset, and recipe are published Apache-2.0.",
+      "source": {
+        "url": "https://huggingface.co/KaleComputer/kale-tts-1-tiny",
+        "repo": ""
+      },
+      "readiness": "candidate",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 0.81,
+        "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 160 ms to first sound on device and 24x realtime."
+      },
+      "notes": "Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano."
+    },
+    {
+      "id": "kale-tts-1-base",
+      "name": "Kale TTS 1 Base (English)",
+      "provider_ids": [
+        "kale-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "pytorch",
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 0,
+      "params": "81.8M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Weights, training code, dataset, and recipe are published Apache-2.0.",
+      "source": {
+        "url": "https://huggingface.co/KaleComputer/kale-tts-1-base",
+        "repo": ""
+      },
+      "readiness": "experimental",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "No independent quality or latency receipt. The base model is Kokoro-82M-sized but Kale-trained; do not assume Kokoro voice compatibility."
+      },
+      "notes": "Experimental: the PyTorch path is a scratch/reference implementation and artifact size is not published. Not a default."
+    },
+    {
+      "id": "reverb-tts",
+      "name": "Reverb TTS (7 languages, voice cloning)",
+      "provider_ids": [
+        "reverb-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "pytorch",
+      "languages": [
+        "en",
+        "de",
+        "es",
+        "fr",
+        "it",
+        "pl",
+        "pt"
+      ],
+      "size_mb_approx": 307,
+      "params": "297M",
+      "license": "CC-BY-NC-4.0 (weights); Apache-2.0 (code)",
+      "commercial_use": "no",
+      "license_notes": "Weights are CC BY-NC 4.0: non-commercial use only, with attribution. Commercial use requires a negotiated licence from Software Mansion. Runtime code is Apache-2.0.",
+      "source": {
+        "url": "https://huggingface.co/software-mansion/Reverb-TTS",
+        "repo": "https://github.com/software-mansion-labs/Reverb-TTS"
+      },
+      "readiness": "experimental",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 1.5,
+        "min_ram_gb": 4,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64"
+        ]
+      },
+      "benchmarks": {
+        "wer": 1.35,
+        "sim": 0.818,
+        "notes": "Model card: MiniMax multilingual test set, 700 sentences (100 per language), int8, WER scored by Whisper large-v3. Strong quality and speed, but the licence blocks commercial defaulting."
+      },
+      "notes": "Experimental and non-commercial: never a commercial default. 307 MB is the default int8 artifact; fp32 is about 1.19 GB. 1.5 GB VRAM is a derived operational estimate, not a published figure."
+    },
+    {
+      "id": "verba-tts-indic-zero",
+      "name": "Verba TTS Indic-Zero (12 languages, watch)",
+      "provider_ids": [
+        "verba-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "browser",
+      "languages": [
+        "en",
+        "hi",
+        "bn",
+        "ta",
+        "te",
+        "mr",
+        "gu",
+        "kn",
+        "ml",
+        "pa",
+        "or",
+        "as"
+      ],
+      "size_mb_approx": 7.6,
+      "params": "1.8M",
+      "license": "unknown",
+      "commercial_use": "unknown",
+      "license_notes": "No confirmed licence or public release was found. Treat every use as unlicensed until the owner publishes terms.",
+      "source": {
+        "url": "",
+        "repo": ""
+      },
+      "readiness": "watch",
+      "roles": [
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "No public benchmark or leaderboard entry. The 1.8M/7.6 MB figures come from the pre-release claim, not a downloadable artifact."
+      },
+      "notes": "Watch only: no confirmed release or licence, so it is not selectable or shippable. Unique Indic/edge tier if it later ships permissively. The 12 language tags are inferred from the English + 11 Indic claim and are unconfirmed against a release."
+    },
+    {
+      "id": "openai-tts-1",
+      "name": "OpenAI TTS (BYOK)",
+      "provider_ids": [
+        "openai-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "byok",
+      "languages": [
+        "en",
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "vendor-managed",
+      "license": "Proprietary service terms",
+      "commercial_use": "yes",
+      "license_notes": "Vendor-hosted service under OpenAI terms; usage is billed by the provider. No self-hosted weights.",
+      "source": {
+        "url": "https://platform.openai.com/docs/guides/text-to-speech",
+        "repo": ""
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Vendor quality tier. No audio-tools latency or naturalness receipt."
+      },
+      "notes": "Requires a BYOK credential in settings. Voices are vendor-defined and are not part of the local voice catalogue."
+    },
+    {
+      "id": "elevenlabs-multilingual-v2",
+      "name": "ElevenLabs Multilingual v2 (BYOK)",
+      "provider_ids": [
+        "elevenlabs"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "byok",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "vendor-managed",
+      "license": "Proprietary service terms",
+      "commercial_use": "yes",
+      "license_notes": "Vendor-hosted service under ElevenLabs terms; usage is billed by the provider. No self-hosted weights.",
+      "source": {
+        "url": "https://elevenlabs.io/docs/models",
+        "repo": ""
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Vendor quality tier. No audio-tools latency or naturalness receipt."
+      },
+      "notes": "Requires a BYOK credential in settings. The multilingual-v2 family advertises broad language coverage; this seed does not enumerate the vendor list."
+    },
+    {
+      "id": "qwen3.5:9b",
+      "name": "Qwen3.5 9B (Ollama summarize default)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 5500,
+      "params": "9B",
+      "license": "Unverified upstream (Qwen3.5)",
+      "commercial_use": "unknown",
+      "license_notes": "Quality tier. resource-ollama's summarize.default role moved to qwen3.5:4b in the 2026-11-19 resource-footprint review, so this tag is no longer the runtime primary. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown. CommercialDefaultFor therefore selects the certified fallback llama3.2:3b instead.",
+      "source": {
+        "url": "https://ollama.com/library/qwen3.5",
+        "repo": "https://github.com/QwenLM"
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 16,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Quality tier. It is ~2.2x the resident footprint of the 4B default; no audio-tools receipt for this tag."
+      },
+      "notes": "resource-ollama's summarize.default role moved to qwen3.5:4b after the 2026-11-19 resource-footprint review; this tag remains the quality tier. Commercial use is still unverified, so it can never become a commercial default.",
+      "allow_default": false
+    },
+    {
+      "id": "qwen3.5:4b",
+      "name": "Qwen3.5 4B (Ollama chat/summarize)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 2600,
+      "params": "4B",
+      "license": "Unverified upstream (Qwen3.5)",
+      "commercial_use": "unknown",
+      "license_notes": "resource-ollama's summarize.default primary (2026-11-19 resource-footprint review) and the chat.small primary. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.",
+      "source": {
+        "url": "https://ollama.com/library/qwen3.5",
+        "repo": "https://github.com/QwenLM"
+      },
+      "readiness": "available",
+      "roles": [
+        "default",
+        "fast"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 10,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Runtime default for summarize. It is the gateway role candidate; quality is measured by the persisted experiment harness, not this seed."
+      },
+      "notes": "resource-ollama's summarize.default role resolves to this tag after the 2026-11-19 resource-footprint review; it was already the chat.small primary and the role's qualification candidate. allow_default is the auditable opt-in that lets the runtime-primary tag carry the default role before its upstream licence is verified; unknown commercial use still fails closed to llama3.2:3b for commercial selection.",
+      "allow_default": true
+    },
+    {
+      "id": "llama3.2:3b",
+      "name": "Llama 3.2 3B (Ollama summarize, certified fallback)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 2000,
+      "params": "3B",
+      "license": "Llama 3.2 Community License",
+      "commercial_use": "yes",
+      "license_notes": "Commercial use is permitted below the 700 million monthly active user threshold and is subject to the Llama acceptable-use policy and attribution terms.",
+      "source": {
+        "url": "https://ollama.com/library/llama3.2",
+        "repo": "https://github.com/meta-llama/llama-models"
+      },
+      "readiness": "available",
+      "roles": [
+        "default",
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Summarize quality is measured by the persisted experiment harness, not this seed."
+      },
+      "notes": "Concrete Ollama tag. It is a summarize.default fallback and the registry's commercially certified default because its licence is explicit. The policy primary is qwen3.5:4b; CommercialDefaultFor still selects this record."
+    },
+    {
+      "id": "llama3.2:1b",
+      "name": "Llama 3.2 1B (Ollama chat/summarize fallback)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 1300,
+      "params": "1B",
+      "license": "Llama 3.2 Community License",
+      "commercial_use": "yes",
+      "license_notes": "Commercial use is permitted below the 700 million monthly active user threshold and is subject to the Llama acceptable-use policy and attribution terms.",
+      "source": {
+        "url": "https://ollama.com/library/llama3.2",
+        "repo": "https://github.com/meta-llama/llama-models"
+      },
+      "readiness": "available",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 6,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Fallback tier; no audio-tools summarize receipt."
+      },
+      "notes": "Concrete Ollama tag and the last fallback of resource-ollama's summarize.default/chat.small roles. The smallest certified-licence option; lower summary quality than the role primary."
+    },
+    {
+      "id": "gemma3:4b",
+      "name": "Gemma 3 4B (Ollama summarize candidate)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 3300,
+      "params": "4B",
+      "license": "Gemma Terms of Use",
+      "commercial_use": "yes",
+      "license_notes": "Commercial use is permitted subject to the Gemma prohibited-use policy and redistribution terms.",
+      "source": {
+        "url": "https://ollama.com/library/gemma3",
+        "repo": "https://github.com/google-deepmind/gemma"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 10,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Candidate quality tier; no audio-tools summarize receipt."
+      },
+      "notes": "3.3 GB is the quantized pull size. Do not pull without operator approval."
+    },
+    {
+      "id": "phi4-mini:3.8b",
+      "name": "Phi-4 Mini 3.8B (Ollama summarize candidate)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 2500,
+      "params": "3.8B",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "license_notes": "MIT-licensed weights.",
+      "source": {
+        "url": "https://ollama.com/library/phi4-mini",
+        "repo": "https://huggingface.co/microsoft/Phi-4-mini-instruct"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "fast"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 8,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "Candidate fast tier; no audio-tools summarize receipt."
+      },
+      "notes": "2.5 GB is the quantized pull size. Lower-latency fallback role candidate."
+    },
+    {
+      "id": "openrouter-summarize",
+      "name": "OpenRouter summarization (BYOK gateway)",
+      "provider_ids": [
+        "openrouter"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "gateway",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "provider-selected",
+      "license": "Proprietary provider terms",
+      "commercial_use": "yes",
+      "license_notes": "OpenRouter routes to third-party providers under their terms; usage is billed by the provider. No self-hosted weights.",
+      "source": {
+        "url": "https://openrouter.ai/docs",
+        "repo": ""
+      },
+      "readiness": "available",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Quality depends on the routed model; no audio-tools receipt."
+      },
+      "notes": "Requires an OpenRouter BYOK credential. The concrete routed model is provider-selected, so this record represents the gateway path, not one model."
+    },
+    {
+      "id": "sherpa-onnx-speaker-embedding",
+      "name": "sherpa-onnx speaker embedding (3D-Speaker)",
+      "provider_ids": [
+        "speaker-verification"
+      ],
+      "engine_ids": [],
+      "capability": "speaker",
+      "runtime": "sherpa-onnx",
+      "artifact": {
+        "resource": "sherpa-onnx",
+        "name": "speaker-eres2net-large-zh-cn-16k"
+      },
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 27,
+      "params": "unknown",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "3D-Speaker and the sherpa-onnx exports are Apache-2.0; confirm the exact checkpoint provenance at ingest.",
+      "source": {
+        "url": "https://github.com/modelscope/3D-Speaker",
+        "repo": "https://github.com/k2-fsa/sherpa-onnx"
+      },
+      "readiness": "available",
+      "roles": [
+        "default"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 2,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "The speaker-verification resource reports hybrid centroid/clip scores; no EER or threshold qualification is pinned in this seed."
+      },
+      "notes": "Backs enrollment and verification through the sherpa-onnx resource. The ~27 MB size and unknown parameter count reflect the published export, not a measured artifact in this tree."
+    }
+  ]
+}

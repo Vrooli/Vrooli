@@ -136,7 +136,13 @@ func (v *VADSegmenter) Run(
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 		return err
 	}
-	v.applyDefaults()
+	// Resolve defaults on a private copy so the receiver stays the read-only,
+	// reusable configuration documented by Strategy. Mutating it here made a
+	// zero-value instance change under its caller and raced concurrent Run
+	// calls on every config field.
+	resolved := *v
+	resolved.applyDefaults()
+	v = &resolved
 	logger := v.Logger
 	if logger == nil {
 		logger = logx.Std{}
@@ -194,6 +200,18 @@ func (v *VADSegmenter) Run(
 	var lastPreviewEnd int
 	chunkCount := 0
 
+	// retryStepBytes paces boundary retries after a provider failure. Without
+	// it, once a voiced segment reaches MaxSegmentMs the forced-cut branch
+	// retries a full provider request on EVERY subsequent frame (~50/s), so a
+	// provider outage turns a bounded 15s request into a call storm while the
+	// audio is retained anyway. The retry itself is still lossless.
+	retryStepBytes := v.SampleRate / 4 * sampleBytes // ~250ms
+	if retryStepBytes <= 0 {
+		retryStepBytes = frameBytes
+	}
+	// nextFlushAttempt is an absolute buffer offset. 0 means no backoff.
+	nextFlushAttempt := 0
+
 	var (
 		tickSeq           uint64
 		lastEmitFrameIdx  int
@@ -228,11 +246,11 @@ func (v *VADSegmenter) Run(
 	// backwards by preRollBytes so the next segment overlaps the
 	// trailing audio of the one just emitted — Whisper sees pre-word
 	// context, callers see deduped text.
-	flushSegment := func(end int) {
+	flushSegment := func(callCtx context.Context, end int) bool {
 		if !hasVoiced || end-segStart <= 0 {
 			segStart = end
 			hasVoiced = false
-			return
+			return true
 		}
 		seg := make([]byte, end-segStart)
 		copy(seg, buf[segStart:end])
@@ -260,7 +278,7 @@ func (v *VADSegmenter) Run(
 			UserIdentity:            start.UserIdentity,
 		}
 		t0 := clk.Now()
-		res, err := v.Provider.Transcribe(ctx, req)
+		res, err := v.Provider.Transcribe(callCtx, req)
 		latency := clk.Now().Sub(t0)
 		if err != nil {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
@@ -268,17 +286,17 @@ func (v *VADSegmenter) Run(
 			// retries the complete audio window; advancing segStart here
 			// would make a provider outage indistinguishable from successful
 			// transcription and silently discard the user's speech.
-			return
+			return false
 		}
 		if res == nil {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
 				"stt-vad: provider returned no result for %d bytes; retaining audio for retry", len(seg))}
-			return
+			return false
 		}
 		if strings.TrimSpace(res.Text) == "" {
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
 				"stt-vad: provider returned an empty transcript for %d bytes; retaining audio for retry", len(seg))}
-			return
+			return false
 		}
 		lastTier = res.Tier
 		lastProviderID = res.ProviderID
@@ -334,7 +352,61 @@ func (v *VADSegmenter) Run(
 			if lastPreviewEnd < 0 {
 				lastPreviewEnd = 0
 			}
+			// lastEmitFrameIdx is frame-addressed. Translate it with the
+			// buffer, or the throttle delta goes negative and voiced-state
+			// ticks stay suppressed until the stale index is overtaken.
+			lastEmitFrameIdx -= prefix / frameBytes
+			if lastEmitFrameIdx < 0 {
+				lastEmitFrameIdx = 0
+			}
 			segStart = 0
+		}
+		return true
+	}
+
+	// trimSilentPrefix bounds the PCM buffer during long non-speech stretches.
+	// A session may receive audio frames continuously while the operator is
+	// silent (the transport's idle deadline resets on every frame), and no
+	// segment cut fires before the first voiced frame. Without this trim the
+	// raw buffer — and every preview copy — grows with wall-clock session
+	// length even though none of the retained silence is part of a pending
+	// segment. Keep the trailing pre-roll window so the first phoneme still
+	// arrives with the context a normal segment boundary would preserve.
+	trimSilentPrefix := func() {
+		if hasVoiced || nextFrame <= 0 {
+			return
+		}
+		keep := preRollBytes + frameBytes
+		if keep < 2*frameBytes {
+			keep = 2 * frameBytes
+		}
+		prefix := nextFrame - keep
+		// Amortise the copy: trimming every frame would trade an unbounded
+		// buffer for quadratic work on a long silent session.
+		if prefix < v.SampleRate*sampleBytes {
+			return
+		}
+		prefix -= prefix % sampleBytes
+		remaining := len(buf) - prefix
+		compacted := make([]byte, remaining)
+		copy(compacted, buf[prefix:])
+		buf = compacted
+		bufStartSample += int64(prefix / sampleBytes)
+		nextFrame -= prefix
+		if nextFrame < 0 {
+			nextFrame = 0
+		}
+		segStart -= prefix
+		if segStart < 0 {
+			segStart = 0
+		}
+		lastPreviewEnd -= prefix
+		if lastPreviewEnd < 0 {
+			lastPreviewEnd = 0
+		}
+		lastEmitFrameIdx -= prefix / frameBytes
+		if lastEmitFrameIdx < 0 {
+			lastEmitFrameIdx = 0
 		}
 	}
 
@@ -523,10 +595,15 @@ func (v *VADSegmenter) Run(
 					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
 					rms, v.SilenceRMS,
 				)
-				flushSegment(cut)
+				if !flushSegment(ctx, cut) {
+					nextFlushAttempt = nextFrame + frameBytes + retryStepBytes
+				} else {
+					nextFlushAttempt = 0
+				}
 				silentFrames = 0
 			} else if hasVoiced && v.MaxSegmentMs > 0 &&
-				nextFrame+frameBytes-segStart >= v.SampleRate*v.MaxSegmentMs/1000*sampleBytes {
+				nextFrame+frameBytes-segStart >= v.SampleRate*v.MaxSegmentMs/1000*sampleBytes &&
+				(nextFlushAttempt == 0 || nextFrame+frameBytes >= nextFlushAttempt) {
 				// Continuous speech has no VAD silence boundary. Cut at the
 				// current complete frame so the next provider request remains
 				// bounded and the committed PCM can be released immediately.
@@ -535,25 +612,40 @@ func (v *VADSegmenter) Run(
 					v.MaxSegmentMs, cut-segStart,
 					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
 				)
-				flushSegment(cut)
+				if !flushSegment(ctx, cut) {
+					// Retain the audio, but do not retry the same oversized
+					// window on every 20ms frame during a provider outage.
+					nextFlushAttempt = nextFrame + frameBytes + retryStepBytes
+				} else {
+					nextFlushAttempt = 0
+				}
 				silentFrames = 0
 			}
 			nextFrame += frameBytes
 		}
+		trimSilentPrefix()
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			scan()
-			flushSegment(len(buf))
+			// The normal flush below already runs on cancellation, but it used
+			// to pass the cancelled ctx to the provider, so a ctx-honouring
+			// backend failed the request and the tail was dropped. Retry it with
+			// the same bounded, caller-deadline-aware context as OverlapAgree so
+			// cancellation remains a best-effort stream end.
+			if flushCtx, cancel, ok := bestEffortTailContext(ctx); ok {
+				flushSegment(flushCtx, len(buf))
+				cancel()
+			}
 			drainPreviews()
 			emitDone()
 			return ctx.Err()
 		case ch, ok := <-chunks:
 			if !ok {
 				scan()
-				flushSegment(len(buf))
+				flushSegment(ctx, len(buf))
 				drainPreviews()
 				emitDone()
 				return nil

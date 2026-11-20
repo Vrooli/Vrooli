@@ -2,6 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { strings } from "../../consts/strings";
 import { ExperimentResults, LiveExperimentProgress } from "./ExperimentResults";
 
 describe("ExperimentResults", () => {
@@ -22,28 +23,29 @@ describe("ExperimentResults", () => {
 
   it("renders the empty result state when no experiment is selected", () => {
     render(<ExperimentResults report={null} selected={null} loadReportPending={false} onLoadReport={vi.fn()} />);
-    expect(screen.getByText("dictationStudio.resultsEmpty")).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.resultsEmpty)).toBeInTheDocument();
   });
 });
 
 describe("LiveExperimentProgress", () => {
   it("clamps event progress and shows a fallback explanation", () => {
+    const fallbackMessage = "Buffered fallback";
     render(
       <LiveExperimentProgress
         event={{ progress: 160, message: "ignored", status: "running" } as never}
-        fallbackMessage="Buffered fallback"
+        fallbackMessage={fallbackMessage}
         status="running"
       />,
     );
 
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
-    expect(screen.getByText("Buffered fallback")).toBeInTheDocument();
-    expect(screen.getByText("dictationStudio.liveFallback")).toBeInTheDocument();
+    expect(screen.getByText(fallbackMessage)).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.liveFallback)).toBeInTheDocument();
   });
 
   it("uses queued defaults when no event arrived", () => {
     render(<LiveExperimentProgress event={null} fallbackMessage="" status="queued" />);
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
-    expect(screen.getByText("dictationStudio.liveQueued")).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.liveQueued)).toBeInTheDocument();
   });
 });

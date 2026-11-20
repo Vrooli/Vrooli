@@ -60,7 +60,7 @@ func sampleResp() *hsv1.GetProviderHealthResponse {
 				Capability:     diagv1.Capability_CAPABILITY_STT,
 				EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE,
 				Providers: []*sharedv1.ProviderHealth{
-					{Capability: diagv1.Capability_CAPABILITY_STT, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper-stt", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, LastCheckedAt: "2026-05-17T00:00:00Z"},
+					{Capability: diagv1.Capability_CAPABILITY_STT, Tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper-stt", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, LatencyMs: 84, LastCheckedAt: "2026-05-17T00:00:00Z"},
 				},
 			},
 			{
@@ -89,6 +89,8 @@ func TestShow_HumanOutputRendersTable(t *testing.T) {
 	require.Contains(t, out, "AVAILABLE")
 	require.Contains(t, out, "UNAVAILABLE")
 	require.Contains(t, out, "local")
+	require.Contains(t, out, "LATENCY")
+	require.Contains(t, out, "84ms")
 }
 
 func TestShow_JSONOutputIsProtoShape(t *testing.T) {

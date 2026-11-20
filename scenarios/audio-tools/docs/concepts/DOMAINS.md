@@ -32,6 +32,7 @@ belong in [`DATA.md`](DATA.md).
 | audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | Supports canonical audio handling and OT-P0-009; no separate transformation expansion target | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
 | session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API | OT-P0-001; OT-P0-005; OT-P0-009 | `api/internal/session/`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
 | settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-004; OT-P0-008; OT-P0-009 | `api/internal/settings/`, `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
+| models | Validated model/voice registry and deterministic default selection for STT, TTS, summarize, and speaker. | Read-only declaration / policy | The checked-in model seed; no mutable state. | API, CLI, UI | Supports model provenance and the maturation program; no separate feature expansion target | `api/internal/modelcatalog/`, `api/handlers/models/`, `cli/domains/model/`, `ui/src/features/models/`, `packages/proto/schemas/audio-tools/v1/models/` |
 | usage | Per-operation usage history and dashboard rollups; not the customer billing ledger. | Reporting / diagnostic history | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-007 (integration obligation); OT-P0-010 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
 | corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | OT-P0-006; OT-P0-009 | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
 | eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, safety, length curves, and backend-owned duration-scaling classifications. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI report renderer | OT-P0-006; OT-P0-010; OT-P1-001 | `api/internal/eval/`, `api/handlers/eval/`, `packages/proto/schemas/audio-tools/v1/eval/`, shared report rendering under `cli/domains/experiment/` and `ui/src/features/dictation-studio/` |
@@ -115,6 +116,18 @@ belong in [`DATA.md`](DATA.md).
 - Storage: `provider_config`, `byok_credentials`, `voice_overrides`.
 - Requirements: OT-P0-004; OT-P0-008; OT-P0-009.
 - Tests: per-table store tests; `byokstore.Encryptor` round-trip + tamper tests; handler tests.
+
+### models
+
+- Purpose: one validated source of model/voice facts (runtime, licence, readiness, hardware, benchmarks) and one deterministic policy for choosing a default per capability and language.
+- Primary archetype: read-only declaration / policy. The seed is embedded; the service never installs, starts, or probes anything.
+- Owns: `api/internal/modelcatalog/` (seed, validation, selection, docs renderer), `ModelRegistryService` (`ListModels`, `ResolveModel`), the CLI `model` group, and the UI Models page.
+- Does not own: live provider health (`health_status`), resource lifecycle (`provider_lifecycle`), STT stream-engine selection (`sttengine`), or the concrete Ollama role policy (`resources/ollama/model-policy.json`). A drift test keeps the registry mirroring that policy.
+- API: `api/handlers/models/`.
+- CLI: `cli/domains/model/`.
+- UI: `ui/src/features/models/`.
+- Storage: none.
+- Tests: seed validation (licence/readiness/engine-id rules), deterministic selection and commercial fail-closed behavior, generated-doc drift, cross-catalog conformance, and Connect transport wiring.
 
 ### usage
 

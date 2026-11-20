@@ -17,28 +17,28 @@ type BYOKAdapter interface {
 }
 
 type BYOKProvider struct {
-	registry map[string]BYOKAdapter
+	dispatch *tiered.BYOKDispatcher[BYOKAdapter, Result]
 }
 
 func NewBYOKProvider(registry map[string]BYOKAdapter) *BYOKProvider {
-	return &BYOKProvider{registry: registry}
+	return &BYOKProvider{
+		dispatch: tiered.NewBYOKDispatcher(registry, "summarizechain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider, stampBYOKResult),
+	}
+}
+
+func stampBYOKResult(result *Result, adapter BYOKAdapter) {
+	tiered.StampIdentity(&result.Tier, TierBYOK, &result.ProviderID, &result.ModelID, adapter.ID(), adapter.Model(), true)
 }
 
 func (p *BYOKProvider) Type() ProviderTier { return TierBYOK }
 
-func (p *BYOKProvider) IsAvailable(ctx context.Context) bool {
-	return tiered.RegistryConfigured(p.registry)
+func (p *BYOKProvider) IsAvailable(context.Context) bool {
+	return p != nil && p.dispatch.Configured()
 }
 
 func (p *BYOKProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
-	return tiered.ExecuteBYOK(p.registry, req.BYOKKey, req.BYOKProvider, "summarizechain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider,
-		func(adapter BYOKAdapter) (*Result, error) { return adapter.Summarize(ctx, req.BYOKKey, req) },
-		func(result *Result, adapter BYOKAdapter) {
-			result.Tier, result.ProviderID = TierBYOK, adapter.ID()
-			if result.ModelID == "" {
-				result.ModelID = adapter.Model()
-			}
-		})
+	return p.dispatch.Execute(req.BYOKKey, req.BYOKProvider,
+		func(adapter BYOKAdapter) (*Result, error) { return adapter.Summarize(ctx, req.BYOKKey, req) })
 }
 
 func (p *BYOKProvider) Model() string { return tiered.DispatchedModel() }

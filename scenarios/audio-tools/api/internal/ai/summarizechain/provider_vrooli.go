@@ -2,7 +2,6 @@ package summarizechain
 
 import (
 	"context"
-	"fmt"
 
 	"audio-tools/internal/ai/chains/tiered"
 )
@@ -21,10 +20,8 @@ type VrooliProvider struct {
 }
 
 func NewVrooliProvider(client VrooliClient) *VrooliProvider {
-	return &VrooliProvider{LPBSProvider: tiered.NewLPBSProvider(client,
-		func(client VrooliClient) bool { return client == nil },
-		func(client VrooliClient, ctx context.Context) bool { return client.IsAvailable(ctx) },
-		func(client VrooliClient) string { return client.Model() })}
+	return &VrooliProvider{LPBSProvider: tiered.NewLPBSClientProvider(client,
+		func(client VrooliClient) bool { return client == nil })}
 }
 
 func (p *VrooliProvider) Type() ProviderTier { return TierVrooli }
@@ -41,18 +38,13 @@ func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.S
 func (p *VrooliProvider) Model() string { return tiered.SafeModel(p) }
 
 func (p *VrooliProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
-	return tiered.ExecuteLPBS(p != nil && p.LPBSProvider != nil && p.Configured(), req.LPBSToken,
-		fmt.Errorf("audio-tools/summarizechain: vrooli client not configured"),
-		fmt.Errorf("audio-tools/summarizechain: LPBS token required"),
-		func() (*Result, error) { return p.Client.Summarize(ctx, req.LPBSToken, req.UserIdentity, req) },
-		func(result *Result) {
-			result.Tier = TierVrooli
-			if result.ProviderID == "" {
-				result.ProviderID = "lpbs"
-			}
-			if result.ModelID == "" {
-				result.ModelID = p.Model()
-			}
-		},
-	)
+	call := func(client VrooliClient) (*Result, error) {
+		return client.Summarize(ctx, req.LPBSToken, req.UserIdentity, req)
+	}
+	return tiered.ExecuteLPBSCarrier(p, req.LPBSToken,
+		tiered.LPBSNotConfigured("summarizechain"), tiered.LPBSTokenRequired("summarizechain"), call, stampLPBSResult)
+}
+
+func stampLPBSResult(result *Result, state *tiered.LPBSProvider[VrooliClient]) {
+	tiered.StampLPBSResult(&result.Tier, TierVrooli, &result.ProviderID, &result.ModelID, state.Model())
 }
