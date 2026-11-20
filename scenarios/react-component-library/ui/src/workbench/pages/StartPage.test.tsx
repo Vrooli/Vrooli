@@ -210,9 +210,47 @@ describe("StartPage", () => {
   it("lists existing workspaces with a continuation link", async () => {
     renderWithProviders(<StartPage />);
 
-    expect(await screen.findByText(WORKSPACE_NAME)).toBeInTheDocument();
+    // The continuation rail and the recently-opened strip both name the
+    // workspace; either is a correct place to see it.
+    expect((await screen.findAllByText(WORKSPACE_NAME)).length).toBeGreaterThan(0);
     const openLinks = screen.getAllByRole("link", { name: /workbench.start.openWorkspace/i });
     expect(openLinks[0]).toHaveAttribute("href", "/design?workspace=ws_harbor");
+  });
+
+  it("honours the shortcuts the Start rail advertises", async () => {
+    renderWithProviders(
+      <>
+        <App />
+        <LocationProbe />
+      </>,
+      { routerEntries: ["/"] },
+    );
+    await screen.findByTestId("start-page");
+
+    fireEvent.keyDown(window, { key: "g" });
+    fireEvent.keyDown(window, { key: "d" });
+    await waitFor(() =>
+      expect(screen.getByTestId("location-probe")).toHaveTextContent("/design"),
+    );
+
+    fireEvent.keyDown(window, { key: "n" });
+    await waitFor(() =>
+      expect(screen.getByTestId("location-probe")).toHaveTextContent("/design?new=1"),
+    );
+  });
+
+  it("does not steal G sequences while the person is typing", () => {
+    renderWithProviders(
+      <>
+        <StartPage />
+        <LocationProbe />
+      </>,
+    );
+    const input = screen.getByRole("textbox", { name: strings.workbench.search.label });
+    input.focus();
+    fireEvent.keyDown(input, { key: "g" });
+    fireEvent.keyDown(input, { key: "d" });
+    expect(screen.getByTestId("location-probe").textContent).toBe("/");
   });
 
   it("exposes exactly five primary destinations on desktop and mobile", async () => {

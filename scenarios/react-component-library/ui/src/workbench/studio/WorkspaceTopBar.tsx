@@ -115,6 +115,7 @@ export function WorkspaceTopBar({
           type="button"
           className="studio-tab-add"
           aria-label={t("workbench.workspace.addPage", { defaultValue: "Add page" })}
+          disabled={readOnly}
           onClick={onAddPage}
         >
           <Plus aria-hidden size={13} />
@@ -154,6 +155,7 @@ export function WorkspaceTopBar({
             type="button"
             className="studio-iconbtn"
             aria-label={t("workbench.studio.importHtml", { defaultValue: "Import an HTML page" })}
+            disabled={readOnly}
             onClick={onImportHtml}
           >
             <FileUp aria-hidden size={14} />

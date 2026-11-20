@@ -14,6 +14,7 @@ import (
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
+	"react-component-library/cli/internal/scenariopath"
 )
 
 const GroupName = "asset"
@@ -152,22 +153,7 @@ func buildDerivedCatalog(root string) error {
 }
 
 func findScenarioRoot() (string, error) {
-	start, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for current := filepath.Clean(start); ; current = filepath.Dir(current) {
-		if _, apiErr := os.Stat(filepath.Join(current, "api", "go.mod")); apiErr == nil {
-			if _, catalogErr := os.Stat(filepath.Join(current, "catalog", "config.json")); catalogErr == nil {
-				return current, nil
-			}
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-	}
-	return "", fmt.Errorf("cannot locate react-component-library scenario root")
+	return scenariopath.Find()
 }
 
 func totalStageSeconds(stages []*catalogv1.AssetCheckStage) float64 {

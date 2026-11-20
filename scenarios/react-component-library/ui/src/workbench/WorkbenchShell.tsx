@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -84,6 +84,9 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [commandOpen, setCommandOpen] = useState(false);
+  // The Start rail advertises these shortcuts, so the shell owns them. A
+  // sequence is only armed when the person is not typing into a field.
+  const gArmedAt = useRef(0);
 
   const review = useQuery({
     queryKey: ["review", "summary"],
@@ -105,8 +108,7 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
       id: "library",
       href: appRoutes.library,
       label: t("workbench.nav.library", { defaultValue: "Library" }),
-      // "Browse" is the phone label the asset library has always used.
-      short: t("workbench.nav.componentsShort", { defaultValue: "Browse" }),
+      short: t("workbench.nav.library", { defaultValue: "Library" }),
       icon: <LayoutGrid aria-hidden size={17} />,
     },
     {
@@ -146,12 +148,46 @@ export function WorkbenchShell({ children }: { children?: ReactNode }) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCommandOpen((open) => !open);
+        return;
       }
-      if (event.key === "Escape") setCommandOpen(false);
+      if (event.key === "Escape") {
+        setCommandOpen(false);
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("input, textarea, select, [contenteditable='true']")
+      ) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "g") {
+        gArmedAt.current = Date.now();
+        return;
+      }
+      if (Date.now() - gArmedAt.current < 1200) {
+        gArmedAt.current = 0;
+        if (key === "d") {
+          event.preventDefault();
+          void navigate(appRoutes.design);
+          return;
+        }
+        if (key === "s") {
+          event.preventDefault();
+          void navigate(appRoutes.stats);
+          return;
+        }
+      }
+      if (key === "n") {
+        event.preventDefault();
+        void navigate(`${appRoutes.design}?new=1`);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [navigate]);
 
   const go = (href: string) => {
     setCommandOpen(false);

@@ -2,6 +2,23 @@
 
 Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
 
+## 2026-11-20 — A template is a workspace, not a second authoring model
+
+There is no template DSL, schema or generator. `library/workspace-seeds.json`
+holds ordinary workspace aggregates — the same pages, displays, states and
+`TemplateNode` compositions the studio edits. A maintained template is built in
+the studio (or forked from one), then promoted with
+`workspaces export-seed <id> --seed-id ws_curated_<name>`, reviewed as a diff, and
+applied by raising `seedVersion` and restarting. The command only changes the
+fields that make a snapshot curated (id, provenance, revision, timestamps) and
+writes the seed file atomically; it never invents a composition vocabulary. It
+refuses a snapshot with no composition or a reused layer id, because the studio
+addresses layers by id and a template it cannot address is not a template.
+
+This keeps the shelf honest: if a page cannot be built in RCL, it cannot become
+a template. A test renders every curated display through the public
+`TemplateRenderer` and fails on an unknown node type or a reused layer id.
+
 ## 2026-11-20 — Curated templates are seeded content, not mintable state
 
 `library/workspace-seeds.json` is the reviewed shelf: eight curated workspace

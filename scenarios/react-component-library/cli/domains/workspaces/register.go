@@ -23,6 +23,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"WorkspaceService.ValidateWorkspace":      cliapp.ProtoList(h.validateCall, h.validateReport),
 		"WorkspaceService.ListWorkspaceRevisions": cliapp.ProtoList(h.revisionsCall, h.revisionsReport),
 		"WorkspaceService.AssistWorkspace":        cliapp.ProtoMutation(h.assistCall, h.assistReport),
+		// Local binding: promote a built workspace into the reviewed shelf.
+		"export-seed": cliapp.ContentAction(h.exportSeedCall),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

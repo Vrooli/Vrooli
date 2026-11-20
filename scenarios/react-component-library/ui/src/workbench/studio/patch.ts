@@ -38,6 +38,8 @@ const ADDABLE_TYPES = new Set<TemplateNodeType>([
   "input",
   "card",
   "stat",
+  "metric",
+  "icon",
   "avatar",
   "chip",
   "meter",

@@ -278,9 +278,10 @@ export function WorkspaceStudioPage({ workspaceId }: { workspaceId: string }) {
 
   const workspace = studio.workspace;
   const page = studio.page;
-  // The read-only shield is visual; `inert` also removes the panes behind it
-  // from the tab order and the accessibility tree, so a keyboard user cannot
-  // land on a control the shield says is unavailable.
+  // The editing panes are inert while a template is previewed, so a keyboard
+  // user cannot land on a control that would silently refuse. The canvas stays
+  // live: zooming, switching pages/states and presenting are inspection, not
+  // editing, and they are how a person judges whether to fork.
   const inertWhenReadOnly = (studio.readOnly ? { inert: "" } : {}) as HTMLAttributes<HTMLElement>;
   const claims = claimsFor(frame.spec, t);
   const claimIssues = claims.filter(
@@ -488,44 +489,52 @@ export function WorkspaceStudioPage({ workspaceId }: { workspaceId: string }) {
           readOnly={studio.readOnly}
         />
 
+        {studio.readOnly ? (
+          <div
+            className="studio-template-bar"
+            role="status"
+            aria-label={t("workbench.workspace.template", { defaultValue: "Curated template" })}
+          >
+            <span className="studio-template-badge">
+              {t("workbench.workspace.templateChip", { defaultValue: "Template" })}
+            </span>
+            <p>
+              <b>{t("workbench.workspace.templateTitle", { defaultValue: "Curated template" })}</b>
+              {" · "}
+              {t("workbench.workspace.templateBodyShort", {
+                defaultValue: "A reviewed snapshot. Fork it to make it yours.",
+              })}
+            </p>
+            {forkError ? <span role="alert">{forkError}</span> : null}
+            <button
+              type="button"
+              className="wb-btn primary sm"
+              disabled={forking}
+              onClick={() => {
+                setForking(true);
+                setForkError(null);
+                void forkWorkspace(workspace.id)
+                  .then((forked) => navigate(workspacePath(forked.id), { replace: true }))
+                  .catch((cause: unknown) =>
+                    setForkError(
+                      cause instanceof Error
+                        ? cause.message
+                        : t("workbench.workspace.forkFailed", {
+                            defaultValue: "The template could not be forked.",
+                          }),
+                    ),
+                  )
+                  .finally(() => setForking(false));
+              }}
+            >
+              {forking
+                ? t("workbench.workspace.forking", { defaultValue: "Forking…" })
+                : t("workbench.workspace.forkAction", { defaultValue: "Fork to edit" })}
+            </button>
+          </div>
+        ) : null}
+
         <div className="studio-body">
-          {studio.readOnly ? (
-            <div className="studio-readonly-shield" role="region" aria-label={t("workbench.workspace.template", { defaultValue: "Curated template" })}>
-              <b>{t("workbench.workspace.templateTitle", { defaultValue: "This is a curated template" })}</b>
-              <p>
-                {t("workbench.workspace.templateBody", {
-                  defaultValue:
-                    "Templates are reviewed snapshots so everyone who forked one keeps the same starting point. Fork it to make it yours.",
-                })}
-              </p>
-              {forkError ? <p role="alert">{forkError}</p> : null}
-              <button
-                type="button"
-                className="wb-btn primary md"
-                disabled={forking}
-                onClick={() => {
-                  setForking(true);
-                  setForkError(null);
-                  void forkWorkspace(workspace.id)
-                    .then((forked) => navigate(workspacePath(forked.id), { replace: true }))
-                    .catch((cause: unknown) =>
-                      setForkError(
-                        cause instanceof Error
-                          ? cause.message
-                          : t("workbench.workspace.forkFailed", {
-                              defaultValue: "The template could not be forked.",
-                            }),
-                      ),
-                    )
-                    .finally(() => setForking(false));
-                }}
-              >
-                {forking
-                  ? t("workbench.workspace.forking", { defaultValue: "Forking…" })
-                  : t("workbench.workspace.forkAction", { defaultValue: "Fork to edit" })}
-              </button>
-            </div>
-          ) : null}
           <aside
             ref={leftSheetRef}
             {...inertWhenReadOnly}
@@ -694,7 +703,7 @@ export function WorkspaceStudioPage({ workspaceId }: { workspaceId: string }) {
             </div>
           </aside>
 
-          <div className="studio-center" {...inertWhenReadOnly}>
+          <div className="studio-center">
             <div
               className="studio-statebar"
               role="group"

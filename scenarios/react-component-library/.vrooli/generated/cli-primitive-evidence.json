@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "3523733d634f3604d042b22ee98a23c28a0ddfb3c4fd2590f45ce9fb8fea5438",
+  "manifest_hash": "21887364e612d0d20d86d279bfe6fb972889fee1948a4661a375dc2f40f9956b",
   "commands": [
     {
       "path": "activity events",
@@ -592,6 +592,14 @@
       "binding": "WorkspaceService.DeleteWorkspace",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "workspaces export-seed",
+      "group": "workspaces",
+      "command": "export-seed",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "workspaces fork",

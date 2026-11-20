@@ -1,27 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  Box,
-  ChevronDown,
-  ChevronRight,
-  Component,
-  Copy,
-  Gauge,
-  Grid3x3,
-  LayoutTemplate,
-  Minus,
-  MousePointerClick,
-  MoveVertical,
-  Rows3,
-  Shapes,
-  Square,
-  Tag,
-  TextCursorInput,
-  Trash2,
-  Type,
-  UserRound,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Box, ChevronDown, ChevronRight, Component, Copy, Gauge, Grid3x3, LayoutTemplate, Minus, MousePointerClick, MoveVertical, Rows3, Shapes, Square, Tag, TextCursorInput, Trash2, Type, UserRound, Sparkles } from "lucide-react";
 
 import { useTranslation } from "../../i18n";
 import type { DesignDocument, DesignFrame } from "../designs";
@@ -49,6 +27,8 @@ const NODE_ICON: Partial<Record<TemplateNodeType, typeof Box>> = {
   button: MousePointerClick,
   input: TextCursorInput,
   stat: Gauge,
+  metric: Gauge,
+  icon: Sparkles,
   avatar: UserRound,
   chip: Tag,
   meter: Gauge,

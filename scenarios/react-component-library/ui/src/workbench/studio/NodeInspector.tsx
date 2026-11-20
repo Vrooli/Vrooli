@@ -128,6 +128,104 @@ export function NodeInspector({
         </>
       ) : null}
 
+      {selectedNode.type === "metric" ? (
+        <>
+          <Field label={t("workbench.studio.value", { defaultValue: "Value" })}>
+            <TextInput
+              value={stringValue("value")}
+              onChange={(event) => onChange("value", event.target.value)}
+            />
+          </Field>
+          <Field label={t("workbench.studio.metricPrefix", { defaultValue: "Prefix" })}>
+            <TextInput
+              value={stringValue("prefix")}
+              onChange={(event) => onChange("prefix", event.target.value)}
+            />
+          </Field>
+          <Field label={t("workbench.studio.metricSuffix", { defaultValue: "Suffix" })}>
+            <TextInput
+              value={stringValue("suffix")}
+              onChange={(event) => onChange("suffix", event.target.value)}
+            />
+          </Field>
+          <Field label={t("workbench.studio.detail", { defaultValue: "Detail" })}>
+            <TextInput
+              value={stringValue("detail")}
+              onChange={(event) => onChange("detail", event.target.value)}
+            />
+          </Field>
+          <Field label={t("workbench.studio.metricSize", { defaultValue: "Size" })}>
+            <Select
+              value={stringValue("size") || "md"}
+              onChange={(event) => onChange("size", event.target.value)}
+            >
+              {["sm", "md", "lg", "xl"].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </>
+      ) : null}
+
+      {selectedNode.type === "icon" ? (
+        <>
+          <Field label={t("workbench.studio.iconName", { defaultValue: "Icon" })}>
+            <Select
+              value={stringValue("name") || "spark"}
+              onChange={(event) => onChange("name", event.target.value)}
+            >
+              {[
+                "spark",
+                "activity",
+                "arrow",
+                "bell",
+                "chart",
+                "check",
+                "chevron",
+                "clock",
+                "compass",
+                "fork",
+                "grid",
+                "home",
+                "layers",
+                "leaf",
+                "moon",
+                "play",
+                "plus",
+                "route",
+                "search",
+                "sliders",
+                "zap",
+              ].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("workbench.studio.iconSize", { defaultValue: "Size" })}>
+            <TextInput
+              type="number"
+              min={10}
+              max={64}
+              value={numberValue("size", 16)}
+              onChange={(event) =>
+                onChange("size", Math.max(10, Math.min(64, Number(event.target.value))))
+              }
+            />
+          </Field>
+          <Field label={t("workbench.studio.iconBox", { defaultValue: "Tinted box" })}>
+            <Toggle
+              checked={props.box === true}
+              onChange={(checked) => onChange("box", checked)}
+              label={t("workbench.studio.iconBox", { defaultValue: "Tinted box" })}
+            />
+          </Field>
+        </>
+      ) : null}
+
       {selectedNode.type === "meter" ? (
         <Field label={t("workbench.studio.value", { defaultValue: "Value" })}>
           <TextInput

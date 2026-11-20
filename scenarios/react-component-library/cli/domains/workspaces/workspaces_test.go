@@ -2,6 +2,7 @@ package workspaces
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -167,4 +168,169 @@ func TestWorkspacesAssistRejectsAMalformedStateFlag(t *testing.T) {
 	_, err = cliapptest.RunCommand(t, command, core, "ws-1", "--prompt", "x", "--state", "nopair")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "--state must be display=<state>")
+}
+
+func seedTestWorkspace(provenance workspacev1.WorkspaceProvenance) *workspacev1.Workspace {
+	return &workspacev1.Workspace{
+		Id:                "ws_harbor",
+		Name:              "Harbor",
+		Summary:           "A threshold, not a funnel.",
+		Provenance:        provenance,
+		Revision:          9,
+		CreatedAt:         "2026-11-18T10:00:00.000Z",
+		UpdatedAt:         "2026-11-19T10:00:00.000Z",
+		OriginWorkspaceId: "ws_curated_harbor",
+		Pages: []*workspacev1.WorkspacePage{{
+			Id:       "pg_welcome",
+			Name:     "Welcome",
+			SpecJson: `{"id":"m.page","type":"page","props":{},"children":[]}`,
+			Displays: []*workspacev1.WorkspaceDisplay{{
+				Id:     "dp_welcome_desktop",
+				Device: workspacev1.DisplayDevice_DISPLAY_DEVICE_DESKTOP,
+				Width:  1180,
+				Height: 780,
+				States: []*workspacev1.WorkspaceState{{
+					Id:       "st_welcome_default",
+					Name:     "Default",
+					ArgsJson: `{"spec":{"id":"m.page","type":"page","props":{},"children":[]}}`,
+				}},
+			}},
+		}},
+	}
+}
+
+func TestExportSeedPromotesAWorkspaceIntoTheReviewedShelf(t *testing.T) {
+	rawManifest := cliapptest.ReadManifest(t)
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "api"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "catalog"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "library"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "api", "go.mod"), []byte("module example\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "catalog", "config.json"), []byte("{}"), 0o644))
+	seedFile := filepath.Join(root, "library", "workspace-seeds.json")
+	require.NoError(t, os.WriteFile(seedFile, []byte(`{
+  "schemaVersion": 1,
+  "seedVersion": 4,
+  "description": "reviewed",
+  "workspaces": [
+    {"id": "ws_curated_other", "name": "Other"}
+  ]
+}
+`), 0o644))
+	t.Chdir(root)
+
+	var workspace *workspacev1.Workspace
+	mux := http.NewServeMux()
+	mux.Handle(workspaceconnect.WorkspaceServiceGetWorkspaceProcedure, connect.NewUnaryHandlerSimple(
+		workspaceconnect.WorkspaceServiceGetWorkspaceProcedure,
+		func(_ context.Context, req *workspacev1.GetWorkspaceRequest) (*workspacev1.GetWorkspaceResponse, error) {
+			require.Equal(t, "ws_harbor", req.GetId())
+			return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, rawManifest)
+	require.NoError(t, err)
+	command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "export-seed")
+
+	workspace = seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_FORKED)
+	out, err := cliapptest.RunCommand(t, command, core,
+		"ws_harbor", "--seed-id", "ws_curated_harbor",
+	)
+	require.NoError(t, err)
+	require.Contains(t, out, "Added")
+	require.Contains(t, out, "seedVersion 5")
+	require.Contains(t, out, "Nothing was restarted")
+
+	raw, err := os.ReadFile(seedFile)
+	require.NoError(t, err)
+	var payload struct {
+		SchemaVersion int               `json:"schemaVersion"`
+		SeedVersion   int               `json:"seedVersion"`
+		Workspaces    []json.RawMessage `json:"workspaces"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	require.Equal(t, 1, payload.SchemaVersion)
+	require.Equal(t, 5, payload.SeedVersion)
+	require.Len(t, payload.Workspaces, 2)
+
+	var exported workspacev1.Workspace
+	require.NoError(t, protojson.Unmarshal(payload.Workspaces[1], &exported))
+	require.Equal(t, "ws_curated_harbor", exported.GetId())
+	require.Equal(t, "Harbor", exported.GetName())
+	require.Equal(t, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED, exported.GetProvenance())
+	require.Equal(t, int32(1), exported.GetRevision())
+	require.Empty(t, exported.GetOriginWorkspaceId())
+	require.Empty(t, exported.GetBindingScenario())
+	require.Len(t, exported.GetPages(), 1)
+	require.Equal(t, "pg_welcome", exported.GetPages()[0].GetId())
+
+	// Re-exporting the same slot replaces it instead of duplicating the shelf.
+	out, err = cliapptest.RunCommand(t, command, core,
+		"ws_harbor", "--seed-id", "ws_curated_harbor",
+	)
+	require.NoError(t, err)
+	require.Contains(t, out, "Updated")
+	require.Contains(t, out, "seedVersion 6")
+	require.NoError(t, json.Unmarshal(mustRead(t, seedFile), &payload))
+	require.Len(t, payload.Workspaces, 2)
+}
+
+func TestExportSeedRefusesCuratedSourcesAndNakedIds(t *testing.T) {
+	mux := http.NewServeMux()
+	var workspace *workspacev1.Workspace
+	mux.Handle(workspaceconnect.WorkspaceServiceGetWorkspaceProcedure, connect.NewUnaryHandlerSimple(
+		workspaceconnect.WorkspaceServiceGetWorkspaceProcedure,
+		func(_ context.Context, _ *workspacev1.GetWorkspaceRequest) (*workspacev1.GetWorkspaceResponse, error) {
+			return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, cliapptest.ReadManifest(t))
+	require.NoError(t, err)
+	command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "export-seed")
+
+	workspace = seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED)
+	_, err = cliapptest.RunCommand(t, command, core, "ws_harbor")
+	require.ErrorContains(t, err, "already a curated template")
+
+	workspace = seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_AUTHORED)
+	_, err = cliapptest.RunCommand(t, command, core, "ws_harbor")
+	require.ErrorContains(t, err, "--seed-id is required")
+
+	_, err = cliapptest.RunCommand(t, command, core, "ws_harbor", "--seed-id", "harbor")
+	require.ErrorContains(t, err, "must start with ws_curated_")
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return raw
+}
+
+func TestExportSeedRefusesACompositionTheStudioCannotAddress(t *testing.T) {
+	mux := http.NewServeMux()
+	var workspace *workspacev1.Workspace
+	mux.Handle(workspaceconnect.WorkspaceServiceGetWorkspaceProcedure, connect.NewUnaryHandlerSimple(
+		workspaceconnect.WorkspaceServiceGetWorkspaceProcedure,
+		func(_ context.Context, _ *workspacev1.GetWorkspaceRequest) (*workspacev1.GetWorkspaceResponse, error) {
+			return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
+		},
+	))
+	core := cliapptest.NewTestApp(t, mux)
+	group, err := Register(core, cliapptest.ReadManifest(t))
+	require.NoError(t, err)
+	command := cliapptest.FindCommand(t, []cliapp.SubcommandGroup{group}, GroupName, "export-seed")
+
+	workspace = seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_AUTHORED)
+	workspace.Pages[0].Displays[0].States[0].ArgsJson = `{"spec":{"id":"root","type":"page","props":{},"children":[{"id":"same","type":"text","props":{}},{"id":"same","type":"text","props":{}}]}}`
+	_, err = cliapptest.RunCommand(t, command, core, "ws_harbor", "--seed-id", "ws_curated_harbor")
+	require.ErrorContains(t, err, `layer id "same"`)
+
+	workspace = seedTestWorkspace(workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_AUTHORED)
+	workspace.Pages[0].SpecJson = "{}"
+	workspace.Pages[0].Displays[0].States[0].ArgsJson = "{}"
+	_, err = cliapptest.RunCommand(t, command, core, "ws_harbor", "--seed-id", "ws_curated_harbor")
+	require.ErrorContains(t, err, "none of its states has a composition")
 }

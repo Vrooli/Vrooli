@@ -107,35 +107,44 @@
   }
 }
 
-/* A curated template previews behind a shield: the composition is visible and
-   presentable, but no control can pretend an edit will be stored. */
-.studio-body {
-  position: relative;
-}
-
-.studio-readonly-shield {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
+/* A curated template is a preview, not a wall. The composition stays visible;
+   one compact bar states the rule and offers the only write that applies. */
+.studio-template-bar {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
   gap: 10px;
-  padding: 24px;
-  text-align: center;
-  background: color-mix(in srgb, var(--wb-bg) 82%, transparent);
-  backdrop-filter: blur(3px);
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--wb-signal-line, rgba(255, 179, 92, 0.28));
+  background: linear-gradient(90deg, rgba(255, 179, 92, 0.1), rgba(255, 179, 92, 0.015) 70%), #0f0d14;
 }
 
-.studio-readonly-shield b {
-  font: 600 16px/1.3 var(--wb-sans);
-  color: var(--wb-ink);
+.studio-template-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--wb-signal-line, rgba(255, 179, 92, 0.28));
+  border-radius: 5px;
+  background: rgba(255, 179, 92, 0.1);
+  color: var(--wb-signal);
+  font: 8.5px/1.5 var(--wb-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.studio-readonly-shield p {
-  max-width: 46ch;
+.studio-template-bar p {
+  flex: 1;
+  min-width: 200px;
   margin: 0;
   color: var(--wb-muted);
-  font: 12px/1.55 var(--wb-sans);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.studio-template-bar p b {
+  color: var(--wb-ink-2);
+  font-weight: 600;
+}
+
+.studio-template-bar [role="alert"] {
+  color: var(--wb-red);
+  font-size: 11px;
 }

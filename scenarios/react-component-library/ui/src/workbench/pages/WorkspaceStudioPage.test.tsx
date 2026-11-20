@@ -306,10 +306,14 @@ describe("WorkspaceStudioPage", () => {
     });
     renderWithProviders(<WorkspaceStudioPage workspaceId="ws_harbor" />);
 
-    expect(await screen.findByRole("region", { name: /Curated template/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("status", { name: /Curated template/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save workspace/ })).toBeDisabled();
-    // The shield is visual; inert keeps its covered panes out of the tab order.
-    expect(document.querySelector(".studio-center")).toHaveAttribute("inert");
+    // Editing panes are inert; the canvas stays inspectable so the template can
+    // be judged before forking.
+    expect(document.querySelector(".studio-left")).toHaveAttribute("inert");
+    expect(document.querySelector(".studio-center")).not.toHaveAttribute("inert");
 
     await userEvent.click(screen.getByRole("button", { name: /Fork to edit/ }));
     await waitFor(() => expect(mockedFork).toHaveBeenCalledWith("ws_harbor"));

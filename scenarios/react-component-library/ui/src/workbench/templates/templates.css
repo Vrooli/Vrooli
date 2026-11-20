@@ -6,16 +6,23 @@
 
 .tpl {
   /* The composition is the query container: a template responds to the device
-     frame it is mounted in, not to the browser window. */
+     frame it is mounted in, not to the browser window. Type and spacing are
+     expressed in cqw so a 390px phone frame and a 1180px desktop frame are the
+     same design at two sizes, not a page and a shrunken copy. */
   container-type: inline-size;
+  display: flex;
+  flex-direction: column;
   position: relative;
   min-height: 100%;
-  background: var(--t-bg);
+  background:
+    radial-gradient(1200px 620px at 82% -12%, color-mix(in srgb, var(--t-accent) 8%, transparent), transparent 62%),
+    var(--t-bg);
   color: var(--t-ink);
   font-family: var(--wb-sans);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: clamp(12px, 1.28cqw, 15.5px);
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .tpl.is-preview {
@@ -24,24 +31,26 @@
 
 .tpl-page {
   display: grid;
-  gap: 18px;
+  flex: 1 0 auto;
+  gap: clamp(14px, 2.2cqw, 26px);
   width: 100%;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 30px;
+  padding: clamp(18px, 3.4cqw, 42px);
 }
 
 .tpl-stack {
   display: grid;
-  gap: 12px;
+  gap: clamp(7px, 1.05cqw, 14px);
   min-width: 0;
+  align-content: start;
 }
 
 .tpl-row {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: clamp(7px, 0.9cqw, 12px);
 }
 
 .tpl-row.is-wrap {
@@ -55,23 +64,31 @@
 .tpl-grid {
   display: grid;
   grid-template-columns: repeat(var(--tpl-cols, 2), minmax(0, 1fr));
-  gap: 12px;
+  gap: clamp(8px, 1.1cqw, 16px);
   min-width: 0;
 }
 
 .tpl-surface {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: clamp(6px, 0.8cqw, 10px);
   min-width: 0;
+  border: 1px solid color-mix(in oklab, var(--t-line) 86%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 46%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .tpl-card {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: clamp(8px, 1.05cqw, 13px);
   min-width: 0;
-  border: 1px solid var(--t-line) !important;
+  padding: clamp(12px, 1.65cqw, 21px) !important;
+  border: 1px solid color-mix(in oklab, var(--t-line) 88%, transparent) !important;
+  border-radius: var(--t-radius) !important;
+  background: var(--t-surface) !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 52%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
   color: var(--t-ink);
 }
 
@@ -79,6 +96,7 @@
   min-width: 0;
 }
 
+/* ── type ────────────────────────────────────────────────────────────────── */
 .tpl-text {
   min-width: 0;
   text-wrap: pretty;
@@ -86,61 +104,71 @@
 
 .tpl-text.is-display {
   font-family: var(--t-display);
-  font-size: 3.35em;
+  font-size: clamp(30px, 7.1cqw, 88px);
   font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 0.98;
+  letter-spacing: -0.045em;
+  line-height: 0.93;
+  text-wrap: balance;
 }
 
 .tpl-text.is-title {
   font-family: var(--t-display);
-  font-size: 1.55em;
+  font-size: clamp(20px, 3.1cqw, 39px);
   font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.12;
+  letter-spacing: -0.032em;
+  line-height: 1.04;
+  text-wrap: balance;
 }
 
 .tpl-text.is-subtitle {
-  font-size: 1.06em;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-size: clamp(13px, 1.5cqw, 19px);
+  font-weight: 660;
+  letter-spacing: -0.014em;
+  line-height: 1.2;
 }
 
 .tpl-text.is-body {
-  font-size: 0.94em;
+  max-width: 68ch;
+  font-size: clamp(11.5px, 1.25cqw, 15.2px);
   line-height: 1.62;
+  color: var(--t-ink);
+  opacity: 0.88;
 }
 
 .tpl-text.is-label {
-  font-size: 0.85em;
-  font-weight: 600;
+  font-size: clamp(10.5px, 1.1cqw, 13.4px);
+  font-weight: 620;
+  letter-spacing: -0.005em;
   line-height: 1.35;
 }
 
 .tpl-text.is-caption {
-  font-size: 0.73em;
-  line-height: 1.45;
+  font-size: clamp(9.5px, 0.94cqw, 11.6px);
+  line-height: 1.5;
 }
 
 .tpl-text.is-eyebrow {
   font-family: var(--wb-mono);
-  font-size: 0.66em;
-  letter-spacing: 0.14em;
-  line-height: 1.4;
+  font-size: clamp(8.5px, 0.8cqw, 10.6px);
+  letter-spacing: 0.16em;
+  line-height: 1.5;
   text-transform: uppercase;
 }
 
 .tpl-text.is-mono {
   font-family: var(--wb-mono);
-  font-size: 0.78em;
-  letter-spacing: 0.01em;
+  font-size: clamp(9.5px, 0.95cqw, 12px);
+  letter-spacing: 0.005em;
+  font-variant-numeric: tabular-nums;
 }
 
 .tpl-text.is-price {
   font-family: var(--t-display);
-  font-size: 1.65em;
+  font-size: clamp(18px, 2.7cqw, 34px);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .tpl-text.is-ink {
@@ -157,6 +185,142 @@
 
 .tpl-text.is-secondary {
   color: var(--t-secondary);
+}
+
+.tpl-text.is-green {
+  color: var(--color-success);
+}
+
+.tpl-text.is-amber {
+  color: var(--color-warning);
+}
+
+.tpl-text.is-red {
+  color: var(--color-danger);
+}
+
+.tpl-text.is-ice {
+  color: var(--t-secondary);
+}
+
+/* ── one number leads ────────────────────────────────────────────────────── */
+.tpl-metric {
+  display: grid;
+  gap: clamp(2px, 0.35cqw, 5px);
+  min-width: 0;
+}
+
+.tpl-metric-label {
+  color: var(--t-muted);
+  font: 500 clamp(8.5px, 0.88cqw, 11px) / 1.5 var(--wb-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tpl-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.06em;
+  margin-top: 1px;
+  font-family: var(--t-display);
+  font-size: clamp(30px, 5.2cqw, 66px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+}
+
+.tpl-metric-value b {
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.tpl-metric.is-sm .tpl-metric-value {
+  font-size: clamp(22px, 3.2cqw, 38px);
+}
+
+.tpl-metric.is-lg .tpl-metric-value {
+  font-size: clamp(40px, 6.6cqw, 82px);
+}
+
+.tpl-metric.is-xl .tpl-metric-value {
+  font-size: clamp(54px, 9.4cqw, 120px);
+  letter-spacing: -0.055em;
+}
+
+.tpl-metric-prefix,
+.tpl-metric-suffix {
+  color: var(--t-muted);
+  font-size: 0.4em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.tpl-metric-frac {
+  color: var(--t-muted);
+  font-size: 0.48em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.tpl-metric-detail {
+  color: var(--t-muted);
+  font-size: clamp(9.5px, 0.98cqw, 12.2px);
+  line-height: 1.5;
+}
+
+.tpl-metric.is-accent .tpl-metric-value {
+  color: var(--t-accent);
+}
+
+.tpl-metric.is-secondary .tpl-metric-value {
+  color: var(--t-secondary);
+}
+
+.tpl-metric.is-green .tpl-metric-value {
+  color: var(--color-success);
+}
+
+.tpl-metric.is-amber .tpl-metric-value {
+  color: var(--color-warning);
+}
+
+.tpl-metric.is-red .tpl-metric-value {
+  color: var(--color-danger);
+}
+
+/* ── icon ────────────────────────────────────────────────────────────────── */
+.tpl-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--t-muted);
+}
+
+.tpl-icon.is-boxed {
+  border: 1px solid color-mix(in srgb, var(--t-accent) 26%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--t-accent) 12%, transparent);
+  color: var(--t-accent);
+}
+
+.tpl-icon.is-accent {
+  color: var(--t-accent);
+}
+
+.tpl-icon.is-secondary {
+  color: var(--t-secondary);
+}
+
+.tpl-icon.is-green {
+  color: var(--color-success);
+}
+
+.tpl-icon.is-amber {
+  color: var(--color-warning);
+}
+
+.tpl-icon.is-red {
+  color: var(--color-danger);
 }
 
 .tpl-control {
@@ -180,12 +344,39 @@
 
 .tpl-stat [data-rcl-stat] {
   height: 100%;
-  border-color: var(--t-line);
-  background: var(--t-surface);
+  padding: clamp(11px, 1.4cqw, 17px) !important;
+  border-color: var(--t-line) !important;
+  border-radius: var(--t-radius) !important;
+  background: var(--t-surface) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.tpl-stat [data-rcl-stat-label] {
+  color: var(--t-muted);
+  font: 500 clamp(8.5px, 0.86cqw, 10.6px) / 1.45 var(--wb-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .tpl-stat [data-rcl-stat-value] {
   font-family: var(--t-display);
+  font-size: clamp(21px, 2.35cqw, 30px);
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A template is invented content. The component's sample outline marks that,
+   but a full box around every number reads as broken chrome. A dotted baseline
+   keeps the signal without overpowering the composition. */
+.tpl-stat [data-rcl-stat][data-provenance="sample"] [data-rcl-stat-value] {
+  outline: none;
+  text-decoration: underline dotted color-mix(in srgb, currentColor 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.17em;
+}
+
+.tpl-stat [data-rcl-stat-trend] {
+  font-size: clamp(9px, 0.96cqw, 11.6px);
 }
 
 .tpl-meter {
@@ -369,12 +560,8 @@
 }
 
 .tpl.is-thumb .tpl-page {
-  gap: 8px;
-  padding: 14px;
-}
-
-.tpl.is-thumb .tpl-text.is-display {
-  font-size: 2.2em;
+  gap: 9px;
+  padding: 13px;
 }
 
 /* Selection affordance is chrome-only; preview never shows it. */
@@ -390,46 +577,33 @@
 }
 
 /* Container-responsive compositions: a template responds to the device frame,
-   not to the browser window. */
+   not to the browser window. Type already scales in cqw; these rules only
+   change structure where a multi-column composition stops fitting. */
 @container (max-width: 760px) {
-  .tpl-page {
-    gap: 14px;
-    padding: 22px;
-  }
-
   .tpl-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .tpl-row {
-    flex-wrap: wrap;
-  }
-
-  .tpl-text.is-display {
-    font-size: 2.45em;
-  }
-
-  .tpl-text.is-title {
-    font-size: 1.3em;
+  /* A phone composition is authored for the width. Letting the page stretch
+     its rows also stretched a short card, so the card gained empty space that
+     looked like missing content. */
+  .tpl-page {
+    align-items: start;
   }
 }
 
 @container (max-width: 480px) {
   .tpl-page {
-    gap: 12px;
+    gap: 13px;
     padding: 16px;
   }
 
+  .tpl-card {
+    padding: 13px !important;
+  }
+
   .tpl-text.is-display {
-    font-size: 2em;
-  }
-
-  .tpl-text.is-body {
-    font-size: 0.9em;
-  }
-
-  .tpl-row {
-    gap: 8px;
+    font-size: 30px;
   }
 }
 
@@ -594,4 +768,118 @@
   place-items: center;
   color: var(--t-muted);
   font: 10px/1.4 var(--wb-mono);
+}
+
+/* Slim inline bounded value used inside a row or a table. */
+.tpl-meter-inline {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--t-ink) 10%, transparent);
+}
+
+.tpl-meter-inline > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--t-accent);
+}
+
+.tpl-meter-inline[data-tone="green"] > span {
+  background: var(--color-success);
+}
+
+.tpl-meter-inline[data-tone="amber"] > span {
+  background: var(--color-warning);
+}
+
+.tpl-meter-inline[data-tone="red"] > span {
+  background: var(--color-danger);
+}
+
+.tpl-meter-inline[data-tone="secondary"] > span {
+  background: var(--t-secondary);
+}
+
+/* A desktop artboard has a fixed height. Filling it keeps the composition
+   balanced instead of leaving a third of the page blank below the fold. */
+@container (min-width: 761px) {
+  .tpl-page {
+    min-height: 100%;
+    align-content: space-between;
+  }
+}
+
+/* A chip in a composition is a state badge, not the 36px filter control the
+   product surface uses. The component stays; its weight is composition-local. */
+.tpl-chip button {
+  min-height: 0 !important;
+  height: auto;
+  padding: 3px 8px !important;
+  border-color: var(--t-line) !important;
+  background: var(--t-surface-alt) !important;
+  color: var(--t-muted) !important;
+  font: 600 clamp(8.5px, 0.88cqw, 10.6px) / 1.45 var(--wb-mono) !important;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tpl-chip[data-tone="accent"] button {
+  border-color: color-mix(in srgb, var(--t-accent) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--t-accent) 13%, transparent) !important;
+  color: var(--t-accent) !important;
+}
+
+.tpl-chip[data-tone="green"] button {
+  border-color: color-mix(in srgb, var(--color-success) 32%, transparent) !important;
+  background: color-mix(in srgb, var(--color-success) 12%, transparent) !important;
+  color: var(--color-success) !important;
+}
+
+.tpl-chip[data-tone="amber"] button {
+  border-color: color-mix(in srgb, var(--color-warning) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--color-warning) 13%, transparent) !important;
+  color: var(--color-warning) !important;
+}
+
+.tpl-chip[data-tone="red"] button {
+  border-color: color-mix(in srgb, var(--color-danger) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent) !important;
+  color: var(--color-danger) !important;
+}
+
+.tpl-chip[data-tone="secondary"] button,
+.tpl-chip[data-tone="ice"] button {
+  border-color: color-mix(in srgb, var(--t-secondary) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--t-secondary) 12%, transparent) !important;
+  color: var(--t-secondary) !important;
+}
+
+/* The workbench's global button reset (`color: inherit`) and the library's
+   zero-specificity variant recipe have the same weight, so document order
+   decided the label colour and a light-palette accent could inherit dark ink.
+   The composition states its control colours explicitly. */
+.tpl [data-rcl-control][data-control-variant="primary"],
+.tpl [data-rcl-control][data-control-variant="danger"] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.tpl [data-rcl-control][data-control-variant="secondary"] {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+}
+
+.tpl [data-rcl-control][data-control-variant="ghost"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-foreground);
+}
+
+.tpl [data-rcl-control]:disabled {
+  color: var(--color-muted-foreground);
 }

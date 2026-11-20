@@ -73,6 +73,10 @@ export function SearchSurface({
 
   const flat = useMemo(() => [...groups.values()].flat(), [groups]);
   const status = response?.status;
+  // An empty field is an invitation, not a failed query. Start and the command
+  // palette both put their own content under the field, so the surface stays
+  // quiet until the person types.
+  const idle = query.trim() === "";
 
   const open = (result: SearchResult) => {
     onNavigate?.();
@@ -114,6 +118,9 @@ export function SearchSurface({
           aria-activedescendant={flat[active] ? `search-result-${active}` : undefined}
         />
         {loading ? <span className="wb-tag">{t("workbench.search.loading", { defaultValue: "Searching" })}</span> : null}
+        <kbd className="wb-search-kbd" aria-hidden>
+          {t("workbench.search.shortcut", { defaultValue: "⌘K" })}
+        </kbd>
       </label>
 
       {status && !status.indexed ? (
@@ -138,8 +145,13 @@ export function SearchSurface({
         </p>
       ) : null}
 
-      <div id="search-surface-results" className="wb-command-results" aria-live="polite">
-        {!loading && !error && flat.length === 0 ? (
+      <div
+        id="search-surface-results"
+        className="wb-command-results"
+        aria-live="polite"
+        hidden={idle}
+      >
+        {!loading && !error && flat.length === 0 && !idle ? (
           <div className="wb-empty">
             <b className="wb-empty-title">
               {t("workbench.search.noMatch", { defaultValue: "No matches" })}
@@ -151,7 +163,7 @@ export function SearchSurface({
             </p>
           </div>
         ) : null}
-        {[...groups.entries()].map(([kind, rows]) => {
+        {!idle && [...groups.entries()].map(([kind, rows]) => {
           const Icon = KIND_ICON[kind] ?? Boxes;
           return (
             <section key={kind} className="wb-command-group" aria-label={kindLabel(kind, t)}>

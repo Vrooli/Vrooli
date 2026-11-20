@@ -12,9 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
+	"react-component-library/cli/internal/scenariopath"
 	"react-component-library/internal/catalogcoverage"
 )
 
@@ -82,37 +82,7 @@ func (h *handlers) build(ctx cliapp.RunContext) error {
 }
 
 func scenarioRoot() (string, error) {
-	starts := []string{}
-	if cwd, err := os.Getwd(); err == nil {
-		starts = append(starts, cwd)
-	}
-	if envRoot := os.Getenv("SCENARIO_PATH"); envRoot != "" {
-		starts = append(starts, envRoot)
-	}
-	// Outside the scenario tree (the repository root, scenarios/, or anywhere
-	// else) the shared repo-contract resolver names the scenario directly,
-	// sandbox overlays included.
-	if resolved := cliutil.ResolveScenarioPath("react-component-library"); resolved != "" {
-		starts = append(starts, resolved)
-	}
-	for _, start := range starts {
-		for current := filepath.Clean(start); ; current = filepath.Dir(current) {
-			if isScenarioRoot(current) {
-				return current, nil
-			}
-			parent := filepath.Dir(current)
-			if parent == current {
-				break
-			}
-		}
-	}
-	return "", fmt.Errorf("cannot locate react-component-library scenario root")
-}
-
-func isScenarioRoot(path string) bool {
-	_, apiErr := os.Stat(filepath.Join(path, "api", "go.mod"))
-	_, catalogErr := os.Stat(filepath.Join(path, "catalog", "config.json"))
-	return apiErr == nil && catalogErr == nil
+	return scenariopath.Find()
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {

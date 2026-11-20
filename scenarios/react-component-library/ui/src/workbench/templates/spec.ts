@@ -17,6 +17,8 @@ export type TemplateNodeType =
   | "input"
   | "card"
   | "stat"
+  | "metric"
+  | "icon"
   | "avatar"
   | "chip"
   | "meter"
@@ -346,6 +348,8 @@ const LAYER_NAMES: Record<TemplateNodeType, string> = {
   input: "Input",
   card: "Card",
   stat: "Stat",
+  metric: "Metric",
+  icon: "Icon",
   avatar: "Avatar",
   chip: "Chip",
   meter: "Meter",

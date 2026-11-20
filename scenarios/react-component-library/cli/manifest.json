@@ -2963,6 +2963,42 @@
           "architecture": {
             "primitive": "proto_mutation"
           }
+        },
+        {
+          "name": "export-seed",
+          "description": "Promote a workspace into the reviewed curated-template seed (writes the seed file, never the workspace)",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id to export",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "seed-id",
+              "description": "Curated id to write (required for an authored or forked workspace; must start with ws_curated_)"
+            },
+            {
+              "name": "file",
+              "description": "Seed file (default library/workspace-seeds.json under the scenario root)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         }
       ]
     },

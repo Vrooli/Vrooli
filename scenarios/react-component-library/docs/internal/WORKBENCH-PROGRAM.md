@@ -56,7 +56,7 @@ Related decision artifacts:
 
 - Go: `go test ./...` passes across every package; `golangci-lint` is clean for
   `api` and `cli`.
-- UI: 132 files / 797 tests, lint 0 errors, type-check, experience guard,
+- UI: 133 files / 803 tests, lint 0 errors, type-check, experience guard,
   catalog conformance and production build pass.
 - Served API: legacy designs and uploads migrated; 703 search documents indexed;
   eight curated templates; Review total 13,926 in ~14 ms; all five routes 200;
@@ -68,7 +68,11 @@ studio AI tab + `workspaces assist` in the CLI; HTML import as a new page; eight
 reviewed curated templates seeded at boot with immutable provenance and a
 read-only fork flow; the Design shelf renders real template compositions. The
 first edit on a blank stored composition now writes what was on screen instead
-of silently doing nothing. `golangci-lint` was rebuilt with Go 1.26, 30 dead CLI
+of silently doing nothing. The Start destination was rebuilt to the maturation
+mockup: one search, browse by intent, recently opened, and a compact pulse rail
+instead of a second dashboard. Templates are workspace aggregates, not a DSL:
+`workspaces export-seed` promotes a built workspace into the reviewed shelf, and
+a test renders every curated display through the public renderer. `golangci-lint` was rebuilt with Go 1.26, 30 dead CLI
 functions were deleted, and both Go lints are clean. 320 px overflow was removed
 from Start and Design; reduced motion and forced colors were measured.
 

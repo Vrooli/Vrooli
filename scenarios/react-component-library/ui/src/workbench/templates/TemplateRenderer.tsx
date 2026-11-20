@@ -23,6 +23,8 @@ import { Chip } from "@vrooli/react-component-library/Chip/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { Stat } from "@vrooli/react-component-library/Stat/1";
 
+import { TemplateIcon } from "./icons";
+
 import { API_BASE } from "../../api/client";
 import { cx } from "../cx";
 import { useTranslation } from "../../i18n";
@@ -419,6 +421,7 @@ function renderNode(
             ...paddingStyle(props.pad),
             alignItems: typeof props.align === "string" ? props.align : undefined,
             justifyItems: typeof props.justify === "string" ? props.justify : undefined,
+            flexGrow: props.grow === true ? 1 : undefined,
           }}
         >
           {children}
@@ -506,7 +509,11 @@ function renderNode(
             toneClass(props.tone),
             attrs.className,
           )}
-          style={{ textAlign }}
+          style={{
+            textAlign,
+            flexGrow: props.grow === true ? 1 : undefined,
+            minWidth: 0,
+          }}
         >
           {typeof props.text === "string" ? props.text : null}
         </div>
@@ -582,6 +589,53 @@ function renderNode(
         </span>
       );
 
+    case "metric": {
+      const size = typeof props.size === "string" ? props.size : "md";
+      return (
+        <div
+          key={node.id}
+          {...attrs}
+          className={cx("tpl-metric", `is-${size}`, toneClass(props.tone), attrs.className)}
+        >
+          {typeof props.label === "string" ? (
+            <span className="tpl-metric-label">{props.label}</span>
+          ) : null}
+          <span className="tpl-metric-value">
+            {typeof props.prefix === "string" ? (
+              <span className="tpl-metric-prefix">{props.prefix}</span>
+            ) : null}
+            <b>{typeof props.value === "string" ? props.value : ""}</b>
+            {typeof props.frac === "string" ? (
+              <span className="tpl-metric-frac">{props.frac}</span>
+            ) : null}
+            {typeof props.suffix === "string" ? (
+              <span className="tpl-metric-suffix">{props.suffix}</span>
+            ) : null}
+          </span>
+          {typeof props.detail === "string" ? (
+            <span className="tpl-metric-detail">{props.detail}</span>
+          ) : null}
+        </div>
+      );
+    }
+
+    case "icon": {
+      const size = typeof props.size === "number" ? props.size : 16;
+      return (
+        <span
+          key={node.id}
+          {...attrs}
+          className={cx("tpl-icon", props.box === true && "is-boxed", toneClass(props.tone), attrs.className)}
+          style={{ width: size + 16, height: size + 16 }}
+        >
+          <TemplateIcon
+            name={typeof props.name === "string" ? props.name : "spark"}
+            size={size}
+          />
+        </span>
+      );
+    }
+
     case "avatar":
       return (
         <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
@@ -595,12 +649,41 @@ function renderNode(
 
     case "chip":
       return (
-        <span key={node.id} {...attrs} className={cx("tpl-control", attrs.className)}>
+        <span
+          key={node.id}
+          {...attrs}
+          className={cx("tpl-control tpl-chip", attrs.className)}
+          data-tone={typeof props.tone === "string" ? props.tone : undefined}
+        >
           <Chip>{typeof props.text === "string" ? props.text : null}</Chip>
         </span>
       );
 
-    case "meter":
+    case "meter": {
+      const value = typeof props.value === "number" ? props.value : 0;
+      const clamped = Math.max(0, Math.min(100, value));
+      if (props.compact === true) {
+        // In a table row or a factor list the meter is a slim value, not a
+        // labelled control. The native meter keeps the semantics without the
+        // component's label/value chrome.
+        return (
+          <span
+            key={node.id}
+            {...attrs}
+            className={cx("tpl-meter-inline", attrs.className)}
+            role="meter"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(clamped)}
+            aria-label={
+              typeof props.label === "string" ? props.label : `${node.id} meter`
+            }
+            data-tone={typeof props.tone === "string" ? props.tone : undefined}
+          >
+            <span style={{ width: `${clamped}%` }} />
+          </span>
+        );
+      }
       return (
         <span key={node.id} {...attrs} className={cx("tpl-meter", attrs.className)}>
           <BoundedMeter
@@ -621,6 +704,7 @@ function renderNode(
           />
         </span>
       );
+    }
 
     case "divider":
       return (
@@ -700,21 +784,10 @@ function renderNode(
               <span className="tpl-slot-hint">{ctx.labels.placed}</span>
             ) : null
           ) : activeSlot ? (
-            (ctx.slot ??
-              (hasFallback ? (
-                children
-              ) : (
-                <span className="tpl-slot-hint">
-                  {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
-                </span>
-              )))
+            (ctx.slot ?? (hasFallback ? children : null))
           ) : hasFallback ? (
             children
-          ) : (
-            <span className="tpl-slot-hint">
-              {typeof props.hint === "string" ? props.hint : ctx.labels.slot}
-            </span>
-          )}
+          ) : null}
           {editing && !placed && slotState ? (
             <button
               type="button"

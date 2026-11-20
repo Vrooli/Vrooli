@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, CircleAlert, Layers, PenTool } from "lucide-react";
 
 import {
@@ -52,6 +52,7 @@ export function DesignIndexPage() {
   const workspaces = useWorkspaces();
   const [forking, setForking] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [params] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
   const rows = workspaces.data ?? [];
@@ -79,6 +80,14 @@ export function DesignIndexPage() {
       setCreating(false);
     }
   };
+
+  useEffect(() => {
+    // N lands here from anywhere; focusing the primary action completes the
+    // shortcut without creating a workspace the person did not name.
+    if (params.get("new") === "1") {
+      document.querySelector<HTMLButtonElement>('[data-new-workspace="true"]')?.focus();
+    }
+  }, [params]);
 
   const forkTemplate = async (id: string) => {
     setForking(id);
@@ -116,6 +125,7 @@ export function DesignIndexPage() {
         </div>
         <div className="wb-actions">
           <WbButton
+            data-new-workspace="true"
             variant="primary"
             size="md"
             disabled={creating}
@@ -184,7 +194,7 @@ export function DesignIndexPage() {
                       <span className="wb-home-thumb" aria-hidden>
                         <Layers size={14} />
                       </span>
-                      <span className="wb-home-row-copy" style={{ minWidth: 0, flex: 1 }}>
+                      <span className="wb-home-row-copy">
                         <b>{workspace.name}</b>
                         <small>
                           {counts(workspace)}
@@ -282,8 +292,11 @@ function WorkspaceTemplatePreview({ workspaceId }: { workspaceId: string }) {
   });
   const workspace = query.data;
   const page = workspace?.pages[0];
+  // The shelf card is portrait, so the phone composition is the honest
+  // preview: it is the layout authored for that width, not a desktop page
+  // squeezed into a thumbnail.
   const display =
-    page?.displays.find((entry) => entry.device === DisplayDevice.DESKTOP) ?? page?.displays[0];
+    page?.displays.find((entry) => entry.device === DisplayDevice.PHONE) ?? page?.displays[0];
   const template = useMemo<Template | null>(() => {
     if (!workspace || !page || !display) return null;
     const options = parseOptions(workspace.optionsJson);

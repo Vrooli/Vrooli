@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { setLocale } from "../../i18n";
@@ -212,9 +212,12 @@ afterEach(() => cleanup());
 describe("workbench destinations accessibility", () => {
   it("Start has no structural axe violations", async () => {
     const { container } = renderWithProviders(<StartPage />);
-    // The shared search debounces; wait for its settled empty state so axe
-    // never inspects the surface while a request is queued.
-    await screen.findByText(/No matches/i);
+    // The shared search settles idle; wait for the browse grid so axe never
+    // inspects the page while a request is queued.
+    await waitFor(() =>
+      expect(container.querySelector(".wb-start-catgrid")).toBeTruthy(),
+    );
+    await settle();
     await expectNoA11yViolations(container);
   });
 
