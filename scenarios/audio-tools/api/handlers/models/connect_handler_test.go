@@ -238,5 +238,5 @@ func TestResolveModel_PlatformConstraintCanMakeDefaultIneligible(t *testing.T) {
 		Platform:   &modelsv1.Platform{RamGb: 32},
 	}))
 	require.NoError(t, err)
-	require.Equal(t, "qwen3.5:4b", res.Msg.GetModel().GetId())
+	require.Equal(t, "qwen3:1.7b", res.Msg.GetModel().GetId())
 }

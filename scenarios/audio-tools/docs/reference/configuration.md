@@ -12,13 +12,13 @@
 | `AUDIO_WHISPER_URL` | `http://localhost:8090` | Local STT resource. |
 | `AUDIO_KYUTAI_URL` | `http://localhost:8094` | Local Kyutai streaming STT resource. |
 | `AUDIO_KYUTAI_MODEL_ID` | `kyutai/stt-1b-en_fr` | Exact Kyutai model provenance recorded on evaluation and qualification evidence. Set this whenever `KYUTAI_STT_HF_REPO` changes; a new model requires a fresh promotion profile. |
-| `AUDIO_SHERPA_URL` | `http://localhost:8880` | Native local TTS, streaming STT, speaker, and separation resource. |
+| `AUDIO_SHERPA_URL` | `http://localhost:8881` | Native local TTS, streaming STT, speaker, and separation resource. |
 | `AUDIO_OLLAMA_URL` | `http://localhost:11434` | Local summarize resource. |
 | `AUDIO_LPBS_BASE_URL` | `""` | LPBS base URL (Vrooli tier). |
 | `AUDIO_LPBS_APP_BUNDLE_KEY` | `audio-tools` | LPBS app-bundle key for usage attribution. |
 | `AUDIO_AVAIL_TTL_BYOK` | `5m` | BYOK availability cache TTL. |
 | `AUDIO_AVAIL_TTL_VROOLI` | `30s` | Vrooli availability cache TTL. |
-| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `llama3.2:3b` | Local summarize default model. Empty or known reasoning defaults are coerced to the safe fallback at startup. |
+| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `summarize.default` | Summarize selector. The default is the logical policy role resolved by resource-ollama (currently `qwen3:1.7b`); a concrete tag such as `qwen3:1.7b` pins one model. Empty or known reasoning defaults are coerced to the policy role at startup. |
 
 Declares the resource dependencies (`whisper`, `kyutai-stt`, `sherpa-onnx`, `ollama`, `postgres`) — all `required: false` so audio-tools starts cleanly with zero local resources — and the LPBS scenario dependency (`required: false`, flag-off).
 
@@ -199,7 +199,7 @@ CPU, or quality.
 
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
-| `stt.engine_id` | string (manifest id) | `whisper-local` | from `ListEngines` | operator | Active STT engine. `whisper-local` = native whisper.cpp batch (VAD/overlap/buffered strategies). `kyutai` = native Kyutai streaming (Passthrough only). `sherpa-streaming` = native sherpa-onnx Zipformer streaming with punctuation/casing. Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
+| `stt.engine_id` | string (manifest id) | empty (live policy) | from `ListEngines` | operator | Active STT engine. Empty means the live policy ranks `native_streaming` → `low_footprint` → `accelerated` and picks the best serviceable engine; an explicit id pins one. `whisper-local` = native whisper.cpp batch (VAD/overlap/buffered). `kyutai` = native Kyutai streaming (Passthrough only). `sherpa-streaming` = native sherpa-onnx Zipformer streaming with punctuation/casing, low-footprint and attach-only until a signed adapter ships. Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
 | `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier and fails closed if no streaming-capable provider is usable; it never silently buffers an unlimited turn. |
 | `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; one Segment per utterance, lower CPU. `overlap` = growing-buffer LocalAgreement-N with VAD-anchored triggering, word-aligned cursor advance, and bounded agreement window; incremental Segments mid-utterance. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults: **Local Whisper → `vad`** (the seamless one-segment-per-utterance default), native-stream providers → `passthrough`. Pick `overlap` explicitly if you want mid-utterance incremental commits; it is no longer the auto default while its low-latency UX is being honed (2026-05-29). See PROBLEMS.md "OverlapAgree commit gap" for the algorithm history. |
 | `stt.vad_silence_ms` | integer | `1200` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |

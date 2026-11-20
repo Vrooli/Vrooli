@@ -472,7 +472,7 @@
       "languages": [
         "en"
       ],
-      "size_mb_approx": 0,
+      "size_mb_approx": 310,
       "params": "unknown",
       "license": "Apache-2.0",
       "commercial_use": "yes",
@@ -496,9 +496,57 @@
         ]
       },
       "benchmarks": {
-        "notes": "Native English streaming with punctuation and casing restoration in the sherpa-onnx resource. No scenario WER is pinned."
+        "notes": "2026-11-20 one-host check: 310 MB archive. Transcribed the canonical Kokoro clip as \"The quick brown fox jumps over the laz.\" and the JFK sample with substitutions. Upstream CLI shows the same model-level errors; the server path is complete."
       },
-      "notes": "Native English streaming engine declared in sttengine/manifest.json as sherpa-streaming and mapped to a Local provider in bootstrap. It is an alternative, not the promoted STT default; artifact size is not pinned in this seed."
+      "notes": "The sherpa streaming runtime default: 310 MB extracted, Apache-2.0 packaging for a CC-BY-4.0 LibriSpeech-trained Zipformer. It is roughly 7x smaller than Kyutai 1B and works end to end. Upstream quality on the JFK sample is imperfect (\"And so\" -> \"and saw\"), so this is a low-footprint tier, not a dictation-quality claim."
+    },
+    {
+      "id": "sherpa-zipformer-en-kroko-2025-08-06",
+      "name": "Sherpa Kroko English Zipformer (streaming)",
+      "provider_ids": [
+        "sherpa-stt"
+      ],
+      "engine_ids": [
+        "sherpa-streaming"
+      ],
+      "capability": "stt",
+      "runtime": "sherpa-onnx",
+      "artifact": {
+        "resource": "sherpa-onnx",
+        "name": "streaming-zipformer-en-kroko-2025-08-06"
+      },
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 68,
+      "params": "unknown",
+      "license": "CC-BY-SA-4.0 (community model)",
+      "commercial_use": "unknown",
+      "license_notes": "The Kroko community model is CC-BY-SA-4.0: commercial use is permitted but derivative distributions carry share-alike and attribution obligations. Kroko sells a separate commercial/OEM licence. Treat a commercial deployment as requiring a licence review until the operator confirms one.",
+      "source": {
+        "url": "https://huggingface.co/Banafo/Kroko-ASR",
+        "repo": "https://github.com/k2-fsa/sherpa-onnx"
+      },
+      "readiness": "available",
+      "roles": [
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64",
+          "linux/arm64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "2026-11-20 one-host check: upstream file CLI transcribed the full clip; the WebSocket server path stopped after ~1.4 s on the 2.6 s clip. Treat as an adapter bug, not a model-quality verdict."
+      },
+      "notes": "On-demand 68 MB Kroko community model. It is 4.5x smaller than the 2023 default, but the current streaming adapter truncated it on the named samples (JFK and the canonical TTS clip) even though the upstream file CLI transcribed them fully. Keep it experimental until the decoder/tail path is fixed; do not make it the runtime default."
     },
     {
       "id": "rumble-2-flash",
@@ -711,7 +759,7 @@
         "wer": 0.79,
         "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 90 ms to first sound on CPU and 44x realtime."
       },
-      "notes": "Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact."
+      "notes": "Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum."
     },
     {
       "id": "kale-tts-1-tiny",
@@ -754,7 +802,7 @@
         "wer": 0.81,
         "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 160 ms to first sound on device and 24x realtime."
       },
-      "notes": "Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano."
+      "notes": "Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum."
     },
     {
       "id": "kale-tts-1-base",
@@ -980,11 +1028,11 @@
       "languages": [
         "mul"
       ],
-      "size_mb_approx": 5500,
+      "size_mb_approx": 6590,
       "params": "9B",
       "license": "Unverified upstream (Qwen3.5)",
       "commercial_use": "unknown",
-      "license_notes": "Quality tier. resource-ollama's summarize.default role moved to qwen3.5:4b in the 2026-11-19 resource-footprint review, so this tag is no longer the runtime primary. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown. CommercialDefaultFor therefore selects the certified fallback llama3.2:3b instead.",
+      "license_notes": "Quality tier. resource-ollama's summarize.default role resolves to qwen3:1.7b; the 4B tag is the first quality fallback. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown and this tag can never be a commercial default.",
       "source": {
         "url": "https://ollama.com/library/qwen3.5",
         "repo": "https://github.com/QwenLM"
@@ -1011,6 +1059,48 @@
       "allow_default": false
     },
     {
+      "id": "qwen3:1.7b",
+      "name": "Qwen3 1.7B (compact summarize)",
+      "provider_ids": [
+        "ollama"
+      ],
+      "engine_ids": [],
+      "capability": "summarize",
+      "runtime": "ollama",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 1360,
+      "params": "1.7B",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Apache-2.0 weights. resource-ollama's summarize.default primary and the commercially clear default for this capability.",
+      "source": {
+        "url": "https://ollama.com/library/qwen3",
+        "repo": "https://github.com/QwenLM/Qwen3"
+      },
+      "readiness": "available",
+      "roles": [
+        "default",
+        "fast"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 6,
+        "os_arch": [
+          "linux/amd64",
+          "darwin/arm64",
+          "windows/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "2026-11-20 one-host check: a short report preserved all 8 numbers/dates and loaded in 2.2 s; a 300-word report preserved the first 14 of 22 facts and dropped the final paragraph. Runtime default; escalate to qwen3.5:4b for long fact-dense text."
+      },
+      "notes": "resource-ollama's summarize.default role resolves to this tag after the 2026-11-20 operator footprint choice. It is Apache-2.0, 1.36 GB, and about 2.5x smaller than the 4B tier. Measured: 8/8 facts on a short report, 14/22 on a 300-word report where it dropped the final paragraph. The 4B tag remains the quality escalation."
+    },
+    {
       "id": "qwen3.5:4b",
       "name": "Qwen3.5 4B (Ollama chat/summarize)",
       "provider_ids": [
@@ -1022,19 +1112,18 @@
       "languages": [
         "mul"
       ],
-      "size_mb_approx": 2600,
+      "size_mb_approx": 3390,
       "params": "4B",
       "license": "Unverified upstream (Qwen3.5)",
       "commercial_use": "unknown",
-      "license_notes": "resource-ollama's summarize.default primary (2026-11-19 resource-footprint review) and the chat.small primary. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.",
+      "license_notes": "Quality escalation and first summarize.default fallback. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.",
       "source": {
         "url": "https://ollama.com/library/qwen3.5",
         "repo": "https://github.com/QwenLM"
       },
       "readiness": "available",
       "roles": [
-        "default",
-        "fast"
+        "quality"
       ],
       "hardware": {
         "cpu_capable": true,
@@ -1048,10 +1137,10 @@
         ]
       },
       "benchmarks": {
-        "notes": "Runtime default for summarize. It is the gateway role candidate; quality is measured by the persisted experiment harness, not this seed."
+        "notes": "2026-11-20 one-host check: preserved 22/22 numeric/date facts on a 300-word report. Quality tier for long text."
       },
-      "notes": "resource-ollama's summarize.default role resolves to this tag after the 2026-11-19 resource-footprint review; it was already the chat.small primary and the role's qualification candidate. allow_default is the auditable opt-in that lets the runtime-primary tag carry the default role before its upstream licence is verified; unknown commercial use still fails closed to llama3.2:3b for commercial selection.",
-      "allow_default": true
+      "notes": "Quality escalation for long or fact-dense summaries. It preserved 22/22 measured facts on a 300-word report, at 3.39 GB installed (~2.5x the 1.7B default). The shared summarize.default role resolves to qwen3:1.7b; this tag is selected explicitly or as the first fallback.",
+      "allow_default": false
     },
     {
       "id": "llama3.2:3b",
@@ -1065,7 +1154,7 @@
       "languages": [
         "mul"
       ],
-      "size_mb_approx": 2000,
+      "size_mb_approx": 2020,
       "params": "3B",
       "license": "Llama 3.2 Community License",
       "commercial_use": "yes",
@@ -1107,7 +1196,7 @@
       "languages": [
         "mul"
       ],
-      "size_mb_approx": 1300,
+      "size_mb_approx": 1320,
       "params": "1B",
       "license": "Llama 3.2 Community License",
       "commercial_use": "yes",

@@ -47,6 +47,62 @@ rate of 20/s against the 15/s bound. The production batch remains 1,600
 samples (about 100 ms); startup p95 must be repaired at the decoder/admission
 owner rather than by increasing transport event pressure.
 
+### 2026-11-20 — Sherpa attach, the 1.7B summarize default, and a decoder gap
+
+The operator chose the low-footprint path explicitly: sherpa streaming for STT,
+Kale nano for TTS when it ships, and `qwen3:1.7b` for summarize. Three of those
+are now wired; one is honestly blocked on model/artifact availability.
+
+**Summarize** moved from `qwen3.5:4b` to `qwen3:1.7b` (Apache-2.0, 1.36 GB).
+Measured on this host: the 1.7B tag preserved 8/8 numbers and dates on a short
+report and 14/22 on a 300-word report, where it dropped the final paragraph;
+the 4B tag preserved 22/22. The 4B tag is the first fallback and quality
+escalation. The ai-gateway provider catalog was regenerated, and the ollama
+resource gained the required `qwen3:1.7b` acceleration rung (3 GiB) — without
+it, the scenario correctly refused to start.
+
+**Sherpa streaming** is now attached and selected. The source-built adapter
+runs on `127.0.0.1:8881` with the 2023 English Zipformer (310 MB, CPU) and the
+punctuation model. Two integration defects were fixed: Audio Tools pointed at
+port `8880` while the resource exposes `8881`, and the capability checkers
+probed `/ready`, which exists only when the speaker runtime is loaded; the
+sherpa STT probe now uses `/healthz`. Engine policy now ranks
+`native_streaming` → `low_footprint` → `accelerated`, so sherpa wins over the
+2.3 GB Kyutai tier when both are serviceable.
+
+Attach-only is explicit: when the control plane reports the managed artifact
+unsupported/uninstalled, a passing provider health probe still makes the engine
+`available` and the selection reason says `attached (provider health confirmed,
+lifecycle ownership is external)`. A dead attached provider is rejected. The
+resource manifest still claims no platform support until a signed release
+artifact exists; see `resources/sherpa-onnx/docs/LOCAL-ATTACH.md`.
+
+**Kroko 2025** (68 MB, CC-BY-SA-4.0) was evaluated as the smaller successor.
+The upstream file CLI transcribes the JFK and canonical clips fully, but the
+WebSocket adapter path stops after about half of the 2.6 s clip and loses the
+final words of JFK. It remains an on-demand artifact and is not the default
+until that decoder/tail path matches the file CLI.
+
+Two gateway-integrity defects surfaced while verifying the new default:
+
+- `qwen3:1.7b` had no `runtime_identity` in resource-ollama's policy, so the
+  gateway refused the role with "artifact identity is missing or differs from
+  the observed digest". Added the observed `/api/tags` digest
+  (`8f68893c…1730e7`) and regenerated the gateway catalog.
+- The gateway invokes `resource-ollama` as a subprocess. During the first
+  verification the source-built CLI was stale, so its auto-rebuild exceeded the
+  gateway's command timeout and the role resolution failed. After one explicit
+  refresh, the gateway path works with no artifact-mode override. Warm
+  summarize through the gateway is 347 ms; a cold model load is ~8.5 s.
+
+**TTS**: the sherpa adapter already serves **Kokoro int8** (183 MB extracted,
+114 MB model) through `/v1/audio/speech`; the standalone Kokoro resource uses
+313 MB. That int8 path is the intended host for a Kale ONNX export when Kale
+publishes weights. Kale remains a candidate with no shipped artifact, so the
+TTS default is unchanged.
+
+12 GB of abandoned Kyutai download was also removed (cache 14 GB → 2.3 GB).
+
 ### 2026-11-20 — The machine footprint was an accident, not a decision
 
 Measured on this host: the whisper service was running `ggml-medium` and holding
@@ -65,12 +121,12 @@ Fixed:
   as quality tiers, and base/tiny as fast/edge tiers, each with its own artifact.
 - `whisper recommend-model` returns `small` by default; `--quality` is the
   explicit accuracy opt-in. CPU hosts no longer auto-pick medium.
-- resource-ollama's `summarize.default` role moved to `qwen3.5:4b` (~2.6 GB),
+- resource-ollama's `summarize.default` role moved to `qwen3.5:4b` (3.39 GB installed),
   which was already the role's qualification candidate. `qwen3.5:9b` remains a
   quality tier and can never be a commercial default because its licence is
   unverified.
 - Each capability has a declared default footprint budget (STT 600 MB, TTS
-  400 MB, summarize 3 GB, speaker 100 MB). A seed edit that promotes a larger
+  400 MB, summarize 4 GB, speaker 100 MB). A seed edit that promotes a larger
   default fails `TestCapabilityDefaultsFitResourceBudget`;
   `TestLocalDefaultArtifactsAreEager` fails if a default names an on-demand
   artifact.

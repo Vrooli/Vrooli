@@ -129,9 +129,23 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status malformed"}, err: err}
 				return
 			}
-			if r.available != nil && !r.available(ctx, engine.ID) {
-				s.Running = false
-				s.Healthy = false
+			// Attach-only mode: the provider's own health probe is the
+			// serviceability truth when lifecycle ownership is external. A
+			// manually started (or externally managed) resource can be healthy
+			// even though the control plane never installed or started it; a
+			// control-plane "unsupported" platform verdict is about the managed
+			// artifact, not about a server the operator deliberately attached.
+			attached := false
+			if r.available != nil {
+				if r.available(ctx, engine.ID) {
+					if !s.Installed || !s.Running || !s.Healthy {
+						s.Installed, s.Running, s.Healthy = true, true, true
+						attached = true
+					}
+				} else {
+					s.Running = false
+					s.Healthy = false
+				}
 			}
 			accelerated := strings.TrimSpace(s.Resource.ObservedMode) != "" && s.Resource.ObservedMode != "cpu"
 			signalUnavailable := false
@@ -163,13 +177,20 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 			if statusCode == "" && (strings.EqualFold(s.Status, "healthy") || strings.EqualFold(s.Status, "ok")) {
 				statusCode = "ok"
 			}
+			platformSupported := statusCode != "unsupported_platform"
+			reason := fmt.Sprintf("control-plane resource status: status_code=%s observed_mode=%s", statusCode, s.Resource.ObservedMode)
+			if attached {
+				platformSupported = true
+				reason = "attached: provider health confirmed; lifecycle ownership is external (" + reason + ")"
+			}
 			observations <- observation{id: engine.ID, facts: EngineFacts{
-				PlatformSupported: statusCode != "unsupported_platform",
+				PlatformSupported: platformSupported,
 				Installed:         s.Installed, Running: s.Running, Healthy: s.Healthy,
 				WorkloadCapable:   len(engine.Strategies) > 0,
 				Accelerated:       accelerated,
+				Attached:          attached,
 				SignalUnavailable: signalUnavailable,
-				Reason:            fmt.Sprintf("control-plane resource status: status_code=%s observed_mode=%s", statusCode, s.Resource.ObservedMode),
+				Reason:            reason,
 			}}
 		}()
 	}

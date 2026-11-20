@@ -51,6 +51,7 @@ const (
 // capability the engine HAS — there are no negative "disable" flags.
 type Provides struct {
 	NativeStreaming   bool     `json:"nativeStreaming"`
+	LowFootprint      bool     `json:"lowFootprint"`
 	BuiltinVad        bool     `json:"builtinVad"`
 	ConfidenceSignals []string `json:"confidenceSignals"`
 	WordTimestamps    bool     `json:"wordTimestamps"`
@@ -189,6 +190,7 @@ type EngineFacts struct {
 	Healthy           bool   `json:"healthy"`
 	WorkloadCapable   bool   `json:"workloadCapable"`
 	Accelerated       bool   `json:"accelerated"`
+	Attached          bool   `json:"attached,omitempty"`
 	SignalUnavailable bool   `json:"signalUnavailable"`
 	Reason            string `json:"reason,omitempty"`
 }
@@ -285,7 +287,11 @@ func (r *Registry) ResolveFacts(facts map[string]EngineFacts) (Resolution, error
 	}
 	resolution.Candidates[selected].Selected = true
 	resolution.Candidates[selected].Verdict = "selected"
-	resolution.Candidates[selected].Reason = selectionReason(r.manifest.SelectionPolicy, resolution.Candidates, selected, facts)
+	reason := selectionReason(r.manifest.SelectionPolicy, resolution.Candidates, selected, facts)
+	if facts[resolution.Candidates[selected].Engine.ID].Attached {
+		reason = "attached (provider health confirmed, lifecycle external); " + reason
+	}
+	resolution.Candidates[selected].Reason = reason
 	resolution.Selected = resolution.Candidates[selected].Engine.ID
 	return resolution, nil
 }
@@ -338,6 +344,16 @@ func selectionReason(policy SelectionPolicy, candidates []Candidate, selected in
 				return fmt.Sprintf("selected engine is buffered while %d native-streaming candidate(s) were eligible; check ranked preference order", others)
 			}
 			return "no eligible candidate offers native streaming; tiebreak=manifest_order"
+		case "low_footprint":
+			if candidates[selected].Engine.Provides.LowFootprint {
+				return "low_footprint=true ranked above larger-footprint candidates"
+			}
+			if others := countEligible(candidates, func(c Candidate) bool {
+				return c.Engine.Provides.LowFootprint
+			}); others > 0 {
+				return fmt.Sprintf("selected engine is not low-footprint while %d low-footprint candidate(s) were eligible; check ranked preference order", others)
+			}
+			return "no eligible candidate declared low_footprint; tiebreak=manifest order"
 		case "accelerated":
 			if facts[candidates[selected].Engine.ID].Accelerated {
 				return "accelerated=true ranked above non-accelerated candidates"
@@ -359,6 +375,10 @@ func betterByPolicy(policy SelectionPolicy, left, right Engine, facts map[string
 		case "accelerated":
 			if facts[left.ID].Accelerated != facts[right.ID].Accelerated {
 				return facts[left.ID].Accelerated
+			}
+		case "low_footprint":
+			if left.Provides.LowFootprint != right.Provides.LowFootprint {
+				return left.Provides.LowFootprint
 			}
 		case "native_streaming":
 			if left.Provides.NativeStreaming != right.Provides.NativeStreaming {
@@ -481,6 +501,7 @@ var knownSelectionSignals = map[string]struct{}{
 	"workload_capable":     {},
 	"accelerated":          {},
 	"native_streaming":     {},
+	"low_footprint":        {},
 }
 
 // Validate enforces the manifest invariants the schema cannot express in pure

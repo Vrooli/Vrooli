@@ -158,6 +158,7 @@ func TestEmbeddedManifestDeclaresSherpaStreaming(t *testing.T) {
 	require.Equal(t, KindLocalResource, engine.Kind)
 	require.Equal(t, "sherpa-onnx", engine.Resource)
 	require.True(t, engine.Provides.NativeStreaming)
+	require.True(t, engine.Provides.LowFootprint)
 	require.False(t, engine.Provides.BuiltinVad)
 	require.Empty(t, engine.Provides.ConfidenceSignals)
 	require.False(t, engine.Provides.WordTimestamps)
@@ -259,4 +260,75 @@ func serviceResourceDeps(t *testing.T) map[string]any {
 	}
 	require.NoError(t, json.Unmarshal(raw, &doc))
 	return doc.Dependencies.Resources
+}
+
+// TestResolveFactsPrefersLowFootprintStreamingOverAccelerated pins the
+// resource-conscious policy: a lightweight native-streaming engine wins over a
+// GPU streamer even though the GPU engine reports acceleration. Footprint is a
+// product decision, not an accident of whichever engine happens to be up.
+func TestResolveFactsPrefersLowFootprintStreamingOverAccelerated(t *testing.T) {
+	registry := &Registry{manifest: Manifest{
+		SelectionPolicy: SelectionPolicy{
+			HardFilters:       []string{"platform_supported", "resource_serviceable"},
+			RankedPreferences: []string{"native_streaming", "low_footprint", "accelerated"},
+		},
+		Engines: []Engine{
+			{ID: "sherpa", Provides: Provides{NativeStreaming: true, LowFootprint: true}},
+			{ID: "kyutai", Provides: Provides{NativeStreaming: true}},
+		},
+	}}
+	serviceable := EngineFacts{PlatformSupported: true, Installed: true, Running: true, Healthy: true, WorkloadCapable: true}
+	gpu := serviceable
+	gpu.Accelerated = true
+	resolution, err := registry.ResolveFacts(map[string]EngineFacts{
+		"sherpa": serviceable,
+		"kyutai": gpu,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "sherpa", resolution.Selected)
+	require.Contains(t, resolution.Candidates[0].Reason, "native_streaming=true")
+}
+
+// TestLiveResolverAcceptsAttachedProvider covers attach-only operation: the
+// operator runs a qualified adapter outside Vrooli's lifecycle, and the
+// provider's own health probe proves it works. The control plane still reports
+// the managed artifact as uninstalled/unsupported, which must not hide a
+// deliberately attached server.
+func TestLiveResolverAcceptsAttachedProvider(t *testing.T) {
+	r := NewLiveResolver(func(_ context.Context, args ...string) ([]byte, error) {
+		if len(args) > 1 && args[0] == "resource" && args[1] == "acceleration" {
+			return []byte(`{"selected":"cpu","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":false,"running":false,"healthy":false,"status_code":"unsupported_platform"}`), nil
+	}, time.Minute)
+	r.SetAvailability(func(context.Context, string) bool { return true })
+	registry := New(Manifest{Engines: []Engine{{
+		ID: "sherpa-streaming", Kind: KindLocalResource, Resource: "sherpa-onnx",
+		Provides: Provides{NativeStreaming: true, LowFootprint: true}, Strategies: []string{"passthrough"},
+	}}})
+
+	resolution, err := r.Resolve(context.Background(), registry)
+	require.NoError(t, err)
+	require.Equal(t, "sherpa-streaming", resolution.Selected)
+	require.True(t, resolution.Candidates[0].Reason != "", "attached selection must explain itself")
+	require.Contains(t, resolution.Candidates[0].Reason, "attached")
+}
+
+// TestLiveResolverRejectsUnhealthyAttachedProvider proves the other side of
+// attach-only: a control-plane record alone cannot keep a dead server
+// serviceable when the provider health probe fails.
+func TestLiveResolverRejectsUnhealthyAttachedProvider(t *testing.T) {
+	r := NewLiveResolver(func(_ context.Context, args ...string) ([]byte, error) {
+		if len(args) > 1 && args[0] == "resource" && args[1] == "acceleration" {
+			return []byte(`{"selected":"cpu","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok"}`), nil
+	}, time.Minute)
+	r.SetAvailability(func(context.Context, string) bool { return false })
+	registry := New(Manifest{Engines: []Engine{{
+		ID: "sherpa-streaming", Kind: KindLocalResource, Resource: "sherpa-onnx", Strategies: []string{"passthrough"},
+	}}})
+
+	_, err := r.Resolve(context.Background(), registry)
+	require.ErrorIs(t, err, ErrNoServiceableEngine)
 }

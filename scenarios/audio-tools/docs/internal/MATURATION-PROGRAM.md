@@ -155,8 +155,8 @@ accident, and put the lab boundary behind a measured gate.
 |---|---|---|
 | Whisper default | `ggml-small.bin` (488 MB) is the eager artifact and the runtime default; turbo/medium/base/tiny are on-demand tiers. The capacity claim fell from 2 GiB to 1 GiB | `TestWhisperRuntimeArtifactMatchesRegistryDefault`, `TestLocalDefaultArtifactsAreEager`, `vrooli resource validate whisper` |
 | Recommender | `whisper recommend-model` returns `small` on every usable host; `--quality` is the explicit accuracy opt-in; CPU no longer auto-picks medium | `TestPick_Table`, `TestPickQuality_Table` |
-| Summarize default | resource-ollama `summarize.default` moved from `qwen3.5:9b` (~6 GB resident) to `qwen3.5:4b` (~2.6 GB), which was already the role's qualification candidate; 9B remains a quality tier | `TestSummarizeRecordsMirrorResourceOllamaPolicy`, `TestSummarizeDefaultMovedOffNineB` |
-| Footprint budget | Each capability has a declared default-size budget (STT 600 MB, TTS 400 MB, summarizer 3 GB, speaker 100 MB); a promoted default that exceeds it fails the build, and the aggregate depends on it | `TestCapabilityDefaultsFitResourceBudget`, `TestCommercialDefaultsFitResourceBudget`, `TestPromotedDefaultFootprintFitsBudgets` |
+| Summarize default | resource-ollama `summarize.default` moved from `qwen3.5:9b` (~6 GB resident) to `qwen3.5:4b` (3.39 GB installed), which was already the role's qualification candidate; 9B remains a quality tier | `TestSummarizeRecordsMirrorResourceOllamaPolicy`, `TestSummarizeDefaultMovedOffNineB` |
+| Footprint budget | Each capability has a declared default-size budget (STT 600 MB, TTS 400 MB, summarizer 4 GB, speaker 100 MB); a promoted default that exceeds it fails the build, and the aggregate depends on it | `TestCapabilityDefaultsFitResourceBudget`, `TestCommercialDefaultsFitResourceBudget`, `TestPromotedDefaultFootprintFitsBudgets` |
 | Footprint visibility | `docs/reference/models.md` renders the per-capability default, size, budget, artifact, the promoted-default total, and the catalogue total; `audio-tools model list` adds SIZE and a `Defaults: …` summary; the Models page shows a Resource footprint panel | docs drift test, CLI/UI tests |
 | Lab boundary | Experiment/eval/soak/validation packages have honest coverage floors, `make lab-test`, and an import gate that keeps them out of product serving paths | `api/internal/lab/boundary_test.go`, coverage policy |
 | Health telemetry | Sub-millisecond liveness measurements are reported instead of truncating to 0; `health show` renders a LATENCY column | `TestGetProviderHealth_ReportsSubMillisecondLatency`, CLI health tests |
@@ -170,6 +170,27 @@ tier. Bigger models remain one explicit command away.
 
 Still open after this tranche: timestamp-drift scoring on long-form audio, a
 multi-device/multi-OS matrix, and full-duplex.
+
+## Delivered in the sixth tranche (2026-11-20)
+
+This tranche followed the operator's explicit model choices and made the
+low-footprint path real end to end.
+
+| Area | Delivered | Gate/evidence |
+|---|---|---|
+| Summarize default | resource-ollama `summarize.default` moved to `qwen3:1.7b` (APACHE-2.0, 1.36 GB); `qwen3.5:4b` stays the first fallback and quality escalation | model-policy mirror test, `TestSummarizeDefaultMovedOffNineB` (updated), ai-gateway catalog regeneration |
+| Sherpa streaming | Local source-built adapter qualified on this host: 2023 English Zipformer (310 MB) on port 8881, `/healthz` health contract, `AUDIO_SHERPA_URL` corrected from 8880 to 8881 | `resources/sherpa-onnx/docs/LOCAL-ATTACH.md`, live `audio-tools stt transcribe-stream` |
+| Attach-only selection | A provider whose health probe passes is selectable even when the control plane reports the managed artifact unsupported/uninstalled; a dead attached provider is still rejected | `TestLiveResolverAcceptsAttachedProvider`, `TestLiveResolverRejectsUnhealthyAttachedProvider` |
+| Footprint policy | Engine ranking is `native_streaming` → `low_footprint` → `accelerated`; sherpa declares `lowFootprint` and wins over GPU Kyutai when both are serviceable | `TestResolveFactsPrefersLowFootprintStreamingOverAccelerated`, `stt engines` |
+| Kroko finding | The 68 MB Kroko 2025 model is on demand, not default: the upstream file CLI transcribes it fully, but the WebSocket server path truncates it on both named clips | model registry note + `sherpa-server` manual test |
+| TTS host path | The sherpa adapter already serves Kokoro int8 (183 MB) from `/v1/audio/speech`; that is the intended host for a Kale ONNX export when published | `/v1/audio/voices`, `/v1/audio/speech` live checks |
+| Ollama capacity | Added the `qwen3:1.7b` acceleration claim rung (3 GiB) and its `runtime_identity` (observed digest); regenerated the gateway catalog | `resource-ollama policy resolve`, warm summarize 347 ms |
+| Gateway CLI freshness | The gateway's resource-ollama subprocess rebuilt from source while the installed CLI was stale, exceeding its command timeout; after one explicit refresh the gateway path works with no override | live summarize receipt (347 ms warm, ~8.5 s cold) |
+
+Still open: Kale weights are not published, so the TTS default remains Kokoro;
+Kroko needs a server-side tail/decoder fix; sherpa lifecycle ownership still
+requires a signed release artifact; long-form timestamp drift and the device
+matrix remain unqualified.
 
 ## Workstreams
 

@@ -3,7 +3,7 @@
 <!-- Generated from api/internal/modelcatalog/models.seed.json. Do not edit by hand.
      Regenerate from api/ with: go run ./internal/modelcatalog/cmd/render-models -->
 
-Generated 2026-11-19 from `api/internal/modelcatalog/models.seed.json` (schema `1.0.0`, 28 records).
+Generated 2026-11-19 from `api/internal/modelcatalog/models.seed.json` (schema `1.0.0`, 30 records).
 
 Model choice is data plus evidence. This is the audio-tools analogue of image-tools' `models/registry.seed.json`: one record per model or voice family, carrying stable provider ids, STT engine ids, licence and commercial eligibility, readiness, the hardware envelope, and benchmark evidence. Consumers ask `api/internal/modelcatalog` instead of hardcoding engine ids.
 
@@ -36,7 +36,8 @@ Entry points: `All`, `ByCapability`, `ByProvider`, `ByEngine`, `CandidatesFor`, 
 | `whisper-tiny` | whisper-stt | whisper-local | whisper.cpp | `whisper/tiny-model` | 39M | 78 MB | en, mul | MIT | yes | available | — | edge |
 | `kyutai-stt-1b-en-fr` | kyutai-stt | kyutai | kyutai | `kyutai-stt/moshi-weights` | 1B | 2000 MB | en, fr | CC-BY-4.0 | yes | available | — | fast |
 | `kyutai-stt-2.6b-en` | kyutai-stt | kyutai | kyutai | — | 2.6B | 5200 MB | en | CC-BY-4.0 | yes | candidate | — | quality |
-| `sherpa-zipformer-en-2023-06-26` | sherpa-stt | sherpa-streaming | sherpa-onnx | `sherpa-onnx/streaming-zipformer-en-2023-06-26` | unknown | — | en | Apache-2.0 | yes | available | — | fast, edge |
+| `sherpa-zipformer-en-2023-06-26` | sherpa-stt | sherpa-streaming | sherpa-onnx | `sherpa-onnx/streaming-zipformer-en-2023-06-26` | unknown | 310 MB | en | Apache-2.0 | yes | available | — | fast, edge |
+| `sherpa-zipformer-en-kroko-2025-08-06` | sherpa-stt | sherpa-streaming | sherpa-onnx | `sherpa-onnx/streaming-zipformer-en-kroko-2025-08-06` | unknown | 68 MB | en | CC-BY-SA-4.0 (community model) | unknown | available | — | edge |
 | `rumble-2-flash` | rumble-stt | — | vllm | — | 0.5B | 1000 MB | en, mul | Apache-2.0 | yes | candidate | opt-in | default, quality |
 | `openai-whisper-1` | openai-whisper | — | byok | — | vendor-managed | — | en, mul | Proprietary service terms | yes | available | — | quality |
 | `deepgram-nova-3` | deepgram | — | byok | — | vendor-managed | — | en, mul | Proprietary service terms | yes | available | — | fast |
@@ -58,10 +59,11 @@ Entry points: `All`, `ByCapability`, `ByProvider`, `ByEngine`, `CandidatesFor`, 
 
 | Model | Provider ids | Engine ids | Runtime | Artifact | Params | Size | Languages | Licence | Commercial | Readiness | Default role | Roles |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `qwen3.5:9b` | ollama | — | ollama | — | 9B | 5500 MB | mul | Unverified upstream (Qwen3.5) | unknown | available | — | quality |
-| `qwen3.5:4b` | ollama | — | ollama | — | 4B | 2600 MB | mul | Unverified upstream (Qwen3.5) | unknown | available | yes | default, fast |
-| `llama3.2:3b` | ollama | — | ollama | — | 3B | 2000 MB | mul | Llama 3.2 Community License | yes | available | yes | default, quality |
-| `llama3.2:1b` | ollama | — | ollama | — | 1B | 1300 MB | mul | Llama 3.2 Community License | yes | available | — | fast, edge |
+| `qwen3.5:9b` | ollama | — | ollama | — | 9B | 6590 MB | mul | Unverified upstream (Qwen3.5) | unknown | available | — | quality |
+| `qwen3:1.7b` | ollama | — | ollama | — | 1.7B | 1360 MB | mul | Apache-2.0 | yes | available | yes | default, fast |
+| `qwen3.5:4b` | ollama | — | ollama | — | 4B | 3390 MB | mul | Unverified upstream (Qwen3.5) | unknown | available | — | quality |
+| `llama3.2:3b` | ollama | — | ollama | — | 3B | 2020 MB | mul | Llama 3.2 Community License | yes | available | yes | default, quality |
+| `llama3.2:1b` | ollama | — | ollama | — | 1B | 1320 MB | mul | Llama 3.2 Community License | yes | available | — | fast, edge |
 | `gemma3:4b` | ollama | — | ollama | — | 4B | 3300 MB | mul | Gemma Terms of Use | yes | candidate | — | quality |
 | `phi4-mini:3.8b` | ollama | — | ollama | — | 3.8B | 2500 MB | mul | MIT | yes | candidate | — | fast |
 | `openrouter-summarize` | openrouter | — | gateway | — | provider-selected | — | mul | Proprietary provider terms | yes | available | — | quality |
@@ -80,21 +82,21 @@ Computed with an unconstrained platform (`DefaultFor(cap, "", Platform{})`), so 
 |---|---|---|
 | stt | `whisper-small` | `whisper-small` |
 | tts | `kokoro-82m-v1.0` | `kokoro-82m-v1.0` |
-| summarize | `qwen3.5:4b` | `llama3.2:3b` |
+| summarize | `qwen3:1.7b` | `qwen3:1.7b` |
 | speaker | `sherpa-onnx-speaker-embedding` | `sherpa-onnx-speaker-embedding` |
 
 ## Resource footprint
 
-Default selection is also a resource decision. Each capability's promoted default must fit its declared budget (`DefaultFootprintBudgetMB`); a seed edit that promotes a larger model fails the budget gate instead of silently reserving more memory. Budgets: stt 600 MB, tts 400 MB, summarize 3000 MB, speaker 100 MB.
+Default selection is also a resource decision. Each capability's promoted default must fit its declared budget (`DefaultFootprintBudgetMB`); a seed edit that promotes a larger model fails the budget gate instead of silently reserving more memory. Budgets: stt 600 MB, tts 400 MB, summarize 4000 MB, speaker 100 MB.
 
 | Capability | Default | Runtime | Declared size | Budget | Artifact |
 |---|---|---|---|---|---|
 | stt | `whisper-small` | whisper.cpp | 488 MB | 600 MB | `whisper/small-model` |
 | tts | `kokoro-82m-v1.0` | kokoro | 330 MB | 400 MB | `kokoro/kokoro-model` |
-| summarize | `qwen3.5:4b` | ollama | 2600 MB | 3000 MB | — |
+| summarize | `qwen3:1.7b` | ollama | 1360 MB | 4000 MB | — |
 | speaker | `sherpa-onnx-speaker-embedding` | sherpa-onnx | 27 MB | 100 MB | `sherpa-onnx/speaker-eres2net-large-zh-cn-16k` |
 
-Promoted defaults (the weight disk a fresh install of the referenced resources needs): **3445 MB**. Every available local record declared in this registry totals **17621 MB**; that is a catalogue total, not what an install pulls: a resource installs its eager artifact and leaves on-demand tiers unpulled. Remote (`byok`/`gateway`) and `browser` records carry no local weight footprint.
+Promoted defaults (the weight disk a fresh install of the referenced resources needs): **2205 MB**. Every available local record declared in this registry totals **21279 MB**; that is a catalogue total, not what an install pulls: a resource installs its eager artifact and leaves on-demand tiers unpulled. Remote (`byok`/`gateway`) and `browser` records carry no local weight footprint.
 
 ## Cautions
 
@@ -102,14 +104,15 @@ Records that are not both available and commercially clear. A caution is not a s
 
 - `whisper-large-v3` — readiness `candidate`, commercial `yes`. ~3.1 GB ggml artifact. The 6 GB VRAM figure is an operational comfort estimate, not a measured floor; CPU inference works but is slow.
 - `kyutai-stt-2.6b-en` — readiness `candidate`, commercial `yes`. Candidate quality tier. The 16 GB VRAM figure is an estimate for the 2.6B checkpoint plus decoder overhead and is not measured on this host.
+- `sherpa-zipformer-en-kroko-2025-08-06` — readiness `available`, commercial `unknown`. The Kroko community model is CC-BY-SA-4.0: commercial use is permitted but derivative distributions carry share-alike and attribution obligations. Kroko sells a separate commercial/OEM licence. Treat a commercial deployment as requiring a licence review until the operator confirms one.
 - `rumble-2-flash` — readiness `candidate`, commercial `yes`. Batch ASR, not native streaming. Candidate default for local batch/multilingual work; allow_default is explicit so promotion is a seed decision backed by a receipt. engine_ids is empty until a real rumble engine/adapter exists in sttengine and the provider catalog. The vLLM adapter is GPU-oriented in practice, so CPU viability is not claimed even though the weights fit in CPU RAM. Artifact size ~1 GB is an estimate from 0.5B parameters.
-- `kale-tts-1-nano` — readiness `candidate`, commercial `yes`. Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact.
-- `kale-tts-1-tiny` — readiness `candidate`, commercial `yes`. Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano.
+- `kale-tts-1-nano` — readiness `candidate`, commercial `yes`. Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum.
+- `kale-tts-1-tiny` — readiness `candidate`, commercial `yes`. Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum.
 - `kale-tts-1-base` — readiness `experimental`, commercial `yes`. Experimental: the PyTorch path is a scratch/reference implementation and artifact size is not published. Not a default.
 - `reverb-tts` — readiness `experimental`, commercial `no`. Weights are CC BY-NC 4.0: non-commercial use only, with attribution. Commercial use requires a negotiated licence from Software Mansion. Runtime code is Apache-2.0.
 - `verba-tts-indic-zero` — readiness `watch`, commercial `unknown`. No confirmed licence or public release was found. Treat every use as unlicensed until the owner publishes terms.
-- `qwen3.5:9b` — readiness `available`, commercial `unknown`. Quality tier. resource-ollama's summarize.default role moved to qwen3.5:4b in the 2026-11-19 resource-footprint review, so this tag is no longer the runtime primary. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown. CommercialDefaultFor therefore selects the certified fallback llama3.2:3b instead.
-- `qwen3.5:4b` — readiness `available`, commercial `unknown`. resource-ollama's summarize.default primary (2026-11-19 resource-footprint review) and the chat.small primary. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.
+- `qwen3.5:9b` — readiness `available`, commercial `unknown`. Quality tier. resource-ollama's summarize.default role resolves to qwen3:1.7b; the 4B tag is the first quality fallback. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown and this tag can never be a commercial default.
+- `qwen3.5:4b` — readiness `available`, commercial `unknown`. Quality escalation and first summarize.default fallback. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.
 - `gemma3:4b` — readiness `candidate`, commercial `yes`. 3.3 GB is the quantized pull size. Do not pull without operator approval.
 - `phi4-mini:3.8b` — readiness `candidate`, commercial `yes`. 2.5 GB is the quantized pull size. Lower-latency fallback role candidate.
 

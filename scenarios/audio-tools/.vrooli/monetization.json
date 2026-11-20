@@ -5,6 +5,9 @@
   "app_key": "audio-tools",
   "requires_entitlement": true,
   "features": [],
+  "credit_features": [
+    {"id": "audio-tools.summarize", "gateway_roles": ["chat"]}
+  ],
   "meters": [
     {
       "limit_key": "ai_credits",

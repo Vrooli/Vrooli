@@ -8,11 +8,20 @@
       "provides": {
         "nativeStreaming": false,
         "builtinVad": true,
-        "confidenceSignals": ["no_speech_prob", "avg_logprob"],
+        "confidenceSignals": [
+          "no_speech_prob",
+          "avg_logprob"
+        ],
         "wordTimestamps": true
       },
-      "requires": { "pcm16kMono": true },
-      "strategies": ["vad_segment", "overlap_agree", "buffered_fallback"]
+      "requires": {
+        "pcm16kMono": true
+      },
+      "strategies": [
+        "vad_segment",
+        "overlap_agree",
+        "buffered_fallback"
+      ]
     },
     {
       "id": "kyutai",
@@ -25,8 +34,12 @@
         "confidenceSignals": [],
         "wordTimestamps": true
       },
-      "requires": { "pcm16kMono": true },
-      "strategies": ["passthrough"]
+      "requires": {
+        "pcm16kMono": true
+      },
+      "strategies": [
+        "passthrough"
+      ]
     },
     {
       "id": "sherpa-streaming",
@@ -37,16 +50,31 @@
         "nativeStreaming": true,
         "builtinVad": false,
         "confidenceSignals": [],
-        "wordTimestamps": false
+        "wordTimestamps": false,
+        "lowFootprint": true
       },
-      "requires": { "pcm16kMono": true },
-      "strategies": ["passthrough"]
+      "requires": {
+        "pcm16kMono": true
+      },
+      "strategies": [
+        "passthrough"
+      ]
     }
   ],
   "selectionPolicy": {
-    "hardFilters": ["platform_supported", "resource_serviceable", "workload_capable"],
-    "rankedPreferences": ["native_streaming", "accelerated"],
-    "tiebreakRank": ["manifest_order"],
+    "hardFilters": [
+      "platform_supported",
+      "resource_serviceable",
+      "workload_capable"
+    ],
+    "rankedPreferences": [
+      "native_streaming",
+      "low_footprint",
+      "accelerated"
+    ],
+    "tiebreakRank": [
+      "manifest_order"
+    ],
     "probeTtlSeconds": 30
   },
   "speakerIsolation": {

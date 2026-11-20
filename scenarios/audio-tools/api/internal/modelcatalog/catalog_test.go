@@ -251,8 +251,17 @@ func TestDefaultForLanguage(t *testing.T) {
 func TestEngineSelection(t *testing.T) {
 	c := Default()
 	sherpa := c.ByEngine("sherpa-streaming")
-	if len(sherpa) != 1 || sherpa[0].ID != "sherpa-zipformer-en-2023-06-26" {
-		t.Fatalf("ByEngine(sherpa-streaming) = %v", modelIDs(sherpa))
+	if len(sherpa) != 2 {
+		t.Fatalf("ByEngine(sherpa-streaming) = %v, want the Kroko default and the 2023 fallback", modelIDs(sherpa))
+	}
+	ids := map[string]bool{}
+	for _, m := range sherpa {
+		ids[m.ID] = true
+	}
+	for _, want := range []string{"sherpa-zipformer-en-kroko-2025-08-06", "sherpa-zipformer-en-2023-06-26"} {
+		if !ids[want] {
+			t.Fatalf("ByEngine(sherpa-streaming) = %v, missing %q", modelIDs(sherpa), want)
+		}
 	}
 	got, err := c.DefaultForEngine(CapabilitySTT, "whisper-local", "en", Platform{})
 	if err != nil {

@@ -9,13 +9,15 @@ package modelcatalog
 // docs and the UI show. Raising a budget is an explicit, reviewable seed change
 // (and a docs diff), not an accidental side effect of promoting a new model.
 //
-// Summarize is bounded at 3 GB because it runs through resource-ollama, whose
-// quantized tags include their own runtime overhead; the STT/TTS/speaker
-// budgets are for weights only.
+// Summarize is bounded at 4 GB because it runs through resource-ollama, whose
+// installed tags include quantization metadata and runtime overhead on top of
+// the published weight size; the STT/TTS/speaker budgets are for weights only.
+// The 4B faithful default measures 3.39 GB on disk; 9B measures 6.59 GB and
+// must not fit.
 var DefaultFootprintBudgetMB = map[Capability]int{
 	CapabilitySTT:       600,
 	CapabilityTTS:       400,
-	CapabilitySummarize: 3000,
+	CapabilitySummarize: 4000,
 	CapabilitySpeaker:   100,
 }
 

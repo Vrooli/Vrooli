@@ -236,6 +236,7 @@
       ],
       "checker_kind": "http_json",
       "models": [
+        "sherpa-zipformer-en-kroko-2025-08-06",
         "sherpa-zipformer-en-2023-06-26"
       ],
       "docs_url": "docs/domains/stt/streaming-pipeline.md",
@@ -282,7 +283,8 @@
         "llama3.2:3b",
         "llama3.2:1b",
         "gemma3:4b",
-        "phi4-mini:3.8b"
+        "phi4-mini:3.8b",
+        "qwen3:1.7b"
       ],
       "docs_url": "docs/concepts/DOMAINS.md",
       "operator_command": "vrooli resource start ollama",
@@ -590,8 +592,8 @@
     {
       "id": "kale-tts",
       "name": "Kale TTS",
-      "description": "Planned in-process text-to-speech model adapter",
-      "kind": "local_inprocess",
+      "description": "Planned low-footprint Kokoro-lineage TTS, hosted by the sherpa-onnx ONNX adapter when weights publish",
+      "kind": "local_resource",
       "tier": "local",
       "status": "planned",
       "capabilities": [
@@ -600,10 +602,11 @@
       "features": [
         "voice-output"
       ],
-      "dependency_kind": "scenario",
+      "dependency_kind": "resource",
       "dependency_slug": "audio-tools",
       "platform": {
-        "support": "supported"
+        "support": "degraded",
+        "reason": "Kale weights are not published yet; the sherpa adapter already serves Kokoro-format ONNX and is the intended host."
       },
       "checker_kind": "none",
       "models": [
@@ -617,7 +620,9 @@
       "presentation": {
         "label_key": "providers.kale-tts.label",
         "description_key": "providers.kale-tts.description"
-      }
+      },
+      "resource_slug": "sherpa-onnx",
+      "operator_command": "vrooli resource status sherpa-onnx --json"
     },
     {
       "id": "reverb-tts",
