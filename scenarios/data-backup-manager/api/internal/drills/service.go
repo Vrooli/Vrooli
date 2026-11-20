@@ -83,7 +83,12 @@ func NewService(d Deps) Service {
 		d.PollInterval = time.Second
 	}
 	if d.PollTimeout <= 0 {
-		d.PollTimeout = 30 * time.Minute
+		// A large research snapshot takes about an hour just to restore on
+		// this host, and the verified restore then does a 100% byte-verify and
+		// a tree checksum. A 30-minute poll bound marked it failed while the
+		// restore was still making progress. Keep a bound, but one sized for
+		// the whole restore + verify + checksum path.
+		d.PollTimeout = 3 * time.Hour
 	}
 	if d.Logger == nil {
 		d.Logger = log.Default()

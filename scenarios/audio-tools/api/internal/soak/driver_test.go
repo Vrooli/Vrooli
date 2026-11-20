@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +13,6 @@ import (
 	"audio-tools/internal/conformance"
 	"audio-tools/internal/stt/session"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -234,142 +231,12 @@ func writeTempFile(t *testing.T, data []byte) string {
 	return path
 }
 
-func TestRunUsesOneBrowserSessionAndEmitsConformanceAssertions(t *testing.T) {
-	fixture := t.TempDir() + "/fixture.wav"
-	require.NoError(t, os.WriteFile(fixture, []byte("wav"), 0o600))
-	var paths []string
-	var feedNodes []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paths = append(paths, r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.URL.Path == "/session/start":
-			var startRequest struct {
-				ExecutionID string `json:"execution_id"`
-			}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&startRequest))
-			_, uuidErr := uuid.Parse(startRequest.ExecutionID)
-			require.NoError(t, uuidErr, "BAS owner execution_id must be recoverable as a UUID")
-			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "browser-session", "lease_id": "lease-1"})
-		case strings.HasSuffix(r.URL.Path, "/close"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-		case strings.HasSuffix(r.URL.Path, "/audio/restart"), strings.HasSuffix(r.URL.Path, "/audio/stop"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-		case strings.HasSuffix(r.URL.Path, "/run"):
-			var body struct {
-				Instruction struct {
-					NodeID string `json:"node_id"`
-					Action struct {
-						Type string `json:"type"`
-					} `json:"action"`
-				} `json:"instruction"`
-			}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			if strings.HasPrefix(body.Instruction.NodeID, "feed-") {
-				feedNodes = append(feedNodes, body.Instruction.NodeID)
-			}
-			if body.Instruction.Action.Type == "ACTION_TYPE_EVALUATE" {
-				_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "extracted_data": map[string]any{"result": map[string]any{
-					"diag":    map[string]any{"schemaVersion": 1, "sessionId": "browser-session", "state": "completed", "capturedSequence": 1, "capturedSamples": 16000, "signalObserved": true, "sentSequence": 0, "processedSequence": 0, "retainedBytes": 0, "doneSent": true, "terminalReason": "final", "committedTextLagMs": 2},
-					"final":   "",
-					"interim": "speech in progress",
-				}}})
-			} else {
-				_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-			}
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	run, err := Run(context.Background(), Options{DriverURL: server.URL, UIURL: "http://ui.test", Fixture: fixture, Lane: conformance.LaneRealtime, Profile: "realistic", Turns: 1, FeedMS: 1000, EngineID: "local", ModelID: "model-1", Strategy: "product", Policy: "default"}, nil)
-	require.NoError(t, err)
-	require.Equal(t, conformance.SchemaVersion, run.SchemaVersion)
-	require.Equal(t, conformance.LaneRealtime, run.Lane)
-	require.Contains(t, paths, "/session/start")
-	require.Contains(t, paths, "/session/browser-session/close")
-	require.Equal(t, []string{"feed-0"}, feedNodes)
-	require.NotEmpty(t, run.Assertions)
-	for _, assertion := range run.Assertions {
-		require.NotEqual(t, conformance.OutcomeFailed, assertion.Outcome, assertion.Name)
-	}
-}
-
-func TestStepFailsWhenBASReportsPlaybackFailure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header := w.Header()
-		header.Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"audio_playback_failure":"pw-cat exited 1"}`))
-	}))
-	defer server.Close()
-
-	d := &driver{client: server.Client(), opt: Options{DriverURL: server.URL}}
-	err := d.step(context.Background(), "session", 1, "wait-recorder", map[string]any{"wait": map[string]any{"duration_ms": 1}})
-	require.ErrorContains(t, err, "browser audio playback failed")
-	require.ErrorContains(t, err, "pw-cat exited 1")
-}
-
-func TestStartFailsWhenBASReportsPlaybackFailure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":true,"session_id":"session","lease_id":"lease","audio_playback_failure":"pw-loopback exited 1"}`))
-	}))
-	defer server.Close()
-
-	d := &driver{client: server.Client(), opt: Options{DriverURL: server.URL}}
-	_, err := d.start(context.Background(), "execution")
-	require.ErrorContains(t, err, "browser audio playback failed during session start")
-	require.ErrorContains(t, err, "pw-loopback exited 1")
-}
-
-func TestFeedSplitsLongBrowserWaitsWithoutEndingTheTurn(t *testing.T) {
+func TestLegacyDirectBrowserOwnerIsRejectedAndFeedChunkingRemainsBounded(t *testing.T) {
 	require.Equal(t, 1, feedChunkCount(60_000))
 	require.Equal(t, 3, feedChunkCount(120_001))
 
-	fixture := t.TempDir() + "/fixture.wav"
-	require.NoError(t, os.WriteFile(fixture, []byte("wav"), 0o600))
-	var feedNodes []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.URL.Path == "/session/start":
-			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "browser-session", "lease_id": "lease-1"})
-		case strings.HasSuffix(r.URL.Path, "/close"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-		case strings.HasSuffix(r.URL.Path, "/audio/restart"), strings.HasSuffix(r.URL.Path, "/audio/stop"):
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-		case strings.HasSuffix(r.URL.Path, "/run"):
-			var body struct {
-				Instruction struct {
-					NodeID string `json:"node_id"`
-					Action struct {
-						Type string `json:"type"`
-					} `json:"action"`
-				} `json:"instruction"`
-			}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			if strings.HasPrefix(body.Instruction.NodeID, "feed-") {
-				feedNodes = append(feedNodes, body.Instruction.NodeID)
-			}
-			if body.Instruction.Action.Type == "ACTION_TYPE_EVALUATE" {
-				_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "extracted_data": map[string]any{"result": map[string]any{
-					"diag":    map[string]any{"schemaVersion": 1, "sessionId": "browser-session", "state": "completed", "capturedSamples": 16000, "signalObserved": true, "committedTextLagMs": 2},
-					"final":   "",
-					"interim": "speech in progress",
-				}}})
-				return
-			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	_, err := Run(context.Background(), Options{DriverURL: server.URL, UIURL: "http://ui.test", Fixture: fixture, Lane: conformance.LaneRealtime, Profile: "continuous", Turns: 1, FeedMS: 120_001, EngineID: "local", ModelID: "model-1", Strategy: "product", Policy: "default"}, nil)
-	require.NoError(t, err)
-	require.Equal(t, []string{"feed-0", "feed-1", "feed-2"}, feedNodes)
+	_, err := Run(context.Background(), Options{Lane: conformance.LaneRealtime, UIURL: "https://caller.invalid", Fixture: "/caller/fixture.wav", EngineID: "engine", ModelID: "model"}, nil)
+	require.ErrorContains(t, err, "request-scoped Agent Manager and Test Genie receipts")
 }
 
 func TestRealtimeShapeUsesProfileWhenAcceleratedShapeIsPresent(t *testing.T) {
@@ -404,19 +271,19 @@ func TestSwarmManagerSurfaceUsesSharedComposerLifecycle(t *testing.T) {
 }
 
 func TestValidateOptionsRejectsUnknownSurface(t *testing.T) {
-	err := validateOptions(Options{DriverURL: "driver", UIURL: "ui", Fixture: "fixture", Surface: "unknown", Lane: conformance.LaneRealtime, EngineID: "local", ModelID: "model"})
+	err := validateOptions(Options{UIURL: "ui", Fixture: "fixture", Surface: "unknown", Lane: conformance.LaneRealtime, EngineID: "local", ModelID: "model"})
 	require.ErrorContains(t, err, "surface must be audio-tools or swarm-manager")
 }
 
 func TestValidateOptionsRequiresExactProviderCell(t *testing.T) {
-	err := validateOptions(Options{DriverURL: "driver", UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated})
+	err := validateOptions(Options{UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated})
 	require.ErrorContains(t, err, "engine_id and model_id")
 }
 
 func TestValidateOptionsRequiresIndependentReferenceForAcceleratedLane(t *testing.T) {
-	err := validateOptions(Options{DriverURL: "driver", UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated, EngineID: "local", ModelID: "model"})
+	err := validateOptions(Options{UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated, EngineID: "local", ModelID: "model"})
 	require.ErrorContains(t, err, "independent reference_text")
-	require.NoError(t, validateOptions(Options{DriverURL: "driver", UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated, Reference: "the quick brown fox jumps.", SimulatedMinutes: 60, EngineID: "local", ModelID: "model"}))
+	require.NoError(t, validateOptions(Options{UIURL: "ui", Fixture: "fixture", Lane: conformance.LaneAccelerated, Reference: "the quick brown fox jumps.", SimulatedMinutes: 60, EngineID: "local", ModelID: "model"}))
 }
 
 func TestRunTimeoutIncludesRealtimeCaptureAndHeadroom(t *testing.T) {

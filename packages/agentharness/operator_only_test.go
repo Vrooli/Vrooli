@@ -64,7 +64,7 @@ func TestOrdinaryCommandsAreNotOperatorOnly(t *testing.T) {
 		"vrooli runtime update status --json",
 		"vrooli runtime update apply ./candidate",
 		"vrooli runtime update rebaseline ./candidate --hub",
-		"vrooli version --state-manifest",
+		"vrooli version --state-format",
 		"echo rebaseline",
 		"~/.vrooli/bin/vrooli runtime update status",
 		"$(command -v vrooli) scenario status",

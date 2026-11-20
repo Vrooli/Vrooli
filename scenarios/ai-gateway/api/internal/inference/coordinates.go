@@ -14,6 +14,15 @@ const (
 	CoordinateConventionAbsolutePixels = "absolute_pixels"
 )
 
+// IsVisualLocateRole reports whether the request uses the canonical visual
+// grounding contract. browser.locate is the browser-facing alias; both roles
+// share the same schema, attachment checks, coordinate normalization and
+// privacy/source routing.
+func IsVisualLocateRole(role string) bool {
+	role = strings.TrimSpace(role)
+	return role == "locate.visual" || role == "browser.locate"
+}
+
 type visualResult struct {
 	Found      bool      `json:"found"`
 	Bounds     []float64 `json:"bounds"`

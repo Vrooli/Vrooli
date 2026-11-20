@@ -970,14 +970,14 @@ func (o *Orchestrator) deployVisualValidation(ds *deployState) {
 // deployFinalizeAndPublish publishes and determines overall status.
 func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 	if !ds.req.DryRun && strings.TrimSpace(ds.req.ReleaseID) != "" && o.publishedVersionsRepo == nil {
-		step := o.startStep("Publish to LPBS")
+		step := o.startStep("Publish to approved destination")
 		o.failStep(&step, "commercial publication requires a published-version repository")
 		ds.response.Steps = append(ds.response.Steps, step)
 		ds.response.Status = "failed"
 		return
 	}
 	if o.publishedVersionsRepo != nil && !ds.req.DryRun {
-		step := o.startStep("Publish to LPBS")
+		step := o.startStep("Publish to approved destination")
 		if ds.req.AuthorizationCheck == nil {
 			o.failStep(&step, "canonical release authorization is required before publication")
 			ds.response.Steps = append(ds.response.Steps, step)
@@ -990,7 +990,7 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 			ds.response.Status = "blocked"
 			return
 		}
-		o.publishToLPBS(ds.ctx, ds.profile, ds.req, ds.response, &step)
+		o.publishToDestination(ds.ctx, ds.profile, ds.req, ds.response, &step)
 		ds.response.Steps = append(ds.response.Steps, step)
 	}
 

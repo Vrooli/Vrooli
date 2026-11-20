@@ -28,7 +28,6 @@ import (
 	"audio-tools/internal/conformance"
 	"audio-tools/internal/stt/session"
 
-	"github.com/google/uuid"
 	corestorage "github.com/vrooli/api-core/storage"
 )
 
@@ -44,13 +43,12 @@ const (
 	maxTurnSampleSpread = 1.50
 )
 
-// Options describes one browser-owned soak. URLs and the fixture are explicit
-// inputs so a run cannot silently target a different UI or driver instance.
+// Options describes one broker-owned soak. The UI URL and fixed fixture are
+// resolved by the scenario owner and are never accepted from a caller.
 type Options struct {
-	DriverURL        string           `json:"driver_url"`
-	UIURL            string           `json:"ui_url"`
+	UIURL            string           `json:"-"`
 	Surface          string           `json:"surface,omitempty"`
-	Fixture          string           `json:"fixture"`
+	Fixture          string           `json:"-"`
 	Lane             conformance.Lane `json:"lane"`
 	Profile          string           `json:"profile"`
 	Turns            int              `json:"turns"`
@@ -71,7 +69,53 @@ type Options struct {
 type driver struct {
 	client               *http.Client
 	opt                  Options
+	owner                *browserOwnerCredentials
 	mobileRecoveryPassed bool
+}
+
+type browserOwnerCredentialsKey struct{}
+
+type browserOwnerCredentials struct {
+	identityToken string
+	grantReceipt  string
+	testLease     string
+	brokerURL     string
+}
+
+// WithBrowserOwnerCredentials carries only request-scoped bearer receipts.
+// They are never accepted in soak options or persisted evidence.
+func WithBrowserOwnerCredentials(ctx context.Context, identityToken, grantReceipt, testLease string) context.Context {
+	return context.WithValue(ctx, browserOwnerCredentialsKey{}, browserOwnerCredentials{
+		identityToken: strings.TrimSpace(identityToken), grantReceipt: strings.TrimSpace(grantReceipt), testLease: strings.TrimSpace(testLease),
+	})
+}
+
+// WithManagedBrowserOwner records the server-selected BAS endpoint for a
+// managed soak. Neither URL nor permission profile is accepted from caller JSON.
+func WithManagedBrowserOwner(ctx context.Context, brokerURL string) context.Context {
+	credentials, _ := ctx.Value(browserOwnerCredentialsKey{}).(browserOwnerCredentials)
+	credentials.brokerURL = strings.TrimRight(strings.TrimSpace(brokerURL), "/")
+	return context.WithValue(ctx, browserOwnerCredentialsKey{}, credentials)
+}
+
+// FixedDictationFixture resolves the repository-owned Audio Tools reference
+// WAV. Managed browser requests never choose a fixture path.
+func FixedDictationFixture(root string) (string, error) {
+	root = strings.TrimSpace(root)
+	if root == "" || !filepath.IsAbs(root) {
+		return "", errors.New("Vrooli root is required to resolve the fixed Audio Tools fixture")
+	}
+	path := filepath.Join(root, "scenarios", "audio-tools", "bas", "fixtures", "dictation-reference.wav")
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("fixed Audio Tools dictation fixture is unavailable")
+	}
+	return path, nil
+}
+
+func browserOwnerCredentialsFromContext(ctx context.Context) (browserOwnerCredentials, bool) {
+	credentials, ok := ctx.Value(browserOwnerCredentialsKey{}).(browserOwnerCredentials)
+	return credentials, ok && credentials.identityToken != "" && credentials.grantReceipt != "" && credentials.testLease != "" && credentials.brokerURL != ""
 }
 
 type streamConfigResponse struct {
@@ -108,11 +152,8 @@ func PersistEvidence(run conformance.Run) (string, error) {
 }
 
 type sessionStart struct {
-	SessionID            string               `json:"session_id"`
-	LeaseID              string               `json:"lease_id"`
-	AudioDeviceEvidence  *AudioDeviceEvidence `json:"audio_device_evidence,omitempty"`
-	AudioPlaybackFailure string               `json:"audio_playback_failure,omitempty"`
-	ExecutionID          string               `json:"-"`
+	SessionID           string               `json:"session_id"`
+	AudioDeviceEvidence *AudioDeviceEvidence `json:"audio_device_evidence,omitempty"`
 }
 
 // AudioDeviceEvidence is the metadata returned by BAS when a realtime soak
@@ -132,14 +173,6 @@ type Result struct {
 	Run                  conformance.Run
 	AudioDeviceEvidence  *AudioDeviceEvidence
 	MobileRecoveryPassed bool
-}
-
-type instructionResponse struct {
-	Success              bool           `json:"success"`
-	ExtractedData        map[string]any `json:"extracted_data"`
-	AudioPlaybackFailure string         `json:"audio_playback_failure"`
-	Error                any            `json:"error"`
-	Failure              any            `json:"failure"`
 }
 
 type turnObservation struct {
@@ -204,6 +237,11 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 	if err := validateOptions(opt); err != nil {
 		return Result{Run: failedRun(opt, err)}, err
 	}
+	owner, ok := browserOwnerCredentialsFromContext(ctx)
+	if !ok {
+		err := errors.New("browser soak requires request-scoped Agent Manager and Test Genie receipts plus the server-selected BAS owner")
+		return Result{Run: failedRun(opt, err)}, err
+	}
 	opt.Surface = normalizeSurface(opt.Surface)
 	if opt.Turns <= 0 {
 		opt.Turns = defaultTurns
@@ -219,12 +257,8 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 		opt.fixtureSamples = samples
 	}
 	started := time.Now()
-	d := &driver{client: &http.Client{Timeout: requestTimeout(opt)}, opt: opt}
+	d := &driver{client: &http.Client{Timeout: requestTimeout(opt)}, opt: opt, owner: &owner}
 	runID := fmt.Sprintf("browser-soak-%d", started.UnixNano())
-	// BAS uses execution_id as the owner key for lease recovery. Keep the
-	// readable run ID in the conformance artifact, but give the browser session
-	// a real UUID so BAS's reconciler can parse and track its owner.
-	executionID := uuid.NewString()
 	observations := make([]turnObservation, 0, opt.Turns)
 	var runErr error
 	var restorePersistentMode func()
@@ -246,7 +280,7 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 		defer restorePersistentMode()
 	}
 
-	start, err := d.start(ctx, executionID)
+	start, err := d.start(ctx)
 	if err != nil {
 		return Result{Run: failedRunWithID(opt, runID, started, err)}, err
 	}
@@ -255,7 +289,7 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 	// result is assembled before this deferred cleanup runs, so bound cleanup
 	// independently of the evidence request's potentially long timeout.
 	defer func() {
-		closeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 		defer cancel()
 		_ = d.close(closeCtx, start)
 	}()
@@ -279,10 +313,7 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 			// BAS playback is deferred, so arm the fixture immediately before the
 			// gesture. This prevents the recorder from accumulating a multi-second
 			// leading-silence prefix while getUserMedia becomes ready.
-			if err = d.post(ctx, "/session/"+start.SessionID+"/audio/restart", map[string]string{
-				"execution_id": start.ExecutionID,
-				"lease_id":     start.LeaseID,
-			}, nil); err != nil {
+			if err = d.postBroker(ctx, "/browser/sessions/"+url.PathEscape(start.SessionID)+"/audio/restart", map[string]any{}, nil); err != nil {
 				runErr = err
 				break
 			}
@@ -319,10 +350,7 @@ func RunWithEvidence(ctx context.Context, opt Options, ledgers *session.Registry
 			break
 		}
 		if opt.Lane == conformance.LaneRealtime && strings.TrimSpace(opt.Fault) == "" {
-			if err = d.post(ctx, "/session/"+start.SessionID+"/audio/stop", map[string]string{
-				"execution_id": start.ExecutionID,
-				"lease_id":     start.LeaseID,
-			}, nil); err != nil {
+			if err = d.postBroker(ctx, "/browser/sessions/"+url.PathEscape(start.SessionID)+"/audio/stop", map[string]any{}, nil); err != nil {
 				runErr = err
 				break
 			}
@@ -580,8 +608,8 @@ func RunTimeout(opt Options) time.Duration {
 }
 
 func validateOptions(o Options) error {
-	if strings.TrimSpace(o.DriverURL) == "" || strings.TrimSpace(o.UIURL) == "" || strings.TrimSpace(o.Fixture) == "" {
-		return errors.New("driver_url, ui_url, and fixture are required")
+	if strings.TrimSpace(o.UIURL) == "" || strings.TrimSpace(o.Fixture) == "" {
+		return errors.New("server-selected ui_url and fixed qualification fixture are required")
 	}
 	if strings.TrimSpace(o.EngineID) == "" || strings.TrimSpace(o.ModelID) == "" {
 		return errors.New("engine_id and model_id are required; the soak must identify the exact provider cell")
@@ -736,50 +764,58 @@ func realtimePlaybackPauseMS(o Options) int {
 	return 0
 }
 
-func (d *driver) start(ctx context.Context, executionID string) (sessionStart, error) {
+func (d *driver) start(ctx context.Context) (sessionStart, error) {
 	var out sessionStart
+	if d.owner == nil {
+		return out, errors.New("managed browser owner context is unavailable")
+	}
+	audioMode := "fake_microphone"
+	if d.opt.Lane == conformance.LaneRealtime {
+		audioMode = "pipewire_qualification"
+	}
 	request := map[string]any{
-		"execution_id": executionID,
-		"workflow_id":  "audio-tools-long-form-dictation-soak",
-		"viewport":     map[string]int{"width": 1280, "height": 900},
-		"reuse_mode":   "fresh",
-		"base_url":     d.opt.UIURL,
-		"permissions":  []string{"microphone"},
+		"backend":                 "managed",
+		"reuse_mode":              "fresh",
+		"start_url":               d.pageURL(),
+		"audio_mode":              audioMode,
+		"audio_playback_pause_ms": realtimePlaybackPauseMS(d.opt),
 	}
 	if d.opt.MobileRecovery {
-		request["viewport"] = map[string]int{"width": 390, "height": 844}
+		request["viewport_width"], request["viewport_height"] = 390, 844
+	} else {
+		request["viewport_width"], request["viewport_height"] = 1280, 900
 	}
-	if d.opt.Lane == conformance.LaneRealtime {
-		request["fake_media"] = map[string]string{"microphone_wav": d.opt.Fixture}
-		request["audio_playback_pause_ms"] = realtimePlaybackPauseMS(d.opt)
-		request["audio_playback_defer_start"] = true
-		// The owner starts a ready playback handle once the session is created;
-		// the driver rewinds it only after each turn reaches the recording state.
-		// Do not add a delay after that rewind: the recorder is already live, so
-		// the first captured interval should begin at the fixture boundary.
-		request["audio_playback_start_delay_ms"] = 0
-		// The WAV remains the qualification corpus, but the browser must receive
-		// it through BAS's user-owned PipeWire source rather than Chromium's fake
-		// media device. This is an explicit per-session opt-in so ordinary BAS
-		// sessions never change the host default source.
-		request["audio_device_evidence"] = true
+	var response struct {
+		SessionID           string               `json:"session_id"`
+		AudioDeviceEvidence *AudioDeviceEvidence `json:"audio_device_evidence"`
 	}
-	err := d.post(ctx, "/session/start", request, &out)
-	if err == nil && strings.TrimSpace(out.AudioPlaybackFailure) != "" {
-		err = fmt.Errorf("browser audio playback failed during session start: %s", out.AudioPlaybackFailure)
+	if err := d.postBroker(ctx, "/browser/sessions", request, &response); err != nil {
+		return out, err
 	}
-	if err == nil && (out.SessionID == "" || out.LeaseID == "") {
-		err = errors.New("playwright driver returned no session lease")
+	out.SessionID, out.AudioDeviceEvidence = response.SessionID, response.AudioDeviceEvidence
+	if out.SessionID == "" {
+		return sessionStart{}, errors.New("BAS did not return a managed browser session")
 	}
-	out.ExecutionID = executionID
-	return out, err
+	if d.opt.Lane == conformance.LaneRealtime && (out.AudioDeviceEvidence == nil || !out.AudioDeviceEvidence.Enumerated) {
+		closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+		defer cancel()
+		if closeErr := d.close(closeCtx, out); closeErr != nil {
+			return sessionStart{}, fmt.Errorf("BAS did not return a PipeWire-qualified session and device evidence; cleanup failed: %w", closeErr)
+		}
+		return sessionStart{}, errors.New("BAS did not return a PipeWire-qualified session and device evidence")
+	}
+	return out, nil
 }
 
 func (d *driver) close(ctx context.Context, s sessionStart) error {
-	return d.post(ctx, "/session/"+s.SessionID+"/close", map[string]string{"execution_id": s.ExecutionID, "lease_id": s.LeaseID}, nil)
+	return d.postBroker(ctx, "/browser/sessions/"+url.PathEscape(s.SessionID)+"/close", map[string]any{}, nil)
 }
 
 func (d *driver) step(ctx context.Context, sessionID string, index int, nodeID string, params map[string]any) error {
+	if nodeID == "navigate" {
+		// Broker open already navigated to this exact task URL.
+		return nil
+	}
 	actionType := map[string]string{"navigate": "ACTION_TYPE_NAVIGATE", "click": "ACTION_TYPE_CLICK", "wait": "ACTION_TYPE_WAIT"}[nodeID]
 	if nodeID == "start" || nodeID == "stop" {
 		actionType = "ACTION_TYPE_CLICK"
@@ -801,51 +837,35 @@ func (d *driver) step(ctx context.Context, sessionID string, index int, nodeID s
 			actionType = "ACTION_TYPE_WAIT"
 		}
 	}
-	var response instructionResponse
-	if err := d.post(ctx, "/session/"+sessionID+"/run", map[string]any{
-		"instruction": map[string]any{
-			"index": index, "node_id": nodeID,
-			"action":    mergeAction(actionType, params),
-			"telemetry": map[string]string{"screenshot": "SCREENSHOT_CAPTURE_POLICY_NEVER"},
-		},
-	}, &response); err != nil {
+	instruction := map[string]any{
+		"index": index, "node_id": nodeID,
+		"action":    mergeAction(actionType, params),
+		"telemetry": map[string]string{"screenshot": "SCREENSHOT_CAPTURE_POLICY_NEVER"},
+	}
+	var managed struct {
+		Outcome struct {
+			Success       bool           `json:"success"`
+			ExtractedData map[string]any `json:"extracted_data"`
+		} `json:"outcome"`
+	}
+	if err := d.postBroker(ctx, "/browser/sessions/"+url.PathEscape(sessionID)+"/act", map[string]any{"instruction": instruction}, &managed); err != nil {
 		return err
 	}
-	if response.Failure != nil {
-		return fmt.Errorf("browser step %q failed: %v", nodeID, response.Failure)
-	}
-	if strings.TrimSpace(response.AudioPlaybackFailure) != "" {
-		return fmt.Errorf("browser audio playback failed during %q: %s", nodeID, response.AudioPlaybackFailure)
+	if !managed.Outcome.Success {
+		return fmt.Errorf("BAS broker step %q failed", nodeID)
 	}
 	return nil
 }
 
 func (d *driver) evaluate(ctx context.Context, sessionID string, index int, out *pageObservation) error {
-	var response instructionResponse
-	err := d.post(ctx, "/session/"+sessionID+"/run", map[string]any{"instruction": map[string]any{
-		"index": index, "node_id": "observe-" + fmt.Sprint(index),
-		"action":    map[string]any{"type": "ACTION_TYPE_EVALUATE", "evaluate": map[string]string{"expression": d.evaluationExpression()}},
-		"telemetry": map[string]string{"screenshot": "SCREENSHOT_CAPTURE_POLICY_NEVER"},
-	}}, &response)
-	if err != nil {
+	var managed struct {
+		Diagnostics pageObservation `json:"diagnostics"`
+	}
+	if err := d.postBroker(ctx, "/browser/sessions/"+url.PathEscape(sessionID)+"/audio/diagnostics", map[string]string{"surface": normalizeSurface(d.opt.Surface)}, &managed); err != nil {
 		return err
 	}
-	if response.Failure != nil {
-		return fmt.Errorf("browser evaluate failed: %v", response.Failure)
-	}
-	result, ok := response.ExtractedData["result"]
-	if !ok {
-		return errors.New("browser evaluate returned no result")
-	}
-	data, ok := result.(string)
-	if ok {
-		return json.Unmarshal([]byte(data), out)
-	}
-	encoded, err := json.Marshal(result)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(encoded, out)
+	*out = managed.Diagnostics
+	return nil
 }
 
 func (d *driver) evaluationExpression() string {
@@ -863,8 +883,46 @@ func mergeAction(typ string, params map[string]any) map[string]any {
 	return out
 }
 
-func (d *driver) post(ctx context.Context, path string, body any, out any) error {
-	return d.postAt(ctx, d.opt.DriverURL, "playwright driver "+path, path, body, out)
+func (d *driver) postBroker(ctx context.Context, path string, body, out any) error {
+	if d.owner == nil || strings.TrimSpace(d.owner.brokerURL) == "" {
+		return errors.New("managed BAS owner endpoint is unavailable")
+	}
+	var payload io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return errors.New("could not encode the typed BAS browser request")
+		}
+		payload = strings.NewReader(string(data))
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.owner.brokerURL+path, payload)
+	if err != nil {
+		return errors.New("could not create BAS browser request")
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Agent-Identity-Token", d.owner.identityToken)
+	req.Header.Set("X-Vrooli-Browser-Grant-Receipt", d.owner.grantReceipt)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("BAS browser broker is unavailable: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	if err != nil {
+		return errors.New("could not read BAS browser response")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("BAS browser broker returned HTTP %d", resp.StatusCode)
+	}
+	if out != nil && len(data) > 0 {
+		if err := json.Unmarshal(data, out); err != nil {
+			return errors.New("BAS browser broker returned an invalid response")
+		}
+	}
+	return nil
 }
 
 func (d *driver) postAt(ctx context.Context, baseURL, targetName, path string, body any, out any) error {

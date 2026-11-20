@@ -33,6 +33,10 @@ const (
 	CodeProviderOverloaded = "provider_overloaded"
 	CodeProviderFailed     = "provider_failed"
 	CodeContextOverflow    = "context_overflow"
+	// CodeInsufficientVRAM is the typed refusal for a model whose declared
+	// placement cannot be honoured. It is retryable (the gateway falls back to
+	// the next candidate) and never means "the host is broken".
+	CodeInsufficientVRAM = "insufficient_vram"
 )
 
 const defaultLocalURL = "http://127.0.0.1:11435"
@@ -206,6 +210,34 @@ func (c Client) LocalModels(ctx context.Context) (map[string]string, error) {
 func (c Client) Pull(ctx context.Context, name string) error {
 	_, err := c.post(ctx, LocalURL(c.GetEnv)+"/api/pull", "", map[string]any{"model": name, "stream": false})
 	return err
+}
+
+// ResidentDevice reports the device a model is currently loaded on ("cpu",
+// "cuda:0", ...). found is false when the model is not resident, which is not
+// an error: a lazily loaded daemon has no placement to report yet.
+func (c Client) ResidentDevice(ctx context.Context, model string) (device string, found bool, err error) {
+	raw, err := c.get(ctx, LocalURL(c.GetEnv)+"/api/ps")
+	if err != nil {
+		return "", false, err
+	}
+	var running struct {
+		Models []struct {
+			Name   string `json:"name"`
+			Model  string `json:"model"`
+			Device string `json:"device"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(raw, &running); err != nil {
+		return "", false, &ProviderError{Code: CodeProviderFailed, Message: "decode /api/ps: " + err.Error()}
+	}
+	want := InstalledName(model)
+	for _, entry := range running.Models {
+		if entry.Name != want && entry.Model != want && entry.Name != model && entry.Model != model {
+			continue
+		}
+		return strings.ToLower(strings.TrimSpace(entry.Device)), true, nil
+	}
+	return "", false, nil
 }
 
 // Version probes the daemon.

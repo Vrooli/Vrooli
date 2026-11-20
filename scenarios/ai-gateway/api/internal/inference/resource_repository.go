@@ -540,7 +540,12 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		// Count immediately before the actual adapter dispatch, so errors are
 		// included and candidate fallback can never cross the caller's ceiling.
 		providerCallsMade++
+		meteredRootOperationID := ""
+		if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
+			meteredRootOperationID = request.RootOperationID
+		}
 		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
+			RootOperationID:              meteredRootOperationID,
 			Kind:                         sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
 			Role:                         candidate.ResourceRole,
 			ExpectedModel:                executionRole.Model,
@@ -550,6 +555,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
 			ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
 			Profile:                      request.Profile,
+			BrowserSession:               request.BrowserSession,
 			InputText:                    prompt,
 			Timeout:                      definition.Timeout(),
 			// Only a caller-supplied cap is transmitted. A role-declared cap is
@@ -569,6 +575,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			return ProviderResult{Recovery: receipt, ProviderCallsMade: providerCallsMade}, nil
 		}
 		if err != nil {
+			var commandErr *providers.CommandError
+			if errors.As(err, &commandErr) && commandErr.Code == providers.CodeOutcomeUncertain {
+				return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: %v", ErrOutcomeUncertain, err)
+			}
 			if adapter.Door != nil {
 				if errors.Is(err, providers.ErrDeviceKeyGenerationChanged) {
 					return ProviderResult{ProviderCallsMade: providerCallsMade}, ErrRootConflict
@@ -594,6 +604,9 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		}
 		value, usage, err := decodeProviderResponse(candidate.Provider, execution.OutputText, prompt)
 		if err != nil {
+			if candidate.Provider == providers.ProviderMetered && meteredRootOperationID != "" {
+				return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: metered response could not be reconciled to root_operation_id %q: %v", ErrOutcomeUncertain, meteredRootOperationID, err)
+			}
 			if adapter.Door != nil {
 				return ProviderResult{Recovery: recoveryReceipt(attempt, inferencev1.RecoveryReceiptState_RECOVERY_RECEIPT_STATE_OUTPUT_UNAVAILABLE), ProviderCallsMade: providerCallsMade}, nil
 			}
@@ -601,13 +614,16 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
+		if candidate.Provider == providers.ProviderMetered && meteredRootOperationID != "" && usage.rootOperationID != meteredRootOperationID {
+			return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: metered response root_operation_id did not match %q", ErrOutcomeUncertain, meteredRootOperationID)
+		}
 		if usageIncomplete {
 			usage.inputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 			usage.costProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 		}
 		return ProviderResult{
-			ValueJSON: value, Provider: resolved.Provider, Model: resolved.Model,
+			ValueJSON: value, BillingOperationID: execution.BillingOperationID, Provider: resolved.Provider, Model: resolved.Model,
 			CoordinateConvention: resolved.CoordinateConvention,
 			InputTokens:          usage.input, OutputTokens: usage.output, CostMicros: usage.cost,
 			CreditsCharged:        usage.creditsCharged,
@@ -625,6 +641,13 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	}
 	if rootRequired {
 		return ProviderResult{ProviderCallsMade: providerCallsMade}, ErrRootRequired
+	}
+	// Browser callers need to distinguish an unavailable provider after an
+	// attempted route from a source/profile combination that had no usable
+	// candidate at all. Only return this before dispatch; provider failures
+	// remain unavailable and never invite a funding-source downgrade.
+	if providerCallsMade == 0 && strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
+		return ProviderResult{ProviderCallsMade: providerCallsMade}, ErrNoEligibleRoute
 	}
 	return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
 }
@@ -853,14 +876,14 @@ func providerPrompt(request ProviderRequest, coordinateConvention string) string
 		"Instruction (caller intent; separate from schema metadata):\n" + instruction + "\n\n" +
 		"JSON Schema:\n" + strings.TrimSpace(providerSchema(request)) + "\n\n" +
 		"Source:\n" + source
-	if strings.TrimSpace(request.Role) == "locate.visual" {
+	if IsVisualLocateRole(request.Role) {
 		prompt += "\n\nVisual grounding contract: return an object with found, bounds, and confidence. bounds must contain exactly four numbers in the model-declared coordinate convention " + coordinateConvention + ". For normalized_1000, every x and y value is in the 0..1000 space, not the 0..1 space. For absolute_pixels, use the submitted image pixel space. If the target is not found, set found to false and bounds to [0,0,0,0]. Return confidence unchanged as a number from 0 to 1."
 	}
 	return prompt
 }
 
 func providerSchema(request ProviderRequest) string {
-	if strings.TrimSpace(request.Role) != "locate.visual" {
+	if !IsVisualLocateRole(request.Role) {
 		return request.SchemaJSON
 	}
 	// The provider sees its declared coordinate space. The gateway converts this
@@ -870,6 +893,7 @@ func providerSchema(request ProviderRequest) string {
 
 type providerUsage struct {
 	input, output, cost                               int64
+	rootOperationID                                   string
 	creditsCharged                                    *int64
 	accountingStatus                                  string
 	inputProvenance, outputProvenance, costProvenance inferencev1.UsageProvenance
@@ -938,6 +962,7 @@ func decodeProviderResponse(provider, raw, prompt string) (string, providerUsage
 		return ExtractJSONValue(response.Choices[0].Message.Content), usage, nil
 	case providers.ProviderMetered:
 		var response struct {
+			RootOperationID  string `json:"root_operation_id"`
 			Content          string `json:"content"`
 			PromptTokens     *int64 `json:"prompt_tokens"`
 			CompletionTokens *int64 `json:"completion_tokens"`
@@ -951,7 +976,7 @@ func decodeProviderResponse(provider, raw, prompt string) (string, providerUsage
 		if strings.TrimSpace(response.Content) == "" {
 			return "", providerUsage{}, errors.New("metered inference returned an empty response")
 		}
-		usage := providerUsage{costProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}
+		usage := providerUsage{rootOperationID: response.RootOperationID, costProvenance: inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN}
 		if response.PromptTokens != nil && *response.PromptTokens >= 0 {
 			usage.input, usage.inputProvenance = *response.PromptTokens, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED
 		} else {

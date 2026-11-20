@@ -39,6 +39,10 @@ func TestEnsureColumnsWidensIncidentKeyWithTargetIdentity(t *testing.T) {
 		`INSERT INTO runs (id, plan_id, trigger, status, started_at) VALUES ('r1', 'p1', 'manual', 'failed', '2026-11-19T00:00:00Z')`,
 		`INSERT INTO run_incidents (run_id, code, category, scope, destination_id, target_ids, message)
 			VALUES ('r1', 'source_missing', 'source', 'target', '', '["old"]', 'old target')`,
+		// A database that predates foreign-key enforcement can hold an incident
+		// for a run that is already gone. The rebuild must skip it, not fail.
+		`INSERT INTO run_incidents (run_id, code, category, scope, destination_id, target_ids, message)
+			VALUES ('deleted-run', 'source_missing', 'source', 'target', '', '["orphan"]', 'orphan target')`,
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			t.Fatal(err)
@@ -69,5 +73,12 @@ func TestEnsureColumnsWidensIncidentKeyWithTargetIdentity(t *testing.T) {
 	}
 	if copied != 1 {
 		t.Fatalf("old incident row was not preserved: count = %d", copied)
+	}
+	var orphans int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_incidents WHERE target_ids = '["orphan"]'`).Scan(&orphans); err != nil {
+		t.Fatal(err)
+	}
+	if orphans != 0 {
+		t.Fatalf("an incident for a deleted run survived the rebuild: count = %d", orphans)
 	}
 }

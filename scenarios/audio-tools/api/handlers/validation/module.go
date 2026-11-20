@@ -7,10 +7,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	soakapi "audio-tools/handlers/soak"
 	"audio-tools/internal/conformance"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/soak"
@@ -41,6 +44,10 @@ type Deps struct {
 	StreamLedgers   *session.Registry
 	RunSoak         func(context.Context, soak.Options, *session.Registry) (soak.Result, error)
 	PersistEvidence func(conformance.Run) (string, error)
+	// VerifyDemandLease keeps the Test Genie demand lease as a separately
+	// owner-issued prerequisite to the AM browser grant. Production uses the
+	// Test Genie receipt endpoint; tests inject only this verifier boundary.
+	VerifyDemandLease func(context.Context, string, string) error
 }
 
 func Module(d Deps) modulekit.Module {
@@ -52,6 +59,11 @@ func Module(d Deps) modulekit.Module {
 	}
 	if d.PersistEvidence == nil {
 		d.PersistEvidence = soak.PersistEvidence
+	}
+	if d.VerifyDemandLease == nil {
+		d.VerifyDemandLease = func(ctx context.Context, baseURL, receipt string) error {
+			return soakapi.VerifyAudioToolsDemandLease(ctx, baseURL, receipt, &http.Client{Timeout: 5 * time.Second})
+		}
 	}
 
 	describer, _ := assessment.LoadDescriber(d.ScenarioDir)
@@ -98,11 +110,15 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	}
 
 	collector := metrics.Start()
-	options, err := h.options()
+	ownerCtx, err := h.managedExecutionContext(ctx, req.Header())
 	if err != nil {
 		return h.failedResponse(scenario, collector, "SOAK_CONFIGURATION_MISSING", err)
 	}
-	result, runErr := h.deps.RunSoak(ctx, options, h.deps.StreamLedgers)
+	options, err := h.options(ownerCtx)
+	if err != nil {
+		return h.failedResponse(scenario, collector, "SOAK_CONFIGURATION_MISSING", err)
+	}
+	result, runErr := h.deps.RunSoak(ownerCtx, options, h.deps.StreamLedgers)
 	artifactRef := ""
 	if h.deps.PersistEvidence != nil {
 		artifactRef, err = h.deps.PersistEvidence(result.Run)
@@ -124,16 +140,27 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	native, _ := structpb.NewStruct(map[string]any{
-		"run_id":             result.Run.RunID,
-		"lane":               string(result.Run.Lane),
-		"simulated_minutes":  result.Run.SimulatedMinutes,
-		"assertion_count":    len(result.Run.Assertions),
-		"artifact_ref":       artifactRef,
-		"qualified":          verdict.Qualified,
-		"provider_engine_id": result.Run.Cell.EngineID,
-		"provider_model_id":  result.Run.Cell.ModelID,
-	})
+	nativeFields := map[string]any{
+		"run_id":                 result.Run.RunID,
+		"lane":                   string(result.Run.Lane),
+		"simulated_minutes":      result.Run.SimulatedMinutes,
+		"assertion_count":        len(result.Run.Assertions),
+		"artifact_ref":           artifactRef,
+		"qualified":              verdict.Qualified,
+		"provider_engine_id":     result.Run.Cell.EngineID,
+		"provider_model_id":      result.Run.Cell.ModelID,
+		"managed_broker_session": true,
+		"mobile_recovery_passed": result.MobileRecoveryPassed,
+	}
+	if result.AudioDeviceEvidence != nil {
+		nativeFields["audio_device_evidence"] = map[string]any{
+			"enumerated":     result.AudioDeviceEvidence.Enumerated,
+			"selected_label": result.AudioDeviceEvidence.SelectedLabel,
+			"sample_rate":    result.AudioDeviceEvidence.SampleRate,
+			"channel_count":  result.AudioDeviceEvidence.ChannelCount,
+		}
+	}
+	native, _ := structpb.NewStruct(nativeFields)
 	response, err := assessment.BuildValidationResponse(scenario, assessmentResult, native, collector.Stop())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build soak validation response: %w", err))
@@ -148,7 +175,7 @@ func (h *handler) failedResponse(scenario string, collector *metrics.Collector, 
 		Title:       "Long-form dictation soak did not qualify",
 		Message:     cause.Error(),
 		Location:    "audio-tools validation provider",
-		Remediation: "Run the registered soak phase with a live BAS driver and inspect the persisted conformance artifact before promoting the provider cell.",
+		Remediation: "Run the registered soak phase with a verified Test Genie lease and BAS session grant, then inspect the persisted conformance artifact before promoting the provider cell.",
 		FixClass:    "manual",
 	})
 	if err != nil {
@@ -173,22 +200,65 @@ func (h *handler) buildAssessment(scenario string, finding *assessment.Finding) 
 	return assessment.BuildProtoAssessment(assessment.BuildInput{Scenario: scenario, Spec: *h.spec, Findings: findings})
 }
 
-func (h *handler) options() (soak.Options, error) {
-	if !strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_AUDIO_SOAK_REPLAY")), "1") {
-		return soak.Options{}, errors.New("VROOLI_AUDIO_SOAK_REPLAY=1 is required for the explicit virtual-replay qualification cell")
+func (h *handler) managedExecutionContext(ctx context.Context, headers http.Header) (context.Context, error) {
+	identity, hasIdentity := exactlyOneHeader(headers, "X-Agent-Identity-Token")
+	grant, hasGrant := exactlyOneHeader(headers, "X-Vrooli-Browser-Grant-Receipt")
+	lease, hasLease := exactlyOneHeader(headers, "X-Test-Genie-Lease-Receipt")
+	if !hasIdentity || !hasGrant || !hasLease {
+		return ctx, errors.New("soak requires one verified run identity, browser grant, and Test Genie lease receipt")
 	}
-	root := h.deps.ScenarioDir
-	fixture := firstNonEmpty(os.Getenv("AUDIO_TOOLS_SOAK_FIXTURE"), filepath.Join(root, "bas", "fixtures", "dictation-reference.wav"))
-	driverURL := firstNonEmpty(os.Getenv("SOAK_DRIVER_URL"), os.Getenv("PLAYWRIGHT_DRIVER_URL"))
+	testGenieURL := firstNonEmpty(os.Getenv("TEST_GENIE_API_URL"), os.Getenv("TEST_GENIE_URL"))
+	if testGenieURL == "" {
+		return ctx, errors.New("Test Genie lease verifier is not configured")
+	}
+	if err := h.deps.VerifyDemandLease(ctx, testGenieURL, lease); err != nil {
+		return ctx, errors.New("Test Genie did not verify an active Audio Tools lease")
+	}
+	brokerURL := firstNonEmpty(os.Getenv("BROWSER_AUTOMATION_STUDIO_API_URL"), os.Getenv("BAS_API_URL"))
+	if brokerURL == "" {
+		return ctx, errors.New("BAS Agent Access endpoint is not configured")
+	}
+	if !strings.HasSuffix(strings.TrimRight(brokerURL, "/"), "/api/v1") {
+		brokerURL = strings.TrimRight(brokerURL, "/") + "/api/v1"
+	}
+	fixture, err := soak.FixedDictationFixture(os.Getenv("VROOLI_ROOT"))
+	if err != nil {
+		return ctx, errors.New("fixed Audio Tools qualification fixture is unavailable")
+	}
+	ctx = soak.WithBrowserOwnerCredentials(ctx, identity, grant, lease)
+	ctx = soak.WithManagedBrowserOwner(ctx, brokerURL)
+	ctx = context.WithValue(ctx, managedFixtureKey{}, fixture)
+	return ctx, nil
+}
+
+type managedFixtureKey struct{}
+
+func exactlyOneHeader(headers http.Header, name string) (string, bool) {
+	values := headers.Values(name)
+	if len(values) != 1 || strings.TrimSpace(values[0]) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(values[0]), true
+}
+
+func (h *handler) options(ctx context.Context) (soak.Options, error) {
+	fixture, ok := ctx.Value(managedFixtureKey{}).(string)
+	if !ok || fixture == "" {
+		return soak.Options{}, errors.New("fixed Audio Tools qualification fixture is unavailable")
+	}
 	uiURL := firstNonEmpty(os.Getenv("SOAK_UI_URL"), os.Getenv("AUDIO_TOOLS_UI_URL"), os.Getenv("UI_BASE_URL"))
-	if driverURL == "" || uiURL == "" {
-		return soak.Options{}, errors.New("SOAK_DRIVER_URL/PLAYWRIGHT_DRIVER_URL and SOAK_UI_URL/AUDIO_TOOLS_UI_URL are required")
+	if uiURL == "" {
+		return soak.Options{}, errors.New("SOAK_UI_URL/AUDIO_TOOLS_UI_URL is required for the BAS browser task")
 	}
 	if _, err := os.Stat(fixture); err != nil {
 		return soak.Options{}, fmt.Errorf("soak fixture %q: %w", fixture, err)
 	}
+	engineID := strings.TrimSpace(os.Getenv("SOAK_ENGINE_ID"))
+	modelID := strings.TrimSpace(os.Getenv("SOAK_MODEL_ID"))
+	if engineID == "" || modelID == "" {
+		return soak.Options{}, errors.New("SOAK_ENGINE_ID and SOAK_MODEL_ID are required for a managed realtime qualification cell")
+	}
 	return soak.Options{
-		DriverURL:        driverURL,
 		UIURL:            strings.TrimRight(uiURL, "/"),
 		Fixture:          fixture,
 		Lane:             conformance.LaneAccelerated,

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,45 +29,19 @@ type soakHealthDocument struct {
 	Service string `json:"service"`
 }
 
-type soakDriverHealthDocument struct {
-	Ready            bool `json:"ready"`
-	Sessions         int  `json:"sessions"`
-	ActiveRecordings int  `json:"active_recordings"`
-	Capacity         int  `json:"capacity"`
-	Summary          struct {
-		Capacity int `json:"capacity"`
-	} `json:"summary"`
-}
-
 func (h *handlers) run(ctx cliapp.RunContext) error {
-	driverURL := firstNonEmpty(ctx.Flag("driver-url"), h.getenv("PLAYWRIGHT_DRIVER_URL"))
-	uiURL := firstNonEmpty(ctx.Flag("ui-url"), h.getenv("AUDIO_TOOLS_UI_URL"), h.getenv("UI_BASE_URL"))
-	fixture := firstNonEmpty(ctx.Flag("fixture"), h.getenv("AUDIO_TOOLS_SOAK_FIXTURE"))
-	if fixture == "" {
-		fixture = filepath.Join("bas", "fixtures", "dictation-reference.wav")
-	}
-	if !filepath.IsAbs(fixture) {
-		wd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		fixture = filepath.Join(wd, fixture)
-	}
-	if driverURL == "" || uiURL == "" {
-		return errors.New("soak run requires --driver-url/PLAYWRIGHT_DRIVER_URL and --ui-url/AUDIO_TOOLS_UI_URL")
+	identityToken := strings.TrimSpace(h.getenv("VROOLI_AGENT_IDENTITY_TOKEN"))
+	grantReceipt := strings.TrimSpace(h.getenv("VROOLI_BROWSER_GRANT_RECEIPT"))
+	testLease := strings.TrimSpace(h.getenv("TEST_GENIE_DEMAND_LEASE_RECEIPT_ID"))
+	if identityToken == "" || grantReceipt == "" || testLease == "" {
+		return errors.New("soak run requires trusted Agent Manager identity and browser grant plus the active Test Genie demand lease receipt")
 	}
 	engineID := firstNonEmpty(ctx.Flag("engine-id"))
 	modelID := firstNonEmpty(ctx.Flag("model-id"))
 	if engineID == "" || modelID == "" {
 		return errors.New("soak run requires --engine-id and --model-id so evidence is tied to an exact provider cell")
 	}
-	if _, err := os.Stat(fixture); err != nil {
-		return fmt.Errorf("soak fixture %q: %w", fixture, err)
-	}
 	if err := h.verifyAudioToolsAPI(); err != nil {
-		return err
-	}
-	if err := verifySoakDriver(driverURL); err != nil {
 		return err
 	}
 
@@ -94,8 +67,6 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	}
 	profile := firstNonEmpty(ctx.Flag("profile"), "realistic")
 	request := map[string]any{
-		"driver_url": driverURL, "ui_url": strings.TrimRight(uiURL, "/"), "fixture": fixture,
-		"surface": firstNonEmpty(ctx.Flag("surface"), "audio-tools"),
 		"lane":    lane, "profile": profile, "turns": turns, "feed_ms": feedMS,
 		"fault": ctx.Flag("fault"), "reference_text": ctx.Flag("reference-text"),
 		"reference_cycle_ms": referenceCycleMS,
@@ -107,6 +78,11 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		"simulated_minutes":  simulatedMinutes,
 		"mobile_recovery":    strings.EqualFold(strings.TrimSpace(ctx.Flag("mobile-recovery")), "true"),
 	}
+	headers := map[string]string{
+		"X-Agent-Identity-Token":         identityToken,
+		"X-Vrooli-Browser-Grant-Receipt": grantReceipt,
+		"X-Test-Genie-Lease-Receipt":     testLease,
+	}
 	requestTimeout := 10 * time.Minute
 	if lane == "realtime" {
 		captureBudget := time.Duration(feedMS) * time.Duration(turns) * time.Millisecond
@@ -114,7 +90,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 			requestTimeout = candidate
 		}
 	}
-	response, err := h.core.APIClient.WithTimeout(requestTimeout).Request("POST", h.core.APIPath("/validation/soak"), nil, request)
+	response, err := h.core.APIClient.WithTimeout(requestTimeout).RequestWithHeaders("POST", h.core.APIPath("/validation/soak"), nil, request, headers)
 	if err != nil {
 		return cliapp.WrapAPIError("soak run", err, nil)
 	}
@@ -229,50 +205,6 @@ func (h *handlers) scenarioRoot() (string, error) {
 		directory = parent
 	}
 	return "", fmt.Errorf("audio-tools scenario root not found from %q", directory)
-}
-
-// verifySoakDriver validates readiness and capacity for the fresh, isolated
-// session requested by the soak. BAS sessions are isolated execution
-// contexts; an unrelated active session is not an admission blocker. The old
-// zero-session check incorrectly serialized independent runs and turned a
-// foreign lease into a false infrastructure blocker.
-func verifySoakDriver(driverURL string) error {
-	base := strings.TrimRight(driverURL, "/")
-	client := &http.Client{Timeout: 10 * time.Second}
-	response, err := client.Get(base + "/health")
-	if err != nil {
-		return fmt.Errorf("soak preflight against BAS %s: %w", base, err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("soak preflight: BAS %s returned HTTP %d", base, response.StatusCode)
-	}
-	var health soakDriverHealthDocument
-	if err := json.NewDecoder(response.Body).Decode(&health); err != nil {
-		return fmt.Errorf("soak preflight: decode BAS health response from %s: %w", base, err)
-	}
-	if health.Capacity == 0 {
-		health.Capacity = health.Summary.Capacity
-	}
-	if err := validateSoakDriverHealth(health, base); err != nil {
-		return err
-	}
-	return nil
-}
-
-func validateSoakDriverHealth(health soakDriverHealthDocument, base string) error {
-	if !health.Ready {
-		return fmt.Errorf("soak preflight: BAS %s is not ready; wait for the driver to become ready", base)
-	}
-	if health.Capacity < 0 {
-		return fmt.Errorf("soak preflight: BAS %s reported invalid session capacity %d", base, health.Capacity)
-	}
-	// Older BAS health contracts do not expose capacity. In that case the
-	// session-start admission endpoint remains the authoritative capacity gate.
-	if health.Capacity > 0 && health.Sessions >= health.Capacity {
-		return fmt.Errorf("soak preflight: BAS %s has reached session capacity (%d/%d); retry when capacity is available", base, health.Sessions, health.Capacity)
-	}
-	return nil
 }
 
 // verifyAudioToolsAPI prevents a long qualification from silently targeting

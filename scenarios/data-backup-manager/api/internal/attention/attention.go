@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var heading = regexp.MustCompile(`(?m)^###\s+([^\s]+)\s+—\s+(.+?)\s*$`)
@@ -17,9 +19,13 @@ var heading = regexp.MustCompile(`(?m)^###\s+([^\s]+)\s+—\s+(.+?)\s*$`)
 func File() string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return filepath.Join("~", ".vrooli", "research", "ATTENTION.md")
+		return ""
 	}
-	return filepath.Join(home, ".vrooli", "research", "ATTENTION.md")
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(root, "research", "ATTENTION.md")
 }
 
 // Digest lists up to max "Actionable now" items from the file read returns,

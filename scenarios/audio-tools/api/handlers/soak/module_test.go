@@ -1,7 +1,11 @@
 package soak
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"audio-tools/internal/acceptance"
@@ -10,6 +14,57 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestManagedSoakRejectsCallerOwnedBrowserEndpointsAndFixtures(t *testing.T) {
+	for _, body := range []string{
+		`{"driver_url":"http://caller.invalid"}`,
+		`{"ui_url":"http://caller.invalid"}`,
+		`{"fixture":"/caller/audio.wav"}`,
+	} {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/validation/soak", strings.NewReader(body))
+		serve(recorder, request, Deps{})
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("body %s returned %d, want 400: %s", body, recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func TestManagedSoakRequiresRequestScopedRunGrantAndLease(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/validation/soak", strings.NewReader(`{"lane":"realtime"}`))
+	serve(recorder, request, Deps{})
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("missing trusted receipts returned %d, want 401", recorder.Code)
+	}
+}
+
+func TestAudioToolsDemandLeaseVerifierUsesOpaqueReceiptAndExactTarget(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/runs/demand-lease-receipts/verify" || r.URL.Query().Get("target") != "audio-tools" {
+			t.Errorf("unexpected verification request: %s %s", r.Method, r.URL.String())
+		}
+		if r.Header.Get("X-Test-Genie-Lease-Receipt") != "tglease_opaque" {
+			t.Errorf("receipt header = %q", r.Header.Get("X-Test-Genie-Lease-Receipt"))
+		}
+		if r.ContentLength > 0 {
+			t.Errorf("request unexpectedly carried an authority body")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"verified":true,"receipt_id":"tglease_opaque","owner":"test-genie","target":"audio-tools"}`))
+	}))
+	defer server.Close()
+	require.NoError(t, VerifyAudioToolsDemandLease(context.Background(), server.URL, "tglease_opaque", server.Client()))
+}
+
+func TestAudioToolsDemandLeaseVerifierRejectsReceiptOwnerMismatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"verified":true,"receipt_id":"other","owner":"test-genie","target":"audio-tools"}`))
+	}))
+	defer server.Close()
+	require.Error(t, VerifyAudioToolsDemandLease(context.Background(), server.URL, "tglease_opaque", server.Client()))
+}
 
 func TestQualificationRunPassedRequiresEveryAssertion(t *testing.T) {
 	run := conformance.Run{

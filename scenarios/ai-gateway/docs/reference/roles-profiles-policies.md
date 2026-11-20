@@ -65,6 +65,42 @@ current local structured-extraction candidate deliberately uses Ollama's
 existing `chat.default` policy role until the resource exposes a dedicated
 extraction role; the gateway still enforces the JSON Schema subset locally.
 
+Browser callers use the `browser.locate`, `browser.decide`, `browser.plan`, and
+`browser.extract` roles in the same catalog and provider walk. `browser.locate`
+shares the attachment, coordinate-normalization, and confidence contract with
+`locate.visual`; `browser.decide` is a typed decision role over the existing
+`decide.fast` providers; plan and extraction requests supply their action-world
+model or output schema and Gateway validates the returned value. These roles
+do not mint consent or funding authority: source, signed session, privacy grant,
+provider credentials, reserve, and settlement remain with their existing
+owners. In particular, a role or local failure does not authorize a remote
+fallback. Browser realism and detection claims require MB7's dated sampled
+corpus; this catalog makes no undetectability promise.
+
+The production `Decide` request currently has no verified Agent Manager/BAS
+session-binding input. Therefore `browser.decide` fails closed with
+`NO_ELIGIBLE_ROUTE` before provider dispatch until an existing owner supplies
+that binding. Catalog presence is not route availability. Generic decision
+roles such as `decide.fast` are unchanged. The current `Run` path checks the
+shape of caller-supplied root/session correlators, but does not authenticate
+them; do not treat that check as run or session authority.
+
+Browser decision candidates are filtered against the caller-selected AI source
+before their provider is resolved or invoked. The `ai-gateway` enum adapter
+may proceed because its nested typed inference call receives the same source
+context and applies the normal source policy. A browser decision whose only
+candidates are excluded returns the same `NO_ELIGIBLE_ROUTE` error.
+
+For `browser.*` requests, a source/profile walk that reaches no provider
+dispatch returns `INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE`, with a stable
+construct and caller guidance to select an available source or ask the account
+owner to enable a route. The response states that Gateway dispatched no model
+inference and did not change funding. A failure after provider dispatch stays
+`UNAVAILABLE` (or an accounting recovery result); callers must not reinterpret
+it as permission to retry through another funding source. Adapters should
+preserve this same typed result alongside provider/model and usage fields when
+they implement the shared inference contract.
+
 ## Sampling
 
 Sampling is declared at two layers, and the split is the point: the gateway

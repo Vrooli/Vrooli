@@ -25,10 +25,11 @@ type publishPipelineRunner interface {
 	WaitForPipelineConnect(context.Context, string) (*PipelineStatus, error)
 }
 
-// publishToLPBS triggers a deploy-stage-only pipeline, extracts version data,
-// and persists it. A commercial publication failure is terminal for the
-// operation because a warning cannot establish which bytes reached LPBS.
-func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Profile, req DeployDesktopRequest, response *DeployDesktopResponse, step *OrchestrationStep) {
+// publishToDestination selects the typed destination owner adapter, triggers
+// its deploy-stage-only pipeline, extracts version data, and persists it. A
+// commercial publication failure is terminal because a warning cannot
+// establish which bytes reached the destination.
+func (o *Orchestrator) publishToDestination(ctx context.Context, profile *profiles.Profile, req DeployDesktopRequest, response *DeployDesktopResponse, step *OrchestrationStep) {
 	ownerEffectPossible := false
 	fail := func(message string) {
 		o.failStep(step, message)
@@ -74,34 +75,33 @@ func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Prof
 		ReadinessReviewKey:      req.ReadinessReviewKey,
 	}
 
-	// Pass full LPBS coords on the inline DeployConfig. ReleaseID + Channel
-	// must ride on the deploy config so S2D's Config decoder forwards them
-	// through to lpbs_client.go. A commercial publication without these exact
-	// coordinates would be an unbound owner effect, so fail before launching
-	// the pipeline.
+	// Resolve and validate the immutable destination revision before selecting
+	// its owner adapter. S2D's current desktop publication adapter supports
+	// LPBS only; cloud/store kinds must fail before this call until their owners
+	// have adapters.
 	cfg := o.loadLPBSConfigForPublish(ctx, req.ProfileID)
-	if cfg == nil || strings.TrimSpace(cfg.LPBSAppKey) == "" || strings.TrimSpace(cfg.LPBSRemoteProfile) == "" {
-		fail("commercial publication requires an exact LPBS app key and remote profile")
+	if o.releaseIdentity == nil || strings.TrimSpace(req.DestinationRevisionID) == "" {
+		fail("commercial publication requires the approved typed destination revision")
 		return
 	}
-	if o.releaseIdentity != nil {
-		destination, err := o.releaseIdentity.GetDestinationRevision(ctx, req.DestinationRevisionID)
-		if err != nil || destination == nil {
-			fail(fmt.Sprintf("commercial publication requires the approved destination revision: %v", err))
-			return
-		}
-		if destination.ID != req.DestinationRevisionID || strings.TrimSpace(destination.Revision.DestinationID) != strings.TrimSpace(cfg.LPBSRemoteProfile) {
-			fail("commercial publication destination revision does not match the configured LPBS remote profile")
-			return
-		}
+	destination, err := o.releaseIdentity.GetDestinationRevision(ctx, req.DestinationRevisionID)
+	if err != nil || destination == nil || destination.ID != req.DestinationRevisionID {
+		fail(fmt.Sprintf("commercial publication requires the approved destination revision: %v", err))
+		return
 	}
+	plan, err := resolveDesktopDestinationPlan(destination, cfg, req.Channel)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	pipelineReq.Channel = plan.Channel
 	pipelineReq.DeployConfig = &PublishDeployConfig{
 		ScenarioName:            profile.Scenario,
-		RemoteProfile:           cfg.LPBSRemoteProfile,
-		AppKey:                  cfg.LPBSAppKey,
-		UpdateURL:               cfg.UpdateURL,
+		RemoteProfile:           plan.LPBSRemoteProfile,
+		AppKey:                  plan.LPBSAppKey,
+		UpdateURL:               plan.UpdateURL,
 		ReleaseID:               req.ReleaseID,
-		Channel:                 req.Channel,
+		Channel:                 plan.Channel,
 		ArtifactDigest:          req.ArtifactDigest,
 		ExpectedArtifactDigests: req.ExpectedArtifactDigests,
 		CandidateID:             req.CandidateID,

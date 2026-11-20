@@ -43,6 +43,27 @@ func TestRunIsReachableThroughGeneratedConnectClient(t *testing.T) {
 	require.NotNil(t, response.Msg.GetUsage())
 }
 
+func TestBrowserDecisionConnectRouteFailsClosedWithoutVerifiedOwnerBinding(t *testing.T) {
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		handler.Module(handler.Deps{Service: inference.NewService(nil)}),
+	)
+	live := httpx.NewLiveServer(t, srv)
+	client := inferenceconnect.NewInferenceServiceClient(live.Client, live.URL)
+	response, err := client.Decide(t.Context(), connect.NewRequest(&inferencev1.DecideRequest{
+		Role: "browser.decide", State: "choose the next action",
+		Questions: []*inferencev1.DecisionQuestion{{
+			Id: "action", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE,
+			Options: []*inferencev1.DecisionOption{{Label: "observe"}, {Label: "click"}},
+		}},
+		PrivacyProvenance: "connect_test.synthetic_browser_fixture",
+	}))
+	require.NoError(t, err, "the role denial is a typed inference response")
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, response.Msg.GetError().GetCode())
+	require.Equal(t, "browser_session", response.Msg.GetError().GetConstruct())
+	require.Contains(t, response.Msg.GetError().GetMessage(), "no inference was dispatched")
+}
+
 type digestCaptureRepository struct{ requests []inference.ProviderRequest }
 
 func (r *digestCaptureRepository) Run(_ context.Context, request inference.ProviderRequest) (inference.ProviderResult, error) {

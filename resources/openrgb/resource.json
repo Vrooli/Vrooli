@@ -203,17 +203,26 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific."
+          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific.",
+          "limitations": [
+            "Desktop bundling is not integrated; platform support here describes the control-plane host lifecycle, not a bundled desktop runtime."
+          ]
         },
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific."
+          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific.",
+          "limitations": [
+            "Desktop bundling is not integrated; platform support here describes the control-plane host lifecycle, not a bundled desktop runtime."
+          ]
         },
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific."
+          "reason": "OpenRGB is an optional host resource, with maintained native artifact and control-plane lifecycle source. Desktop bundling is not integrated. Native runtime, service-account and device qualification remains target-specific.",
+          "limitations": [
+            "Desktop bundling is not integrated; platform support here describes the control-plane host lifecycle, not a bundled desktop runtime."
+          ]
         }
       }
     }

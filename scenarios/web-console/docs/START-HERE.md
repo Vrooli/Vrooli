@@ -1,14 +1,15 @@
 # Start Here — Web Console
 
-This is the first document to read when picking up work on `web-console`.
+For focused work on Web Console, start with the affected behavior and its
+[architecture](concepts/ARCHITECTURE.md) when ownership is unclear.
 The scenario was generated before the `react-vite` template was versioned;
 it is being retrofitted into structural conformance with template v1.0.0
 in small, independently-mergeable batches. Treat this file as the
 initialization protocol: gates are checked off in order, and gates that
 are still open describe the only remaining template-adoption work.
 
-Run `make orient` from this directory whenever you want a
-machine-readable progress check. It delegates to
+When checking template adoption, run `make orient` from this directory.
+It delegates to
 `template-manager orient web-console`, which reads
 `.vrooli/orientation.json`.
 

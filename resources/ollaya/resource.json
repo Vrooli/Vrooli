@@ -227,8 +227,12 @@
       "cpu"
     ],
     "require": "preferred",
+    "idle_probe": "http://127.0.0.1:21435/api/ps",
     "cuda": {
-      "min_compute": "7.5"
+      "min_compute": "7.5",
+      "env": {
+        "OLLAYA_DEVICE": "cuda"
+      }
     },
     "cpu": {
       "env": {

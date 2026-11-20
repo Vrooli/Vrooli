@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -21,6 +23,54 @@ func TestUXVisualCritiquePassesCallerFindingSchemaThrough(t *testing.T) {
 	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", Role: "ux.visual-critique", SchemaJSON: schema}
 	require.Equal(t, schema, providerSchema(request))
 	require.NotContains(t, providerPrompt(request, "normalized_1000"), "Visual grounding contract")
+}
+
+func TestBrowserSourceWithoutMatchingCandidateReturnsNoEligibleRouteBeforeDispatch(t *testing.T) {
+	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+		"browser.plan": {Candidates: []Candidate{{Provider: providers.ProviderOllama, ResourceRole: "chat.default", Reason: "local"}}},
+	}}
+	repository, err := NewResourceRepository(catalog, nil)
+	require.NoError(t, err)
+
+	result, err := repository.Run(providers.WithSource(context.Background(), "vrooli-credits"), ProviderRequest{
+		RootOperationID: strings.Repeat("e", 64), PrivacyProvenance: "tests.explicit_internal_input", Role: "browser.plan", SchemaJSON: `{"type":"object"}`,
+	})
+	require.ErrorIs(t, err, ErrNoEligibleRoute)
+	require.Zero(t, result.ProviderCallsMade)
+}
+
+func TestMeteredBrowserUncertainOutcomeDoesNotWalkToAnotherFundingCandidate(t *testing.T) {
+	var meteredCalls int
+	meteredServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		meteredCalls++
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"LPBS response lost after dispatch"}`))
+	}))
+	defer meteredServer.Close()
+	openRouterRunner := &providermocks.FakeRunner{Results: map[string]providers.Result{
+		"fixture-openrouter policy resolve --role extract.structured --json": {Stdout: `{"role":"extract.structured","model":"fixture/openrouter","locality":"remote"}`},
+	}, DefaultOK: true, Default: providers.Result{Stdout: `{"choices":[{"message":{"content":"{\"ok\":true}"}}],"usage":{"prompt_tokens":2,"completion_tokens":1}}`}}
+	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+		"browser.plan": {Candidates: []Candidate{
+			{Provider: providers.ProviderMetered, ResourceRole: "plan.default", Reason: "fixture credits candidate"},
+			{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "fixture fallback candidate"},
+		}},
+	}}
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{
+		{Provider: providers.ProviderMetered, Locality: "remote", Metered: providers.NewMeteredClient(providers.MeteredClientOptions{BaseURL: meteredServer.URL})},
+		{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "fixture-openrouter", Runner: openRouterRunner},
+	})
+	require.NoError(t, err)
+	result, err := repository.Run(providers.WithSource(providers.WithAccessToken(context.Background(), "Bearer fixture"), "vrooli-credits"), ProviderRequest{
+		RootOperationID: strings.Repeat("c", 64), PrivacyProvenance: "tests.explicit_internal_input",
+		Role: "browser.plan", SchemaJSON: `{"type":"object"}`, Instruction: "choose action",
+		Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
+	})
+	require.Equal(t, 1, meteredCalls, "metered route must be dispatched before uncertain outcome is returned")
+	require.ErrorIs(t, err, ErrOutcomeUncertain)
+	require.EqualValues(t, 1, result.ProviderCallsMade)
+	require.Equal(t, 1, meteredCalls)
+	require.Empty(t, openRouterRunner.Commands, "an uncertain credit outcome must not silently dispatch through another funding route")
 }
 
 func TestUXVisualCritiqueResolvesLocalVisionRoleWithFindingSchema(t *testing.T) {
@@ -452,8 +502,9 @@ func TestTypedEmbeddingRejectsMissingLocalOnlyContractBeforeResolve(t *testing.T
 }
 
 func TestMeteredCreditAccountingPreservesKnownZeroAndPendingAbsence(t *testing.T) {
-	_, settled, err := decodeProviderResponse(providers.ProviderMetered, `{"content":"{}","credits_charged":0,"accounting_status":"settled","actual_cost_micros":0}`, "prompt")
+	_, settled, err := decodeProviderResponse(providers.ProviderMetered, `{"content":"{}","root_operation_id":"`+strings.Repeat("a", 64)+`","credits_charged":0,"accounting_status":"settled","actual_cost_micros":0}`, "prompt")
 	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("a", 64), settled.rootOperationID)
 	require.NotNil(t, settled.creditsCharged)
 	require.Zero(t, *settled.creditsCharged)
 	require.Equal(t, "settled", settled.accountingStatus)

@@ -48,10 +48,11 @@ func (u Unit) Root() string                { return u.root }
 func (u Unit) Profile() string             { return u.profile }
 func (u Unit) ExtractionMS() int64         { return u.extractionMS }
 func (u Unit) Omissions() []Omission       { return append([]Omission(nil), u.omissions...) }
+
 // Nodes preserves provider-relative node paths; check HasTargetPath before
 // treating a path as target-contained.
-func (u Unit) Nodes() []Node               { return append([]Node(nil), u.nodes...) }
-func (u Unit) Edges() []Edge               { return append([]Edge(nil), u.edges...) }
+func (u Unit) Nodes() []Node { return append([]Node(nil), u.nodes...) }
+func (u Unit) Edges() []Edge { return append([]Edge(nil), u.edges...) }
 
 type File struct {
 	path     string
@@ -71,8 +72,9 @@ func (n Node) Attribute(key string) string { return n.attributes[key] }
 func (f File) Path() string     { return f.path }
 func (f File) Language() string { return f.language }
 func (f File) Imports() int     { return f.imports }
+
 // Nodes returns graph nodes with target-relative file paths.
-func (f File) Nodes() []Node    { return append([]Node(nil), f.nodes...) }
+func (f File) Nodes() []Node { return append([]Node(nil), f.nodes...) }
 
 // Index is an immutable path/language projection of a Code Facts graph report.
 // File indexes include only target-relative source paths. Unit projections
@@ -103,12 +105,26 @@ func NewIndex(report *facts.CodeFactsReport) *Index {
 			continue
 		}
 		prefix, err := filepath.Rel(root, filepath.Clean(unit.GetRootPath()))
-		if err != nil || prefix == ".." || strings.HasPrefix(prefix, ".."+string(filepath.Separator)) || filepath.IsAbs(prefix) {
+		if err != nil || filepath.IsAbs(prefix) {
 			index.warnings = append(index.warnings, "parse unit outside target: "+unit.GetRootPath())
 			continue
 		}
+		// A parse unit normally sits at or below the target. It can also be an
+		// ancestor: a caller asking about <module>/internal receives the module's
+		// graph because the module is the unit that owns go.mod. In that case the
+		// unit is not outside the target, it contains it, so project only the
+		// nodes under the target and make their paths target-relative.
+		unitPrefix, targetPrefix, unitRoot := prefix, ".", prefix
+		if prefix == ".." || strings.HasPrefix(prefix, ".."+string(filepath.Separator)) {
+			inverse, inverseErr := filepath.Rel(filepath.Clean(unit.GetRootPath()), root)
+			if inverseErr != nil || !filepath.IsLocal(inverse) {
+				index.warnings = append(index.warnings, "parse unit outside target: "+unit.GetRootPath())
+				continue
+			}
+			unitPrefix, targetPrefix, unitRoot = ".", filepath.ToSlash(inverse), "."
+		}
 		graph := envelope.GetGraph()
-		projected := Unit{language: unit.GetLanguage(), root: prefix, profile: envelope.GetExtractionProfile(), extractionMS: envelope.GetExtractionMs()}
+		projected := Unit{language: unit.GetLanguage(), root: unitRoot, profile: envelope.GetExtractionProfile(), extractionMS: envelope.GetExtractionMs()}
 		for _, omission := range envelope.GetOmittedInformation() {
 			if omission != nil {
 				projected.omissions = append(projected.omissions, Omission{Capability: omission.GetCapability(), Reason: omission.GetReason()})
@@ -127,11 +143,17 @@ func NewIndex(report *facts.CodeFactsReport) *Index {
 			}
 			node := Node{unitID: unit.GetId(), id: source.GetId(), name: source.GetName(), path: source.GetPath(), language: language, kind: source.GetKind().String(), attributes: attrs}
 			projected.nodes = append(projected.nodes, node)
-			path, ok := graphPath(prefix, source.GetPath())
+			path, ok := graphPath(unitPrefix, source.GetPath())
+			if ok {
+				path, ok = scopeToTargetPath(targetPrefix, path)
+			}
 			node.targetPath = ok
 			projected.nodes[len(projected.nodes)-1] = node
 			if !ok {
-				if source.GetPath() != "" {
+				// Nodes outside the requested subdirectory are expected when the
+				// parse unit is an ancestor; only a source escaping its own unit is
+				// worth reporting.
+				if source.GetPath() != "" && targetPrefix == "." {
 					index.warnings = append(index.warnings, "symbol outside target: "+source.GetPath())
 				}
 				continue
@@ -236,6 +258,23 @@ func graphPath(prefix, path string) (string, bool) {
 	}
 	combined := filepath.ToSlash(filepath.Clean(filepath.Join(prefix, path)))
 	return combined, combined != ".." && !strings.HasPrefix(combined, "../") && !filepath.IsAbs(combined)
+}
+
+// scopeToTargetPath keeps only the part of a unit-relative path that belongs to
+// the requested target directory. targetPrefix is the target's path relative to
+// the unit root; "." means the whole unit is in scope.
+func scopeToTargetPath(targetPrefix, path string) (string, bool) {
+	targetPrefix = strings.Trim(filepath.ToSlash(targetPrefix), "/")
+	if targetPrefix == "" || targetPrefix == "." {
+		return path, true
+	}
+	if path == targetPrefix {
+		return ".", true
+	}
+	if strings.HasPrefix(path, targetPrefix+"/") {
+		return strings.TrimPrefix(path, targetPrefix+"/"), true
+	}
+	return "", false
 }
 
 func cloneAttributes(attributes map[string]string) map[string]string {

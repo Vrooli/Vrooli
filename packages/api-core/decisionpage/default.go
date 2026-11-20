@@ -3,13 +3,22 @@ package decisionpage
 import (
 	"os"
 	"path/filepath"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DefaultRoot is where every sender's jobs live, so one sender can read what
 // another asked for the same subject: ~/.vrooli/state/vrooli/decision-pages.
 func DefaultRoot() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".vrooli", "state", "vrooli", "decision-pages")
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return filepath.Join("state", "vrooli", "decision-pages")
+	}
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return filepath.Join(home, "state", "vrooli", "decision-pages")
+	}
+	return filepath.Join(root, "state", "vrooli", "decision-pages")
 }
 
 // New is the production writer: jobs under DefaultRoot, runs through Agent

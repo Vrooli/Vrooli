@@ -6320,6 +6320,128 @@
             "reason": "Explicit research/red-team route. Never selected unless the caller names this role."
           }
         ]
+      },
+      "browser.locate": {
+        "description": "Visual grounding for browser interactions. Accepts a captured browser frame and returns a bounded canonical target; Gateway owns provider selection and credential isolation.",
+        "timeout_ms": 90000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "vision.default",
+            "reason": "Local-first grounding keeps captured browser frames on the device."
+          },
+          {
+            "provider": "openrouter",
+            "resource_role": "vision.default",
+            "reason": "Hosted multimodal fallback under the caller-selected source and consent."
+          },
+          {
+            "provider": "orcarouter",
+            "resource_role": "vision.default",
+            "reason": "Hosted grounding fallback under Gateway policy."
+          },
+          {
+            "provider": "lpbs",
+            "resource_role": "vision.default",
+            "reason": "Subscription-backed metered grounding; LPBS owns reserve and settlement."
+          }
+        ]
+      },
+      "browser.decide": {
+        "description": "Bounded ranking of browser action candidates using the existing fast decision model route.",
+        "kind": "decision",
+        "timeout_ms": 30000,
+        "candidates": [
+          {
+            "provider": "ollaya",
+            "resource_role": "decide.local",
+            "reason": "Local fast decision route."
+          },
+          {
+            "provider": "ollaya",
+            "resource_role": "decide.jev.edenai",
+            "reason": "Hosted TypeSafe decision route when provisioned."
+          },
+          {
+            "provider": "ollaya",
+            "resource_role": "decide.jev.typesafe",
+            "reason": "Hosted TypeSafe decision route when provisioned."
+          },
+          {
+            "provider": "ollaya",
+            "resource_role": "decide.clef.cloudflare",
+            "reason": "Hosted decision route when provisioned."
+          },
+          {
+            "provider": "ai-gateway",
+            "resource_role": "classify.fast",
+            "reason": "Enum-constrained Gateway fallback for choice-only candidate ranking."
+          }
+        ]
+      },
+      "browser.plan": {
+        "description": "Produces a bounded browser action plan against the caller-declared world model and schema; Gateway validates the returned structure.",
+        "timeout_ms": 90000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "chat.default",
+            "reason": "Use existing local generation with Gateway schema validation."
+          },
+          {
+            "provider": "openrouter",
+            "resource_role": "extract.structured",
+            "reason": "Hosted structured planning fallback under selected source."
+          },
+          {
+            "provider": "orcarouter",
+            "resource_role": "extract.structured",
+            "reason": "Hosted structured planning fallback under Gateway policy."
+          },
+          {
+            "provider": "lpbs",
+            "resource_role": "extract.structured",
+            "reason": "LPBS metered structured planning; LPBS owns reserve and settlement."
+          }
+        ]
+      },
+      "browser.extract": {
+        "description": "Schema-constrained extraction from supplied browser page content; page text is untrusted input and never becomes provider credentials or browser state.",
+        "timeout_ms": 120000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "extract.structured",
+            "reason": "Local structured extraction keeps page content on the device."
+          },
+          {
+            "provider": "openrouter",
+            "resource_role": "extract.structured",
+            "reason": "Hosted extraction fallback under selected source and consent."
+          },
+          {
+            "provider": "orcarouter",
+            "resource_role": "extract.structured",
+            "reason": "Hosted extraction fallback under Gateway policy."
+          },
+          {
+            "provider": "lpbs",
+            "resource_role": "extract.structured",
+            "reason": "LPBS metered extraction; LPBS owns reserve and settlement."
+          }
+        ]
       }
     }
   }

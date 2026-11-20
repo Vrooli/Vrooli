@@ -33,13 +33,9 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, getenv func(string
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{{
 			Name:        "run",
-			Description: "Drive Dictation Studio through BAS and emit one conformance.Run document",
+			Description: "Run the owner-authorized Audio Tools task through the BAS session broker and emit one conformance.Run document",
 			NeedsAPI:    true,
 			Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
-				{Name: "driver-url", Description: "Playwright driver URL (defaults to PLAYWRIGHT_DRIVER_URL)"},
-				{Name: "ui-url", Description: "Audio-tools UI URL (defaults to AUDIO_TOOLS_UI_URL or UI_BASE_URL)"},
-				{Name: "surface", Description: "Product surface: audio-tools or swarm-manager (defaults to audio-tools)"},
-				{Name: "fixture", Description: "Absolute WAV fixture path used by BAS fake_media"},
 				{Name: "lane", Description: "accelerated or realtime"},
 				{Name: "profile", Description: "realistic or continuous"},
 				{Name: "turns", Description: "Number of product turns"},

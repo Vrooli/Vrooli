@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/internal/recovery"
@@ -64,7 +68,7 @@ func TestWebhookMountsWhenSecretResolvesViaFallback(t *testing.T) {
 	// The mount function never dereferences the handler during registration, so a
 	// nil handler is sufficient to observe the route being added.
 	var h *apiHandlers.Handlers
-	mountDecisionResolutionWebhook(router, h)
+	mountDecisionResolutionWebhook(context.Background(), router, h)
 
 	if !webhookRouteMounted(router) {
 		t.Fatalf("expected the decision resolution webhook to be mounted when the secret resolves via the fallback")
@@ -86,9 +90,87 @@ func TestWebhookMountsWhenSecretFromEnv(t *testing.T) {
 
 	router := mux.NewRouter()
 	var h *apiHandlers.Handlers
-	mountDecisionResolutionWebhook(router, h)
+	mountDecisionResolutionWebhook(context.Background(), router, h)
 
 	if !webhookRouteMounted(router) {
 		t.Fatalf("expected the decision resolution webhook to be mounted when the secret is set via env")
+	}
+}
+
+func TestDecisionSubscriptionResolvesCurrentEventsAddress(t *testing.T) {
+	var firstCalls, secondCalls atomic.Int32
+	makeServer := func(calls *atomic.Int32) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/api/v1/subscriptions":
+				if got := r.URL.Query().Get("owner"); got != "vrooli-autoheal" {
+					t.Errorf("subscription owner = %q", got)
+				}
+				calls.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte("[]"))
+			case r.Method == http.MethodPost && r.URL.Path == "/api/v1/subscriptions":
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Errorf("decode subscription: %v", err)
+				}
+				if body["event_pattern"] != "notification_hub.ask.resolved.v1" {
+					t.Errorf("event pattern = %v", body["event_pattern"])
+				}
+				calls.Add(1)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte(`{"id":1}`))
+			default:
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+	}
+	first, second := makeServer(&firstCalls), makeServer(&secondCalls)
+	defer first.Close()
+	defer second.Close()
+	addresses := []string{first.URL, second.URL}
+	var resolves atomic.Int32
+	resolve := func(context.Context) (string, error) { return addresses[int(resolves.Add(1))-1], nil }
+	for range 2 {
+		if err := reconcileDecisionEventSubscriptionWithResolver(context.Background(), "http://127.0.0.1:1234/hook", resolve); err != nil {
+			t.Fatalf("reconcileDecisionEventSubscriptionWithResolver() error = %v", err)
+		}
+	}
+	if resolves.Load() != 2 || firstCalls.Load() != 2 || secondCalls.Load() != 2 {
+		t.Fatalf("resolutions/first requests/second requests = %d/%d/%d, want 2/2/2", resolves.Load(), firstCalls.Load(), secondCalls.Load())
+	}
+}
+
+func TestDecisionSubscriptionRetriesUnavailableEventsPeerWithinBound(t *testing.T) {
+	var calls, waits, peerCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		peerCalls.Add(1)
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte("[]"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
+	}))
+	defer server.Close()
+	resolve := func(context.Context) (string, error) {
+		if calls.Add(1) < 3 {
+			return "", errors.New("vrooli-events is not ready")
+		}
+		return server.URL, nil
+	}
+	wait := func(ctx context.Context, _ time.Duration) error {
+		waits.Add(1)
+		return ctx.Err()
+	}
+	if err := reconcileDecisionEventSubscriptionWithRetry(context.Background(), "http://127.0.0.1:1234/hook", resolve, wait); err != nil {
+		t.Fatalf("reconcileDecisionEventSubscriptionWithRetry() error = %v", err)
+	}
+	if calls.Load() != 3 || waits.Load() != 2 || peerCalls.Load() != 2 {
+		t.Fatalf("resolve/wait/peer calls = %d/%d/%d, want 3/2/2", calls.Load(), waits.Load(), peerCalls.Load())
 	}
 }

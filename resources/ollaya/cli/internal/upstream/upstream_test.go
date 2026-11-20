@@ -39,6 +39,30 @@ func fake(t *testing.T, status int, response string, seen *captured) *httptest.S
 	return server
 }
 
+func TestResidentDeviceReadsTheDaemonPlacement(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/ps" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"models":[{"name":"winnow:e4b","model":"winnow:e4b","device":"cuda:0","size_vram":9000000000}]}`))
+	}))
+	defer server.Close()
+	client := Client{HTTP: http.DefaultClient, GetEnv: func(key string) string {
+		if key == "OLLAYA_URL" {
+			return server.URL
+		}
+		return ""
+	}}
+	device, found, err := client.ResidentDevice(context.Background(), "winnow:e4b")
+	if err != nil || !found || device != "cuda:0" {
+		t.Fatalf("ResidentDevice = %q found=%t err=%v", device, found, err)
+	}
+	if _, found, err := client.ResidentDevice(context.Background(), "laya:en"); err != nil || found {
+		t.Fatalf("non-resident model = found %t err %v, want a clean absence", found, err)
+	}
+}
+
 func TestLocalDecideUsesNativeEndpointAndReportsDaemonTimings(t *testing.T) {
 	var seen captured
 	server := fake(t, 200, `{"model":"laya:en","answers":`+answers+`,"usage":{"input_tokens":41,"output_tokens":0},"state_truncated":false,"eval_duration":16000000,"load_duration":0}`, &seen)

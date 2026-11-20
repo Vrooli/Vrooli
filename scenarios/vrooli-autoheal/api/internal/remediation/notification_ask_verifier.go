@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
@@ -22,9 +23,12 @@ type AskReaderTokens interface {
 // autoheal caller. It reads as autoheal's own verified service identity: the
 // Hub shows an ask only to its owner, its sender, or the service that raised it.
 type NotificationHubAskVerifier struct {
-	client conversationconnect.ConversationsServiceClient
-	tokens AskReaderTokens
+	client  conversationconnect.ConversationsServiceClient
+	tokens  AskReaderTokens
+	resolve func(context.Context) (string, error)
 }
+
+const askVerificationTimeout = 5 * time.Second
 
 // NewNotificationHubAskVerifier reads asks at baseURL with the bearer that
 // tokens supplies. Without a token source it refuses to verify anything.
@@ -39,8 +43,19 @@ func NewNotificationHubAskVerifier(baseURL string, tokens AskReaderTokens) (*Not
 	}, nil
 }
 
+// NewNotificationHubAskVerifierResolver constructs a verifier that resolves
+// Notification Hub when each approval is checked. This keeps the approval
+// check current across a Hub restart; fixed-address deployments should use
+// NewNotificationHubAskVerifier.
+func NewNotificationHubAskVerifierResolver(resolve func(context.Context) (string, error), tokens AskReaderTokens) (*NotificationHubAskVerifier, error) {
+	if resolve == nil || tokens == nil {
+		return nil, ErrAskVerifierUnavailable
+	}
+	return &NotificationHubAskVerifier{resolve: resolve, tokens: tokens}, nil
+}
+
 func (v *NotificationHubAskVerifier) Verify(ctx context.Context, askID string) (AskApproval, error) {
-	if v == nil || v.client == nil {
+	if v == nil || (v.client == nil && v.resolve == nil) {
 		return AskApproval{}, ErrAskVerifierUnavailable
 	}
 	askID = strings.TrimSpace(askID)
@@ -51,9 +66,21 @@ func (v *NotificationHubAskVerifier) Verify(ctx context.Context, askID string) (
 	if err != nil {
 		return AskApproval{}, fmt.Errorf("%w: %w", ErrAskVerifierUnavailable, err)
 	}
+	client := v.client
+	if v.resolve != nil {
+		baseURL, resolveErr := v.resolve(ctx)
+		if resolveErr != nil {
+			return AskApproval{}, fmt.Errorf("resolve notification-hub for ask verification: %w", resolveErr)
+		}
+		baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+		if baseURL == "" {
+			return AskApproval{}, fmt.Errorf("resolve notification-hub for ask verification: empty URL")
+		}
+		client = conversationconnect.NewConversationsServiceClient(&http.Client{Timeout: askVerificationTimeout}, baseURL)
+	}
 	request := connect.NewRequest(&conversationv1.GetAskRequest{AskId: askID})
 	request.Header().Set("Authorization", "Bearer "+token)
-	response, err := v.client.GetAsk(ctx, request)
+	response, err := client.GetAsk(ctx, request)
 	if err != nil {
 		return AskApproval{}, fmt.Errorf("read notification ask %q: %w", askID, err)
 	}

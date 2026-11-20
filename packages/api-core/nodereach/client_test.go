@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"connectrpc.com/connect"
+	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
@@ -58,6 +59,81 @@ func TestMissingNodeIsTyped(t *testing.T) {
 	var typed *Error
 	if !errors.As(err, &typed) || typed.Node == "" && typed.Verb == "" {
 		t.Fatalf("typed details missing: %#v", typed)
+	}
+}
+
+func TestDispatchRefusesIncompleteRequestBeforeBridge(t *testing.T) {
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	client := New(Config{BridgeURL: server.URL, Token: "owner"})
+
+	cases := []struct {
+		name string
+		req  DispatchRequest
+	}{
+		{"missing node", DispatchRequest{Scenario: "web-search", Verb: "scenario test"}},
+		{"missing target scenario", DispatchRequest{NodeID: "node-1", Verb: "scenario test"}},
+		{"missing operation", DispatchRequest{NodeID: "node-1", Scenario: "web-search"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.Dispatch(context.Background(), tc.req)
+			if !IsKind(err, ErrInvalidRequest) {
+				t.Fatalf("Dispatch error = %v, want typed invalid request", err)
+			}
+		})
+	}
+	if requests != 0 {
+		t.Fatalf("invalid requests reached Bridge %d times", requests)
+	}
+}
+
+func TestDispatchCarriesIdempotencyKeyAndReplayReceipt(t *testing.T) {
+	var received *dispatchv1.DispatchJobRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+			return
+		}
+		received = &dispatchv1.DispatchJobRequest{}
+		if err := proto.Unmarshal(body, received); err != nil {
+			t.Errorf("decode request: %v", err)
+			return
+		}
+		response, err := proto.Marshal(&dispatchv1.DispatchJobResponse{RunId: "durable-1", Replayed: true})
+		if err != nil {
+			t.Errorf("encode response: %v", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/proto")
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+
+	client := New(Config{BridgeURL: server.URL, Token: "owner"})
+	response, err := client.Dispatch(context.Background(), DispatchRequest{NodeID: "node-1", Scenario: "second-scenario", Verb: "scenario test", DeploymentTier: "vps", RequestID: "request-1"})
+	if err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	if received == nil || received.GetRequestId() != "request-1" || received.GetScenario() != "second-scenario" || received.GetDeploymentTier() != "vps" {
+		t.Fatalf("typed request = %+v", received)
+	}
+	if response.RunID != "durable-1" || !response.Replayed {
+		t.Fatalf("dispatch receipt = %+v", response)
+	}
+}
+
+func TestDispatchRefusalClassificationKeepsAmbiguousErrorsRetryable(t *testing.T) {
+	if !IsPreEffectDispatchRefusal(connect.NewError(connect.CodeFailedPrecondition, errors.New("tier mismatch"))) {
+		t.Fatal("failed-precondition must be recognized as a pre-effect Bridge refusal")
+	}
+	if IsPreEffectDispatchRefusal(connect.NewError(connect.CodeUnavailable, errors.New("connection lost"))) {
+		t.Fatal("unavailable response must remain ambiguous for same-key retry")
 	}
 }
 

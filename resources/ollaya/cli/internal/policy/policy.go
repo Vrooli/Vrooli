@@ -83,7 +83,27 @@ type Model struct {
 	DefaultPull bool                         `json:"default_pull"`
 	License     string                       `json:"license"`
 	DiskBytes   int64                        `json:"disk_bytes"`
+	Placement   *ModelPlacement              `json:"placement,omitempty"`
 	Rights      *sharedpolicy.ArtifactRights `json:"rights,omitempty"`
+}
+
+// ModelPlacement declares where a local model is allowed to execute. Device
+// "gpu" means the model must be served by the accelerator: a CPU load is a
+// typed failure, not a slow success. Device "any" (the default) preserves the
+// daemon's normal placement, which is what lets Laya serve on the CPU.
+type ModelPlacement struct {
+	Device    string `json:"device"`
+	VRAMBytes int64  `json:"vram_bytes,omitempty"`
+}
+
+const (
+	PlacementDeviceAny = "any"
+	PlacementDeviceGPU = "gpu"
+)
+
+// RequiresGPU reports whether the model may only run on the accelerator.
+func (m Model) RequiresGPU() bool {
+	return m.Placement != nil && m.Placement.Device == PlacementDeviceGPU
 }
 
 // Resolution is one role resolved against the current process environment.
@@ -154,6 +174,17 @@ func (p Policy) Validate() error {
 	for name, model := range p.Models {
 		if !isDigest(model.Digest) {
 			return fmt.Errorf("model %q requires a 64-character manifest digest", name)
+		}
+		if model.Placement != nil {
+			switch model.Placement.Device {
+			case PlacementDeviceAny:
+			case PlacementDeviceGPU:
+				if model.Placement.VRAMBytes <= 0 {
+					return fmt.Errorf("model %q requires placement.vram_bytes when placement.device is gpu", name)
+				}
+			default:
+				return fmt.Errorf("model %q placement.device %q must be %q or %q", name, model.Placement.Device, PlacementDeviceAny, PlacementDeviceGPU)
+			}
 		}
 		for _, route := range model.Routes {
 			if _, ok := p.Models[route]; !ok {

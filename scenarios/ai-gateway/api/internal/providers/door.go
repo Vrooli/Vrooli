@@ -259,6 +259,7 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 		return uncertainResult(req.IdempotencyKey, receipt), nil
 	}
 	defer response.Body.Close()
+	billingOperationID := strings.TrimSpace(response.Header.Get("X-Operation-ID"))
 	var content strings.Builder
 	var prompt, completion int64
 	usageObserved := false
@@ -329,5 +330,5 @@ func (c *HostedDoorClient) Run(ctx context.Context, req ExecutionRequest) (Execu
 		result["completion_tokens"] = completion
 	}
 	data, err := json.Marshal(result)
-	return ExecutionResult{OutputText: string(data)}, err
+	return ExecutionResult{OutputText: string(data), BillingOperationID: billingOperationID}, err
 }

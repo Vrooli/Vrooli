@@ -11,6 +11,7 @@ import (
 	providermocks "ai-gateway/internal/providers/mocks"
 
 	"github.com/stretchr/testify/require"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
 
 // repairingRepository returns an invalid value once, then a valid one, and
@@ -131,6 +132,19 @@ func TestServiceDoesNotReAskAfterAProviderFailure(t *testing.T) {
 
 	require.False(t, response.GetValidated())
 	require.Equal(t, "INFERENCE_ERROR_CODE_UNAVAILABLE", response.GetError().GetCode().String())
+	require.Equal(t, 1, repository.calls())
+}
+
+func TestBrowserProviderFailureAfterDispatchIsNotActionableNoRoute(t *testing.T) {
+	repository := &countingFailingRepository{}
+	response := NewService(repository).Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input", Source: "source",
+		SchemaJSON: `{"type":"object"}`, Role: "browser.plan", RootOperationID: strings.Repeat("d", 64),
+		BrowserSession: &inferencev1.BrowserSessionBinding{RunId: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionId: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
+	require.NotEqual(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, response.GetError().GetCode())
+	require.EqualValues(t, 1, response.GetProviderCallsMade())
 	require.Equal(t, 1, repository.calls())
 }
 

@@ -29,8 +29,8 @@ warning or skipped result.
 
 ## What each finding means
 
-- `SOAK_CONFIGURATION_MISSING` means the BAS driver, UI URL, or canonical WAV
-  fixture was unavailable to the provider process.
+- `SOAK_CONFIGURATION_MISSING` means the trusted Agent Manager or Test Genie
+  receipt, BAS endpoint, owner-selected UI, or canonical WAV fixture was unavailable.
 - `SOAK_QUALIFICATION_FAILED` means the provider ran (or attempted to run) the
   product path but did not produce a qualified artifact. The finding message
   includes the provider-owned failure detail and artifact reference when one
@@ -38,14 +38,7 @@ warning or skipped result.
 
 ## The canonical fix
 
-Start the API in the explicit qualification environment
-`VROOLI_AUDIO_SOAK_REPLAY=1`, provide a live BAS Playwright driver through
-`SOAK_DRIVER_URL` or `PLAYWRIGHT_DRIVER_URL`, a running Dictation Studio UI
-through `SOAK_UI_URL` or `AUDIO_TOOLS_UI_URL`, and the canonical fixture. Then
-inspect the persisted conformance artifact and fix the first failed assertion
-before rerunning the phase. The replay flag is deliberate: this provider is
-absent from the production engine manifest and must never become a user-facing
-fallback.
+Issue the request through an active Test Genie demand lease with trusted Agent Manager identity and browser-grant receipts. Audio Tools verifies the lease and resolves its configured BAS owner, UI, and canonical WAV fixture; callers cannot select a browser driver, UI, or local fixture. Then inspect the persisted conformance artifact and fix the first failed assertion before rerunning the phase. The lease and browser grant are request-scoped and are never persisted in evidence.
 
 ## How to verify
 

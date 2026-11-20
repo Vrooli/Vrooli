@@ -1,6 +1,8 @@
 # Vrooli Quick Start
 
-This is the canonical first-touch guide for the project-level Vrooli platform.
+Use this guide to set up a new installation or start a local development stack.
+For an existing checkout and a specific change, use the
+[development workflow](guides/development-workflows.md).
 
 ## What You Are Starting
 
@@ -45,12 +47,6 @@ the installed CLI when present.
 vrooli develop
 ```
 
-For project-level command discovery:
-
-```bash
-vrooli help
-```
-
 ## Inspect The Platform
 
 ```bash
@@ -93,16 +89,16 @@ vrooli resource logs postgres
 
 ## Testing
 
-Run project-level validation with:
+For project-wide validation, run:
 
 ```bash
 make test
 ```
 
-Run scenario-focused testing with:
+For a focused scenario change, select the relevant phases:
 
 ```bash
-vrooli scenario test <name>
+vrooli scenario test <name> --phases <relevant-phases>
 ```
 
 For the deeper testing workflow, see [TESTING.md](TESTING.md).

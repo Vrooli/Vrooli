@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -70,6 +72,114 @@ func TestMeteredClientRequiresToken(t *testing.T) {
 	_, err := client.Run(context.Background(), MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}})
 	if err == nil || !strings.Contains(err.Error(), "access token") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestMeteredBrowserClientBindsLPBSReservationToRootOperation(t *testing.T) {
+	rootOperationID := strings.Repeat("a", 64)
+	var gotRootOperationID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Metadata       map[string]string     `json:"metadata"`
+			BrowserSession MeteredBrowserSession `json:"browser_session"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode metered request: %v", err)
+		}
+		gotRootOperationID = request.Metadata["gateway_root_operation_id"]
+		if request.BrowserSession.RunID != "87026a72-90ba-4e0b-9897-b2b09dc8a750" || request.BrowserSession.SessionID != "bas-session-1" || request.BrowserSession.GrantReceipt != "grant-receipt" {
+			t.Errorf("LPBS request lost the authenticated browser binding: %+v", request.BrowserSession)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(MeteredResponse{ID: "provider-result", RootOperationID: rootOperationID, BillingOperationID: "session-reservation", Content: `{"ok":true}`})
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	adapter := Adapter{Provider: ProviderMetered, Metered: client}
+	result, err := adapter.Execute(WithAccessToken(context.Background(), "Bearer fixture"), ExecutionRequest{
+		Role: "browser.plan", RootOperationID: rootOperationID, InputText: "choose next action",
+		BrowserSession: &inferencev1.BrowserSessionBinding{RunId: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionId: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	if err != nil {
+		t.Fatalf("metered browser execute: %v", err)
+	}
+	if gotRootOperationID != rootOperationID || result.BillingOperationID != "session-reservation" || !strings.Contains(result.OutputText, `"root_operation_id":"`+rootOperationID+`"`) {
+		t.Fatalf("LPBS request/response did not preserve Gateway operation id: request=%q response=%s", gotRootOperationID, result.OutputText)
+	}
+}
+
+func TestMeteredBrowserRejectsMismatchedRootOperationReceipt(t *testing.T) {
+	wantRoot := strings.Repeat("c", 64)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(MeteredResponse{ID: "reservation", RootOperationID: strings.Repeat("d", 64), Content: `{"ok":true}`})
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: wantRoot, Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+		BrowserSession: &MeteredBrowserSession{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeOutcomeUncertain {
+		t.Fatalf("mismatched LPBS receipt error=%v, want typed outcome uncertainty", err)
+	}
+}
+
+func TestMeteredBrowserUncertainOutcomeIsTypedAndNeverFallsBackAtClient(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"settlement response was lost"}`))
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: strings.Repeat("b", 64),
+		Messages:       []MeteredMessage{{Role: "user", Content: "inspect page"}},
+		BrowserSession: &MeteredBrowserSession{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeOutcomeUncertain {
+		t.Fatalf("uncertain LPBS response error=%v, want typed outcome uncertainty", err)
+	}
+	if requests != 1 {
+		t.Fatalf("LPBS dispatches=%d, want exactly one", requests)
+	}
+}
+
+func TestMeteredBrowserRequiresRootOperationBeforeLPBSDispatch(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { requests++ }))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeUnconfigured {
+		t.Fatalf("missing browser root error=%v, want pre-dispatch refusal", err)
+	}
+	if requests != 0 {
+		t.Fatalf("LPBS dispatches=%d, want zero", requests)
+	}
+}
+
+func TestMeteredBrowserRequiresSessionBindingBeforeLPBSDispatch(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests++ }))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: strings.Repeat("f", 64), Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != "invalid_request" {
+		t.Fatalf("missing browser session binding error=%v, want invalid request", err)
+	}
+	if requests != 0 {
+		t.Fatalf("LPBS dispatches=%d, want zero without a run/grant/session binding", requests)
 	}
 }
 

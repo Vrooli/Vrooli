@@ -167,6 +167,29 @@ named read that bypasses pre-action caches. Snapshot metadata and provider metri
 are included in resource check details, while lifecycle, driver, health-probe,
 placement, and OS-specific behavior remain owned by the control plane.
 
+## Outbound Scenario Dependencies
+
+The five peers in `.vrooli/service.json` are optional at Autoheal startup. Each
+owns a separate capability, and unavailability must not make Autoheal report a
+false success or prevent unrelated local checks:
+
+| Peer | Capability | Unavailable behavior |
+| --- | --- | --- |
+| `system-monitor` | Authoritative disk-pressure observation | The observation reports an error; Autoheal does not invent a pressure value. |
+| `storage-manager` | Approved cleanup planning and disk-pressure reports | The selected cleanup action reports failure; Autoheal never performs the cleanup itself. |
+| `notification-hub` | Delivery-attempt projection and durable operator-ask verification | Delivery coverage is incomplete and approval verification fails closed. Notification delivery remains owned by Notification Hub. |
+| `vrooli-events` | Incident/remediation event publication and the decision webhook subscription | Publications remain pending for a later drain; subscription setup makes bounded attempts. The authorized manual approval route remains available. |
+| `scenario-authenticator` | Service-principal token exchange for authenticated boundaries | The affected authenticated operation fails closed; no unsigned request is sent. |
+
+Local discovery is performed when an observation, report, publication, or
+approval check runs, so a later operation sees a peer that restarted on a new
+port. The event subscription itself is reconciled in a bounded startup task;
+its durable row is then owned by Vrooli Events. The API clients retain
+fixed-base constructors for callers that explicitly pin deployment addresses.
+Event publication and Notification Hub delivery are separate contracts: a
+successful event publish does not prove that a human notification was
+delivered.
+
 ## Data Flow
 
 1. **Tick Request** arrives (HTTP POST or CLI command)

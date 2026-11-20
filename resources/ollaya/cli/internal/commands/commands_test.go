@@ -64,7 +64,109 @@ func handlers(t *testing.T, env map[string]string, stdin string) (*Handlers, *by
 	return &Handlers{
 		GetEnv: func(key string) string { return values[key] }, Stdin: strings.NewReader(stdin), Stdout: &stdout, Stderr: &stderr, HTTP: http.DefaultClient,
 		Now: func() time.Time { return time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC) },
+		// Placement is a host fact; keep the fixture hermetic. Tests that need a
+		// specific device or admission verdict inject their own seams.
+		ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
+		HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
+		CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return true, "", nil },
 	}, &stdout, &stderr
+}
+
+// requireModelPlacement is the policy boundary that keeps Winnow off the CPU.
+// It must refuse with a retryable typed reason, never run the slow load, and
+// never fail a request just because a probe was unavailable.
+func TestRequireModelPlacementRefusesGPUModelsOnTheCPU(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	p, err := policy.Load(filepath.Join(filepath.Dir(file), "..", "..", "..", "model-policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	winnow := policy.Resolution{Role: "decide.local.accurate", Locality: policy.LocalityLocal, Model: "winnow:e4b"}
+	laya := policy.Resolution{Role: "decide.local", Locality: policy.LocalityLocal, Model: "laya:en"}
+
+	cases := []struct {
+		name       string
+		resolution policy.Resolution
+		h          *Handlers
+		wantCode   string
+	}{
+		{
+			name:       "Given a CPU-resident Winnow, Then it is refused before inference",
+			resolution: winnow,
+			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
+				return "cpu", true, nil
+			}},
+			wantCode: upstream.CodeInsufficientVRAM,
+		},
+		{
+			name:       "Given a GPU-resident Winnow, Then it proceeds",
+			resolution: winnow,
+			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
+				return "cuda:0", true, nil
+			}},
+		},
+		{
+			name:       "Given a non-resident Winnow on a CPU daemon, Then it is refused",
+			resolution: winnow,
+			h: &Handlers{
+				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
+				HostPlacement:  func(context.Context) (string, error) { return "cpu", nil },
+			},
+			wantCode: upstream.CodeInsufficientVRAM,
+		},
+		{
+			name:       "Given a non-resident Winnow the broker will not admit, Then it is refused with the reason",
+			resolution: winnow,
+			h: &Handlers{
+				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
+				HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
+				CapacityAdmit: func(context.Context, int64) (bool, string, error) {
+					return false, "insufficient vram: floor exceeds available", nil
+				},
+			},
+			wantCode: upstream.CodeInsufficientVRAM,
+		},
+		{
+			name:       "Given a non-resident Winnow the broker admits, Then it proceeds",
+			resolution: winnow,
+			h: &Handlers{
+				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
+				HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
+				CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return true, "", nil },
+			},
+		},
+		{
+			name:       "Given unavailable probes, Then placement fails open",
+			resolution: winnow,
+			h: &Handlers{
+				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, errors.New("offline") },
+				HostPlacement:  func(context.Context) (string, error) { return "", errors.New("offline") },
+				CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return false, "", errors.New("offline") },
+			},
+		},
+		{
+			name:       "Given Laya on the CPU, Then CPU is allowed",
+			resolution: laya,
+			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
+				return "cpu", true, nil
+			}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.h.requireModelPlacement(context.Background(), p, tc.resolution)
+			if tc.wantCode == "" {
+				if err != nil {
+					t.Fatalf("requireModelPlacement = %v, want nil", err)
+				}
+				return
+			}
+			var providerErr *upstream.ProviderError
+			if !errors.As(err, &providerErr) || providerErr.Code != tc.wantCode {
+				t.Fatalf("err = %v, want typed %s", err, tc.wantCode)
+			}
+		})
+	}
 }
 
 func TestRolesReportLocalityAndUnconfiguredHostedRoles(t *testing.T) {

@@ -80,12 +80,14 @@ type Reporter interface {
 type Config struct {
 	BaseURL string
 	Timeout time.Duration
+	Resolve func(context.Context) (string, error)
 }
 
 // Client is the production Reporter.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	resolve    func(context.Context) (string, error)
 }
 
 // NewClient builds a Client. The timeout is generous because a critical report
@@ -98,6 +100,7 @@ func NewClient(cfg Config) *Client {
 	return &Client{
 		baseURL:    cfg.BaseURL,
 		httpClient: &http.Client{Timeout: timeout},
+		resolve:    cfg.Resolve,
 	}
 }
 
@@ -148,9 +151,18 @@ func (c *Client) resolveURL(ctx context.Context) (string, error) {
 	if env := os.Getenv("VROOLI_CLEANUP_MANAGER_API_URL"); env != "" {
 		return strings.TrimRight(env, "/"), nil
 	}
-	url, err := discovery.ResolveScenarioURLDefault(ctx, "storage-manager")
+	resolve := c.resolve
+	if resolve == nil {
+		resolve = func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "storage-manager")
+		}
+	}
+	url, err := resolve(ctx)
 	if err != nil {
 		return "", err
+	}
+	if strings.TrimSpace(url) == "" {
+		return "", fmt.Errorf("storage-manager resolver returned an empty URL")
 	}
 	return strings.TrimRight(url, "/"), nil
 }

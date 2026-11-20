@@ -523,7 +523,58 @@
   ],
   "dependencies": {
     "resources": {},
-    "scenarios": {}
+    "scenarios": {
+      "storage-manager": {
+        "degraded_behavior": "When unavailable, the disk cleanup action reports failure and no cleanup runs; Autoheal local checks and supervision remain available.",
+        "description": "Optional disk-pressure cleanup handoff and retention reporting over HTTP",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Autoheal uses Storage Manager for selected disk actions and cleanup reports at runtime; the service is not a startup prerequisite.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "system-monitor": {
+        "degraded_behavior": "When unavailable, the system-monitor-backed disk observation is reported as unavailable; all other local checks continue and Autoheal does not invent a pressure value.",
+        "description": "Optional system disk-pressure observation over HTTP",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Autoheal reads System Monitor disk observations for evidence on selected disk checks; the service is not a startup prerequisite.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "notification-hub": {
+        "degraded_behavior": "When unavailable, delivery status becomes incomplete and approval verification fails closed; local incident monitoring and manual authorized recovery paths remain available.",
+        "description": "Optional incident delivery projection and operator ask verification",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Autoheal reads notification delivery attempts and verifies durable operator asks only when those features are used; the service is not a startup prerequisite.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "vrooli-events": {
+        "degraded_behavior": "When unavailable, publication rows remain pending for later retry and the webhook subscription is not reconciled; local incidents and the authorized manual approval route remain available.",
+        "description": "Optional durable incident event publication and decision webhook subscription",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Autoheal publishes incident decisions and reconciles its inbound decision webhook over HTTP; event delivery is not needed to start supervision.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "scenario-authenticator": {
+        "degraded_behavior": "When unavailable or token exchange fails, authenticated peer operations fail closed: event publications remain pending, ask approval is refused, and no unsigned request is sent.",
+        "description": "Optional service-principal token exchange for event, notification, and operator-ask boundaries",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Shared API Core service-token clients exchange credentials with Scenario Authenticator only when an authenticated boundary is used; the peer is not needed for startup.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      }
+    }
   },
   "cli": {
     "enabled": true,

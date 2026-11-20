@@ -4,14 +4,17 @@ Get this scenario running locally in under five minutes. The lifecycle
 handles ports, environment variables, and dependencies — you should
 not need to set anything by hand.
 
+For notification delivery or inspection, start with the relevant
+[CLI operation](reference/cli-commands.md). Use setup below for a fresh
+installation.
+
 ## Prerequisites
 
-- **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
+- **Vrooli CLI** installed and on `PATH`
 - **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
 - **Node 20+ and pnpm 9+** for the UI bundle
 
-If `vrooli` is not on your `PATH`, run `make setup` from the workspace
-root (one level above this directory) once.
+If the Vrooli CLI is missing, run `make setup` from the Vrooli repository root.
 
 ## 1 — Setup
 
@@ -26,7 +29,8 @@ the API/CLI/UI are built as needed, and the scenario CLI is installed.
 Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
 only the user-facing path.
 
-Run this once after generation, and again whenever dependencies change.
+Use setup for a fresh scaffold or when the lifecycle or dependency gateway
+reports that setup is needed.
 
 ## 2 — Start
 
@@ -72,6 +76,10 @@ curl -s "http://localhost:${API_PORT}/health"
 ```
 
 ## 5 — Run the tests
+
+Run the full suite for scaffold validation or when your change warrants it.
+For a focused change, select the relevant phases with
+`vrooli scenario test <name> --phases <relevant-phases>`.
 
 ```bash
 make test

@@ -57,11 +57,13 @@ type ProviderRequest struct {
 	// candidate fallback and schema repair. Zero preserves legacy policy.
 	MaxProviderCalls int32
 	SpendLimit       *inferencev1.SpendLimit
+	BrowserSession   *inferencev1.BrowserSessionBinding
 }
 
 type ProviderResult struct {
 	Recovery               *inferencev1.RecoveryReceipt
 	ValueJSON              string
+	BillingOperationID     string
 	Provider               string
 	Model                  string
 	CoordinateConvention   string

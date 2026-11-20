@@ -80,6 +80,19 @@ func TestDisabledEventBusLeavesOpeningPublicationPending(t *testing.T) {
 	}
 }
 
+func TestUnavailableResolvedEventBusLeavesOpeningPublicationPending(t *testing.T) {
+	store := &memoryStore{pending: []OpeningPublication{{IncidentID: "inc-test", Generation: 1, EventType: "incident.opened.v1", Payload: map[string]any{"incident_id": "inc-test"}}}}
+	service := NewService(store)
+	service.SetEventPublisher(NewEventBusPublisherResolver(func(context.Context) (string, error) {
+		return "", errors.New("vrooli-events is unavailable")
+	}))
+
+	service.publishPendingOpeningPublications(context.Background(), pendingOpeningPublicationBatch)
+	if len(store.pending) != 1 {
+		t.Fatalf("unavailable event peer cleared pending publication; want it retained")
+	}
+}
+
 func TestUpsertAllFromCheckResultDrainsAtMostOnePublicationBatch(t *testing.T) {
 	store := &memoryStore{}
 	publisher := &recordingPublisher{}
@@ -634,7 +647,6 @@ func TestBuildRemediationDecisionEventCarriesCurrentBinding(t *testing.T) {
 		}
 	}
 }
-
 
 func (m *memoryStore) EnsureRemediationDecisionPublication(_ context.Context, incidentID string, _ time.Time) (*RemediationDecisionPublication, error) {
 	m.ensured = append(m.ensured, incidentID)

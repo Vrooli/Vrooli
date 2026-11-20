@@ -38,6 +38,7 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 		MaxProviderCalls: req.Msg.GetMaxProviderCalls(),
 		SpendLimit:       req.Msg.GetSpendLimit(),
 		RootOperationID:  req.Msg.GetRootOperationId(),
+		BrowserSession:   req.Msg.GetBrowserSession(),
 	}
 	digestRequest := proto.Clone(req.Msg).(*inferencev1.RunRequest)
 	digestRequest.RootOperationId = ""

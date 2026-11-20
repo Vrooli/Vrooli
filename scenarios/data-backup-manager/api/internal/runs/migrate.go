@@ -116,7 +116,11 @@ func ensureIncidentTargetKey(ctx context.Context, db SQLExecutor) error {
 			PRIMARY KEY (run_id, code, scope, destination_id, target_ids),
 			FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
 		)`,
-		`INSERT OR IGNORE INTO run_incidents_migrated SELECT run_id, code, category, scope, message, next_action, destination_id, target_ids, first_observed, last_observed, last_known_good, retryable, retry_after_seconds FROM run_incidents`,
+		// Historical runs can be deleted while their incident rows survive in a
+		// database that predates the foreign-key enforcement. The rebuilt table
+		// has the same FK, so copy only incidents whose run still exists; an
+		// orphan cannot become evidence for a run that is gone.
+		`INSERT OR IGNORE INTO run_incidents_migrated SELECT run_id, code, category, scope, message, next_action, destination_id, target_ids, first_observed, last_observed, last_known_good, retryable, retry_after_seconds FROM run_incidents WHERE run_id IN (SELECT id FROM runs)`,
 		`DROP TABLE run_incidents`,
 		`ALTER TABLE run_incidents_migrated RENAME TO run_incidents`,
 	}

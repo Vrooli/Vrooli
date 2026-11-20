@@ -3,6 +3,7 @@ module github.com/vrooli/api-core
 go 1.25.0
 
 require (
+	github.com/vrooli/cliresolve v0.0.0
 	connectrpc.com/connect v1.19.2
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/google/uuid v1.6.0
@@ -47,3 +48,5 @@ replace github.com/vrooli/repo-contract-go => ../repo-contract-go
 replace github.com/vrooli/vrooli/packages/proto => ../proto
 
 replace github.com/vrooli/platform-go => ../platform-go
+
+replace github.com/vrooli/cliresolve => ../cliresolve

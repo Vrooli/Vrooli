@@ -505,19 +505,29 @@ type DispatchRequest struct {
 	Scenario string
 	Verb     string
 	Args     []string
-	Timeout  time.Duration
+	// DeploymentTier asks Bridge to bind dispatch to matching durable registry
+	// metadata before creating a run or pushing a job to the node.
+	DeploymentTier string
+	// RequestID is a stable caller-generated idempotency key. Reuse it when
+	// retrying after an ambiguous response so Bridge can return the same run.
+	RequestID string
+	Timeout   time.Duration
 }
 
 type DispatchResponse struct {
-	RunID  string
-	Detail string
+	RunID    string
+	Detail   string
+	Replayed bool
 }
 
 // Dispatch queues a typed job on a node.
 func (c *Client) Dispatch(ctx context.Context, req DispatchRequest) (DispatchResponse, error) {
-	if strings.TrimSpace(req.NodeID) == "" || strings.TrimSpace(req.Verb) == "" {
-		return DispatchResponse{}, &Error{Kind: ErrNodeNotFound, Node: req.NodeID, Verb: req.Verb, Err: errors.New("node id and verb are required")}
+	if err := validateDispatchRequest(req); err != nil {
+		return DispatchResponse{}, err
 	}
+	req.NodeID = strings.TrimSpace(req.NodeID)
+	req.Scenario = strings.TrimSpace(req.Scenario)
+	req.Verb = strings.TrimSpace(req.Verb)
 	callCtx, cancel := c.requestContext(ctx, req.Timeout)
 	defer cancel()
 	baseURL, err := c.endpoint(callCtx)
@@ -525,14 +535,40 @@ func (c *Client) Dispatch(ctx context.Context, req DispatchRequest) (DispatchRes
 		return DispatchResponse{}, err
 	}
 	client := dispatchconnect.NewDispatchServiceClient(c.transport(callCtx, baseURL), baseURL)
-	resp, err := client.DispatchJob(callCtx, connect.NewRequest(&dispatchv1.DispatchJobRequest{NodeId: req.NodeID, Scenario: req.Scenario, Verb: req.Verb, Args: append([]string(nil), req.Args...), TimeoutSeconds: seconds(req.Timeout)}))
+	resp, err := client.DispatchJob(callCtx, connect.NewRequest(&dispatchv1.DispatchJobRequest{NodeId: req.NodeID, Scenario: req.Scenario, Verb: req.Verb, Args: append([]string(nil), req.Args...), TimeoutSeconds: seconds(req.Timeout), RequestId: strings.TrimSpace(req.RequestID), DeploymentTier: strings.TrimSpace(req.DeploymentTier)}))
 	if err != nil {
 		return DispatchResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Verb, Err: err}
 	}
 	if resp == nil || resp.Msg == nil {
 		return DispatchResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Verb, Err: errors.New("Bridge returned no dispatch response")}
 	}
-	return DispatchResponse{RunID: resp.Msg.GetRunId()}, nil
+	return DispatchResponse{RunID: resp.Msg.GetRunId(), Replayed: resp.Msg.GetReplayed()}, nil
+}
+
+// IsPreEffectDispatchRefusal classifies Bridge responses that definitively
+// reject a request before queue/run effects. Timeouts and unavailable errors
+// remain ambiguous and must use the durable request key on retry.
+func IsPreEffectDispatchRefusal(err error) bool {
+	switch connect.CodeOf(err) {
+	case connect.CodeInvalidArgument, connect.CodeNotFound, connect.CodePermissionDenied, connect.CodeFailedPrecondition, connect.CodeUnauthenticated:
+		return true
+	default:
+		return false
+	}
+}
+
+// validateDispatchRequest is the shared caller-side boundary for durable
+// Bridge jobs. Bridge remains authoritative for node existence, grants, and
+// manifest admission; this check prevents an incomplete target or operation
+// from crossing the transport boundary at all.
+func validateDispatchRequest(req DispatchRequest) error {
+	nodeID := strings.TrimSpace(req.NodeID)
+	scenario := strings.TrimSpace(req.Scenario)
+	verb := strings.TrimSpace(req.Verb)
+	if nodeID == "" || scenario == "" || verb == "" {
+		return &Error{Kind: ErrInvalidRequest, Node: req.NodeID, Verb: req.Verb, Err: errors.New("node id, target scenario, and operation verb are required")}
+	}
+	return nil
 }
 
 // Wait blocks once on a durable Bridge run and returns its latest run state.

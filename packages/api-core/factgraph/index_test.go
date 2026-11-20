@@ -88,3 +88,37 @@ func TestNewIndexCountsGoImportSpecs(t *testing.T) {
 		t.Fatalf("Go import projection = %+v, found=%v", file, found)
 	}
 }
+
+func TestNewIndexProjectsAncestorParseUnitOntoRequestedTarget(t *testing.T) {
+	// A caller can request a directory inside a module. The Go unit still owns
+	// the module root, so the index must project only the requested subtree and
+	// make its paths target-relative rather than reject the unit.
+	report := &facts.CodeFactsReport{
+		Target: &facts.TargetContext{RootPath: "/repo/internal"},
+		Graphs: []*facts.LanguageGraph{{
+			ParseUnit: &facts.ParseUnit{Id: "go:/repo", Language: "go", RootPath: "/repo"},
+			Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+				{Id: "inside", Path: "internal/app/service.go", Attributes: map[string]string{"language": "go", "kind": "go_func"}},
+				{Id: "outside", Path: "packages/shared/code.go", Attributes: map[string]string{"language": "go", "kind": "go_func"}},
+			}},
+		}},
+	}
+	index := NewIndex(report)
+	if warnings := index.Warnings(); len(warnings) != 0 {
+		t.Fatalf("ancestor unit produced warnings: %v", warnings)
+	}
+	file, ok := index.File("app/service.go", "go")
+	if !ok || file.Path() != "app/service.go" || len(file.Nodes()) != 1 {
+		t.Fatalf("projected file = %+v, found=%v", file, ok)
+	}
+	if _, found := index.File("packages/shared/code.go", "go"); found {
+		t.Fatal("node outside the requested target must not be indexed")
+	}
+	units := index.Units()
+	if len(units) != 1 || units[0].Root() != "." || len(units[0].Nodes()) != 2 {
+		t.Fatalf("unit projection = %+v", units)
+	}
+	if !units[0].Nodes()[0].HasTargetPath() || units[0].Nodes()[1].HasTargetPath() {
+		t.Fatalf("target membership not marked: %+v", units[0].Nodes())
+	}
+}

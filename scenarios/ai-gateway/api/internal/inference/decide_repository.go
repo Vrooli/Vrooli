@@ -36,6 +36,8 @@ const (
 	reasonLocalityForbidden = "locality_forbidden"
 	reasonUnsupportedTypes  = "unsupported_question_types"
 	reasonInvalidAnswers    = "invalid_answers"
+	reasonSourceNotSelected = "source_not_selected"
+	reasonNoEligibleRoute   = "no_eligible_route"
 )
 
 // Decide walks the role's candidates in catalog order and returns the first
@@ -59,6 +61,10 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 	for _, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
 		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
 		response.Candidates = append(response.Candidates, row)
+		if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, "") {
+			skip(row, reasonSourceNotSelected, "candidate is outside the caller-selected AI source")
+			continue
+		}
 		switch {
 		case response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED:
 			row.Status = inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED
@@ -72,8 +78,15 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 		finalizeUsage(response.Usage)
 		return response
 	}
-	return decideError(response, terminalDecisionCode(response.Candidates),
-		fmt.Sprintf("no decision candidate answered for role %q (%s)", request.Role, summarizeCandidates(response.Candidates)), "")
+	code := terminalDecisionCode(response.Candidates)
+	message := fmt.Sprintf("no decision candidate answered for role %q (%s)", request.Role, summarizeCandidates(response.Candidates))
+	construct := ""
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && browserNoRouteOnly(response.Candidates) {
+		code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE
+		construct = "source_or_route_eligibility"
+		message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable an eligible route. No model inference was dispatched and funding was not changed"
+	}
+	return decideError(response, code, message, construct)
 }
 
 func (r *ResourceRepository) decideByModel(ctx context.Context, definition InferenceRole, request DecisionRequest, candidate Candidate, body string, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
@@ -88,6 +101,10 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 		return
 	}
 	row.Locality = resolved.Locality
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, resolved.Locality) {
+		skip(row, reasonSourceNotSelected, "resolved candidate is outside the caller-selected AI source")
+		return
+	}
 	providerRequest := ProviderRequest{Profile: request.Profile, PrivacyClass: request.PrivacyClass}
 	if !r.admitsRequest(ctx, providerRequest, candidate.Provider, resolved.Locality) {
 		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
@@ -154,6 +171,10 @@ func (r *ResourceRepository) decideByEnum(ctx context.Context, request DecisionR
 	// Work performed is billed whether or not it produced a usable value.
 	addUsage(response.Usage, run.GetUsage())
 	if failure := run.GetError(); failure != nil || !run.GetValidated() {
+		if failure != nil && failure.GetCode() == inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE {
+			fail(row, reasonNoEligibleRoute, strings.TrimSpace(failure.GetCode().String()+": "+failure.GetMessage()))
+			return
+		}
 		fail(row, providers.CodeProviderFailed, strings.TrimSpace(failure.GetCode().String()+": "+failure.GetMessage()))
 		return
 	}
@@ -166,6 +187,41 @@ func (r *ResourceRepository) decideByEnum(ctx context.Context, request DecisionR
 	response.Answers, response.Method = answers, inferencev1.DecisionMethod_DECISION_METHOD_LLM_ENUM
 	response.Provider, response.Model = run.GetProvider(), run.GetModel()
 	response.ResourceRole, response.LatencyMs = candidate.ResourceRole, row.LatencyMs
+}
+
+func browserCandidateMatchesSource(source, provider, locality string) bool {
+	source = strings.TrimSpace(source)
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	if source == "" {
+		return true
+	}
+	switch source {
+	case "local":
+		return provider == providers.ProviderOllama || provider == ProviderGateway ||
+			(provider == providers.ProviderOllaya && (locality == "" || strings.EqualFold(strings.TrimSpace(locality), "local")))
+	case "own-key":
+		return provider == providers.ProviderOpenRouter || provider == providers.ProviderOrcaRouter || provider == ProviderGateway
+	case "vrooli-credits":
+		return provider == providers.ProviderMetered || provider == ProviderGateway
+	default:
+		return false
+	}
+}
+
+func browserNoRouteOnly(rows []*inferencev1.DecisionCandidate) bool {
+	if len(rows) == 0 {
+		return true
+	}
+	for _, row := range rows {
+		if row.GetStatus() == inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_SKIPPED && row.GetReason() == reasonSourceNotSelected {
+			continue
+		}
+		if row.GetStatus() == inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_FAILED && row.GetReason() == reasonNoEligibleRoute {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func skip(row *inferencev1.DecisionCandidate, reason, detail string) {

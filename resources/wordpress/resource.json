@@ -93,17 +93,26 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined.",
+          "limitations": [
+            "A task-scoped WordPress runtime depends on the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         },
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined.",
+          "limitations": [
+            "A task-scoped WordPress runtime depends on the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         },
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined."
+          "reason": "A desktop-bundled Docker daemon and container lifecycle contract are not defined.",
+          "limitations": [
+            "A task-scoped WordPress runtime depends on the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         }
       }
     }

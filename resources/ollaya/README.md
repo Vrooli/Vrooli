@@ -112,6 +112,20 @@ The daemon loads models on demand and unloads them after `OLLAYA_KEEP_ALIVE`
 restarts with `OLLAYA_DEVICE=cpu`) when the broker asks. Laya runs well on the
 CPU; Winnow does not.
 
+When the CUDA backend is selected the daemon is pinned with
+`OLLAYA_DEVICE=cuda`. A Winnow load that cannot allocate its VRAM now fails with
+`MODEL_LOAD_FAILED` / `insufficient_vram` instead of silently falling back to a
+4–55 s CPU load. `model-policy.json` declares Winnow's `placement.device: gpu`
+and its 9 GiB footprint; before a local GPU-only model is dispatched,
+`gateway decide` checks the daemon's observed device and asks the shared broker
+(`vrooli capacity admit`) whether the declared footprint fits. A refusal is a
+typed `insufficient_vram` so ai-gateway falls back to `decide.fast` (Laya)
+without paying the CPU load.
+
+The companion never releases a claim just because a CPU-parked daemon holds no
+VRAM: the degraded claim records the operating mode, so it is heartbeated until
+the broker's upshift pass returns the resource to the accelerator.
+
 The required `activity-edge` companion owns the public loopback port `11435`.
 The daemon listens on the private upstream port `21435`. All local decision
 clients use the unchanged exported `OLLAYA_URL`; the edge forwards request and

@@ -3,10 +3,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -31,6 +29,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/retention"
@@ -296,25 +295,23 @@ func run() error {
 	h.SetCodingAgentRecoveryInitialization(codingAgentErr)
 	close(incidentReporterReady)
 	log.Printf("startup stage=handlers-created")
-	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {
-		h.SetIncidentEventPublisher(incidents.NewEventBusPublisher(eventsBase))
-	}
+	h.SetIncidentEventPublisher(incidents.NewEventBusPublisherResolver(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+	}))
 	log.Printf("startup stage=event-publisher-resolved")
-	if notificationBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub"); resolveErr == nil {
-		if verifier, verifierErr := remediation.NewNotificationHubAskVerifier(notificationBase, remediation.NewAskReaderTokens()); verifierErr == nil {
-			h.SetRemediationAskVerifier(verifier)
-			log.Printf("startup stage=remediation-ask-verifier-resolved")
-		} else {
-			log.Printf("warning: notification ask verifier unavailable: %v", verifierErr)
-		}
+	if verifier, verifierErr := remediation.NewNotificationHubAskVerifierResolver(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
+	}, remediation.NewAskReaderTokens()); verifierErr == nil {
+		h.SetRemediationAskVerifier(verifier)
+		log.Printf("startup stage=remediation-ask-verifier-configured")
 	} else {
-		log.Printf("warning: notification-hub URL unavailable for remediation ask verification: %v", resolveErr)
+		log.Printf("warning: notification ask verifier unavailable: %v", verifierErr)
 	}
 	h.SetSystemEventService(systemEventService)
 	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	configHandlers.SetMonitoringRefresher(supervisionController)
-	apiRouter := setupRouter(h, configHandlers)
+	apiRouter := setupRouter(startupCtx, h, configHandlers)
 	apiHandlers.RegisterTypedServices(apiRouter, h)
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
@@ -426,7 +423,7 @@ func manifestPath() string {
 }
 
 // setupRouter configures HTTP routes
-func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.Router {
+func setupRouter(lifecycle context.Context, h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
@@ -523,7 +520,7 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	// fleet-shared VROOLI_EVENTS_WEBHOOK_SECRET; without it the webhook is simply
 	// not mounted and the manual /approve REST route remains the only apply path
 	// (no regression).
-	mountDecisionResolutionWebhook(router, h)
+	mountDecisionResolutionWebhook(lifecycle, router, h)
 
 	return router
 }
@@ -563,7 +560,7 @@ func resolveEventsWebhookSecret() (string, error) {
 // the vrooli-events subscription that delivers to it. Both are best-effort: a
 // missing secret or an unreachable vrooli-events leaves the manual apply route
 // intact.
-func mountDecisionResolutionWebhook(router *mux.Router, h *apiHandlers.Handlers) {
+func mountDecisionResolutionWebhook(lifecycle context.Context, router *mux.Router, h *apiHandlers.Handlers) {
 	secret, err := resolveEventsWebhookSecret()
 	if err != nil || secret == "" {
 		// The webhook is best-effort: without a signing secret it cannot verify an
@@ -576,11 +573,17 @@ func mountDecisionResolutionWebhook(router *mux.Router, h *apiHandlers.Handlers)
 	router.Handle(apiHandlers.DecisionEventWebhookPath, apiHandlers.DecisionResolvedWebhook(h, secret)).Methods(http.MethodPost)
 	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			if err := reconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+apiHandlers.DecisionEventWebhookPath); err != nil {
-				log.Printf("warning: remediation decision event subscription reconciliation failed: %v", err)
+			resolve := func(ctx context.Context) (string, error) {
+				return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
 			}
+			eventbus.RunSubscriptionReconciler(lifecycle, eventbus.SubscriptionReconcilerConfig{
+				Interval: 30 * time.Second, AttemptTimeout: 15 * time.Second, CycleTimeout: time.Minute, Attempts: 5,
+				RetryDelayForAttempt: func(retry int) time.Duration { return 250 * time.Millisecond * time.Duration(1<<retry) },
+			}, func(ctx context.Context) error {
+				return reconcileDecisionEventSubscriptionWithResolver(ctx, "http://127.0.0.1:"+port+apiHandlers.DecisionEventWebhookPath, resolve)
+			}, func(err error) {
+				log.Printf("warning: remediation decision event subscription reconciliation failed; retry scheduled: %v", err)
+			})
 		}()
 	}
 }
@@ -590,78 +593,57 @@ func mountDecisionResolutionWebhook(router *mux.Router, h *apiHandlers.Handlers)
 // webhook. vrooli-events owns the durable row; this only ensures it exists and
 // points at the live target.
 func reconcileDecisionEventSubscription(ctx context.Context, target string) error {
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
-	if err != nil {
-		return err
-	}
-	base = strings.TrimRight(base, "/")
-	client := &http.Client{Timeout: 10 * time.Second}
-	var existing []struct {
-		ID             int64  `json:"id"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner=vrooli-autoheal", nil)
-	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
-		return err
-	}
-	const pattern = "notification_hub.ask.resolved.v1"
-	payload := map[string]any{"name": "vrooli-autoheal-decision-answers", "owner_scenario": "vrooli-autoheal", "event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
-			return nil
-		}
-		if item.Enabled && item.DeliveryTarget == target {
-			return putDecisionSubscription(ctx, client, base, item.ID, body)
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", resp.Status)
-	}
-	return nil
+	return reconcileDecisionEventSubscriptionWithResolver(ctx, target, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+	})
 }
 
-func putDecisionSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, id), bytes.NewReader(body))
+func reconcileDecisionEventSubscriptionWithResolver(ctx context.Context, target string, resolve func(context.Context) (string, error)) error {
+	if resolve == nil {
+		return fmt.Errorf("vrooli-events resolver is not configured")
+	}
+	base, err := resolve(ctx)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		return fmt.Errorf("vrooli-events resolver returned an empty URL")
+	}
+	return reconcileDecisionEventSubscriptionAt(ctx, base, target)
+}
+
+func reconcileDecisionEventSubscriptionAt(ctx context.Context, base, target string) error {
+	client, err := eventbus.NewSubscriptionClient(base, &http.Client{Timeout: 10 * time.Second})
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("update event subscription returned %s", resp.Status)
-	}
-	return nil
+	return client.EnsureNamedSubscription(ctx, eventbus.Subscription{
+		Name: "vrooli-autoheal-decision-answers", OwnerScenario: "vrooli-autoheal",
+		EventPattern: "notification_hub.ask.resolved.v1", DeliveryType: "webhook",
+		DeliveryTarget: target, Enabled: true,
+	})
+}
+
+func reconcileDecisionEventSubscriptionWithRetry(ctx context.Context, target string, resolve func(context.Context) (string, error), wait func(context.Context, time.Duration) error) error {
+	delays := [...]time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+	return eventbus.ReconcileSubscription(ctx, eventbus.SubscriptionReconcilerConfig{
+		Attempts: len(delays) + 1, AttemptTimeout: 15 * time.Second,
+		RetryDelayForAttempt: func(retry int) time.Duration {
+			if retry >= len(delays) {
+				return 0
+			}
+			return delays[retry]
+		},
+		Wait: func(ctx context.Context, delay time.Duration) bool {
+			if delay == 0 {
+				return ctx.Err() == nil
+			}
+			return wait(ctx, delay) == nil
+		},
+	}, func(ctx context.Context) error {
+		return reconcileDecisionEventSubscriptionWithResolver(ctx, target, resolve)
+	})
 }
 
 // loggingMiddleware prints simple request logs

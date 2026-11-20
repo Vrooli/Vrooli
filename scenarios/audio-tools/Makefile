@@ -50,17 +50,15 @@ logs: ## Show scenario logs
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
-# This is an explicit local/integration gate because it needs the running
-# audio-tools API, BAS Playwright driver, and Dictation Studio UI. Test Genie
-# does not execute arbitrary Make targets; its registered phase descriptors
-# remain the owner of scenario-suite phases.
+# This gate runs through the same Test Genie lease and BAS Broker contract as
+# the registered soak provider. The API selects the Dictation Studio UI and
+# fixed WAV; callers cannot select a driver endpoint or fixture path.
 soak-accelerated: ## Run the gated 60-minute accelerated browser soak
-	@test -n "$(SOAK_DRIVER_URL)" || { echo "SOAK_DRIVER_URL is required (for example http://127.0.0.1:24485)" >&2; exit 2; }
-	@test -n "$(SOAK_UI_URL)" || { echo "SOAK_UI_URL is required (for example http://127.0.0.1:20004)" >&2; exit 2; }
 	@test -n "$(SOAK_API_BASE)" || { echo "SOAK_API_BASE is required (for example http://127.0.0.1:19630)" >&2; exit 2; }
+	@test -n "$(VROOLI_AGENT_IDENTITY_TOKEN)" || { echo "VROOLI_AGENT_IDENTITY_TOKEN is required from a trusted Agent Manager run" >&2; exit 2; }
+	@test -n "$(VROOLI_BROWSER_GRANT_RECEIPT)" || { echo "VROOLI_BROWSER_GRANT_RECEIPT is required from the active Agent Manager run" >&2; exit 2; }
+	@test -n "$(TEST_GENIE_DEMAND_LEASE_RECEIPT_ID)" || { echo "TEST_GENIE_DEMAND_LEASE_RECEIPT_ID is required from an active Test Genie lease" >&2; exit 2; }
 	@audio-tools --api-base "$(SOAK_API_BASE)" soak run \
-		--driver-url "$(SOAK_DRIVER_URL)" --ui-url "$(SOAK_UI_URL)" \
-		--fixture "$(CURDIR)/bas/fixtures/dictation-reference.wav" \
 		--lane accelerated --profile continuous --turns 3 --feed-ms 2000 \
 		--reference-text "$(SOAK_REFERENCE_TEXT)" \
 		--engine-id virtual-replay --model-id virtual-corpus \

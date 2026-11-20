@@ -127,12 +127,8 @@
       "commands": [
         {
           "name": "run",
-          "description": "Drive Dictation Studio through BAS and emit one conformance.Run document",
+          "description": "Run the owner-authorized Audio Tools task through the BAS session broker and emit one conformance.Run document",
           "flags": [
-            {"name": "driver-url", "description": "Playwright driver URL (defaults to PLAYWRIGHT_DRIVER_URL)"},
-            {"name": "ui-url", "description": "Audio-tools UI URL (defaults to AUDIO_TOOLS_UI_URL or UI_BASE_URL)"},
-            {"name": "surface", "description": "Product surface: audio-tools or swarm-manager (defaults to audio-tools)"},
-            {"name": "fixture", "description": "Absolute WAV fixture path used by BAS fake_media"},
             {"name": "lane", "description": "accelerated or realtime"},
             {"name": "profile", "description": "realistic or continuous"},
             {"name": "turns", "description": "Number of product turns"},

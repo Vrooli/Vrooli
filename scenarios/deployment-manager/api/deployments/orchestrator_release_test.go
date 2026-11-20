@@ -99,12 +99,14 @@ type fakeLPBSClient struct {
 }
 
 type fakePublishPipelineRunner struct {
-	status *PipelineStatus
-	calls  int
+	status  *PipelineStatus
+	calls   int
+	request *PublishPipelineRequest
 }
 
-func (f *fakePublishPipelineRunner) RunPublishPipelineConnect(context.Context, *PublishPipelineRequest) (*PublishPipelineResponse, error) {
+func (f *fakePublishPipelineRunner) RunPublishPipelineConnect(_ context.Context, request *PublishPipelineRequest) (*PublishPipelineResponse, error) {
 	f.calls++
+	f.request = request
 	return &PublishPipelineResponse{PipelineID: "pipeline-1"}, nil
 }
 
@@ -637,10 +639,11 @@ func TestDeployCheckLPBSReadiness_SkipsWhenNoConfig(t *testing.T) {
 
 func TestPublishToLPBSFailsClosedWithoutExactCoordinates(t *testing.T) {
 	o := newOrch(nil, nil, &fakeLPBSConfigRepo{cfg: &profiles.LPBSReleaseConfig{ProfileID: "p1", LPBSAppKey: "app"}}, nil)
+	o.releaseIdentity = &candidateIdentityFake{destination: &releases.DestinationRevisionRecord{ID: "destination-1", Revision: releases.DestinationRevision{Kind: "lpbs", DestinationID: "staging", ConfigurationDigest: "sha256:config", Channel: "stable"}}}
 	step := OrchestrationStep{Name: "Publish desktop artifacts"}
 	response := &DeployDesktopResponse{}
-	o.publishToLPBS(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{ProfileID: "p1", ReleaseID: "release-1"}, response, &step)
-	if step.Status != "failed" || !strings.Contains(step.Error, "exact LPBS app key and remote profile") {
+	o.publishToDestination(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{ProfileID: "p1", ReleaseID: "release-1", DestinationRevisionID: "destination-1"}, response, &step)
+	if step.Status != "failed" || !strings.Contains(step.Error, "exact app key and remote profile") {
 		t.Fatalf("publish step = %+v", step)
 	}
 }
@@ -649,12 +652,12 @@ func TestPublishToLPBSRefusesCurrentProfileOutsideApprovedDestination(t *testing
 	runner := &fakePublishPipelineRunner{status: &PipelineStatus{CurrentState: "completed"}}
 	o := newOrch(nil, nil, &fakeLPBSConfigRepo{cfg: &profiles.LPBSReleaseConfig{ProfileID: "p1", LPBSAppKey: "app", LPBSRemoteProfile: "current"}}, newFakeReleasesRepo())
 	o.releaseIdentity = &candidateIdentityFake{destination: &releases.DestinationRevisionRecord{
-		ID: "destination-1", Revision: releases.DestinationRevision{DestinationID: "approved", Channel: "stable"},
+		ID: "destination-1", Revision: releases.DestinationRevision{Kind: "lpbs", DestinationID: "approved", ConfigurationDigest: "sha256:config", Channel: "stable"},
 	}}
 	o.publishPipelineRunner = runner
 	step := OrchestrationStep{Name: "Publish desktop artifacts"}
 	response := &DeployDesktopResponse{}
-	o.publishToLPBS(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{
+	o.publishToDestination(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{
 		ProfileID: "p1", ReleaseID: "release-1", DestinationRevisionID: "destination-1", Channel: "stable",
 	}, response, &step)
 	if step.Status != "failed" || !strings.Contains(step.Error, "does not match") {
@@ -668,6 +671,7 @@ func TestPublishToLPBSRefusesCurrentProfileOutsideApprovedDestination(t *testing
 func TestPublishToLPBSPersistenceFailureAfterOwnerStartIsAmbiguous(t *testing.T) {
 	relRepo := newFakeReleasesRepo()
 	o := newOrch(nil, nil, &fakeLPBSConfigRepo{cfg: &profiles.LPBSReleaseConfig{ProfileID: "p1", LPBSAppKey: "app", LPBSRemoteProfile: "staging"}}, relRepo)
+	o.releaseIdentity = &candidateIdentityFake{destination: &releases.DestinationRevisionRecord{ID: "destination-1", Revision: releases.DestinationRevision{Kind: "lpbs-channel", DestinationID: "staging", ConfigurationDigest: "sha256:config", Channel: "stable"}}}
 	o.publishedVersionsRepo = failingPublishedVersionRepo{}
 	o.publishPipelineRunner = &fakePublishPipelineRunner{status: &PipelineStatus{
 		CurrentState: "completed",
@@ -676,14 +680,18 @@ func TestPublishToLPBSPersistenceFailureAfterOwnerStartIsAmbiguous(t *testing.T)
 	}}
 	response := &DeployDesktopResponse{}
 	step := OrchestrationStep{Name: "Publish desktop artifacts"}
-	o.publishToLPBS(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{
-		ProfileID: "p1", ReleaseID: "release-1", Platforms: []string{"linux-x64"}, Channel: "stable", ReleaseVersion: "1.0.0", GitCommitHash: "commit-1", ArtifactDigest: "sha256:manifest",
+	o.publishToDestination(context.Background(), &profiles.Profile{Scenario: "demo"}, DeployDesktopRequest{
+		ProfileID: "p1", ReleaseID: "release-1", DestinationRevisionID: "destination-1", Platforms: []string{"linux-x64"}, Channel: "stable", ReleaseVersion: "1.0.0", GitCommitHash: "commit-1", ArtifactDigest: "sha256:manifest",
 	}, response, &step)
 	if response.Status != "ambiguous" || step.Status != "failed" {
 		t.Fatalf("owner effect followed by persistence failure = status %q, step %+v; want ambiguous/failed", response.Status, step)
 	}
 	if relRepo.statuses["release-1"] != releases.StatusAmbiguous {
 		t.Fatalf("durable release status = %q, want ambiguous", relRepo.statuses["release-1"])
+	}
+	runner := o.publishPipelineRunner.(*fakePublishPipelineRunner)
+	if runner.request == nil || runner.request.DeployConfig == nil || runner.request.DeployConfig.RemoteProfile != "staging" || runner.request.DeployConfig.AppKey != "app" || runner.request.Channel != "stable" {
+		t.Fatalf("resolved LPBS binding was not forwarded to owner pipeline: %#v", runner.request)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"ai-gateway/internal/providers"
 	"github.com/stretchr/testify/require"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -78,6 +79,47 @@ func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
 	require.Equal(t, "vision.default", role.Candidates[0].ResourceRole)
 	require.Equal(t, "vision.default", role.Candidates[1].ResourceRole)
 	require.Equal(t, "vision.default", role.Candidates[2].ResourceRole)
+}
+
+func TestCatalogDeclaresBrowserRolesOnExistingInferenceRoutes(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	locate := catalog.Roles["browser.locate"]
+	require.Len(t, locate.Candidates, 4)
+	require.True(t, IsVisualLocateRole("browser.locate"))
+	require.True(t, IsVisualLocateRole("locate.visual"))
+	require.False(t, IsVisualLocateRole("browser.extract"))
+	require.True(t, catalog.Roles["browser.decide"].IsDecision())
+	require.Len(t, catalog.Roles["browser.plan"].Candidates, 4)
+	require.Len(t, catalog.Roles["browser.extract"].Candidates, 4)
+}
+
+func TestBrowserInferenceRolesExposeLocalBYOKAndLPBSFundingPaths(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	for _, roleName := range []string{"browser.locate", "browser.plan", "browser.extract"} {
+		role := catalog.Roles[roleName]
+		providersSeen := map[string]bool{}
+		for _, candidate := range role.Candidates {
+			providersSeen[candidate.Provider] = true
+		}
+		require.True(t, providersSeen[providers.ProviderOllama], "%s needs its local route", roleName)
+		require.True(t, providersSeen[providers.ProviderOpenRouter], "%s needs its explicit BYOK route", roleName)
+		require.True(t, providersSeen[providers.ProviderMetered], "%s needs its LPBS route", roleName)
+	}
+	decision := catalog.Roles["browser.decide"]
+	delegatesToTypedGateway := false
+	for _, candidate := range decision.Candidates {
+		delegatesToTypedGateway = delegatesToTypedGateway || candidate.Provider == ProviderGateway && candidate.ResourceRole == "classify.fast"
+	}
+	require.True(t, delegatesToTypedGateway, "browser decision needs a typed Gateway fallback that inherits source context")
+	classifierProviders := map[string]bool{}
+	for _, candidate := range catalog.Roles["classify.fast"].Candidates {
+		classifierProviders[candidate.Provider] = true
+	}
+	require.True(t, classifierProviders[providers.ProviderOllama], "browser decision enum fallback needs local source support")
+	require.True(t, classifierProviders[providers.ProviderOpenRouter], "browser decision enum fallback needs BYOK source support")
+	require.True(t, classifierProviders[providers.ProviderMetered], "browser decision enum fallback needs LPBS source support")
 }
 
 func TestCatalogDeclaresUXVisualCritiqueAsLocalVisionRole(t *testing.T) {

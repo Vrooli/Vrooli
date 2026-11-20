@@ -33,6 +33,11 @@
   "description": "Local-first, capacity-admitted audio analysis and source separation for Music Tools; outputs stay private and preserve provenance and competing estimates.",
   "display_name": "Music MIR",
   "driver": "managed-service",
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
   "managed_service": {
     "artifact": {
       "path": "server/music-mir",

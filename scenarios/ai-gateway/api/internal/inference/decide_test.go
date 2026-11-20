@@ -333,3 +333,25 @@ func TestCatalogRejectsMixedRoleKinds(t *testing.T) {
 		require.Error(t, RoleCatalog{SchemaVersion: 1, Roles: roles}.Validate(), name)
 	}
 }
+
+func TestBrowserDecisionHonorsSelectedSourceAndReturnsActionableNoRoute(t *testing.T) {
+	runner := &providermocks.FakeRunner{}
+	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+		"browser.decide": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: providers.ProviderOllaya, ResourceRole: "decide.local", Reason: "local"}}},
+	}}
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{{
+		Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: runner,
+	}})
+	require.NoError(t, err)
+	response := repository.Decide(providers.WithSource(context.Background(), "own-key"), DecisionRequest{
+		Role: "browser.decide", State: "Choose the next browser action.",
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Questions:         []*inferencev1.DecisionQuestion{choice("action", "click", "wait")},
+	}, nil)
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, response.GetError().GetCode())
+	require.Equal(t, "source_or_route_eligibility", response.GetError().GetConstruct())
+	require.Contains(t, response.GetError().GetMessage(), "select an available source")
+	require.Contains(t, response.GetError().GetMessage(), "No model inference was dispatched")
+	require.Equal(t, reasonSourceNotSelected, response.GetCandidates()[0].GetReason())
+	require.Empty(t, runner.Commands, "own-key must never use the configured Ollaya route")
+}

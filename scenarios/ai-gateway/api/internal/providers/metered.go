@@ -17,6 +17,8 @@ import (
 
 var ErrInsufficientCredits = errors.New("insufficient credits")
 
+const CodeOutcomeUncertain = "outcome_uncertain"
+
 type accessTokenContextKey struct{}
 
 // WithAccessToken carries the already-verified consumer bearer token from the
@@ -64,6 +66,7 @@ type MeteredClient struct {
 
 type MeteredRequest struct {
 	Role            string                  `json:"role"`
+	RootOperationID string                  `json:"-"`
 	Messages        []MeteredMessage        `json:"messages"`
 	ConstraintsJSON string                  `json:"constraints_json,omitempty"`
 	MaxTokens       int                     `json:"max_tokens,omitempty"`
@@ -71,6 +74,14 @@ type MeteredRequest struct {
 	Profile         sharedv1.Profile        `json:"-"`
 	SpendLimit      *inferencev1.SpendLimit `json:"spend_limit,omitempty"`
 	Images          []MeteredImage          `json:"images,omitempty"`
+	BrowserSession  *MeteredBrowserSession  `json:"browser_session,omitempty"`
+}
+
+type MeteredBrowserSession struct {
+	ReservationID string `json:"reservation_id,omitempty"`
+	RunID         string `json:"run_id"`
+	SessionID     string `json:"session_id"`
+	GrantReceipt  string `json:"grant_receipt"`
 }
 
 type MeteredImage struct {
@@ -86,6 +97,8 @@ type MeteredMessage struct {
 
 type MeteredResponse struct {
 	ID                 string                          `json:"id"`
+	RootOperationID    string                          `json:"root_operation_id,omitempty"`
+	BillingOperationID string                          `json:"billing_operation_id,omitempty"`
 	Content            string                          `json:"content"`
 	PromptTokens       int64                           `json:"prompt_tokens"`
 	CompletionTokens   int64                           `json:"completion_tokens"`
@@ -124,6 +137,24 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 	if strings.TrimSpace(request.Role) == "" || len(request.Messages) == 0 {
 		return MeteredResponse{}, errors.New("metered inference role and messages are required")
 	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !validMeteredRootOperationID(request.RootOperationID) {
+		return MeteredResponse{}, &CommandError{Code: CodeUnconfigured, Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires a caller-generated root_operation_id")}
+	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
+		binding := request.BrowserSession
+		if binding == nil || strings.TrimSpace(binding.RunID) == "" || strings.TrimSpace(binding.SessionID) == "" || strings.TrimSpace(binding.GrantReceipt) == "" || len(binding.RunID) > 64 || len(binding.SessionID) > 128 || len(binding.GrantReceipt) > 512 || strings.ContainsAny(binding.RunID+binding.SessionID+binding.GrantReceipt, "\r\n") {
+			return MeteredResponse{}, &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires its authenticated run, grant and BAS session binding")}
+		}
+	}
+	if request.RootOperationID != "" {
+		if request.Metadata == nil {
+			request.Metadata = make(map[string]string)
+		}
+		if existing := strings.TrimSpace(request.Metadata["gateway_root_operation_id"]); existing != "" && existing != request.RootOperationID {
+			return MeteredResponse{}, &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("metered metadata operation id conflicts with the Gateway root operation id")}
+		}
+		request.Metadata["gateway_root_operation_id"] = request.RootOperationID
+	}
 	baseURL := c.baseURL
 	if profileURL := strings.TrimSpace(c.profileURLs[request.Profile]); profileURL != "" {
 		baseURL = strings.TrimRight(profileURL, "/")
@@ -158,13 +189,13 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 	response, err := c.httpClient.Do(httpRequest)
 	if err != nil {
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("metered inference request failed: %w", err)
+		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: %w", request.RootOperationID, err)}
 	}
 	defer response.Body.Close()
 	bodyBytes, readErr := io.ReadAll(response.Body)
 	if readErr != nil {
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("read metered inference response: %w", readErr)
+		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: read response: %w", request.RootOperationID, readErr)}
 	}
 	if c.egress != nil {
 		_ = c.egress.Record(ctx, ProviderMetered, request.Role, request.Profile, response.StatusCode)
@@ -181,6 +212,10 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
 				Err: fmt.Errorf("%w: %s", ErrInsufficientCredits, detail),
 			}
+		}
+		if response.StatusCode >= http.StatusInternalServerError && request.RootOperationID != "" {
+			c.failed()
+			return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: HTTP %d: %s", request.RootOperationID, response.StatusCode, detail)}
 		}
 		c.failed()
 		// 429 and 5xx are transient: carry the observed Retry-After so the
@@ -208,10 +243,22 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 	var result MeteredResponse
 	if decodeErr := json.Unmarshal(bodyBytes, &result); decodeErr != nil {
 		c.failed()
-		return MeteredResponse{}, fmt.Errorf("decode metered inference response: %w", decodeErr)
+		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: decode response: %w", request.RootOperationID, decodeErr)}
+	}
+	if request.RootOperationID != "" && result.RootOperationID != request.RootOperationID {
+		c.failed()
+		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: response operation identity did not match", request.RootOperationID)}
+	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && strings.TrimSpace(result.BillingOperationID) == "" {
+		c.failed()
+		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, Err: errors.New("metered response omitted its LPBS session reservation identity")}
 	}
 	c.succeeded()
 	return result, nil
+}
+
+func validMeteredRootOperationID(value string) bool {
+	return len(value) >= 32 && len(value) <= 128 && strings.TrimSpace(value) == value && !strings.ContainsAny(value, " \t\r\n")
 }
 
 func (c *MeteredClient) allow() bool {

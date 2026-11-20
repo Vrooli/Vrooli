@@ -97,5 +97,10 @@
         }
       }
     }
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
   }
 }

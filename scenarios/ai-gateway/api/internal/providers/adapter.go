@@ -165,6 +165,9 @@ type Inventory struct {
 }
 
 type ExecutionRequest struct {
+	// RootOperationID binds a metered-provider reservation to the Gateway's
+	// caller-visible recovery receipt. It is an idempotency key, not authority.
+	RootOperationID              string
 	Kind                         sharedv1.RequestKind
 	Role                         string
 	ExpectedModel                string
@@ -188,6 +191,7 @@ type ExecutionRequest struct {
 	SchemaJSON  string
 	Attachments []*sharedv1.Attachment
 	SpendLimit  *inferencev1.SpendLimit
+	BrowserSession *inferencev1.BrowserSessionBinding
 	// IdempotencyKey is one Gateway-persisted HostedDoor child attempt identity.
 	IdempotencyKey        string
 	ExpectedKeyGeneration string
@@ -197,6 +201,7 @@ type ExecutionRequest struct {
 
 type ExecutionResult struct {
 	OutputText         string
+	BillingOperationID string
 	ExitCode           int
 	SpendAuthorization *inferencev1.SpendAuthorization
 	Recovery           *inferencev1.RecoveryReceipt
@@ -416,7 +421,7 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		if a.Metered == nil {
 			return ResolvedRole{}, &CommandError{Code: "unavailable", Command: a.Provider, ExitCode: -1, Err: errors.New("metered inference client is not configured")}
 		}
-		return ResolvedRole{Provider: a.Provider, Role: role, Model: "policy-resolved", CanonicalModel: "policy-resolved"}, nil
+		return ResolvedRole{Provider: a.Provider, Role: role, Model: "policy-resolved", CanonicalModel: "policy-resolved", Locality: "remote"}, nil
 	}
 	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"policy", "resolve", "--role", role, "--json"}, Timeout: DefaultCommandTimeout})
 	if err != nil {
@@ -579,10 +584,17 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 			}
 			images = append(images, MeteredImage{Data: base64.StdEncoding.EncodeToString(attachment.GetInlineBytes()), MediaType: attachment.GetMediaType(), SHA256: digestBytes(attachment.GetInlineBytes())})
 		}
+		var browserSession *MeteredBrowserSession
+		if req.BrowserSession != nil {
+			browserSession = &MeteredBrowserSession{ReservationID: req.BrowserSession.GetReservationId(), RunID: req.BrowserSession.GetRunId(), SessionID: req.BrowserSession.GetSessionId(), GrantReceipt: req.BrowserSession.GetGrantReceipt()}
+		}
 		result, err := a.Metered.Run(ctx, MeteredRequest{
 			Role: req.Role, Messages: []MeteredMessage{{Role: "user", Content: req.InputText}},
 			ConstraintsJSON: req.SchemaJSON, MaxTokens: int(req.MaxOutputTokens),
 			Profile: req.Profile, SpendLimit: req.SpendLimit, Images: images,
+			RootOperationID: req.RootOperationID,
+			Metadata:        map[string]string{"gateway_root_operation_id": req.RootOperationID},
+			BrowserSession:  browserSession,
 		})
 		if err != nil {
 			return ExecutionResult{}, mapCommandError(a.Provider, err)
@@ -591,7 +603,7 @@ func (a Adapter) Execute(ctx context.Context, req ExecutionRequest) (ExecutionRe
 		if marshalErr != nil {
 			return ExecutionResult{}, fmt.Errorf("encode metered inference result: %w", marshalErr)
 		}
-		return ExecutionResult{OutputText: string(encoded), SpendAuthorization: result.SpendAuthorization}, nil
+		return ExecutionResult{OutputText: string(encoded), SpendAuthorization: result.SpendAuthorization, BillingOperationID: result.BillingOperationID}, nil
 	}
 	command, err := a.executionCommand(req)
 	if err != nil {

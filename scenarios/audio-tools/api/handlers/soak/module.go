@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"audio-tools/internal/acceptance"
 	"audio-tools/internal/conformance"
@@ -90,10 +91,55 @@ func serveVirtualCorpus(w http.ResponseWriter, r *http.Request) {
 func serve(w http.ResponseWriter, r *http.Request, d Deps) {
 	var opt soak.Options
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10))
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&opt); err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("decode soak options: %v", err))
 		return
 	}
+	identityToken, okIdentity := exactlyOneHeader(r, "X-Agent-Identity-Token")
+	grantReceipt, okGrant := exactlyOneHeader(r, "X-Vrooli-Browser-Grant-Receipt")
+	testLeaseReceipt, okLease := exactlyOneHeader(r, "X-Test-Genie-Lease-Receipt")
+	if !okIdentity || !okGrant || !okLease {
+		writeError(w, http.StatusUnauthorized, "soak requires one run identity, browser grant, and Test Genie lease receipt")
+		return
+	}
+	testGenieURL := firstNonEmpty(os.Getenv("TEST_GENIE_API_URL"), os.Getenv("TEST_GENIE_URL"))
+	if testGenieURL == "" {
+		writeError(w, http.StatusFailedDependency, "Test Genie lease verifier is not configured")
+		return
+	}
+	if err := VerifyAudioToolsDemandLease(r.Context(), testGenieURL, testLeaseReceipt, &http.Client{Timeout: 5 * time.Second}); err != nil {
+		writeError(w, http.StatusForbidden, "Test Genie did not verify an active Audio Tools lease")
+		return
+	}
+	brokerURL := firstNonEmpty(os.Getenv("BROWSER_AUTOMATION_STUDIO_API_URL"), os.Getenv("BAS_API_URL"))
+	if brokerURL == "" {
+		writeError(w, http.StatusFailedDependency, "BAS Agent Access endpoint is not configured")
+		return
+	}
+	brokerURL = strings.TrimRight(brokerURL, "/")
+	if !strings.HasSuffix(brokerURL, "/api/v1") {
+		brokerURL += "/api/v1"
+	}
+	uiURL := firstNonEmpty(os.Getenv("SOAK_UI_URL"), os.Getenv("AUDIO_TOOLS_UI_URL"), os.Getenv("UI_BASE_URL"))
+	if uiURL == "" {
+		writeError(w, http.StatusFailedDependency, "server-selected Audio Tools UI URL is not configured")
+		return
+	}
+	if requestedSurface := strings.TrimSpace(opt.Surface); requestedSurface != "" && requestedSurface != "audio-tools" {
+		writeError(w, http.StatusBadRequest, "the managed Audio Tools soak only supports its owner-selected product surface")
+		return
+	}
+	fixture, err := soak.FixedDictationFixture(os.Getenv("VROOLI_ROOT"))
+	if err != nil {
+		writeError(w, http.StatusFailedDependency, "fixed Audio Tools qualification fixture is unavailable")
+		return
+	}
+	opt.UIURL = strings.TrimRight(uiURL, "/")
+	opt.Surface = "audio-tools"
+	opt.Fixture = fixture
+	ownerCtx := soak.WithBrowserOwnerCredentials(r.Context(), identityToken, grantReceipt, testLeaseReceipt)
+	ownerCtx = soak.WithManagedBrowserOwner(ownerCtx, brokerURL)
 	// A normal product-path run may be observed without a temporary database
 	// lease. Deterministic fault injection remains double-gated by the same
 	// test-genie isolation seam used by the WebSocket transport. The explicit
@@ -110,7 +156,7 @@ func serve(w http.ResponseWriter, r *http.Request, d Deps) {
 	// cancellation must not close the browser lease halfway through a valid
 	// long-form capture. RunTimeout still bounds the detached work, and scenario
 	// stop remains the operator-level abort mechanism.
-	runCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), soak.RunTimeout(opt))
+	runCtx, cancel := context.WithTimeout(context.WithoutCancel(ownerCtx), soak.RunTimeout(opt))
 	defer cancel()
 	result, runErr := soak.RunWithEvidence(runCtx, opt, d.Ledgers)
 	artifactRef, persistErr := soak.PersistEvidence(result.Run)
@@ -133,6 +179,23 @@ func serve(w http.ResponseWriter, r *http.Request, d Deps) {
 	if runErr != nil {
 		return
 	}
+}
+
+func exactlyOneHeader(r *http.Request, name string) (string, bool) {
+	values := r.Header.Values(name)
+	if len(values) != 1 || strings.TrimSpace(values[0]) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(values[0]), true
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func persistQualificationEvidence(ctx context.Context, service *intexp.Service, opt soak.Options, result soak.Result, runErr error, artifactRef string) error {

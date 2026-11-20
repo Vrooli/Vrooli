@@ -43,6 +43,7 @@ type diskPressureWriter struct {
 type systemMonitorDiskPressureReader struct {
 	client  *http.Client
 	baseURL string
+	resolve func(context.Context) (string, error)
 }
 
 // NewSystemMonitorDiskPressureReader creates the production reader. The URL
@@ -53,6 +54,16 @@ func NewSystemMonitorDiskPressureReader(client *http.Client, baseURL string) Dis
 		client = &http.Client{Timeout: 3 * time.Second}
 	}
 	return &systemMonitorDiskPressureReader{client: client, baseURL: strings.TrimRight(baseURL, "/")}
+}
+
+// NewSystemMonitorDiskPressureReaderResolver injects local target resolution
+// for callers that need to prove or customize restart recovery. A non-empty
+// base URL passed to NewSystemMonitorDiskPressureReader remains pinned.
+func NewSystemMonitorDiskPressureReaderResolver(client *http.Client, resolve func(context.Context) (string, error)) DiskPressureReader {
+	if client == nil {
+		client = &http.Client{Timeout: 3 * time.Second}
+	}
+	return &systemMonitorDiskPressureReader{client: client, resolve: resolve}
 }
 
 func (r *systemMonitorDiskPressureReader) ReadDiskPressure(ctx context.Context) (DiskPressure, error) {
@@ -107,9 +118,18 @@ func (r *systemMonitorDiskPressureReader) resolveURL(ctx context.Context) (strin
 	if r.baseURL != "" {
 		return r.baseURL, nil
 	}
-	url, err := discovery.ResolveScenarioURLDefault(ctx, "system-monitor")
+	resolve := r.resolve
+	if resolve == nil {
+		resolve = func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "system-monitor")
+		}
+	}
+	url, err := resolve(ctx)
 	if err != nil {
 		return "", fmt.Errorf("resolve system-monitor: %w", err)
+	}
+	if strings.TrimSpace(url) == "" {
+		return "", fmt.Errorf("resolve system-monitor: empty URL")
 	}
 	return strings.TrimRight(url, "/"), nil
 }

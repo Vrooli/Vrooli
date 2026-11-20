@@ -1546,3 +1546,23 @@ drill, or browse on the same spinning disk cannot starve the control plane's
 volume inspection; it remains bounded for a genuinely hung control plane.
 
 **Refs:** `api/internal/runs/service.go`, `api/internal/runs/concurrency_test.go`.
+
+### 2026-11-19 — a 30-minute drill poll bound marks large restores failed (fixed)
+
+**Symptom:** the 73 GB `research-desk/research-home` drill was marked
+`DRILL_STATUS_FAILED` with "verified restore did not reach a terminal state
+before the drill timeout" while the restore was still running and had reached
+about 46 GB. The restore process kept running after the drill record failed.
+
+**Root cause:** `drills.NewService` defaulted `PollTimeout` to 30 minutes. A
+large snapshot on this spinning USB drive takes roughly an hour to restore and
+hash, so the bound was shorter than the work it was bounding.
+
+**Fix:** the default is now three hours, because the verified restore also does
+a 100% byte-verify and a tree checksum after the restore itself. The drill still
+fails closed on a genuinely stuck restore. A timed-out drill does not cancel the
+linked restore; the restore record remains the authority for whether the bytes
+verified.
+
+**Refs:** `api/internal/drills/service.go` `NewService`,
+`api/internal/drills/service.go` `execute`.

@@ -85,17 +85,26 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined.",
+          "limitations": [
+            "n8n runs only in the control-plane Docker lifecycle; no desktop bundle, installer, or supervised host process exists."
+          ]
         },
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined.",
+          "limitations": [
+            "n8n runs only in the control-plane Docker lifecycle; no desktop bundle, installer, or supervised host process exists."
+          ]
         },
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined.",
+          "limitations": [
+            "n8n runs only in the control-plane Docker lifecycle; no desktop bundle, installer, or supervised host process exists."
+          ]
         }
       }
     }

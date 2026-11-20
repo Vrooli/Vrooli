@@ -131,12 +131,34 @@ func TestValidateRejectsUnsafePolicies(t *testing.T) {
 			u.Credentials = []Credential{{Env: "K", Use: "bearer"}}
 			p.Upstreams["local"] = u
 		},
+		"gpu placement without a footprint": func(p *Policy) {
+			p.Models["m"] = Model{Digest: "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d", Placement: &ModelPlacement{Device: PlacementDeviceGPU}}
+		},
+		"unknown placement device": func(p *Policy) {
+			p.Models["m"] = Model{Digest: "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d", Placement: &ModelPlacement{Device: "tpu"}}
+		},
 	}
 	for name, mutate := range cases {
 		p := base()
 		mutate(&p)
 		if err := p.Validate(); err == nil {
 			t.Fatalf("%s: Validate() = nil, want rejection", name)
+		}
+	}
+}
+
+func TestShippedPolicyMarksWinnowGPUOnlyAndAllowsLayaOnCPU(t *testing.T) {
+	p := shippedPolicy(t)
+	winnow, ok := p.Models["winnow:e4b"]
+	if !ok || !winnow.RequiresGPU() {
+		t.Fatalf("winnow:e4b = %+v, want a GPU-required placement", winnow)
+	}
+	if winnow.Placement.VRAMBytes <= winnow.DiskBytes {
+		t.Fatalf("winnow vram_bytes %d must exceed its on-disk size %d", winnow.Placement.VRAMBytes, winnow.DiskBytes)
+	}
+	for _, name := range []string{"laya", "laya:en", "laya:multilingual"} {
+		if p.Models[name].RequiresGPU() {
+			t.Fatalf("%s must remain CPU-capable", name)
 		}
 	}
 }

@@ -89,6 +89,9 @@ func (h *Handlers) Decide(args []string) error {
 		if err != nil {
 			return h.fail(err)
 		}
+		if err := h.requireModelPlacement(ctx, p, resolution); err != nil {
+			return h.fail(err)
+		}
 	}
 	result, err := h.client().Decide(ctx, resolution, request)
 	if err != nil {

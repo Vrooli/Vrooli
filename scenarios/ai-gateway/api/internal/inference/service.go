@@ -17,6 +17,8 @@ import (
 )
 
 var ErrUnavailable = errors.New("typed inference is unavailable")
+var ErrNoEligibleRoute = errors.New("no eligible source route exists before provider dispatch")
+var ErrOutcomeUncertain = errors.New("provider outcome is uncertain; do not dispatch a fallback")
 
 const (
 	MaxBatchSize = 256
@@ -80,6 +82,12 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 	}
 	if strings.TrimSpace(request.Role) == "" {
 		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
+	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !validRootOperationID(request.RootOperationID) {
+		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "browser inference requires a caller-generated root_operation_id for exact reservation reconciliation", "root_operation_id")
+	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !validBrowserSessionBinding(request.BrowserSession) {
+		return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "browser inference requires its authenticated run, grant and BAS session binding", "browser_session")
 	}
 	if s.codeRoleContract != nil {
 		contract, declared := s.codeRoleContract(request.Role)
@@ -153,16 +161,27 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 			// Provider failures are not retried here: the repository already
 			// walks every declared candidate before reporting one.
 			code, construct := samplingErrorCode(err)
+			message := err.Error()
+			if errors.Is(err, ErrOutcomeUncertain) {
+				code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN
+				construct = "root_operation_id"
+				message = fmt.Sprintf("provider outcome is uncertain; reuse root_operation_id %q for reconciliation and do not switch funding source", request.RootOperationID)
+			} else if errors.Is(err, ErrNoEligibleRoute) {
+				code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE
+				construct = "source_or_route_eligibility"
+				message = "no eligible route is configured for this browser source and profile; select an available source or ask the account owner to enable an eligible route. No model inference was dispatched and funding was not changed"
+			}
 			if errors.Is(err, ErrRootConflict) {
 				code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "root_operation_id"
 			}
 			if errors.Is(err, ErrRootRequired) {
 				code, construct = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "root_operation_id"
 			}
-			return withError(response, code, err.Error(), construct)
+			return withError(response, code, message, construct)
 		}
 		response.ValueJson = result.ValueJSON
-		if strings.TrimSpace(request.Role) == "locate.visual" {
+		response.BillingOperationId = result.BillingOperationID
+		if IsVisualLocateRole(request.Role) {
 			value, err := NormalizeLocateVisualJSON(result.ValueJSON, result.CoordinateConvention, requestAttachments(request))
 			if err != nil {
 				return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, err.Error(), "bounds")
@@ -179,6 +198,19 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 	}
 	return withError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED,
 		fmt.Sprintf("provider value failed local validation within the provider-call budget: %v", validationErr), "")
+}
+
+func validBrowserSessionBinding(binding *inferencev1.BrowserSessionBinding) bool {
+	if binding == nil || strings.TrimSpace(binding.RunId) == "" || strings.TrimSpace(binding.SessionId) == "" || strings.TrimSpace(binding.GrantReceipt) == "" {
+		return false
+	}
+	if strings.TrimSpace(binding.RunId) != binding.RunId || strings.TrimSpace(binding.SessionId) != binding.SessionId || strings.TrimSpace(binding.GrantReceipt) != binding.GrantReceipt {
+		return false
+	}
+	if len(binding.RunId) > 64 || len(binding.SessionId) > 128 || len(binding.GrantReceipt) > 512 || strings.ContainsAny(binding.RunId+binding.SessionId+binding.GrantReceipt, "\r\n") {
+		return false
+	}
+	return true
 }
 
 // repairInstruction re-asks with the local validator's rejection attached. The
@@ -256,6 +288,15 @@ func (s *Service) Decide(ctx context.Context, request DecisionRequest) *inferenc
 func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
 	if strings.TrimSpace(request.Role) == "" {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
+	}
+	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
+		// DecideRequest currently has no Gateway-verified AM/BAS browser binding.
+		// Do not make a browser decision dispatch based on user-account auth or
+		// infer authority from question/state fields. Keep the catalog route for
+		// source-policy inspection, but fail closed until an owner supplies a
+		// verified run/grant/session context.
+		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE,
+			"browser decision has no supported verified run, grant and BAS session binding path; no inference was dispatched", "browser_session")
 	}
 	if err := ValidateState(request.State, request.StateJSON); err != nil {
 		return decisionRefusal(err)

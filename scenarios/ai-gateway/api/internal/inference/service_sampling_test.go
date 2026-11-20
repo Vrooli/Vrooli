@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,10 +28,12 @@ func TestServiceMapsSamplingErrorsAndAlwaysReportsApplied(t *testing.T) {
 		{"role forbids override", ErrRoleForbidsSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "sampling.temperature"},
 		{"no candidate honors", ErrUnsupportedSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING, "sampling.temperature"},
 		{"context overflow", ErrContextOverflow, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW, "context"},
+		{"no browser route", ErrNoEligibleRoute, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE, "source_or_route_eligibility"},
+		{"metered outcome uncertain", ErrOutcomeUncertain, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN, "root_operation_id"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			service := NewService(samplingErrRepo{err: tc.err})
-			response := service.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
+			response := service.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: strings.Repeat("a", 64),
 				Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.default",
 			})
 			require.Equal(t, tc.want, response.GetError().GetCode())
@@ -39,6 +42,37 @@ func TestServiceMapsSamplingErrorsAndAlwaysReportsApplied(t *testing.T) {
 			require.Equal(t, sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED,
 				response.GetApplied().GetTemperatureSupport(),
 				"no candidate resolved, so there is no declaration to report")
+			if tc.want == inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE {
+				require.Contains(t, response.GetError().GetMessage(), "select an available source")
+				require.Contains(t, response.GetError().GetMessage(), "No model inference was dispatched")
+			}
+			if tc.want == inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN {
+				require.Contains(t, response.GetError().GetMessage(), "do not switch funding source")
+			}
 		})
 	}
+}
+
+func TestBrowserInferenceRequiresRootOperationBeforeRepositoryDispatch(t *testing.T) {
+	repo := &countingFailingRepository{}
+	service := NewService(repo)
+	response := service.Run(context.Background(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input", Role: "browser.plan", SchemaJSON: `{"type":"object"}`, Source: "fixture",
+	})
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, response.GetError().GetCode())
+	require.Equal(t, "root_operation_id", response.GetError().GetConstruct())
+	require.Contains(t, response.GetError().GetMessage(), "reservation reconciliation")
+	require.Zero(t, repo.calls(), "missing operation identity must refuse before provider repository dispatch")
+}
+
+func TestBrowserInferenceRequiresAuthenticatedSessionBindingBeforeRepositoryDispatch(t *testing.T) {
+	repo := &countingFailingRepository{}
+	service := NewService(repo)
+	response := service.Run(context.Background(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input", Role: "browser.plan", SchemaJSON: `{"type":"object"}`, Source: "fixture",
+		RootOperationID: strings.Repeat("a", 64),
+	})
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, response.GetError().GetCode())
+	require.Equal(t, "browser_session", response.GetError().GetConstruct())
+	require.Zero(t, repo.calls(), "missing session binding must refuse before provider repository dispatch")
 }

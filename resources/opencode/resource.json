@@ -274,8 +274,8 @@
           "arch": "amd64"
         },
         "package": "opencode-ai",
-        "version": "1.18.30",
-        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90",
+        "version": "1.19.6",
+        "sha256": "ef5c2a900b41cdcddcd0009a535c8a9f34e536f91240d0156be4e2d0b0287d13",
         "bin_path": "node_modules/opencode-linux-x64-baseline/bin/opencode"
       },
       {
@@ -284,8 +284,8 @@
           "arch": "arm64"
         },
         "package": "opencode-ai",
-        "version": "1.18.30",
-        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+        "version": "1.19.6",
+        "sha256": "ef5c2a900b41cdcddcd0009a535c8a9f34e536f91240d0156be4e2d0b0287d13"
       },
       {
         "when": {
@@ -293,8 +293,8 @@
           "arch": "amd64"
         },
         "package": "opencode-ai",
-        "version": "1.18.30",
-        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+        "version": "1.19.6",
+        "sha256": "ef5c2a900b41cdcddcd0009a535c8a9f34e536f91240d0156be4e2d0b0287d13"
       },
       {
         "when": {
@@ -302,8 +302,52 @@
           "arch": "arm64"
         },
         "package": "opencode-ai",
-        "version": "1.18.30",
-        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+        "version": "1.19.6",
+        "sha256": "ef5c2a900b41cdcddcd0009a535c8a9f34e536f91240d0156be4e2d0b0287d13"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "channel": "v2",
+        "package": "@opencode/cli",
+        "version": "2.3.2",
+        "sha256": "85ae5c75403995448cd497ed14e7bd8795747ebca565d60b896050035ecfe81d",
+        "bin_path": "node_modules/@opencode/cli-linux-x64-baseline/bin/opencode"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "channel": "v2",
+        "package": "@opencode/cli",
+        "version": "2.3.2",
+        "sha256": "85ae5c75403995448cd497ed14e7bd8795747ebca565d60b896050035ecfe81d",
+        "bin_path": "node_modules/@opencode/cli-linux-arm64/bin/opencode"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "amd64"
+        },
+        "channel": "v2",
+        "package": "@opencode/cli",
+        "version": "2.3.2",
+        "sha256": "85ae5c75403995448cd497ed14e7bd8795747ebca565d60b896050035ecfe81d",
+        "bin_path": "node_modules/@opencode/cli-darwin-x64-baseline/bin/opencode"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "arm64"
+        },
+        "channel": "v2",
+        "package": "@opencode/cli",
+        "version": "2.3.2",
+        "sha256": "85ae5c75403995448cd497ed14e7bd8795747ebca565d60b896050035ecfe81d",
+        "bin_path": "node_modules/@opencode/cli-darwin-arm64/bin/opencode"
       }
     ]
   },
@@ -464,7 +508,7 @@
       "opencode",
       "--version"
     ],
-    "version_pinned": "1.18.30",
+    "version_pinned": "1.19.6",
     "docs_source": "https://opencode.ai/docs/permissions/",
     "docs_pinned_at": "2026-06-22",
     "schema_version": 1

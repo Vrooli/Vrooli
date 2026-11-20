@@ -5,26 +5,17 @@ measured candidate set. It owns generation mechanism and convergence; the
 consumer owns editorial intent, claims, and the declaration files that define
 its voice.
 
-## Read first
-
-1. [`../PRD.md`](../PRD.md) — product intent, non-goals, and P0/P1/P2 targets.
-2. [`../DESIGN.md`](../DESIGN.md) — operator-surface accessibility and visual
-   contracts.
-3. [`concepts/DOMAINS.md`](concepts/DOMAINS.md) — ownership boundaries.
-4. [`concepts/FLOWS.md`](concepts/FLOWS.md) — generation, convergence, and
-   document assembly sequences.
+Use the [CLI reference](reference/cli-commands.md) for a writing or declaration
+operation. If a change crosses a boundary, open the relevant source:
+[requirements](../PRD.md), [experience](../DESIGN.md),
+[ownership](concepts/DOMAINS.md), or [generation and assembly](concepts/FLOWS.md).
 
 ## Initialization Protocol
 
-Run the scenario setup lifecycle, confirm the declaration scan, and then
-validate the scenario requirements before making product changes:
+For a fresh installation, run `make setup` and confirm the declaration scan.
+For requirements changes, use the [validation command](#validation).
 
-```bash
-make setup
-vrooli scenario requirements validate prose-studio --json
-```
-
-## First vertical slice
+## Generation and review smoke check
 
 Create a style, create a profile that references it, inspect the resolved
 instruction, generate through `write.default` or `write.diverse`, and verify
@@ -56,7 +47,7 @@ Use the scenario-owned lifecycle and test server:
 
 ```bash
 vrooli scenario requirements validate prose-studio --json
-vrooli scenario test prose-studio
+vrooli scenario test prose-studio --phases <relevant-phases>
 ```
 
 The shared package can be tested independently from

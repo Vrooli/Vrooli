@@ -94,6 +94,79 @@ func TestVerifierReadsAskAsTheAutohealServiceAndOnlyThatAsk(t *testing.T) {
 	}
 }
 
+func TestResolverVerifierUsesCurrentNotificationHubAddress(t *testing.T) {
+	var firstCalls, secondCalls atomic.Int32
+	makeServer := func(calls *atomic.Int32) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk" {
+				t.Errorf("request path = %q", r.URL.Path)
+			}
+			if got := r.Header.Get("Authorization"); got != "Bearer ask-reader-token" {
+				t.Errorf("Authorization = %q, want ask-reader bearer", got)
+			}
+			w.Header().Set("Content-Type", "application/proto")
+			body, err := proto.Marshal(&conversationv1.GetAskResponse{Ask: &conversationv1.Ask{Id: "ask-9", State: "answered", Answer: "approve"}})
+			if err != nil {
+				t.Errorf("marshal response: %v", err)
+				return
+			}
+			calls.Add(1)
+			_, _ = w.Write(body)
+		}))
+	}
+	first, second := makeServer(&firstCalls), makeServer(&secondCalls)
+	defer first.Close()
+	defer second.Close()
+	addresses := []string{first.URL, second.URL}
+	var resolves atomic.Int32
+	verifier, err := NewNotificationHubAskVerifierResolver(func(context.Context) (string, error) {
+		index := int(resolves.Add(1)) - 1
+		return addresses[index], nil
+	}, staticAskReaderToken{token: "ask-reader-token"})
+	if err != nil {
+		t.Fatalf("NewNotificationHubAskVerifierResolver() error = %v", err)
+	}
+	for range 2 {
+		approval, verifyErr := verifier.Verify(context.Background(), "ask-9")
+		if verifyErr != nil || !ApprovedAsk(approval) {
+			t.Fatalf("Verify() approval=%+v error=%v", approval, verifyErr)
+		}
+	}
+	if resolves.Load() != 2 || firstCalls.Load() != 1 || secondCalls.Load() != 1 {
+		t.Fatalf("resolutions/first requests/second requests = %d/%d/%d, want 2/1/1", resolves.Load(), firstCalls.Load(), secondCalls.Load())
+	}
+}
+
+func TestResolverVerifierFailsClosedWhenHubOrServiceIdentityIsUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		resolve func(context.Context) (string, error)
+		tokens  AskReaderTokens
+	}{
+		{
+			name:    "hub unavailable",
+			resolve: func(context.Context) (string, error) { return "", errors.New("hub unavailable") },
+			tokens:  staticAskReaderToken{token: "ask-reader-token"},
+		},
+		{
+			name:    "service identity unavailable",
+			resolve: func(context.Context) (string, error) { return "http://127.0.0.1:1", nil },
+			tokens:  staticAskReaderToken{err: errors.New("scenario-authenticator unavailable")},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verifier, err := NewNotificationHubAskVerifierResolver(tc.resolve, tc.tokens)
+			if err != nil {
+				t.Fatalf("NewNotificationHubAskVerifierResolver() error = %v", err)
+			}
+			approval, verifyErr := verifier.Verify(context.Background(), "ask-9")
+			if verifyErr == nil || ApprovedAsk(approval) {
+				t.Fatalf("Verify() approval=%+v error=%v, want fail-closed result", approval, verifyErr)
+			}
+		})
+	}
+}
+
 func TestAutohealReadsAsksWithItsOwnAskReaderCredential(t *testing.T) {
 	identity, err := credentialauthority.ParseIdentity(askreader.CredentialIdentity(askReaderSource))
 	if err != nil {

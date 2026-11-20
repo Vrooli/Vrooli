@@ -79,6 +79,7 @@ type residentFootprint struct {
 		OwnerID       string `json:"owner_id"`
 		AmountBytes   int64  `json:"amount_bytes"`
 		ObservedBytes int64  `json:"observed_bytes"`
+		Status        string `json:"status"`
 	} `json:"claims"`
 }
 
@@ -88,6 +89,18 @@ type residentFootprint struct {
 // its footprint is whatever the host observes it using. Reading the observed
 // figure rather than a declared constant is what lets the right-sizing
 // advisory work on a claim this companion maintains.
+//
+// Observation is read-only. An earlier version re-admitted the resource from
+// this method (`vrooli resource start`), which created a claim and then returned
+// a zero footprint; the caller immediately released that new claim. That loop
+// produced one create/release pair every poll — 8,764 released Ollaya claims on
+// this host — and the resulting write contention is what surfaced as
+// "ledger unavailable" and blocked the broker's upshift. Admission belongs to
+// the lifecycle start; this companion only maintains a claim that exists.
+//
+// A degraded claim at the CPU rung is marked Parked: the daemon is alive but
+// deliberately holds no VRAM, so its claim records the mode and must survive
+// until the broker upshifts it.
 func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
 	out, err := h.Exec(ctx, "vrooli", "capacity", "list", "--owner", resourceName, "--active", "--json")
 	if err != nil {
@@ -101,17 +114,17 @@ func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
 		if claim.OwnerID != resourceName {
 			continue
 		}
+		parked := claim.Status == "degraded" && claim.AmountBytes <= 0
 		// An observed figure is the truth when the host has produced one;
 		// otherwise the claim's own amount keeps the reservation alive without
 		// inventing a measurement.
 		if claim.ObservedBytes > 0 {
-			return companion.Footprint{Bytes: claim.ObservedBytes}, nil
+			return companion.Footprint{Bytes: claim.ObservedBytes, Parked: parked}, nil
 		}
-		return companion.Footprint{Bytes: claim.AmountBytes}, nil
+		return companion.Footprint{Bytes: claim.AmountBytes, Parked: parked}, nil
 	}
 	// No active claim. The lifecycle admission path owns the manifest-derived
-	// values, so re-admitting through the control plane keeps the manifest the
-	// single source of policy truth rather than reconstructing it here.
-	_, _ = h.Exec(ctx, "vrooli", "resource", "start", resourceName, "--json")
+	// values; re-admitting here would mutate the ledger from a read and churn a
+	// claim per poll. A zero footprint with no claim is a no-op.
 	return companion.Footprint{}, nil
 }

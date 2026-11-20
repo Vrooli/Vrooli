@@ -2,8 +2,10 @@ package system
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -27,6 +29,49 @@ func TestSystemMonitorDiskPressureReaderReadsTypedObservation(t *testing.T) {
 	}
 	if got.Band != "critical" || got.MountPath != "/data" || got.UsedPercent != 96.5 || got.FillRateBytesPerHour != 200 || len(got.HotWriters) != 1 || got.HotWriters[0].CurrentBytes != 300 {
 		t.Fatalf("observation = %+v", got)
+	}
+}
+
+func TestSystemMonitorDiskPressureReaderResolvesCurrentAddress(t *testing.T) {
+	var firstCalls, secondCalls atomic.Int32
+	makeServer := func(calls *atomic.Int32, mount string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v1/disk-pressure" {
+				t.Errorf("path = %q, want /api/v1/disk-pressure", r.URL.Path)
+			}
+			calls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"observed":true,"band":"warning","mount_path":"` + mount + `"}`))
+		}))
+	}
+	first, second := makeServer(&firstCalls, "/first"), makeServer(&secondCalls, "/second")
+	defer first.Close()
+	defer second.Close()
+	addresses := []string{first.URL, second.URL}
+	var resolves atomic.Int32
+	reader := NewSystemMonitorDiskPressureReaderResolver(first.Client(), func(context.Context) (string, error) {
+		return addresses[int(resolves.Add(1))-1], nil
+	})
+	for i, want := range []string{"/first", "/second"} {
+		got, err := reader.ReadDiskPressure(context.Background())
+		if err != nil {
+			t.Fatalf("ReadDiskPressure() #%d error = %v", i+1, err)
+		}
+		if got.MountPath != want {
+			t.Fatalf("mount path #%d = %q, want %q", i+1, got.MountPath, want)
+		}
+	}
+	if resolves.Load() != 2 || firstCalls.Load() != 1 || secondCalls.Load() != 1 {
+		t.Fatalf("resolutions/first requests/second requests = %d/%d/%d, want 2/1/1", resolves.Load(), firstCalls.Load(), secondCalls.Load())
+	}
+}
+
+func TestSystemMonitorDiskPressureReaderReturnsUnavailablePeerError(t *testing.T) {
+	reader := NewSystemMonitorDiskPressureReaderResolver(nil, func(context.Context) (string, error) {
+		return "", errors.New("system-monitor unavailable")
+	})
+	if _, err := reader.ReadDiskPressure(context.Background()); err == nil {
+		t.Fatal("ReadDiskPressure() error = nil, want unavailable peer")
 	}
 }
 

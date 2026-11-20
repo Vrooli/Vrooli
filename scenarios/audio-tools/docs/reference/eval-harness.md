@@ -477,18 +477,14 @@ stretch follow-up.
 ## Browser-to-composer soak evidence
 
 `audio-tools soak run` is the single product-path instrument for dictation
-qualification. It drives Dictation Studio through the Playwright driver, uses
+qualification. It drives Dictation Studio through the BAS session broker, uses
 the real browser capture package and WebSocket handler, snapshots the browser
 diagnostic and server ledger, and emits one `conformance.Run` document. The
 provider cell is mandatory and is checked against identity delivered by the
 stream itself; provider identity is durable transport evidence, not a CLI
 label.
 
-The soak asks BAS for `reuse_mode: fresh`, which gives the run an isolated
-browser context. Its preflight therefore checks BAS readiness and available
-session capacity; unrelated active sessions and foreign leases are not reasons
-to stop or wait for a zero-session state. Only exhausted capacity or an
-unready driver is a retryable admission condition.
+The soak requires request-scoped Agent Manager identity and browser-grant receipts plus an active Test Genie demand-lease receipt. Audio Tools verifies the lease, selects its own UI and fixed WAV, then sends only the Agent Manager identity and browser grant to BAS. BAS opens one fresh Broker session; every browser action, audio diagnostic, restart, stop, and close uses that session. The Test Genie lease never leaves Audio Tools.
 
 Example bounded realtime run:
 
@@ -498,7 +494,7 @@ endpoint must never consume a long-run window.
 
 ```bash
 audio-tools configure api_base http://127.0.0.1:19630/api/v1
-audio-tools soak run --driver-url http://127.0.0.1:24485 --ui-url http://127.0.0.1:20004 --fixture /absolute/path/to/dictation-reference.wav --lane realtime --profile realistic --turns 3 --feed-ms 4000 --engine-id kyutai --model-id kyutai/stt-1b-en_fr --strategy passthrough --policy default --json
+audio-tools soak run --lane realtime --profile realistic --turns 3 --feed-ms 4000 --engine-id kyutai --model-id kyutai/stt-1b-en_fr --strategy passthrough --policy default --json
 ```
 
 The run refuses qualification when any required assertion is absent. Text
@@ -561,13 +557,10 @@ The accelerated lane is also an explicit scenario gate:
 ```bash
 make -C scenarios/audio-tools soak-accelerated \
   SOAK_API_BASE=http://127.0.0.1:19630 \
-  SOAK_DRIVER_URL=http://127.0.0.1:24485 \
-  SOAK_UI_URL=http://127.0.0.1:20004 \
   SOAK_EVIDENCE_PATH=coverage/soak-accelerated-gate.json
 ```
 
-The gate requires the API, BAS Playwright driver, and UI to be running and
-fails closed when any conformance assertion is failed or not measured. It is
+The gate requires Audio Tools API, the trusted run receipts, an active Test Genie lease, and a configured BAS owner endpoint. BAS and Audio Tools select the browser and UI target; callers cannot provide a driver URL, UI URL, or fixture path. The gate fails closed when any conformance assertion is failed or not measured. It is
 kept as a scenario Make target because Test Genie executes registered phase
 descriptors, not arbitrary Make commands. The package gate remains
 `vrooli package test audio-capture-browser`. The API must be started in the

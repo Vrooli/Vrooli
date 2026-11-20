@@ -680,8 +680,8 @@ func effectiveChannel(requested, defaultChannel string) string {
 	return "stable"
 }
 
-// loadLPBSConfigForPublish loads the exact LPBS coordinates that
-// publishToLPBS must bind before it launches an owner effect.
+// loadLPBSConfigForPublish loads legacy LPBS owner coordinates that the
+// typed destination plan must bind before any owner effect.
 func (o *Orchestrator) loadLPBSConfigForPublish(ctx context.Context, profileID string) *profiles.LPBSReleaseConfig {
 	if o.lpbsConfigRepo == nil {
 		return nil

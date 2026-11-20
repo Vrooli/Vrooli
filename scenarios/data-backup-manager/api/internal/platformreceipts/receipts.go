@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type Receipt struct {
@@ -55,11 +57,16 @@ func NewFileSink() *FileSink {
 	if path := strings.TrimSpace(os.Getenv("DBM_PLATFORM_RECEIPTS_PATH")); path != "" {
 		return &FileSink{Path: path}
 	}
-	root := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
-	if root == "" {
-		if home, err := os.UserHomeDir(); err == nil {
-			root = filepath.Join(home, ".vrooli")
-		}
+	if root := strings.TrimSpace(os.Getenv("VROOLI_HOME")); root != "" {
+		return &FileSink{Path: filepath.Join(root, "state", "data-backup-manager", "platform-receipts.jsonl")}
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return &FileSink{}
+	}
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return &FileSink{}
 	}
 	return &FileSink{Path: filepath.Join(root, "state", "data-backup-manager", "platform-receipts.jsonl")}
 }

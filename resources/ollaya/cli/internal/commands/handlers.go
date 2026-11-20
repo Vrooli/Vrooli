@@ -35,6 +35,15 @@ type Handlers struct {
 	// PrepareModelPull binds traffic and disk accounting to one managed service
 	// owner while holding its lifecycle lock. Tests inject a fixture endpoint.
 	PrepareModelPull func(context.Context) (string, *upstream.Client, func(context.Context) error, func(), error)
+	// ResidentDevice reports the device a model is currently loaded on.
+	ResidentDevice func(context.Context, string) (string, bool, error)
+	// HostPlacement reports the control plane's observed backend for the daemon.
+	HostPlacement func(context.Context) (string, error)
+	// CapacityAdmit asks the shared broker whether a footprint fits without
+	// recording a claim.
+	CapacityAdmit func(context.Context, int64) (bool, string, error)
+	// RunControlPlane runs a control-plane command (tests inject a recorder).
+	RunControlPlane func(context.Context, string, ...string) ([]byte, error)
 }
 
 func Default() *Handlers {

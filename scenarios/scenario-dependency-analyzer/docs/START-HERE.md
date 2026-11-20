@@ -1,16 +1,14 @@
 # Start Here
 
-## Initialization Protocol
-
-Read `../PRD.md`, this file, `concepts/ARCHITECTURE.md`, and `internal/SEAMS.md` before changing behavior. Run `vrooli help` and use lifecycle commands for scenario start/test flows.
+For dependency changes, use the [install gateway](../../../docs/package-governance.md#installing-through-the-gateway).
+For other commands, use the [CLI reference](reference/cli-commands.md).
+For changes to analyzer behavior, start with the affected domain.
+Consult the [PRD](../PRD.md) for requirement changes and the
+[architecture](concepts/ARCHITECTURE.md) for ownership changes.
 
 ## Architecture Rules
 
 SDA owns fleet-level interpretation, graph assembly, drift semantics, API/CLI/UI presentation, and SQLite-backed reports. Proto extraction belongs to `proto-health`; source import extraction belongs to `code-facts`.
-
-## Replacing The Example Domain
-
-This is not a template demo. Preserve the actual interface graph and import drift domain unless a new plan explicitly replaces it.
 
 ## Cross-References
 
