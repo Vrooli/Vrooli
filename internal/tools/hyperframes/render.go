@@ -312,8 +312,6 @@ func verifyInputsContext(ctx context.Context, req Request) error {
 	return nil
 }
 
-func verifyExecutables(req Request) error { return verifyExecutablesContext(context.Background(), req) }
-
 func verifyExecutablesContext(ctx context.Context, req Request) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -641,10 +639,6 @@ func removeOwnedFile(path string) error {
 	return err
 }
 
-func copyInput(source, dest, want string) error {
-	return copyInputContext(context.Background(), source, dest, want)
-}
-
 func copyInputContext(ctx context.Context, source, dest, want string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -793,7 +787,9 @@ func validateProbe(b []byte) error {
 		return err
 	}
 	var duration float64
-	fmt.Sscan(p.Format.Duration, &duration)
+	if _, err := fmt.Sscan(p.Format.Duration, &duration); err != nil {
+		return fmt.Errorf("parse render duration %q: %w", p.Format.Duration, err)
+	}
 	if math.IsNaN(duration) || math.IsInf(duration, 0) || duration <= 0 || duration > 600 {
 		return errors.New("render duration must be 0..600 seconds")
 	}

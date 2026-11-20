@@ -1,10 +1,11 @@
 package autohealrecoveryprivileges
 
 import (
+	"testing"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
-	"testing"
 )
 
 func TestInspectRequiresTheInstalledBrokerRecoveryCapability(t *testing.T) {
@@ -28,6 +29,7 @@ func TestInspectRequiresTheInstalledBrokerRecoveryCapability(t *testing.T) {
 		}
 	}
 }
+
 func TestApplyNeverCreatesAPrivateRuntimeGrant(t *testing.T) {
 	h := NewHandler(hostreqkit.SafeguardManifest{Name: "autoheal_recovery_privileges"})
 	status, err := h.Apply(hostreqkit.Host{OS: "linux"}, hostreqkit.ItemStatus{}, hostreqkit.EnsureOptions{})
@@ -35,6 +37,7 @@ func TestApplyNeverCreatesAPrivateRuntimeGrant(t *testing.T) {
 		t.Fatalf("status=%+v err=%v", status, err)
 	}
 }
+
 func TestOtherPlatformsAreExplicitlyNotApplicable(t *testing.T) {
 	h := NewHandler(hostreqkit.SafeguardManifest{Name: "autoheal_recovery_privileges"})
 	for _, platform := range []string{"darwin", "windows"} {

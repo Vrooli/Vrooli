@@ -41,7 +41,8 @@ func TestRuntimeActivityPublicTransportsPreservePhysicalProofAndUnknown(t *testi
 		}
 		return evidence, nil
 	})
-	h := &Handler{runtimeActivity: runtimeactivity.New(inventory)}
+	// Exercise fresh transport projections when the fixture mutates between reads.
+	h := &Handler{runtimeActivity: runtimeactivity.NewWithCacheTTL(inventory, time.Nanosecond)}
 	mux := http.NewServeMux()
 	path, handler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(h))
 	mux.Handle(path, AgentOperationMiddleware(handler))

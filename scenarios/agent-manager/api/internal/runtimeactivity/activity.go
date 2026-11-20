@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/maintenance"
@@ -30,17 +31,111 @@ type Snapshot struct {
 	PhysicalRunIDs []string
 }
 
-type Reader struct{ observer Observer }
+const (
+	defaultCacheTTL = time.Minute
+	refreshTimeout  = 30 * time.Second
+)
 
-func New(observer Observer) *Reader { return &Reader{observer: observer} }
+// Reader caches only ordinary activity telemetry. Lifecycle and maintenance
+// callers continue to use InventoryReader directly for fresh safety evidence.
+type Reader struct {
+	observer Observer
+	ttl      time.Duration
+	now      func() time.Time
+
+	mu            sync.Mutex
+	cache         Snapshot
+	cacheAt       time.Time
+	refreshDone   chan struct{}
+	refreshResult Snapshot
+}
+
+func New(observer Observer) *Reader { return NewWithCacheTTL(observer, defaultCacheTTL) }
+
+// NewWithCacheTTL sets the maximum age of a telemetry snapshot. Non-positive
+// values use the production default, keeping refresh bounded for every reader.
+func NewWithCacheTTL(observer Observer, ttl time.Duration) *Reader {
+	if ttl <= 0 {
+		ttl = defaultCacheTTL
+	}
+	return &Reader{observer: observer, ttl: ttl, now: time.Now}
+}
 
 func (r *Reader) Read(ctx context.Context) Snapshot {
-	result := Snapshot{Unknown: []string{}}
-	if r == nil || r.observer == nil {
-		result.Unknown = append(result.Unknown, "physical execution observer unavailable")
-		return result
+	if ctx.Err() != nil {
+		return unavailable(ctx.Err().Error())
 	}
-	inventory, err := r.observer.ObserveActivity(ctx)
+	if r == nil || r.observer == nil {
+		return unavailable("physical execution observer unavailable")
+	}
+	for {
+		r.mu.Lock()
+		now := r.now()
+		if !r.cacheAt.IsZero() && !now.Before(r.cacheAt) && now.Sub(r.cacheAt) < r.ttl {
+			result := cloneSnapshot(r.cache)
+			r.mu.Unlock()
+			return result
+		}
+		if done := r.refreshDone; done != nil {
+			r.mu.Unlock()
+			select {
+			case <-done:
+				if ctx.Err() != nil {
+					return unavailable(ctx.Err().Error())
+				}
+				r.mu.Lock()
+				result := cloneSnapshot(r.refreshResult)
+				r.mu.Unlock()
+				return result
+			case <-ctx.Done():
+				return unavailable(ctx.Err().Error())
+			}
+		}
+		done := make(chan struct{})
+		r.refreshDone = done
+		observer := r.observer
+		r.mu.Unlock()
+
+		// The refresh is shared telemetry work. A canceled HTTP caller stops
+		// waiting without canceling the common read for other callers.
+		go r.refresh(observer, done)
+		select {
+		case <-done:
+			if ctx.Err() != nil {
+				return unavailable(ctx.Err().Error())
+			}
+			r.mu.Lock()
+			result := cloneSnapshot(r.refreshResult)
+			r.mu.Unlock()
+			return result
+		case <-ctx.Done():
+			return unavailable(ctx.Err().Error())
+		}
+	}
+}
+
+func (r *Reader) refresh(observer Observer, done chan struct{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), refreshTimeout)
+	defer cancel()
+	result := observe(ctx, observer)
+	r.mu.Lock()
+	r.cache = cloneSnapshot(result)
+	r.cacheAt = result.ObservedAt
+	if r.cacheAt.IsZero() || r.cacheAt.After(r.now()) {
+		r.cacheAt = r.now()
+	}
+	r.refreshResult = cloneSnapshot(result)
+	r.refreshDone = nil
+	close(done)
+	r.mu.Unlock()
+}
+
+func observe(ctx context.Context, observer Observer) Snapshot {
+	result := Snapshot{Unknown: []string{}}
+	if observer == nil {
+		return unavailable("physical execution observer unavailable")
+	}
+	inventory, err := observer.ObserveActivity(ctx)
 	result.ObservedAt = inventory.ObservedAt
 	for _, reason := range inventory.Unknown {
 		result.addUnknown(reason)
@@ -70,6 +165,22 @@ func (r *Reader) Read(ctx context.Context) Snapshot {
 		result.ExecutingRuns = &count
 	}
 	return result
+}
+
+func unavailable(reason string) Snapshot {
+	result := Snapshot{Unknown: []string{}}
+	result.addUnknown(reason)
+	return result
+}
+
+func cloneSnapshot(snapshot Snapshot) Snapshot {
+	snapshot.Unknown = append([]string{}, snapshot.Unknown...)
+	snapshot.PhysicalRunIDs = append([]string{}, snapshot.PhysicalRunIDs...)
+	if snapshot.ExecutingRuns != nil {
+		count := *snapshot.ExecutingRuns
+		snapshot.ExecutingRuns = &count
+	}
+	return snapshot
 }
 
 func (s *Snapshot) addUnknown(reason string) {

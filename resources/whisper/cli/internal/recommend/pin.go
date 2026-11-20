@@ -24,8 +24,8 @@ func ValidModel(label string) (Model, bool) {
 		return ModelSmall, true
 	case ModelMedium:
 		return ModelMedium, true
-	case ModelLargeV3:
-		return ModelLargeV3, true
+	case ModelTurbo:
+		return ModelTurbo, true
 	default:
 		return "", false
 	}

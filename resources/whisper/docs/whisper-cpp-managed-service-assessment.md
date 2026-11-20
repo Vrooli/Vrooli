@@ -5,6 +5,17 @@ remaining target-specific qualification gaps. It is no longer an evidence-only
 spike: Linux uses the managed-service path, while unsupported targets remain
 explicitly non-promoted.
 
+> **2026-11-20 update — shipped default moved to `ggml-small` for footprint.**
+> The measurements below describe the 2026-08 medium artifact and are kept as
+> history. `resource.json` now pins `ggml-small.bin`
+> (sha256 `1be3a9b2…a987b`, ~488 MB) as the eager artifact. Turbo (~1.6 GB),
+> medium (~1.5 GB), base (~148 MB), and tiny (~78 MB) are declared on-demand
+> data groups. The capacity claim dropped from 2 GiB to 1 GiB, and the
+> recommender returns `small` by default with `--quality` as the explicit
+> accuracy opt-in. This is a resource decision backed by a one-host smoke
+> receipt (all tiers transcribed the canonical clip exactly); a full dictation
+> and timestamp-drift qualification for the default is still owed.
+
 ## 1. Current maturity
 
 Whisper is M5 on the Linux CPU managed-service path: manifest-authoritative

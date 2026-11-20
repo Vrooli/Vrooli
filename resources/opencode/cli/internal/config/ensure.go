@@ -19,7 +19,6 @@ type Defaults struct {
 	ChatModel          string // cloud default chat model (resolved from CloudRole when empty)
 	CompletionModel    string // cloud default completion model (resolved from CloudRole when empty)
 	GoDefaultModel     string // opencode-go default model when Go subscription is active
-	OllamaDefaultModel string // local model declared in the provider block
 	NumCtx             int    // per-model num_ctx for the local coder
 	LocalRole          string // ollama policy role backing local coding (code.local)
 	OrcaRouterRole     string // policy role used when OrcaRouter is selected explicitly
@@ -40,10 +39,6 @@ func DefaultDefaults(getenv func(string) string) Defaults {
 			numCtx = n
 		}
 	}
-	localModel := strings.TrimSpace(getenv("OPENCODE_OLLAMA_DEFAULT_MODEL"))
-	if localModel == "" {
-		localModel = "gemma4:12b"
-	}
 	cloudRole := strings.TrimSpace(getenv("OPENCODE_DEFAULT_CHAT_ROLE"))
 	if cloudRole == "" {
 		cloudRole = "code.default"
@@ -56,7 +51,6 @@ func DefaultDefaults(getenv func(string) string) Defaults {
 		Provider:           "",
 		CloudRole:          cloudRole,
 		GoDefaultModel:     goModel,
-		OllamaDefaultModel: localModel,
 		NumCtx:             numCtx,
 		LocalRole:          "code.local",
 		OrcaRouterRole:     "code.default",
@@ -117,6 +111,22 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 
 	installed, listErr := opts.Resolver.InstalledModels(ctx)
 	ollamaReachable := listErr == nil && len(installed) > 0
+	localModel := ""
+	var sampling Sampling
+	var localRoleErr error
+	if ollamaReachable {
+		rr, err := opts.Resolver.LocalRole(ctx, d.LocalRole)
+		if err != nil {
+			localRoleErr = err
+		} else if rr.Model == "" {
+			localRoleErr = fmt.Errorf("policy returned an empty model")
+		} else if !containsModel(installed, rr.Model) {
+			localRoleErr = fmt.Errorf("policy model %q is not installed", rr.Model)
+		} else {
+			localModel = rr.Model
+			sampling = rr.Sampling
+		}
+	}
 
 	var (
 		provider        string
@@ -199,26 +209,14 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 
 	// Tier 3: Local Ollama (fallback when no cloud credentials)
 	if provider == "" && !useOpenCodeGo && !useOpenRouter && ollamaReachable {
+		if localModel == "" {
+			return false, fmt.Errorf("resolve local Ollama role %q: %w", d.LocalRole, localRoleErr)
+		}
 		useOllama = true
 		provider = ollamaProviderID
-		chatModel = d.OllamaDefaultModel
-		completionModel = d.OllamaDefaultModel
+		chatModel = localModel
+		completionModel = localModel
 		logf("Self-healed to local Ollama (provider=%s, model=%s)", provider, chatModel)
-	}
-
-	localModel := d.OllamaDefaultModel
-	var sampling Sampling
-	if ollamaReachable {
-		if rr, err := opts.Resolver.LocalRole(ctx, d.LocalRole); err == nil {
-			sampling = rr.Sampling
-			if rr.Model != "" && containsModel(installed, rr.Model) {
-				localModel = rr.Model
-				if useOllama {
-					chatModel = rr.Model
-					completionModel = rr.Model
-				}
-			}
-		}
 	}
 
 	var extras []LocalModel
@@ -299,20 +297,11 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 			BaseURL: abliterationBaseURL,
 		})
 	}
-	if ollamaReachable {
+	if ollamaReachable && localModel != "" {
 		in.Ollama = &OllamaProvider{
 			BaseURL:     ollamaBaseURL(os.Getenv) + "/api",
 			ChatModel:   localModel,
 			SmallModel:  localModel,
-			NumCtx:      d.NumCtx,
-			Sampling:    sampling,
-			ExtraModels: extras,
-		}
-	} else if !freshFile && hasOllamaBlock(existing) {
-		in.Ollama = &OllamaProvider{
-			BaseURL:     ollamaBaseURL(os.Getenv) + "/api",
-			ChatModel:   d.OllamaDefaultModel,
-			SmallModel:  d.OllamaDefaultModel,
 			NumCtx:      d.NumCtx,
 			Sampling:    sampling,
 			ExtraModels: extras,
@@ -366,18 +355,6 @@ func currentModelOf(existing []byte) string {
 		return ""
 	}
 	return rawString(top[keyModel])
-}
-
-func hasOllamaBlock(existing []byte) bool {
-	var top struct {
-		Provider struct {
-			Ollama json.RawMessage `json:"ollama"`
-		} `json:"provider"`
-	}
-	if err := json.Unmarshal(existing, &top); err != nil {
-		return false
-	}
-	return len(top.Provider.Ollama) > 0
 }
 
 func containsModel(installed []string, model string) bool {

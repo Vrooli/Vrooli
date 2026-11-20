@@ -18,8 +18,10 @@ var collectFacts = func() hostinventory.Snapshot {
 	return hostinventory.CollectPlatformFacts(context.Background())
 }
 
-var runPrivileged = hostreqkit.RunPrivilegedCommand
-var runPrivilegedWithStdin = hostreqkit.RunPrivilegedCommandWithStdin
+var (
+	runPrivileged          = hostreqkit.RunPrivilegedCommand
+	runPrivilegedWithStdin = hostreqkit.RunPrivilegedCommandWithStdin
+)
 
 const macOSAutoLoginPasswordEnv = "VROOLI_GRAPHICAL_SESSION_PASSWORD"
 

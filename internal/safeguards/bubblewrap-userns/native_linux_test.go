@@ -41,11 +41,11 @@ func TestLiveNativeCodexSandbox(t *testing.T) {
 		}
 	})
 	work := filepath.Join(root, "work")
-	if err := os.Mkdir(work, 0700); err != nil {
+	if err := os.Mkdir(work, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	outside := filepath.Join(root, "outside")
-	if err := os.WriteFile(outside, []byte("preserve"), 0600); err != nil {
+	if err := os.WriteFile(outside, []byte("preserve"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(outside, filepath.Join(work, "escape")); err != nil {
@@ -54,11 +54,11 @@ func TestLiveNativeCodexSandbox(t *testing.T) {
 	// An owner policy must override a permissive inherited user configuration.
 	// Keep the fixture private; never read or modify the operator's credentials.
 	nativeHome := filepath.Join(root, "codex-home")
-	if err := os.Mkdir(nativeHome, 0700); err != nil {
+	if err := os.Mkdir(nativeHome, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	seed := fmt.Sprintf("sandbox_mode = \"danger-full-access\"\napproval_policy = \"on-request\"\n[sandbox_workspace_write]\nnetwork_access = true\nwritable_roots = [%q]\n", root)
-	if err := os.WriteFile(filepath.Join(nativeHome, "config.toml"), []byte(seed), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(nativeHome, "config.toml"), []byte(seed), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
@@ -105,7 +105,7 @@ func TestNativeSandboxHelper(t *testing.T) {
 		t.Skip("native sandbox child only")
 	}
 	work, outside := *nativeWork, *nativeOutside
-	err := os.WriteFile(filepath.Join(work, *nativeMode), []byte("allowed"), 0600)
+	err := os.WriteFile(filepath.Join(work, *nativeMode), []byte("allowed"), 0o600)
 	if *nativeMode == "workspace-write" && err != nil {
 		t.Fatalf("allowed workspace write: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestNativeSandboxHelper(t *testing.T) {
 		t.Fatal("read-only workspace write succeeded")
 	}
 	for _, path := range []string{outside, filepath.Join(work, "escape")} {
-		if err := os.WriteFile(path, []byte("forbidden"), 0600); err == nil {
+		if err := os.WriteFile(path, []byte("forbidden"), 0o600); err == nil {
 			t.Fatalf("write escaped through %s", path)
 		}
 	}

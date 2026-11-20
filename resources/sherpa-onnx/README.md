@@ -26,7 +26,16 @@ profile is explicitly unsupported until release publication supplies a real
 native adapter artifact. Upstream runtime availability is not proof that the
 Vrooli HTTP adapter is portable or lifecycle-owned.
 
-Run `make check` for the resource-local gates. A native qualification requires
+Run `make check` for the resource-local gates.
+
+For an immediately runnable Linux amd64 setup that does not claim the managed
+release boundary, see [docs/LOCAL-ATTACH.md](docs/LOCAL-ATTACH.md). It builds
+the adapter from the pinned upstream runtime, runs it on port 8881, and shows
+how Audio Tools attaches to it. The 2023 English Zipformer is the streaming
+default; the smaller Kroko 2025 model remains on demand pending quality,
+latency, timestamp, and license qualification. Its finalizer adds a bounded
+silent tail so the stream decoder retains its final words.
+ A native qualification requires
 `ROOT=/path/to/extracted/sherpa-onnx-v1.13.2-linux-x64-shared make native-test`
 and a live run with `RESOURCE_LIVE_TEST=1` after the signed server artifact and
 model have been installed.

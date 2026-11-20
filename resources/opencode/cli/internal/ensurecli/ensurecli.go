@@ -7,9 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 
-	"github.com/vrooli/cli-core/upstreamcheck"
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissions"
 
@@ -61,8 +60,8 @@ func warnIfOpenCodeV2(stderr io.Writer) {
 	if err != nil {
 		return
 	}
-	if strings.HasPrefix(upstreamcheck.ExtractSemver(string(out)), "2.") {
-		fmt.Fprintln(stderr, "warn: OpenCode 2 detected; native permission rules apply, but the V1 policy plugin hook does not load in V2. Hook enforcement remains unverified.")
+	if major, ok := opencodeversion.ParseMajor(string(out)); ok && major >= 2 {
+		fmt.Fprintf(stderr, "info: OpenCode %d detected; native permissions and the V%d policy plugin are projected. Runtime hook firing remains unverified until a live canary.\n", major, major)
 	}
 }
 
@@ -119,6 +118,11 @@ func (h *Handlers) Ensure(args []string) error {
 			return fmt.Errorf("save permissions: %w", err)
 		}
 		fmt.Fprintln(h.Stdout, "permissions: reconciled")
+	}
+	// A clean permission map can still need a plugin change after a major
+	// upgrade (V1 module -> V2 module). Reconcile the projection every time.
+	if err := h.Adapter.SyncPlugin(p); err != nil {
+		return fmt.Errorf("sync policy plugin: %w", err)
 	}
 
 	data := struct {

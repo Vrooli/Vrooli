@@ -15,7 +15,7 @@ func sourceFixture(t *testing.T) string {
 	dir := t.TempDir()
 	for _, name := range []string{"package.json", "package-lock.json"} {
 		b, _ := closure.ReadFile(name)
-		if err := os.WriteFile(filepath.Join(dir, name), b, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -24,13 +24,13 @@ func sourceFixture(t *testing.T) string {
 
 func fakeInstall(_ context.Context, dir string) (string, error) {
 	entry := filepath.Join(dir, "node_modules", "hyperframes", "bin")
-	if err := os.MkdirAll(entry, 0700); err != nil {
+	if err := os.MkdirAll(entry, 0o700); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(filepath.Join(entry, "hyperframes.mjs"), []byte("fixture"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(entry, "hyperframes.mjs"), []byte("fixture"), 0o600); err != nil {
 		return "", err
 	}
-	return "fixture", os.WriteFile(filepath.Join(dir, "node_modules", "hyperframes", "package.json"), []byte(`{"version":"`+Version+`"}`), 0600)
+	return "fixture", os.WriteFile(filepath.Join(dir, "node_modules", "hyperframes", "package.json"), []byte(`{"version":"`+Version+`"}`), 0o600)
 }
 
 func TestProvisionPublishesFrozenCandidateAndReusesOnlyVerifiedTree(t *testing.T) {
@@ -49,7 +49,7 @@ func TestProvisionPublishesFrozenCandidateAndReusesOnlyVerifiedTree(t *testing.T
 	if _, err = Provision(context.Background(), source, install); err != nil || calls != 1 {
 		t.Fatalf("verified reuse failed calls=%d %v", calls, err)
 	}
-	if err = os.WriteFile(filepath.Join(dir, "node_modules", "hyperframes", "bin", "hyperframes.mjs"), []byte("corrupt"), 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(dir, "node_modules", "hyperframes", "bin", "hyperframes.mjs"), []byte("corrupt"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = Provision(context.Background(), source, install); err == nil || calls != 1 {
@@ -81,7 +81,7 @@ func TestFailedProvisionLeavesNoSelectedInstallation(t *testing.T) {
 
 func TestProvisionRefusesChangedLockBeforeInstaller(t *testing.T) {
 	source := sourceFixture(t)
-	_ = os.WriteFile(filepath.Join(source, "package-lock.json"), []byte(`{}`), 0600)
+	_ = os.WriteFile(filepath.Join(source, "package-lock.json"), []byte(`{}`), 0o600)
 	called := false
 	_, err := Provision(context.Background(), source, func(context.Context, string) (string, error) { called = true; return "", nil })
 	if err == nil || called {

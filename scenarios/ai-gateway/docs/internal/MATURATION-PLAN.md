@@ -240,6 +240,13 @@ UI string parity and type checking, `make check`, proto drift verification,
 gateway/provider catalog checks, coverage floors, temporal models, measures
 domain coverage, performance, storage, business, and tidiness.
 
+The provider inventory runtime smoke also passes after fixing JSON-aware
+redaction in `ExecRunner`: route preview returns valid inventory without
+corrupting credential identifiers. The gateway restarted healthy with the
+updated build identity. The capability catalog RPC was verified through its
+generated contract and handler tests; a live HTTP call was blocked by the
+repository's PreToolUse hard-stop policy.
+
 The comprehensive Test Genie run `20261120-155254-6911edfc` reported 23 passed,
 6 failed, and 1 skipped. After that run, the storage receipt declaration and
 queued-row close were fixed; the targeted storage phase passed as

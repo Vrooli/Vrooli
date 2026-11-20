@@ -15,7 +15,7 @@ const (
 	appName = "opencode"
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `permissions doctor` and `upstream-check` use it as the pinned baseline.
-	upstreamPinnedVersion = "1.18.30"
+	upstreamPinnedVersion = "1.19.6"
 )
 
 var (
@@ -42,8 +42,8 @@ func newApp() (*cliapp.ResourceApp, error) {
 			}
 			return install
 		},
-		EnsureSteps:     []agentapp.EnsureStep{ensurecli.Step(ensurecli.Default())},
-		Posture:         agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}},
+		EnsureSteps: []agentapp.EnsureStep{ensurecli.Step(ensurecli.Default())},
+		Posture:     agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}},
 		Groups: func(install agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
 			return []cliapp.SubcommandGroup{
 				configcli.Commands(configcli.Default()),

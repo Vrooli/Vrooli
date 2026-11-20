@@ -1,40 +1,55 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"testing"
+)
 
-func TestNewAppConfiguresResourceApp(t *testing.T) {
-	app, err := newApp()
+// TestUpstreamPinnedVersionMatchesManifest prevents the resource CLI's
+// compatibility constant from drifting away from the manifest-owned baseline.
+func TestUpstreamPinnedVersionMatchesManifest(t *testing.T) {
+	data, err := os.ReadFile("../resource.json")
 	if err != nil {
-		t.Fatalf("newApp() error = %v", err)
+		t.Fatal(err)
 	}
-	if app == nil {
-		t.Fatal("newApp() returned nil app")
+	var manifest struct {
+		Acquisition struct {
+			Targets []struct {
+				Channel string `json:"channel"`
+				Package string `json:"package"`
+				Version string `json:"version"`
+			} `json:"targets"`
+		} `json:"acquisition"`
+		UpstreamCLI struct {
+			VersionPinned string `json:"version_pinned"`
+		} `json:"upstream_cli"`
 	}
-	if app.CLI == nil {
-		t.Fatal("newApp() returned nil CLI")
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
 	}
-	if app.StaleChecker == nil {
-		t.Fatal("newApp() returned nil stale checker")
+	if manifest.UpstreamCLI.VersionPinned != upstreamPinnedVersion {
+		t.Fatalf("upstream_cli.version_pinned = %q, CLI constant = %q", manifest.UpstreamCLI.VersionPinned, upstreamPinnedVersion)
 	}
-	if app.StaleChecker.SourceContextPath != ".." {
-		t.Fatalf("SourceContextPath = %q, want %q", app.StaleChecker.SourceContextPath, "..")
+	var sawDefault, sawV2 bool
+	for _, target := range manifest.Acquisition.Targets {
+		if target.Channel == "" {
+			sawDefault = true
+			if target.Package != "opencode-ai" {
+				t.Fatalf("default channel package = %q, want opencode-ai", target.Package)
+			}
+			if target.Version != upstreamPinnedVersion {
+				t.Fatalf("default channel pin = %q, want %q", target.Version, upstreamPinnedVersion)
+			}
+		}
+		if target.Channel == "v2" {
+			sawV2 = true
+			if target.Package != "@opencode/cli" {
+				t.Fatalf("v2 channel package = %q, want @opencode/cli", target.Package)
+			}
+		}
 	}
-	if app.StaleChecker.ManifestSourcePath != "resource.json" {
-		t.Fatalf("ManifestSourcePath = %q, want %q", app.StaleChecker.ManifestSourcePath, "resource.json")
-	}
-	if len(app.StaleChecker.FreshnessInputs) != 4 {
-		t.Fatalf("FreshnessInputs len = %d, want 4", len(app.StaleChecker.FreshnessInputs))
-	}
-	if got, want := app.StaleChecker.FreshnessInputs[0], "cli/**"; got != want {
-		t.Fatalf("FreshnessInputs[0] = %q, want %q", got, want)
-	}
-	if got, want := app.StaleChecker.FreshnessInputs[1], "resource.json"; got != want {
-		t.Fatalf("FreshnessInputs[1] = %q, want %q", got, want)
-	}
-	if got, want := app.StaleChecker.FreshnessInputs[2], "../../packages/cli-core"; got != want {
-		t.Fatalf("FreshnessInputs[2] = %q, want %q", got, want)
-	}
-	if got, want := app.StaleChecker.FreshnessInputs[3], "../../packages/proto/gen/.vrooli-proto-artifact.json"; got != want {
-		t.Fatalf("FreshnessInputs[3] = %q, want %q", got, want)
+	if !sawDefault || !sawV2 {
+		t.Fatalf("manifest must declare both the default and v2 channels (default=%v v2=%v)", sawDefault, sawV2)
 	}
 }

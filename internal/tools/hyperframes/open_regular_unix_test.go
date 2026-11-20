@@ -39,7 +39,7 @@ func assertFIFORefusedBoundedly(t *testing.T, path string, run func() error) {
 
 func TestRegularOpenRejectsFIFOReplacementBeforeOpen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "source")
-	if err := os.WriteFile(path, []byte("regular"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("regular"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	assertFIFORefusedBoundedly(t, path, func() error {
@@ -47,7 +47,7 @@ func TestRegularOpenRejectsFIFOReplacementBeforeOpen(t *testing.T) {
 			if err := os.Remove(path); err != nil {
 				return nil, err
 			}
-			if err := syscall.Mkfifo(path, 0600); err != nil {
+			if err := syscall.Mkfifo(path, 0o600); err != nil {
 				return nil, err
 			}
 			return openRegularFile(path)
@@ -63,7 +63,7 @@ func TestReadHashAndCopyRejectFIFOWithoutWriter(t *testing.T) {
 	for _, kind := range []string{"read", "hash", "copy"} {
 		t.Run(kind, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "fifo")
-			if err := syscall.Mkfifo(path, 0600); err != nil {
+			if err := syscall.Mkfifo(path, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			assertFIFORefusedBoundedly(t, path, func() error {
@@ -88,10 +88,10 @@ func TestRegularOpenRejectsSymlinkAndInodeReplacement(t *testing.T) {
 			dir := t.TempDir()
 			path := filepath.Join(dir, "source")
 			other := filepath.Join(dir, "other")
-			if err := os.WriteFile(path, []byte("before"), 0600); err != nil {
+			if err := os.WriteFile(path, []byte("before"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(other, []byte("after"), 0600); err != nil {
+			if err := os.WriteFile(other, []byte("after"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			f, err := openCheckedRegular(context.Background(), path, 1024, func(path string) (*os.File, error) {

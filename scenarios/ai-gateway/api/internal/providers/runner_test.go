@@ -2,12 +2,34 @@ package providers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestRedactOutputKeepsCredentialIdentifiersAndValidJSON(t *testing.T) {
+	input := `{"roles":[{"missing_credentials":["TYPESAFE_API_KEY"],"description":"api_key=sk-live-123"}],"api_token":"sk-live-456"}`
+	output := redactOutput(input)
+	var report struct {
+		Roles []struct {
+			MissingCredentials []string `json:"missing_credentials"`
+			Description        string   `json:"description"`
+		} `json:"roles"`
+		APIToken string `json:"api_token"`
+	}
+	if err := json.Unmarshal([]byte(output), &report); err != nil {
+		t.Fatalf("redacted JSON is malformed: %v; output=%q", err, output)
+	}
+	if len(report.Roles) != 1 || len(report.Roles[0].MissingCredentials) != 1 || report.Roles[0].MissingCredentials[0] != "TYPESAFE_API_KEY" {
+		t.Fatalf("credential identifiers were changed: %+v", report.Roles)
+	}
+	if strings.Contains(output, "sk-live-123") || strings.Contains(output, "sk-live-456") {
+		t.Fatalf("secret value was not redacted: %s", output)
+	}
+}
 
 // A typed provider failure an owner adapter writes to stderr must survive the
 // resource-command boundary with its observed status and Retry-After intact.

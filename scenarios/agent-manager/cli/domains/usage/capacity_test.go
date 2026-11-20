@@ -71,10 +71,18 @@ func TestCalculateCapacityPreservesBurnRatesAndUnattributed(t *testing.T) {
 	if got.HasConcurrent {
 		t.Fatalf("without matching live runs sustainable count must be unknown: %#v", got)
 	}
-	w.RunningByModel = map[string]int{"model-a": 2, "model-b": 1, "model-c": 1}
+	// A running run without measured burn was idle in the window: it neither
+	// hides the estimate nor dilutes the per-run rate.
+	w.RunningByModel = map[string]int{"model-a": 2, "model-b": 1, "unknown": 4}
 	got = calculateCapacity(w, now)
-	if got.HasConcurrent {
-		t.Fatalf("one unmeasured active model must keep sustainable count unknown: %#v", got)
+	if !got.HasConcurrent || got.Concurrent != 20 || !strings.Contains(got.State, "4 running run(s) without measured burn") {
+		t.Fatalf("idle runs must be excluded from the divisor, got %#v", got)
+	}
+	// Unattributed provider increase is charged to the runs that burned.
+	w.ObservedIncrease, w.Unattributed = 24, 12
+	got = calculateCapacity(w, now)
+	if !got.HasConcurrent || got.Concurrent != 10 {
+		t.Fatalf("unattributed burn must raise the per-run rate: floor(80/(4*2)) = 10, got %#v", got)
 	}
 }
 

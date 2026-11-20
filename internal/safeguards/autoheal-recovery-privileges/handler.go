@@ -38,6 +38,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	status.Notes = append(status.Notes, "run `vrooli setup broker --sudo-mode=ask` to install the host.service.recover capability")
 	return status
 }
+
 func (h handler) Apply(_ hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if status.Applied || status.SupportClass == hostreqkit.SupportNotApplicable {
 		return status, nil

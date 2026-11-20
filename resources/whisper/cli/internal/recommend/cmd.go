@@ -55,7 +55,7 @@ func Commands(h *Handlers) cliapp.Command {
 	return cliapp.Command{
 		Name:        "recommend-model",
 		Description: "Recommend a Whisper model size for the current host",
-		Usage:       "whisper recommend-model [--budget-pct N] [--json] [--explain]",
+		Usage:       "whisper recommend-model [--budget-pct N] [--quality] [--json] [--explain]",
 		Run:         h.Run,
 	}
 }
@@ -91,6 +91,7 @@ func (h *Handlers) Run(args []string) error {
 	envOut := fs.Bool("env", false, "emit KEY=VALUE lines for shell tooling")
 	explain := fs.Bool("explain", false, "include reasoning lines in human output")
 	budgetFlag := fs.Int("budget-pct", 0, "percent of detected RAM/VRAM the recommender may spend")
+	quality := fs.Bool("quality", false, "choose the largest model that fits instead of the resource-conservative default")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -115,7 +116,11 @@ func (h *Handlers) Run(args []string) error {
 		model = pinned
 		reason = "model pinned by capacity broker/operator (overrides host recommendation)"
 	} else {
-		model, reason, err = Pick(caps, budgetPct)
+		if *quality {
+			model, reason, err = PickQuality(caps, budgetPct)
+		} else {
+			model, reason, err = Pick(caps, budgetPct)
+		}
 		if err != nil {
 			return err
 		}

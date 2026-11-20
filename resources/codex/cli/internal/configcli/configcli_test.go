@@ -7,7 +7,7 @@ import (
 )
 
 func TestEnsureResolvesResourceRoleWithoutPrivateDefaults(t *testing.T) {
-	for role, model := range map[string]string{"code.default": "gpt-6.1-terra", "code.research": "gpt-6-luna", "code.fallback": "gpt-6.1-sol"} {
+	for role, model := range map[string]string{"code.default": "gpt-6.1-terra", "code.research": "gpt-6-luna", "code.fallback": "gpt-6.2-sol"} {
 		var stdout, stderr bytes.Buffer
 		h := &Handlers{CatalogPath: "../../../model-policy.json", GetEnv: func(string) string { return "" }, Stdout: &stdout, Stderr: &stderr}
 		if err := h.Ensure([]string{"--format", "json", "--role", role}); err != nil {
@@ -23,7 +23,7 @@ func TestEnsureResolvesResourceRoleWithoutPrivateDefaults(t *testing.T) {
 	}
 }
 func TestEnsureRefusesModelOverrideOutsideRole(t *testing.T) {
-	for _, model := range []string{"gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-terra"} {
+	for _, model := range []string{"gpt-6.2-sol", "gpt-6-astra", "gpt-6.2-astra", "gpt-5.6-terra"} {
 		var stdout, stderr bytes.Buffer
 		h := &Handlers{CatalogPath: "../../../model-policy.json", GetEnv: func(key string) string {
 			if key == "CODEX_MODEL" {

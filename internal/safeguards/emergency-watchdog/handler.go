@@ -153,11 +153,7 @@ var buildWatchdogFn = func(root, output string) error {
 	if err != nil {
 		return err
 	}
-	stateFlag, err := buildinfo.PersistentStateBuildFlag(root)
-	if err != nil {
-		return err
-	}
-	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=" + version + " " + runtimeHomeFlag + " " + stateFlag, "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
+	if err := hostreqkit.RunAsInvokingUser("go", []string{"-C", root, "build", "-ldflags", "-X main.buildVersion=" + version + " " + runtimeHomeFlag, "-o", output, "./cmd/vrooli-watchdog"}, hostreqkit.EnsureOptions{}); err != nil {
 		return fmt.Errorf("build watchdog: %w", err)
 	}
 	return nil

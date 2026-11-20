@@ -65,7 +65,7 @@ instead of hard-coding concrete model names:
 | `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
 | `chat.small` | `qwen3.5:4b` | low-memory local generation |
 | `chat.default` | `qwen3.5:9b` | default local chat/synthesis |
-| `summarize.default` | `qwen3.5:9b` | text distillation and summaries |
+| `summarize.default` | `qwen3:1.7b` | text distillation and summaries (4B/3B fallbacks) |
 | `rerank.llm_fallback` | `qwen3.5:4b` | fallback reranking when the reranker resource is unavailable |
 | `classify.routing` | `qwen3.5:4b` | structured routing and classification |
 | `code.local` | `gemma4:12b` | local code-specialized generation (tool-calling capable) |

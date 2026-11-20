@@ -90,7 +90,7 @@ func TestTemporaryAdapterFullInstalledModelMeshQualification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(candidate)), "source-profile.json"), profileBytes, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(candidate)), "source-profile.json"), profileBytes, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out := filepath.Join(t.TempDir(), "triposr-qualification.zip")
@@ -114,12 +114,12 @@ func thawTree(root string) error {
 			dirs = append(dirs, path)
 			return nil
 		}
-		return os.Chmod(path, 0644)
+		return os.Chmod(path, 0o644)
 	}); err != nil {
 		return err
 	}
 	for i := len(dirs) - 1; i >= 0; i-- {
-		if err := os.Chmod(dirs[i], 0755); err != nil {
+		if err := os.Chmod(dirs[i], 0o755); err != nil {
 			return err
 		}
 	}
@@ -135,13 +135,13 @@ func TestSelectedInstallationRequiresLedgerAndMatchesSourceTree(t *testing.T) {
 	}
 	upstream := filepath.Join(root, "source")
 	source := filepath.Join(root, "adapter", "source")
-	if err := os.MkdirAll(upstream, 0700); err != nil {
+	if err := os.MkdirAll(upstream, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(source, 0700); err != nil {
+	if err := os.MkdirAll(source, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(source, "README.md"), []byte("fixture"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(source, "README.md"), []byte("fixture"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	digest, err := TreeDigest(source)
@@ -154,7 +154,7 @@ func TestSelectedInstallationRequiresLedgerAndMatchesSourceTree(t *testing.T) {
 	}
 	receipt := Receipt{Schema: 2, Commit: Commit, ArchiveSHA256: ArchiveSHA256, ArchiveBytes: ArchiveBytes, TreeSHA256: digest, AdapterTreeSHA256: digest, UpstreamTreeSHA256: upstreamDigest, Adapter: AdapterVersion, License: "MIT"}
 	b, _ := json.Marshal(receipt)
-	if err = os.WriteFile(filepath.Join(root, "source-profile.json"), b, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(root, "source-profile.json"), b, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err = SelectedInstallation(context.Background()); err == nil {
@@ -170,7 +170,7 @@ func TestSelectedInstallationRequiresLedgerAndMatchesSourceTree(t *testing.T) {
 	if selected != source || got.TreeSHA256 != digest {
 		t.Fatalf("unexpected selected profile %q %+v", selected, got)
 	}
-	if err = os.WriteFile(filepath.Join(source, "README.md"), []byte("tampered"), 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(source, "README.md"), []byte("tampered"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err = SelectedInstallation(context.Background()); err == nil {
@@ -185,7 +185,7 @@ func TestSelectedInstallationIsReadOnlyWhenAdapterIsMissing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.MkdirAll(filepath.Join(root, "source"), 0700); err != nil {
+	if err = os.MkdirAll(filepath.Join(root, "source"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	digest, err := TreeDigest(filepath.Join(root, "source"))
@@ -194,7 +194,7 @@ func TestSelectedInstallationIsReadOnlyWhenAdapterIsMissing(t *testing.T) {
 	}
 	receipt := Receipt{Schema: 1, Commit: Commit, ArchiveSHA256: ArchiveSHA256, ArchiveBytes: ArchiveBytes, TreeSHA256: digest, License: "MIT"}
 	b, _ := json.Marshal(receipt)
-	if err = os.WriteFile(filepath.Join(root, "source-profile.json"), b, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(root, "source-profile.json"), b, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err = cliinstall.RecordToolArtifacts(home, cliinstall.InstallEntry{Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryDirectory, Path: root, Prefix: filepath.Dir(root)}); err != nil {

@@ -371,6 +371,10 @@
             "default_amount_bytes": 3543348019
           },
           {
+            "label": "qwen3:1.7b",
+            "default_amount_bytes": 3221225472
+          },
+          {
             "label": "nomic-embed-text:latest",
             "default_amount_bytes": 858993459
           },

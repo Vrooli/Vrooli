@@ -29,6 +29,7 @@
 package permissions
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -36,8 +37,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -63,9 +67,22 @@ type Adapter struct {
 	// SettingsPath is the absolute path of opencode.json (typically
 	// ~/.config/opencode/opencode.json).
 	SettingsPath string
-	// PluginPath is the OpenCode plugin projection path. An empty value keeps
+	// PluginPath is the OpenCode 1 plugin projection path. An empty value keeps
 	// the adapter focused on settings only, which is useful for isolated tests.
 	PluginPath string
+	// PluginPathV2 is the OpenCode 2 plugin projection path. Empty derives a
+	// sibling `-v2` filename from PluginPath. Keeping the files separate lets a
+	// rollback switch majors without leaving the wrong module format behind.
+	PluginPathV2 string
+	// ProjectionPath is an additional config file that must receive the same
+	// permission object for the installed major. OpenCode 2 reads only the
+	// explicit OPENCODE_CONFIG_DIR when it is set, while the managed permission
+	// map lives in the XDG config; projection keeps native rules effective.
+	ProjectionPath string
+	// Major pins the installed OpenCode major for tests. Zero detects it from
+	// the `opencode` binary once and caches the result on this adapter.
+	Major int
+	major int
 }
 
 // DefaultAdapter returns an Adapter rooted at $HOME/.config/opencode.
@@ -74,9 +91,25 @@ func DefaultAdapter() (*Adapter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve $HOME: %w", err)
 	}
+	settingsPath := filepath.Join(home, ".config", "opencode", "opencode.json")
+	pluginDir := filepath.Join(home, ".config", "opencode", "plugins")
+	v2PluginDir := pluginDir
+	projectionPath := ""
+	// OpenCode 2 discovers plugins and reads configuration only from the
+	// explicit config root when OPENCODE_CONFIG_DIR is set; V1 also discovers
+	// the XDG roots. Keep the V1 projection where V1 finds it, and project the
+	// V2 module and native permissions into the root V2 actually reads.
+	if dir := strings.TrimSpace(os.Getenv("OPENCODE_CONFIG_DIR")); dir != "" {
+		v2PluginDir = filepath.Join(dir, "plugins")
+		if candidate := filepath.Join(dir, "opencode.json"); filepath.Clean(candidate) != filepath.Clean(settingsPath) {
+			projectionPath = candidate
+		}
+	}
 	return &Adapter{
-		SettingsPath: filepath.Join(home, ".config", "opencode", "opencode.json"),
-		PluginPath:   filepath.Join(home, ".config", "opencode", "plugins", "vrooli-policy.js"),
+		SettingsPath:   settingsPath,
+		PluginPath:     filepath.Join(pluginDir, "vrooli-policy.js"),
+		PluginPathV2:   filepath.Join(v2PluginDir, "vrooli-policy-v2.js"),
+		ProjectionPath: projectionPath,
 	}, nil
 }
 
@@ -306,25 +339,42 @@ func (a *Adapter) Save(p Policy, writtenByVersion string) error {
 	return a.syncPlugin(p)
 }
 
-// RenderPlugin returns the native OpenCode plugin projection. The hook sends
-// a normalized event to the local policy runner and refuses the tool call if
-// the runner returns a non-zero decision. No shell interpolation is used.
+// RenderPlugin returns the native OpenCode plugin projection for the detected
+// major. The hook sends a normalized event to the local policy runner and
+// refuses the tool call if the runner returns a non-zero decision. No shell
+// interpolation is used.
 func (a *Adapter) RenderPlugin() string {
-	runner := os.Getenv("VROOLI_AGENT_POLICY_RUNNER")
-	if strings.TrimSpace(runner) == "" {
-		runner = "vrooli-policy-runner"
+	if a.opencodeMajor() >= 2 {
+		return a.RenderV2Plugin()
 	}
+	return a.RenderV1Plugin()
+}
+
+// RenderV1Plugin is the OpenCode 1 `tool.execute.before` projection. The hook
+// signature is (input, output); tool arguments live on output.args, not
+// input.args. A previous revision read the wrong argument, which silently sent
+// an empty command to the policy runner.
+func (a *Adapter) RenderV1Plugin() string {
+	runner := a.policyRunner()
 	return fmt.Sprintf(`// Managed by Vrooli. Do not edit; reconcile permissions to regenerate.
 export const VrooliPolicy = async () => ({
-  "tool.execute.before": async (input) => {
+  "tool.execute.before": async (input, output) => {
     if (!input || input.tool !== "bash") return;
+    const args = output && output.args;
+    const list = Array.isArray(args)
+      ? args.map(String)
+      : args && typeof args === "object" && typeof args.command === "string"
+        ? [args.command]
+        : args == null ? [] : [String(args)];
     const event = {
       contract_version: "agent-policy/v1",
       runner: "opencode",
-      tool: input.tool,
-      arguments: input.args ? [JSON.stringify(input.args)] : [],
+      tool: "bash",
+      arguments: list,
+      working_directory: process.cwd(),
       occurred_at: new Date().toISOString()
     };
+    if (input.sessionID) event.context = { session_id: input.sessionID };
     // Bun.spawnSync feeds a TypedArray given as stdin to the child and then
     // closes it; there is no Node-style "input" option. With stdin: "pipe" and
     // no writer the runner read an empty body, exited 1 with "hook input is
@@ -342,25 +392,195 @@ export const VrooliPolicy = async () => ({
 `, runner)
 }
 
+// RenderV2Plugin is the OpenCode 2 plugin projection. The V2 permission hook is
+// the only seam that can return all three effects, so ask and deny are not
+// collapsed into a thrown error.
+func (a *Adapter) RenderV2Plugin() string {
+	runner := a.policyRunner()
+	return fmt.Sprintf(`// Managed by Vrooli. Do not edit; reconcile permissions to regenerate.
+import { Plugin } from "@opencode/plugin"
+
+const runner = %q
+
+export default Plugin.define({
+  id: "vrooli.policy",
+  async setup(ctx) {
+    await ctx.permission.hook("evaluate", async (event) => {
+      if (!event) return;
+      const action = typeof event.action === "string" && event.action ? event.action : "shell";
+      const resources = Array.isArray(event.resources) ? event.resources.map(String) : [];
+      const payload = {
+        contract_version: "agent-policy/v1",
+        runner: "opencode",
+        tool: action === "shell" ? "bash" : action,
+        arguments: resources,
+        working_directory: ctx && ctx.location && ctx.location.directory ? ctx.location.directory : process.cwd(),
+        occurred_at: new Date().toISOString()
+      };
+      if (event.sessionID) payload.context = { session_id: event.sessionID };
+      const result = Bun.spawnSync([runner, "hook", "--runner", "opencode"], {
+        stdin: new TextEncoder().encode(JSON.stringify(payload)),
+        stdout: "pipe",
+        stderr: "pipe"
+      });
+      if (result.exitCode === 10) {
+        event.effect = "ask";
+      } else if (result.exitCode === 20) {
+        event.effect = "deny";
+        event.message = "Vrooli policy denied this action";
+      } else if (result.exitCode !== 0) {
+        event.effect = "deny";
+        event.message = "Vrooli policy runner could not evaluate this action";
+      }
+    });
+  }
+});
+`, runner)
+}
+
+func (a *Adapter) policyRunner() string {
+	runner := os.Getenv("VROOLI_AGENT_POLICY_RUNNER")
+	if strings.TrimSpace(runner) == "" {
+		runner = "vrooli-policy-runner"
+	}
+	return runner
+}
+
+func (a *Adapter) opencodeMajor() int {
+	if a.Major > 0 {
+		return a.Major
+	}
+	if a.major > 0 {
+		return a.major
+	}
+	a.major = 1
+	path, err := exec.LookPath("opencode")
+	if err != nil {
+		return a.major
+	}
+	out, err := exec.Command(path, "--version").Output()
+	if err != nil {
+		return a.major
+	}
+	if major, ok := opencodeversion.ParseMajor(string(out)); ok {
+		a.major = major
+	}
+	return a.major
+}
+
+func (a *Adapter) pluginPaths() (string, string) {
+	v1 := strings.TrimSpace(a.PluginPath)
+	v2 := strings.TrimSpace(a.PluginPathV2)
+	if v2 == "" && v1 != "" {
+		ext := filepath.Ext(v1)
+		v2 = strings.TrimSuffix(v1, ext) + "-v2" + ext
+	}
+	return v1, v2
+}
+
+// SyncPlugin reconciles the native plugin projection without rewriting the
+// permission map. ensure calls it even when the map is already clean, so a
+// major upgrade still replaces the previous major's plugin module.
+func (a *Adapter) SyncPlugin(p Policy) error { return a.syncPlugin(p) }
+
 func (a *Adapter) syncPlugin(p Policy) error {
-	if strings.TrimSpace(a.PluginPath) == "" {
-		return nil
+	if err := a.syncPluginFile(p); err != nil {
+		return err
+	}
+	return a.projectPermissions()
+}
+
+func (a *Adapter) syncPluginFile(p Policy) error {
+	v1, v2 := a.pluginPaths()
+	active, inactive := v1, v2
+	if a.opencodeMajor() >= 2 {
+		active, inactive = v2, v1
 	}
 	if len(p.BashDeny) == 0 {
-		if err := os.Remove(a.PluginPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove OpenCode policy plugin: %w", err)
+		for _, path := range []string{v1, v2} {
+			if path == "" {
+				continue
+			}
+			if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("remove OpenCode policy plugin: %w", err)
+			}
 		}
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(a.PluginPath), 0o755); err != nil {
+	if active == "" {
+		return nil
+	}
+	// A rolled-back major must not discover the other major's module shape.
+	if inactive != "" {
+		if err := os.Remove(inactive); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove incompatible OpenCode policy plugin: %w", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(active), 0o755); err != nil {
 		return fmt.Errorf("create OpenCode plugin directory: %w", err)
 	}
-	tmp := a.PluginPath + ".tmp"
+	tmp := active + ".tmp"
 	if err := os.WriteFile(tmp, []byte(a.RenderPlugin()), 0o644); err != nil {
 		return fmt.Errorf("write OpenCode policy plugin: %w", err)
 	}
-	if err := os.Rename(tmp, a.PluginPath); err != nil {
+	if err := os.Rename(tmp, active); err != nil {
 		return fmt.Errorf("publish OpenCode policy plugin: %w", err)
+	}
+	return nil
+}
+
+// projectPermissions copies the permission object to the explicit V2 config
+// root. The Vrooli config there already carries provider/model blocks, so only
+// the permission key is replaced; every other key is preserved byte-for-byte.
+func (a *Adapter) projectPermissions() error {
+	if a.opencodeMajor() < 2 {
+		return nil
+	}
+	projection := strings.TrimSpace(a.ProjectionPath)
+	if projection == "" {
+		return nil
+	}
+	source, err := os.ReadFile(a.SettingsPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read OpenCode permissions for projection: %w", err)
+	}
+	var sourceDoc map[string]json.RawMessage
+	if err := json.Unmarshal(source, &sourceDoc); err != nil {
+		return fmt.Errorf("parse OpenCode permissions for projection: %w", err)
+	}
+	targetDoc := map[string]json.RawMessage{}
+	if target, err := os.ReadFile(projection); err == nil {
+		if err := json.Unmarshal(target, &targetDoc); err != nil {
+			return fmt.Errorf("parse projection config %s: %w", projection, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("read projection config %s: %w", projection, err)
+	}
+	if permission, ok := sourceDoc["permission"]; ok {
+		targetDoc["permission"] = permission
+	} else {
+		delete(targetDoc, "permission")
+	}
+	rendered, err := json.MarshalIndent(targetDoc, "", "  ")
+	if err != nil {
+		return fmt.Errorf("render projection config: %w", err)
+	}
+	rendered = append(rendered, '\n')
+	if existing, err := os.ReadFile(projection); err == nil && bytes.Equal(existing, rendered) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(projection), 0o755); err != nil {
+		return fmt.Errorf("create projection directory: %w", err)
+	}
+	tmp := projection + ".tmp"
+	if err := os.WriteFile(tmp, rendered, 0o644); err != nil {
+		return fmt.Errorf("write projection config: %w", err)
+	}
+	if err := os.Rename(tmp, projection); err != nil {
+		return fmt.Errorf("publish projection config: %w", err)
 	}
 	return nil
 }

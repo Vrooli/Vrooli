@@ -2,11 +2,33 @@
 
 ## Streaming transcription CPU tuning
 
-The managed medium-model server uses 12 inference threads on the current
+The managed `ggml-small` server uses 12 inference threads on the current
 32-thread desktop host. This is the measured baseline setting for the
-interactive audio-tools cell; the historical 12-thread benchmark in the
-managed-service assessment remains unchanged. If the host has materially
-fewer CPUs, qualify a separate setting rather than assuming this value.
+interactive audio-tools cell (thread count is unchanged across model sizes).
+If the host has materially fewer CPUs, qualify a separate setting rather than
+assuming this value.
+
+The shipped default is deliberately `small` (488 MB of weights, ~1 GB capacity
+claim). Larger and smaller tiers are declared as on-demand data groups, so a
+fresh install acquires only the default:
+
+```bash
+# accuracy tier (1.6 GB)
+vrooli resource acquisition data whisper --group turbo-model
+# rollback/comparison tier (1.5 GB)
+vrooli resource acquisition data whisper --group medium-model
+# constrained hosts
+vrooli resource acquisition data whisper --group base-model
+vrooli resource acquisition data whisper --group tiny-model
+```
+
+Measured 2026-11-19 on one Linux/Vulkan host (RTX 4070 Ti SUPER) with the
+canonical `the quick brown fox jumps` clip: all four tiers transcribe the clip
+exactly, and warm wall time is 0.16 s (tiny), 0.18 s (base), 0.31 s (small),
+and 0.30 s (turbo) for 1.95 s of audio. That is a smoke receipt on one clean
+clip, not a dictation-quality or device matrix. `whisper recommend-model`
+returns `small` by default and `--quality` opts into the largest model that
+fits.
 
 `whisper` is organized as a checksum-verified `managed-service` resource.
 

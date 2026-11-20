@@ -24,7 +24,7 @@
         },
         "reacquisition": {
           "command": "vrooli resource install whisper",
-          "evidence": "resource.json#/managed_service/data_artifacts[medium-model].acquisition.targets[*].sha256 (checksum-pinned ggml-medium.bin; verified before publication)"
+          "evidence": "resource.json#/managed_service/data_artifacts[small-model].acquisition.targets[*].sha256 (checksum-pinned ggml-small.bin; verified before publication)"
         }
       },
       "uploads": {
@@ -206,8 +206,88 @@
     "attach_health_path": "/",
     "data_artifacts": [
       {
+        "name": "small-model",
+        "path": "models/ggml-small.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT; OpenAI Whisper model weights",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+              "sha256": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "turbo-model",
+        "path": "models/ggml-large-v3-turbo.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT; OpenAI Whisper model weights",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
+              "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "turbo-model",
+        "acquisition_mode": "on-demand"
+      },
+      {
+        "name": "base-model",
+        "path": "models/ggml-base.bin",
+        "group": "base-model",
+        "acquisition_mode": "on-demand",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT; OpenAI Whisper model weights",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+              "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tiny-model",
+        "path": "models/ggml-tiny.bin",
+        "group": "tiny-model",
+        "acquisition_mode": "on-demand",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT; OpenAI Whisper model weights",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+              "sha256": "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
         "name": "medium-model",
         "path": "models/ggml-medium.bin",
+        "group": "medium-model",
+        "acquisition_mode": "on-demand",
         "acquisition": {
           "kind": "url",
           "license": "MIT; OpenAI Whisper model weights",
@@ -238,7 +318,7 @@
       "/inference"
     ],
     "environment": {
-      "WHISPER_MODEL_PATH": "${RESOURCE_DATA_DIR}/models/ggml-medium.bin"
+      "WHISPER_MODEL_PATH": "${RESOURCE_DATA_DIR}/models/ggml-small.bin"
     },
     "shutdown": {
       "signal": "terminate"
@@ -256,7 +336,7 @@
           ],
           "requires": [],
           "limitations": [
-            "Native whisper.cpp server and medium model are checksum-pinned; Linux hosts with a reported Vulkan backend resolve the digest-pinned OCI tree, while other hosts use the CPU release archive."
+            "Native whisper.cpp server and small model (turbo/medium/base/tiny are on-demand tiers) are checksum-pinned; Linux hosts with a reported Vulkan backend resolve the digest-pinned OCI tree, while other hosts use the CPU release archive."
           ],
           "evidence": [
             "manifest-validation",
@@ -304,12 +384,14 @@
     ],
     "require": "preferred",
     "cpu": {
-      "arguments": ["--no-gpu"]
+      "arguments": [
+        "--no-gpu"
+      ]
     },
     "vulkan": {},
     "claim": {
       "resource_kind": "vram",
-      "default_preferred_bytes": 2147483648,
+      "default_preferred_bytes": 1073741824,
       "floor_bytes": 0,
       "default_priority": "service",
       "confidence": "estimated",
@@ -318,13 +400,13 @@
       "idle_unload_ttl_seconds": 900,
       "profile": {
         "model": {
-          "name": "ggml-medium.bin",
-          "digest": "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208"
+          "name": "ggml-small.bin",
+          "digest": "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b"
         },
         "steps": [
           {
             "label": "vulkan",
-            "default_amount_bytes": 2147483648
+            "default_amount_bytes": 1073741824
           },
           {
             "label": "cpu",
@@ -337,7 +419,11 @@
         ],
         "apply": {
           "verb": "capacity",
-          "argv": ["degrade", "--to", "{label}"]
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
         },
         "upshift": true
       }
@@ -434,7 +520,7 @@
   "environment_exports": {
     "static": {
       "WHISPER_HOST": "localhost",
-      "AUDIO_WHISPER_MODEL": "medium"
+      "AUDIO_WHISPER_MODEL": "small"
     },
     "from_ports": {
       "WHISPER_PORT": "http"

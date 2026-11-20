@@ -78,6 +78,7 @@ type claudeStatuslineSample struct {
 	AccountScope string                  `json:"account_scope"`
 	SessionID    string                  `json:"session_id"`
 	SourceRunID  string                  `json:"source_run_id"`
+	AgentSession string                  `json:"agent_session"`
 	FiveHour     *claudeStatuslineWindow `json:"five_hour"`
 	SevenDay     *claudeStatuslineWindow `json:"seven_day"`
 }
@@ -109,6 +110,11 @@ type ClaudeStatuslineReader struct {
 	Store    QuotaObservationRepository
 	Now      func() time.Time
 	Interval time.Duration
+	// ResolveAttachedSession maps a launcher-started session (harness kind
+	// and harness session ID) to its live attached run. A sample without an
+	// Agent Manager source run then names the run whose physical presence the
+	// utilization history observes. Nil or "" leaves the source unknown.
+	ResolveAttachedSession func(ctx context.Context, harnessKind, harnessSessionID string) string
 
 	mu     sync.Mutex
 	file   os.FileInfo
@@ -198,6 +204,11 @@ func (r *ClaudeStatuslineReader) ingestFrom(ctx context.Context, path string, of
 		if len(bytes.TrimSpace(line)) == 0 || json.Unmarshal(line, &sample) != nil || sample.ObservedAt.IsZero() {
 			continue
 		}
+		if sample.SourceRunID == "" && r.ResolveAttachedSession != nil {
+			if session := launcherHarnessSession(sample.AgentSession); session != "" {
+				sample.SourceRunID = r.ResolveAttachedSession(ctx, "claude-code", session)
+			}
+		}
 		for _, observation := range claudeStatuslineObservations(sample, path, now().UTC()) {
 			if err := r.Store.RecordQuotaObservation(ctx, observation); err != nil {
 				return recorded, offset, err
@@ -206,6 +217,22 @@ func (r *ClaudeStatuslineReader) ingestFrom(ctx context.Context, path string, of
 		}
 	}
 	return recorded, offset + int64(end) + 1, nil
+}
+
+// launcherAgentSessionPrefix is the agent launcher's session scope prefix
+// (cli-core cliutil agentScopeName). The scope is the prefix plus the harness
+// session ID; a session ID the launcher had to rewrite or truncate does not
+// match any run and stays unresolved.
+const launcherAgentSessionPrefix = "vrooli-agent-"
+
+// launcherHarnessSession returns the harness session ID named by a launcher
+// agent session scope, or "" when the value is not such a scope.
+func launcherHarnessSession(scope string) string {
+	scope = strings.TrimSpace(scope)
+	if !strings.HasPrefix(scope, launcherAgentSessionPrefix) || len(scope) > 256 {
+		return ""
+	}
+	return strings.TrimPrefix(scope, launcherAgentSessionPrefix)
 }
 
 func claudeStatuslineObservations(sample claudeStatuslineSample, path string, now time.Time) []*QuotaObservation {

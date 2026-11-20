@@ -41,9 +41,11 @@ func (b *admissionBroker) Acquire(_ context.Context, owner string, ram, cpu int6
 	b.owner, b.ram, b.cpu = owner, ram, cpu
 	return b.lease, b.verdict, b.err
 }
+
 func (b *admissionBroker) ReserveDiskJob(context.Context, capacity.DiskJobRequest) (capacity.DiskJobLease, error) {
 	return nil, errors.New("unexpected disk reservation in RAM/CPU-only admission test")
 }
+
 func (b *admissionBroker) AttachDiskJobLease(context.Context, capacity.DiskJobCredential) (capacity.DiskJobLease, error) {
 	return nil, errors.New("unexpected delegated disk lease in RAM/CPU-only admission test")
 }
@@ -179,6 +181,7 @@ func (l *blockingHeartbeatLease) Heartbeat(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
+
 func TestRenderCompletionCancelsInflightHeartbeatWithoutFalseFailure(t *testing.T) {
 	l := &blockingHeartbeatLease{started: make(chan struct{})}
 	b := &admissionBroker{lease: l, verdict: capacity.Verdict{Kind: "grant"}}

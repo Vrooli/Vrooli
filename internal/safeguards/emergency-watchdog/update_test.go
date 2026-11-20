@@ -337,6 +337,7 @@ func TestWatchdogIndependentPublicationReconcileDoesNotBuildOrEnroll(t *testing.
 	if _, err := os.Stat(p.Binary + ".update.json"); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("empty reconciliation created an update: %v", err)
 	}
+	//nolint:staticcheck // nil is the behavior under test: the reconciler must reject it.
 	if err := ReconcileBinaryPublication(nil, p.Home); err == nil {
 		t.Fatal("nil reconciliation context accepted")
 	}
@@ -1120,14 +1121,14 @@ func TestWatchdogPublicationFencesIncompleteRebaseline(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			p, _ := setupWatchdogUpdateTest(t)
 			path := filepath.Join(p.Home, ".vrooli", "state", "root-rebaseline", "progress.json")
-			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			data := []byte(`{"version":1,"candidate_sha256":"` + strings.Repeat("a", 64) + `","watchdog_sha256":"` + strings.Repeat("b", 64) + `","complete":` + fmt.Sprint(state == "complete") + `}`)
 			if state == "invalid" {
 				data = []byte("broken")
 			}
-			if err := os.WriteFile(path, data, 0600); err != nil {
+			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			err := updateWatchdogBinary(p)

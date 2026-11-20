@@ -12,6 +12,15 @@
       "args": ["model-hook", "--runner", "codex"],
       "timeout_seconds": 10,
       "rationale": "A sub-agent that names a model bypasses Agent Manager, so excluded_models in model-policy.json cannot stop it any other way. The hook denies (exit 2) only a call naming an excluded model; every error, a missing binary or a timeout lets the call run."
+    },
+    {
+      "id": "vrooli-policy-runner",
+      "event": "PreToolUse",
+      "matcher": "Bash|shell_command|exec_command|apply_patch|mcp__.*",
+      "program": "vrooli-policy-runner",
+      "args": ["hook", "--runner", "codex"],
+      "timeout_seconds": 10,
+      "rationale": "Evaluate provider-owned agent policy snapshots at Codex tool boundaries and preserve exact evaluator evidence on refusals. Codex trust remains an operator decision."
     }
   ]
 }

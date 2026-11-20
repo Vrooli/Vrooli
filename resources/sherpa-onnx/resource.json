@@ -105,7 +105,7 @@
       "entry_path": "server/sherpa-onnx-server",
       "bundle_artifact": "sherpa-onnx-server_${os}_${arch}",
       "sha256_by_platform": {
-      "linux-amd64": "bd90dac5c3f33dfdec4d9df7806c0572f409629d395d288c637c2f370cb1ac5f"
+        "linux-amd64": "bd90dac5c3f33dfdec4d9df7806c0572f409629d395d288c637c2f370cb1ac5f"
       }
     },
     "acquisition": {
@@ -183,6 +183,28 @@
             }
           ]
         }
+      },
+      {
+        "name": "streaming-zipformer-en-kroko-2025-08-06",
+        "path": "models/asr",
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-SA-4.0 community model; commercial/OEM licence available from Kroko",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06.tar.bz2",
+              "sha256": "c8676e5ff9ac2a85296e53ee0fd4d5fb1db6770e7a7647166eeafe349ade6834",
+              "archive": "tar.bz2",
+              "layout": "dir",
+              "bin_path": "sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06/tokens.txt"
+            }
+          ]
+        },
+        "group": "streaming-zipformer-kroko",
+        "acquisition_mode": "on-demand"
       },
       {
         "name": "streaming-zipformer-en-2023-06-26",

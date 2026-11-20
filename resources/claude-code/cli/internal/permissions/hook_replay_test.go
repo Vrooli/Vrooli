@@ -128,6 +128,36 @@ func TestGuardDecidesDeletionThroughTheSharedRuntime(t *testing.T) {
 	}
 }
 
+func TestNativeHookRefusalCarriesProviderEvaluatorIdentity(t *testing.T) {
+	h := newGuardHost(t)
+	now := time.Now().UTC()
+	snapshot := agentharness.ProviderSnapshot{
+		ProviderID: "scenario-dependency-analyzer", Version: "test",
+		Capabilities: []agentharness.ProviderCapability{{ID: "dependency-policy", IdealPosture: "deny unapproved package mutation", DeclaredMaturity: agentharness.MaturityEnforcing, SupportsAnalysis: true, SupportsEnforce: true}},
+		Health:       agentharness.ProviderHealth{State: agentharness.HealthHealthy, CheckedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)},
+		Readiness:    agentharness.ProviderReadiness{State: "ready", RollbackPlan: "test only"},
+		Evidence:     agentharness.EvidenceClean, CapturedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour),
+		Rules: []agentharness.PolicyRule{{EvaluatorID: "scenario-dependency-analyzer:opaque-shell-test", Risk: agentharness.RiskOpaque, Action: agentharness.ActionDeny, Reason: "synthetic hook telemetry fixture"}},
+	}
+	if err := h.env.Runtime.Store.PublishProvider(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	h.env.Runtime.Profile = agentharness.ProfileEnforcing
+	const payload = `{"cwd":"/repo","tool_name":"Bash","tool_input":{"command":"pnpm add example"}}`
+	var stdout, stderr bytes.Buffer
+	if got := RunHookGuard(strings.NewReader(payload), &stdout, &stderr, nil, h.env); got != GuardExitDeny {
+		t.Fatalf("safe synthetic package event exit = %d, want deny", got)
+	}
+	const marker = "[vrooli_guard_check=scenario-dependency-analyzer:opaque-shell-test]"
+	if !strings.Contains(stderr.String(), marker) {
+		t.Fatalf("native hook refusal omitted provider evaluator ID: %q", stderr.String())
+	}
+	log, err := os.ReadFile(h.env.LogPath)
+	if err != nil || !strings.Contains(string(log), marker) {
+		t.Fatalf("native hook audit omitted provider evaluator ID: log=%q err=%v", log, err)
+	}
+}
+
 // TestGuardAsksThroughClaudesPermissionDecision pins the structured output
 // Claude Code reads to raise its own confirmation prompt.
 func TestGuardAsksThroughClaudesPermissionDecision(t *testing.T) {

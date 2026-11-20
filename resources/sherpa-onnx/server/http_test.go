@@ -41,6 +41,27 @@ func TestVoicesPreserveKokoroContract(t *testing.T) {
 	}
 }
 
+func TestHealthRequiresTTSModelAndReportsItsState(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		engine     TTS
+		wantStatus int
+		wantField  string
+	}{
+		{name: "model loaded", engine: fakeTTS{}, wantStatus: http.StatusOK, wantField: `"tts_model_loaded":true`},
+		{name: "model absent", engine: nil, wantStatus: http.StatusServiceUnavailable, wantField: `"tts_model_loaded":false`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+			w := httptest.NewRecorder()
+			newHandlerWithEncoder(tc.engine, fakeEncoder{data: []byte("encoded"), contentType: "audio/wav"}).ServeHTTP(w, r)
+			if w.Code != tc.wantStatus || !strings.Contains(w.Body.String(), tc.wantField) {
+				t.Fatalf("health = %d %s, want status %d and %s", w.Code, w.Body.String(), tc.wantStatus, tc.wantField)
+			}
+		})
+	}
+}
+
 func TestSpeechReturnsValidWAV(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/v1/audio/speech", strings.NewReader(`{"model":"kokoro","input":"hello","voice":"af_heart","response_format":"wav"}`))
 	r.Header.Set("Content-Type", "application/json")

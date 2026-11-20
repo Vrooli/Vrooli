@@ -60,12 +60,13 @@ permission posture; Agent Manager consumes that response at run creation but
 does not duplicate the inventory or write Codex configuration.
 
 The operator policy selects GPT-6.1 Terra for capable work and the latest
-verified Luna (currently GPT-6 Luna) for `code.research`. Sol is restricted to
+verified Luna (currently GPT-6 Luna) for `code.research`. GPT-6.2 Sol is restricted to
 `code.fallback`; Agent Manager requires an explicit
 `VROOLI_MODEL_FALLBACK_REASON`, retains it as declared evidence in the immutable
 policy snapshot, and validates supplied source-run IDs against owned run state.
-`parentRunId` remains thread lineage. Astra and old Terra are globally excluded;
-ordinary roles cannot override to Sol. No automatic model/provider fallback.
+`parentRunId` remains thread lineage. Astra (including GPT-6.2 Astra), superseded
+GPT-6.1 Sol and old Terra are globally excluded; ordinary roles cannot override
+to Sol. No automatic model/provider fallback.
 
 Discovery, upstream checks and managed launches use the same PATH-respecting
 resolver behind the Vrooli shim, including user-local installations.

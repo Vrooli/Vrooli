@@ -78,20 +78,21 @@ func newHandlerWithEncoderStreamingAndSpeaker(engine TTS, encoder Encoder, strea
 
 func (h *speechHandler) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	ttsLoaded := h.engine != nil
 	streamingLoaded := h.streaming != nil
 	speakerLoaded := h.speaker != nil
 	encoderReady := true
 	if status, ok := h.encoder.(encoderReadiness); ok {
 		encoderReady = status.Ready()
 	}
-	if !encoderReady {
+	if !encoderReady || !ttsLoaded {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	status := "ok"
-	if !encoderReady {
+	if !encoderReady || !ttsLoaded {
 		status = "degraded"
 	}
-	_, _ = fmt.Fprintf(w, `{"status":%q,"encoder_ready":%t,"streaming_model_loaded":%t,"speaker_model_loaded":%t}`, status, encoderReady, streamingLoaded, speakerLoaded)
+	_, _ = fmt.Fprintf(w, `{"status":%q,"tts_model_loaded":%t,"encoder_ready":%t,"streaming_model_loaded":%t,"speaker_model_loaded":%t}`, status, ttsLoaded, encoderReady, streamingLoaded, speakerLoaded)
 }
 
 func (h *speechHandler) listVoices(w http.ResponseWriter, r *http.Request) {

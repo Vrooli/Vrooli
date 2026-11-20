@@ -35,8 +35,8 @@
   "driver": "managed-service",
   "platforms": {
     "linux": "supported",
-    "macos": "build-verified",
-    "windows": "build-verified"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "managed_service": {
     "artifact": {
@@ -256,17 +256,26 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "Music-Mir runs only through the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         },
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "Music-Mir runs only through the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         },
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "Music-Mir runs only through the control-plane Docker lifecycle; no desktop bundle or installer exists."
+          ]
         }
       }
     }

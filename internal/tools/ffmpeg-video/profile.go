@@ -156,14 +156,16 @@ type bundleBinary struct {
 }
 
 func bundleProfileBase(artifact Artifact) *cliv1.RendererToolProfile {
-	return &cliv1.RendererToolProfile{SchemaVersion: 1, ProfileId: artifact.ProfileID,
+	return &cliv1.RendererToolProfile{
+		SchemaVersion: 1, ProfileId: artifact.ProfileID,
 		State:            cliv1.RendererToolProfileState_RENDERER_TOOL_PROFILE_STATE_MISSING,
 		ArtifactIdentity: artifactIdentity(artifact), Os: runtime.GOOS, Architecture: runtime.GOARCH,
 		ArchiveSha256: artifact.ArchiveSHA256, ArchiveSizeBytes: uint64(artifact.ArchiveSize),
 		LicenseId: artifact.LicenseID, LicenseSha256: artifact.LicenseSHA256,
 		RuntimePrerequisites: append([]string(nil), artifact.Prerequisites...),
 		QualificationScope:   "artifact-and-version-probe-only; no video workflow or redistribution qualification",
-		ObservedAt:           time.Now().UTC().Format(time.RFC3339Nano)}
+		ObservedAt:           time.Now().UTC().Format(time.RFC3339Nano),
+	}
 }
 
 func artifactIdentity(artifact Artifact) string {

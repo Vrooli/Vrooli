@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/agentharness"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ManagedHooksSchema versions resources/codex/managed-hooks.json.
@@ -96,7 +98,11 @@ func installedProgram(name string) string {
 	if err != nil {
 		return name
 	}
-	return shellQuote(filepath.Join(home, ".vrooli", "bin", name))
+	runtimeHome, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return name
+	}
+	return shellQuote(filepath.Join(runtimeHome, "bin", name))
 }
 
 var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)

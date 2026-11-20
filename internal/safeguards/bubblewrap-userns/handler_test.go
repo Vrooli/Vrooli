@@ -89,7 +89,7 @@ func TestApplyInstallsLoadsAndValidates(t *testing.T) {
 		if content != profileContent || !strings.Contains(content, "/{,usr/}bin/bwrap") {
 			t.Fatal("profile is not scoped to system bubblewrap")
 		}
-		return temp, os.WriteFile(temp, []byte(content), 0600)
+		return temp, os.WriteFile(temp, []byte(content), 0o600)
 	}
 	var commands []string
 	hostreqkit.RunCommandFn = func(name string, args []string, _ hostreqkit.EnsureOptions) error {

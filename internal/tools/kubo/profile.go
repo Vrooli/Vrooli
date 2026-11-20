@@ -7,14 +7,15 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"fmt"
-	"github.com/vrooli/binaryfetch"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/hostreqspec"
-	"github.com/vrooli/vrooli/internal/tools/pinnedrelease"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/tools/pinnedrelease"
 )
 
 const (
@@ -35,9 +36,11 @@ func ValidateSource(source string) error { return release().ValidateSource(sourc
 func releaseTarget(goos, goarch string) (binaryfetch.Target, error) {
 	return release().Target(goos, goarch)
 }
+
 func SelectedInstallation(ctx context.Context) (string, Receipt, error) {
 	return release().SelectedInstallation(ctx)
 }
+
 func selectedAt(ctx context.Context, root, home string) (string, Receipt, error) {
 	return release().SelectAt(ctx, root, home)
 }

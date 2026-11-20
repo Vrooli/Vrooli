@@ -9,11 +9,11 @@ package recommend
 type Model string
 
 const (
-	ModelTiny    Model = "tiny"
-	ModelBase    Model = "base"
-	ModelSmall   Model = "small"
-	ModelMedium  Model = "medium"
-	ModelLargeV3 Model = "large-v3"
+	ModelTiny   Model = "tiny"
+	ModelBase   Model = "base"
+	ModelSmall  Model = "small"
+	ModelMedium Model = "medium"
+	ModelTurbo  Model = "large-v3-turbo"
 )
 
 // VRAMRequirement is the minimum effective VRAM (bytes) for a model at
@@ -22,11 +22,11 @@ const (
 // "the host can actually load this." Updating these is the only knob
 // for shifting the table.
 var VRAMRequirement = map[Model]uint64{
-	ModelTiny:    1 << 30,         // 1 GB
-	ModelBase:    1<<30 + 512<<20, // 1.5 GB
-	ModelSmall:   2 << 30,         // 2 GB
-	ModelMedium:  5 << 30,         // 5 GB
-	ModelLargeV3: 10 << 30,        // 10 GB
+	ModelTiny:   1 << 30,         // 1 GB
+	ModelBase:   1<<30 + 512<<20, // 1.5 GB
+	ModelSmall:  2 << 30,         // 2 GB
+	ModelMedium: 5 << 30,         // 5 GB
+	ModelTurbo:  6 << 30,         // 6 GB
 }
 
 // CPURAMRequirement is the minimum *budgeted* system RAM (bytes) the

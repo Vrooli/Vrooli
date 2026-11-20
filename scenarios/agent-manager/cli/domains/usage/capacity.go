@@ -128,12 +128,25 @@ func calculateCapacity(w capacityWindow, now time.Time) capacityRow {
 		}
 	}
 	row.RunningByRole = w.RunningByRole
-	if observedRate > 0 && matchingRuns > 0 && matchingRuns == totalRunning && row.HasPoints && row.HasHours {
+	// A running run whose model shows no measured burn in the period was idle
+	// for it (attached operator sessions often are). It is excluded from the
+	// divisor, and the numerator is the provider's whole observed increase when
+	// that exceeds the attributed burn, so unattributed or off-disk usage and
+	// finished runs' usage are charged to the runs that did burn. Both choices
+	// can only raise the per-run rate, never invent headroom.
+	idleRuns := totalRunning - matchingRuns
+	if providerRate := w.ObservedIncrease / periodHours; providerRate > observedRate && !math.IsInf(providerRate, 0) && !math.IsNaN(providerRate) {
+		observedRate = providerRate
+	}
+	if observedRate > 0 && matchingRuns > 0 && row.HasPoints && row.HasHours {
 		row.Concurrent = math.Floor(row.PointsLeft / (row.ResetHours * (observedRate / float64(matchingRuns))))
 		row.HasConcurrent = true
 		row.State = "current-census estimate from recent measured model burn; assumes currently running matching-model runs represent the one-hour usage window"
+		if idleRuns > 0 {
+			row.State += fmt.Sprintf("; %d running run(s) without measured burn in the window were idle and are excluded, and the provider's whole observed increase is charged to the %d run(s) that burned", idleRuns, matchingRuns)
+		}
 	} else {
-		row.State = "unknown: recent measured burn must cover every currently running model"
+		row.State = "unknown: no currently running run has measured burn in the recent window"
 	}
 	return row
 }

@@ -20,7 +20,7 @@ func TestPick_Table(t *testing.T) {
 				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
 				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4090", VRAMBytes: 24 * gb}},
 			},
-			budget: 50, wantModel: ModelLargeV3,
+			budget: 50, wantModel: ModelSmall,
 		},
 		{
 			name: "RTX 3070 8GB / 32GB / 16c",
@@ -39,10 +39,10 @@ func TestPick_Table(t *testing.T) {
 			budget: 50, wantModel: ModelSmall,
 		},
 		{
-			name:      "No GPU, 32GB / 16c → medium",
+			name:      "No GPU, 32GB / 16c → small",
 			caps:      hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 16}, Memory: hostinventory.Memory{TotalBytes: 32 * gb}},
 			budget:    50,
-			wantModel: ModelMedium,
+			wantModel: ModelSmall,
 		},
 		{
 			name:      "No GPU, 16GB / 8c → small",
@@ -90,14 +90,14 @@ func TestPick_Table(t *testing.T) {
 			budget: 50, wantModel: ModelBase,
 		},
 		{
-			// Same card, idle (nothing resident) → 16GB free → budget 50% = 8GB
-			// → medium. Proves the pick rises with available headroom.
-			name: "RTX 16GB, idle → medium",
+			// Same card, idle (nothing resident) → 16GB free → budget 50% = 8GB.
+			// The balanced pick stays at small and leaves the rest for other work.
+			name: "RTX 16GB, idle → small (leaves headroom)",
 			caps: hostinventory.Snapshot{
 				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
 				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4070 Ti SUPER", VRAMBytes: 16 * gb, VRAMUsedBytes: 0}},
 			},
-			budget: 50, wantModel: ModelMedium,
+			budget: 50, wantModel: ModelSmall,
 		},
 		{
 			// Card fully consumed (used >= total) → 0 free → falls through to the
@@ -107,7 +107,7 @@ func TestPick_Table(t *testing.T) {
 				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
 				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4070 Ti SUPER", VRAMBytes: 16 * gb, VRAMUsedBytes: 16 * gb}},
 			},
-			budget: 50, wantModel: ModelMedium,
+			budget: 50, wantModel: ModelSmall,
 		},
 	}
 	for _, tc := range cases {
@@ -132,5 +132,52 @@ func TestPick_BadBudget(t *testing.T) {
 	}
 	if _, _, err := Pick(hostinventory.Snapshot{}, 101); err == nil {
 		t.Error("101: want error")
+	}
+}
+
+func TestPickQuality_Table(t *testing.T) {
+	gb := uint64(1 << 30)
+	cases := []struct {
+		name      string
+		caps      hostinventory.Snapshot
+		budget    int
+		wantModel Model
+	}{
+		{
+			name: "RTX 4090 24GB / 64GB / 32c → turbo",
+			caps: hostinventory.Snapshot{
+				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4090", VRAMBytes: 24 * gb}},
+			},
+			budget: 50, wantModel: ModelTurbo,
+		},
+		{
+			name: "RTX 3070 8GB / 32GB / 16c → small (medium does not fit)",
+			caps: hostinventory.Snapshot{
+				CPU: hostinventory.CPU{Cores: 16}, Memory: hostinventory.Memory{TotalBytes: 32 * gb},
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 3070", VRAMBytes: 8 * gb}},
+			},
+			budget: 50, wantModel: ModelSmall,
+		},
+		{
+			name:      "No GPU, 32GB / 16c → medium (explicit quality)",
+			caps:      hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 16}, Memory: hostinventory.Memory{TotalBytes: 32 * gb}},
+			budget:    50,
+			wantModel: ModelMedium,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, reason, err := PickQuality(tc.caps, tc.budget)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if reason == "" {
+				t.Errorf("empty reason")
+			}
+			if got != tc.wantModel {
+				t.Errorf("got=%s want=%s reason=%s", got, tc.wantModel, reason)
+			}
+		})
 	}
 }

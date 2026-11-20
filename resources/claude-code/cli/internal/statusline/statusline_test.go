@@ -147,7 +147,7 @@ func TestUninstallWithoutPreviousRemovesKeyAndLeavesOperatorChangesAlone(t *test
 func TestFeedRecordsChangedReadingsWithHeartbeatAndPrintsStatus(t *testing.T) {
 	f := newFixture(t, "")
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
-	feed := Feed{SamplesPath: f.samples, StatePath: f.settings.StatePath, Now: func() time.Time { return now }}
+	feed := Feed{SamplesPath: f.samples, StatePath: f.settings.StatePath, Now: func() time.Time { return now }, SourceRunID: "123e4567-e89b-12d3-a456-426614174000"}
 	run := func(input string) string {
 		var out bytes.Buffer
 		if err := feed.Run(strings.NewReader(input), &out); err != nil {
@@ -172,9 +172,87 @@ func TestFeedRecordsChangedReadingsWithHeartbeatAndPrintsStatus(t *testing.T) {
 		t.Fatalf("samples = %d, want 3: %+v", len(samples), samples)
 	}
 	got := samples[1]
-	if got.SessionID != "s-1" || got.Model != "claude-opus" || *got.FiveHour.UsedPercentage != 24 || got.FiveHour.ResetsAt != fiveHourReset || *got.SevenDay.UsedPercentage != 41.2 {
+	if got.SessionID != "s-1" || got.SourceRunID != "123e4567-e89b-12d3-a456-426614174000" || got.Model != "claude-opus" || *got.FiveHour.UsedPercentage != 24 || got.FiveHour.ResetsAt != fiveHourReset || *got.SevenDay.UsedPercentage != 41.2 {
 		t.Fatalf("sample = %+v", got)
 	}
+}
+
+func TestFeedRejectsMalformedSourceRunID(t *testing.T) {
+	f := newFixture(t, "")
+	feed := Feed{SamplesPath: f.samples, SourceRunID: "not-a-uuid"}
+	if err := feed.Run(strings.NewReader(statusInput(12, 30)), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	samples := readSamples(t, f.samples)
+	if len(samples) != 1 || samples[0].SourceRunID != "" {
+		t.Fatalf("malformed source run ID must remain unknown: %+v", samples)
+	}
+}
+
+// A launcher-started session carries its agent session scope; Agent Manager
+// resolves it to the attached run. Values outside the scope alphabet are
+// dropped, never recorded.
+func TestFeedRecordsOnlyAWellFormedLauncherAgentSession(t *testing.T) {
+	for _, tc := range []struct{ value, want string }{
+		{"vrooli-agent-claude-code-5dc261fc7208ee2feb84d348600137d9", "vrooli-agent-claude-code-5dc261fc7208ee2feb84d348600137d9"},
+		{"", ""},
+		{"scope with spaces", ""},
+		{strings.Repeat("a", 257), ""},
+	} {
+		f := newFixture(t, "")
+		feed := Feed{SamplesPath: f.samples, AgentSession: tc.value}
+		if err := feed.Run(strings.NewReader(statusInput(12, 30)), &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+		samples := readSamples(t, f.samples)
+		if len(samples) != 1 || samples[0].AgentSession != tc.want {
+			t.Fatalf("agent session %q recorded as %+v; want %q", tc.value, samples, tc.want)
+		}
+	}
+}
+
+func TestFeedBindsOnlyVerifiedFirstPartyAccountAsOpaqueDigest(t *testing.T) {
+	f := newFixture(t, "")
+	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+	const org = "org-12345678-90ab-cdef-1234-567890abcdef"
+	auth := []byte(`{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","orgId":"` + org + `","subscriptionType":"max","planTier":"max_5x"}`)
+	feed := Feed{SamplesPath: f.samples, Now: func() time.Time { return now }, AuthStatus: func() ([]byte, error) { return auth, nil }}
+	if err := feed.Run(strings.NewReader(statusInput(24, 41)), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	samples := readSamples(t, f.samples)
+	if len(samples) != 1 || !strings.HasPrefix(samples[0].AccountScope, "anthropic:sha256:") || strings.Contains(string(mustJSON(t, samples[0])), org) {
+		t.Fatalf("account binding must be opaque and forward-only: %+v", samples)
+	}
+	firstScope := samples[0].AccountScope
+	const nextOrg = "org-abcdef12-3456-7890-abcd-ef1234567890"
+	auth = []byte(`{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","orgId":"` + nextOrg + `","subscriptionType":"max","planTier":"max_5x"}`)
+	now = now.Add(time.Second)
+	if err := feed.Run(strings.NewReader(statusInput(24, 41)), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	samples = readSamples(t, f.samples)
+	if len(samples) != 2 || samples[1].AccountScope == firstScope || samples[1].AccountScope == "" {
+		t.Fatalf("an account change must be recorded even when quota readings are unchanged: %+v", samples)
+	}
+	feed.AuthStatus = func() ([]byte, error) { return []byte(`{"loggedIn":false}`), nil }
+	now = now.Add(time.Second)
+	if err := feed.Run(strings.NewReader(statusInput(25, 41)), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	samples = readSamples(t, f.samples)
+	if len(samples) != 3 || samples[2].AccountScope != "" || samples[1].AccountScope == firstScope || samples[0].AccountScope != firstScope {
+		t.Fatalf("unsupported auth must stay unknown and not rewrite prior samples: %+v", samples)
+	}
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 // A Claude Code session idle since an older window keeps rendering that

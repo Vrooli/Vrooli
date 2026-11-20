@@ -1,6 +1,7 @@
 package pricing
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -130,6 +131,43 @@ func TestClaudeStatuslineReaderCarriesValidForwardSourceRunAndLeavesLegacyUnknow
 		if row.Used != nil || row.Limit != nil || row.Uncertainty != "consumed amount and ceiling are unavailable" {
 			t.Fatalf("percent-only statusline evidence must remain incomplete: %+v", row)
 		}
+	}
+}
+
+// A launcher-started Claude session renders the statusline with its agent
+// session scope but no Agent Manager source run. Ingestion names the live
+// attached run of that session; an explicit source run is never replaced, and
+// a value that is not a launcher scope is never looked up.
+func TestClaudeStatuslineReaderResolvesLauncherSessionToItsAttachedRun(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quota-samples.ndjson")
+	const attached = "223e4567-e89b-12d3-a456-426614174000"
+	const managed = "123e4567-e89b-12d3-a456-426614174000"
+	appendFile(t, path,
+		`{"observed_at":"2026-10-29T06:41:11Z","agent_session":"vrooli-agent-claude-code-5dc261fc","five_hour":{"used_percentage":63,"resets_at":1793268600}}`+"\n"+
+			`{"observed_at":"2026-10-29T06:42:11Z","agent_session":"vrooli-agent-claude-code-5dc261fc","source_run_id":"`+managed+`","five_hour":{"used_percentage":64,"resets_at":1793268600}}`+"\n"+
+			`{"observed_at":"2026-10-29T06:43:11Z","agent_session":"some-other-scope","five_hour":{"used_percentage":65,"resets_at":1793268600}}`+"\n")
+	var lookups []string
+	store := NewMemoryRepository()
+	reader := &ClaudeStatuslineReader{Path: path, Store: store, Now: func() time.Time { return time.Date(2026, 10, 29, 6, 44, 0, 0, time.UTC) },
+		ResolveAttachedSession: func(_ context.Context, kind, session string) string {
+			lookups = append(lookups, kind+"/"+session)
+			if kind == "claude-code" && session == "claude-code-5dc261fc" {
+				return attached
+			}
+			return ""
+		}}
+	if got, err := reader.Ingest(t.Context()); err != nil || got != 3 {
+		t.Fatalf("ingested %d (%v), want 3", got, err)
+	}
+	if strings.Join(lookups, ",") != "claude-code/claude-code-5dc261fc" {
+		t.Fatalf("lookups=%v; want only the launcher session without a source run", lookups)
+	}
+	rows, err := store.ListQuotaObservations(t.Context(), "anthropic", "five_hour", "300m", 10)
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("rows=%d err=%v", len(rows), err)
+	}
+	if rows[2].SourceRunID != attached || rows[1].SourceRunID != managed || rows[0].SourceRunID != "" {
+		t.Fatalf("source runs=%q,%q,%q", rows[2].SourceRunID, rows[1].SourceRunID, rows[0].SourceRunID)
 	}
 }
 

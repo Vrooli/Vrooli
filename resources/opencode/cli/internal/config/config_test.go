@@ -313,6 +313,31 @@ func TestEnsure_NoKeyLocalReachableSelfHealsToOllama(t *testing.T) {
 	}
 }
 
+func TestEnsure_LocalFallbackFailsClosedWithoutResolvedPolicyRole(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	defaults := DefaultDefaults(func(key string) string {
+		if key == "OPENCODE_OLLAMA_DEFAULT_MODEL" {
+			return "gemma4:12b"
+		}
+		return ""
+	})
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   defaults,
+		Resolver: fakeResolver{
+			installed: []string{"gemma4:12b"},
+			roleErr:   errors.New("resource-ollama policy unavailable"),
+		},
+	})
+	if err == nil {
+		t.Fatal("expected local fallback to fail when the policy role cannot be resolved")
+	}
+	if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+		t.Fatalf("config should not be written with a caller-supplied model fallback, stat err=%v", statErr)
+	}
+}
+
 func TestEnsure_OllamaUnreachableNoBlockOnFresh(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/opencode.json"

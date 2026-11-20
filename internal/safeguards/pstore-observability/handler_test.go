@@ -5,10 +5,11 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestApplyDryRunPreservesPstoreIdentity(t *testing.T) {
-	t.Setenv("USER", "operator")
+	testenv.SetIdentityEnv(t, map[string]string{"USER": "operator"})
 	h := NewHandler(hostreqkit.SafeguardManifest{Name: "pstore_observability"})
 	status := hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}
 	got, err := h.Apply(hostreqkit.Host{}, status, hostreqkit.EnsureOptions{DryRun: true})

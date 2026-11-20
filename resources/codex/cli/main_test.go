@@ -13,7 +13,7 @@ func TestDeliveryModelPolicyHasOnlyOperatorAuthorizedTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for roleName, models := range map[string][]string{"code.delivery": {"gpt-6.1-terra"}, "judgment.supervision": {"gpt-6.1-terra"}, "code.research": {"gpt-6-luna"}, "code.fallback": {"gpt-6.1-sol"}} {
+	for roleName, models := range map[string][]string{"code.delivery": {"gpt-6.1-terra"}, "judgment.supervision": {"gpt-6.1-terra"}, "code.research": {"gpt-6-luna"}, "code.fallback": {"gpt-6.2-sol"}} {
 		role, ok := catalog.Roles[roleName]
 		if !ok || role.Model != models[0] || role.CanonicalModel != "codex/"+models[0] || len(role.Fallbacks) != len(models)-1 || len(role.Models) != len(models) || role.Challenger != nil {
 			t.Fatalf("%s must have only the authorized ordered models: %+v", roleName, role)
@@ -28,17 +28,17 @@ func TestDeliveryModelPolicyHasOnlyOperatorAuthorizedTargets(t *testing.T) {
 			}
 		}
 	}
-	for _, model := range []string{"gpt-6-astra", "gpt-5.6-terra"} {
+	for _, model := range []string{"gpt-6-astra", "gpt-6.2-astra", "gpt-6.1-sol", "gpt-5.6-terra"} {
 		if !slices.Contains(catalog.ExcludedModels, model) {
 			t.Fatalf("globally prohibited model no longer excluded: %s", model)
 		}
 	}
 	for name, role := range catalog.Roles {
-		if name != "code.fallback" && role.Model == "gpt-6.1-sol" {
+		if name != "code.fallback" && role.Model == "gpt-6.2-sol" {
 			t.Fatalf("ordinary role silently selected Sol: %s", name)
 		}
 	}
-	for _, model := range []string{"gpt-6.1-sol"} {
+	for _, model := range []string{"gpt-6.2-sol"} {
 		roles := catalog.RestrictedModels[model]
 		if len(roles) != 1 || roles[0] != "code.fallback" {
 			t.Fatalf("%s must remain reserved for recorded failure fallback: %v", model, roles)

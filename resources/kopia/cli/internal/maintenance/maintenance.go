@@ -34,6 +34,7 @@ func (s Service) Run(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("maintenance run")
 	repo := fs.String("repo", "", "Repository name (required)")
 	full := fs.Bool("full", false, "Run full maintenance (prunes per retention)")
+	safety := fs.String("safety", "", "Deletion safety level: full (default) or none; none drops already-deleted contents immediately")
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
 	}
@@ -44,6 +45,9 @@ func (s Service) Run(ctx context.Context, args []string) error {
 	argv := append(target.GlobalArgs(), "maintenance", "run")
 	if *full {
 		argv = append(argv, "--full")
+	}
+	if strings.TrimSpace(*safety) != "" {
+		argv = append(argv, "--safety", strings.TrimSpace(*safety))
 	}
 	return s.run(ctx, target, argv)
 }

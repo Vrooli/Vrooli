@@ -160,7 +160,11 @@ func EvaluateGuard(event HookEvent, patterns []string, env GuardEnv) GuardDecisi
 	}
 	switch decision.Action {
 	case agentharness.ActionDeny:
-		return denyGuard(decision.Reason)
+		reason := decision.Reason
+		if evaluatorReferenceOwned(decision.ProviderID, decision.EvaluatorID) {
+			reason += " [vrooli_guard_check=" + decision.EvaluatorID + "][vrooli_guard_duration_ms=" + fmt.Sprint(decision.EvaluationDurationMS) + "]"
+		}
+		return denyGuard(reason)
 	case agentharness.ActionAsk:
 		if interactivePermissionModes[event.PermissionMode] {
 			return GuardDecision{Exit: GuardExitContinue, Ask: true, Reason: decision.Reason}
@@ -168,6 +172,22 @@ func EvaluateGuard(event HookEvent, patterns []string, env GuardEnv) GuardDecisi
 		return denyGuard(decision.Reason + " (this session cannot show a confirmation prompt, so the operator must run it)")
 	}
 	return GuardDecision{Exit: GuardExitContinue}
+}
+
+func evaluatorReferenceOwned(providerID, evaluatorID string) bool {
+	providerID, evaluatorID = strings.TrimSpace(providerID), strings.TrimSpace(evaluatorID)
+	if providerID == "" || !strings.HasPrefix(evaluatorID, providerID+":") || strings.Count(evaluatorID, ":") != 1 || len(evaluatorID) <= len(providerID)+1 {
+		return false
+	}
+	for _, r := range evaluatorID {
+		if r == ':' {
+			continue
+		}
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._/-", r)) {
+			return false
+		}
+	}
+	return true
 }
 
 func evaluateDenyPatterns(command string, patterns []string, home string) GuardDecision {

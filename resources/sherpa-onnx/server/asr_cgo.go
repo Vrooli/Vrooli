@@ -34,6 +34,7 @@ type nativeSTTStream struct {
 	lastText          string
 	closed            bool
 	maxSegmentSamples int64
+	finishTailSamples int
 }
 
 func newStreamingEngineFromEnv() (StreamingSTT, error) {
@@ -91,7 +92,9 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 	config.model_config.num_threads = C.int32_t(envInt("SHERPA_ONNX_THREADS", 2))
 	config.model_config.model_type = modelTypeC
 	config.decoding_method = decodingC
-	config.enable_endpoint = 1
+	if envBool("SHERPA_ONNX_STREAMING_ENABLE_ENDPOINT", true) {
+		config.enable_endpoint = 1
+	}
 	config.rule1_min_trailing_silence = C.float(2.4)
 	config.rule2_min_trailing_silence = C.float(1.2)
 	config.rule3_min_utterance_length = C.float(20)
@@ -141,7 +144,16 @@ func (e *nativeStreamingEngine) NewStream() (STTStream, error) {
 		return nil, fmt.Errorf("sherpa-onnx failed to create streaming session")
 	}
 	maxSeconds := envInt("SHERPA_ONNX_STREAMING_MAX_SEGMENT_SECONDS", 15)
-	return &nativeSTTStream{engine: e, stream: stream, maxSegmentSamples: int64(maxSeconds) * streamingSampleRate}, nil
+	finishTailMS := envInt("SHERPA_ONNX_STREAMING_FINISH_TAIL_MS", 1200)
+	if finishTailMS > 5000 {
+		finishTailMS = 5000
+	}
+	return &nativeSTTStream{
+		engine:            e,
+		stream:            stream,
+		maxSegmentSamples: int64(maxSeconds) * streamingSampleRate,
+		finishTailSamples: finishTailMS * streamingSampleRate / 1000,
+	}, nil
 }
 
 func (e *nativeStreamingEngine) Close() {
@@ -204,6 +216,14 @@ func (s *nativeSTTStream) Finish() ([]STTEvent, error) {
 	defer s.engine.mu.Unlock()
 	if s.engine.recognizer == nil || s.stream == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
+	}
+	// Online decoders can drop the last words when the client ends directly
+	// after speech. Feed a short silent tail before InputFinished so the
+	// decoder can settle its final tokens. Synthetic samples do not advance
+	// totalSamples, so returned transcript timestamps remain in client time.
+	if s.finishTailSamples > 0 {
+		tail := make([]float32, s.finishTailSamples)
+		C.SherpaOnnxOnlineStreamAcceptWaveform(s.stream, C.int32_t(streamingSampleRate), (*C.float)(unsafe.Pointer(&tail[0])), C.int32_t(len(tail)))
 	}
 	C.SherpaOnnxOnlineStreamInputFinished(s.stream)
 	return s.collectLocked(true)

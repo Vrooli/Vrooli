@@ -17,15 +17,16 @@ func (r Runtime) guardModeStore() *GuardModeStore {
 	return NewGuardModeStore(r.Store.Dir)
 }
 
-// relaxationMayBeActive reports whether a temporary log-only mode is active.
-// An unreadable mode store counts as active, so the tripwire fails closed.
+// relaxationMayBeActive reports whether a temporary log-only mode may be
+// active. It reads the state file without the store lock, so concurrent hooks
+// never contend; an unreadable state file counts as active (fail closed).
 func (r Runtime) relaxationMayBeActive(now time.Time) bool {
 	store := r.guardModeStore()
 	if store == nil {
 		return false
 	}
-	active, err := store.Active(now)
-	return err != nil || len(active) > 0
+	active, err := store.core().MayHaveActive(now)
+	return err != nil || active
 }
 
 func (r Runtime) hardStopDecision(event ToolEvent, risk RiskClass, hardStop HardStopClass, now time.Time) (Decision, error) {

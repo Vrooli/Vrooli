@@ -83,17 +83,26 @@
         "linux": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
         },
         "macos": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
         },
         "windows": {
           "support": "unsupported",
           "mode": "manual",
-          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
         }
       }
     }

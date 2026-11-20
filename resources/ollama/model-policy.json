@@ -71,7 +71,7 @@
       }
     },
     "summarize.default": {
-      "model": "qwen3.5:9b",
+      "model": "qwen3:1.7b",
       "fallbacks": [
         "qwen3.5:4b",
         "llama3.2:3b"
@@ -81,7 +81,7 @@
         "chat",
         "summarize"
       ],
-      "description": "Default summarization and distillation role for text-heavy scenario outputs.",
+      "description": "Default summarization role for text-heavy scenario outputs. Pinned to the 1.7B Apache-2.0 tier for footprint; the 4B tier remains a quality escalation for long or fact-dense reports.",
       "preference": 40,
       "sampling_support": {
         "temperature": "honored"
@@ -90,8 +90,8 @@
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
-        "observed_at": "2026-06-23",
+        "source": "Operator choice 2026-11-20; audio-tools measured 8/8 facts on a short report and 14/22 on a 300-word report",
+        "observed_at": "2026-11-20",
         "sample_count": 0
       }
     },
@@ -458,7 +458,7 @@
       "ram_gb_estimate": 6.0,
       "vram_gb_estimate": 6.0,
       "default_eligible": true,
-      "use_case_notes": "Tiny/fast general model — small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
+      "use_case_notes": "Tiny/fast general model \u2014 small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
       "caveats": [
         "The bare ':4b' tag pulls Ollama's default quant; pin a quant-specific tag to force Q8_0."
       ],
@@ -794,8 +794,8 @@
             ],
             "obligations": [
               "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
-              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
-              "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/\u201cBuilt with Llama\u201d notices.",
+              "When using Llama materials or outputs to improve a distributed AI model, include \u201cLlama\u201d at the beginning of that model name.",
               "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
             ]
           }
@@ -911,8 +911,8 @@
             ],
             "obligations": [
               "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
-              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
-              "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/\u201cBuilt with Llama\u201d notices.",
+              "When using Llama materials or outputs to improve a distributed AI model, include \u201cLlama\u201d at the beginning of that model name.",
               "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
             ]
           }
@@ -1030,8 +1030,8 @@
             ],
             "obligations": [
               "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
-              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
-              "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/\u201cBuilt with Llama\u201d notices.",
+              "When using Llama materials or outputs to improve a distributed AI model, include \u201cLlama\u201d at the beginning of that model name.",
               "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
             ]
           }
@@ -1107,6 +1107,16 @@
           "business_context_changed",
           "use_changed"
         ]
+      },
+      "runtime_identity": {
+        "provider": "ollama",
+        "model": "qwen3:1.7b",
+        "artifact_id": "registry.ollama.ai/library/qwen3:1.7b",
+        "artifact_revision": "ollama-manifest:sha256:8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7",
+        "digest_kind": "ollama_model_contents",
+        "digest": "8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7",
+        "source": "ollama /api/tags",
+        "observed_at": "2026-11-20"
       }
     },
     "qwen3:4b": {
@@ -1280,8 +1290,8 @@
             ],
             "obligations": [
               "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
-              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
-              "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+              "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/\u201cBuilt with Llama\u201d notices.",
+              "When using Llama materials or outputs to improve a distributed AI model, include \u201cLlama\u201d at the beginning of that model name.",
               "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
             ]
           }

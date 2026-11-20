@@ -1,0 +1,777 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kale-tts",
+  "display_name": "Kale TTS Nano (experimental)",
+  "description": "Experimental local CPU text-to-speech service using the DRAFT, NOT PUBLISHED Kale TTS Nano int8 ONNX model.",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "Pinned upstream model, voice, tokenizer, and frontend files are reacquirable by revision and SHA-256.",
+        "subpath": "models/kale-tts-1-nano",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Exact upstream assets are pinned for reacquisition."
+        },
+        "reacquisition": {
+          "command": "vrooli resource acquisition model-cache kale-tts",
+          "evidence": "resource.json#/managed_service/data_artifacts"
+        }
+      },
+      "runtime-source": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "The minimal upstream Python inference wrapper and English frontend assets are acquired by exact URL and SHA-256 at install time.",
+        "subpath": "source",
+        "budget": { "max_age": "30d", "rationale": "Pinned upstream source and frontend files are reacquirable." },
+        "reacquisition": { "command": "vrooli resource acquisition model-cache kale-tts", "evidence": "resource.json#/managed_service/data_artifacts" }
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-kale-tts",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": { "location": "sibling" },
+      "build_metadata": { "location": "sibling" }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-kale-tts_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-kale-tts"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/kale-tts",
+      "version": "b6ce1887268c3667994fc3b0b2c82887c069915c",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python3.12",
+      "sha256_by_platform": {
+        "linux-amd64": "f70d4e25a86a3bb4ef9c269d99cc34164d267e7ffc4ab86a7c8b5d8708fe3061"
+      },
+      "bundle_artifact": "kale-tts_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "Apache-2.0; CPython PSF-2.0; upstream training dataset is CC BY 4.0; third-party frontend notices are included",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "f70d4e25a86a3bb4ef9c269d99cc34164d267e7ffc4ab86a7c8b5d8708fe3061",
+          "runtime_env": {
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "NUMEXPR_NUM_THREADS": "1"
+          },
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements.lock",
+              "index_url": "https://pypi.org/simple",
+              "allow_sdists": false
+            },
+            {
+              "role": "adapter",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Kale TTS Nano resource is qualified only for Linux amd64."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Kale TTS Nano resource is qualified only for Linux amd64."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Kale TTS Nano resource is qualified only for Linux amd64."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "nano-int8-onnx",
+        "path": "models/kale-tts-1-nano/kale-tts-1-nano.onnx",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/kale-tts-1-nano.onnx",
+              "sha256": "4d5269974de4fba7a66f947608a9a5381b4e39c1a8a6073df6001ab7e7f76288",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "nano-voices-metadata",
+        "path": "models/kale-tts-1-nano/voices.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices.json",
+              "sha256": "b4ceadf14b655bc39d1fbb76571a5ad46007585e8883af8a9962cae6b2b83669",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "nano-tokenizer",
+        "path": "models/kale-tts-1-nano/tokenizer.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/tokenizer.json",
+              "sha256": "61188314434d9972e42677fb71dba9e19aa8698e980541b1c06a1f9f16086e60",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "upstream-python-runtime",
+        "path": "source/kale_tts.py",
+        "acquisition": { "kind": "url", "license": "Apache-2.0", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/python/kale_tts.py", "sha256": "759d329c6e709b7958529363f02670c59eddaef404b8a199d1b7e6ec30331cde", "layout": "file" }] }
+      },
+      {
+        "name": "upstream-python-frontend-bundle",
+        "path": "source/kale_frontend.js",
+        "acquisition": { "kind": "url", "license": "Apache-2.0", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/python/kale_frontend.js", "sha256": "62ab7ec564cb59f6ef5cfadfe14246c3c18b60834870c7a5233bade19557b325", "layout": "file" }] }
+      },
+      {
+        "name": "upstream-license",
+        "path": "source/LICENSE",
+        "acquisition": { "kind": "url", "license": "Apache-2.0", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/LICENSE", "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30", "layout": "file" }] }
+      },
+      {
+        "name": "upstream-third-party-notices",
+        "path": "source/THIRD_PARTY_NOTICES.md",
+        "acquisition": { "kind": "url", "license": "Apache-2.0", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/THIRD_PARTY_NOTICES.md", "sha256": "d732919e8cacdfd200cf11a61c12cc8c272e103bf235f060aa99a339a92b8474", "layout": "file" }] }
+      },
+      {
+        "name": "frontend-us-lexicon",
+        "path": "source/frontend/words/lexicon.tsv",
+        "acquisition": { "kind": "url", "license": "Apache-2.0; upstream lexicon notices retained in THIRD_PARTY_NOTICES.md", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/frontend/words/lexicon.tsv", "sha256": "1eec6681dfbc213660f78548c14894e7de6dad6ef73caaac279f2ed400a91b7c", "layout": "file" }] }
+      },
+      {
+        "name": "frontend-us-overrides",
+        "path": "source/frontend/words/override.public.tsv",
+        "acquisition": { "kind": "url", "license": "Apache-2.0; upstream frontend notices retained in THIRD_PARTY_NOTICES.md", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/frontend/words/override.public.tsv", "sha256": "0d725b31afd09a33a9908ea889be2d65181cda16c89a6946cfd2b9b0b0220b22", "layout": "file" }] }
+      },
+      {
+        "name": "frontend-us-terms",
+        "path": "source/frontend/words/terms.tsv",
+        "acquisition": { "kind": "url", "license": "Apache-2.0; upstream frontend notices retained in THIRD_PARTY_NOTICES.md", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/frontend/words/terms.tsv", "sha256": "987ce777805e22718e38d23e66d8f00e9509ede28d0d52cc6819d7216e798e3d", "layout": "file" }] }
+      },
+      {
+        "name": "frontend-us-g2p",
+        "path": "source/frontend/words/g2p.bin",
+        "acquisition": { "kind": "url", "license": "Apache-2.0; upstream frontend notices retained in THIRD_PARTY_NOTICES.md", "provenance": { "kind": "none" }, "targets": [{ "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/frontend/words/g2p.bin", "sha256": "aba532e5e07fb6887e78148957ab29c890374ead77bf555c247d99b2dc0f51f5", "layout": "file" }] }
+      },
+      {
+        "name": "voice-s057b",
+        "path": "models/kale-tts-1-nano/voices/s057b.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/s057b.bin",
+              "sha256": "6efc770ae27fcbe0ba68b3a8c67b4a7fb86fe7c8b364a4f2b3f2c729e377b4c1",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-s057b-extra",
+        "path": "models/kale-tts-1-nano/voices/s057b.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/s057b.extra.bin",
+              "sha256": "35c0e00f2c3500914c791a21af160a4058f3ee30a00cbd0c29941d2503210e89",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-f06",
+        "path": "models/kale-tts-1-nano/voices/f06.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/f06.bin",
+              "sha256": "d8335f35bf3d3446e2c8cc460936a06cde2aab2f3f8ccba93c612bafadfc541d",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-f06-extra",
+        "path": "models/kale-tts-1-nano/voices/f06.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/f06.extra.bin",
+              "sha256": "942559c27e4e8ea0d371a1d022ac65561b0e8754e8d12c16231f52026e1d3fea",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-d03",
+        "path": "models/kale-tts-1-nano/voices/d03.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/d03.bin",
+              "sha256": "179741da5b5fb1f7d49399043f4788f78c28eaf02b00115aa8f3ffee3ad4cb6b",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-d03-extra",
+        "path": "models/kale-tts-1-nano/voices/d03.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/d03.extra.bin",
+              "sha256": "26f04da49af0133bac784a40d832f18b5c1d33e854ad13eb743e057887810e23",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-d13",
+        "path": "models/kale-tts-1-nano/voices/d13.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/d13.bin",
+              "sha256": "add53ad105ba63b83e39bd85f3bfa96b2375bf550caa65d6c99feb7e66e7cee3",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-d13-extra",
+        "path": "models/kale-tts-1-nano/voices/d13.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/d13.extra.bin",
+              "sha256": "affcb13422a7851e4ad3736a9c3db57575bfbe18eb20baa250a044d33ea21731",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-h013f",
+        "path": "models/kale-tts-1-nano/voices/h013f.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/h013f.bin",
+              "sha256": "3ed78f53ea23af5b559e0511520c35193dafb4a6bc478a6babb81f1afcce270e",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-h013f-extra",
+        "path": "models/kale-tts-1-nano/voices/h013f.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/h013f.extra.bin",
+              "sha256": "a64252df624e57a5a55c037a41316939df348f65b3e52dea582940e17a1cee94",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-m3",
+        "path": "models/kale-tts-1-nano/voices/m3.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/m3.bin",
+              "sha256": "2d63ba440f340d6d2dff8d71178d3409375c253758aed97b7a1e370e49520ecf",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-m3-extra",
+        "path": "models/kale-tts-1-nano/voices/m3.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/m3.extra.bin",
+              "sha256": "89a0e683a5027278ca7f2ba4aafe8a22e8f0038bc4cc0d34c859f028a2272b7d",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-t071",
+        "path": "models/kale-tts-1-nano/voices/t071.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/t071.bin",
+              "sha256": "29f9c895a09cd1165420a1ca0808a6ebdfa016686c8b9a5e1ca52d750105610e",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-t071-extra",
+        "path": "models/kale-tts-1-nano/voices/t071.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/t071.extra.bin",
+              "sha256": "f4951a1399ce8ba81491df1378ae39c7b6417d661b82c563f138ec81aecf5101",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-w165",
+        "path": "models/kale-tts-1-nano/voices/w165.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/w165.bin",
+              "sha256": "8c745b9b8b9e885d4e5d79173d9af2edfe2768d8c190776dbe45ee31bc2bb257",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-w165-extra",
+        "path": "models/kale-tts-1-nano/voices/w165.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/w165.extra.bin",
+              "sha256": "d1eef8616667f68f4254aa4d955fdc4fb424ea9d73db6661fd02c2cea45e5258",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-w602",
+        "path": "models/kale-tts-1-nano/voices/w602.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/w602.bin",
+              "sha256": "36f07dd7fbe6bd76f8607f651bbb0d235632476ff9ec5c1805e496d8cd490fda",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-w602-extra",
+        "path": "models/kale-tts-1-nano/voices/w602.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/w602.extra.bin",
+              "sha256": "490375c1b576a69c7fea5089cb97d70e74e53e6afb05a216ff04bf5901bffbb3",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-x328",
+        "path": "models/kale-tts-1-nano/voices/x328.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/x328.bin",
+              "sha256": "6d9c428c34874279c6f8503cc1b9de42eef3a7dfbeddc9e486efea65cccf4a9b",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "voice-x328-extra",
+        "path": "models/kale-tts-1-nano/voices/x328.extra.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/resolve/b6ce1887268c3667994fc3b0b2c82887c069915c/voices/x328.extra.bin",
+              "sha256": "e8fa93b6e16ec168e29e685d72e53d171ec468b9045f8d16705c584cd5d5dedc",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "environment_file": "active.env",
+    "arguments": [
+      "-B",
+      "-m",
+      "uvicorn",
+      "server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_UPSTREAM}",
+      "--workers",
+      "1",
+      "--limit-concurrency",
+      "2",
+      "--backlog",
+      "16",
+      "--timeout-keep-alive",
+      "5"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_DATA_DIR}/source:${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONNOUSERSITE": "1",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "KALE_MODEL_DIR": "${RESOURCE_DATA_DIR}/models/kale-tts-1-nano",
+      "KALE_FRONTEND_DIR": "${RESOURCE_DATA_DIR}/source/frontend",
+      "KALE_FRONTEND_BUNDLE": "${RESOURCE_DATA_DIR}/source/kale_frontend.js",
+      "KALE_MODEL_FILE": "kale-tts-1-nano.onnx",
+      "HF_HUB_OFFLINE": "1"
+    },
+    "attach_health_path": "/healthz",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 768,
+    "cpu_cores": 1,
+    "network": "offline",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "ai",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "upstream",
+      "container": 8880,
+      "host": 18896
+    }
+  ],
+  "lifecycle": {
+    "start_timeout_seconds": 90
+  },
+  "orchestration": {
+    "startup_order": 560,
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "ONNX session loads on the first synthesis request",
+    "dependencies": [],
+    "recovery_attempts": 1,
+    "priority": "low"
+  },
+  "environment_exports": {
+    "static": {
+      "KALE_TTS_HOST": "127.0.0.1"
+    },
+    "from_ports": {
+      "KALE_TTS_PORT": "upstream"
+    },
+    "derived": {
+      "KALE_TTS_URL": {
+        "template": "http://${KALE_TTS_HOST}:${KALE_TTS_PORT}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:18896/healthz",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:18896/healthz",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Experimental unpublished-draft model; CPU Linux amd64 only."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native macOS runtime."
+          ],
+          "reason": "Only Linux amd64 CPU runtime is pinned."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native Windows runtime."
+          ],
+          "reason": "Only Linux amd64 CPU runtime is pinned."
+        }
+      }
+    }
+  }
+}

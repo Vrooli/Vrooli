@@ -355,6 +355,20 @@ gocyclo 10. The allowance was not raised.
 `docs/internal/MATURATION-PLAN.md` (D9),
 `scenarios/ai-gateway/.vrooli/testing.json` (`phases.tidiness.budgets`).
 
+### 2026-11-20 — Provider inventory redaction corrupted JSON (RESOLVED)
+
+**Symptom:** Route preview could not parse Ollaya's role inventory because
+credential identifier entries in `missing_credentials` were altered by
+regex-based output redaction.
+
+**Resolved 2026-11-20:** `ExecRunner` now redacts parsed JSON values by field
+and preserves credential variable identifiers. A regression test verifies
+valid JSON and the live route preview now completes without an inventory parse
+warning.
+
+**Refs:** `api/internal/providers/runner.go`,
+`api/internal/providers/runner_test.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

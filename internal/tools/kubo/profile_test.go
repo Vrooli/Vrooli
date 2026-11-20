@@ -194,6 +194,7 @@ func (ambientGeneric) Inspect(_ hostreqkit.Host, r hostreqspec.ResolvedRequireme
 	s.Installed, s.Command, s.Version = true, "/unowned/ambient/ipfs", "unknown"
 	return s
 }
+
 func (g ambientGeneric) Apply(_ hostreqkit.Host, s hostreqkit.ItemStatus, _ hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	*g.applied = true
 	return s, nil

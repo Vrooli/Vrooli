@@ -348,3 +348,155 @@ func TestSaveProjectsConfiguredToolBeforePlugin(t *testing.T) {
 		t.Fatalf("plugin does not feed the event to the runner over stdin: %s", raw)
 	}
 }
+
+func TestV1PluginReadsOutputArgsAndRemovesV2(t *testing.T) {
+	dir := t.TempDir()
+	v1 := filepath.Join(dir, "plugins", "vrooli-policy.js")
+	v2 := filepath.Join(dir, "plugins", "vrooli-policy-v2.js")
+	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: v1, PluginPathV2: v2, Major: 1}
+	if err := os.MkdirAll(filepath.Dir(v2), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(v2, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "async (input, output)") || !strings.Contains(text, "output && output.args") {
+		t.Fatalf("V1 plugin must read the documented output.args: %s", text)
+	}
+	if strings.Contains(text, "input.args") {
+		t.Fatalf("V1 plugin still reads the wrong hook argument: %s", text)
+	}
+	if _, err := os.Stat(v2); !os.IsNotExist(err) {
+		t.Fatalf("V1 sync must remove the V2 module: %v", err)
+	}
+}
+
+func TestV2PluginUsesPermissionHookAndRemovesV1(t *testing.T) {
+	dir := t.TempDir()
+	v1 := filepath.Join(dir, "plugins", "vrooli-policy.js")
+	v2 := filepath.Join(dir, "plugins", "vrooli-policy-v2.js")
+	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: v1, PluginPathV2: v2, Major: 2}
+	if err := os.MkdirAll(filepath.Dir(v1), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(v1, []byte("stale v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(v2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, want := range []string{"Plugin.define", `ctx.permission.hook("evaluate"`, "event.effect"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("V2 plugin missing %q: %s", want, text)
+		}
+	}
+	if _, err := os.Stat(v1); !os.IsNotExist(err) {
+		t.Fatalf("V2 sync must remove the V1 module: %v", err)
+	}
+	if !strings.Contains(text, "result.exitCode === 10") || !strings.Contains(text, "result.exitCode === 20") {
+		t.Fatalf("V2 plugin must map ask/deny exit codes: %s", text)
+	}
+}
+
+func TestSyncPluginReplacesTheOtherMajorWhenPolicyIsClean(t *testing.T) {
+	dir := t.TempDir()
+	v1 := filepath.Join(dir, "plugins", "vrooli-policy.js")
+	v2 := filepath.Join(dir, "plugins", "vrooli-policy-v2.js")
+	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: v1, PluginPathV2: v2, Major: 1}
+	policy := Policy{BashDeny: []string{"git stash *"}}
+	if err := a.SyncPlugin(policy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(v1); err != nil {
+		t.Fatalf("V1 plugin missing: %v", err)
+	}
+	// Simulate a major upgrade with an unchanged permission map.
+	a.Major, a.major = 2, 0
+	if err := a.SyncPlugin(policy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(v2); err != nil {
+		t.Fatalf("V2 plugin missing after major upgrade: %v", err)
+	}
+	if _, err := os.Stat(v1); !os.IsNotExist(err) {
+		t.Fatalf("V1 plugin must be removed after major upgrade: %v", err)
+	}
+}
+
+func TestDefaultAdapterPutsV2PluginUnderExplicitConfigRoot(t *testing.T) {
+	home := t.TempDir()
+	configRoot := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("OPENCODE_CONFIG_DIR", configRoot)
+	a, err := DefaultAdapter()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(configRoot, "plugins", "vrooli-policy-v2.js"); a.PluginPathV2 != want {
+		t.Fatalf("V2 plugin path = %q, want %q", a.PluginPathV2, want)
+	}
+	if want := filepath.Join(home, ".config", "opencode", "plugins", "vrooli-policy.js"); a.PluginPath != want {
+		t.Fatalf("V1 plugin path = %q, want %q", a.PluginPath, want)
+	}
+}
+
+func TestV2ProjectsPermissionsIntoExplicitConfigRoot(t *testing.T) {
+	dir := t.TempDir()
+	settings := filepath.Join(dir, "xdg", "opencode.json")
+	projection := filepath.Join(dir, "vrooli", "opencode.json")
+	if err := os.MkdirAll(filepath.Dir(settings), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(projection), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(settings, []byte(`{"model":"xdg/model","permission":{"bash":{"git stash *":"deny"},"edit":"allow"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(projection, []byte(`{"model":"vrooli/model","permission":{"edit":"deny"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &Adapter{
+		SettingsPath:   settings,
+		ProjectionPath: projection,
+		PluginPath:     filepath.Join(dir, "plugins", "vrooli-policy.js"),
+		PluginPathV2:   filepath.Join(dir, "plugins", "vrooli-policy-v2.js"),
+		Major:          2,
+	}
+	if err := a.SyncPlugin(Policy{BashDeny: []string{"git stash *"}}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Model      string `json:"model"`
+		Permission struct {
+			Bash map[string]string `json:"bash"`
+			Edit string            `json:"edit"`
+		} `json:"permission"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Model != "vrooli/model" {
+		t.Fatalf("projection must preserve provider/model keys, got %q", doc.Model)
+	}
+	if doc.Permission.Bash["git stash *"] != "deny" || doc.Permission.Edit != "allow" {
+		t.Fatalf("projected permissions = %+v", doc.Permission)
+	}
+}

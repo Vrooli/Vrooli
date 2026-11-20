@@ -12,10 +12,17 @@ Keep responsibilities split cleanly:
 
 Do not turn `cli/main.go` into the implementation surface. The only
 specialised Go packages today are `cli/internal/permissions` (+
-`permissionscli`) for the governed `permission.bash` map and
-`cli/internal/upstreamcheck` for the upstream release comparison. Install,
-binary download, and config/auth shaping live in `lib/install.sh` /
-`lib/common.sh`; agent-manager invokes the raw `opencode` binary directly.
+`permissionscli`) for the governed `permission.bash` map and installed-major
+plugin projection, and `cli/internal/config` / `ensurecli` for config and
+provider shaping. Install, binary download, and version prefixes live in
+`packages/harness-lifecycle` and the Scenario Dependency Analyzer;
+agent-manager invokes the raw `opencode` binary directly.
+
+Release lines are declared as acquisition channels in `resource.json`: the
+empty/default channel is OpenCode 1 (`opencode-ai`) and `v2` is OpenCode 2
+(`@opencode/cli`). `vrooli resource update opencode --channel v2` is the
+governed one-command upgrade; `--major 2` resolves the same channel. A plain
+update follows the installed major so it never silently downgrades a V2 host.
 
 ## Operator Checklist
 

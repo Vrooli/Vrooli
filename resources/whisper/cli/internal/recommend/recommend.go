@@ -11,10 +11,26 @@ import (
 // browser tabs, and any other co-tenant workloads.
 const DefaultBudgetPct = 50
 
-// Pick returns the recommended Whisper model for the host. The reason
-// string is human-readable and intended for the CLI's explain output.
-// Pure function: no I/O, no time, no env. Tested via table.
+// Pick returns the recommended Whisper model for the host. It is deliberately
+// resource-conservative: `small` is the balanced default, and larger tiers are
+// only chosen by PickQuality or an explicit operator pin. A dictation service
+// that reserves the whole GPU for a marginal accuracy gain makes every other
+// workload on the machine worse, so the default leaves headroom.
+//
+// The reason string is human-readable and intended for the CLI's explain
+// output. Pure function: no I/O, no time, no env. Tested via table.
 func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
+	return pick(caps, budgetPct, false)
+}
+
+// PickQuality is the explicit accuracy-first alternative: it chooses the
+// largest model the host can load within the budget. Use it when a caller has
+// said accuracy matters more than leaving GPU headroom.
+func PickQuality(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
+	return pick(caps, budgetPct, true)
+}
+
+func pick(caps hostinventory.Snapshot, budgetPct int, quality bool) (Model, string, error) {
 	if budgetPct <= 0 || budgetPct > 100 {
 		return "", "", fmt.Errorf("recommend: budget_pct must be in (0,100], got %d", budgetPct)
 	}
@@ -28,11 +44,17 @@ func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
 	// claims; this initial pick is the cooperative, never-OOM floor.
 	bestGPU, bestBudget := bestGPUBudget(caps.GPUs, budgetPct)
 	if bestGPU != "" {
+		if quality {
+			switch {
+			case bestBudget >= VRAMRequirement[ModelTurbo]:
+				return ModelTurbo, fmt.Sprintf("GPU %s, vram_budget=%s → large-v3-turbo (quality)", bestGPU, fmtGB(bestBudget)), nil
+			case bestBudget >= VRAMRequirement[ModelMedium]:
+				return ModelMedium, fmt.Sprintf("GPU %s, vram_budget=%s → medium (quality)", bestGPU, fmtGB(bestBudget)), nil
+			}
+		}
+		// Balanced default: small fits almost every usable GPU budget and
+		// leaves the rest of the card free for co-tenant work.
 		switch {
-		case bestBudget >= VRAMRequirement[ModelLargeV3]:
-			return ModelLargeV3, fmt.Sprintf("GPU %s, vram_budget=%s → large-v3", bestGPU, fmtGB(bestBudget)), nil
-		case bestBudget >= VRAMRequirement[ModelMedium]:
-			return ModelMedium, fmt.Sprintf("GPU %s, vram_budget=%s → medium", bestGPU, fmtGB(bestBudget)), nil
 		case bestBudget >= VRAMRequirement[ModelSmall]:
 			return ModelSmall, fmt.Sprintf("GPU %s, vram_budget=%s → small", bestGPU, fmtGB(bestBudget)), nil
 		case bestBudget >= VRAMRequirement[ModelBase]:
@@ -41,9 +63,13 @@ func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
 		// VRAM budget too small for even base → fall through to CPU/tiny.
 	}
 
-	// CPU path: gated on both RAM budget AND core count.
+	// CPU path: gated on both RAM budget AND core count. Medium on CPU is
+	// several times slower for a small accuracy gain, so it is quality-only.
 	ramBudget := caps.Memory.TotalBytes * uint64(budgetPct) / 100
-	tiers := []Model{ModelMedium, ModelSmall, ModelBase}
+	tiers := []Model{ModelSmall, ModelBase}
+	if quality {
+		tiers = []Model{ModelMedium, ModelSmall, ModelBase}
+	}
 	for _, m := range tiers {
 		if ramBudget >= CPURAMRequirement[m] && caps.CPU.Cores >= CPUCoreRequirement[m] {
 			return m, fmt.Sprintf("no GPU, ram_budget=%s, cpu_cores=%d → %s",

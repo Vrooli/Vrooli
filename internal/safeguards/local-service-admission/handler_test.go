@@ -39,6 +39,7 @@ func TestFailedApplyRetainsBrokerFailureCode(t *testing.T) {
 		t.Fatalf("failure evidence lost: %v", status.Notes)
 	}
 }
+
 func fixture(t *testing.T) (handler, hostreqspec.ResolvedRequirement, *fakeBroker) {
 	t.Helper()
 	binding := privilegebroker.LocalAdmissionBinding{ID: "tv", Scenario: "portal", Listener: "ui", Interface: "eth0", SourceIP: "192.168.10.42", HostIP: "192.168.10.2"}
@@ -49,6 +50,7 @@ func fixture(t *testing.T) (handler, hostreqspec.ResolvedRequirement, *fakeBroke
 	client := &fakeBroker{report: &privilegebroker.LocalAdmissionReport{Binding: "tv", BindingDigest: binding.Digest(), Enabled: true}}
 	return handler{manifest: hostreqkit.SafeguardManifest{Name: "local_service_admission"}, client: client}, req, client
 }
+
 func TestInspectIsReadOnlyAndRequiresCurrentInstalledScope(t *testing.T) {
 	h, req, client := fixture(t)
 	status := h.Inspect(hostreqkit.Host{OS: "linux"}, req)
@@ -70,6 +72,7 @@ func TestInspectIsReadOnlyAndRequiresCurrentInstalledScope(t *testing.T) {
 		}
 	}
 }
+
 func TestApplyRechecksPolicyAndDryRunDoesNotMutate(t *testing.T) {
 	h, req, client := fixture(t)
 	client.report.Enabled = false
@@ -84,6 +87,7 @@ func TestApplyRechecksPolicyAndDryRunDoesNotMutate(t *testing.T) {
 		t.Fatalf("apply=%+v %v", result, err)
 	}
 }
+
 func TestNoBindingOrNonLinuxHasNoHostEffects(t *testing.T) {
 	h, req, client := fixture(t)
 	for _, platform := range []string{"darwin", "windows"} {

@@ -127,19 +127,6 @@ The upstream MIT license and copyright notices are retained in LICENSE.
 
 func sha256Hex(b []byte) string { sum := sha256.Sum256(b); return hex.EncodeToString(sum[:]) }
 
-func patchFile(root, name, expected, replacement string) error {
-	path := filepath.Join(root, filepath.FromSlash(name))
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if sha256Hex(b) != expected {
-		return fmt.Errorf("pinned adapter source hash mismatch for %s", name)
-	}
-	out := []byte(replacement)
-	return os.WriteFile(path, out, 0644)
-}
-
 func applySourceAdapter(original, adapted string) (string, error) {
 	if _, err := os.Stat(filepath.Join(adapted, "tsr", "config_adapter.py")); err == nil {
 		digest, err := binaryfetch.TreeDigest(adapted)
@@ -168,7 +155,7 @@ func applySourceAdapter(original, adapted string) (string, error) {
 	if s == string(system) {
 		return "", errors.New("pinned system.py adapter anchors did not match")
 	}
-	if err = os.WriteFile(systemPath, []byte(s), 0644); err != nil {
+	if err = os.WriteFile(systemPath, []byte(s), 0o644); err != nil {
 		return "", err
 	}
 	// utils.py: use strict typed construction for the source's actual dataclass configs.
@@ -188,7 +175,7 @@ func applySourceAdapter(original, adapted string) (string, error) {
 	if u == string(utils) || strings.Contains(u, "omegaconf") {
 		return "", errors.New("pinned utils.py adapter anchors did not match")
 	}
-	if err = os.WriteFile(utilsPath, []byte(u), 0644); err != nil {
+	if err = os.WriteFile(utilsPath, []byte(u), 0o644); err != nil {
 		return "", err
 	}
 	// CPU scikit-image backend replaces the undeclared compiled torchmcubes extension.
@@ -201,13 +188,13 @@ func applySourceAdapter(original, adapted string) (string, error) {
 	if i == string(iso) {
 		return "", errors.New("pinned isosurface.py adapter anchor did not match")
 	}
-	if err = os.WriteFile(isoPath, []byte(i), 0644); err != nil {
+	if err = os.WriteFile(isoPath, []byte(i), 0o644); err != nil {
 		return "", err
 	}
-	if err = os.WriteFile(filepath.Join(adapted, "tsr", "config_adapter.py"), []byte(configAdapter), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(adapted, "tsr", "config_adapter.py"), []byte(configAdapter), 0o644); err != nil {
 		return "", err
 	}
-	if err = os.WriteFile(filepath.Join(adapted, "VROOLI_ADAPTER_NOTICE.txt"), []byte(adapterNotice), 0644); err != nil {
+	if err = os.WriteFile(filepath.Join(adapted, "VROOLI_ADAPTER_NOTICE.txt"), []byte(adapterNotice), 0o644); err != nil {
 		return "", err
 	}
 	if err = freezeTree(adapted); err != nil {
@@ -233,12 +220,12 @@ func freezeTree(root string) error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported adapter entry %s", path)
 		}
-		return os.Chmod(path, 0444)
+		return os.Chmod(path, 0o444)
 	}); err != nil {
 		return err
 	}
 	for i := len(dirs) - 1; i >= 0; i-- {
-		if err := os.Chmod(dirs[i], 0555); err != nil {
+		if err := os.Chmod(dirs[i], 0o555); err != nil {
 			return err
 		}
 	}
@@ -270,7 +257,7 @@ func copyTree(source, target string) error {
 			return err
 		}
 		defer in.Close()
-		if err = os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return err
 		}
 		out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())

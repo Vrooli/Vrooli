@@ -1,3 +1,5 @@
+// Package msvcruntime inspects and installs the MSVC runtime requirement
+// through the shared host tool registry.
 package msvcruntime
 
 import (

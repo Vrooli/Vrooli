@@ -47,14 +47,27 @@ need version branches of their own.
 
 Configuration stays in the V1 `opencode.json` shape. OpenCode 2 normalizes those
 fields in memory, so both versions read the same generated file and provider
-blocks; do not maintain a second V2-only config. V1 plugin implementations do
-not run in V2. Native `permission` rules still apply after V2 normalization, but
-the dynamic `tool.execute.before` policy runner needs a V2 plugin port; keep
-reporting that posture as `hook_unverified` until a live V2 canary proves it.
+blocks; do not maintain a second V2-only config. Native `permission` rules still
+apply after V2 normalization, and the adapter projects a V2 plugin through
+`ctx.permission.hook("evaluate")` so ask and deny remain distinct. The posture
+stays `hook_unverified` until a live V2 canary proves the plugin fires.
 
-The packaged acquisition remains pinned to V1 so existing installs keep working.
-A host that installs the V2 CLI is detected automatically; no resource code
-change or second configuration tree is required.
+The manifest declares both release lines. The default channel is V1
+(`opencode-ai`); the `v2` channel is `@opencode/cli`. Each channel has its own
+pinned version, checksum, install prefix, and rollback history. Use:
+
+```bash
+vrooli resource update opencode --check --channel v2   # read-only preflight
+vrooli resource update opencode --channel v2           # safe, governed upgrade
+vrooli resource update opencode --channel v2 --action rollback
+```
+
+A plain `vrooli resource update opencode` follows the installed major, so a V2
+host is never silently downgraded to V1. The one-command V2 upgrade uses the
+same ownership checks, Dependency Analyzer gate, offline version qualification,
+and retained rollback prefix as V1. Agent Manager detects the installed major
+and adapts its run contract: V1 pins `--dir` and `--variant`; V2 uses the
+process working directory (plus `--standalone`) and `model#variant`.
 
 ## Configuration (single source of truth)
 
@@ -152,10 +165,16 @@ match. If you need different ordering, hand-edit and `drift-check` will
 surface it.
 
 The plugin sends normalized bash tool events to the local policy runner and
-refuses the call when the runner exits unsuccessfully. The CLI reports
-`hook_unverified` until an installed-version live canary proves that the
-plugin loads and the refusal path fires; a plugin file by itself is not
-evidence.
+applies the runner's decision. V1 writes `plugins/vrooli-policy.js` and uses
+`tool.execute.before`, which can only allow or block, so an `ask` result is
+blocked. V2 writes `plugins/vrooli-policy-v2.js` and uses
+`ctx.permission.hook("evaluate")`, preserving `allow`, `ask`, and `deny`. Only
+the plugin for the installed major is present; switching majors removes the
+incompatible module so a rollback cannot load the wrong format.
+
+The CLI reports `hook_unverified` until an installed-version live canary proves
+that the plugin loads and the decision path fires; a plugin file by itself is
+not evidence.
 
 Upstream docs: <https://opencode.ai/docs/permissions/>.
 

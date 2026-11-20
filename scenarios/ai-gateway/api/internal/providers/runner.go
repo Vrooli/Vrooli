@@ -3,6 +3,7 @@ package providers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -107,8 +108,8 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	err := cmd.Run()
 	rawStderr := stderr.String()
 	result := Result{
-		Stdout: redact(stdout.String()),
-		Stderr: redact(rawStderr),
+		Stdout: redactOutput(stdout.String()),
+		Stderr: redactOutput(rawStderr),
 	}
 	if err == nil {
 		return result, nil
@@ -172,8 +173,55 @@ func allowedResourceCommand(name string) bool {
 	return ok
 }
 
-var secretishPattern = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)(["'=:\s]+)(bearer\s+)?[^,\s"]+`)
+var (
+	secretishPattern            = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)(["'=:\s]+)(bearer\s+)?[^,\s"]+`)
+	secretFieldPattern          = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)`)
+	credentialIdentifierPattern = regexp.MustCompile(`^[A-Z0-9_]*(API[_-]?KEY|TOKEN|SECRET|AUTHORIZATION)$`)
+)
 
 func redact(s string) string {
 	return secretishPattern.ReplaceAllString(s, "$1$2[redacted]")
+}
+
+func redactOutput(s string) string {
+	var value any
+	if err := json.Unmarshal([]byte(s), &value); err != nil {
+		return redact(s)
+	}
+	value = redactJSONValue(value, "")
+	redacted, err := json.Marshal(value)
+	if err != nil {
+		return redact(s)
+	}
+	return string(redacted)
+}
+
+func redactJSONValue(value any, field string) any {
+	if secretFieldPattern.MatchString(field) {
+		return "[redacted]"
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			typed[key] = redactJSONValue(child, key)
+		}
+	case []any:
+		for index, child := range typed {
+			if field == "missing_credentials" && isCredentialIdentifier(child) {
+				continue
+			}
+			typed[index] = redactJSONValue(child, field)
+		}
+	case string:
+		if isCredentialIdentifier(typed) {
+			return typed
+		}
+		return redact(typed)
+	}
+	return value
+}
+
+func isCredentialIdentifier(value any) bool {
+	text, ok := value.(string)
+	return ok && credentialIdentifierPattern.MatchString(text)
 }

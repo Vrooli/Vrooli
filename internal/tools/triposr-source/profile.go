@@ -175,7 +175,7 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 		return Receipt{}, err
 	}
 	candidate := filepath.Join(stage, "source")
-	if err = os.MkdirAll(stage, 0700); err != nil {
+	if err = os.MkdirAll(stage, 0o700); err != nil {
 		return Receipt{}, err
 	}
 	digest, err := applySourceAdapter(original, candidate)
@@ -196,7 +196,7 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 	if err != nil {
 		return Receipt{}, err
 	}
-	if err = writeAtomic(filepath.Join(root, sourceProfileFile), b, 0600); err != nil {
+	if err = writeAtomic(filepath.Join(root, sourceProfileFile), b, 0o600); err != nil {
 		return Receipt{}, err
 	}
 	return receipt, nil
@@ -304,10 +304,10 @@ func Provision(ctx context.Context) (string, error) {
 		return "", err
 	}
 	b, _ := json.MarshalIndent(r, "", "  ")
-	if err = os.WriteFile(filepath.Join(candidate, sourceProfileFile), b, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(candidate, sourceProfileFile), b, 0o600); err != nil {
 		return "", err
 	}
-	if r, err = installAdapterLocked(ctx, candidate, r); err != nil {
+	if _, err = installAdapterLocked(ctx, candidate, r); err != nil {
 		return "", err
 	}
 	if err = os.Rename(candidate, root); err != nil {
@@ -332,7 +332,8 @@ func ArchiveIdentity() string {
 // NewHandler exposes this data-only acquisition through the native host tool
 // lifecycle; SDA approves and dispatches the immutable source closure.
 func NewHandler(manifest hostreqkit.ToolManifest) hostreqkit.Handler {
-	return hostreqkit.InstallerHandler{Manifest: manifest, KindValue: hostreqspec.KindTool,
+	return hostreqkit.InstallerHandler{
+		Manifest: manifest, KindValue: hostreqspec.KindTool,
 		InspectFunc: func(host hostreqkit.Host, r hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 			s := hostreqkit.BaseStatus(r)
 			s.SupportClass = hostreqkit.SupportSupported
@@ -375,5 +376,6 @@ func NewHandler(manifest hostreqkit.ToolManifest) hostreqkit.Handler {
 			s.Version = Commit
 			s.ExecutionState = hostreqkit.ExecutionInstalled
 			return s, nil
-		}}
+		},
+	}
 }

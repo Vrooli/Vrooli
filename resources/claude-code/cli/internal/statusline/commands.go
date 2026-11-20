@@ -36,7 +36,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 func (h *Handlers) Run() error {
 	// An unresolvable home loses only the window record, never the status line.
 	windowsPath, _ := harness.DefaultModelWindowsPath()
-	return Feed{SamplesPath: h.SamplesPath, WindowsPath: windowsPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr}.Run(h.Stdin, h.Stdout)
+	return Feed{SamplesPath: h.SamplesPath, WindowsPath: windowsPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr, SourceRunID: os.Getenv("VROOLI_ANTHROPIC_SOURCE_RUN_ID"), AgentSession: os.Getenv(AgentSessionEnv)}.Run(h.Stdin, h.Stdout)
 }
 
 func (h *Handlers) Install() error {

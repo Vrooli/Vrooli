@@ -10,6 +10,8 @@ package statusline
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +40,7 @@ const (
 	Heartbeat = 5 * time.Minute
 	// chainTimeout bounds a chained user status line command.
 	chainTimeout  = 5 * time.Second
+	authTimeout   = 2 * time.Second
 	stateFileName = "statusline.json"
 )
 
@@ -69,10 +72,56 @@ type Window struct {
 // Sample is one NDJSON line of the quota feed. Agent Manager reads this shape.
 type Sample struct {
 	ObservedAt time.Time `json:"observed_at"`
-	SessionID  string    `json:"session_id,omitempty"`
-	Model      string    `json:"model,omitempty"`
-	FiveHour   *Window   `json:"five_hour,omitempty"`
-	SevenDay   *Window   `json:"seven_day,omitempty"`
+	// AccountScope is a digest of the authenticated Claude.ai organization
+	// reported by Claude Code's own auth status command. Empty means unknown.
+	AccountScope string `json:"account_scope,omitempty"`
+	SessionID    string `json:"session_id,omitempty"`
+	SourceRunID  string `json:"source_run_id,omitempty"`
+	// AgentSession is the launcher's agent session scope (VROOLI_AGENT_SESSION)
+	// for sessions started through the Vrooli agent launcher. Agent Manager
+	// resolves it to the attached run that owns the session, so readings from
+	// attached sessions name the run whose physical presence they measure.
+	AgentSession string  `json:"agent_session,omitempty"`
+	Model        string  `json:"model,omitempty"`
+	FiveHour     *Window `json:"five_hour,omitempty"`
+	SevenDay     *Window `json:"seven_day,omitempty"`
+}
+
+// AgentSessionEnv is the launcher's agent session scope variable
+// (cli-core cliutil.AgentSessionEnv).
+const AgentSessionEnv = "VROOLI_AGENT_SESSION"
+
+// validAgentSession accepts only the launcher's scope-name alphabet, so a
+// malformed or oversized value is dropped rather than recorded.
+func validAgentSession(value string) string {
+	if len(value) == 0 || len(value) > 256 {
+		return ""
+	}
+	for _, r := range value {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' || r == ':') {
+			return ""
+		}
+	}
+	return value
+}
+
+func validSourceRunID(value string) string {
+	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
+		return ""
+	}
+	compact := strings.ReplaceAll(value, "-", "")
+	decoded, err := hex.DecodeString(compact)
+	if err != nil || len(decoded) != 16 {
+		return ""
+	}
+	allZero := true
+	for _, b := range decoded {
+		allZero = allZero && b == 0
+	}
+	if allZero {
+		return ""
+	}
+	return strings.ToLower(value)
 }
 
 // DefaultSamplesPath is the sample file for this process's environment and
@@ -136,6 +185,16 @@ type Feed struct {
 	StatePath   string
 	Now         func() time.Time
 	Stderr      io.Writer
+	// SourceRunID is supplied by Agent Manager for its managed launches.
+	// Standalone Claude sessions leave it empty.
+	SourceRunID string
+	// AgentSession is the launcher's agent session scope for attached
+	// sessions; empty for sessions started outside the launcher.
+	AgentSession string
+	// AuthStatus is injectable for tests. Production runs `claude auth status
+	// --json` in the statusline process environment, which is inherited from
+	// the Claude Code process that invoked this feed.
+	AuthStatus func() ([]byte, error)
 }
 
 func (f Feed) Run(stdin io.Reader, stdout io.Writer) error {
@@ -213,7 +272,7 @@ func (f Feed) record(in Input) error {
 	if five == nil && seven == nil || f.SamplesPath == "" {
 		return nil
 	}
-	sample := Sample{ObservedAt: observed, SessionID: in.SessionID, Model: firstNonEmpty(in.Model.ID, in.Model.DisplayName), FiveHour: five, SevenDay: seven}
+	sample := Sample{ObservedAt: observed, AccountScope: f.accountScope(), SessionID: in.SessionID, SourceRunID: validSourceRunID(f.SourceRunID), AgentSession: validAgentSession(strings.TrimSpace(f.AgentSession)), Model: firstNonEmpty(in.Model.ID, in.Model.DisplayName), FiveHour: five, SevenDay: seven}
 	key := readingKey(sample)
 	// The marker is per session: sessions take turns rendering, so a single
 	// shared marker would see a "change" on nearly every render.
@@ -265,6 +324,43 @@ func (f Feed) record(in Input) error {
 	return os.WriteFile(lastPath, data, 0o644)
 }
 
+type claudeAuthStatus struct {
+	LoggedIn         bool   `json:"loggedIn"`
+	AuthMethod       string `json:"authMethod"`
+	APIProvider      string `json:"apiProvider"`
+	OrgID            string `json:"orgId"`
+	SubscriptionType string `json:"subscriptionType"`
+	PlanTier         string `json:"planTier"`
+}
+
+// accountScope binds only supported first-party Claude.ai quota readings.
+// It stores a domain-separated digest, never the organization identifier or
+// any credential material. Unsupported or unavailable auth is unknown.
+func (f Feed) accountScope() string {
+	read := f.AuthStatus
+	if read == nil {
+		read = func() ([]byte, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), authTimeout)
+			defer cancel()
+			return exec.CommandContext(ctx, "claude", "auth", "status", "--json").Output()
+		}
+	}
+	raw, err := read()
+	if err != nil || len(raw) == 0 || len(raw) > 64<<10 {
+		return ""
+	}
+	var status claudeAuthStatus
+	if json.Unmarshal(raw, &status) != nil || !status.LoggedIn || status.AuthMethod != "claude.ai" || status.APIProvider != "firstParty" || status.SubscriptionType == "" || status.PlanTier == "" {
+		return ""
+	}
+	org := strings.TrimSpace(status.OrgID)
+	if len(org) < 16 || len(org) > 128 || strings.ContainsAny(org, "\x00\r\n|") {
+		return ""
+	}
+	digest := sha256.Sum256([]byte("vrooli:claude-code:anthropic-quota-account:v1\x00" + org))
+	return "anthropic:sha256:" + hex.EncodeToString(digest[:])
+}
+
 // usable returns a window worth recording at observed, or nil. Claude Code
 // caches rate_limits per session until that session's next API response, so
 // an idle session keeps rendering a window whose reset has passed; that value
@@ -280,7 +376,7 @@ func usable(w *Window, observed time.Time) *Window {
 }
 
 func readingKey(s Sample) string {
-	key := ""
+	key := s.AccountScope + "|"
 	for _, w := range []*Window{s.FiveHour, s.SevenDay} {
 		if w == nil {
 			key += "-|"
