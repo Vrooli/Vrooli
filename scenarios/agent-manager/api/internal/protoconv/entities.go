@@ -1,8 +1,10 @@
 package protoconv
 
 import (
+	"encoding/json"
 	"strings"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -248,7 +250,13 @@ func FeatureFlagsToProto(f domain.FeatureFlags) *pb.FeatureFlags {
 	if f.IsZero() {
 		return nil
 	}
-	return &pb.FeatureFlags{EnableBrowser: f.EnableBrowser}
+	encoded := ""
+	if f.BrowserCapability != nil {
+		if data, err := json.Marshal(f.BrowserCapability); err == nil {
+			encoded = string(data)
+		}
+	}
+	return &pb.FeatureFlags{EnableBrowser: f.EnableBrowser, BrowserCapabilityJson: encoded}
 }
 
 // FeatureFlagsFromProto converts proto FeatureFlags to domain FeatureFlags.
@@ -256,7 +264,14 @@ func FeatureFlagsFromProto(f *pb.FeatureFlags) domain.FeatureFlags {
 	if f == nil {
 		return domain.FeatureFlags{}
 	}
-	return domain.FeatureFlags{EnableBrowser: f.EnableBrowser}
+	result := domain.FeatureFlags{EnableBrowser: f.EnableBrowser}
+	if raw := strings.TrimSpace(f.GetBrowserCapabilityJson()); raw != "" {
+		var capability browsercapability.Capability
+		if json.Unmarshal([]byte(raw), &capability) == nil {
+			result.BrowserCapability = &capability
+		}
+	}
+	return result
 }
 
 // RunnerExtraFlagsToProto converts domain RunnerExtraFlags to proto map.

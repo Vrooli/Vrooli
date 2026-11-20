@@ -5985,6 +5985,76 @@
       "service": "MeasuresService",
       "method": "ToolFriction",
       "reason": "UI drill-down over every command path; operators read the classified owner-level problems through `usage friction` and the Stats page."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ApproveRun",
+      "reason": "Reached through the local `run approve` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RejectRun",
+      "reason": "Reached through the local `run reject` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopRun",
+      "reason": "Reached through the local `run stop` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopAllRuns",
+      "reason": "Reached through the local `run stop-all` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopRunByTag",
+      "reason": "Reached through the local `run stop-by-tag` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "AttachRun",
+      "reason": "Reached through the local `run attach` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DetachRun",
+      "reason": "Reached through the local `run detach` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ContinueRun",
+      "reason": "Reached through the local `run continue` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunByTag",
+      "reason": "Reached through the local `run get-by-tag` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunDiff",
+      "reason": "Reached through the local `run diff` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "SyncRunFromSandbox",
+      "reason": "Reached through the local `run sandbox-sync` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "EnsureProfile",
+      "reason": "Reached through the local `profile ensure` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetTask",
+      "reason": "Reached through the local `task get` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunnerStatus",
+      "reason": "Reached through the local `runner status` command, which keeps the hand-registered run/task helper and its local operator exchange; it is not yet migrated to a manifest binding."
     }
   ],
   "measures": {

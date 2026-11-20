@@ -43,7 +43,12 @@ type Document struct {
 }
 
 type SourceCursor struct {
-	OccurredAt            time.Time
+	OccurredAt time.Time
+	// OccurredAtText is the canonical timestamp text this cursor was formed
+	// from. run_events writers keep variable RFC3339 precision, so comparing a
+	// re-formatted time against that text is not safe: the cursor must carry
+	// the exact string it was ordered by.
+	OccurredAtText        string
 	SourceRunID           string
 	EventSequence         int64
 	SnapshotMaxEventRowID int64
@@ -189,22 +194,26 @@ type StatusRepository interface {
 }
 
 type ProjectionStatus struct {
-	CanonicalMessages    uint64
-	CatalogDocuments     uint64
-	LexicalDocuments     uint64
-	SemanticDocuments    uint64
-	PendingChanges       uint64
-	DeletedDocuments     uint64
-	OrphanDocuments      uint64
-	ActiveGeneration     string
-	CandidateGeneration  string
-	LastSuccessAt        time.Time
-	LastIndexedAt        time.Time
-	LastErrorCode        string
-	CollectionName       string
-	CollectionLayout     string
-	EmbeddingModel       string
-	DegradedDependencies []string
+	CanonicalMessages uint64
+	CatalogDocuments  uint64
+	LexicalDocuments  uint64
+	SemanticDocuments uint64
+	// SemanticEligibleDocuments is the denominator the semantic leg actually
+	// covers: visible prose/quoted chunks, not tool payloads that are never
+	// embedded. It keeps a 98.9% eligible index from reading as 4.7%.
+	SemanticEligibleDocuments uint64
+	PendingChanges            uint64
+	DeletedDocuments          uint64
+	OrphanDocuments           uint64
+	ActiveGeneration          string
+	CandidateGeneration       string
+	LastSuccessAt             time.Time
+	LastIndexedAt             time.Time
+	LastErrorCode             string
+	CollectionName            string
+	CollectionLayout          string
+	EmbeddingModel            string
+	DegradedDependencies      []string
 }
 
 type ChangeOperation string

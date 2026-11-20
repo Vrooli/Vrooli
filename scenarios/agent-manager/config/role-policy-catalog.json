@@ -159,6 +159,23 @@
           "resourceRole": "code.fallback"
         }
       ]
+    },
+    "browser.agent": {
+      "description": "Codex browser tasks through the BAS-owned session broker; saved permission profile, run grant and budget are required.",
+      "intent": "agent task that borrows a BAS browser session",
+      "orderingReason": "Explicit opt-in role; browser authority is a separate run capability, never inferred from ordinary code execution.",
+      "candidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "code.default"
+        }
+      ],
+      "browserCandidates": [
+        {
+          "runner": "codex",
+          "resourceRole": "browser.session"
+        }
+      ]
     }
   }
 }

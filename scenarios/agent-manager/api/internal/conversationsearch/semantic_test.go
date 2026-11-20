@@ -2,6 +2,7 @@ package conversationsearch
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"os"
 	"path/filepath"
@@ -307,13 +308,67 @@ func TestStagedSemanticSourceReadsOnlyImmutableEligibleGeneration(t *testing.T) 
 	page, err := source.LoadPage(context.Background(), aisearch.PageRequest{Limit: 1})
 	require.NoError(t, err)
 	require.Len(t, page.Documents, 1)
-	require.Equal(t, first.DocumentID, page.Documents[0].ID)
+	// Equal occurred_at falls back to document_id DESC; tool payloads never
+	// appear regardless of order.
+	require.Equal(t, third.DocumentID, page.Documents[0].ID)
 	require.False(t, page.Done)
 	next, err := source.LoadPage(context.Background(), aisearch.PageRequest{Cursor: page.NextCursor, Limit: 1})
 	require.NoError(t, err)
 	require.Len(t, next.Documents, 1)
-	require.Equal(t, third.DocumentID, next.Documents[0].ID)
+	require.Equal(t, first.DocumentID, next.Documents[0].ID)
 	require.True(t, next.Done)
+}
+
+func TestStagedSemanticSourcePagesNewestFirstAndResumesByKeyset(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	generation := "semantic-recent"
+	require.NoError(t, repository.BeginStagedGeneration(context.Background(), generation))
+	base := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
+	makeDoc := func(id string, at time.Time) Document {
+		document := testDocument()
+		document.DocumentID, document.SourceEventID, document.ContentClass, document.OccurredAt = id, id+"-event", ContentClassProse, at
+		return document
+	}
+	oldest, middle, newest := makeDoc("doc-oldest", base), makeDoc("doc-middle", base.Add(time.Hour)), makeDoc("doc-newest", base.Add(2*time.Hour))
+	for _, document := range []Document{oldest, middle, newest} {
+		require.NoError(t, repository.StageDocument(context.Background(), generation, document))
+	}
+
+	source := NewStagedSemanticSource(repository, generation)
+	first, err := source.LoadPage(context.Background(), aisearch.PageRequest{Limit: 2})
+	require.NoError(t, err)
+	require.Equal(t, []string{"doc-newest", "doc-middle"}, []string{first.Documents[0].ID, first.Documents[1].ID})
+	require.False(t, first.Done)
+
+	rest, err := source.LoadPage(context.Background(), aisearch.PageRequest{Cursor: first.NextCursor, Limit: 2})
+	require.NoError(t, err)
+	require.Len(t, rest.Documents, 1)
+	require.Equal(t, "doc-oldest", rest.Documents[0].ID)
+	require.True(t, rest.Done)
+}
+
+func TestStagedSemanticSourceResumesALegacyDocumentIDCursor(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	generation := "semantic-legacy"
+	require.NoError(t, repository.BeginStagedGeneration(context.Background(), generation))
+	for _, id := range []string{"doc-a", "doc-b", "doc-c"} {
+		document := testDocument()
+		document.DocumentID, document.SourceEventID, document.ContentClass = id, id+"-event", ContentClassProse
+		require.NoError(t, repository.StageDocument(context.Background(), generation, document))
+	}
+	source := NewStagedSemanticSource(repository, generation)
+	legacy := base64.RawURLEncoding.EncodeToString([]byte("doc-b"))
+	page, err := source.LoadPage(context.Background(), aisearch.PageRequest{Cursor: legacy, Limit: 5})
+	require.NoError(t, err)
+	require.Len(t, page.Documents, 1)
+	require.Equal(t, "doc-c", page.Documents[0].ID, "a build interrupted under the old cursor must finish the old order")
+	require.True(t, page.Done)
 }
 
 func TestAgentManagerSearchJSONIsStrictAndHybrid(t *testing.T) {

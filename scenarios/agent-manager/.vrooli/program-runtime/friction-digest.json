@@ -1,11 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.friction-digest",
-  "version": "4",
+  "version": "5",
   "helpers": {
     "program": "1"
   },
-  "purpose": "Rank the recurring deterministic friction fingerprints whose suspected owner is one scenario, over the most recent runs inside a window, with owner-confidence counts and no estimation.",
+  "purpose": "Rank the recurring deterministic friction fingerprints one scenario owns over a recent window, with owner-confidence counts, no estimation, and the gated inferred-annotation coverage beside them.",
   "inputs": {
     "scenario": {
       "type": "string",
@@ -38,7 +38,8 @@
     "usage/friction takes an RFC 3339 start, status, limit, and optional owner; an owner filter scopes profiles and findings to one scenario while coverage remains window-wide",
     "the usage/friction response exposes owner profile totals as metadata and ranked owner findings as rows",
     "each call runs in its own program-runtime session; session variables persist across submissions",
-    "the caller reads an empty digest beside coverage: unknown outcomes cannot show failures"
+    "the caller reads an empty digest beside coverage: unknown outcomes cannot show failures",
+    "the usage/friction response carries inferredAnnotations from the run-annotation pack for the same window; a label without a measured gate never carries a rate"
   ],
   "invariants": [
     "no binding with effect write or destructive is called",
@@ -103,7 +104,8 @@
       "supervision_sample_capped": "True when the outcome sample reaches its bound; cannot establish coverage",
       "supervision_calibration_available": "Assessed nonempty and uncapped sample; not proof of candidate replay",
       "supervision_outcome_coverage": "null until a decision denominator is measured",
-      "supervision_coverage_reason": "pending_telemetry"
+      "supervision_coverage_reason": "pending_telemetry",
+      "inferred_annotations": "gated inferred labels for the same window: pack, coverage, eligible/observed runs, friction-lens labels with observed/eligible/coverage, a rate only for a proven gate, and a note when a rate is absent; an empty window is unknown, not zero friction"
     },
     "errors": {
       "classes": [
@@ -185,7 +187,9 @@
         "top_n": 11
       },
       "expect": {
-        "status": ["failed"]
+        "status": [
+          "failed"
+        ]
       },
       "requires": [
         "agent-manager"

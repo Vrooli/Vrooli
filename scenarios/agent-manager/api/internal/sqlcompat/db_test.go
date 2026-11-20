@@ -28,3 +28,19 @@ func TestDBRemainsAnInterface(t *testing.T) {
 		t.Fatal("zero-value database interface must be nil")
 	}
 }
+
+func TestTransientMessageRecognizesLegacyContentionText(t *testing.T) {
+	for _, message := range []string{
+		"apply staged change: database is locked (5) (SQLITE_BUSY)",
+		"SQLITE_LOCKED: database table is locked",
+	} {
+		if !TransientMessage(message) {
+			t.Fatalf("message %q was not transient", message)
+		}
+	}
+	for _, message := range []string{"", "unsupported staged change", "constraint failed"} {
+		if TransientMessage(message) {
+			t.Fatalf("message %q was transient", message)
+		}
+	}
+}

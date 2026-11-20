@@ -21,15 +21,24 @@ type Metadata struct {
 }
 
 type Role struct {
-	Description    string      `json:"description"`
-	Intent         string      `json:"intent"`
-	OrderingReason string      `json:"orderingReason"`
-	Candidates     []Candidate `json:"candidates"`
+	Description       string             `json:"description"`
+	Intent            string             `json:"intent"`
+	OrderingReason    string             `json:"orderingReason"`
+	Candidates        []Candidate        `json:"candidates"`
+	BrowserCandidates []BrowserCandidate `json:"browserCandidates,omitempty"`
 }
 
 // Candidate selects a resource-owned role on one runner. The resource CLI
 // resolves that role to concrete model evidence at run creation.
 type Candidate struct {
+	Runner       domain.RunnerType `json:"runner"`
+	ResourceRole string            `json:"resourceRole"`
+}
+
+// BrowserCandidate is a separate capability declaration. It never enters the
+// model candidate sequence; the harness is eligible only when its ordinary
+// execution role also resolves in the same immutable policy revision.
+type BrowserCandidate struct {
 	Runner       domain.RunnerType `json:"runner"`
 	ResourceRole string            `json:"resourceRole"`
 }
@@ -46,6 +55,7 @@ func (c *Catalog) Clone() *Catalog {
 	}
 	for key, role := range c.Roles {
 		role.Candidates = append([]Candidate(nil), role.Candidates...)
+		role.BrowserCandidates = append([]BrowserCandidate(nil), role.BrowserCandidates...)
 		clone.Roles[key] = role
 	}
 	return clone

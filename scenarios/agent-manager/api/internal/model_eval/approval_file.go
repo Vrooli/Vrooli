@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ResolveTopicDir follows the operator's retained-research home. A deployment
@@ -20,7 +22,11 @@ func ResolveTopicDir() (string, error) {
 		if err != nil || strings.TrimSpace(home) == "" {
 			return "", errors.New("research topic home is unavailable")
 		}
-		root = filepath.Join(home, ".vrooli", "research")
+		runtimeHome, err := repocontract.VrooliUserRoot(home)
+		if err != nil {
+			return "", err
+		}
+		root = filepath.Join(runtimeHome, "research")
 	}
 	return filepath.Join(root, "topics", "local-model-performance"), nil
 }

@@ -97,6 +97,16 @@ protocol. The persisted execution snapshot records concrete model/fallback
 choices, resource policy path and digest, provenance, permission-enforcement
 posture, and unavailable-candidate diagnostics.
 
+A role may also declare ordered `browserCandidates` with the resource role
+`browser.session`. Each browser candidate must use a runner already declared
+for that role's ordinary execution. It is kept separate from model candidates:
+a `code.*` candidate never grants browser access. The immutable snapshot marks
+the browser candidate eligible only when that runner's execution candidate is
+available. This is role eligibility evidence, not proof of an active BAS
+session, a browser entitlement, or a successful broker open; BAS still owns
+session creation and action authorization. Use an explicit role such as
+`browser.agent` only with a saved permission profile and bounded run grant.
+
 | Variable | Default | Effect |
 |---|---|---|
 | `AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH` | Repository-resolved `scenarios/agent-manager/config/role-policy-catalog.json` | Selects the portable role catalog loaded and reported by Agent Manager. |

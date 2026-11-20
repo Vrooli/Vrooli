@@ -151,7 +151,7 @@ func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
 		}
 	}
 	// SPEC §4 and P2-D1: the read-only pace view joins the existing usage questions.
-	if group.Name != "usage" || strings.Join(names, ",") != "capacity,forecast,pace,runtime-friction,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare,parity,outcomes" {
+	if group.Name != "usage" || strings.Join(names, ",") != "capacity,forecast,pace,runtime-friction,annotations,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare,parity,outcomes" {
 		t.Fatalf("group %q declares %v", group.Name, names)
 	}
 }

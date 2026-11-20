@@ -19,6 +19,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/annotationscheduler"
 	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/conversationpolicy"
@@ -38,6 +39,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runannotations"
 	"agent-manager/internal/runtimeactivity"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/supervision"
@@ -112,6 +114,8 @@ type Server struct {
 	awaitRegistry            *orchestration.AwaitRegistry
 	workflowNudger           *orchestration.WorkflowNudger
 	transcriptImporter       *orchestration.TranscriptIndex
+	annotations              *runannotations.Service
+	annotationsScheduler     *annotationscheduler.Runner
 	claudeQuotaFeed          *pricing.ClaudeStatuslineReader
 	usageAlerts              *usageforecast.Alerter
 	usageModes               *usagemodes.Service
@@ -307,6 +311,25 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 	// space through the search domain's own optimize.
 	deps.TranscriptImporter.SetAfterEviction(conversationRepository.OptimizeIndex)
 	eventsCtx, cancelEvents := context.WithCancel(context.Background())
+	// The annotation vocabulary is data, so a missing or invalid pack degrades
+	// this surface instead of refusing API startup. Routes mount only when the
+	// service exists; the CLI and health surfaces then report it unavailable.
+	annotationService, annotationErr := func() (*runannotations.Service, error) {
+		packPath, err := runannotations.DefaultPackPath()
+		if err != nil {
+			return nil, err
+		}
+		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return runannotations.NewDefaultService(initCtx, db, packPath, nil)
+	}()
+	if annotationErr != nil {
+		// The annotation vocabulary is optional relative to the run plane. A
+		// missing or invalid pack must not take down runs, recovery or the rest
+		// of the API: leave the surface unmounted and let health/CLI report it.
+		obs.Logger().Warn("run annotations unavailable; annotation routes are not mounted", obs.KeyError, annotationErr.Error())
+		annotationService = nil
+	}
 	srv := &Server{
 		eventsCtx: eventsCtx, cancelEvents: cancelEvents,
 		configurationRoot:  repoRoot,
@@ -314,7 +337,7 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts, usageModes: deps.UsageModes, usageModeNotifier: deps.UsageModeNotifier, interventions: deps.Interventions, outcomeLedger: deps.OutcomeLedger,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, annotations: annotationService, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts, usageModes: deps.UsageModes, usageModeNotifier: deps.UsageModeNotifier, interventions: deps.Interventions, outcomeLedger: deps.OutcomeLedger,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
@@ -326,6 +349,19 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 		conversationTokens:       conversationTokens,
 		workspaceSandbox:         deps.WorkspaceSandbox,
 		providerReadiness:        deps.ProviderReadiness,
+	}
+	// Background annotation is capacity-gated and opt-in. The default mode is
+	// passive: the HTTP/CLI surface works, but no background inference starts
+	// until the operator selects idle/balanced/eager. A missing ledger or
+	// scheduler store disables background work and is logged; it never falls
+	// back to unbounded inference.
+	if runner, runErr := annotationscheduler.Start(eventsCtx, annotationscheduler.Options{
+		Service: annotationService,
+		DB:      db,
+	}); runErr != nil {
+		obs.Logger().Warn("annotation scheduler unavailable; background annotation disabled", "error", runErr.Error())
+	} else {
+		srv.annotationsScheduler = runner
 	}
 	// One gate and routed store serve every admission path and the owner endpoint.
 	// Install before recovery workers or HTTP can admit work.
@@ -558,6 +594,7 @@ func (s *Server) setupRoutes() {
 		ConversationSearchPolicy: s.conversationSearchPolicy,
 		ConversationSemantic:     s.conversationSemantic,
 		ConversationSearchFile:   s.conversationSearchFile,
+		Annotations:              s.annotations,
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 		StorageHealth:            s.storageHealthHandler(),
 		LifecycleService:         s.lifecycleService,
@@ -566,6 +603,9 @@ func (s *Server) setupRoutes() {
 		DecisionEffects:          s.decisionEffects(),
 		LifecycleContext:         s.eventsCtx,
 	})
+	if s.annotationsScheduler != nil {
+		s.annotationsScheduler.RegisterRoutes(s.router)
+	}
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAsk).Methods(http.MethodPost)
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAskState).Methods(http.MethodGet)
 	s.router.HandleFunc(UsageModeAutoSavePath, s.handleUsageModeAutoSave).Methods(http.MethodGet, http.MethodPost)
@@ -596,6 +636,11 @@ func (s *Server) startTerminalEvents(ctx context.Context) error {
 }
 
 func (s *Server) Cleanup() error {
+	if s.annotationsScheduler != nil {
+		if err := s.annotationsScheduler.Close(); err != nil {
+			obs.Logger().Warn("close annotation scheduler", "error", err.Error())
+		}
+	}
 	if s.cancelEvents != nil {
 		s.cancelEvents()
 	}

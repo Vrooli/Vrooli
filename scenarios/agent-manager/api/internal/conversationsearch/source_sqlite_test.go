@@ -219,3 +219,24 @@ func insertRunFixture(t *testing.T, db *sqlx.DB) {
 func fixtureTime(minute int) string {
 	return time.Date(2026, 9, 4, 12, minute, 0, 0, time.UTC).Format(time.RFC3339Nano)
 }
+
+func TestSQLiteSourceResumesACursorPersistedWithoutItsExactText(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	createSourceFixtureSchema(t, db)
+	seedSourceFixture(t, db)
+	source, err := NewSQLiteSource(db, fixtureNormalizer(t, "recipe-v1", 512, 32))
+	require.NoError(t, err)
+	// A cursor written before the raw text was carried has only the parsed
+	// time. The fallback must reproduce the canonical writer's layout, or it
+	// re-reads the row it already consumed.
+	legacy := &SourceCursor{
+		OccurredAt:    time.Date(2026, 9, 4, 12, 1, 0, 0, time.UTC),
+		SourceRunID:   "run-1",
+		EventSequence: 1,
+	}
+	page, err := source.LoadSourcePage(context.Background(), legacy, 10)
+	require.NoError(t, err)
+	require.Len(t, page.Documents, 1)
+	require.Equal(t, "event-3", page.Documents[0].SourceEventID)
+}

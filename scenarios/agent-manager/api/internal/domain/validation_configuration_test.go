@@ -2,6 +2,8 @@ package domain
 
 import (
 	"testing"
+
+	"agent-manager/internal/browsercapability"
 )
 
 func TestExtraFlags_StructuralValidation(t *testing.T) {
@@ -251,6 +253,27 @@ func TestAgentProfile_Validate_WithFeatures(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid browser capability is accepted",
+			profile: &AgentProfile{
+				Name: "test", RoleRef: "code.default",
+				Features: FeatureFlags{BrowserCapability: &browsercapability.Capability{
+					Enabled: true, Mode: browsercapability.ModeAttached,
+					Candidates:  []browsercapability.Candidate{{Harness: "claude-code", ResourceRole: "browser.session"}},
+					Permissions: browsercapability.PermissionProfileSpec{ProfileID: "profile-act", Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}},
+					Budget:      browsercapability.Budget{SessionMinutes: 10, Actions: 100, Bytes: 1_000_000},
+				}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "browser capability without bounded session budget is rejected",
+			profile: &AgentProfile{
+				Name: "test", RoleRef: "code.default",
+				Features: FeatureFlags{BrowserCapability: &browsercapability.Capability{Enabled: true}},
+			},
+			wantErr: true,
+		},
+		{
 			name: "profile with features and valid extra flags",
 			profile: &AgentProfile{
 				Name: "test",
@@ -283,7 +306,12 @@ func TestRunConfig_ApplyProfile_CopiesFeatures(t *testing.T) {
 		profile := &AgentProfile{
 			Name: "test",
 
-			Features: FeatureFlags{EnableBrowser: true}, RoleRef: "code.default",
+			Features: FeatureFlags{EnableBrowser: true, BrowserCapability: &browsercapability.Capability{
+				Enabled: true, Mode: browsercapability.ModeAttached,
+				Candidates:  []browsercapability.Candidate{{Harness: "claude-code", ResourceRole: "browser.session"}},
+				Permissions: browsercapability.PermissionProfileSpec{Level: browsercapability.ProfileObserve},
+				Budget:      browsercapability.Budget{SessionMinutes: 5, Actions: 10, Bytes: 1024},
+			}}, RoleRef: "code.default",
 		}
 		cfg := DefaultRunConfig()
 		cfg.ApplyProfile(profile)
@@ -291,11 +319,18 @@ func TestRunConfig_ApplyProfile_CopiesFeatures(t *testing.T) {
 		if !cfg.Features.EnableBrowser {
 			t.Error("expected Features.EnableBrowser to be true after ApplyProfile")
 		}
+		if cfg.Features.BrowserCapability == nil {
+			t.Fatal("expected browser capability to be copied from profile")
+		}
 
 		// Mutate profile features - should not affect config
 		profile.Features.EnableBrowser = false
+		profile.Features.BrowserCapability.Candidates[0].ResourceRole = "mutated"
 		if !cfg.Features.EnableBrowser {
 			t.Error("expected config Features to remain unchanged after mutating profile")
+		}
+		if cfg.Features.BrowserCapability.Candidates[0].ResourceRole != "browser.session" {
+			t.Error("expected browser capability to be isolated from profile mutation")
 		}
 	})
 

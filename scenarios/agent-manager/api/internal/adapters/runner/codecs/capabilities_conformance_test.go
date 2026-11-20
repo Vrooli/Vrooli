@@ -31,7 +31,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				SupportsToolRestriction: true,
 				ToolRestrictionMappings: map[string]string{"read": "Read", "write": "Write", "edit": "Edit", "glob": "Glob", "grep": "Grep", "shell": "Bash", "web_search": "WebSearch", "web_fetch": "WebFetch"},
 				SupportsEffort:          true, EffortMappings: map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-				SupportsRunnerDefault: true, SupportedFeatures: []string{"EnableBrowser"},
+				SupportsRunnerDefault: true,
 			},
 		},
 		{

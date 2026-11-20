@@ -81,6 +81,12 @@ func RolePolicyCatalogToProto(catalog *rolepolicy.Catalog) *apipb.RolePolicyCata
 				ResourceRole: candidate.ResourceRole,
 			})
 		}
+		for _, candidate := range role.BrowserCandidates {
+			converted.BrowserCandidates = append(converted.BrowserCandidates, &apipb.RolePolicyCandidate{
+				RunnerType:   RunnerTypeToProto(domain.RunnerType(candidate.Runner)),
+				ResourceRole: candidate.ResourceRole,
+			})
+		}
 		result.Roles = append(result.Roles, converted)
 	}
 	return result

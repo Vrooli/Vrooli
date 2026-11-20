@@ -259,3 +259,31 @@ export function useExperimentActions() {
   const propose = useMutation({ mutationFn: (modeId: string) => measuresClient.proposeRoleDefault({ modeId }, CALL_OPTIONS), onSuccess: refresh });
   return { start, propose };
 }
+
+
+/** The inferred-annotation coverage row for one label; a rate exists only for a proven gate. */
+export interface AnnotationCoverageLabel {
+  id: string;
+  group: string;
+  state: string;
+  observed: number;
+  eligible: number;
+  rate?: number | null;
+  baseline?: number | null;
+  ratio?: number | null;
+  gate: { state: string; precision: number; recall: number; gold: number; min_gold: number; target_precision: number; target_recall: number };
+  search_facet?: string;
+  min_probability?: number;
+  friction?: { enabled?: boolean; min_probability?: number; cost_unit?: string; importance?: string };
+}
+
+export interface AnnotationCoverage {
+  window: { since?: string; until?: string };
+  pack: { name: string; version: string };
+  eligible_runs: number;
+  observed_runs: number;
+  coverage: number;
+  weighting?: { mode?: string; sample_rate?: number };
+  labels: AnnotationCoverageLabel[];
+}
+

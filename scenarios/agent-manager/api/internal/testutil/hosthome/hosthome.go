@@ -18,6 +18,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DummyAuth is the only credential tests may hold. It is not a real token.
@@ -80,9 +82,21 @@ func isolatedParent() string {
 		return dir
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		if dir := filepath.Join(home, ".vrooli", "tmp"); dirExists(dir) {
-			return dir
+		if root, rootErr := repocontract.VrooliUserRoot(home); rootErr == nil {
+			if dir := filepath.Join(root, "tmp"); dirExists(dir) {
+				return dir
+			}
 		}
+	}
+	return ""
+}
+
+// shortTempParent keeps the credential socket under a path short enough for
+// sun_path even when the operator's GOTMPDIR is deep. The isolated HOME stays
+// outside ephemeral temp roots because run-state validators refuse them.
+func shortTempParent() string {
+	if info, err := os.Stat("/tmp"); err == nil && info.IsDir() {
+		return "/tmp"
 	}
 	return ""
 }
@@ -102,7 +116,18 @@ func Main(m *testing.M) int {
 		return 1
 	}
 	defer os.RemoveAll(base)
-	home, tmp := filepath.Join(base, "home"), filepath.Join(base, "t")
+	// The credential broker is a filesystem unix socket under TMPDIR, and
+	// sun_path is 108 bytes. A deep sandbox GOTMPDIR (for example a test
+	// harness working directory) pushes the socket past the limit, so the
+	// ephemeral temp dir is separated from the durable isolated HOME and
+	// anchored at the conventional short temp root when it exists.
+	tmp, err := os.MkdirTemp(shortTempParent(), "amh-tmp-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hosthome: create isolated temp root:", err)
+		return 1
+	}
+	defer os.RemoveAll(tmp)
+	home := filepath.Join(base, "home")
 	codexHome := filepath.Join(home, ".codex")
 	for _, dir := range []string{codexHome, tmp} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {

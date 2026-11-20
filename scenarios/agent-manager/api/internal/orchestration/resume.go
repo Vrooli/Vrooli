@@ -155,6 +155,10 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		createReq.AllowedPaths, createReq.DeniedPaths = append([]string{}, cfg.AllowedPaths...), append([]string{}, cfg.DeniedPaths...)
 		createReq.AllowedEffects, createReq.RequireEffectContainment = cfg.AllowedEffects, cfg.RequireEffectContainment
 		createReq.SkipPermissionPrompt, createReq.EnableBrowser = &cfg.SkipPermissionPrompt, &cfg.Features.EnableBrowser
+		if cfg.Features.BrowserCapability != nil {
+			capability := cfg.Features.BrowserCapability.Clone()
+			createReq.BrowserCapability = &capability
+		}
 		createReq.NetworkAccess, createReq.ExtraFlags = &cfg.NetworkAccess, cfg.ExtraFlags
 		createReq.ResultSpec, createReq.Until = cfg.ResultSpec, cfg.Until
 		if cfg.SandboxConfig != nil {

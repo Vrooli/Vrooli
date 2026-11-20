@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/supervision"
@@ -65,6 +66,7 @@ const standingGrantIssueTTL = MaxStandingGrantLifetime
 const oneTimeGrantIssueTTL = time.Hour
 
 const researchBudgetIngestOperation = "research-budget.ingest"
+const browserEvidenceRecordOperation = "browser-evidence.record"
 
 // TreasuryServiceSubject is Treasury's service principal at Agent Manager: the
 // only subject that may submit research-budget evidence, and the subject of the
@@ -76,6 +78,12 @@ const researchBudgetIngestOperation = "research-budget.ingest"
 const TreasuryServiceSubject = "treasury-agent-manager"
 
 var researchBudgetIngestTargetPattern = regexp.MustCompile(`^agent-manager:run/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+var browserEvidenceRecordTargetPattern = researchBudgetIngestTargetPattern
+
+// BrowserEvidenceServiceSubject is BAS's dedicated Agent Manager recorder
+// principal. Its declaration alone grants no authority; a human-approved
+// one-run grant is still required for browser evidence authorization.
+const BrowserEvidenceServiceSubject = "browser-automation-studio-agent-manager"
 
 // WithPendingAuthorizations supplies the durable pending-request store that
 // makes the "ask, don't block" raise idempotent and bounded. Without it, the
@@ -122,6 +130,12 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 	}
 	if !validAuthorizationApprovalRequest(req) {
 		return false, domain.NewValidationError("authorization_request", "operation and target are outside supported approval paths")
+	}
+	if strings.TrimSpace(req.Operation) == browserEvidenceRecordOperation {
+		runID, err := uuid.Parse(strings.TrimPrefix(strings.TrimSpace(req.Target), "agent-manager:run/"))
+		if err != nil || !o.IsBrowserEvidenceRun(ctx, runID) {
+			return false, domain.NewValidationError("authorization_request", "active browser-capable run required")
+		}
 	}
 	now := o.now()
 	id := authorizationCorrelationID(subject, req.Operation, req.Target)
@@ -188,22 +202,70 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 	return true, nil
 }
 
-// validAuthorizationApprovalRequest keeps the general service ask on its
-// existing run.create path and admits only one additional single-run reporting
-// capability. The latter is Treasury-only, one-time, and cannot use wildcards.
+// validAuthorizationApprovalRequest keeps general service asks on the existing
+// run.create path and admits only named, exact-run reporting capabilities.
+// Reporting approvals are one-time, have no standing/concurrency scope and
+// cannot use wildcard targets.
 func validAuthorizationApprovalRequest(req AuthorizationApprovalRequest) bool {
 	operation, target, subject := strings.TrimSpace(req.Operation), strings.TrimSpace(req.Target), strings.TrimSpace(req.Subject)
 	if operation == "run.create" {
 		return target != ""
 	}
-	return operation == researchBudgetIngestOperation && subject == TreasuryServiceSubject &&
-		req.Kind == domain.PendingAuthorizationKindOneTime && req.SessionID == "" &&
-		req.MaxConcurrentRuns == 0 && researchBudgetIngestTargetPattern.MatchString(target)
+	return req.Kind == domain.PendingAuthorizationKindOneTime && req.SessionID == "" && req.MaxConcurrentRuns == 0 &&
+		((operation == researchBudgetIngestOperation && subject == TreasuryServiceSubject && researchBudgetIngestTargetPattern.MatchString(target)) ||
+			(operation == browserEvidenceRecordOperation && subject == BrowserEvidenceServiceSubject && browserEvidenceRecordTargetPattern.MatchString(target)))
 }
 
 func isResearchBudgetIngestRequest(p *domain.PendingAuthorizationRequest) bool {
 	return p != nil && p.Subject == TreasuryServiceSubject && p.Operation == researchBudgetIngestOperation &&
 		researchBudgetIngestTargetPattern.MatchString(p.Target) && p.Kind == domain.PendingAuthorizationKindOneTime
+}
+
+func isBrowserEvidenceRecordRequest(p *domain.PendingAuthorizationRequest) bool {
+	return p != nil && p.Subject == BrowserEvidenceServiceSubject && p.Operation == browserEvidenceRecordOperation &&
+		browserEvidenceRecordTargetPattern.MatchString(p.Target) && p.Kind == domain.PendingAuthorizationKindOneTime && p.SessionID == ""
+}
+
+// IsBrowserEvidenceRun binds an approval ask to a currently active persisted
+// run that actually has a resolved browser capability. It is rechecked when an
+// operator answers so a stopped run cannot receive stale authority.
+func (o *Orchestrator) IsBrowserEvidenceRun(ctx context.Context, runID uuid.UUID) bool {
+	if o == nil || runID == uuid.Nil {
+		return false
+	}
+	run, err := o.GetStoredRun(ctx, runID)
+	if err != nil || run == nil || run.ID != runID || run.Status != domain.RunStatusRunning || run.ResolvedConfig == nil || run.ResolvedConfig.Features.BrowserCapability == nil {
+		return false
+	}
+	return browsercapability.Validate(*run.ResolvedConfig.Features.BrowserCapability) == nil
+}
+
+func (o *Orchestrator) createBrowserEvidenceRecordGrant(ctx context.Context, pending *domain.PendingAuthorizationRequest, approver string) (*domain.StandingGrant, error) {
+	if o.standingGrants == nil || !isBrowserEvidenceRecordRequest(pending) || strings.TrimSpace(approver) == "" {
+		return nil, domain.NewValidationError("authorization_request", "exact BAS browser-evidence request required")
+	}
+	runID, err := uuid.Parse(strings.TrimPrefix(pending.Target, "agent-manager:run/"))
+	if err != nil || !o.IsBrowserEvidenceRun(ctx, runID) {
+		return nil, domain.NewValidationError("authorization_request", "active browser-capable run required")
+	}
+	ttl := pending.GrantTTL
+	if ttl <= 0 || ttl > oneTimeGrantIssueTTL {
+		return nil, domain.NewValidationError("ttl", "browser evidence grant lifetime must be at most one hour")
+	}
+	now := o.now()
+	id := uuid.NewString()
+	expires := now.Add(ttl)
+	grant := &domain.StandingGrant{
+		ID: id, Subject: BrowserEvidenceServiceSubject, Grant: &requestidentity.OperationGrant{
+			ID: id, Policy: "browser-evidence-record", Approver: strings.TrimSpace(approver),
+			Operations: []string{browserEvidenceRecordOperation}, Targets: []string{pending.Target}, ExpiresAt: expires,
+		},
+		State: domain.StandingGrantApproved, ApprovedBy: strings.TrimSpace(approver), ApprovedAt: now, ExpiresAt: expires,
+	}
+	if err := o.standingGrants.Put(ctx, grant); err != nil {
+		return nil, err
+	}
+	return grant, nil
 }
 
 // IsResearchBudgetRun proves that the requested report target names an
@@ -759,6 +821,9 @@ func (o *Orchestrator) ResolveAuthorizationFromHub(ctx context.Context, res supe
 		if isResearchBudgetIngestRequest(pending) {
 			pending.GrantTTL = ttl
 			grant, err = o.createResearchBudgetIngestGrant(ctx, pending, actor)
+		} else if isBrowserEvidenceRecordRequest(pending) {
+			pending.GrantTTL = ttl
+			grant, err = o.createBrowserEvidenceRecordGrant(ctx, pending, actor)
 		} else {
 			grant, err = o.createStandingGrant(ctx, StandingGrantRequest{
 				Subject: pending.Subject, Approver: actor, SessionID: pending.SessionID,

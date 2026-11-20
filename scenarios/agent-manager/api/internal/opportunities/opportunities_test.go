@@ -2,8 +2,6 @@ package opportunities
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -383,21 +381,6 @@ func TestLoopingSequenceCountsPeriodsNotStretches(t *testing.T) {
 	}
 }
 
-// The orientation ritual is mandated: a program saves round-trips and result
-// tokens, and the action says so rather than claiming the work disappears.
-func TestMandatedRitualStatesRoundTripsNotWork(t *testing.T) {
-	calls := flatten(repeat(3, func(i int) *session { return orientation(fmt.Sprintf("o%d", i)) })...)
-	r := Analyze(Input{Calls: calls, Library: testGenieLibrary})
-	o := find(t, r, KindSequence, orientationSubject)
-	if !o.Mandated || !strings.Contains(o.Action, "round-trips") || !strings.Contains(o.Action, "not the work") {
-		t.Fatalf("mandated ritual = %+v", o)
-	}
-	loop := find(t, Analyze(Input{Calls: flatten(repeat(3, func(i int) *session { return testLoop(fmt.Sprintf("t%d", i)) })...), Library: Library{}}), KindSequence, "vrooli scenario test → test-genie runs wait → test-genie runs show → vrooli-memory journal note")
-	if loop.Mandated {
-		t.Fatalf("a test loop is not a mandated ritual: %+v", loop)
-	}
-}
-
 // A bypass made mostly by one run's loop counts that run at most
 // RunCapFactor times the median run and reports the run's share.
 func TestBypassCountsOneLoopingRunAtMostTheCap(t *testing.T) {
@@ -437,8 +420,8 @@ func TestRitualSavesOnlyItsOwnStepsCalls(t *testing.T) {
 	if o.Occurrences != 7 || o.CallsSaved != 7*(3-1) || o.TokensSaved != 7*3*100 {
 		t.Fatalf("ritual = %d occurrences, %d calls saved, %d tokens; want 7, 14 (its own 21 calls less one program call each), 2100", o.Occurrences, o.CallsSaved, o.TokensSaved)
 	}
-	if !o.Mandated {
-		t.Errorf("the ritual of mandated commands is not marked mandated: %+v", o)
+	if o.Mandated {
+		t.Errorf("conditional discovery and journaling were reported as mandatory: %+v", o)
 	}
 }
 
@@ -548,21 +531,6 @@ func TestEveryKindNamesWhatItsNumberCounts(t *testing.T) {
 	for kind, want := range map[string]string{KindSequence: "calls saved", KindBypass: "calls replaced", KindOutputShape: "extractions removed", KindSkillReload: "reads saved"} {
 		if got := savedBy[kind]; got.label != want || got.basis == "" {
 			t.Errorf("%s = %+v, want label %q and a basis", kind, got, want)
-		}
-	}
-}
-
-// The mandated ritual is the commands AGENTS.md makes every agent run: each
-// prefix the rule reads is a command AGENTS.md names, so a change to the
-// ritual there fails here instead of silently mislabelling sequences.
-func TestMandatedRitualIsWhatAgentsMDNames(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "AGENTS.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, prefix := range mandatedRitual {
-		if !strings.Contains(string(body), prefix) {
-			t.Errorf("AGENTS.md no longer names %q: update mandatedRitual", prefix)
 		}
 	}
 }

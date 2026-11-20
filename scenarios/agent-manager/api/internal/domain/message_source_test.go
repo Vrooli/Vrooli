@@ -65,6 +65,10 @@ func TestClassifyMessageTextSources(t *testing.T) {
 		{"<system-reminder>ctx</system-reminder>\n\nplease fix the bug", MessageSourceOperator},
 		{"<system-reminder>a</system-reminder><system-reminder>b</system-reminder>", MessageSourceHook},
 		{"<system-reminder>unclosed ctx", MessageSourceHook},
+		{`<skills count="1"><skill id="a"># body</skill></skills>`, MessageSourceInjectedContext},
+		{`<skills count="1"><skill id="a">x</skill></skills>
+
+please fix the build`, MessageSourceOperator},
 		{"<environment_context>x</environment_context>\nrun the tests", MessageSourceOperator},
 	}
 	for _, tc := range cases {
@@ -130,6 +134,29 @@ func TestClassifyCodexUserMessage(t *testing.T) {
 	for _, tc := range cases {
 		if got := ClassifyCodexUserMessage(tc.text, tc.subagent, tc.kinds, tc.provenace); got != tc.want {
 			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestIsHarnessOnlyText(t *testing.T) {
+	harnessOnly := []string{
+		`<skills count="1"><skill id="a">x</skill></skills>`,
+		"<system-reminder>ctx</system-reminder>",
+		"<system-reminder>a</system-reminder><system-reminder>b</system-reminder>",
+	}
+	for _, text := range harnessOnly {
+		if !IsHarnessOnlyText(text) {
+			t.Fatalf("IsHarnessOnlyText(%q) = false, want true", text)
+		}
+	}
+	for _, text := range []string{
+		"please fix the parser",
+		"<skills count=\"1\"><skill id=\"a\">x</skill></skills>\n\nrun the tests",
+		"<system-reminder>unclosed ctx",
+		"<pasted_content>stack trace</pasted_content> fix",
+	} {
+		if IsHarnessOnlyText(text) {
+			t.Fatalf("IsHarnessOnlyText(%q) = true, want false", text)
 		}
 	}
 }

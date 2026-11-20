@@ -81,6 +81,18 @@ func freezeAuthorizationDecision(p *domain.PendingAuthorizationRequest) {
 		never = []string{"Spend money", "Read or change any other run", "Act outside this one report"}
 		effects["approve"] = "Treasury records this run's spending once. The permission then ends."
 		effects["reject"] = "Nothing is recorded; this run's spending stays out of the research budget."
+	case isBrowserEvidenceRecordRequest(p):
+		p.DecisionSubject = "Let Browser Automation Studio report one run's browser session evidence?"
+		p.DecisionQuestion = fmt.Sprintf("Browser Automation Studio wants to report browser session evidence for one agent run. Allow this exact run for the next %s?", life)
+		big.WriteString("Browser Automation Studio asked Agent Manager to append sanitized browser session and action evidence to one active agent run. ")
+		big.WriteString("Approving allows only the named run, only the browser-evidence.record operation, and only until the one-time permission expires or you revoke it. ")
+		big.WriteString("It does not open a browser, prove that a session was live, authorize another run, or grant billing authority. BAS must separately prove that each session is active in its broker before any evidence can be trusted. ")
+		big.WriteString("Refusing records no browser evidence. If you do not answer, nothing is granted.")
+		lead = "Browser Automation Studio needs one-time permission to report evidence for this exact run."
+		allows = []string{"Append sanitized browser session/action evidence to this one run", "Within " + life + ", after which the permission ends"}
+		never = []string{"Open or control a browser", "Report evidence for another run", "Assert that a browser session is live without BAS broker proof", "Authorize usage or billing"}
+		effects["approve"] = "BAS may report evidence for this run after its broker validates the active session."
+		effects["reject"] = "No browser evidence permission is granted."
 	case p.Kind == domain.PendingAuthorizationKindOneTime:
 		p.DecisionSubject = fmt.Sprintf("Let %s start agent runs for the next %s?", subjectWho, life)
 		p.DecisionQuestion = fmt.Sprintf("%s tried to start an agent run without permission. Let it start runs for the next %s, %s?", who, life, concurrencyWords(p))
@@ -131,6 +143,8 @@ func authorizationFacts(p *domain.PendingAuthorizationRequest) operatordecision.
 	allow, reason := "Allow it for "+grantLifetime(p.GrantTTL), "Allow only a caller you expect to start agent work by itself; the permission lets it use AI quota without asking again."
 	if isResearchBudgetIngestRequest(p) {
 		allow, reason = "Allow this one report", "Allow it only if you recognize this research run and want its spending counted."
+	} else if isBrowserEvidenceRecordRequest(p) {
+		allow, reason = "Allow this one run's browser evidence", "Allow only if you recognize the active browser-capable run; BAS must still prove each session from its broker."
 	}
 	return operatordecision.Facts{
 		SubjectKey: p.SubjectKey, Subject: p.DecisionSubject, Question: p.DecisionQuestion,

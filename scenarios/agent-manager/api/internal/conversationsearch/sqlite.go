@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,7 +71,19 @@ func (r *SQLiteRepository) UpsertDocument(ctx context.Context, document Document
         project_scope=excluded.project_scope, cwd_scope=excluded.cwd_scope,
         runner=excluded.runner, model=excluded.model, profile=excluded.profile,
         run_status=excluded.run_status, run_label=excluded.run_label,
-        tags_json=excluded.tags_json, workloads_json=excluded.workloads_json,
+        -- Annotation facets live in tags_json and are written after indexing.
+        -- A later source change must not erase them: keep every label: tag from
+        -- the serving row and union the freshly imported tags.
+        tags_json=CASE
+          WHEN json_valid(conversation_search_catalog.tags_json) AND json_valid(excluded.tags_json)
+          THEN (SELECT json_group_array(value) FROM (
+            SELECT value FROM json_each(conversation_search_catalog.tags_json) WHERE value LIKE 'label:%'
+            UNION
+            SELECT value FROM json_each(excluded.tags_json)
+          ))
+          ELSE excluded.tags_json
+        END,
+        workloads_json=excluded.workloads_json,
         evidence_ref=excluded.evidence_ref, visible=excluded.visible,
         indexed_at=excluded.indexed_at`,
 		document.DocumentID, document.SourceRunID, document.SourceEventID, document.SourceMessageID,
@@ -271,6 +284,21 @@ func (r *SQLiteRepository) queryCoverage(ctx context.Context) (visibleMessages, 
 	return visibleMessages, catalogDocuments, lexicalDocuments, nil
 }
 
+// CountSemanticEligible reports how many visible chunks the semantic leg is
+// supposed to embed. The catalog holds tool calls, tool results and injected
+// context too, and those are deliberately never embedded; dividing points by
+// the whole catalog understates semantic coverage by more than an order of
+// magnitude (59,560 eligible chunks against 1,264,218 catalog chunks live on
+// 2026-11-19).
+func (r *SQLiteRepository) CountSemanticEligible(ctx context.Context) (uint64, error) {
+	var count uint64
+	if err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM conversation_search_catalog
+        WHERE visible = 1 AND content_class IN (?, ?)`, ContentClassProse, ContentClassQuotedProse); err != nil {
+		return 0, fmt.Errorf("count semantic-eligible conversation documents: %w", err)
+	}
+	return count, nil
+}
+
 func (r *SQLiteRepository) SaveCheckpoint(ctx context.Context, checkpoint Checkpoint) error {
 	if checkpoint.SourceName == "" || checkpoint.UpdatedAt.IsZero() {
 		return errors.New("checkpoint source name and updated time are required")
@@ -309,12 +337,47 @@ func (r *SQLiteRepository) LoadCheckpoint(ctx context.Context, sourceName string
 	return Checkpoint{SourceName: row.SourceName, SourceCursor: row.SourceCursor, SourceFingerprint: row.SourceFingerprint, UpdatedAt: updatedAt, LastErrorCode: row.LastErrorCode}, nil
 }
 
+// ClearIndexError drops a superseded indexing failure after a generation
+// activates successfully. It preserves the canonical cursor and fingerprint and
+// uses compare-and-clear, so a failure written between the read and the update
+// survives instead of being hidden by the success that raced it.
+func (r *SQLiteRepository) ClearIndexError(ctx context.Context, now time.Time) error {
+	var current string
+	if err := r.db.GetContext(ctx, &current, `SELECT last_error_code FROM conversation_search_checkpoints
+WHERE source_name='canonical'`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if current == "" {
+		return nil
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE conversation_search_checkpoints SET last_error_code='', updated_at=?
+WHERE source_name='canonical' AND last_error_code=?`, formatTime(now), current)
+	return err
+}
+
 // SetRecoveryError preserves the canonical cursor and fingerprint. Successful
 // recovery clears only its own diagnostic, including one from a prior process.
 func (r *SQLiteRepository) SetRecoveryError(ctx context.Context, diagnostic string, now time.Time) error {
 	if diagnostic == "" {
+		// Clear the recovery diagnostic, including shapes written by earlier
+		// builds that did not carry the current prefix. Compare-and-clear so a
+		// newer diagnostic written between the read and the update survives.
+		var current string
+		if err := r.db.GetContext(ctx, &current, `SELECT last_error_code FROM conversation_search_checkpoints
+WHERE source_name='canonical'`); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		}
+		if current == "" || !isRecoveryDiagnostic(current) {
+			return nil
+		}
 		_, err := r.db.ExecContext(ctx, `UPDATE conversation_search_checkpoints SET last_error_code='', updated_at=?
-WHERE source_name='canonical' AND instr(last_error_code, ?)=1`, formatTime(now), ErrRecoveryPending.Error())
+WHERE source_name='canonical' AND last_error_code=?`, formatTime(now), current)
 		return err
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO conversation_search_checkpoints
@@ -335,7 +398,12 @@ func (r *SQLiteRepository) SaveGeneration(ctx context.Context, generation Genera
 	if generation.GenerationID == "" || generation.State == "" || generation.RecipeVersion == "" || generation.CreatedAt.IsZero() || generation.UpdatedAt.IsZero() {
 		return errors.New("generation id, state, recipe version, and timestamps are required")
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO conversation_search_generations
+	// Generation bookkeeping is a short write, but it competes with the single
+	// SQLite writer during large retention deletes. Retrying contention here
+	// keeps a bounded recovery pass from being permanently stuck on a lock it
+	// can outlast, rather than leaving the catalog mid-transition.
+	err := retrySQLiteContention(ctx, func() error {
+		_, execErr := r.db.ExecContext(ctx, `INSERT INTO conversation_search_generations
         (generation_id, state, recipe_version, source_checkpoint, planned_documents,
          processed_documents, failed_documents, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -343,13 +411,61 @@ func (r *SQLiteRepository) SaveGeneration(ctx context.Context, generation Genera
         recipe_version=excluded.recipe_version, source_checkpoint=excluded.source_checkpoint,
         planned_documents=excluded.planned_documents, processed_documents=excluded.processed_documents,
         failed_documents=excluded.failed_documents, updated_at=excluded.updated_at`,
-		generation.GenerationID, generation.State, generation.RecipeVersion, generation.SourceCheckpoint,
-		generation.PlannedDocuments, generation.ProcessedDocuments, generation.FailedDocuments,
-		formatTime(generation.CreatedAt), formatTime(generation.UpdatedAt))
+			generation.GenerationID, generation.State, generation.RecipeVersion, generation.SourceCheckpoint,
+			generation.PlannedDocuments, generation.ProcessedDocuments, generation.FailedDocuments,
+			formatTime(generation.CreatedAt), formatTime(generation.UpdatedAt))
+		return execErr
+	})
 	if err != nil {
 		return fmt.Errorf("save conversation search generation %q: %w", generation.GenerationID, err)
 	}
 	return nil
+}
+
+// retrySQLiteContention retries a short bookkeeping write that lost the single
+// writer to a busy snapshot. The DSN's busy_timeout already waits; this is the
+// second layer for a competing writer that holds the lock longer than one
+// attempt. The caller's context bounds the total wait.
+func retrySQLiteContention(ctx context.Context, write func() error) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = write(); err == nil {
+			return nil
+		}
+		if !isSQLiteContention(err) {
+			return err
+		}
+		delay := time.Duration(attempt+1) * 250 * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(delay):
+		}
+	}
+	return err
+}
+
+// isRecoveryDiagnostic recognizes the shapes a failed startup repair writes.
+// Older builds persisted the bare generation-save/cleanup error; a prefix-only
+// clear stranded those rows and reported "recovery pending" forever.
+func isRecoveryDiagnostic(text string) bool {
+	switch {
+	case strings.HasPrefix(text, ErrRecoveryPending.Error()):
+		return true
+	case strings.HasPrefix(text, "save conversation search generation"):
+		return true
+	case strings.Contains(text, "retained for recovery"):
+		return true
+	default:
+		return false
+	}
+}
+
+func isSQLiteContention(err error) bool {
+	if err == nil {
+		return false
+	}
+	return sqlcompat.TransientError(err) || sqlcompat.TransientMessage(err.Error())
 }
 
 func (r *SQLiteRepository) LoadGeneration(ctx context.Context, generationID string) (Generation, error) {
@@ -471,10 +587,35 @@ func (r *SQLiteRepository) ClearTombstones(ctx context.Context, changes []Projec
 	return nil
 }
 
+// retryContention retries a transaction that failed only on SQLite writer
+// contention. The transaction rolls back on error and every change inside
+// ApplyStagedChanges is an idempotent replace, so a retry cannot duplicate a
+// row. Only contention is retried; any other error is returned immediately.
+func retryContention(ctx context.Context, operation func() error) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = operation(); err == nil || !isSQLiteContention(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(time.Duration(attempt+1) * 100 * time.Millisecond):
+		}
+	}
+	return err
+}
+
 // ApplyStagedChanges atomically replaces only the runs/events named by a
 // bounded change batch. It avoids copying and re-publishing the full serving
 // corpus for routine transcript imports.
 func (r *SQLiteRepository) ApplyStagedChanges(ctx context.Context, generationID string, changes []ProjectionChange) error {
+	return retryContention(ctx, func() error {
+		return r.applyStagedChanges(ctx, generationID, changes)
+	})
+}
+
+func (r *SQLiteRepository) applyStagedChanges(ctx context.Context, generationID string, changes []ProjectionChange) error {
 	conn, err := r.db.Conn(ctx)
 	if err != nil {
 		return err
@@ -570,6 +711,18 @@ evidence_ref=excluded.evidence_ref, visible=excluded.visible, indexed_at=exclude
 func (r *SQLiteRepository) CountStagedGeneration(ctx context.Context, generationID string) (uint64, error) {
 	var count uint64
 	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM conversation_search_generation_documents WHERE generation_id = ? AND visible = 1`, generationID)
+	return count, err
+}
+
+// CountSemanticEligibleStaged counts the staged documents a semantic rebuild
+// will actually embed. The semantic budget must scale with this, not with the
+// full corpus: tool payloads dominate a large generation and are never
+// embedded, which inflated the budget to its 12-hour ceiling.
+func (r *SQLiteRepository) CountSemanticEligibleStaged(ctx context.Context, generationID string) (uint64, error) {
+	var count uint64
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM conversation_search_generation_documents
+WHERE generation_id = ? AND visible = 1 AND content_class IN (?, ?)`,
+		generationID, ContentClassProse, ContentClassQuotedProse)
 	return count, err
 }
 
@@ -826,6 +979,35 @@ ORDER BY g.created_at`); err != nil {
 	return purged, nil
 }
 
+// candidateBookkeepingMaxAge is how long a Qdrant candidate record may sit
+// without a promotion or a live lease before its bookkeeping is settled. The
+// physical collection is not touched: the retention policy still owns it.
+const candidateBookkeepingMaxAge = 24 * time.Hour
+
+// SettleStaleQdrantCandidateRecords releases candidate catalog rows that no
+// live build owns. A candidate whose collection no longer exists is invisible
+// to the physical lifecycle inspection, so without this its row would age
+// forever; 65 such rows dated back to September on 2026-11-19.
+func (r *SQLiteRepository) SettleStaleQdrantCandidateRecords(ctx context.Context, now time.Time) (int64, error) {
+	cutoff := formatTime(now.Add(-candidateBookkeepingMaxAge))
+	result, err := r.db.ExecContext(ctx, `UPDATE conversation_search_qdrant_generations
+SET state = 'failed',
+    state_reason = 'bookkeeping: candidate was never promoted and holds no lease',
+    state_changed_at = ?, updated_at = ?
+WHERE state = 'candidate'
+  AND datetime(created_at) < datetime(?)
+  AND (lease_expires_at IS NULL OR lease_expires_at = '' OR datetime(lease_expires_at) < datetime(?))`,
+		formatTime(now), formatTime(now), cutoff, formatTime(now))
+	if err != nil {
+		return 0, fmt.Errorf("settle stale qdrant candidate records: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return 0, nil
+	}
+	return changed, nil
+}
+
 // PromoteStagedGeneration preserves the original one-call contract for tests
 // and non-semantic callers.
 func (r *SQLiteRepository) PromoteStagedGeneration(ctx context.Context, generationID string, expected uint64, now time.Time) error {
@@ -833,6 +1015,24 @@ func (r *SQLiteRepository) PromoteStagedGeneration(ctx context.Context, generati
 		return err
 	}
 	return r.ActivateGeneration(ctx, generationID, now)
+}
+
+// MarkGenerationSettled moves a non-serving generation to a terminal state
+// without deleting its staged documents. Recovery uses this to release the
+// startup gate immediately; CleanupGenerationDocuments reaps the rows in the
+// background in bounded batches.
+func (r *SQLiteRepository) MarkGenerationSettled(ctx context.Context, generationID, state string, now time.Time) error {
+	if state != "failed" && state != "cancelled" {
+		return errors.New("settled state must be failed or cancelled")
+	}
+	_, err := r.db.ExecContext(ctx, `UPDATE conversation_search_generations SET state=?, updated_at=? WHERE generation_id=?`, state, formatTime(now), generationID)
+	return err
+}
+
+// CleanupGenerationDocuments deletes one generation's staged rows in bounded
+// batches. It is safe to run after MarkGenerationSettled and is idempotent.
+func (r *SQLiteRepository) CleanupGenerationDocuments(ctx context.Context, generationID string) error {
+	return r.deleteGenerationBatches(ctx, generationID)
 }
 
 func (r *SQLiteRepository) RollbackStagedGeneration(ctx context.Context, generationID, state string, now time.Time) error {
@@ -927,6 +1127,26 @@ func (r *SQLiteRepository) ProjectionStatus(ctx context.Context) (ProjectionStat
 	return status, nil
 }
 
+// ReadyGenerations returns published-but-not-active generations, newest first.
+// Their lexical snapshot is complete; only the optional semantic leg can still
+// be unfinished.
+func (r *SQLiteRepository) ReadyGenerations(ctx context.Context) ([]Generation, error) {
+	var rows []generationRow
+	if err := r.db.SelectContext(ctx, &rows, `SELECT * FROM conversation_search_generations
+        WHERE state = 'ready' ORDER BY updated_at DESC, generation_id DESC`); err != nil {
+		return nil, fmt.Errorf("list ready conversation generations: %w", err)
+	}
+	generations := make([]Generation, 0, len(rows))
+	for _, row := range rows {
+		generation, err := row.generation()
+		if err != nil {
+			return nil, err
+		}
+		generations = append(generations, generation)
+	}
+	return generations, nil
+}
+
 func (r *SQLiteRepository) ProjectionDocumentIDs(ctx context.Context) ([]string, error) {
 	var ids []string
 	if err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE visible = 1 ORDER BY document_id`); err != nil {
@@ -951,7 +1171,15 @@ func validateDocument(document Document) error {
 	return nil
 }
 
-func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
+// timeLayout is a fixed-width RFC3339 layout. occurred_at is stored as text
+// and compared, ordered and used as a keyset directly, so the layout must be
+// lexicographically chronological. time.RFC3339Nano trims trailing zeros from
+// the fraction ("…13.18Z" for .180), which makes ".181Z" sort *before* ".18Z"
+// and a whole-second "…13Z" sort before every fractional value in that second.
+// Always emitting nine digits removes that class of ordering bug.
+const timeLayout = "2006-01-02T15:04:05.000000000Z"
+
+func formatTime(value time.Time) string { return value.UTC().Format(timeLayout) }
 
 func marshalStringSlice(values []string) ([]byte, error) {
 	if values == nil {

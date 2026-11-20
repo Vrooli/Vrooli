@@ -84,7 +84,8 @@ func parityRowLines(row *measurepb.UsageParityRow) []string {
 }
 
 func outcomesCommand(newClient clientFor) cliapp.Command {
-	flags := []cliapp.Flag{windowFlag,
+	flags := []cliapp.Flag{
+		windowFlag,
 		{Name: "by", Description: "model (default), role or mode"},
 		{Name: "baseline", Description: "Row key to compare with; default the priciest row with enough data"},
 	}

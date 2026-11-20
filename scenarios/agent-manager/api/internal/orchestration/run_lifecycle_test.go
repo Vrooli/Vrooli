@@ -437,11 +437,10 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		AgentProfileID: &profile.ID,
 		Tag:            runID.String(),
 		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusComplete,
-		Phase:          domain.RunPhaseCompleted,
+		Status:         domain.RunStatusPending,
+		Phase:          domain.RunPhaseQueued,
 		SessionID:      "sess-before-continue",
 		StartedAt:      &now,
-		EndedAt:        &now,
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType: domain.RunnerTypeClaudeCode,
 		},
@@ -449,8 +448,16 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
-	if err := repos.Runs.Create(ctx, run); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create run: %v", err)
+	}
+	run.Status, run.Phase = domain.RunStatusRunning, domain.RunPhaseExecuting
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("start fixture run: %v", err)
+	}
+	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &now
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("complete fixture run: %v", err)
 	}
 
 	returned, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
@@ -492,7 +499,10 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		t.Fatalf("expected updated session ID, got %q", updated.SessionID)
 	}
 
-	broadcasts := broadcaster.getStatusBroadcasts()
+	// The status event is appended before its status broadcast, and this
+	// fixture's runner completes on another goroutine. Wait for the broadcast
+	// fanout itself instead of sampling it in the gap after the event lands.
+	broadcasts := waitForStatusBroadcasts(t, broadcaster, 2)
 	if len(broadcasts) != 2 {
 		t.Fatalf("expected two run status broadcasts, got %d", len(broadcasts))
 	}
@@ -904,6 +914,22 @@ func waitForStatusEvents(t *testing.T, ctx context.Context, store event.Store, r
 	return nil
 }
 
+// waitForStatusBroadcasts polls the fanout until the expected number of status
+// broadcasts arrive. A lifecycle transition appends its durable status event
+// before it broadcasts, so event-based waits can observe a completed transition
+// one scheduler slice before its broadcast.
+func waitForStatusBroadcasts(t *testing.T, broadcaster *testBroadcaster, count int) []*domain.Run {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if broadcasts := broadcaster.getStatusBroadcasts(); len(broadcasts) >= count {
+			return broadcasts
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return broadcaster.getStatusBroadcasts()
+}
+
 func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -983,8 +1009,8 @@ func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 	run := &domain.Run{
 		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
 		RunMode: domain.RunModeSandboxed, SandboxID: &oldSandboxID,
-		Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted,
-		SessionID: "session-incarnation", StartedAt: &now, EndedAt: &now,
+		Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
+		SessionID: "session-incarnation", StartedAt: &now,
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType:    domain.RunnerTypeClaudeCode,
 			Model:         "mock-model",
@@ -998,8 +1024,16 @@ func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
 		},
 		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
 	}
-	if err := repos.Runs.Create(ctx, run); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(ctx, task, task, run, nil); err != nil {
 		t.Fatalf("create run: %v", err)
+	}
+	run.Status, run.Phase = domain.RunStatusRunning, domain.RunPhaseExecuting
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("start fixture run: %v", err)
+	}
+	run.Status, run.Phase, run.EndedAt = domain.RunStatusComplete, domain.RunPhaseCompleted, &now
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("complete fixture run: %v", err)
 	}
 
 	continueOnce := func(wantSandboxID uuid.UUID, wantStatusEvents int) {

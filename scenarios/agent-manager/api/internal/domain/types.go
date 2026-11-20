@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"github.com/google/uuid"
 )
 
@@ -252,6 +253,16 @@ type ExecutionCandidate struct {
 	CanaryArm            string                `json:"canaryArm,omitempty"`
 }
 
+// ExecutionBrowserCandidate is an immutable BAS session-role decision. It is
+// separate from inference/model candidates and cannot select a runner/model.
+type ExecutionBrowserCandidate struct {
+	RunnerType   RunnerType `json:"runnerType"`
+	ResourceRole string     `json:"resourceRole"`
+	Available    bool       `json:"available"`
+	FailureCode  string     `json:"failureCode,omitempty"`
+	Failure      string     `json:"failure,omitempty"`
+}
+
 type BillingMode string
 
 const (
@@ -388,6 +399,7 @@ type ExecutionPolicySnapshot struct {
 	CatalogDigest     string                      `json:"catalogDigest"`
 	RoleRef           string                      `json:"roleRef,omitempty"`
 	Candidates        []ExecutionCandidate        `json:"candidates"`
+	BrowserCandidates []ExecutionBrowserCandidate `json:"browserCandidates,omitempty"`
 	SelectedIndex     int                         `json:"selectedIndex"`
 	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
 	Explanation       PolicyResolutionExplanation `json:"explanation"`
@@ -721,11 +733,24 @@ type FeatureFlags struct {
 	// Claude Code: maps to --chrome flag.
 	// Other runners: silently ignored (not supported).
 	EnableBrowser bool `json:"enableBrowser,omitempty"`
+	// BrowserCapability is the typed, profile-bound session capability. The
+	// legacy EnableBrowser flag remains readable during client migration, but
+	// it grants no session authority by itself.
+	BrowserCapability *browsercapability.Capability `json:"browserCapability,omitempty"`
 }
 
 // IsZero reports whether all feature flags are at their zero values.
 func (f FeatureFlags) IsZero() bool {
-	return !f.EnableBrowser
+	return !f.EnableBrowser && f.BrowserCapability == nil
+}
+
+func (f FeatureFlags) Clone() FeatureFlags {
+	clone := f
+	if f.BrowserCapability != nil {
+		capability := f.BrowserCapability.Clone()
+		clone.BrowserCapability = &capability
+	}
+	return clone
 }
 
 // RunnerExtraFlags maps runner types to validated extra CLI flags.

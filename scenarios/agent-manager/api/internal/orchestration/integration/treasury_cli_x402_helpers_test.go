@@ -673,7 +673,7 @@ func TestPublishCF7FreeAlternativeUsesVerifiedRunAndExactSettlementRoute(t *test
 }
 
 func TestCF7CommissionCheckpointUsesTreasuryReadbackAndMarksMissingSuppliers(t *testing.T) {
-	dir := t.TempDir()
+	dir := privateEvidenceDir(t)
 	spendBySettlement := make(map[string]researchbudget.Spend, 4)
 	for i := 1; i <= 4; i++ {
 		settlementID := fmt.Sprintf("settle-%d", i)
@@ -725,7 +725,7 @@ func TestCF7CommissionCheckpointUsesTreasuryReadbackAndMarksMissingSuppliers(t *
 }
 
 func TestCF7TreasuryOverCapApprovalReceiptMustBindExactCallAndOwnerSource(t *testing.T) {
-	dir := t.TempDir()
+	dir := privateEvidenceDir(t)
 	call := cf1TreasuryX402Call{AuthorizationID: "auth-4", SettlementID: "settle-4", AmountMinor: 110}
 	valid := `{"run_id":"run-1","authorization_id":"auth-4","settlement_id":"settle-4","approval_id":"approval-1","approval_event_id":"event-1","amount_minor":110,"decision":"approved","source":"notification-hub"}`
 	path := filepath.Join(dir, "x402-call-4-treasury-approved.json")

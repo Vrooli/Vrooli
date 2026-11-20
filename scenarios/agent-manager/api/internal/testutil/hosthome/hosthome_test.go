@@ -70,7 +70,19 @@ func TestMainIsolatesHostLogin(t *testing.T) {
 	if err != nil || string(data) != hosthome.DummyAuth {
 		t.Fatalf("HOME login is not the dummy login (err=%v)", err)
 	}
-	if os.Getenv("CODEX_HOME") != filepath.Join(home, ".codex") || !strings.HasPrefix(os.TempDir(), filepath.Dir(home)) {
-		t.Fatalf("CODEX_HOME/TMPDIR are not isolated under %s", filepath.Dir(home))
+	if os.Getenv("CODEX_HOME") != filepath.Join(home, ".codex") {
+		t.Fatalf("CODEX_HOME is not isolated under %s", filepath.Dir(home))
+	}
+	// TMPDIR is deliberately separate from the durable HOME base: the broker's
+	// filesystem socket must fit sun_path even when the sandbox temp root is
+	// deep. It still has to be a private, non-operator directory.
+	tmp := os.TempDir()
+	info, err := os.Stat(tmp)
+	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("TMPDIR %q is not a private directory", tmp)
+	}
+	socket := filepath.Join(tmp, "vrooli-agent-manager-1000", "identity.sock")
+	if len(socket) >= 108 {
+		t.Fatalf("credential socket path is too long for sun_path: %d bytes", len(socket))
 	}
 }

@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "test-genie", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run apply-investigation", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures get", "test-genie runs artifacts", "test-genie runs download-artifact", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run apply-investigation", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager annotations coverage", "agent-manager annotations run", "agent-manager annotations show", "agent-manager annotations evaluate", "agent-manager annotations scheduler", "agent-manager usage annotations", "agent-manager measures get", "test-genie runs artifacts", "test-genie runs download-artifact", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -213,8 +213,10 @@ Reading
 │   ├─ by tag         → measures cohort-report --filter-json '{"tag_prefix":"<p>"}' --limit 50                       [S1]
 │   ├─ by explicit ids → measures cohort-report --run-ids a,b,c                                            [S1]
 │   └─ for one owning scenario → run agent-manager.friction-digest (inputs: scenario, window_days)   [S3]
-│         status ok       → signals.top_fingerprints are the fingerprints to act on
+│         status ok       → signals.top_fingerprints are the fingerprints to act on;
+│         signals.inferred_annotations states the gated label coverage beside them
 │         status partial  → act on what is present; errors[0].class names the gap
+│         inferred rate null → unproven gate; treat the label as evidence, never a rate
 │         errors[0].class scenario_unreachable → agent-manager is down; journal, stop
 │         errors[0].class no_runs_in_window    → widen window_days once, or accept the empty reading
 │         errors[0].class invalid_input        → fix scenario or window_days; nothing was read
@@ -236,6 +238,27 @@ the scenario's private routes; the CLI preserves its authorization, catalog,
 and destination-safety behavior.
 
 Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. `selfReportSpans` in `run report --json` are the assistant's own phrases ("blocked", "cannot find"): a cue to read the run, not a verdict. Command friction is read from `measures get tool-profiles` and `usage friction`. Add `--owner <scenario>` to scope findings and profile totals; the coverage line remains window-wide and says how many commands came from runs an older parser read (outcomes there may be missing).
+
+### Reading annotations and label-filtered search
+
+The deterministic lenses stay first. When a finding needs a cause that rules cannot see, read
+the inferred layer and say which gate it passed:
+
+```bash
+agent-manager usage annotations --window 7d        # coverage + gate state for the friction lens
+agent-manager annotations coverage --window 7d     # per-label observed/eligible and gate
+agent-manager annotations show <run-id>            # latest labels, probabilities and evidence
+agent-manager annotations run <run-id>             # evaluate one run on demand
+agent-manager annotations evaluate --since <RFC3339> --limit 10   # bounded batch
+agent-manager annotations scheduler                # queue, budget, deferral reasons
+agent-manager conversation search "…" --mode semantic                  # embedding recall
+agent-manager conversation search "…" --tags label:agent.spinning     # runs above the facet threshold
+```
+
+An unproven label is evidence, not a rate. An empty window is unknown, not zero friction. The
+six-way `operator.emotion` label is optional and usually unproven; `operator.valence` and the
+frustration/satisfaction signals are the usable affect series. Use `friction-analysis` for the
+four-lens method and `annotation-tuning` before adding or changing a label.
 
 ### 5. Investigating
 

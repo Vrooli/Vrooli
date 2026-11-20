@@ -7,8 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/structuredresult"
+	"github.com/google/uuid"
 	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
@@ -137,6 +139,10 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.EnableBrowser != nil {
 		cfg.Features.EnableBrowser = *req.EnableBrowser
 	}
+	if req.BrowserCapability != nil {
+		capability := req.BrowserCapability.Clone()
+		cfg.Features.BrowserCapability = &capability
+	}
 	// Extra flags overrides (replace per runner type)
 	if req.ExtraFlags != nil {
 		if cfg.ExtraFlags == nil {
@@ -199,6 +205,33 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if err := o.validateToolRestriction(cfg); err != nil {
 		return nil, nil, err
 	}
+	if capability := cfg.Features.BrowserCapability; capability != nil {
+		var eligibleHarnesses []string
+		if cfg.PolicySnapshot != nil {
+			for _, candidate := range cfg.PolicySnapshot.BrowserCandidates {
+				// A model-role candidate never grants browser authority. The
+				// separate capability declaration must match this role snapshot.
+				if candidate.Available && candidate.ResourceRole == browsercapability.ResourceRoleSession {
+					eligibleHarnesses = append(eligibleHarnesses, string(candidate.RunnerType))
+				}
+			}
+		}
+		resolvedCandidates, resolveErr := browsercapability.ResolveCandidates(capability.Candidates, eligibleHarnesses)
+		if resolveErr != nil {
+			return nil, nil, domain.NewValidationErrorWithHint("features.browserCapability.candidates", resolveErr.Error(), "use browser.session on a harness eligible in the resolved Agent Manager role")
+		}
+		capability.Candidates = resolvedCandidates
+		if err := resolveBrowserSessionProfileMode(capability); err != nil {
+			return nil, nil, err
+		}
+		// Request/profile JSON cannot choose the opaque run grant. Reissue it
+		// whenever a new run resolves its capability; the signed run identity
+		// and live run status remain required alongside this receipt.
+		capability.GrantReceipt = "browser-grant:" + uuid.NewString()
+		if err := browsercapability.Validate(*capability); err != nil {
+			return nil, nil, domain.NewValidationErrorWithHint("features.browserCapability", err.Error(), "choose an eligible browser mode, permission profile and bounded budget")
+		}
+	}
 
 	// Validate extra flags against runner allowlists (delegate to seam)
 	if o.flagValidator != nil {
@@ -210,6 +243,24 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	return cfg, profile, nil
+}
+
+// resolveBrowserSessionProfileMode persists the canonical BAS profile mode in
+// the immutable run capability. Later permission resolution returns this
+// stored value and BAS does not infer isolation from request JSON.
+func resolveBrowserSessionProfileMode(capability *browsercapability.Capability) error {
+	if capability == nil {
+		return domain.NewValidationError("features.browserCapability", "browser capability is required")
+	}
+	profileMode, ok := browsercapability.ProfileModeForMode(capability.Mode)
+	if !ok {
+		return domain.NewValidationError("features.browserCapability.mode", "cannot resolve a session permission profile mode")
+	}
+	if capability.Permissions.ProfileMode != "" && capability.Permissions.ProfileMode != profileMode {
+		return domain.NewValidationError("features.browserCapability.permissions.profileMode", "must match the selected browser backend mode")
+	}
+	capability.Permissions.ProfileMode = profileMode
+	return nil
 }
 
 func validateCompletionCondition(value string) error {

@@ -658,9 +658,16 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		RepoRoot:      repoRoot,
 		ScopePath:     scope,
 		IdentityToken: e.identityToken,
+		RunID:         e.run.ID,
 		Config:        e.run.ResolvedConfig,
 	})
 	for key, value := range e.sessionEnv {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[key] = value
+	}
+	for key, value := range phases.BrowserGrantEnvVars(e.run.ID, e.run.ResolvedConfig) {
 		if env == nil {
 			env = make(map[string]string)
 		}

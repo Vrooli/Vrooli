@@ -69,9 +69,13 @@ func TestRepositoryCatalogIsStrictAndModelFree(t *testing.T) {
 	// roles (e.g. extract.structured, write.default) belong to AI Gateway, and
 	// TestAgentManagerAndAIGatewayRoleCatalogsAreDisjoint enforces the split.
 	for name := range catalog.Roles {
-		if !strings.HasPrefix(name, "code.") {
+		if !strings.HasPrefix(name, "code.") && name != "browser.agent" {
 			t.Fatalf("catalog role %q is not a code.* orchestration role", name)
 		}
+	}
+	browserRole := catalog.Roles["browser.agent"]
+	if len(browserRole.Candidates) != 1 || browserRole.Candidates[0].ResourceRole != "code.default" || len(browserRole.BrowserCandidates) != 1 || browserRole.BrowserCandidates[0].ResourceRole != "browser.session" {
+		t.Fatalf("browser.agent must keep model and session candidates separate: %+v", browserRole)
 	}
 	if _, exists := catalog.Roles["extract.structured"]; exists {
 		t.Fatal("agent-manager still owns the typed inference role extract.structured")
@@ -96,3 +100,10 @@ const validCatalogJSON = `{
   "defaultRole":"code.default",
   "roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"},{"runner":"claude-code","resourceRole":"code.default"}]}}
 }`
+
+func TestCatalogRejectsBrowserCandidateWithoutMatchingExecutionCandidate(t *testing.T) {
+	_, err := Parse([]byte(`{"schemaVersion":1,"metadata":{"catalogId":"test","updatedAt":"2026-07-10"},"defaultRole":"browser.agent","roles":{"browser.agent":{"description":"browser","intent":"browser","candidates":[{"runner":"codex","resourceRole":"code.default"}],"browserCandidates":[{"runner":"claude-code","resourceRole":"browser.session"}]}}}`))
+	if err == nil || !strings.Contains(err.Error(), "must also be declared as an execution candidate") {
+		t.Fatalf("unbound browser harness error = %v", err)
+	}
+}

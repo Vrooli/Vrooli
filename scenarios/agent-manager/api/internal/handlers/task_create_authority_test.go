@@ -359,13 +359,27 @@ func TestTaskUpdateRejectsUnownedOrDispatchedOrchestratorTargets(t *testing.T) {
 			h.svc.ProfileService = lineageProfiles{profiles: map[uuid.UUID]*domain.AgentProfile{
 				profileID: {ID: profileID, DeclaredScopes: profileScopes},
 			}}
-			task := &domain.Task{ID: taskID, Title: "Queued work", Description: "Draft", ScopePath: "scenarios/notification-hub", ProjectRoot: "/repo", Status: tc.status, CreatedBy: tc.createdBy}
+			task := &domain.Task{ID: taskID, Title: "Queued work", Description: "Draft", ScopePath: "scenarios/notification-hub", ProjectRoot: "/repo", Status: domain.TaskStatusQueued, CreatedBy: tc.createdBy}
 			if tc.currentRun {
 				runID := uuid.New()
 				task.CurrentRunID = &runID
 			}
 			if err := repos.Tasks.Create(context.Background(), task); err != nil {
 				t.Fatal(err)
+			}
+			if tc.status == domain.TaskStatusRunning {
+				// New tasks must start queued; a running task is created by the
+				// same task-attempt claim the orchestrator uses, not by writing
+				// the status column directly.
+				owner := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued}
+				if err := repos.Runs.CreateTaskAttempt(context.Background(), task, task, owner, nil); err != nil {
+					t.Fatalf("claim fixture task: %v", err)
+				}
+				if persisted, err := repos.Tasks.Get(context.Background(), task.ID); err == nil {
+					task = persisted
+				} else {
+					t.Fatalf("read claimed fixture task: %v", err)
+				}
 			}
 
 			requested := &domainpb.Task{Title: task.Title, Description: "Changed brief", ScopePath: task.ScopePath}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/supervision"
@@ -232,6 +233,85 @@ func TestResearchBudgetAskRejectsUnrelatedOrBroadScope(t *testing.T) {
 		if validAuthorizationApprovalRequest(req) {
 			t.Fatalf("accepted out-of-scope request: %+v", req)
 		}
+	}
+}
+
+func TestBrowserEvidenceAskIssuesExactOneRunGrantAfterHumanApproval(t *testing.T) {
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	runID := uuid.New()
+	run := &domain.Run{ID: runID, Status: domain.RunStatusRunning, ResolvedConfig: &domain.RunConfig{
+		Features: domain.FeatureFlags{BrowserCapability: &browsercapability.Capability{
+			Enabled: true, Mode: browsercapability.ModeAttached,
+			Candidates:  []browsercapability.Candidate{{Harness: "claude-code", ResourceRole: browsercapability.ResourceRoleSession}},
+			Permissions: browsercapability.PermissionProfileSpec{ProfileID: "profile-browser-act", Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}},
+			Budget:      browsercapability.Budget{SessionMinutes: 10, Actions: 80, Bytes: 2_000_000},
+		}},
+	}}
+	pending, grants, publisher := newCapturingPending(), &capturingStandingGrants{}, &capturingAuthPublisher{}
+	o := phase4Orchestrator(pending, grants, publisher, now)
+	o.runs = runCreateGrantRunRepository{run: run}
+	req := AuthorizationApprovalRequest{
+		Subject: BrowserEvidenceServiceSubject, Operation: browserEvidenceRecordOperation,
+		Target: "agent-manager:run/" + runID.String(), Kind: domain.PendingAuthorizationKindOneTime,
+	}
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
+		t.Fatalf("raise exact browser evidence request: raised=%v err=%v", raised, err)
+	}
+	if len(grants.put) != 0 {
+		t.Fatalf("raising an ask must not grant authority: %+v", grants.put)
+	}
+	row := pending.byID[authorizationCorrelationID(req.Subject, req.Operation, req.Target)]
+	if row == nil || !isBrowserEvidenceRecordRequest(row) || row.GrantTTL != time.Hour {
+		t.Fatalf("unexpected browser evidence approval request: %+v", row)
+	}
+	if row.DecisionSubject == "" || !strings.Contains(row.DecisionBigPicture, "does not open a browser") ||
+		!strings.Contains(row.DecisionBigPicture, "broker") || len(publisher.events) != 1 {
+		t.Fatalf("operator decision must explain the bounded grant and separate broker proof: %+v", row)
+	}
+	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(row.ID, row.EventID, "approve", "human-operator")); !handled || err != nil {
+		t.Fatalf("human approval resolution: handled=%v err=%v", handled, err)
+	}
+	if len(grants.put) != 1 {
+		t.Fatalf("human resolution should issue one grant, got %d", len(grants.put))
+	}
+	grant := grants.put[0]
+	if grant.Subject != BrowserEvidenceServiceSubject || grant.Grant.Approver != "human-operator" ||
+		len(grant.Grant.Operations) != 1 || grant.Grant.Operations[0] != browserEvidenceRecordOperation ||
+		len(grant.Grant.Targets) != 1 || grant.Grant.Targets[0] != req.Target || grant.Grant.ExpiresAt.Sub(now) != time.Hour {
+		t.Fatalf("approval issued authority outside the one-run request: %+v", grant)
+	}
+}
+
+func TestBrowserEvidenceAskRefusesUnknownSubjectWildcardAndInactiveRun(t *testing.T) {
+	runID := uuid.New()
+	base := AuthorizationApprovalRequest{Subject: BrowserEvidenceServiceSubject, Operation: browserEvidenceRecordOperation,
+		Target: "agent-manager:run/" + runID.String(), Kind: domain.PendingAuthorizationKindOneTime}
+	for _, change := range []func(*AuthorizationApprovalRequest){
+		func(r *AuthorizationApprovalRequest) { r.Subject = "other-service" },
+		func(r *AuthorizationApprovalRequest) { r.Target = "agent-manager:*" },
+		func(r *AuthorizationApprovalRequest) { r.Target += "/child" },
+		func(r *AuthorizationApprovalRequest) { r.Kind = domain.PendingAuthorizationKindStanding },
+		func(r *AuthorizationApprovalRequest) { r.Operation = "agent.manage" },
+	} {
+		req := base
+		change(&req)
+		if validAuthorizationApprovalRequest(req) {
+			t.Fatalf("accepted out-of-scope browser evidence request: %+v", req)
+		}
+	}
+
+	now := time.Now()
+	pending, grants := newCapturingPending(), &capturingStandingGrants{}
+	o := phase4Orchestrator(pending, grants, &capturingAuthPublisher{}, now)
+	o.runs = runCreateGrantRunRepository{run: &domain.Run{ID: runID, Status: domain.RunStatusComplete}}
+	if raised, err := o.RaiseAuthorizationApproval(context.Background(), base); err == nil || raised {
+		t.Fatalf("inactive run must not create an approval ask: raised=%v err=%v", raised, err)
+	}
+	if row := pending.byID[authorizationCorrelationID(base.Subject, base.Operation, base.Target)]; row != nil {
+		t.Fatalf("inactive run created a pending request: %+v", row)
+	}
+	if len(grants.put) != 0 {
+		t.Fatalf("inactive run approval wrote a grant: %+v", grants.put)
 	}
 }
 

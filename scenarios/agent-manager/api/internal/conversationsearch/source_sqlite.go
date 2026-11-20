@@ -194,7 +194,12 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
 		if cursor.OccurredAt.IsZero() || cursor.SourceRunID == "" || cursor.EventSequence < 0 {
 			return SourcePage{}, errors.New("source cursor requires occurred time, run id, and non-negative sequence")
 		}
-		timestamp := formatTime(cursor.OccurredAt)
+		timestamp := cursor.OccurredAtText
+		if timestamp == "" {
+			// A cursor persisted before the text was carried: reproduce the
+			// canonical writer's layout, not the fixed-width projection layout.
+			timestamp = cursor.OccurredAt.UTC().Format(time.RFC3339Nano)
+		}
 		query += ` AND (e.timestamp > ? OR
             (e.timestamp = ? AND e.run_id > ?) OR
             (e.timestamp = ? AND e.run_id = ? AND e.sequence > ?))`
@@ -231,7 +236,10 @@ func (s *SQLiteSource) LoadSourcePage(ctx context.Context, cursor *SourceCursor,
 		if err != nil {
 			return SourcePage{}, err
 		}
-		page.NextCursor = &SourceCursor{OccurredAt: occurredAt, SourceRunID: last.RunID, EventSequence: last.Sequence}
+		page.NextCursor = &SourceCursor{
+			OccurredAt: occurredAt, OccurredAtText: last.Timestamp,
+			SourceRunID: last.RunID, EventSequence: last.Sequence,
+		}
 		if cursor != nil {
 			page.NextCursor.SnapshotMaxEventRowID = cursor.SnapshotMaxEventRowID
 		}

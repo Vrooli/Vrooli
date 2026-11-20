@@ -48,6 +48,10 @@ const (
 	// a re-check cadence if the operator has not answered by then. The await key
 	// is the decision's correlation id (operatordecision.CorrelationAgentAwaitKey).
 	ProducerOperatorDecision = "operator-decision"
+	// ProducerBrowserPaneControl parks the owning interactive turn while the
+	// verified human holds the exact run's BAS control stream. Its deadline is
+	// a hard backstop if the Web Console return exchange is interrupted.
+	ProducerBrowserPaneControl = "browser-pane-control"
 )
 
 // Waiter blocks until a producer's externally-owned async work, identified by a
@@ -67,6 +71,15 @@ type Waiter interface {
 	Producer() string
 	// Wait blocks until the work identified by key resolves or ctx is done.
 	Wait(ctx context.Context, key string) (string, error)
+}
+
+type browserPaneControlWaiter struct{}
+
+func NewBrowserPaneControlWaiter() Waiter { return browserPaneControlWaiter{} }
+func (browserPaneControlWaiter) Producer() string { return ProducerBrowserPaneControl }
+func (browserPaneControlWaiter) Wait(ctx context.Context, _ string) (string, error) {
+	<-ctx.Done()
+	return "The browser control lease ended or expired. Continue from the same authorized browser session.", nil
 }
 
 type cohortWatchWaiter interface {

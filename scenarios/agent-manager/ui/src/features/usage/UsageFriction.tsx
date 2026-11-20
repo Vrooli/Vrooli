@@ -10,7 +10,7 @@ import { Toggle } from "@vrooli/react-component-library/Toggle/1";
 import type { UsageInterventions, UsageToolFinding, UsageToolGuess, UsageToolSub } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
 import { formatCode, formatCount, formatPercent, formatTokens } from "../../lib/format";
-import { useFrictionActions, useUsageFriction } from "./api";
+import { useFrictionActions, useUsageFriction, type AnnotationCoverage } from "./api";
 
 const STATUSES = ["open", "reported", "dismissed"] as const;
 type FrictionStatus = (typeof STATUSES)[number];
@@ -181,6 +181,84 @@ function Interventions({ section }: { section: UsageInterventions }) {
   );
 }
 
+/** Map the friction read's inferred section onto the card's coverage shape. */
+function annotationsFromProto(section: NonNullable<ReturnType<typeof useUsageFriction>["data"]>["inferredAnnotations"]): AnnotationCoverage | null {
+  if (!section) return null;
+  return {
+    window: {},
+    pack: { name: section.packName, version: section.packVersion },
+    eligible_runs: Number(section.eligibleRuns),
+    observed_runs: Number(section.observedRuns),
+    coverage: section.coverage,
+    labels: section.labels.map((label) => ({
+      id: label.id,
+      group: label.group,
+      state: label.state,
+      observed: Number(label.observed),
+      eligible: Number(label.eligible),
+      rate: label.rate ?? null,
+      gate: {
+        state: label.gateState, precision: label.precision, recall: label.recall,
+        gold: Number(label.gold), min_gold: 0,
+        target_precision: label.targetPrecision, target_recall: label.targetRecall,
+      },
+      search_facet: label.searchFacet,
+      min_probability: label.minProbability,
+      friction: { enabled: label.friction },
+    })),
+  };
+}
+
+/** The inferred-annotation lens: coverage first, a rate only for a proven label. */
+export function Annotations({ data }: { data: AnnotationCoverage }) {
+  // The lens reports friction labels only. run.type and run.outcome are useful
+  // facets, but counting them as "no observation" overstated the silent total.
+  const frictionLabels = data.labels.filter((label) => label.friction?.enabled === true);
+  const shown = frictionLabels.filter((label) => label.observed > 0 || label.state === "proven");
+  const silent = frictionLabels.length - shown.length;
+  return (
+    <Card className="flex flex-col gap-3 p-4" data-testid="usage-annotations">
+      <div>
+        <h3 className="text-base font-semibold">Inferred annotations</h3>
+        <p className="text-sm text-muted-foreground" data-testid="usage-annotations-coverage">
+          Coverage {formatPercent(data.coverage, 0)} ({formatCount(BigInt(data.observed_runs))} of {formatCount(BigInt(data.eligible_runs))} runs observed) · pack {data.pack.name} {data.pack.version}
+        </p>
+      </div>
+      {shown.length === 0 ? (
+        <p className="text-sm" role="status">No label has an observation in this window. Unknown, not zero friction.</p>
+      ) : (
+        <Table>
+          <table>
+            <thead className="max-md:sr-only">
+              <tr><th scope="col">Label</th><th scope="col">Gate</th><th scope="col" className="md:text-right">Observed</th><th scope="col" className="md:text-right">Rate</th></tr>
+            </thead>
+            <tbody>
+              {shown.map((label) => (
+                <tr key={label.id} data-testid="usage-annotation-label" className="max-md:block max-md:border-b max-md:border-border max-md:py-2">
+                  <td className={CELL}><b className="break-words">{formatCode(label.id)}</b><div className="text-xs text-muted-foreground">{label.group}</div></td>
+                  <td className={CELL}>
+                    <StatusBadge tone={label.gate.state === "proven" ? "success" : "neutral"}>{label.gate.state}</StatusBadge>
+                    {label.gate.state !== "proven" ? (
+                      <div className="text-xs text-muted-foreground">
+                        target {label.gate.target_precision.toFixed(2)}/{label.gate.target_recall.toFixed(2)}
+                        {label.gate.min_gold > 0 ? `, gold ${label.gate.gold}/${label.gate.min_gold}` : `, gold ${label.gate.gold}`}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className={`${CELL} whitespace-nowrap tabular-nums md:text-right`}>{formatCount(BigInt(label.observed))}/{formatCount(BigInt(label.eligible))}</td>
+                  <td className={`${CELL} whitespace-nowrap tabular-nums md:text-right`}>{label.rate === null || label.rate === undefined ? "—" : formatPercent(label.rate, 1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Table>
+      )}
+      {silent > 0 ? <p className="text-xs text-muted-foreground">{silent} label(s) have no observation in this window (unknown, not zero).</p> : null}
+      <p className="text-xs text-muted-foreground">An unproven label is evidence, not a rate. Coverage is always shown; an empty window is unknown.</p>
+    </Card>
+  );
+}
+
 function Header() {
   return (
     <thead className="max-md:sr-only">
@@ -193,6 +271,7 @@ function Header() {
 export function UsageFriction() {
   const [status, setStatus] = useState<FrictionStatus>("open");
   const friction = useUsageFriction();
+  const annotations = annotationsFromProto(friction.data?.inferredAnnotations);
   const findings = (friction.data?.toolFindings ?? []).filter((finding) => finding.status === status);
   const coverage = friction.data?.coverage;
   const interventions = friction.data?.interventions;
@@ -232,6 +311,7 @@ export function UsageFriction() {
         </DataState>
       </Card>
       {interventions ? <Interventions section={interventions} /> : null}
+      {annotations ? <Annotations data={annotations} /> : null}
       <p className="text-sm text-muted-foreground">Tool problems rank by √(their share of the window's harm in their own unit × the share of runs that show it): failed calls, command time or context tax. Report bug files one to its owner through the report-bug path with example commands and evidence runs, and marks the row Reported. Operator interventions are shown per category only once the classifier has passed its accuracy gate for it.</p>
     </div>
   );

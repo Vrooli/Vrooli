@@ -23,9 +23,11 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-const treasuryCF1MeasuredX402Env = "TREASURY_CF1_X402_MEASURED_SECOND_CALL"
-const treasuryPaidBodyDirDevEnv = "TREASURY_X402_PAID_BODY_EVIDENCE_DIR_DEV"
-const treasuryPaidBodyDirInoEnv = "TREASURY_X402_PAID_BODY_EVIDENCE_DIR_INO"
+const (
+	treasuryCF1MeasuredX402Env = "TREASURY_CF1_X402_MEASURED_SECOND_CALL"
+	treasuryPaidBodyDirDevEnv  = "TREASURY_X402_PAID_BODY_EVIDENCE_DIR_DEV"
+	treasuryPaidBodyDirInoEnv  = "TREASURY_X402_PAID_BODY_EVIDENCE_DIR_INO"
+)
 
 func hashCF1X402ReceiptReference(reference string) (string, int, error) {
 	if reference == "" {
@@ -314,7 +316,7 @@ func readCF1PaidResponseBodyAt(dirFD int, filename string) ([]byte, error) {
 }
 
 func TestExecuteCF1MeasuredX402CallProducesBodyBoundBenefitManifest(t *testing.T) {
-	root := t.TempDir()
+	root := privateEvidenceDir(t)
 	coord := filepath.Join(root, "agent-manager-cli")
 	if err := os.MkdirAll(coord, 0o700); err != nil {
 		t.Fatal(err)
@@ -331,6 +333,7 @@ func TestExecuteCF1MeasuredX402CallProducesBodyBoundBenefitManifest(t *testing.T
 		X402AuthorizationID: "auth", X402SettlementID: "settlement", X402IdempotencyKey: "idem",
 	}
 	settlementID := config.X402SettlementID + "-measured"
+	proposalTarget, settlementTarget := cf1MeasuredX402Targets(config)
 	body := []byte(`{"nodes":[{"id":"offer-1"},{"id":"offer-2"}]}`)
 	bodyPath := filepath.Join(coord, "x402-paid-response-"+settlementID+".body")
 	if err := os.WriteFile(bodyPath, body, 0o600); err != nil {
@@ -340,7 +343,7 @@ func TestExecuteCF1MeasuredX402CallProducesBodyBoundBenefitManifest(t *testing.T
 	grantID := uuid.NewString()
 	approval, err := json.Marshal(map[string]any{
 		"run_id": runID.String(), "grant_id": grantID,
-		"spend_targets": []string{"treasury:authorization/auth-measured", "treasury:settlement/settlement-measured"},
+		"spend_targets": []string{proposalTarget, settlementTarget},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -385,7 +388,7 @@ func TestExecuteCF1MeasuredX402CallProducesBodyBoundBenefitManifest(t *testing.T
 }
 
 func TestExecuteCF1MeasuredX402CallRejectsBodyThatDiffersFromTreasuryReceipt(t *testing.T) {
-	root := t.TempDir()
+	root := privateEvidenceDir(t)
 	coord := filepath.Join(root, "agent-manager-cli")
 	if err := os.MkdirAll(coord, 0o700); err != nil {
 		t.Fatal(err)
@@ -402,12 +405,13 @@ func TestExecuteCF1MeasuredX402CallRejectsBodyThatDiffersFromTreasuryReceipt(t *
 		X402AuthorizationID: "auth", X402SettlementID: "settlement", X402IdempotencyKey: "idem",
 	}
 	settlementID := config.X402SettlementID + "-measured"
+	proposalTarget, settlementTarget := cf1MeasuredX402Targets(config)
 	if err := os.WriteFile(filepath.Join(coord, "x402-paid-response-"+settlementID+".body"), []byte(`{"nodes":[{"id":"changed"}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	approval, _ := json.Marshal(map[string]any{
 		"run_id": runID.String(), "grant_id": uuid.NewString(),
-		"spend_targets": []string{"treasury:authorization/auth-measured", "treasury:settlement/settlement-measured"},
+		"spend_targets": []string{proposalTarget, settlementTarget},
 	})
 	if err := os.WriteFile(filepath.Join(coord, "x402-measured-operation-approved.json"), approval, 0o600); err != nil {
 		t.Fatal(err)
@@ -430,7 +434,7 @@ func TestExecuteCF1MeasuredX402CallRejectsBodyThatDiffersFromTreasuryReceipt(t *
 }
 
 func TestReadCF1PaidResponseBodyRejectsSymlinksAndOversize(t *testing.T) {
-	root := t.TempDir()
+	root := privateEvidenceDir(t)
 	dir := filepath.Join(root, "agent-manager-cli")
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -463,7 +467,7 @@ func TestReadCF1PaidResponseBodyRejectsSymlinksAndOversize(t *testing.T) {
 }
 
 func TestReadCF1PaidResponseBodyRejectsEvidenceDirectoryReplacementBeforePin(t *testing.T) {
-	root := t.TempDir()
+	root := privateEvidenceDir(t)
 	dir := filepath.Join(root, "agent-manager-cli")
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -544,4 +548,17 @@ func TestCF1X402ReceiptReferenceContinuityAcrossRestart(t *testing.T) {
 	if _, _, err := hashCF1X402ReceiptReference(""); err == nil {
 		t.Fatal("empty receipt reference was accepted")
 	}
+}
+
+// cf1MeasuredX402Targets is the digest-bound spend contract the Treasury CLI
+// now records; a short authorization/settlement id is no longer a valid target.
+func cf1MeasuredX402Targets(config cf1TreasuryRunConfig) (string, string) {
+	idempotencyKey := config.X402IdempotencyKey + "-measured"
+	return (cliutil.TreasurySpendIntent{
+		AuthorizationID: config.X402AuthorizationID + "-measured", MandateID: config.MandateID,
+		AmountMinor: config.X402AmountMinor, Currency: "USD", Counterparty: config.X402Counterparty,
+		AuthorizationIdempotencyKey: idempotencyKey,
+		SettlementID:                config.X402SettlementID + "-measured", InstrumentID: config.X402InstrumentID,
+		SettlementIdempotencyKey: idempotencyKey + "-settlement",
+	}).Targets()
 }

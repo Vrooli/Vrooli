@@ -303,6 +303,8 @@ var (
 		domain.EventTypeHeartbeatMiss,
 		domain.EventTypeCheckpointFailure,
 		domain.EventTypeRetryAttempt,
+		domain.EventTypeBrowserSession,
+		domain.EventTypeBrowserAction,
 	}
 	cachedTypedInClause string
 )

@@ -379,6 +379,9 @@ func TestHandlersDirectPersistenceImportsAreReadSideExceptions(t *testing.T) {
 	allowed := map[string]bool{
 		"events.go":  true,
 		"pricing.go": true,
+		// Names the typed browser payloads and delegates the write to the
+		// orchestrator; it never reads persistence itself.
+		"browser_capability.go": true,
 	}
 	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/handlers")) {
 		imports, err := importsFromFile(path)

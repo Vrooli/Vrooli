@@ -655,6 +655,13 @@ func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *p
 	for _, candidate := range snapshot.Candidates {
 		candidates = append(candidates, ExecutionCandidateToProto(candidate))
 	}
+	browserCandidates := make([]*pb.ExecutionBrowserCandidate, 0, len(snapshot.BrowserCandidates))
+	for _, candidate := range snapshot.BrowserCandidates {
+		browserCandidates = append(browserCandidates, &pb.ExecutionBrowserCandidate{
+			RunnerType: RunnerTypeToProto(candidate.RunnerType), ResourceRole: candidate.ResourceRole,
+			Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
+		})
+	}
 	return &pb.ExecutionPolicySnapshot{
 		CatalogDigest:     snapshot.CatalogDigest,
 		RoleRef:           snapshot.RoleRef,
@@ -663,6 +670,7 @@ func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *p
 		SelectedCandidate: ExecutionCandidateToProto(snapshot.SelectedCandidate),
 		Explanation:       PolicyResolutionExplanationToProto(snapshot.Explanation),
 		SelectionReason:   snapshot.SelectionReason,
+		BrowserCandidates: browserCandidates,
 	}
 }
 
@@ -678,6 +686,15 @@ func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *dom
 			candidates = append(candidates, ExecutionCandidateFromProto(candidate))
 		}
 	}
+	browserCandidates := make([]domain.ExecutionBrowserCandidate, 0, len(snapshot.BrowserCandidates))
+	for _, candidate := range snapshot.BrowserCandidates {
+		if candidate != nil {
+			browserCandidates = append(browserCandidates, domain.ExecutionBrowserCandidate{
+				RunnerType: RunnerTypeFromProto(candidate.RunnerType), ResourceRole: candidate.ResourceRole,
+				Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
+			})
+		}
+	}
 	return &domain.ExecutionPolicySnapshot{
 		CatalogDigest:     snapshot.CatalogDigest,
 		RoleRef:           snapshot.RoleRef,
@@ -686,6 +703,7 @@ func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *dom
 		SelectedCandidate: ExecutionCandidateFromProto(snapshot.SelectedCandidate),
 		Explanation:       PolicyResolutionExplanationFromProto(snapshot.Explanation),
 		SelectionReason:   snapshot.SelectionReason,
+		BrowserCandidates: browserCandidates,
 	}
 }
 

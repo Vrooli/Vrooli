@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -131,7 +132,14 @@ func TestDependentDelegationAdmissionError_PreservesExecutionRestrictions(t *tes
 		{"allowed-paths", func(c *domain.RunConfig) { c.AllowedPaths = nil }},
 		{"denied-paths", func(c *domain.RunConfig) { c.DeniedPaths = nil }},
 		{"approval-bypass", func(c *domain.RunConfig) { c.SkipPermissionPrompt = true }},
-		{"browser", func(c *domain.RunConfig) { c.Features.EnableBrowser = true }},
+		{"browser", func(c *domain.RunConfig) {
+			c.Features.BrowserCapability = &browsercapability.Capability{
+				Enabled: true, Mode: browsercapability.ModeAttached,
+				Candidates:  []browsercapability.Candidate{{Harness: string(domain.RunnerTypeCodex), ResourceRole: "browser.session"}},
+				Permissions: browsercapability.PermissionProfileSpec{ProfileID: "profile-act", Level: browsercapability.ProfileAct, AllowedOrigins: []string{"https://example.test"}},
+				Budget:      browsercapability.Budget{SessionMinutes: 10, Actions: 100, Bytes: 1024},
+			}
+		}},
 		{"raw-flags", func(c *domain.RunConfig) {
 			c.ExtraFlags = domain.RunnerExtraFlags{domain.RunnerTypeOpenCode: {"--dangerous"}}
 		}},

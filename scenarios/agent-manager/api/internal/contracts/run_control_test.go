@@ -48,7 +48,10 @@ func TestCodecExecuteContinueControlParity(t *testing.T) {
 func parityControls(rt domain.RunnerType) []string {
 	switch rt {
 	case domain.RunnerTypeClaudeCode:
-		return []string{"--model", "--max-turns", "--effort", "--allowedTools", "--disallowedTools", "--chrome"}
+		// Browser access is a typed, run-bound session capability now, not a
+		// `--chrome` launch flag; the legacy flag grants no authority. Execute
+		// and continue still have to agree on every real control.
+		return []string{"--model", "--max-turns", "--effort", "--allowedTools", "--disallowedTools"}
 	case domain.RunnerTypeCodex:
 		// `codex exec resume` accepts model and config controls but not the
 		// execute-only working-directory flag.

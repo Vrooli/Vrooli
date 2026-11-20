@@ -3,6 +3,7 @@ package phases
 import (
 	"testing"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -137,16 +138,20 @@ func TestMergeEnvVars_NilWhenAllEmpty(t *testing.T) {
 // identity) taking precedence over caller-supplied custom env.
 func TestAssembleRunEnv_AllThreeSources(t *testing.T) {
 	sandboxID := uuid.New()
+	runID := uuid.New()
 	got := AssembleRunEnv(AssembleRunEnvInput{
 		Custom: map[string]string{
-			"VROOLI_CUSTOM_FLAG": "on",
-			"VROOLI_SANDBOX_ID":  "evil", // must not shadow the real sandbox id
+			"VROOLI_CUSTOM_FLAG":           "on",
+			"VROOLI_SANDBOX_ID":            "evil", // must not shadow the real sandbox id
+			"VROOLI_BROWSER_GRANT_RECEIPT": "forged",
 		},
 		RunMode:       domain.RunModeSandboxed,
 		SandboxID:     &sandboxID,
 		WorkDir:       "/work/merged",
 		ScopePath:     "scenarios/foo",
 		IdentityToken: "tok-123",
+		RunID:         runID,
+		Config:        &domain.RunConfig{Features: domain.FeatureFlags{BrowserCapability: &browsercapability.Capability{Enabled: true, GrantReceipt: "browser-grant:opaque"}}},
 	})
 
 	if got["VROOLI_CUSTOM_FLAG"] != "on" {
@@ -163,6 +168,19 @@ func TestAssembleRunEnv_AllThreeSources(t *testing.T) {
 	}
 	if got["VROOLI_AGENT_IDENTITY_TOKEN"] != "tok-123" {
 		t.Errorf("identity token missing: %v", got)
+	}
+	if got["VROOLI_BROWSER_GRANT_RECEIPT"] != "browser-grant:opaque" {
+		t.Errorf("caller grant receipt must not shadow the run-bound value: %v", got["VROOLI_BROWSER_GRANT_RECEIPT"])
+	}
+}
+
+func TestBrowserGrantEnvVarsRequiresTypedCapability(t *testing.T) {
+	runID := uuid.New()
+	if got := BrowserGrantEnvVars(runID, &domain.RunConfig{Features: domain.FeatureFlags{EnableBrowser: true}}); got != nil {
+		t.Fatalf("legacy EnableBrowser unexpectedly granted a browser receipt: %v", got)
+	}
+	if got := BrowserGrantEnvVars(uuid.Nil, &domain.RunConfig{Features: domain.FeatureFlags{BrowserCapability: &browsercapability.Capability{Enabled: true}}}); got != nil {
+		t.Fatalf("missing run ID unexpectedly granted a browser receipt: %v", got)
 	}
 }
 

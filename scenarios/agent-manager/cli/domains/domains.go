@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"agent-manager/cli/domains/annotations"
 	"agent-manager/cli/domains/measures"
 	"agent-manager/cli/domains/runs"
 	"agent-manager/cli/domains/usage"
@@ -70,6 +71,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		conversationGroup(deps),
 		space,
 		runs.SubcommandGroup(deps),
+		annotations.Register(),
 		measures.Register(),
 		usage.RegisterWithCensus(deps.UsageRunningRuns, deps.UsageCommands...),
 	}

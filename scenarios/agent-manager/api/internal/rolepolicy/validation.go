@@ -59,6 +59,7 @@ func validateRole(key string, role Role) error {
 		return invalid(prefix+".candidates", "must contain at least one candidate")
 	}
 	seen := make(map[string]struct{}, len(role.Candidates))
+	availableRunners := make(map[domain.RunnerType]struct{}, len(role.Candidates))
 	for index, candidate := range role.Candidates {
 		field := fmt.Sprintf("%s.candidates[%d]", prefix, index)
 		if !candidate.Runner.IsValid() {
@@ -72,6 +73,25 @@ func validateRole(key string, role Role) error {
 			return invalid(field, fmt.Sprintf("duplicate candidate %q", identity))
 		}
 		seen[identity] = struct{}{}
+		availableRunners[candidate.Runner] = struct{}{}
+	}
+	seenBrowser := make(map[string]struct{}, len(role.BrowserCandidates))
+	for index, candidate := range role.BrowserCandidates {
+		field := fmt.Sprintf("%s.browserCandidates[%d]", prefix, index)
+		if !candidate.Runner.IsValid() {
+			return invalid(field+".runner", fmt.Sprintf("unknown runner %q", candidate.Runner))
+		}
+		if _, ok := availableRunners[candidate.Runner]; !ok {
+			return invalid(field+".runner", "browser harness must also be declared as an execution candidate for this role")
+		}
+		if candidate.ResourceRole != "browser.session" {
+			return invalid(field+".resourceRole", "must equal browser.session")
+		}
+		identity := string(candidate.Runner) + "|" + candidate.ResourceRole
+		if _, exists := seenBrowser[identity]; exists {
+			return invalid(field, fmt.Sprintf("duplicate browser candidate %q", identity))
+		}
+		seenBrowser[identity] = struct{}{}
 	}
 	return nil
 }

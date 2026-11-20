@@ -35,7 +35,7 @@ func newModeFixture(t *testing.T, probe func(string) error) *modeFixture {
 	t.Helper()
 	t.Setenv("VROOLI_HOME", t.TempDir())
 	path := filepath.Join(t.TempDir(), "role-policy.json")
-	const catalog = `{"schemaVersion":1,"metadata":{"catalogId":"usage-mode-test","updatedAt":"2026-10-30"},"defaultRole":"code.default","roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"}]},"code.review":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.review"}]}}}`
+	const catalog = `{"schemaVersion":1,"metadata":{"catalogId":"usage-mode-test","updatedAt":"2026-10-30"},"defaultRole":"code.default","roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.default"}]},"code.review":{"description":"test","intent":"test","candidates":[{"runner":"codex","resourceRole":"code.review"}]},"browser.agent":{"description":"browser task","intent":"browser","candidates":[{"runner":"codex","resourceRole":"code.default"}],"browserCandidates":[{"runner":"codex","resourceRole":"browser.session"}]}}}`
 	if err := os.WriteFile(path, []byte(catalog), 0o600); err != nil {
 		t.Fatal(err)
 	}

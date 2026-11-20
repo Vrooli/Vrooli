@@ -38,6 +38,7 @@ import (
 
 	"github.com/google/uuid"
 	coredb "github.com/vrooli/api-core/database"
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 	_ "modernc.org/sqlite"
 )
 
@@ -62,6 +63,7 @@ const opencodeTagEnvKey = "OPENCODE_AGENT_TAG"
 type OpenCode struct {
 	baseCodec
 	ollama *ollamaLister
+	caps   opencodeversion.Capabilities
 }
 
 // OpenCode exposes no per-launch native tool allowlist.
@@ -91,9 +93,21 @@ func opencodeBase() baseCodec {
 // authoritative "binary is broken" signal comes from runtime
 // classification on the first real invocation.
 func NewOpenCode() (*OpenCode, error) {
+	base := resolveBinary(opencodeBase(), OpenCodeCLICommand)
 	c := &OpenCode{
-		baseCodec: resolveBinary(opencodeBase(), OpenCodeCLICommand),
+		baseCodec: base,
 		ollama:    newOllamaLister(),
+		caps:      opencodeversion.FromMajor(1),
+	}
+	if base.available && base.binaryPath != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if caps, err := opencodeversion.Detect(ctx, base.binaryPath); err == nil {
+			c.caps = caps
+		}
+		// A version probe failure is not a reason to refuse the runner: the
+		// V1 command contract is the compatibility baseline, and the first real
+		// invocation still classifies a broken binary.
 	}
 	c.newParser = c.NewTranscriptParser
 	return c, nil
@@ -103,7 +117,10 @@ func NewOpenCode() (*OpenCode, error) {
 // and Available=false. Used by codec tests that exercise BuildArgs /
 // decode paths without launching a real process.
 func NewOpenCodeForTest() *OpenCode {
-	c := &OpenCode{baseCodec: testBase(opencodeBase(), "/fake/opencode", "test opencode codec")}
+	c := &OpenCode{
+		baseCodec: testBase(opencodeBase(), "/fake/opencode", "test opencode codec"),
+		caps:      opencodeversion.FromMajor(1),
+	}
 	c.newParser = c.NewTranscriptParser
 	return c
 }
@@ -113,6 +130,23 @@ func NewOpenCodeForTestWithBinary(path string) *OpenCode {
 	c := NewOpenCodeForTest()
 	c.binaryPath, c.available = path, true
 	return c
+}
+
+// NewOpenCodeForTestWithCapabilities pins the capability profile so tests can
+// exercise both major-version contracts without installing either binary.
+func NewOpenCodeForTestWithCapabilities(caps opencodeversion.Capabilities) *OpenCode {
+	c := NewOpenCodeForTest()
+	c.caps = caps
+	return c
+}
+
+// capabilities returns the detected profile, defaulting to the V1 contract for
+// zero-value codecs constructed directly in tests.
+func (c *OpenCode) capabilities() opencodeversion.Capabilities {
+	if c.caps.Major == 0 {
+		return opencodeversion.FromMajor(1)
+	}
+	return c.caps
 }
 
 // HasChargeSource reports that OpenCode's native step_finish payload is the
@@ -156,7 +190,11 @@ func (c *OpenCode) ValidateContinuation(ctx context.Context, req runner.Continue
 	if err == nil {
 		defer db.Close()
 		var id string
-		err = db.QueryRowContext(readCtx, "SELECT id FROM session WHERE id = ?", req.SessionID).Scan(&id)
+		table := c.capabilities().SessionTable
+		if table == "" {
+			table = "session"
+		}
+		err = db.QueryRowContext(readCtx, "SELECT id FROM "+table+" WHERE id = ?", req.SessionID).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return missing()
 		}
@@ -198,6 +236,13 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 func (c *OpenCode) ProbeModel(ctx context.Context, modelID string) error {
 	if available, msg := c.Available(ctx); !available {
 		return fmt.Errorf("opencode unavailable: %s", msg)
+	}
+	if c.capabilities().Catalog == opencodeversion.CatalogNone {
+		// OpenCode 2 does not publish the V1 models.json cache. Do not invent a
+		// second catalog path; local validation is a V1-only capability until a
+		// stable V2 probe exists, and this method's contract is to degrade to
+		// "cannot confirm" rather than false-reject.
+		return nil
 	}
 	var ollamaModels []string
 	if c.ollama != nil {
@@ -282,7 +327,7 @@ func (c *OpenCode) BuildEnv(tag string, extras map[string]string) []string {
 func (c *OpenCode) BuildPrompt(_ string, _ []runner.Attachment) string { return "" }
 
 func (c *OpenCode) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
-	return opencodeControlArgs(cfg)
+	return opencodeControlArgsFor(c.capabilities(), cfg)
 }
 
 // BuildArgs satisfies [Codec]. The prompt is on the command line so the
@@ -290,19 +335,26 @@ func (c *OpenCode) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
 // codec returns "" from BuildPrompt. Image attachments are passed via
 // `-f/--file` (one per attachment).
 func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
+	caps := c.capabilities()
 	args := []string{
 		"run",
 		req.EffectivePrompt(),
 		"--format", "json",
 		"--print-logs", // surface logs to stderr for the PostClassify fallback
 	}
-	// `opencode run` attaches to a shared OpenCode server that resolves its
-	// own project directory and ignores the launched process's cwd. Without
-	// --dir the session executes in the server's directory (often the repo
-	// root), so an in-place run scoped to one path can write files into a
-	// different tree entirely. Pin the session to the run's WorkingDir.
+	if caps.PrivateServer {
+		// A private server keeps a managed run from attaching to an unrelated
+		// background service and inheriting its project/credential state.
+		args = append(args, "--standalone")
+	}
+	// V1 `opencode run` attaches to a shared server that resolves its own
+	// project directory and ignores the launched process's cwd, so it needs
+	// --dir. V2 resolves the project from the process cwd (the runner sets
+	// cmd.Dir) and has no --dir flag.
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
-		args = append(args, "--dir", dir)
+		if caps.Directory == opencodeversion.DirectoryFlag {
+			args = append(args, "--dir", dir)
+		}
 		if s, ok := state.(*opencodeState); ok {
 			s.workingDir = dir
 		}
@@ -329,6 +381,7 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // resumes an existing session with a follow-up prompt and any image
 // attachments via `-f/--file`.
 func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
+	caps := c.capabilities()
 	args := []string{
 		"run",
 		req.Prompt,
@@ -336,9 +389,14 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 		"--format", "json",
 		"--print-logs",
 	}
+	if caps.PrivateServer {
+		args = append(args, "--standalone")
+	}
 	// Pin the resumed session to the run's WorkingDir — see BuildArgs.
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
-		args = append(args, "--dir", dir)
+		if caps.Directory == opencodeversion.DirectoryFlag {
+			args = append(args, "--dir", dir)
+		}
 		if s, ok := state.(*opencodeState); ok {
 			s.workingDir = dir
 		}
@@ -350,6 +408,9 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 	}
 	args = append(args, controlArgs...)
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
+	if extras, ok := req.GetConfig().ExtraFlags[domain.RunnerTypeOpenCode]; ok {
+		args = append(args, extras...)
+	}
 	return args
 }
 

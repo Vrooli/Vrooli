@@ -120,7 +120,6 @@ func (c *Claude) Capabilities() runner.Capabilities {
 		ToolRestrictionMappings:  canonicalToolMappings(claudeToolTranslations),
 		SupportsEffort:           true,
 		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-		SupportedFeatures:        []string{"EnableBrowser"},
 		AllowedExtraFlags:        nil,
 	})
 }
@@ -184,10 +183,6 @@ func (c *Claude) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		args = append(args, "--append-system-prompt", req.SystemPrompt)
 	}
 
-	if cfg.Features.EnableBrowser {
-		args = append(args, "--chrome")
-	}
-
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
 		args = append(args, extras...)
 	}
@@ -215,9 +210,6 @@ func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string
 	args = append(args, controlArgs...)
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--dangerously-skip-permissions")
-	}
-	if cfg.Features.EnableBrowser {
-		args = append(args, "--chrome")
 	}
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
 		args = append(args, extras...)

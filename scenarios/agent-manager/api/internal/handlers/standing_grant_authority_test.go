@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/orchestration"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -436,6 +437,51 @@ func TestServiceWithRevokedGrantAsksForApproval(t *testing.T) {
 	}
 	if code := serviceChain(t, repo, fakeUsage{}); code != http.StatusAccepted {
 		t.Fatalf("service with revoked grant should ask (202), got %d", code)
+	}
+}
+
+func TestBrowserEvidenceGrantIsExactRunBoundAndExpiresOrRevokes(t *testing.T) {
+	now := time.Date(2026, 11, 19, 13, 0, 0, 0, time.UTC)
+	runID := uuid.New()
+	target := "agent-manager:run/" + runID.String()
+	repo := &memStandingGrants{}
+	grant := &domain.StandingGrant{
+		ID: "browser-evidence-grant", Subject: orchestration.BrowserEvidenceServiceSubject,
+		Grant: &identity.OperationGrant{ID: "browser-evidence-grant", Policy: "browser-evidence-record", Approver: "operator",
+			Operations: []string{"browser-evidence.record"}, Targets: []string{target}, ExpiresAt: now.Add(time.Hour)},
+		State: domain.StandingGrantApproved, ApprovedBy: "operator", ApprovedAt: now, ExpiresAt: now.Add(time.Hour),
+	}
+	if err := repo.Put(context.Background(), grant); err != nil {
+		t.Fatal(err)
+	}
+	clock := now
+	authority := NewStandingGrantAuthority(repo, fakeUsage{}, func() time.Time { return clock })
+	principal := identity.Principal{Kind: identity.ActorService, Subject: orchestration.BrowserEvidenceServiceSubject, Verified: true, Scopes: []string{"agent-manager:write"}}
+	authorize := func(operationTarget string) error {
+		ctx := identity.WithPrincipal(context.Background(), principal)
+		ctx = authn.WithRequestOperationAuthority(ctx, authority)
+		_, err := authn.RequireOperation(ctx, "agent-manager:write", "browser-evidence.record", operationTarget)
+		return err
+	}
+	if err := authorize(target); err != nil {
+		t.Fatalf("valid exact-run browser evidence grant denied: %v", err)
+	}
+	if err := authorize("agent-manager:run/" + uuid.NewString()); !errors.Is(err, authn.ErrNeedsApproval) {
+		t.Fatalf("grant crossed to another run: %v", err)
+	}
+	if err := authorize(target + "/child"); !errors.Is(err, authn.ErrNeedsApproval) {
+		t.Fatalf("grant crossed to a child target: %v", err)
+	}
+	clock = now.Add(2 * time.Hour)
+	if err := authorize(target); !errors.Is(err, authn.ErrNeedsApproval) {
+		t.Fatalf("expired grant remained authoritative: %v", err)
+	}
+	clock = now
+	if transitioned, err := repo.Revoke(context.Background(), grant.ID, now); err != nil || !transitioned {
+		t.Fatalf("revoke browser grant: transitioned=%v err=%v", transitioned, err)
+	}
+	if err := authorize(target); !errors.Is(err, authn.ErrNeedsApproval) {
+		t.Fatalf("revoked grant remained authoritative: %v", err)
 	}
 }
 

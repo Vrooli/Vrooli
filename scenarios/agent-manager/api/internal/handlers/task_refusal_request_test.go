@@ -25,6 +25,7 @@ func taskRequestAsAgentWithoutGrant(req *http.Request) *http.Request {
 // (`request_authority`) and in the message that is printed.
 func TestTaskCancelAndDeleteRefusalCarryTheExactRequestForThatTask(t *testing.T) {
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	t.Setenv("VROOLI_AGENT_SESSION", "")
 	_, router := setupTestHandler(t)
 	for _, tc := range []struct{ name, method, path, message string }{
 		{"cancel", http.MethodPost, "/cancel", "task cancellation requires exact agent.manage authority"},

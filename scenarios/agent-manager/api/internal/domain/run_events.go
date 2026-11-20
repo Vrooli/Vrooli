@@ -70,6 +70,8 @@ const (
 	EventTypeHeartbeatMiss           RunEventType = "heartbeat.miss"
 	EventTypeCheckpointFailure       RunEventType = "checkpoint.failure"
 	EventTypeRetryAttempt            RunEventType = "retry.attempt"
+	EventTypeBrowserSession           RunEventType = "browser.session"
+	EventTypeBrowserAction            RunEventType = "browser.action"
 )
 
 // IsTypedOperationalEvent reports whether t is one of the typed-operational

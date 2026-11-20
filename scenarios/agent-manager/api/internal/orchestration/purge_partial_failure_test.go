@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
@@ -45,13 +46,16 @@ func TestPurgeDataReportsCommittedRowsAndCleansCascadedEvents(t *testing.T) {
 			if err := repos.Profiles.Create(ctx, profile); err != nil {
 				t.Fatal(err)
 			}
-			taskStatus := domain.TaskStatusQueued
-			if tc.target == PurgeTargetTasks {
-				taskStatus = domain.TaskStatusCancelled
-			}
-			task := fixtures.NewTask(t, fixtures.WithTaskTitle("purge partial task"), fixtures.WithTaskStatus(taskStatus))
+			task := fixtures.NewTask(t, fixtures.WithTaskTitle("purge partial task"), fixtures.WithTaskStatus(domain.TaskStatusQueued))
 			if err := repos.Tasks.Create(ctx, task); err != nil {
 				t.Fatal(err)
+			}
+			if tc.target == PurgeTargetTasks {
+				// A cancelled Task is reached through the lifecycle owner, not by
+				// creating a new Task already terminal.
+				if _, changed, err := repos.Runs.CancelTaskAttempt(ctx, task.ID, nil, false, time.Now()); err != nil || !changed {
+					t.Fatalf("cancel purge fixture task changed=%v err=%v", changed, err)
+				}
 			}
 			run := fixtures.NewRun(t, task.ID, profile.ID, fixtures.WithRunStatus(domain.RunStatusComplete))
 			if err := repos.Runs.Create(ctx, run); err != nil {
@@ -121,9 +125,12 @@ func TestDeleteTaskReportsCommittedCascadeWhenEventCleanupFails(t *testing.T) {
 	if err := repos.Profiles.Create(ctx, profile); err != nil {
 		t.Fatal(err)
 	}
-	task := fixtures.NewTask(t, fixtures.WithTaskTitle("delete task with attached run"), fixtures.WithTaskStatus(domain.TaskStatusCancelled))
+	task := fixtures.NewTask(t, fixtures.WithTaskTitle("delete task with attached run"), fixtures.WithTaskStatus(domain.TaskStatusQueued))
 	if err := repos.Tasks.Create(ctx, task); err != nil {
 		t.Fatal(err)
+	}
+	if _, changed, err := repos.Runs.CancelTaskAttempt(ctx, task.ID, nil, false, time.Now()); err != nil || !changed {
+		t.Fatalf("cancel delete fixture task changed=%v err=%v", changed, err)
 	}
 	run := fixtures.NewRun(t, task.ID, profile.ID, fixtures.WithRunStatus(domain.RunStatusComplete))
 	if err := repos.Runs.Create(ctx, run); err != nil {

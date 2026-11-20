@@ -405,8 +405,19 @@ func cf1IdentityFixture(runID, profileID, budgetID, mandateID, walletID, address
 	}
 }
 
+// privateEvidenceDir is a short, private fixture directory. t.TempDir's leaf
+// is created 0777 (masked to 0775), which the evidence owner correctly refuses.
+func privateEvidenceDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 func TestCF1CrossBudgetIdentityEvidenceUpsertsDistinctOrdinaryRuns(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "agent-manager-cross-budget-identities.json")
+	path := filepath.Join(privateEvidenceDir(t), "agent-manager-cross-budget-identities.json")
 	first := cf1IdentityFixture("run-b", "profile-b", "budget-b", "mandate-b", "wallet-b", "0x0000000000000000000000000000000000000002", "auth-b", "settle-b", "0x"+strings.Repeat("b", 64))
 	second := cf1IdentityFixture("run-a", "profile-a", "budget-a", "mandate-a", "wallet-a", "0x0000000000000000000000000000000000000001", "auth-a", "settle-a", "0x"+strings.Repeat("a", 64))
 	if err := upsertCF1CrossBudgetIdentityEvidence(path, first); err != nil {
@@ -447,7 +458,7 @@ func TestCF1CrossBudgetIdentityEvidenceUpsertsDistinctOrdinaryRuns(t *testing.T)
 }
 
 func TestCF1CrossBudgetIdentityEvidenceConcurrentUpsertsDoNotLoseRows(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "agent-manager-cross-budget-identities.json")
+	path := filepath.Join(privateEvidenceDir(t), "agent-manager-cross-budget-identities.json")
 	rows := []cf1AgentCrossBudgetIdentity{
 		cf1IdentityFixture("run-a", "profile-a", "budget-a", "mandate-a", "wallet-a", "0x0000000000000000000000000000000000000001", "auth-a", "settle-a", "0x"+strings.Repeat("a", 64)),
 		cf1IdentityFixture("run-b", "profile-b", "budget-b", "mandate-b", "wallet-b", "0x0000000000000000000000000000000000000002", "auth-b", "settle-b", "0x"+strings.Repeat("b", 64)),

@@ -10,6 +10,8 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 )
 
 // TestInstalledCLIHelpAgreesWithDeclaredCapabilities checks declared capability drift.
@@ -29,10 +31,29 @@ func TestInstalledCLIHelpAgreesWithDeclaredCapabilities(t *testing.T) {
 		{"opencode", OpenCodeCLICommand, []string{"run", "--help"}, NewOpenCodeForTest(), []string{"--variant"}, false},
 	}
 	for _, tc := range cases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			path, err := exec.LookPath(tc.binary)
 			if err != nil {
 				t.Skipf("%s absent: %v", tc.binary, err)
+			}
+			if tc.name == "opencode" {
+				caps, err := opencodeversion.Detect(context.Background(), path)
+				if err != nil {
+					t.Fatalf("detect installed opencode major: %v", err)
+				}
+				tc.codec = NewOpenCodeForTestWithCapabilities(caps)
+				tc.flags = []string{"--print-logs"}
+				if caps.Variant == opencodeversion.VariantFlag {
+					tc.flags = append(tc.flags, "--variant")
+				}
+				if caps.PrivateServer {
+					tc.flags = append(tc.flags, "--standalone")
+				}
+				if caps.Directory == opencodeversion.DirectoryProcess {
+					// The V2 run contract resolves the project from process cwd.
+					tc.flags = append(tc.flags, "--format")
+				}
 			}
 			const helpCommandTimeout = 30 * time.Second
 			started := time.Now()
@@ -70,8 +91,15 @@ func TestInstalledCLIHelpAgreesWithDeclaredCapabilities(t *testing.T) {
 			if caps.SupportsToolRestriction && tc.codec.Type() == domain.RunnerTypeGrok && (!containsArg(args, "--allow") || !containsArg(args, "--deny")) {
 				t.Fatal("grok declares tool restrictions but does not emit both flags")
 			}
-			if caps.SupportsEffort && tc.codec.Type() == domain.RunnerTypeOpenCode && !containsArg(args, "--variant") {
-				t.Fatal("opencode declares effort but does not emit --variant")
+			if caps.SupportsEffort && tc.codec.Type() == domain.RunnerTypeOpenCode {
+				oc := tc.codec.(*OpenCode)
+				if oc.capabilities().Variant == opencodeversion.VariantFlag {
+					if !containsArg(args, "--variant") {
+						t.Fatal("opencode 1 declares effort but does not emit --variant")
+					}
+				} else if !strings.Contains(strings.Join(args, " "), "#high") {
+					t.Fatalf("opencode 2 declares effort but does not encode it in the model reference: %q", args)
+				}
 			}
 		})
 	}

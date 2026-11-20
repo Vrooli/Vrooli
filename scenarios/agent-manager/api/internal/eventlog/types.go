@@ -236,6 +236,32 @@ type RetryAttemptPayload struct {
 	Reason      FallbackReason `json:"reason"`
 }
 
+// BrowserSessionPayload records sanitized run-reported session lifecycle and
+// metering counters without page content, credentials, or URLs. This event is
+// not trusted usage evidence until BAS attests it through an owner-controlled
+// service identity.
+type BrowserSessionPayload struct {
+	SessionID         string `json:"session_id"`
+	Mode              string `json:"mode"`
+	PermissionProfile string `json:"permission_profile"`
+	State             string `json:"state"`
+	SessionMinutes    int64  `json:"session_minutes,omitempty"`
+	Actions           int64  `json:"actions,omitempty"`
+	Bytes             int64  `json:"bytes,omitempty"`
+	ReportedBy        string `json:"reported_by"`
+}
+
+// BrowserActionPayload records a run-reported bounded action category and outcome only.
+// It intentionally cannot carry page text, typed values, or raw URLs.
+type BrowserActionPayload struct {
+	SessionID         string `json:"session_id"`
+	Mode              string `json:"mode"`
+	PermissionProfile string `json:"permission_profile"`
+	Action            string `json:"action"`
+	Outcome           string `json:"outcome"`
+	ReportedBy        string `json:"reported_by"`
+}
+
 // =============================================================================
 // PAYLOAD INTERFACE
 // =============================================================================
@@ -261,6 +287,8 @@ func (SandboxOperationPayload) payloadMarker()        {}
 func (HeartbeatMissPayload) payloadMarker()           {}
 func (CheckpointFailurePayload) payloadMarker()       {}
 func (RetryAttemptPayload) payloadMarker()            {}
+func (BrowserSessionPayload) payloadMarker()          {}
+func (BrowserActionPayload) payloadMarker()           {}
 
 // EventTypeOf returns the RunEventType the given payload corresponds to.
 // Used by builders to look up the on-wire event_type from a typed value
@@ -289,6 +317,10 @@ func EventTypeOf(p Payload) domain.RunEventType {
 		return domain.EventTypeCheckpointFailure
 	case RetryAttemptPayload, *RetryAttemptPayload:
 		return domain.EventTypeRetryAttempt
+	case BrowserSessionPayload, *BrowserSessionPayload:
+		return domain.EventTypeBrowserSession
+	case BrowserActionPayload, *BrowserActionPayload:
+		return domain.EventTypeBrowserAction
 	}
 	return ""
 }

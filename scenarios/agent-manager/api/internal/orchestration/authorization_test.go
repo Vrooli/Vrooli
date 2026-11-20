@@ -76,7 +76,7 @@ func TestExistingTokenlessProcessCanAdoptDurableGrantAndRevocationIsImmediate(t 
 	if receipt["token"] != nil || receipt["ClaimsJSON"] != nil || receipt["TokenHash"] != nil {
 		t.Fatal("receipt exposed a credential")
 	}
-	directory, err := os.MkdirTemp("", "agb-")
+	directory, err := os.MkdirTemp("/tmp", "agb-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -575,7 +575,7 @@ func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
 			t.Fatal(err)
 		}
 		o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
-		dir, err := os.MkdirTemp("", "am-local-owner-child-")
+		dir, err := os.MkdirTemp("/tmp", "am-local-owner-child-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -618,7 +618,7 @@ func (f failingRunList) List(context.Context, repository.RunListFilter) ([]*doma
 
 func localOwnerEligibilityResponse(t *testing.T, o *Orchestrator, ctx context.Context) *http.Response {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "am-local-owner-")
+	dir, err := os.MkdirTemp("/tmp", "am-local-owner-")
 	if err != nil {
 		t.Fatal(err)
 	}

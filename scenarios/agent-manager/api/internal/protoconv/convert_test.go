@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -59,6 +61,20 @@ func TestCumulativeTokenFieldsRoundTripBeyondInt32(t *testing.T) {
 	}
 	if jsonRoundTrip.GetTokensUsed() != tokens {
 		t.Fatalf("ProtoJSON round-trip tokens = %d, want %d", jsonRoundTrip.GetTokensUsed(), tokens)
+	}
+}
+
+func TestRolePolicyCatalogProtoKeepsBrowserCapabilitySeparate(t *testing.T) {
+	catalog := &rolepolicy.Catalog{SchemaVersion: 1, Metadata: rolepolicy.Metadata{CatalogID: "test", UpdatedAt: "2026-11-19"}, DefaultRole: "browser.agent", Roles: map[string]rolepolicy.Role{
+		"browser.agent": {
+			Description: "browser task", Intent: "browser",
+			Candidates:        []rolepolicy.Candidate{{Runner: domain.RunnerTypeCodex, ResourceRole: "code.default"}},
+			BrowserCandidates: []rolepolicy.BrowserCandidate{{Runner: domain.RunnerTypeCodex, ResourceRole: "browser.session"}},
+		},
+	}}
+	protoCatalog := RolePolicyCatalogToProto(catalog)
+	if len(protoCatalog.Roles) != 1 || len(protoCatalog.Roles[0].Candidates) != 1 || protoCatalog.Roles[0].Candidates[0].GetResourceRole() != "code.default" || len(protoCatalog.Roles[0].BrowserCandidates) != 1 || protoCatalog.Roles[0].BrowserCandidates[0].GetResourceRole() != "browser.session" {
+		t.Fatalf("role catalog collapsed browser capability into inference role: %+v", protoCatalog)
 	}
 }
 
@@ -287,6 +303,9 @@ func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
 		PolicySnapshot: &domain.ExecutionPolicySnapshot{
 			CatalogDigest: "sha256:catalog-revision",
 			RoleRef:       "code.smart",
+			BrowserCandidates: []domain.ExecutionBrowserCandidate{{
+				RunnerType: domain.RunnerTypeCodex, ResourceRole: "browser.session", Available: true,
+			}},
 			Candidates: []domain.ExecutionCandidate{
 				{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
 				{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
@@ -1109,13 +1128,26 @@ func TestFeatureFlagsRoundTrip(t *testing.T) {
 			name:  "EnableBrowser false",
 			flags: domain.FeatureFlags{EnableBrowser: false},
 		},
+		{
+			name: "bounded browser capability",
+			flags: domain.FeatureFlags{BrowserCapability: &browsercapability.Capability{
+				Enabled: true, Mode: browsercapability.ModeManaged,
+				Candidates: []browsercapability.Candidate{{Harness: "codex", ResourceRole: "browser.session"}},
+				Permissions: browsercapability.PermissionProfileSpec{
+					ProfileID: "profile-observe", ProfileMode: browsercapability.SessionProfileFresh, Level: browsercapability.ProfileObserve,
+					AllowedOrigins: []string{"https://example.test"}, View: true,
+					AppMonitorMetrics: true, AppMonitorTrace: true, AppMonitorTraceMaxDurationMS: 30_000, AppMonitorTraceMaxBytes: 8 << 20,
+				},
+				Budget: browsercapability.Budget{SessionMinutes: 4, Actions: 50, Bytes: 1024},
+			}},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			proto := FeatureFlagsToProto(tt.flags)
 			result := FeatureFlagsFromProto(proto)
-			if result != tt.flags {
+			if !reflect.DeepEqual(result, tt.flags) {
 				t.Errorf("round-trip failed: expected %+v, got %+v", tt.flags, result)
 			}
 		})

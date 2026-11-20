@@ -50,7 +50,7 @@ The system reduces to eight concepts. Anything outside this list is plumbing, no
 | **Run** | One execution of an agent against a task. Carries status, phase, transcript, sandbox, identity. | `internal/domain.Run` |
 | **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, four model bindings (claude-code, codex, opencode, grok). | `internal/adapters/runner/core.Runner` |
 | **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. Each embeds the shared `baseCodec` (`base.go`) and contains only its unique surface. | `internal/adapters/runner/codecs/*.go` |
-| **Role policy** | Versioned portable roles with ordered `(runner, resourceRole)` candidates. Resource-owned policy resolves concrete models and fallbacks into immutable run evidence. | `config/role-policy-catalog.json` + `internal/rolepolicy` |
+| **Role policy** | Versioned portable roles with ordered execution candidates and separate browser capability candidates. Model/fallback evidence and browser-role eligibility persist separately in the immutable run snapshot. | `config/role-policy-catalog.json` + `internal/rolepolicy` |
 | **Phase** | One step of the run lifecycle (Setup, Acquire, Execute, Validate, Result, Finalize). Pure-ish function with explicit input struct. | `internal/orchestration/phases/*.go` |
 | **Sandbox** | Per-run overlayfs workspace for accountability/provenance — captures which files this run changed, not for safety. | `internal/adapters/sandbox` + `scenarios/workspace-sandbox` |
 | **Gate** (`emit.Gate`) | The single Emit choke point. Future invariants (dedupe, audit hooks, ordering) attach inside the gate. | `internal/orchestration/emit.Gate` |

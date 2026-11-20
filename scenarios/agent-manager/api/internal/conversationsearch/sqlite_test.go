@@ -662,25 +662,33 @@ func TestIndexerOwnerLoopRetriesRecoveryBeforeAdmittingKicks(t *testing.T) {
 }
 
 func TestIndexerSuccessfulRestartClearsOnlyRecoveryDiagnostic(t *testing.T) {
-	for _, diagnostic := range []string{ErrRecoveryPending.Error() + ": prior process cleanup failed", "semantic rebuild unavailable"} {
-		t.Run(diagnostic, func(t *testing.T) {
+	for _, tc := range []struct {
+		diagnostic string
+		recovery   bool
+	}{
+		{ErrRecoveryPending.Error() + ": prior process cleanup failed", true},
+		{`save conversation search generation "g-1": database is locked (5) (SQLITE_BUSY)`, true},
+		{"generation cleanup incomplete; retained for recovery: database is locked (5) (SQLITE_BUSY)", true},
+		{"semantic rebuild unavailable", false},
+	} {
+		t.Run(tc.diagnostic, func(t *testing.T) {
 			t.Parallel()
 			db := openProjectionTestDB(t)
 			applyProjectionSchema(t, db)
 			repository := NewSQLiteRepository(db)
 			now := time.Now().UTC()
 			require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "serving", State: "active", RecipeVersion: DefaultRecipeVersion, CreatedAt: now, UpdatedAt: now}))
-			require.NoError(t, repository.SaveCheckpoint(t.Context(), Checkpoint{SourceName: "canonical", SourceCursor: "retained", LastErrorCode: diagnostic, UpdatedAt: now}))
+			require.NoError(t, repository.SaveCheckpoint(t.Context(), Checkpoint{SourceName: "canonical", SourceCursor: "retained", LastErrorCode: tc.diagnostic, UpdatedAt: now}))
 			indexer, err := NewIndexer(IndexerOptions{Source: &mutableProjectionSource{}, Repository: repository})
 			require.NoError(t, err)
 			require.NoError(t, indexer.launchInitial(t.Context()))
 			checkpoint, err := repository.LoadCheckpoint(t.Context(), "canonical")
 			require.NoError(t, err)
 			require.Equal(t, "retained", checkpoint.SourceCursor)
-			if strings.HasPrefix(diagnostic, ErrRecoveryPending.Error()) {
+			if tc.recovery {
 				require.Empty(t, checkpoint.LastErrorCode)
 			} else {
-				require.Equal(t, diagnostic, checkpoint.LastErrorCode)
+				require.Equal(t, tc.diagnostic, checkpoint.LastErrorCode)
 			}
 		})
 	}
@@ -961,4 +969,252 @@ func TestRepositoryNotFoundContract(t *testing.T) {
 	applyProjectionSchema(t, db)
 	_, err := NewSQLiteRepository(db).GetDocument(context.Background(), "absent")
 	require.True(t, errors.Is(err, ErrNotFound))
+}
+
+// Annotation facets are written into tags_json after indexing. A later source
+// change re-upserts the document with importer tags; the upsert must keep the
+// label: facets instead of erasing the only searchable projection of them.
+func TestUpsertPreservesAnnotationFacetTags(t *testing.T) {
+	t.Parallel()
+
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	ctx := context.Background()
+	document := testDocument()
+	document.Tags = []string{"workflow-example"}
+
+	require.NoError(t, repository.UpsertDocument(ctx, document))
+	_, err := db.ExecContext(ctx, `UPDATE conversation_search_catalog SET tags_json = ? WHERE document_id = ?`,
+		`["workflow-example","label:agent.spinning"]`, document.DocumentID)
+	require.NoError(t, err)
+
+	require.NoError(t, repository.UpsertDocument(ctx, document))
+	loaded, err := repository.GetDocument(ctx, document.DocumentID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"workflow-example", "label:agent.spinning"}, loaded.Tags)
+}
+
+func TestIndexerDoesNotAutoResumeOversizedInterruptedGeneration(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	now := time.Now().UTC()
+	require.NoError(t, repository.SaveGeneration(t.Context(), Generation{GenerationID: "oversized", State: "building", RecipeVersion: DefaultRecipeVersion, PlannedDocuments: 2, ProcessedDocuments: 2, CreatedAt: now, UpdatedAt: now}))
+	doc := testDocument()
+	require.NoError(t, repository.StageDocument(t.Context(), "oversized", doc))
+	doc.DocumentID, doc.SourceEventID = "doc-2", "event-2"
+	require.NoError(t, repository.StageDocument(t.Context(), "oversized", doc))
+	called := make(chan struct{}, 1)
+	indexer, err := NewIndexer(IndexerOptions{
+		Source: &mutableProjectionSource{}, Repository: repository,
+		Semantic: semanticRebuilderFunc(func(context.Context, string) error {
+			called <- struct{}{}
+			return nil
+		}),
+	})
+	require.NoError(t, err)
+	indexer.resumeMaxDocuments = 1
+	resumed, err := indexer.recoverInterrupted(t.Context())
+	require.NoError(t, err)
+	require.False(t, resumed, "an oversized interrupted full rebuild must not resume automatically")
+	select {
+	case <-called:
+		t.Fatal("oversized generation reached the semantic rebuild")
+	default:
+	}
+	generations, err := repository.BuildingGenerations(t.Context())
+	require.NoError(t, err)
+	require.Empty(t, generations, "the oversized generation must be rolled back, not left building")
+}
+
+func TestRecoveryClearRemovesALegacyDiagnosticWithoutTheCurrentPrefix(t *testing.T) {
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	ctx := context.Background()
+	now := time.Date(2026, 11, 19, 9, 0, 0, 0, time.UTC)
+	// An earlier build persisted a bare error, without the recovery prefix.
+	if err := repository.SetRecoveryError(ctx, `save conversation search generation "g": database is locked (5) (SQLITE_BUSY)`, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.SetRecoveryError(ctx, "", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	status, err := repository.ProjectionStatus(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.LastErrorCode != "" {
+		t.Fatalf("legacy recovery diagnostic survived a clean recovery: %q", status.LastErrorCode)
+	}
+}
+
+func TestRetrySQLiteContentionRetriesBusyAndStopsOnOtherErrors(t *testing.T) {
+	ctx := context.Background()
+	attempts := 0
+	err := retrySQLiteContention(ctx, func() error {
+		attempts++
+		if attempts < 3 {
+			return errors.New("database is locked (5) (SQLITE_BUSY)")
+		}
+		return nil
+	})
+	if err != nil || attempts != 3 {
+		t.Fatalf("busy retry err=%v attempts=%d", err, attempts)
+	}
+	attempts = 0
+	refused := errors.New("constraint failed")
+	if err := retrySQLiteContention(ctx, func() error { attempts++; return refused }); !errors.Is(err, refused) || attempts != 1 {
+		t.Fatalf("non-busy error err=%v attempts=%d", err, attempts)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	attempts = 0
+	if err := retrySQLiteContention(cancelled, func() error { attempts++; return errors.New("SQLITE_BUSY") }); err == nil || attempts != 1 {
+		t.Fatalf("cancelled retry err=%v attempts=%d", err, attempts)
+	}
+}
+
+func TestFormatTimeIsLexicographicallyChronological(t *testing.T) {
+	t.Parallel()
+	base := time.Date(2026, 11, 19, 13, 0, 0, 0, time.UTC)
+	ordered := []time.Time{
+		base,
+		base.Add(50 * time.Millisecond),
+		base.Add(100 * time.Millisecond),
+		base.Add(180 * time.Millisecond),
+		base.Add(181 * time.Millisecond),
+		base.Add(time.Second),
+		base.Add(time.Second + 900*time.Millisecond),
+	}
+	for _, value := range ordered {
+		if got := len(formatTime(value)); got != len(timeLayout) {
+			t.Fatalf("formatTime(%s) has width %d, want %d", value, got, len(timeLayout))
+		}
+	}
+	for i := 1; i < len(ordered); i++ {
+		previous, current := formatTime(ordered[i-1]), formatTime(ordered[i])
+		if previous >= current {
+			t.Fatalf("string order %q >= %q but %s precedes %s", previous, current, ordered[i-1], ordered[i])
+		}
+	}
+}
+
+func TestSettleStaleQdrantCandidateRecordsOnlySettlesUnleasedOldCandidates(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	insert := func(id, state string, createdAt time.Time, lease *time.Time) {
+		t.Helper()
+		var leaseValue any
+		if lease != nil {
+			leaseValue = formatTime(*lease)
+		}
+		_, err := db.Exec(`INSERT INTO conversation_search_qdrant_generations
+(generation_id, owner, namespace, alias_name, collection_name, state, created_at, updated_at, lease_expires_at)
+VALUES (?, 'agent-manager', 'conversation-search', 'default', ?, ?, ?, ?, ?)`,
+			id, "collection-"+id, state, formatTime(createdAt), formatTime(createdAt), leaseValue)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := now.Add(-25 * time.Hour)
+	recent := now.Add(-time.Hour)
+	future := now.Add(time.Hour)
+	insert("old-unleased", "candidate", old, nil)
+	insert("old-leased", "candidate", old, &future)
+	insert("recent-unleased", "candidate", recent, nil)
+	insert("old-active", "active", old, nil)
+
+	changed, err := repository.SettleStaleQdrantCandidateRecords(context.Background(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed != 1 {
+		t.Fatalf("changed = %d, want only the old unleased candidate", changed)
+	}
+	states := map[string]string{}
+	rows, err := db.Query(`SELECT generation_id, state FROM conversation_search_qdrant_generations`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, state string
+		if err := rows.Scan(&id, &state); err != nil {
+			t.Fatal(err)
+		}
+		states[id] = state
+	}
+	if states["old-unleased"] != "failed" || states["old-leased"] != "candidate" ||
+		states["recent-unleased"] != "candidate" || states["old-active"] != "active" {
+		t.Fatalf("states = %v", states)
+	}
+}
+
+func TestClearIndexErrorPreservesTheCanonicalCursor(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	ctx := context.Background()
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	if err := repository.SaveCheckpoint(ctx, Checkpoint{
+		SourceName: "canonical", SourceCursor: "cursor-1", SourceFingerprint: "fingerprint-1",
+		UpdatedAt: now, LastErrorCode: "apply staged conversation change 7: database is locked",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.ClearIndexError(ctx, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	checkpoint, err := repository.LoadCheckpoint(ctx, "canonical")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if checkpoint.LastErrorCode != "" {
+		t.Fatalf("error = %q, want cleared", checkpoint.LastErrorCode)
+	}
+	if checkpoint.SourceCursor != "cursor-1" || checkpoint.SourceFingerprint != "fingerprint-1" {
+		t.Fatalf("cursor/fingerprint = %q/%q, want preserved", checkpoint.SourceCursor, checkpoint.SourceFingerprint)
+	}
+}
+
+func TestCountSemanticEligibleStagedIgnoresToolPayloads(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	ctx := context.Background()
+	const generation = "eligible-count"
+	if err := repository.BeginStagedGeneration(ctx, generation); err != nil {
+		t.Fatal(err)
+	}
+	for index, class := range []ContentClass{ContentClassProse, ContentClassQuotedProse, ContentClassToolResult} {
+		document := testDocument()
+		document.DocumentID = "doc-" + string(rune('a'+index))
+		document.SourceEventID = document.DocumentID + "-event"
+		document.ContentClass = class
+		if err := repository.StageDocument(ctx, generation, document); err != nil {
+			t.Fatal(err)
+		}
+	}
+	eligible, err := repository.CountSemanticEligibleStaged(ctx, generation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if eligible != 2 {
+		t.Fatalf("eligible = %d, want the two prose classes", eligible)
+	}
+	total, err := repository.CountStagedGeneration(ctx, generation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 3 {
+		t.Fatalf("total = %d, want 3", total)
+	}
 }

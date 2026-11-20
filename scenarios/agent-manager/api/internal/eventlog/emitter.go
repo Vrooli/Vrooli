@@ -170,3 +170,14 @@ func (e *Emitter) EmitCheckpointFailure(p CheckpointFailurePayload) {
 func (e *Emitter) EmitRetryAttempt(p RetryAttemptPayload) {
 	e.Emit(p)
 }
+
+// EmitBrowserSession records one BAS-owned browser session's lifecycle and
+// metering report. It carries counts and labels, never page content.
+func (e *Emitter) EmitBrowserSession(p BrowserSessionPayload) {
+	e.Emit(p)
+}
+
+// EmitBrowserAction records one bounded browser action category and outcome.
+func (e *Emitter) EmitBrowserAction(p BrowserActionPayload) {
+	e.Emit(p)
+}

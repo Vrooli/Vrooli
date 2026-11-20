@@ -672,7 +672,13 @@ func TestEnsureCurrentRunBindsOnlyTheExactUnambiguousLegacyRun(t *testing.T) {
 		t.Fatalf("competing legacy Run was silently selected: claim=%v err=%v", claimed, err)
 	}
 
-	cancelled := makeTask(domain.TaskStatusCancelled)
+	cancelled := makeTask(domain.TaskStatusQueued)
+	if _, changed, err := repos.Runs.CancelTaskAttempt(ctx, cancelled.ID, nil, false, time.Now()); err != nil || !changed {
+		t.Fatalf("cancel fixture Task changed=%v err=%v", changed, err)
+	}
+	if relic, err := repos.Tasks.Get(ctx, cancelled.ID); err != nil || relic.Status != domain.TaskStatusCancelled {
+		t.Fatalf("cancelled fixture Task=%+v err=%v", relic, err)
+	}
 	closed := pendingTaskRun(cancelled.ID)
 	if err := repos.Runs.Create(ctx, closed); err != nil {
 		t.Fatal(err)

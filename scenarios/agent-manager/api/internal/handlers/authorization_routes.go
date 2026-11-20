@@ -206,15 +206,38 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 		// A verified service principal carries no capability of its own for a
 		// costly write; its sole admission is an operator-approved standing grant,
 		// sourced durably by StandingGrantMiddleware and evaluated through the same
-		// RequestOperationAuthority seam an agent grant uses. run.create is the only
-		// operation a standing grant admits today; every other service write falls
-		// through to the refusal below. No grant logic lives here — this delegates.
+		// RequestOperationAuthority seam an agent grant uses. Run creation and two
+		// narrowly named one-run evidence routes are the only service writes admitted
+		// here; each route still checks its exact operation, target and owner evidence.
+		// No grant logic lives here — this delegates.
 		if ok && p.Kind == identity.ActorService {
+			// Web Console may ask Agent Manager to resolve one browser pane for a
+			// human-owned run. The handler independently verifies the dedicated
+			// service role, asserted owner, exact Web Console session/thread, and
+			// saved BrowserCapability before BAS is contacted.
+			if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/browser/pane/resolve" || r.URL.Path == "/api/v1/browser/pane/sessions") && p.IsVerified() && isBrowserPaneDelegator(p) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			// Treasury may submit immutable run-bound research budget evidence.
 			// The endpoint still requires the exact service identity, capability,
 			// operation grant, and run target; this exception only lets it reach
 			// those handler checks instead of granting a general service write.
 			if isResearchBudgetIngestRoute(r) && p.IsVerified() && p.Subject == orchestration.TreasuryServiceSubject {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// BAS may reach only the run-specific evidence authorization request.
+			// The handler independently checks its signed run token, persisted browser
+			// capability, opaque grant receipt, and exact one-run operation grant.
+			if (isBrowserEvidenceAuthorizationRoute(r) || isBrowserEvidenceBrokerIngestRoute(r)) && p.IsVerified() && p.Subject == orchestration.BrowserEvidenceServiceSubject {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// LPBS may resolve one exact-run BAS proof for its existing settlement
+			// reservation through this dedicated route only. The handler verifies the
+			// exact service subject and narrower settlement-attestation scope.
+			if isBrowserSettlementAttestationRoute(r) && p.IsVerified() && p.Subject == browserSettlementAttestationSubject {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -255,6 +278,13 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 				}
 			}
 			http.Error(w, "service authority does not include this operation", http.StatusForbidden)
+			return
+		}
+		if ok && p.Kind == identity.ActorAgent && p.IsVerified() && r.Method == http.MethodPost && r.URL.Path == "/api/v1/browser/record-evidence" {
+			// This route is explicitly run-agent self-report for transcript continuity.
+			// It is not BAS evidence, proof of a live browser session or billing input;
+			// the handler still requires the token subject and context principal match.
+			next.ServeHTTP(w, r)
 			return
 		}
 		// A run may attach an observed free comparator only to its own
@@ -346,6 +376,42 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 		}
 		http.Error(w, "agent authority does not include global management or approval; run review (run approve, run reject), an investigation's approved recommendations and the workspace sandbox's review result are operator decisions with no agent grant, answered in Agent Manager or the operator's decision inbox", http.StatusForbidden)
 	})
+}
+
+func isBrowserEvidenceAuthorizationRoute(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 6 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "browser" || parts[3] != "evidence" || parts[4] != "authorize" {
+		return false
+	}
+	_, err := uuid.Parse(parts[5])
+	return err == nil
+}
+
+func isBrowserEvidenceBrokerIngestRoute(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 5 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "browser" || parts[3] != "bas-evidence" {
+		return false
+	}
+	_, err := uuid.Parse(parts[4])
+	return err == nil
+}
+
+func isBrowserSettlementAttestationRoute(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 5 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "browser" || parts[3] != "settlement-attestation" {
+		return false
+	}
+	_, err := uuid.Parse(parts[4])
+	return err == nil
 }
 
 func isResearchBudgetIngestRoute(r *http.Request) bool {
@@ -512,6 +578,14 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 	}
 	if r.Method != http.MethodPost {
 		return false
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/annotations/") {
+		// Annotations are derived evidence, not run state or an operator
+		// decision. Writing them does not approve, stop or re-task a run, so an
+		// admitted agent may run a bounded annotation pass. The handler still
+		// authenticates the caller and the annotation store is scoped to the run
+		// ids the caller supplied or selected.
+		return true
 	}
 	switch r.URL.Path {
 	case apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure:

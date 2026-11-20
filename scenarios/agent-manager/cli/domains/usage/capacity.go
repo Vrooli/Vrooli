@@ -104,8 +104,10 @@ func calculateCapacity(w capacityWindow, now time.Time) capacityRow {
 		rate := b.GetPoints() / periodHours
 		count := w.RunningByModel[model]
 		roleCounts := w.RunningByModelRole[model]
-		group := capacityGroup{Model: model, Running: count, MeasuredRate: rate, HasMeasuredRate: true,
-			RunningByRole: cloneIntCounts(roleCounts), EstimatedRateByRole: map[string]float64{}}
+		group := capacityGroup{
+			Model: model, Running: count, MeasuredRate: rate, HasMeasuredRate: true,
+			RunningByRole: cloneIntCounts(roleCounts), EstimatedRateByRole: map[string]float64{},
+		}
 		if count > 0 && rate > 0 && !math.IsInf(rate, 0) && !math.IsNaN(rate) {
 			group.PerAgentRate = rate / float64(count)
 			for role, roleCount := range roleCounts {
@@ -408,6 +410,7 @@ func nestedCountsAny(values map[string]map[string]int) map[string]any {
 	}
 	return out
 }
+
 func scopeKey(provider, pool, window string) string {
 	return provider + "\x00" + pool + "\x00" + window
 }

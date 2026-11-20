@@ -49,6 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_source
     ON conversation_search_catalog(source_run_id, event_sequence, chunk_index);
 CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_visible_time
     ON conversation_search_catalog(occurred_at, document_id) WHERE visible = 1;
+-- Index freshness is the maximum indexed_at. Without this index that status
+-- query scans the full 1.2M-row catalog (measured 30.5s on 2026-11-19).
+CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_indexed_at
+    ON conversation_search_catalog(indexed_at);
+-- The semantic-eligible denominator counts visible prose/quoted chunks. Without
+-- this partial index that count scanned 1.24M rows (measured 20s on
+-- 2026-11-19) and made the 98.9% eligible ratio read as an unknown 0.
+CREATE INDEX IF NOT EXISTS idx_conversation_search_catalog_content_class
+    ON conversation_search_catalog(content_class) WHERE visible = 1;
 -- Exact coverage counts group visible chunks by message. Keep that grouping
 -- on ordered metadata rather than reading content-bearing catalog rows and
 -- building a temporary B-tree on each incremental index publication.
@@ -70,6 +79,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_search_generation_document
     ON conversation_search_generation_documents(generation_id, document_id);
 CREATE INDEX IF NOT EXISTS idx_conversation_search_generation_source
     ON conversation_search_generation_documents(generation_id, source_run_id, source_event_id);
+-- Recent-first semantic paging pages a generation newest-first. Without this
+-- index each page sorts the whole staged generation, which defeats the point of
+-- bounding an interrupted embed.
+CREATE INDEX IF NOT EXISTS idx_conversation_search_generation_recent
+    ON conversation_search_generation_documents(generation_id, occurred_at DESC, document_id DESC);
 
 -- External content: the index stores tokens only and reads text from the
 -- catalog, which removed a second full copy of every transcript chunk (0.88 GB
@@ -137,6 +151,19 @@ CREATE INDEX IF NOT EXISTS idx_conversation_search_generation_updated
 -- Qdrant is an external derived store, but its generation ownership remains
 -- durable in the conversation-search domain. Unknown physical collections
 -- are intentionally absent here and therefore quarantined by the owner API.
+--
+-- Invariant: at most one row per (namespace, alias_name) may be 'active'.
+-- It is enforced in two layers, both owned by this package:
+--   1. SaveGenerationRecord retires the previous active row in the same
+--      transaction as every active transition (qdrant_catalog.go);
+--   2. ReconcileActiveGenerations installs the partial unique index
+--      idx_conversation_search_qdrant_one_active_generation after it has
+--      reconciled legacy duplicates (qdrant_generation_guard.go).
+-- The index cannot live in this declarative file: a 2026-11-11 defect left
+-- 6,086 rows 'active' for one alias, and a boot-time CREATE UNIQUE INDEX would
+-- abort schema application before the owner could reconcile them. The
+-- state_reason / superseded_by / state_changed_at columns keep the retirement
+-- evidence instead of deleting rows.
 CREATE TABLE IF NOT EXISTS conversation_search_qdrant_generations (
     generation_id TEXT PRIMARY KEY,
     owner TEXT NOT NULL,
@@ -156,6 +183,9 @@ CREATE TABLE IF NOT EXISTS conversation_search_qdrant_generations (
     migration_sources INTEGER NOT NULL DEFAULT 0 CHECK (migration_sources >= 0),
     migration_points INTEGER NOT NULL DEFAULT 0 CHECK (migration_points >= 0),
     state TEXT NOT NULL CHECK (state IN ('building', 'candidate', 'active', 'retired', 'protected', 'expired', 'failed', 'quarantined', 'deleted')),
+    state_reason TEXT NOT NULL DEFAULT '',
+    superseded_by TEXT NOT NULL DEFAULT '',
+    state_changed_at TEXT NOT NULL DEFAULT '',
     lease_id TEXT NOT NULL DEFAULT '',
     lease_holder TEXT NOT NULL DEFAULT '',
     lease_expires_at TEXT,

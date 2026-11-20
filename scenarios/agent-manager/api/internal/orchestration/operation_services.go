@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/durability"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/spawn"
@@ -155,6 +156,10 @@ type IdentityService interface {
 	VerifyIdentityToken(context.Context, string) (*IdentityVerifyResult, error)
 }
 
+type BrowserEvidenceService interface {
+	RecordBrowserEvidence(context.Context, uuid.UUID, eventlog.Payload) error
+}
+
 type DelegationService interface {
 	MintDelegatedIdentity(context.Context, MintDelegatedIdentityRequest) (*MintDelegatedIdentityResponse, error)
 }
@@ -214,6 +219,7 @@ type HandlerServices struct {
 	OrchestrationSettingsService
 	PathValidationService
 	IdentityService
+	BrowserEvidenceService
 	DelegationService
 	RunReportService
 	RuntimeFrictionService
@@ -244,6 +250,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		OrchestrationSettingsService: orchestrator,
 		PathValidationService:        orchestrator,
 		IdentityService:              orchestrator,
+		BrowserEvidenceService:       orchestrator,
 		DelegationService:            orchestrator,
 		RunReportService:             orchestrator,
 		RuntimeFrictionService:       orchestrator,

@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/usagemodes"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/annotationfacets"
 	"agent-manager/internal/capabilities"
 	"agent-manager/internal/config"
 	"agent-manager/internal/conformance"
@@ -40,6 +41,7 @@ import (
 	"agent-manager/internal/repository"
 	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runannotations"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/storagehealth"
@@ -110,6 +112,9 @@ type RouteDependencies struct {
 		IsAvailable(context.Context) (bool, string)
 	}
 	ProviderReadiness handlers.ProviderReadinessReader
+	// Annotations mounts the data-driven run annotation JSON surface when the
+	// orchestrator has composed a pack, store, feature source and decision client.
+	Annotations *runannotations.Service
 }
 
 // SetupRoutes registers the complete HTTP surface. It intentionally owns only
@@ -216,6 +221,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
 		handlers.WithEffortEnrollments(deps.SupervisionService),
 		handlers.WithFrictionBoard(frictionBoard),
+		handlers.WithBrowserEvidenceProofVerifier(handlers.NewDiscoveredBrowserEvidenceProofVerifier()),
+		handlers.WithBrowserPaneReceiptIssuer(handlers.NewDiscoveredBrowserPaneReceiptIssuer()),
 	}
 	topicDir, topicErr := model_eval.ResolveTopicDir()
 	if deps.Orchestrator != nil && topicErr == nil {
@@ -388,6 +395,12 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 
 	routesLog := obs.Component("routes")
+	if deps.Annotations != nil {
+		handlers.NewAnnotationsHandler(deps.Annotations).
+			WithFacets(&annotationfacets.Refresher{DB: deps.DB, Service: deps.Annotations}).
+			RegisterRoutes(router)
+		routesLog.Info("annotation endpoints registered", "path", "/api/v1/annotations/*")
+	}
 	if deps.HealthStore != nil {
 		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogFreshnessReader(repoRoot)).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
@@ -425,6 +438,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			measureHandler.SetUsageActivity(database.NewUsageActivityRepository(deps.DB))
 			measureHandler.SetInterventions(interventions.NewStore(deps.DB))
 			measureHandler.SetSignals(interventions.NewStore(deps.DB))
+			measureHandler.SetAnnotations(deps.Annotations)
 			measureHandler.SetSignalControl(interventions.SignalControl{Store: interventions.NewStore(deps.DB)})
 			measureHandler.SetProgramLibrary(programlibrary.New())
 			measureHandler.SetUsageAttribution(usageStore, deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))

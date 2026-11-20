@@ -2,6 +2,7 @@ package conversationsearch
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -81,4 +82,26 @@ func TestCoverageMetadataIndexAdoptsPopulatedCatalogAndTracksVisibility(t *testi
 	docs[3].Visible = true
 	require.NoError(t, r.UpsertDocument(ctx, docs[3]))
 	assertCounts(2, 2)
+}
+
+func TestRecordSemanticCoverageKeepsLastGoodOnFailedProbe(t *testing.T) {
+	runtime := &SemanticRuntime{}
+	runtime.health.EmbeddedDocuments = 100
+	runtime.health.EligibleDocuments = 120
+
+	// A failed probe carries the last good count; publishing 0 would contradict
+	// the vectors the collection still serves.
+	runtime.recordSemanticCoverage(t.Context(), 0, errors.New("context deadline exceeded"))
+	if runtime.health.EmbeddedDocuments != 100 {
+		t.Fatalf("failed probe replaced a known count with %d", runtime.health.EmbeddedDocuments)
+	}
+	// A successful empty read is genuinely zero.
+	runtime.recordSemanticCoverage(t.Context(), 0, nil)
+	if runtime.health.EmbeddedDocuments != 0 {
+		t.Fatalf("successful empty probe kept %d", runtime.health.EmbeddedDocuments)
+	}
+	runtime.recordSemanticCoverage(t.Context(), 50, nil)
+	if runtime.health.EmbeddedDocuments != 50 {
+		t.Fatalf("successful probe recorded %d", runtime.health.EmbeddedDocuments)
+	}
 }

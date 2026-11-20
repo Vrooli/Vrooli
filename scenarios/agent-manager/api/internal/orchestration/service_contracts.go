@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/invocationreadmodel"
@@ -147,19 +148,20 @@ type CreateRunRequest struct {
 	MaxToolCalls *int    `json:"maxToolCalls,omitempty"`
 	// MaxWeightedTokens lowers the profile's weighted-token cap; it can never
 	// raise it.
-	MaxWeightedTokens    *int64                  `json:"maxWeightedTokens,omitempty"`
-	Timeout              *time.Duration          `json:"timeout,omitempty"`
-	Model                *string                 `json:"model,omitempty"`
-	PreferredRunner      string                  `json:"preferredRunner,omitempty"`
-	Effort               *domain.Effort          `json:"effort,omitempty"`
-	AllowedTools         []string                `json:"allowedTools,omitempty"`
-	DeniedTools          []string                `json:"deniedTools,omitempty"`
-	SkipPermissionPrompt *bool                   `json:"skipPermissionPrompt,omitempty"`
-	EnableBrowser        *bool                   `json:"enableBrowser,omitempty"`
-	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
-	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
-	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
-	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
+	MaxWeightedTokens    *int64                        `json:"maxWeightedTokens,omitempty"`
+	Timeout              *time.Duration                `json:"timeout,omitempty"`
+	Model                *string                       `json:"model,omitempty"`
+	PreferredRunner      string                        `json:"preferredRunner,omitempty"`
+	Effort               *domain.Effort                `json:"effort,omitempty"`
+	AllowedTools         []string                      `json:"allowedTools,omitempty"`
+	DeniedTools          []string                      `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool                         `json:"skipPermissionPrompt,omitempty"`
+	EnableBrowser        *bool                         `json:"enableBrowser,omitempty"`
+	BrowserCapability    *browsercapability.Capability `json:"browserCapability,omitempty"`
+	ExtraFlags           domain.RunnerExtraFlags       `json:"extraFlags,omitempty"`
+	NetworkAccess        *domain.NetworkAccess         `json:"networkAccess,omitempty"`
+	AllowedPaths         []string                      `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string                      `json:"deniedPaths,omitempty"`
 	// AllowedEffects is inherited from an owner-issued workflow grant. It is
 	// validated before a run is persisted and cannot be widened by a child.
 	AllowedEffects           []string           `json:"allowedEffects,omitempty"`

@@ -6,6 +6,8 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 )
 
 // codexEffortMappings are the reasoning-effort values Codex documents for its
@@ -145,11 +147,33 @@ func grokControlArgs(cfg *domain.RunConfig) ([]string, error) {
 }
 
 func opencodeControlArgs(cfg *domain.RunConfig) ([]string, error) {
+	return opencodeControlArgsFor(opencodeversion.FromMajor(1), cfg)
+}
+
+func opencodeControlArgsFor(caps opencodeversion.Capabilities, cfg *domain.RunConfig) ([]string, error) {
 	if cfg == nil {
 		return nil, nil
 	}
 	args := make([]string, 0, 4)
 	model := strings.TrimSpace(cfg.Model)
+	if caps.Variant == opencodeversion.VariantModelSuffix {
+		// OpenCode 2 expresses a variant inside the model reference. There is no
+		// separate --variant flag, so a requested effort without a concrete
+		// model is unrepresentable and must fail before launch.
+		if cfg.Effort != "" {
+			if model == "" {
+				return nil, fmt.Errorf("opencode 2 effort %q requires a concrete model to carry the variant", cfg.Effort)
+			}
+			if !openCodeVariantSupported(model, cfg.Effort) {
+				return nil, fmt.Errorf("opencode model %q has no documented variant for effort %q", model, cfg.Effort)
+			}
+			model += "#" + string(cfg.Effort)
+		}
+		if model != "" {
+			args = append(args, "-m", model)
+		}
+		return args, nil
+	}
 	{
 		if model != "" {
 			args = append(args, "-m", model)

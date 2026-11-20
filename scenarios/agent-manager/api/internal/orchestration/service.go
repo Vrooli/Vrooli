@@ -63,6 +63,8 @@ type Orchestrator struct {
 	// intentionally a simple whole-row update, so two waiter notifications that
 	// arrive concurrently must not both observe parked and start continuations.
 	wakeMu                            sync.Mutex
+	browserPaneControlMu              sync.Mutex
+	browserPaneControls               map[uuid.UUID]*browserPaneControlLease
 	serialScanMu                      sync.Mutex
 	serialScanFrom, serialScanThrough time.Time
 	serialScanOffset                  int

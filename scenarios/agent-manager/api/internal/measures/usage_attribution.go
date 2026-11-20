@@ -344,6 +344,15 @@ func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measur
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
+	if h.annotations != nil {
+		if report, coverageErr := h.annotations.Coverage(ctx, friction.Since.UTC().Format(time.RFC3339)); coverageErr == nil {
+			response.InferredAnnotations = protoInferredAnnotations(report)
+		} else {
+			response.InferredAnnotations = &measurepb.UsageInferredAnnotations{
+				Note: "annotation coverage unavailable for this window: " + coverageErr.Error(),
+			}
+		}
+	}
 	response.Validity = h.validityForSample(int64(friction.Tools.Coverage.Commands))
 	filters := []*measurepb.MeasureFilter{{Field: "status", Value: status}}
 	if owner != "" {

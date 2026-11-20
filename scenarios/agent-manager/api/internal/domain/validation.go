@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"agent-manager/internal/browsercapability"
 	"github.com/google/uuid"
 )
 
@@ -253,6 +254,11 @@ func (p *AgentProfile) Validate() error {
 
 	if err := validateExtraFlagsStructure(p.ExtraFlags); err != nil {
 		return err
+	}
+	if capability := p.Features.BrowserCapability; capability != nil {
+		if err := browsercapability.Validate(*capability); err != nil {
+			return NewValidationErrorWithHint("features.browserCapability", err.Error(), "choose an eligible browser mode, permission profile and bounded budget")
+		}
 	}
 
 	return nil

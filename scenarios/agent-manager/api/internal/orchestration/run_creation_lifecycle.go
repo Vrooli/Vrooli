@@ -83,6 +83,29 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 	return o.attachRunActionsList(ctx, runs), nil
 }
 
+// ListRunsByWebConsoleThread resolves the persisted association index first,
+// then applies the immutable thread selector. Unlike ListRuns this is not
+// paginated: callers must inspect every run attached to the exact workspace
+// session to detect duplicate/ambiguous associations safely.
+func (o *Orchestrator) ListRunsByWebConsoleThread(ctx context.Context, webConsoleSessionID, threadID string) ([]*domain.Run, error) {
+	webConsoleSessionID = strings.TrimSpace(webConsoleSessionID)
+	threadID = strings.TrimSpace(threadID)
+	if webConsoleSessionID == "" || threadID == "" {
+		return nil, nil
+	}
+	runs, err := o.runs.ListByWebConsoleSessionIDs(ctx, []string{webConsoleSessionID})
+	if err != nil {
+		return nil, err
+	}
+	matched := make([]*domain.Run, 0, 1)
+	for _, run := range runs {
+		if run != nil && run.WebConsoleSessionID == webConsoleSessionID && run.SessionID == threadID {
+			matched = append(matched, run)
+		}
+	}
+	return matched, nil
+}
+
 // CountRuns returns how many runs match opts, ignoring Limit and Offset.
 func (o *Orchestrator) CountRuns(ctx context.Context, opts RunListOptions) (int, error) {
 	return o.runs.Count(ctx, opts.repositoryFilter())

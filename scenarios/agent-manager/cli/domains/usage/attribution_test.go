@@ -29,6 +29,8 @@ type attributionFixture struct {
 	friction *measurepb.UsageFrictionRequest
 	// interventions is the operator interventions section the friction fixture serves.
 	interventions *measurepb.UsageInterventions
+	// inferred is the gated annotation section the friction fixture serves.
+	inferred *measurepb.UsageInferredAnnotations
 }
 
 func (f *attributionFixture) UsageFriction(_ context.Context, req *connect.Request[measurepb.UsageFrictionRequest]) (*connect.Response[measurepb.UsageFrictionResponse], error) {
@@ -55,7 +57,8 @@ func (f *attributionFixture) UsageFriction(_ context.Context, req *connect.Reque
 			},
 			{Fingerprint: "bypa55", Kind: "bypass", Owner: "agent-manager", Description: "Agents reach around agent-manager's CLI: 968 database in 4 runs; 62% of it in one run, so its cost counts that run at most 10x the median run", Calls: 968, Runs: 4, CostUnit: "calls", Cost: 130, CostShare: 0.02, TopRunShare: 0.62, Status: "open"},
 		},
-		Interventions: f.interventions,
+		Interventions:       f.interventions,
+		InferredAnnotations: f.inferred,
 	}), nil
 }
 
@@ -294,7 +297,7 @@ func TestUsageFrictionListsPlainProblemsWithOwnerCostAndStatus(t *testing.T) {
 		OperatorMessages: 120, Classified: 108, Coverage: 0.9, AgentHours: 40,
 		UnshownReason: "no category has passed the accuracy gate yet, so the classified messages are not shown",
 	}}
-	out := runUsageCommand(t, fixture, frictionCommand, "--status", "open", "--limit", "5", "--since", "2026-10-22T06:00:00Z")
+	out := runFrictionCommand(t, fixture, "--status", "open", "--limit", "5", "--since", "2026-10-22T06:00:00Z")
 	if f := fixture.friction; f.GetStatus() != "open" || f.GetLimit() != 5 || f.GetSince() != "2026-10-22T06:00:00Z" {
 		t.Fatalf("request = %v", f)
 	}
@@ -336,7 +339,7 @@ func TestUsageFrictionShowsAdmittedInterventionsWithOwnerWorkAndExamples(t *test
 		Categories: []*measurepb.UsageInterventionCategory{{Category: "quality_miss", Owner: "proof before claim: scientific-debugging", Interventions: 20, PerAgentHour: 0.5, Repeats: 3, WorkRequests: 80, WorkToolCalls: 55, WorkTokens: 1_200_000}},
 		Examples:   []*measurepb.UsageInterventionExample{{Category: "quality_miss", RunId: "run-7", Text: "Still broken on mobile", RepeatOfEventId: "evt-1"}},
 	}}
-	out := runUsageCommand(t, fixture, frictionCommand)
+	out := runFrictionCommand(t, fixture)
 	assertContains(t, out,
 		"quality_miss · 20 (0.50 per agent-hour) · owner proof before claim: scientific-debugging · agent work before: 80 requests, 55 tool calls, 1.2M tokens · 3 repeat reports",
 		`e.g. [quality_miss] "Still broken on mobile"  run run-7 (agent-manager run report run-7) · repeats evt-1`,
@@ -356,7 +359,7 @@ func TestUsageFrictionShowsProvenOperatorCorrectionsBesideUnprovenCategories(t *
 			{RunId: "run-9", Text: "That's far too small; take the whole migration", Category: "explicit_negative"},
 		}},
 	}}
-	out := runUsageCommand(t, fixture, frictionCommand)
+	out := runFrictionCommand(t, fixture)
 	assertContains(t, out,
 		"corrections and failure reports · 45 of 306 classified messages (0.07 per agent-hour) · hold-out precision 0.81, recall 0.94",
 		`e.g. "That's far too small; take the whole migration"  run run-9 (agent-manager run report run-9)`,
@@ -424,10 +427,38 @@ func TestUsageFrictionLabelsThePooledBucketAndItsHintsUnproven(t *testing.T) {
 		Categories: []*measurepb.UsageInterventionCategory{{Category: "operator_friction", Pooled: true, Interventions: 18, PerAgentHour: 0.45, Hints: []*measurepb.UsageInterventionHint{{Category: "quality_miss", Owner: "scientific-debugging", Count: 11}}}},
 		Examples:   []*measurepb.UsageInterventionExample{{Category: "quality_miss", Pooled: true, RunId: "run-7", Text: "Still broken"}},
 	}}
-	out := runUsageCommand(t, fixture, frictionCommand)
+	out := runFrictionCommand(t, fixture)
 	assertContains(t, out,
 		"operator friction (category unproven) · 18 (0.45 per agent-hour) · owners by hint",
 		"hint (unproven): 11 look like quality_miss · owner scientific-debugging",
 		`e.g. [quality_miss, unproven] "Still broken"`,
 	)
+}
+
+// runFrictionCommand reads the inferred annotations from the same response the
+// finding list comes from, so an empty section must read as unknown, not zero.
+func runFrictionCommand(t *testing.T, fixture *attributionFixture, args ...string) string {
+	t.Helper()
+	if fixture.inferred == nil {
+		fixture.inferred = &measurepb.UsageInferredAnnotations{}
+	}
+	path, handler := measureconnect.NewMeasuresServiceHandler(fixture)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	cmd := frictionCommand(
+		func(*cliapp.ScenarioApp) measureconnect.MeasuresServiceClient {
+			return measureconnect.NewMeasuresServiceClient(server.Client(), server.URL)
+		},
+	)
+	var stdout bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(cmd.Args, args, nil, &stdout, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunCtx(ctx); err != nil {
+		t.Fatalf("usage friction %v: %v", args, err)
+	}
+	return stdout.String()
 }

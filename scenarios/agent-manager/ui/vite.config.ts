@@ -7,10 +7,22 @@ import { sourceLibraryResolver } from "../../../packages/react-component-library
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const libraryRoot = resolve(rootDir, "../../../scenarios/react-component-library/library");
-const libraryDependencyAliases = ["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
-  find: name,
-  replacement: resolve(rootDir, "node_modules", name),
-}));
+const apiBaseRoot = resolve(rootDir, "node_modules/@vrooli/api-base");
+// Library sources import runtime packages as bare specifiers. They resolve
+// against the application that bundles them, not against the authored library
+// directory, so every such package the library uses is aliased here.
+const libraryDependencyAliases = [
+  { find: "@vrooli/api-base/notifications/react", replacement: resolve(apiBaseRoot, "dist/client/notification-preferences-react.js") },
+  { find: "@vrooli/api-base/notifications", replacement: resolve(apiBaseRoot, "dist/client/notification-preferences.js") },
+  // Exact match: a prefix alias rewrote legitimate subpath exports such as
+  // `@vrooli/api-base/testing` into `dist/index.js/testing`, which broke the
+  // shared test harness in every scenario that used it.
+  { find: /^@vrooli\/api-base$/, replacement: resolve(apiBaseRoot, "dist/index.js") },
+  ...["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
+    find: name,
+    replacement: resolve(rootDir, "node_modules", name),
+  })),
+];
 
 export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), "");

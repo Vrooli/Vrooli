@@ -355,6 +355,34 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	gate := maintenance.NewGate(maintenance.NewRepository(db))
 
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
+	// Hold the woken turn open until the test inspects its environment. The
+	// token is a live run credential: verifying it after the continuation
+	// completes would race the (correct) revoke-on-terminal behavior.
+	releaseTurn := make(chan struct{})
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		captureMu.Lock()
+		*captured = req
+		captureMu.Unlock()
+		close(done)
+		select {
+		case <-releaseTurn:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return &runner.ExecuteResult{
+			Success:   true,
+			ExitCode:  0,
+			SessionID: req.SessionID,
+			Summary:   &domain.RunSummary{Description: "Mock continuation completed"},
+		}, nil
+	}
+	t.Cleanup(func() {
+		select {
+		case <-releaseTurn:
+		default:
+			close(releaseTurn)
+		}
+	})
 	registry := runner.NewRegistry()
 	if err := registry.Register(mockRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
@@ -463,8 +491,10 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 		t.Fatalf("VerifyIdentityToken: %v", verr)
 	}
 	if !res.Valid || res.Claims == nil || res.Claims.RunID != run.ID {
-		t.Errorf("woken identity token does not validate/bind to the run: valid=%v claims=%+v", res.Valid, res.Claims)
+		t.Errorf("woken identity token does not validate/bind to the run: valid=%v claims=%+v error=%q", res.Valid, res.Claims, res.Error)
 	}
+	// Let the woken turn finish only after its credential was proven live.
+	close(releaseTurn)
 }
 
 func TestWakeEffortCheckinCommitsQueuedCursorWithRetainedRunWake(t *testing.T) {

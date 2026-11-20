@@ -19,7 +19,9 @@ func (t RunEventType) IsTypedOperationalEvent() bool {
 		EventTypeSandboxOperation,
 		EventTypeHeartbeatMiss,
 		EventTypeCheckpointFailure,
-		EventTypeRetryAttempt:
+		EventTypeRetryAttempt,
+		EventTypeBrowserSession,
+		EventTypeBrowserAction:
 		return true
 	}
 	return false

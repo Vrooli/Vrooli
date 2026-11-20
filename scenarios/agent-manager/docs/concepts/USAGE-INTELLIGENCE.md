@@ -788,6 +788,11 @@ them to one scenario (`agent-manager.friction-digest` reads it per scenario).
 
 ### Friction
 
+Inferred run annotations (data-driven labels, evaluator packs, per-label gates and the
+shared capacity-aware scheduler) are documented in
+[RUN-ANNOTATIONS.md](RUN-ANNOTATIONS.md). The deterministic tool and runtime lenses remain
+the backbone; an inferred label produces a rate only after its gate passes.
+
 `UsageFriction` (`agent-manager usage friction`) lists the tool findings of
 its window, each with its owner, a plain sentence, counts, cost, evidence runs
 and redacted example commands, and a durable status: `open`, `reported` (with

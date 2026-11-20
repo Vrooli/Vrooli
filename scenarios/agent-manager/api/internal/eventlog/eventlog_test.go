@@ -99,6 +99,8 @@ func TestAllPhase1EventTypesAreRegistered(t *testing.T) {
 		domain.EventTypeHeartbeatMiss,
 		domain.EventTypeCheckpointFailure,
 		domain.EventTypeRetryAttempt,
+		domain.EventTypeBrowserSession,
+		domain.EventTypeBrowserAction,
 	}
 	for _, et := range expected {
 		if v := LatestSchemaVersion(et); v == 0 {
@@ -162,6 +164,8 @@ func TestRoundTrip_PerEventType(t *testing.T) {
 		{"heartbeat.miss", HeartbeatMissPayload{Target: HeartbeatTargetRun, AttemptNo: 1, Message: "db locked"}},
 		{"checkpoint.failure", CheckpointFailurePayload{Phase: "running", Step: CheckpointFailureSavePhase, Message: "io error"}},
 		{"retry.attempt", RetryAttemptPayload{Operation: "execute", AttemptNo: 1, MaxAttempts: 3, Reason: "network_transient"}},
+		{"browser.session", BrowserSessionPayload{SessionID: "session-1", Mode: "managed", PermissionProfile: "observe", State: "opened", ReportedBy: "browser-automation-studio"}},
+		{"browser.action", BrowserActionPayload{SessionID: "session-1", Mode: "managed", PermissionProfile: "observe", Action: "observe", Outcome: "completed", ReportedBy: "browser-automation-studio"}},
 	}
 
 	for i, tc := range cases {
@@ -249,6 +253,8 @@ func TestEmitterWritesEveryTypedConveniencePayload(t *testing.T) {
 	emitter.EmitHeartbeatMiss(HeartbeatMissPayload{})
 	emitter.EmitCheckpointFailure(CheckpointFailurePayload{})
 	emitter.EmitRetryAttempt(RetryAttemptPayload{})
+	emitter.EmitBrowserSession(BrowserSessionPayload{})
+	emitter.EmitBrowserAction(BrowserActionPayload{})
 	if len(sink.events) != len(typedEventTypes) {
 		t.Fatalf("emitted events = %d, want %d", len(sink.events), len(typedEventTypes))
 	}

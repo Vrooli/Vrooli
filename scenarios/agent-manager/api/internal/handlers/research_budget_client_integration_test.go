@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,6 +41,27 @@ const (
 // the module internal-package boundary through Treasury's real authenticated
 // client. It first proves request-only refusal, then applies an explicit Hub
 // resolution and proves the same client can write only the approved run's data.
+// repositoryRoot walks up from the test's working directory to the checkout.
+// Deriving it from runtime.Caller breaks under -trimpath, where the recorded
+// source path is relative and names no checkout.
+func repositoryRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("working directory: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("no repository root above %s", dir)
+		}
+		dir = parent
+	}
+}
+
 func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *testing.T) {
 	db, runID := researchBudgetIngressDB(t)
 	for _, statement := range []string{
@@ -90,11 +110,7 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 		t.Helper()
 		cmdCtx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 		defer cancel()
-		_, sourceFile, _, ok := runtime.Caller(0)
-		if !ok {
-			t.Fatal("resolve test source path")
-		}
-		repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+		repoRoot := repositoryRoot(t)
 		cmd := exec.CommandContext(cmdCtx, "go", "test", "./internal/researchbudget", "-run", "^TestCF7RequestOnlyBridgeClient$", "-count=1")
 		cmd.Dir = filepath.Join(repoRoot, "scenarios/treasury/api")
 		cmd.Env = append(os.Environ(),

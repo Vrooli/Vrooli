@@ -1487,30 +1487,3 @@ func (o *Orchestrator) SimulateWorkflow(ctx context.Context, req SimulateWorkflo
 	}
 	return result, nil
 }
-
-func (o *Orchestrator) persistedWorkflowChild(ctx context.Context, executionID, attemptID uuid.UUID) (*domain.Run, error) {
-	if o.runs == nil {
-		return nil, nil
-	}
-	rows, err := o.runs.ListByTask(ctx, uuid.NewSHA1(attemptID, []byte("workflow-node-task")), repository.ListFilter{Limit: 2})
-	if err != nil {
-		return nil, err
-	}
-	if len(rows) > 1 {
-		return nil, fmt.Errorf("workflow attempt has ambiguous persisted children")
-	}
-	if len(rows) == 0 {
-		return nil, nil
-	}
-	child, err := o.runs.Get(ctx, rows[0].ID)
-	if err != nil {
-		return nil, err
-	}
-	if child == nil {
-		return nil, fmt.Errorf("persisted workflow child disappeared")
-	}
-	if child.CustomEnv[workflowAttemptEnv] != attemptID.String() || child.CustomEnv[workflowExecutionEnv] != executionID.String() {
-		return nil, fmt.Errorf("workflow task child provenance mismatch")
-	}
-	return child, nil
-}

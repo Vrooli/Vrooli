@@ -15,6 +15,7 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/runannotations"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
@@ -384,6 +385,7 @@ type Handler struct {
 	runRebaser          RunRebaser
 	roleProposer        RoleProposer
 	signalControl       SignalControl
+	annotations         *runannotations.Service
 }
 
 func (h *Handler) SetConversationSearchQuality(service *conversationsearch.Service, indexer *conversationsearch.Indexer) {
@@ -1111,6 +1113,9 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		return nil, err
 	}
 	if err := h.registerOperatorSignals(registry); err != nil {
+		return nil, err
+	}
+	if err := h.registerAnnotationMeasures(registry); err != nil {
 		return nil, err
 	}
 	if err := h.registerOpportunities(registry); err != nil {

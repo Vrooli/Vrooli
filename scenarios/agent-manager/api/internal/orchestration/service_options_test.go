@@ -89,6 +89,26 @@ func TestResumeRunExecutesPendingInPlaceRunThroughDispatcher(t *testing.T) {
 		t.Fatal(err)
 	}
 	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	// The default mock finishes instantly, so the accepted snapshot can race
+	// the terminal write and read as complete. Gate execution until the test
+	// has asserted the accepted state; the run still completes afterwards.
+	release := make(chan struct{})
+	mock.ExecuteFunc = func(ctx context.Context, _ runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
+	mock.ContinueFunc = func(ctx context.Context, _ runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return &runner.ExecuteResult{Success: true, ExitCode: 0}, nil
+	}
 	registry := runner.NewRegistry()
 	if err := registry.Register(mock); err != nil {
 		t.Fatal(err)
@@ -106,6 +126,7 @@ func TestResumeRunExecutesPendingInPlaceRunThroughDispatcher(t *testing.T) {
 	if accepted.Status != domain.RunStatusRunning {
 		t.Fatalf("accepted status = %s, want running", accepted.Status)
 	}
+	close(release)
 	deadline := time.Now().Add(5 * time.Second)
 	var last *domain.Run
 	for time.Now().Before(deadline) {

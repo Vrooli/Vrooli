@@ -135,7 +135,11 @@ func (a *ConversationSearchAdapter) SearchConversations(ctx context.Context, req
 			output.Coverage.PendingDocuments = status.PendingChanges
 			output.Coverage.DeletedDocuments = status.DeletedDocuments
 			output.Coverage.OrphanDocuments = status.OrphanDocuments
-			output.Coverage.SemanticRatio = coverageRatio(status.SemanticDocuments, status.CatalogDocuments)
+			semanticBase := status.SemanticEligibleDocuments
+			if semanticBase == 0 {
+				semanticBase = status.CatalogDocuments
+			}
+			output.Coverage.SemanticRatio = coverageRatio(status.SemanticDocuments, semanticBase)
 			if !status.LastSuccessAt.IsZero() {
 				output.Coverage.LastReconciledAt = timestamppb.New(status.LastSuccessAt)
 				if lag := time.Since(status.LastSuccessAt); lag > 0 {
@@ -337,17 +341,20 @@ func (a *ConversationSearchAdapter) GetConversationIndexStatus(ctx context.Conte
 	if a == nil || a.service == nil {
 		return nil, fmt.Errorf("conversation search is unavailable")
 	}
-	visibleMessages, catalogDocuments, lexicalDocuments, err := a.service.Status(ctx)
-	if err != nil {
-		return nil, err
-	}
 	response := &domainpb.GetConversationIndexStatusResponse{
-		State: domainpb.ConversationIndexState_CONVERSATION_INDEX_STATE_READY,
-		Coverage: &domainpb.ConversationSearchCoverage{
-			CanonicalVisibleMessages: visibleMessages, CatalogDocuments: catalogDocuments,
-			LexicalDocuments: lexicalDocuments, LexicalRatio: coverageRatio(lexicalDocuments, catalogDocuments),
-		},
+		State:         domainpb.ConversationIndexState_CONVERSATION_INDEX_STATE_READY,
+		Coverage:      &domainpb.ConversationSearchCoverage{},
 		RecipeVersion: conversationsearch.DefaultRecipeVersion,
+	}
+	if a.indexer == nil {
+		visibleMessages, catalogDocuments, lexicalDocuments, err := a.service.Status(ctx)
+		if err != nil {
+			return nil, err
+		}
+		response.Coverage.CanonicalVisibleMessages = visibleMessages
+		response.Coverage.CatalogDocuments = catalogDocuments
+		response.Coverage.LexicalDocuments = lexicalDocuments
+		response.Coverage.LexicalRatio = coverageRatio(lexicalDocuments, catalogDocuments)
 	}
 	if a.indexer != nil {
 		status, statusErr := a.indexer.StatusSnapshot(ctx)
@@ -362,7 +369,11 @@ func (a *ConversationSearchAdapter) GetConversationIndexStatus(ctx context.Conte
 		response.Coverage.DeletedDocuments = status.DeletedDocuments
 		response.Coverage.OrphanDocuments = status.OrphanDocuments
 		response.Coverage.LexicalRatio = coverageRatio(status.LexicalDocuments, status.CatalogDocuments)
-		response.Coverage.SemanticRatio = coverageRatio(status.SemanticDocuments, status.CatalogDocuments)
+		semanticBase := status.SemanticEligibleDocuments
+		if semanticBase == 0 {
+			semanticBase = status.CatalogDocuments
+		}
+		response.Coverage.SemanticRatio = coverageRatio(status.SemanticDocuments, semanticBase)
 		response.ActiveGeneration = status.ActiveGeneration
 		response.CandidateGeneration = status.CandidateGeneration
 		response.CollectionName = status.CollectionName
@@ -563,7 +574,10 @@ func timestampPointer(value *timestamppb.Timestamp) *time.Time {
 
 func coverageRatio(indexed, visible uint64) float64 {
 	if visible == 0 {
-		return 1
+		// No visible documents is not complete coverage; it is an empty or
+		// still-warming projection. Reporting 1 here made a zero-count status
+		// read as "100% covered".
+		return 0
 	}
 	return float64(indexed) / float64(visible)
 }

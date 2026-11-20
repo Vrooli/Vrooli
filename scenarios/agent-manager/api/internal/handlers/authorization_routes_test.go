@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
@@ -300,6 +301,38 @@ func TestPolicyValidationAndPreviewReadsDoNotOpenMutationRoutes(t *testing.T) {
 			wantReached := tc.wantStatus == http.StatusNoContent
 			if w.Code != tc.wantStatus || reached != wantReached {
 				t.Fatalf("status=%d reached=%v want status=%d", w.Code, reached, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestOnlyNamedServicesReachTheirExactBrowserEvidenceRoutes(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, subject string
+		kind                identity.ActorKind
+		want                int
+	}{
+		{"BAS exact grant request", "/api/v1/browser/evidence/authorize/123e4567-e89b-12d3-a456-426614174000", orchestration.BrowserEvidenceServiceSubject, identity.ActorService, http.StatusNoContent},
+		{"BAS exact broker ingest", "/api/v1/browser/bas-evidence/123e4567-e89b-12d3-a456-426614174000", orchestration.BrowserEvidenceServiceSubject, identity.ActorService, http.StatusNoContent},
+		{"LPBS exact settlement attestation", "/api/v1/browser/settlement-attestation/123e4567-e89b-12d3-a456-426614174000", browserSettlementAttestationSubject, identity.ActorService, http.StatusNoContent},
+		{"LPBS wildcard attestation", "/api/v1/browser/settlement-attestation/*", browserSettlementAttestationSubject, identity.ActorService, http.StatusForbidden},
+		{"BAS cannot call LPBS attestation", "/api/v1/browser/settlement-attestation/123e4567-e89b-12d3-a456-426614174000", orchestration.BrowserEvidenceServiceSubject, identity.ActorService, http.StatusForbidden},
+		{"BAS wildcard", "/api/v1/browser/evidence/authorize/*", orchestration.BrowserEvidenceServiceSubject, identity.ActorService, http.StatusForbidden},
+		{"other service", "/api/v1/browser/evidence/authorize/123e4567-e89b-12d3-a456-426614174000", "other-service", identity.ActorService, http.StatusForbidden},
+		{"BAS on run-agent route", "/api/v1/browser/record-evidence", orchestration.BrowserEvidenceServiceSubject, identity.ActorService, http.StatusForbidden},
+		{"verified run on self-report route", "/api/v1/browser/record-evidence", "123e4567-e89b-12d3-a456-426614174000", identity.ActorAgent, http.StatusNoContent},
+		{"run cannot call BAS ingest", "/api/v1/browser/bas-evidence/123e4567-e89b-12d3-a456-426614174000", "123e4567-e89b-12d3-a456-426614174000", identity.ActorAgent, http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reached := false
+			h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached = true; w.WriteHeader(http.StatusNoContent) }))
+			req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+			p := identity.Principal{Kind: tc.kind, Subject: tc.subject, Verified: true, Scopes: []string{"agent-manager:write"}}
+			req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+			if w.Code != tc.want || reached != (tc.want == http.StatusNoContent) {
+				t.Fatalf("status=%d reached=%v want=%d", w.Code, reached, tc.want)
 			}
 		})
 	}

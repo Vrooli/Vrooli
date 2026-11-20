@@ -49,7 +49,7 @@ func TestRunProjectionUsesTaskTransitionOwnerAndExactObservedState(t *testing.T)
 		t.Fatal(err)
 	}
 
-	tx, err := db.DB.BeginTxx(ctx, nil)
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestRunProjectionUsesTaskTransitionOwnerAndExactObservedState(t *testing.T)
 		t.Fatal(err)
 	}
 
-	tx, err = db.DB.BeginTxx(ctx, nil)
+	tx, err = db.BeginTxx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

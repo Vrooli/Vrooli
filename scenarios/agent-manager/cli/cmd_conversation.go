@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -209,10 +210,12 @@ func (a *App) conversationIndex(args []string) error {
 		return a.conversationIndexStatus(args[1:])
 	case "reindex":
 		return a.conversationReindex(args[1:])
+	case "repair":
+		return a.conversationIndexRepair(args[1:])
 	case "cancel":
 		return a.conversationReindexCancel(args[1:])
 	default:
-		return fmt.Errorf("unknown conversation index subcommand %q; expected status, reindex, or cancel", args[0])
+		return fmt.Errorf("unknown conversation index subcommand %q; expected status, reindex, repair, or cancel", args[0])
 	}
 }
 
@@ -229,6 +232,20 @@ func (a *App) conversationIndexStatus(args []string) error {
 	if err != nil {
 		return err
 	}
+	// The API serves the last projection and refreshes it in the background, so
+	// the first call after a restart can be a warming note. Give the refresh a
+	// short, bounded chance instead of printing an empty index.
+	for attempt := 0; attempt < 4; attempt++ {
+		lastError := response.GetLastErrorCode()
+		empty := response.GetCoverage().GetCatalogDocuments() == 0
+		if !strings.Contains(lastError, "warming up") && !(empty && strings.Contains(lastError, "recovery pending")) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+		if response, err = a.services.Conversation.Status(); err != nil {
+			return err
+		}
+	}
 	if *jsonOutput {
 		return printConversationJSON(response)
 	}
@@ -242,9 +259,104 @@ func (a *App) conversationIndexStatus(args []string) error {
 	if response.GetLastErrorCode() != "" {
 		fmt.Printf("  last_error=%s\n", response.GetLastErrorCode())
 	}
+	for _, dependency := range response.GetDegradedDependencies() {
+		fmt.Printf("  degraded_dependency=%s\n", safeTerminalText(dependency))
+	}
 	printConversationParseFailures(response.GetParseFailures())
 	printConversationPolicyCounters(response.GetPolicyCounters())
 	printConversationDegradations(response.GetDegradations())
+	return nil
+}
+
+// conversationIndexRepair exercises the owner's idempotent generation repair
+// and reports the result. Reconciliation itself runs server-side (on startup
+// and on every status request) because the CLI has no database or Qdrant
+// access; --rebuild escalates to the existing full reindex so a fresh semantic
+// generation can be embedded when no active generation has a verified recipe.
+func (a *App) conversationIndexRepair(args []string) error {
+	fs := flag.NewFlagSet("conversation index repair", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	rebuild := fs.Bool("rebuild", false, "Start a full reindex so a fresh semantic generation is embedded")
+	controlToken := fs.String("control-token", strings.TrimSpace(os.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return errorsUsage("conversation index repair accepts no positional arguments")
+	}
+	token := strings.TrimSpace(*controlToken)
+	if *rebuild && token == "" {
+		return errorsUsage("--rebuild requires a control token via --control-token or AGENT_MANAGER_SEARCH_CONTROL_TOKEN")
+	}
+	status, err := a.services.Conversation.Status()
+	if err != nil {
+		return err
+	}
+	var reindex *domainpb.ConversationReindexResponse
+	if *rebuild {
+		reindex, err = a.services.Conversation.Reindex(&domainpb.ReindexConversationsRequest{
+			Full: true, IdempotencyKey: "conversation-index-repair", ControlToken: token,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	semantic := status.GetCoverage().GetSemanticDocuments()
+	healthy := status.GetActiveGeneration() != "" && semantic > 0 && len(status.GetDegradedDependencies()) == 0
+	summary := conversationIndexRepairSummary(status, reindex, semantic)
+	if *jsonOutput {
+		return printConversationRepairJSON(status, reindex, healthy, summary)
+	}
+	fmt.Println("Conversation index repair (the server reconciles generations on every status request):")
+	fmt.Printf("  generation=%s collection=%s model=%s\n", status.GetActiveGeneration(), status.GetCollectionName(), status.GetEmbeddingModel())
+	fmt.Printf("  semantic=%d/%d (%.1f%%) lexical=%d/%d\n",
+		semantic, status.GetCoverage().GetCatalogDocuments(),
+		status.GetCoverage().GetSemanticRatio()*100,
+		status.GetCoverage().GetLexicalDocuments(), status.GetCoverage().GetCatalogDocuments())
+	for _, dependency := range status.GetDegradedDependencies() {
+		fmt.Printf("  degraded_dependency=%s\n", safeTerminalText(dependency))
+	}
+	if reindex != nil {
+		printConversationReindex(reindex)
+	}
+	fmt.Println(summary)
+	if semantic == 0 && reindex == nil {
+		return fmt.Errorf("semantic index is still empty: %s; rerun with --rebuild to embed a fresh generation", summary)
+	}
+	return nil
+}
+
+func conversationIndexRepairSummary(status *domainpb.GetConversationIndexStatusResponse, reindex *domainpb.ConversationReindexResponse, semantic uint64) string {
+	switch {
+	case status.GetActiveGeneration() == "":
+		return "no active conversation generation is recorded"
+	case semantic > 0 && len(status.GetDegradedDependencies()) == 0:
+		return fmt.Sprintf("semantic search serves %d documents from %s", semantic, status.GetActiveGeneration())
+	case reindex != nil:
+		return fmt.Sprintf("full reindex %s queued to embed a fresh generation", reindex.GetOperationId())
+	case semantic > 0:
+		return fmt.Sprintf("semantic search serves %d documents but the generation catalog needs attention", semantic)
+	default:
+		return "semantic coverage is 0 and no verified active generation provides vectors"
+	}
+}
+
+func printConversationRepairJSON(status *domainpb.GetConversationIndexStatusResponse, reindex *domainpb.ConversationReindexResponse, healthy bool, summary string) error {
+	statusJSON, err := protoMarshalOptions.Marshal(status)
+	if err != nil {
+		return err
+	}
+	reindexJSON := []byte("null")
+	if reindex != nil {
+		if reindexJSON, err = protoMarshalOptions.Marshal(reindex); err != nil {
+			return err
+		}
+	}
+	summaryJSON, err := json.Marshal(summary)
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON([]byte(fmt.Sprintf(`{"healthy":%t,"summary":%s,"status":%s,"reindex":%s}`, healthy, summaryJSON, statusJSON, reindexJSON)))
 	return nil
 }
 

@@ -716,6 +716,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		RepoRoot:      repoRoot,
 		ScopePath:     scopePath,
 		IdentityToken: identityToken,
+		RunID:         run.ID,
 		Config:        run.ResolvedConfig,
 	})
 	delete(env, treasurySessionKeyEnv)

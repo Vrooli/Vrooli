@@ -35,10 +35,21 @@ type ResolvedCandidate struct {
 // separate from mutable State and can be persisted without rereading resource
 // policies during fallback or resume.
 type Resolution struct {
-	CatalogDigest   string              `json:"catalogDigest"`
-	RoleRef         string              `json:"roleRef"`
-	Candidates      []ResolvedCandidate `json:"candidates"`
-	SelectionReason string              `json:"selectionReason,omitempty"`
+	CatalogDigest     string                     `json:"catalogDigest"`
+	RoleRef           string                     `json:"roleRef"`
+	Candidates        []ResolvedCandidate        `json:"candidates"`
+	BrowserCandidates []ResolvedBrowserCandidate `json:"browserCandidates,omitempty"`
+	SelectionReason   string                     `json:"selectionReason,omitempty"`
+}
+
+// ResolvedBrowserCandidate is immutable run-creation evidence for the BAS
+// session capability, kept apart from model selection and billing metadata.
+type ResolvedBrowserCandidate struct {
+	Runner       domain.RunnerType `json:"runner"`
+	ResourceRole string            `json:"resourceRole"`
+	Available    bool              `json:"available"`
+	FailureCode  string            `json:"failureCode,omitempty"`
+	Failure      string            `json:"failure,omitempty"`
 }
 
 // Snapshot converts resource-owned resolution evidence into the domain's
@@ -66,10 +77,18 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 			ChallengerModel: challengerModel(candidate.Challenger), ChallengerSampleRate: challengerRate(candidate.Challenger),
 		})
 	}
+	browserCandidates := make([]domain.ExecutionBrowserCandidate, 0, len(r.BrowserCandidates))
+	for _, candidate := range r.BrowserCandidates {
+		browserCandidates = append(browserCandidates, domain.ExecutionBrowserCandidate{
+			RunnerType: candidate.Runner, ResourceRole: candidate.ResourceRole,
+			Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
+		})
+	}
 	return &domain.ExecutionPolicySnapshot{
 		CatalogDigest: r.CatalogDigest, RoleRef: r.RoleRef, Candidates: candidates,
-		Explanation:     domain.PolicyResolutionExplanation{Source: "portable_role", Summary: fmt.Sprintf("portable role %q resolved through resource-owned policy catalogs", r.RoleRef), RequestedRoleRef: r.RoleRef},
-		SelectionReason: r.SelectionReason,
+		BrowserCandidates: browserCandidates,
+		Explanation:       domain.PolicyResolutionExplanation{Source: "portable_role", Summary: fmt.Sprintf("portable role %q resolved through resource-owned policy catalogs", r.RoleRef), RequestedRoleRef: r.RoleRef},
+		SelectionReason:   r.SelectionReason,
 	}
 }
 
@@ -166,6 +185,22 @@ func (s *State) ResolvePreferred(ctx context.Context, resolver Resolver, roleRef
 			resolved.Billing.ObservedAt = time.Now().UTC()
 		}
 		result.Candidates = append(result.Candidates, resolved)
+	}
+	availableRunners := make(map[domain.RunnerType]struct{}, len(result.Candidates))
+	for _, candidate := range result.Candidates {
+		if candidate.Available {
+			availableRunners[candidate.Runner] = struct{}{}
+		}
+	}
+	for _, candidate := range role.BrowserCandidates {
+		resolved := ResolvedBrowserCandidate{Runner: candidate.Runner, ResourceRole: candidate.ResourceRole}
+		if _, ok := availableRunners[candidate.Runner]; ok {
+			resolved.Available = true
+		} else {
+			resolved.FailureCode = "execution_candidate_unavailable"
+			resolved.Failure = "browser harness has no available execution candidate in this role resolution"
+		}
+		result.BrowserCandidates = append(result.BrowserCandidates, resolved)
 	}
 	return result, nil
 }

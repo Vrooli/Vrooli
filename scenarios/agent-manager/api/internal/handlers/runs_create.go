@@ -229,6 +229,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if inline.Features != nil {
 			f := protoconv.FeatureFlagsFromProto(inline.Features)
 			req.EnableBrowser = &f.EnableBrowser
+			if f.BrowserCapability != nil {
+				capability := f.BrowserCapability.Clone()
+				req.BrowserCapability = &capability
+			}
 		}
 		if len(inline.ExtraFlags) > 0 || inline.ClearExtraFlags {
 			req.ExtraFlags = protoconv.RunnerExtraFlagsFromProto(inline.ExtraFlags)

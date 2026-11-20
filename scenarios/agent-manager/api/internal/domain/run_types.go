@@ -956,7 +956,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.DeniedTools = profile.DeniedTools
 	c.ToolRestrictionPolicy = profile.ToolRestrictionPolicy.Effective()
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
-	c.Features = profile.Features
+	c.Features = profile.Features.Clone()
 	if len(profile.ExtraFlags) > 0 {
 		c.ExtraFlags = make(RunnerExtraFlags, len(profile.ExtraFlags))
 		for rt, flags := range profile.ExtraFlags {

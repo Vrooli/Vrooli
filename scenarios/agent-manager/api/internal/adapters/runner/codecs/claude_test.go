@@ -57,14 +57,14 @@ var diagnosticSamples = map[string]string{
 // BuildArgs / BuildEnv / BuildPrompt
 // =============================================================================
 
-func TestClaude_BuildArgs_EnableBrowser(t *testing.T) {
+func TestClaude_BuildArgs_LegacyBrowserFlagDoesNotOpenBrowser(t *testing.T) {
 	c := NewClaudeForTest()
 	tests := []struct {
 		name       string
 		config     *domain.RunConfig
 		wantChrome bool
 	}{
-		{"true adds --chrome", &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Features: domain.FeatureFlags{EnableBrowser: true}}, true},
+		{"legacy flag cannot bypass browser session broker", &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Features: domain.FeatureFlags{EnableBrowser: true}}, false},
 		{"false omits --chrome", &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, Features: domain.FeatureFlags{EnableBrowser: false}}, false},
 		{"zero features omits --chrome", &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode}, false},
 	}
@@ -147,7 +147,7 @@ func TestClaude_BuildArgs_ExtraFlags(t *testing.T) {
 	}
 }
 
-func TestClaude_BuildArgs_FeaturesAndExtraFlags(t *testing.T) {
+func TestClaude_BuildArgs_LegacyBrowserFlagAndExtraFlags(t *testing.T) {
 	c := NewClaudeForTest()
 	cfg := &domain.RunConfig{
 		RunnerType: domain.RunnerTypeClaudeCode,
@@ -164,8 +164,8 @@ func TestClaude_BuildArgs_FeaturesAndExtraFlags(t *testing.T) {
 			hasVerbose = true
 		}
 	}
-	if !hasChrome {
-		t.Errorf("expected --chrome in %v", args)
+	if hasChrome {
+		t.Errorf("legacy EnableBrowser must not open a browser outside the session broker: %v", args)
 	}
 	if !hasVerbose {
 		t.Errorf("expected --verbose in %v", args)
@@ -286,8 +286,8 @@ func TestClaude_Capabilities_SupportedFeatures(t *testing.T) {
 			found = true
 		}
 	}
-	if !found {
-		t.Errorf("expected EnableBrowser in %v", caps.SupportedFeatures)
+	if found {
+		t.Errorf("EnableBrowser must not be a native runner feature; use Agent Manager's session capability: %v", caps.SupportedFeatures)
 	}
 }
 

@@ -266,7 +266,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	}
 	reconciler := orchestration.NewReconciler(repos.Runs, registry, reconcilerOpts...)
 	orch.SetReconciler(reconciler)
-	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch.StatusReader(), 0), orchestration.NewOperatorDecisionWaiter(), orchestration.NewReviewTimerWaiter())
+	awaitRegistry := orchestration.NewAwaitRegistry(orch, orchestration.NewTestGenieWaiter(nil), orchestration.NewGCTBaselineWaiter(nil), orchestration.NewLifecycleWaiter(nil), orchestration.NewChildrenWaiter(orch.StatusReader(), 0), orchestration.NewOperatorDecisionWaiter(), orchestration.NewReviewTimerWaiter(), orchestration.NewBrowserPaneControlWaiter())
 	orch.SetAwaitRegistry(awaitRegistry)
 	workflowNudger := orchestration.NewWorkflowNudger(orch.NudgeDrive, levers.Workflow.NudgeWorkers, levers.Workflow.NudgeDriveTimeout, func(ctx context.Context, id uuid.UUID, failure obs.PanicFailure) {
 		if _, err := orch.FailWorkflowExecution(ctx, id, "nudger_panic", failure.Error()); err != nil {

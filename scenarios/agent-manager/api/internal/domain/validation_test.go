@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"github.com/google/uuid"
 )
 
@@ -1196,6 +1197,11 @@ func TestFeatureFlags_IsZero(t *testing.T) {
 		{
 			name:  "EnableBrowser true is not zero",
 			flags: FeatureFlags{EnableBrowser: true},
+			want:  false,
+		},
+		{
+			name:  "browser capability is not zero",
+			flags: FeatureFlags{BrowserCapability: &browsercapability.Capability{Enabled: true}},
 			want:  false,
 		},
 	}

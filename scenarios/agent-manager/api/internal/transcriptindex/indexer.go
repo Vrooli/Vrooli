@@ -17,6 +17,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/sqlcompat"
 
 	"github.com/google/uuid"
 )
@@ -183,6 +184,7 @@ type tick struct {
 	versions   map[string]int
 	summary    *Summary
 	inFlight   map[string]bool
+	done       map[string]bool
 	reconcile  bool
 }
 
@@ -200,7 +202,7 @@ func (ix *Indexer) RunOnce(ctx context.Context) (Summary, error) {
 	if err != nil {
 		return summary, fmt.Errorf("list run-owned transcripts: %w", err)
 	}
-	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{}, codexByID: map[string]string{}, owned: owned, budget: ix.cfg.TickBytes, reimport: ix.cfg.ReimportBytes, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}}
+	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{}, codexByID: map[string]string{}, owned: owned, budget: ix.cfg.TickBytes, reimport: ix.cfg.ReimportBytes, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}}
 	for index := range rows {
 		row := &rows[index]
 		t.byKey[row.Key], t.byPath[row.Path] = row, row
@@ -337,13 +339,25 @@ func topLevelCodexID(candidate Candidate) (string, bool) {
 }
 
 // process brings one file's row up to date and reads its new bytes.
-func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) error {
-	if t.inFlight[candidate.Key] {
+func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) (err error) {
+	key := candidate.Key
+	// A file can be reached twice in one tick: once as a parent or fork
+	// dependency and once in the changed-work list. The second pass used to
+	// re-read a row the first pass had just committed, and the in-memory
+	// checkpoint no longer matched the stored representation exactly (indexed
+	// timestamps lose precision on the round trip), so the capture intent was
+	// refused and the tick reported a false failure. Process each file once.
+	if t.inFlight[key] || t.done[key] {
 		return nil
 	}
-	t.inFlight[candidate.Key] = true
-	defer delete(t.inFlight, candidate.Key)
-	row := t.byKey[candidate.Key]
+	t.inFlight[key] = true
+	defer delete(t.inFlight, key)
+	defer func() {
+		if err == nil {
+			t.done[key] = true
+		}
+	}()
+	row := t.byKey[key]
 	existed := row != nil
 	if row == nil {
 		if prior := t.byPath[candidate.Path]; prior != nil && prior.Key != candidate.Key && prior.Owner == OwnerIndexer {
@@ -772,7 +786,7 @@ func (ix *Indexer) ReconcileReplacement(ctx context.Context, runID, fileKey stri
 		return errors.New("replacement source is now owned by a managed run")
 	}
 	var summary Summary
-	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, owned: owned, budget: rebuildLimit, reimport: rebuildLimit, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, reconcile: true}
+	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, owned: owned, budget: rebuildLimit, reimport: rebuildLimit, versions: map[string]int{}, summary: &summary, inFlight: map[string]bool{}, done: map[string]bool{}, reconcile: true}
 	for i := range rows {
 		row := &rows[i]
 		t.byKey[row.Key], t.byPath[row.Path] = row, row
@@ -991,7 +1005,10 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 		if owner, ok := ix.host.(interface {
 			CommitTranscript(context.Context, Store, FileRow, []UsageRow, *FileRow, string, RunUpdate) error
 		}); ok {
-			if commitErr := owner.CommitTranscript(ctx, ix.store, *row, read.usage, nil, intentToken, update); commitErr != nil {
+			commitErr := retryCommit(ctx, func() error {
+				return owner.CommitTranscript(ctx, ix.store, *row, read.usage, nil, intentToken, update)
+			})
+			if commitErr != nil {
 				delete(ix.tails, row.Key)
 				*row = previous
 				row.Status, row.Error = StatusPending, uncertainRecordPrefix+"commit outcome uncertain; reconciliation required"
@@ -1009,10 +1026,36 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow, expected *Fi
 	if !ok {
 		return errors.New("atomic run-owned transcript commit unavailable")
 	}
-	if saveErr := ownedStore.CommitOwnedTranscript(ctx, *row, read.usage, intentToken); saveErr != nil {
+	if saveErr := retryCommit(ctx, func() error {
+		return ownedStore.CommitOwnedTranscript(ctx, *row, read.usage, intentToken)
+	}); saveErr != nil {
 		return errors.Join(err, saveErr)
 	}
 	return nil
+}
+
+// retryCommit converts a transient SQLite lock into progress. A busy failure
+// rolls the transaction back, and both commit paths fence on the capture intent
+// token, so a replay cannot double-apply: it either commits once or is refused
+// by the guard. Only contention is retried; an ambiguous I/O error stays a
+// reconciliation case.
+func retryCommit(ctx context.Context, commit func() error) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = commit(); err == nil {
+			return nil
+		}
+		if !TransientStoreFailure(err.Error()) {
+			return err
+		}
+		delay := time.Duration(attempt+1) * 250 * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(delay):
+		}
+	}
+	return err
 }
 
 type readResult struct {
@@ -1245,7 +1288,7 @@ func (ix *Indexer) IndexPath(ctx context.Context, path, harness string) (string,
 	if err != nil {
 		return "", err
 	}
-	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, codexByID: map[string]string{}, owned: owned, reimport: 1 << 62, versions: map[string]int{}, summary: &Summary{}, inFlight: map[string]bool{}}
+	t := &tick{now: ix.cfg.Now(), byKey: map[string]*FileRow{}, byPath: map[string]*FileRow{}, candidates: map[string]Candidate{candidate.Key: candidate}, codexByID: map[string]string{}, owned: owned, reimport: 1 << 62, versions: map[string]int{}, summary: &Summary{}, inFlight: map[string]bool{}, done: map[string]bool{}}
 	for index := range rows {
 		row := &rows[index]
 		t.byKey[row.Key], t.byPath[row.Path] = row, row
@@ -1445,10 +1488,5 @@ func (ix *Indexer) SetAfterEviction(fn func(context.Context) error) {
 // (busy or locked) that a later attempt can succeed past, as opposed to a
 // file the indexer cannot read.
 func TransientStoreFailure(message string) bool {
-	for _, marker := range []string{"SQLITE_BUSY", "SQLITE_LOCKED", "database is locked", "database table is locked"} {
-		if strings.Contains(message, marker) {
-			return true
-		}
-	}
-	return false
+	return sqlcompat.TransientMessage(message)
 }

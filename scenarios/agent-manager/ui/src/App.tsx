@@ -234,7 +234,9 @@ export function App() {
         }
         testId="agent-manager-shell"
       >
-
+        {/* One fragment child: AppShell's children type accepts a single
+            ReactElement, not an array of siblings. */}
+        <>
         {statusOpen ? (
           <Suspense fallback={null}>
             <StatusDialog
@@ -472,6 +474,7 @@ export function App() {
             </Routes>
           </ErrorBoundary>
         </div>
+        </>
       </AppShell>
     </QueryProvider>
   );

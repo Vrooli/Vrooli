@@ -23,6 +23,18 @@
       "resource": "notification-hub",
       "audience": "scenario-authenticator:notification-hub",
       "scopes": ["notification-hub:send"]
+    },
+    {
+      "name": "agent-manager-browser-evidence-verifier",
+      "resource": "browser-automation-studio",
+      "audience": "scenario-authenticator:browser-automation-studio",
+      "scopes": ["browser-automation-studio:browser-evidence.verify"]
+    },
+    {
+      "name": "agent-manager-browser-pane-issuer",
+      "resource": "browser-automation-studio",
+      "audience": "scenario-authenticator:browser-automation-studio",
+      "scopes": ["browser-automation-studio:browser-pane.issue"]
     }
   ]
 }

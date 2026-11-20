@@ -2,16 +2,18 @@
 package database
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 	"context"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
-	_ "modernc.org/sqlite"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	_ "modernc.org/sqlite"
 )
 
 func TestRunCRUD(t *testing.T) {
@@ -1253,6 +1255,12 @@ func TestRunUpdateDoesNotAdvanceCallerVersionWhenTaskProjectionRollsBack(t *test
 		t.Fatalf("read admitted run: %v", err)
 	}
 	startingVersion := current.LifecycleVersion
+	// The task-attempt claim already moved the Task to running. Put it back to
+	// queued so this Update exercises a real queued-to-running projection; the
+	// trigger then makes that projection fail.
+	if _, err := db.ExecContext(ctx, `UPDATE tasks SET status = 'queued' WHERE id = ?`, task.ID.String()); err != nil {
+		t.Fatalf("reset task projection fixture: %v", err)
+	}
 	if _, err := db.ExecContext(ctx, `CREATE TRIGGER fail_running_task_projection BEFORE UPDATE ON tasks WHEN NEW.status = 'running' BEGIN SELECT RAISE(ABORT, 'injected task projection failure'); END`); err != nil {
 		t.Fatalf("create projection trigger: %v", err)
 	}

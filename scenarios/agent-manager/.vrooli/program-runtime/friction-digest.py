@@ -1,4 +1,4 @@
-"""agent-manager.friction-digest v4 — the owner-level tool friction of one owning scenario.
+"""agent-manager.friction-digest v5 — the owner-level tool friction of one owning scenario.
 
 Contract: friction-digest.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager §4 (the [S3] leaf), agent-manager-improve §3 (the fleet friction sensor),
@@ -26,7 +26,7 @@ MAX_DESCRIPTION_CHARS = 280
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.friction-digest", "version": "4",
+    "program": "agent-manager.friction-digest", "version": "5",
     "status": "failed", "phase": "validate",
     "inputs": {"scenario": scenario, "window_days": window_days, "top_n": top_n},
     "signals": {
@@ -40,6 +40,10 @@ envelope = {
         "supervision_sample_capped": False, "supervision_sample_scope": "not_read",
         "supervision_not_scenario_filtered": True, "supervision_impact_samples": 0,
         "supervision_outcome_coverage": None, "supervision_coverage_reason": "pending_telemetry",
+        "inferred_annotations": {
+            "pack": None, "coverage": 0.0, "eligible_runs": 0, "observed_runs": 0,
+            "labels": [], "label_count": 0, "unproven_count": 0, "note": None,
+        },
     },
     "errors": [], "evidence": [],
 }
@@ -136,6 +140,38 @@ def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
             "calls": int(finding.get("calls") or 0), "distinct_runs": int(finding.get("runs") or 0),
             "cost": int(finding.get("cost") or 0), "cost_unit": finding.get("costUnit"),
             "cost_share": float(finding.get("costShare") or 0.0), "status": finding.get("status"),
+        })
+    # Inferred annotations ride the same friction read. Coverage is always
+    # stated; a rate exists only for a measured gate, and an unproven label is
+    # evidence, never a rate. Only friction-lens labels are carried because this
+    # digest is about friction, not the whole vocabulary.
+    inferred = record.get("inferredAnnotations") or {}
+    annotations = sig["inferred_annotations"]
+    if inferred.get("packName") or inferred.get("packVersion"):
+        annotations["pack"] = f"{inferred.get('packName', '')} {inferred.get('packVersion', '')}".strip()
+    annotations["coverage"] = float(inferred.get("coverage") or 0.0)
+    annotations["eligible_runs"] = int(inferred.get("eligibleRuns") or 0)
+    annotations["observed_runs"] = int(inferred.get("observedRuns") or 0)
+    annotations["note"] = inferred.get("note") or None
+    for row in (inferred.get("labels") or []):
+        if not row.get("friction"):
+            continue
+        annotations["label_count"] += 1
+        if row.get("gateState") != "proven":
+            annotations["unproven_count"] += 1
+        if len(annotations["labels"]) >= 24:
+            continue
+        rate = row.get("rate")
+        annotations["labels"].append({
+            "id": str(row.get("id") or ""), "group": str(row.get("group") or ""),
+            "state": str(row.get("state") or ""),
+            "observed": int(row.get("observed") or 0), "eligible": int(row.get("eligible") or 0),
+            "coverage": float(row.get("coverage") or 0.0),
+            "rate": float(rate) if rate is not None else None,
+            "gate_state": str(row.get("gateState") or ""),
+            "gold": int(row.get("gold") or 0),
+            "target_precision": float(row.get("targetPrecision") or 0.0),
+            "target_recall": float(row.get("targetRecall") or 0.0),
         })
     if sig["below_floor_for_scenario"] or sig["beyond_limit_for_scenario"]:
         envelope["status"] = "partial"

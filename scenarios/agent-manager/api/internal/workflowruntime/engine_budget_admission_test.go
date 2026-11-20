@@ -219,8 +219,16 @@ func TestStagedMessageDeclaredBudgetPreservesSelectiveDraftAndRealExhaustion(t *
 					if err := json.Unmarshal(x.Output, &output); err != nil {
 						t.Fatal(err)
 					}
+					// A workflow-level output schema wraps the node's final text
+					// in `result`; a structured final handoff can also arrive as
+					// the object itself. Compare the decoded value either way.
+					raw := output["result"]
+					var text string
+					if json.Unmarshal(raw, &text) == nil {
+						raw = json.RawMessage(text)
+					}
 					var got, expected any
-					if json.Unmarshal(output["result"], &got) != nil || json.Unmarshal(result, &expected) != nil || !reflect.DeepEqual(got, expected) {
+					if json.Unmarshal(raw, &got) != nil || json.Unmarshal(result, &expected) != nil || !reflect.DeepEqual(got, expected) {
 						t.Fatalf("completed typed output lost: %s", x.Output)
 					}
 				} else if x.TerminalReason == nil || x.TerminalReason.BudgetName != "tokens" {

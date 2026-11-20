@@ -200,24 +200,6 @@ func (m motif) saved(calls, occurrences int) int {
 	return max(0, min(calls-occurrences, (len(m.steps)-1)*occurrences))
 }
 
-// mandatedRitual are the command prefixes AGENTS.md makes every agent run
-// (recall, skill load, journal): a sequence of only these is work the operator
-// requires, so wrapping it saves round-trips and result tokens, not the work.
-var mandatedRitual = []string{"vrooli-memory journal", "search-hub query", "prompt-manager skill read", "prompt-manager discover"}
-
-func (m motif) mandated() bool {
-	for _, s := range m.steps {
-		ok := false
-		for _, prefix := range mandatedRitual {
-			ok = ok || strings.HasPrefix(s.path, prefix)
-		}
-		if !ok {
-			return false
-		}
-	}
-	return len(m.steps) > 0
-}
-
 // motifOf turns a group into a motif: per run, the steps its grams cover and
 // no earlier motif claimed, split into maximal stretches of at least minGram
 // steps. Merged grams need not all occur together, so a stretch need not hold
@@ -354,7 +336,7 @@ func (m motif) opportunity(in Input, programRuns map[string]int) Opportunity {
 	subject := joinSteps(m.paths())
 	o := Opportunity{
 		Kind: KindSequence, Subject: subject, Occurrences: m.occurrences,
-		TokensSaved: m.tokens, TokensUnknown: m.unknown, Owner: dominantOwner(m.steps), Mandated: m.mandated(),
+		TokensSaved: m.tokens, TokensUnknown: m.unknown, Owner: dominantOwner(m.steps),
 		Verify: verifyAfter("`"+subject+"`", m.evidence.sessions()),
 	}
 	m.evidence.fill(&o)
@@ -389,9 +371,6 @@ func (m motif) opportunity(in Input, programRuns map[string]int) Opportunity {
 		}
 	}
 	impact := fmt.Sprintf("%d calls saved", o.CallsSaved)
-	if o.Mandated {
-		impact = fmt.Sprintf("a program saves %d round-trips and up to %d result tokens of context, not the work: AGENTS.md mandates this ritual", o.CallsSaved, o.TokensSaved)
-	}
 	if d.varying() {
 		low, _ := d.interval()
 		impact += fmt.Sprintf(" (%.0f%% of %d later steps used an earlier step's result, at least %.0f%% at 95%%)", 100*d.rate(), d.Measured, 100*low)

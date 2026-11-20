@@ -73,6 +73,20 @@ type Handler struct {
 	investigations        investigation.Repository
 	effortEnrollments     EffortEnrollmentReader
 	modelEvalRunner       model_eval.Runner
+	browserEvidenceProof  BrowserEvidenceProofVerifier
+	browserPaneReceipts   BrowserPaneReceiptIssuer
+}
+
+// WithBrowserEvidenceProofVerifier installs BAS's authenticated broker proof
+// client. A nil verifier leaves the broker evidence route fail-closed.
+func WithBrowserEvidenceProofVerifier(verifier BrowserEvidenceProofVerifier) HandlerOption {
+	return func(h *Handler) { h.browserEvidenceProof = verifier }
+}
+
+// WithBrowserPaneReceiptIssuer installs BAS's exact-active-session receipt
+// owner. A nil issuer leaves the pane resolver unavailable and fail-closed.
+func WithBrowserPaneReceiptIssuer(issuer BrowserPaneReceiptIssuer) HandlerOption {
+	return func(h *Handler) { h.browserPaneReceipts = issuer }
 }
 
 // TranscriptImportRunner is the operator-triggerable half of the scheduled
@@ -323,6 +337,18 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Identity verification endpoint
 	r.HandleFunc("/api/v1/identity/verify", h.VerifyIdentityToken).Methods("POST")
 	r.HandleFunc("/api/v1/identity/mint", h.MintDelegatedIdentity).Methods("POST")
+	r.HandleFunc("/api/v1/browser/authorize-open", h.AuthorizeBrowserOpen).Methods("POST")
+	r.HandleFunc("/api/v1/browser/resolve-caller", h.ResolveBrowserCaller).Methods("POST")
+	r.HandleFunc("/api/v1/browser/record-evidence", h.RecordBrowserEvidence).Methods("POST")
+	r.HandleFunc("/api/v1/browser/bas-evidence/{run_id}", h.RecordBASBrowserEvidence).Methods("POST")
+	r.HandleFunc("/api/v1/browser/settlement-attestation/{run_id}", h.AttestBrowserSettlement).Methods("POST")
+	r.HandleFunc("/api/v1/browser/evidence/authorize/{run_id}", h.AuthorizeBrowserEvidence).Methods("POST")
+	r.HandleFunc("/api/v1/browser/resolve-profile", h.ResolveBrowserProfile).Methods("POST")
+	r.HandleFunc("/api/v1/browser/resolve-context", h.ResolveBrowserContext).Methods("POST")
+	r.HandleFunc("/api/v1/browser/pane/resolve", h.ResolveBrowserPane).Methods("POST")
+	r.HandleFunc("/api/v1/browser/pane/yield", h.YieldBrowserPaneControl).Methods("POST")
+	r.HandleFunc("/api/v1/browser/pane/return", h.ReturnBrowserPaneControl).Methods("POST")
+	r.HandleFunc("/api/v1/browser/pane/sessions", h.ListBrowserPaneSessions).Methods("POST")
 }
 
 // =============================================================================

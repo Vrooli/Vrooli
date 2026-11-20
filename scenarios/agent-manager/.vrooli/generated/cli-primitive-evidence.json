@@ -4,8 +4,53 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "7dc28dba02209fdff222089d623c2b7376877142cf742d55716fc0de4e6a81d3",
+  "manifest_hash": "bbe0a3add01257dfad06f924e48a4a42a2c82135e04bca5e888106cffe74cbc1",
   "commands": [
+    {
+      "path": "annotations benchmark",
+      "group": "annotations",
+      "command": "benchmark"
+    },
+    {
+      "path": "annotations coverage",
+      "group": "annotations",
+      "command": "coverage"
+    },
+    {
+      "path": "annotations evaluate",
+      "group": "annotations",
+      "command": "evaluate"
+    },
+    {
+      "path": "annotations gold",
+      "group": "annotations",
+      "command": "gold"
+    },
+    {
+      "path": "annotations labels",
+      "group": "annotations",
+      "command": "labels"
+    },
+    {
+      "path": "annotations packs",
+      "group": "annotations",
+      "command": "packs"
+    },
+    {
+      "path": "annotations run",
+      "group": "annotations",
+      "command": "run"
+    },
+    {
+      "path": "annotations scheduler",
+      "group": "annotations",
+      "command": "scheduler"
+    },
+    {
+      "path": "annotations show",
+      "group": "annotations",
+      "command": "show"
+    },
     {
       "path": "conversation context",
       "group": "conversation",
@@ -774,6 +819,11 @@
       "group": "task",
       "command": "update",
       "binding": "."
+    },
+    {
+      "path": "usage annotations",
+      "group": "usage",
+      "command": "annotations"
     },
     {
       "path": "usage burners",

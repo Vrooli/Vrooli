@@ -148,4 +148,10 @@ func init() {
 	Register(domain.EventTypeRetryAttempt, 1, func() Payload {
 		return &RetryAttemptPayload{}
 	})
+	Register(domain.EventTypeBrowserSession, 1, func() Payload {
+		return &BrowserSessionPayload{}
+	})
+	Register(domain.EventTypeBrowserAction, 1, func() Payload {
+		return &BrowserActionPayload{}
+	})
 }

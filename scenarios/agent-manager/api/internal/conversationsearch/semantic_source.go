@@ -42,6 +42,41 @@ func NewStagedSemanticSource(repository *SQLiteRepository, generationID string) 
 	return &StagedSemanticSource{repository: repository, generationID: generationID}
 }
 
+// stagedSemanticCursor is the keyset for a recent-first staged traversal. The
+// version distinguishes it from the legacy document-id cursor a build started
+// before the switch may still hold.
+type stagedSemanticCursor struct {
+	Version    int    `json:"v,omitempty"`
+	OccurredAt string `json:"o,omitempty"`
+	DocumentID string `json:"d,omitempty"`
+}
+
+func encodeStagedSemanticCursor(occurredAt, documentID string) string {
+	encoded, _ := json.Marshal(stagedSemanticCursor{Version: 2, OccurredAt: occurredAt, DocumentID: documentID})
+	return base64.RawURLEncoding.EncodeToString(encoded)
+}
+
+// decodeStagedSemanticCursor recognizes the versioned keyset and falls back to
+// the legacy document-id cursor so an interrupted build resumes in its original
+// order instead of skipping or repeating rows.
+func decodeStagedSemanticCursor(cursor string) (stagedSemanticCursor, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return stagedSemanticCursor{}, fmt.Errorf("decode staged semantic cursor: %w", err)
+	}
+	if len(decoded) == 0 || decoded[0] != '{' {
+		return stagedSemanticCursor{Version: 1, DocumentID: string(decoded)}, nil
+	}
+	var state stagedSemanticCursor
+	if err := json.Unmarshal(decoded, &state); err != nil {
+		return stagedSemanticCursor{}, fmt.Errorf("parse staged semantic cursor: %w", err)
+	}
+	if state.Version != 2 || state.OccurredAt == "" || state.DocumentID == "" {
+		return stagedSemanticCursor{}, fmt.Errorf("staged semantic cursor has an unsupported version or incomplete keyset")
+	}
+	return state, nil
+}
+
 func (s *StagedSemanticSource) LoadPage(ctx context.Context, request aisearch.PageRequest) (aisearch.SourcePage, error) {
 	if s == nil || s.repository == nil || strings.TrimSpace(s.generationID) == "" {
 		return aisearch.SourcePage{}, fmt.Errorf("staged conversation semantic source is not configured")
@@ -49,20 +84,35 @@ func (s *StagedSemanticSource) LoadPage(ctx context.Context, request aisearch.Pa
 	if request.Limit <= 0 || request.Limit > maxSourcePageSize {
 		return aisearch.SourcePage{}, fmt.Errorf("staged semantic source limit must be between 1 and %d", maxSourcePageSize)
 	}
-	after := ""
+	state := stagedSemanticCursor{Version: 2}
 	if request.Cursor != "" {
-		decoded, err := base64.RawURLEncoding.DecodeString(request.Cursor)
+		decoded, err := decodeStagedSemanticCursor(request.Cursor)
 		if err != nil {
-			return aisearch.SourcePage{}, fmt.Errorf("decode staged semantic cursor: %w", err)
+			return aisearch.SourcePage{}, err
 		}
-		after = string(decoded)
+		state = decoded
 	}
 	var rows []documentRow
 	query := `SELECT ` + projectionDocumentColumns + `
 FROM conversation_search_generation_documents
-WHERE generation_id=? AND visible=1 AND content_class IN (?, ?) AND document_id>?
-ORDER BY document_id LIMIT ?`
-	if err := s.repository.db.SelectContext(ctx, &rows, query, s.generationID, ContentClassProse, ContentClassQuotedProse, after, request.Limit+1); err != nil {
+WHERE generation_id=? AND visible=1 AND content_class IN (?, ?)`
+	args := []any{s.generationID, ContentClassProse, ContentClassQuotedProse}
+	if state.Version == 1 {
+		query += ` AND document_id>? ORDER BY document_id`
+		args = append(args, state.DocumentID)
+	} else {
+		// Recent-first: an interrupted or budget-bounded build has already
+		// embedded the newest chunks, so its coverage is a recent window rather
+		// than a content-hash sample. document_id breaks ties deterministically.
+		if state.DocumentID != "" {
+			query += ` AND (occurred_at < ? OR (occurred_at = ? AND document_id < ?))`
+			args = append(args, state.OccurredAt, state.OccurredAt, state.DocumentID)
+		}
+		query += ` ORDER BY occurred_at DESC, document_id DESC`
+	}
+	query += ` LIMIT ?`
+	args = append(args, request.Limit+1)
+	if err := s.repository.db.SelectContext(ctx, &rows, query, args...); err != nil {
 		return aisearch.SourcePage{}, fmt.Errorf("load staged semantic page: %w", err)
 	}
 	hasMore := len(rows) > request.Limit
@@ -78,7 +128,12 @@ ORDER BY document_id LIMIT ?`
 		page.Documents = append(page.Documents, semanticSourceDoc(document))
 	}
 	if hasMore {
-		page.NextCursor = base64.RawURLEncoding.EncodeToString([]byte(rows[len(rows)-1].DocumentID))
+		last := rows[len(rows)-1]
+		if state.Version == 1 {
+			page.NextCursor = base64.RawURLEncoding.EncodeToString([]byte(last.DocumentID))
+		} else {
+			page.NextCursor = encodeStagedSemanticCursor(last.OccurredAt, last.DocumentID)
+		}
 	}
 	return page, nil
 }

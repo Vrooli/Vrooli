@@ -87,3 +87,31 @@ func TestResolvePreferredReordersDeclaredRunnerAndExplainsUnknownPreference(t *t
 		t.Fatalf("unknown preference resolution = %#v", unknown)
 	}
 }
+
+func TestBrowserCapabilityResolutionIsSeparateAndBoundToAvailableExecutionCandidate(t *testing.T) {
+	path := writeCatalog(t, `{"schemaVersion":1,"metadata":{"catalogId":"test","updatedAt":"2026-07-10"},"defaultRole":"browser.agent","roles":{"browser.agent":{"description":"browser task","intent":"browser","candidates":[{"runner":"codex","resourceRole":"code.default"}],"browserCandidates":[{"runner":"codex","resourceRole":"browser.session"}]}}}`)
+	state, err := NewState(path, Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("NewState: %v", err)
+	}
+	available, err := state.Resolve(context.Background(), fakeResolver{responses: map[domain.RunnerType]ResolvedRole{
+		domain.RunnerTypeCodex: {Model: "gpt-codex", PolicyDigest: "sha256:model-policy"},
+	}}, "browser.agent")
+	if err != nil {
+		t.Fatalf("Resolve available: %v", err)
+	}
+	if len(available.Candidates) != 1 || available.Candidates[0].ResourceRole != "code.default" || len(available.BrowserCandidates) != 1 || !available.BrowserCandidates[0].Available || available.BrowserCandidates[0].ResourceRole != "browser.session" {
+		t.Fatalf("model and browser candidates were not kept separate: %+v", available)
+	}
+	snapshot := available.Snapshot()
+	if len(snapshot.BrowserCandidates) != 1 || snapshot.BrowserCandidates[0].RunnerType != domain.RunnerTypeCodex || !snapshot.BrowserCandidates[0].Available {
+		t.Fatalf("immutable browser capability snapshot = %+v", snapshot.BrowserCandidates)
+	}
+	unavailable, err := state.Resolve(context.Background(), fakeResolver{errors: map[domain.RunnerType]error{domain.RunnerTypeCodex: ErrUnknownResourceRole}}, "browser.agent")
+	if err != nil {
+		t.Fatalf("Resolve unavailable: %v", err)
+	}
+	if len(unavailable.BrowserCandidates) != 1 || unavailable.BrowserCandidates[0].Available || unavailable.BrowserCandidates[0].FailureCode != "execution_candidate_unavailable" {
+		t.Fatalf("browser candidate must fail closed with its model candidate: %+v", unavailable.BrowserCandidates)
+	}
+}

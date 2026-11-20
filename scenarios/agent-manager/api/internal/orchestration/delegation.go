@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/browsercapability"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 
@@ -36,8 +37,8 @@ func dependentExecutionPermissionsError(parent, child *domain.RunConfig) error {
 		field = "paths"
 	case (parent.RequireEffectContainment && !child.RequireEffectContainment) || !delegatedSetContains(parent.AllowedEffects, child.AllowedEffects):
 		field = "allowedEffects"
-	case child.Features.EnableBrowser && !parent.Features.EnableBrowser:
-		field = "features"
+	case !browsercapability.Within(parent.Features.BrowserCapability, child.Features.BrowserCapability):
+		field = "browserCapability"
 	case !maps.EqualFunc(parent.ExtraFlags, child.ExtraFlags, slices.Equal[[]string]):
 		field = "extraFlags"
 	case !delegatedSandboxWithin(parent.SandboxConfig, child.SandboxConfig):

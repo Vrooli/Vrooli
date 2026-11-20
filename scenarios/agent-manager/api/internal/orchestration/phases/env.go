@@ -30,6 +30,7 @@ package phases
 
 import (
 	"strconv"
+	"strings"
 
 	"agent-manager/internal/domain"
 
@@ -100,6 +101,7 @@ type MergeEnvInput struct {
 	Custom   map[string]string
 	Sandbox  map[string]string
 	Identity map[string]string
+	Browser  map[string]string
 }
 
 // AssembleRunEnvInput is the explicit input to AssembleRunEnv — the single
@@ -124,6 +126,7 @@ type AssembleRunEnvInput struct {
 	// IdentityToken is the plaintext identity token for this turn. Empty when
 	// identity is disabled; the continue/wake path must regenerate it first.
 	IdentityToken string
+	RunID         uuid.UUID
 
 	// Config supplies runner-native settings that are env on this runner (the
 	// context limit on Claude). Nil adds nothing.
@@ -160,17 +163,28 @@ func AssembleRunEnv(in AssembleRunEnvInput) map[string]string {
 			ScopePath: in.ScopePath,
 		}),
 		Identity: IdentityEnvVars(in.IdentityToken),
+		Browser:  BrowserGrantEnvVars(in.RunID, in.Config),
 	})
+}
+
+// BrowserGrantEnvVars injects the opaque receipt minted for this resolved run
+// only when it owns an explicit typed browser capability. The signed identity
+// token remains mandatory; BAS must verify both.
+func BrowserGrantEnvVars(runID uuid.UUID, cfg *domain.RunConfig) map[string]string {
+	if runID == uuid.Nil || cfg == nil || cfg.Features.BrowserCapability == nil || !cfg.Features.BrowserCapability.Enabled || strings.TrimSpace(cfg.Features.BrowserCapability.GrantReceipt) == "" {
+		return nil
+	}
+	return map[string]string{"VROOLI_BROWSER_GRANT_RECEIPT": cfg.Features.BrowserCapability.GrantReceipt}
 }
 
 // MergeEnvVars combines the three env-var sources with sandbox + identity
 // taking precedence on key conflicts. Returns nil when nothing was supplied
 // so callers can short-circuit.
 func MergeEnvVars(in MergeEnvInput) map[string]string {
-	if len(in.Runner) == 0 && len(in.Custom) == 0 && len(in.Sandbox) == 0 && len(in.Identity) == 0 {
+	if len(in.Runner) == 0 && len(in.Custom) == 0 && len(in.Sandbox) == 0 && len(in.Identity) == 0 && len(in.Browser) == 0 {
 		return nil
 	}
-	merged := make(map[string]string, len(in.Runner)+len(in.Custom)+len(in.Sandbox)+len(in.Identity))
+	merged := make(map[string]string, len(in.Runner)+len(in.Custom)+len(in.Sandbox)+len(in.Identity)+len(in.Browser))
 	for k, v := range in.Runner {
 		merged[k] = v
 	}
@@ -182,6 +196,9 @@ func MergeEnvVars(in MergeEnvInput) map[string]string {
 		merged[k] = v
 	}
 	for k, v := range in.Identity {
+		merged[k] = v
+	}
+	for k, v := range in.Browser {
 		merged[k] = v
 	}
 	if len(merged) == 0 {

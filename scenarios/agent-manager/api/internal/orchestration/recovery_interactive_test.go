@@ -849,7 +849,7 @@ func createInteractiveRecoveryRun(t *testing.T, repos *database.Repositories, se
 		TranscriptPath:      transcriptPath,
 		ResolvedConfig:      cfg,
 	}
-	if err := repos.Runs.Create(context.Background(), run); err != nil {
+	if err := repos.Runs.CreateTaskAttempt(context.Background(), task, task, run, nil); err != nil {
 		t.Fatalf("create run: %v", err)
 	}
 	return run

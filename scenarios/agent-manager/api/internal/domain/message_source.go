@@ -58,6 +58,11 @@ func hasWakePrefix(text string) bool {
 var injectedContextTags = map[string]bool{
 	"environment_context": true, "user_instructions": true, "instructions": true,
 	"skills_instructions": true, "system-instructions": true,
+	// <skills count="N"><skill id="...">…</skill></skills> is the harness
+	// inlining skill bodies into the first user-role record. It is never
+	// something a person types, and missing it made a workflow task prompt look
+	// like operator affect.
+	"skills":               true,
 	"local-command-caveat": true, "local-command-stdout": true, "local-command-stderr": true,
 	"command-name": true, "command-message": true, "command-args": true,
 	"in-app-browser-context": true, "turn_aborted": true, "subagent_notification": true,
@@ -143,6 +148,16 @@ func ClassifyMessageText(text string) string {
 		}
 	}
 	return MessageSourceOperator
+}
+
+// IsHarnessOnlyText reports whether text consists solely of closed harness
+// blocks with nothing left over. A stored message source is normally trusted
+// forever, but text that is nothing but harness blocks cannot be something a
+// person typed, so readers may demote it even when an older row recorded
+// "operator" before the block tag was recognised.
+func IsHarnessOnlyText(text string) bool {
+	rest, stripped := stripLeadingHarnessBlocks(text)
+	return stripped > 0 && rest == ""
 }
 
 // IsInjectedContextText reports whether a candidate user message is not
