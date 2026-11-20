@@ -54,7 +54,12 @@ func TestUsageForecastIsolatesAccountScopes(t *testing.T) {
 			t.Fatalf("scope %q: response=%v error=%v", tc.scope, response, err)
 		}
 		filters := response.Msg.GetProvenance().GetAppliedFilters()
-		if len(filters) != 2 || filters[1].GetField() != "account_scope" || filters[1].GetValue() != tc.scope {
+		if tc.scope == "" {
+			// The default read spans every account; it applies no scope filter.
+			if len(filters) != 1 || filters[0].GetField() != "provider" {
+				t.Fatalf("default scope: filters=%v", filters)
+			}
+		} else if len(filters) != 2 || filters[1].GetField() != "account_scope" || filters[1].GetValue() != tc.scope {
 			t.Fatalf("scope %q: filters=%v", tc.scope, filters)
 		}
 		backtest, err := h.UsageForecastBacktest(context.Background(), connect.NewRequest(&measurepb.UsageForecastBacktestRequest{AccountScope: tc.scope}))

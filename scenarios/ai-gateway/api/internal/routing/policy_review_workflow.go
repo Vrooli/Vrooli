@@ -72,19 +72,23 @@ func observePolicyReview(terms policy.ProviderTerms, now time.Time, verify func(
 	case policy.ReviewDenied:
 		return policyObservedDenied, nil
 	case policy.ReviewApproved:
-		if terms.Review.DecisionRef == "" || verify == nil || !verify(terms.Review.DecisionRef) {
-			return policyApprovalUnverified, nil
-		}
-		if policyReviewDeadlineElapsed(terms.ExpiresAt, now) {
-			return policyWindowExpired, nil
-		}
-		if policyReviewDeadlineElapsed(terms.NextReviewAt, now) {
-			return policyReviewDue, nil
-		}
-		return policyApprovalVerified, nil
+		return observeApprovedPolicyReview(terms, now, verify)
 	default:
 		return "", checkPolicyReviewState(terms.Review.Status)
 	}
+}
+
+func observeApprovedPolicyReview(terms policy.ProviderTerms, now time.Time, verify func(string) bool) (policyReviewEvent, error) {
+	if terms.Review.DecisionRef == "" || verify == nil || !verify(terms.Review.DecisionRef) {
+		return policyApprovalUnverified, nil
+	}
+	if policyReviewDeadlineElapsed(terms.ExpiresAt, now) {
+		return policyWindowExpired, nil
+	}
+	if policyReviewDeadlineElapsed(terms.NextReviewAt, now) {
+		return policyReviewDue, nil
+	}
+	return policyApprovalVerified, nil
 }
 
 // Catalog date windows include the whole declared UTC day, matching policy's

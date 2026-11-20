@@ -1,12 +1,8 @@
 package routing
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -17,171 +13,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/searcheval"
 )
 
-const (
-	maxReplayInputBytes = 10 << 20
-	maxReplayCases      = 1000 // accommodates overlapping role/task-role/consumer floors while keeping replay bounded.
-	maxReplayParallel   = 16
-)
-
-var replayUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-// ReplayCase is one real caller request selected for a bounded mixed-load
-// replay. The source references are mandatory so a fixture cannot silently
-// turn generated prompts into acceptance evidence.
-type ReplayCase struct {
-	CaseID                      string `json:"case_id"`
-	SourceRunID                 string `json:"source_run_id"`
-	SourceEventID               string `json:"source_event_id"`
-	SourceSequence              int64  `json:"source_sequence"`
-	ConversationID              string `json:"conversation_id,omitempty"`
-	Role                        string `json:"role"`
-	TaskRole                    string `json:"task_role"`
-	Profile                     string `json:"profile"`
-	PrivacyClass                string `json:"privacy_class"`
-	PrivacyProvenance           string `json:"privacy_provenance"`
-	Operation                   string `json:"operation"`
-	Scenario                    string `json:"scenario"`
-	TimeoutMS                   int32  `json:"timeout_ms,omitempty"`
-	RequiredVRAMBytes           int64  `json:"required_vram_bytes,omitempty"`
-	CapacityEstimateEvidenceURI string `json:"capacity_estimate_evidence_uri,omitempty"`
-	InputText                   string `json:"input_text"`
-}
-
-// ReplayReceipt intentionally excludes prompts and model output. It retains
-// source provenance, route evidence and timing for the comparison record.
-type ReplayReceipt struct {
-	CaseID                      string                       `json:"case_id"`
-	Mode                        string                       `json:"mode"`
-	SourceRunID                 string                       `json:"source_run_id"`
-	SourceEventID               string                       `json:"source_event_id"`
-	SourceSequence              int64                        `json:"source_sequence"`
-	ConversationID              string                       `json:"conversation_id,omitempty"`
-	PrivacyProvenance           string                       `json:"privacy_provenance"`
-	Scenario                    string                       `json:"scenario"`
-	Role                        string                       `json:"role"`
-	TaskRole                    string                       `json:"task_role"`
-	SelectedResourceRole        string                       `json:"selected_resource_role,omitempty"`
-	Status                      string                       `json:"status"`
-	SelectedProvider            string                       `json:"selected_provider,omitempty"`
-	GatewayEventID              string                       `json:"gateway_event_id,omitempty"`
-	GatewayRequestID            string                       `json:"gateway_request_id,omitempty"`
-	GatewayRoleEvidenceURI      string                       `json:"gateway_role_evidence_uri,omitempty"`
-	CapacityClaimID             string                       `json:"capacity_claim_id,omitempty"`
-	CapacityRequestedBytes      int64                        `json:"capacity_requested_bytes,omitempty"`
-	CapacityRequiredBytes       int64                        `json:"capacity_required_bytes,omitempty"`
-	CapacityGrantedBytes        int64                        `json:"capacity_granted_bytes,omitempty"`
-	CapacityVerdict             string                       `json:"capacity_verdict,omitempty"`
-	CapacityEstimateEvidenceURI string                       `json:"capacity_estimate_evidence_uri,omitempty"`
-	RoutePlanID                 string                       `json:"route_plan_id,omitempty"`
-	SelectedModel               string                       `json:"selected_model,omitempty"`
-	Locality                    string                       `json:"locality,omitempty"`
-	Profile                     string                       `json:"profile"`
-	CandidateEligibility        []ReplayCandidateEligibility `json:"candidate_eligibility,omitempty"`
-	LatencyMS                   int64                        `json:"latency_ms"`
-	LatencyKind                 string                       `json:"latency_kind"`
-	Valid                       *bool                        `json:"valid,omitempty"`
-	Error                       string                       `json:"error,omitempty"`
-}
-
-// ReplayCandidateEligibility is a redacted snapshot of the generic router's
-// candidate decision. It keeps role/locality and stable rejection codes while
-// omitting input, prompts, and provider-specific metadata.
-type ReplayCandidateEligibility struct {
-	Provider        string `json:"provider"`
-	Role            string `json:"role"`
-	Locality        string `json:"locality"`
-	Selected        bool   `json:"selected"`
-	Fallback        bool   `json:"fallback_eligible"`
-	RejectionCode   string `json:"rejection_code,omitempty"`
-	CapacityVerdict string `json:"capacity_verdict,omitempty"`
-}
-
-// ReadReplayCases reads a bounded JSONL file. It rejects missing provenance,
-// duplicate IDs, empty caller inputs and oversized files before any inference
-// can be dispatched.
-func ReadReplayCases(r io.Reader) ([]ReplayCase, error) {
-	data, err := io.ReadAll(io.LimitReader(r, maxReplayInputBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("read replay input: %w", err)
-	}
-	if len(data) > maxReplayInputBytes {
-		return nil, fmt.Errorf("replay input exceeds %d bytes", maxReplayInputBytes)
-	}
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	scanner.Buffer(make([]byte, 4096), 1<<20)
-	seen := map[string]struct{}{}
-	cases := make([]ReplayCase, 0, 32)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if len(cases) >= maxReplayCases {
-			return nil, fmt.Errorf("replay input exceeds %d cases", maxReplayCases)
-		}
-		var c ReplayCase
-		dec := json.NewDecoder(strings.NewReader(line))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&c); err != nil {
-			return nil, fmt.Errorf("replay case line %d: %w", len(cases)+1, err)
-		}
-		var trailing any
-		if err := dec.Decode(&trailing); err != io.EOF {
-			if err == nil {
-				return nil, fmt.Errorf("replay case line %d contains more than one JSON value", len(cases)+1)
-			}
-			return nil, fmt.Errorf("replay case line %d: %w", len(cases)+1, err)
-		}
-		c.CaseID = strings.TrimSpace(c.CaseID)
-		c.SourceRunID = strings.TrimSpace(c.SourceRunID)
-		c.SourceEventID = strings.TrimSpace(c.SourceEventID)
-		c.Role = strings.TrimSpace(c.Role)
-		c.TaskRole = strings.TrimSpace(c.TaskRole)
-		if c.TaskRole == "" {
-			c.TaskRole = c.Role
-		}
-		if c.CaseID == "" || c.SourceRunID == "" || c.SourceEventID == "" || c.SourceSequence < 0 || c.Role == "" || strings.TrimSpace(c.Scenario) == "" || strings.TrimSpace(c.InputText) == "" {
-			return nil, fmt.Errorf("replay case line %d requires case_id, source_run_id, source_event_id, nonnegative source_sequence, role, scenario, input_text and privacy_provenance", len(cases)+1)
-		}
-		if strings.TrimSpace(c.PrivacyProvenance) == "" {
-			return nil, fmt.Errorf("replay case %q requires explicit privacy_provenance", c.CaseID)
-		}
-		if !replayUUIDPattern.MatchString(c.SourceRunID) {
-			return nil, fmt.Errorf("replay case %q source_run_id must be a UUID", c.CaseID)
-		}
-		if !replayUUIDPattern.MatchString(c.SourceEventID) {
-			return nil, fmt.Errorf("replay case %q source_event_id must be a UUID", c.CaseID)
-		}
-		if len(c.InputText) > 64<<10 {
-			return nil, fmt.Errorf("replay case %q input_text exceeds 64 KiB", c.CaseID)
-		}
-		if c.Profile == "" {
-			c.Profile = "local-only"
-		}
-		profile := replayProfile(c.Profile)
-		if profile != sharedv1.Profile_PROFILE_LOCAL_ONLY && profile != sharedv1.Profile_PROFILE_REMOTE_ONLY {
-			return nil, fmt.Errorf("replay case %q profile must be local-only or remote-only", c.CaseID)
-		}
-		if replayPrivacy(c.PrivacyClass) == sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-			return nil, fmt.Errorf("replay case %q has invalid privacy_class %q", c.CaseID, c.PrivacyClass)
-		}
-		if c.TimeoutMS < 0 || c.TimeoutMS > 300000 {
-			return nil, fmt.Errorf("replay case %q timeout_ms must be between 0 and 300000", c.CaseID)
-		}
-		if _, exists := seen[c.CaseID]; exists {
-			return nil, fmt.Errorf("duplicate replay case_id %q", c.CaseID)
-		}
-		seen[c.CaseID] = struct{}{}
-		cases = append(cases, c)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read replay input: %w", err)
-	}
-	if len(cases) == 0 {
-		return nil, fmt.Errorf("replay input contains no cases")
-	}
-	return cases, nil
-}
+const maxReplayParallel = 16
 
 type (
 	replayExecutor       func(context.Context, *routingv1.ExecuteRouteRequest) (*routingv1.ExecuteRouteResponse, error)
@@ -191,37 +23,8 @@ type (
 // ReplayCallerCases dispatches a fixed caller set with bounded parallelism.
 // Results stay in input order even when calls complete out of order.
 func ReplayCallerCases(ctx context.Context, cases []ReplayCase, parallel int, verify replaySourceVerifier, execute replayExecutor) ([]ReplayReceipt, error) {
-	if len(cases) == 0 {
-		return nil, fmt.Errorf("no replay cases")
-	}
-	if len(cases) > maxReplayCases {
-		return nil, fmt.Errorf("replay has %d cases; maximum is %d", len(cases), maxReplayCases)
-	}
-	if parallel < 1 || parallel > maxReplayParallel {
-		return nil, fmt.Errorf("parallelism must be between 1 and %d", maxReplayParallel)
-	}
-	if execute == nil {
-		return nil, fmt.Errorf("replay executor is required")
-	}
-	if verify == nil {
-		return nil, fmt.Errorf("Agent Manager source verifier is required")
-	}
-	for _, c := range cases {
-		if replayCaseProfile(c) != sharedv1.Profile_PROFILE_LOCAL_ONLY {
-			return nil, fmt.Errorf("execute replay case %q must use local-only; remote inference is disabled", c.CaseID)
-		}
-		if strings.TrimSpace(c.PrivacyProvenance) == "" {
-			return nil, fmt.Errorf("execute replay case %q requires explicit privacy_provenance", c.CaseID)
-		}
-		if c.RequiredVRAMBytes <= 0 || c.RequiredVRAMBytes > 16<<30 {
-			return nil, fmt.Errorf("replay case %q requires an explicit VRAM reservation between 1 byte and 16 GiB", c.CaseID)
-		}
-		if !strings.HasPrefix(c.CapacityEstimateEvidenceURI, "capacity-footprint://") {
-			return nil, fmt.Errorf("replay case %q requires a capacity-footprint evidence URI", c.CaseID)
-		}
-		if err := verify(ctx, c); err != nil {
-			return nil, fmt.Errorf("verify source for replay case %q: %w", c.CaseID, err)
-		}
+	if err := validateExecuteReplayInputs(ctx, cases, parallel, verify, execute); err != nil {
+		return nil, err
 	}
 	results := make([]ReplayReceipt, len(cases))
 	type replayJob struct {
@@ -239,94 +42,7 @@ func ReplayCallerCases(ctx context.Context, cases []ReplayCase, parallel int, ve
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
-				c := job.item
-				c.TaskRole = replayTaskRole(c)
-				requestID := replaySourceRequestID(c)
-				receipt := ReplayReceipt{CaseID: c.CaseID, Mode: "execute", SourceRunID: c.SourceRunID, SourceEventID: c.SourceEventID, SourceSequence: c.SourceSequence, ConversationID: c.ConversationID, PrivacyProvenance: c.PrivacyProvenance, Scenario: c.Scenario, Role: c.Role, TaskRole: c.TaskRole, Profile: profileLabel(replayCaseProfile(c)), LatencyKind: "gateway_execution"}
-				receipt.CapacityRequestedBytes = c.RequiredVRAMBytes
-				req := &routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{
-					Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-					Role:              c.Role,
-					TaskRole:          c.TaskRole,
-					Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
-					PrivacyClass:      replayPrivacy(c.PrivacyClass),
-					PrivacyProvenance: c.PrivacyProvenance,
-					Operation:         c.Operation,
-					Scenario:          c.Scenario,
-					RequestId:         requestID,
-					TimeoutMs:         c.TimeoutMS,
-					RequiredVramBytes: &c.RequiredVRAMBytes,
-				}, InputText: c.InputText}
-				start := time.Now()
-				response, err := execute(ctx, req)
-				receipt.LatencyMS = time.Since(start).Milliseconds()
-				if err != nil {
-					receipt.Status = "error"
-					receipt.Error = "execute_route_failed"
-					results[job.index] = receipt
-					continue
-				}
-				if response == nil || response.GetEvidence() == nil {
-					receipt.Status = "error"
-					receipt.Error = "gateway returned no route evidence"
-					results[job.index] = receipt
-					continue
-				}
-				ev := response.GetEvidence()
-				if ev.GetScenario() != c.Scenario {
-					receipt.Status = "error"
-					receipt.Error = "gateway route receipt consumer scenario does not match replay case"
-					results[job.index] = receipt
-					continue
-				}
-				if ev.GetTaskRole() != c.TaskRole {
-					receipt.Status = "error"
-					receipt.Error = "gateway route receipt task role does not match replay request"
-					results[job.index] = receipt
-					continue
-				}
-				receipt.GatewayEventID = ev.GetEventId()
-				receipt.GatewayRequestID = ev.GetRequestId()
-				receipt.CapacityClaimID = ev.GetCapacityClaimId()
-				receipt.CapacityRequiredBytes = ev.GetCapacityRequiredBytes()
-				receipt.CapacityGrantedBytes = ev.GetCapacityGrantedBytes()
-				receipt.CapacityVerdict = ev.GetCapacityVerdict()
-				receipt.CapacityEstimateEvidenceURI = c.CapacityEstimateEvidenceURI
-				if receipt.GatewayEventID == "" || receipt.GatewayRequestID == "" {
-					receipt.Status = "error"
-					receipt.Error = "gateway route receipt omitted event or request identity"
-					results[job.index] = receipt
-					continue
-				}
-				if receipt.GatewayRequestID != requestID {
-					receipt.Status = "error"
-					receipt.Error = "gateway route receipt request identity does not match Agent Manager source"
-					results[job.index] = receipt
-					continue
-				}
-				if receipt.CapacityVerdict != "fit" || receipt.CapacityClaimID == "" || receipt.CapacityRequiredBytes != c.RequiredVRAMBytes || receipt.CapacityGrantedBytes < c.RequiredVRAMBytes {
-					receipt.Status = "error"
-					receipt.Error = "gateway route receipt omitted verified capacity admission"
-					results[job.index] = receipt
-					continue
-				}
-				receipt.GatewayRoleEvidenceURI = "gateway-ledger://events/" + receipt.GatewayEventID
-				receipt.Status = ev.GetStatus()
-				receipt.SelectedProvider = ev.GetSelectedProvider()
-				receipt.SelectedModel = ev.GetSelectedModel()
-				receipt.TaskRole = ev.GetTaskRole()
-				receipt.SelectedResourceRole = ev.GetSelectedResourceRole()
-				if receipt.Status == "succeeded" && receipt.SelectedResourceRole == "" {
-					receipt.Status = "error"
-					receipt.Error = "successful gateway route receipt omitted selected resource role"
-					results[job.index] = receipt
-					continue
-				}
-				receipt.Locality = ev.GetSelectedLocality()
-				if !response.GetValid() && receipt.Status == "" {
-					receipt.Status = "invalid"
-				}
-				results[job.index] = receipt
+				results[job.index] = executeReplayCase(ctx, job.item, execute)
 			}
 		}()
 	}
@@ -349,6 +65,137 @@ dispatched:
 		return nil, err
 	}
 	return results, nil
+}
+
+func validateExecuteReplayInputs(ctx context.Context, cases []ReplayCase, parallel int, verify replaySourceVerifier, execute replayExecutor) error {
+	if len(cases) == 0 {
+		return fmt.Errorf("no replay cases")
+	}
+	if len(cases) > maxReplayCases {
+		return fmt.Errorf("replay has %d cases; maximum is %d", len(cases), maxReplayCases)
+	}
+	if parallel < 1 || parallel > maxReplayParallel {
+		return fmt.Errorf("parallelism must be between 1 and %d", maxReplayParallel)
+	}
+	if execute == nil {
+		return fmt.Errorf("replay executor is required")
+	}
+	if verify == nil {
+		return fmt.Errorf("Agent Manager source verifier is required")
+	}
+	for _, c := range cases {
+		if err := validateExecuteReplayCase(ctx, c, verify); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateExecuteReplayCase(ctx context.Context, c ReplayCase, verify replaySourceVerifier) error {
+	if replayCaseProfile(c) != sharedv1.Profile_PROFILE_LOCAL_ONLY {
+		return fmt.Errorf("execute replay case %q must use local-only; remote inference is disabled", c.CaseID)
+	}
+	if strings.TrimSpace(c.PrivacyProvenance) == "" {
+		return fmt.Errorf("execute replay case %q requires explicit privacy_provenance", c.CaseID)
+	}
+	if c.RequiredVRAMBytes <= 0 || c.RequiredVRAMBytes > 16<<30 {
+		return fmt.Errorf("replay case %q requires an explicit VRAM reservation between 1 byte and 16 GiB", c.CaseID)
+	}
+	if !strings.HasPrefix(c.CapacityEstimateEvidenceURI, "capacity-footprint://") {
+		return fmt.Errorf("replay case %q requires a capacity-footprint evidence URI", c.CaseID)
+	}
+	if err := verify(ctx, c); err != nil {
+		return fmt.Errorf("verify source for replay case %q: %w", c.CaseID, err)
+	}
+	return nil
+}
+
+func executeReplayCase(ctx context.Context, c ReplayCase, execute replayExecutor) ReplayReceipt {
+	c.TaskRole = replayTaskRole(c)
+	requestID := replaySourceRequestID(c)
+	receipt := ReplayReceipt{CaseID: c.CaseID, Mode: "execute", SourceRunID: c.SourceRunID, SourceEventID: c.SourceEventID, SourceSequence: c.SourceSequence, ConversationID: c.ConversationID, PrivacyProvenance: c.PrivacyProvenance, Scenario: c.Scenario, Role: c.Role, TaskRole: c.TaskRole, Profile: profileLabel(replayCaseProfile(c)), LatencyKind: "gateway_execution", CapacityRequestedBytes: c.RequiredVRAMBytes}
+	req := &routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: c.Role, TaskRole: c.TaskRole,
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: replayPrivacy(c.PrivacyClass),
+		PrivacyProvenance: c.PrivacyProvenance, Operation: c.Operation, Scenario: c.Scenario,
+		RequestId: requestID, TimeoutMs: c.TimeoutMS, RequiredVramBytes: &c.RequiredVRAMBytes,
+	}, InputText: c.InputText}
+	start := time.Now()
+	response, err := execute(ctx, req)
+	receipt.LatencyMS = time.Since(start).Milliseconds()
+	if err != nil {
+		return replayFailure(receipt, "execute_route_failed")
+	}
+	if response == nil || response.GetEvidence() == nil {
+		return replayFailure(receipt, "gateway returned no route evidence")
+	}
+	if err := applyReplayEvidence(&receipt, c, requestID, response); err != nil {
+		return replayFailure(receipt, err.Error())
+	}
+	return receipt
+}
+
+func replayFailure(receipt ReplayReceipt, message string) ReplayReceipt {
+	receipt.Status, receipt.Error = "error", message
+	return receipt
+}
+
+func applyReplayEvidence(receipt *ReplayReceipt, c ReplayCase, requestID string, response *routingv1.ExecuteRouteResponse) error {
+	ev := response.GetEvidence()
+	if err := validateReplayEvidenceIdentity(ev, c); err != nil {
+		return err
+	}
+	receipt.GatewayEventID, receipt.GatewayRequestID = ev.GetEventId(), ev.GetRequestId()
+	receipt.CapacityClaimID = ev.GetCapacityClaimId()
+	receipt.CapacityRequiredBytes, receipt.CapacityGrantedBytes = ev.GetCapacityRequiredBytes(), ev.GetCapacityGrantedBytes()
+	receipt.CapacityVerdict, receipt.CapacityEstimateEvidenceURI = ev.GetCapacityVerdict(), c.CapacityEstimateEvidenceURI
+	if err := validateReplayReceiptAdmission(*receipt, c, requestID); err != nil {
+		return err
+	}
+	receipt.GatewayRoleEvidenceURI = "gateway-ledger://events/" + receipt.GatewayEventID
+	receipt.Status, receipt.SelectedProvider, receipt.SelectedModel = ev.GetStatus(), ev.GetSelectedProvider(), ev.GetSelectedModel()
+	receipt.TaskRole, receipt.SelectedResourceRole, receipt.Locality = ev.GetTaskRole(), ev.GetSelectedResourceRole(), ev.GetSelectedLocality()
+	if err := validateSelectedResourceRole(*receipt); err != nil {
+		return err
+	}
+	if !response.GetValid() && receipt.Status == "" {
+		receipt.Status = "invalid"
+	}
+	return nil
+}
+
+func validateReplayEvidenceIdentity(ev interface {
+	GetScenario() string
+	GetTaskRole() string
+}, c ReplayCase,
+) error {
+	if ev.GetScenario() != c.Scenario {
+		return fmt.Errorf("gateway route receipt consumer scenario does not match replay case")
+	}
+	if ev.GetTaskRole() != replayTaskRole(c) {
+		return fmt.Errorf("gateway route receipt task role does not match replay request")
+	}
+	return nil
+}
+
+func validateReplayReceiptAdmission(receipt ReplayReceipt, c ReplayCase, requestID string) error {
+	if receipt.GatewayEventID == "" || receipt.GatewayRequestID == "" {
+		return fmt.Errorf("gateway route receipt omitted event or request identity")
+	}
+	if receipt.GatewayRequestID != requestID {
+		return fmt.Errorf("gateway route receipt request identity does not match Agent Manager source")
+	}
+	if receipt.CapacityVerdict != "fit" || receipt.CapacityClaimID == "" || receipt.CapacityRequiredBytes != c.RequiredVRAMBytes || receipt.CapacityGrantedBytes < c.RequiredVRAMBytes {
+		return fmt.Errorf("gateway route receipt omitted verified capacity admission")
+	}
+	return nil
+}
+
+func validateSelectedResourceRole(receipt ReplayReceipt) error {
+	if receipt.Status == "succeeded" && receipt.SelectedResourceRole == "" {
+		return fmt.Errorf("successful gateway route receipt omitted selected resource role")
+	}
+	return nil
 }
 
 // replaySourceRequestID carries the exact Agent Manager source identity into
@@ -380,14 +227,13 @@ func PreviewCallerCases(ctx context.Context, cases []ReplayCase, parallel int, v
 	if preview == nil || verify == nil {
 		return nil, fmt.Errorf("preview executor and Agent Manager source verifier are required")
 	}
-	for _, c := range cases {
-		if strings.TrimSpace(c.PrivacyProvenance) == "" {
-			return nil, fmt.Errorf("preview replay case %q requires explicit privacy_provenance", c.CaseID)
-		}
-		if err := verify(ctx, c); err != nil {
-			return nil, fmt.Errorf("verify source for replay case %q: %w", c.CaseID, err)
-		}
+	if err := verifyPreviewSources(ctx, cases, verify); err != nil {
+		return nil, err
 	}
+	return dispatchPreviewCases(ctx, cases, parallel, preview)
+}
+
+func dispatchPreviewCases(ctx context.Context, cases []ReplayCase, parallel int, preview replayPreviewExecutor) ([]ReplayReceipt, error) {
 	results := make([]ReplayReceipt, len(cases))
 	type job struct {
 		index int
@@ -401,39 +247,7 @@ func PreviewCallerCases(ctx context.Context, cases []ReplayCase, parallel int, v
 		go func() {
 			defer wg.Done()
 			for work := range jobs {
-				c := work.item
-				c.TaskRole = replayTaskRole(c)
-				receipt := ReplayReceipt{CaseID: c.CaseID, Mode: "preview", SourceRunID: c.SourceRunID, SourceEventID: c.SourceEventID, SourceSequence: c.SourceSequence, ConversationID: c.ConversationID, PrivacyProvenance: c.PrivacyProvenance, Scenario: c.Scenario, Role: c.Role, TaskRole: c.TaskRole, Profile: profileLabel(replayCaseProfile(c)), LatencyKind: "route_preview"}
-				req := &routingv1.PreviewRouteRequest{Request: &sharedv1.GatewayRequest{
-					Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: c.Role, TaskRole: c.TaskRole,
-					Profile: replayCaseProfile(c), PrivacyClass: replayPrivacy(c.PrivacyClass),
-					PrivacyProvenance: c.PrivacyProvenance,
-					Operation:         c.Operation, Scenario: c.Scenario, TimeoutMs: c.TimeoutMS,
-				}}
-				start := time.Now()
-				response, err := preview(ctx, req)
-				receipt.LatencyMS = time.Since(start).Milliseconds()
-				if err != nil || response == nil {
-					receipt.Status = "error"
-					receipt.Error = "preview_route_failed"
-				} else {
-					valid := response.GetValid()
-					receipt.Valid = &valid
-					receipt.Status = "invalid"
-					if valid {
-						receipt.Status = "valid"
-					}
-					receipt.SelectedProvider = response.GetSelectedProvider()
-					receipt.RoutePlanID = response.GetRoutePlanId()
-					for _, candidate := range response.GetCandidates() {
-						receipt.CandidateEligibility = append(receipt.CandidateEligibility, ReplayCandidateEligibility{
-							Provider: candidate.GetProvider(), Role: candidate.GetRole(), Locality: candidate.GetLocality(),
-							Selected: candidate.GetSelected(), Fallback: candidate.GetFallbackEligible(),
-							RejectionCode: candidate.GetRejectionReason(), CapacityVerdict: candidate.GetCapacityVerdict(),
-						})
-					}
-				}
-				results[work.index] = receipt
+				results[work.index] = previewReplayCase(ctx, work.item, preview)
 			}
 		}()
 	}
@@ -456,6 +270,61 @@ previewDispatched:
 		return nil, err
 	}
 	return results, nil
+}
+
+func verifyPreviewSources(ctx context.Context, cases []ReplayCase, verify replaySourceVerifier) error {
+	for _, c := range cases {
+		if strings.TrimSpace(c.PrivacyProvenance) == "" {
+			return fmt.Errorf("preview replay case %q requires explicit privacy_provenance", c.CaseID)
+		}
+		if err := verify(ctx, c); err != nil {
+			return fmt.Errorf("verify source for replay case %q: %w", c.CaseID, err)
+		}
+	}
+	return nil
+}
+
+func previewReplayCase(ctx context.Context, c ReplayCase, preview replayPreviewExecutor) ReplayReceipt {
+	c.TaskRole = replayTaskRole(c)
+	receipt := ReplayReceipt{CaseID: c.CaseID, Mode: "preview", SourceRunID: c.SourceRunID, SourceEventID: c.SourceEventID, SourceSequence: c.SourceSequence, ConversationID: c.ConversationID, PrivacyProvenance: c.PrivacyProvenance, Scenario: c.Scenario, Role: c.Role, TaskRole: c.TaskRole, Profile: profileLabel(replayCaseProfile(c)), LatencyKind: "route_preview"}
+	request := previewRequest(c)
+	start := time.Now()
+	response, err := preview(ctx, request)
+	receipt.LatencyMS = time.Since(start).Milliseconds()
+	if err != nil || response == nil {
+		return failedPreviewReceipt(receipt)
+	}
+	valid := response.GetValid()
+	receipt.Valid = &valid
+	receipt.Status = "invalid"
+	if response.GetValid() {
+		receipt.Status = "valid"
+	}
+	receipt.SelectedProvider = response.GetSelectedProvider()
+	receipt.RoutePlanID = response.GetRoutePlanId()
+	receipt.CandidateEligibility = previewCandidateEligibility(response.GetCandidates())
+	return receipt
+}
+
+func previewRequest(c ReplayCase) *routingv1.PreviewRouteRequest {
+	return &routingv1.PreviewRouteRequest{Request: &sharedv1.GatewayRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: c.Role, TaskRole: c.TaskRole,
+		Profile: replayCaseProfile(c), PrivacyClass: replayPrivacy(c.PrivacyClass),
+		PrivacyProvenance: c.PrivacyProvenance, Operation: c.Operation, Scenario: c.Scenario, TimeoutMs: c.TimeoutMS,
+	}}
+}
+
+func failedPreviewReceipt(receipt ReplayReceipt) ReplayReceipt {
+	receipt.Status, receipt.Error = "error", "preview_route_failed"
+	return receipt
+}
+
+func previewCandidateEligibility(candidates []*routingv1.RouteCandidate) []ReplayCandidateEligibility {
+	eligibility := make([]ReplayCandidateEligibility, 0, len(candidates))
+	for _, candidate := range candidates {
+		eligibility = append(eligibility, ReplayCandidateEligibility{Provider: candidate.GetProvider(), Role: candidate.GetRole(), Locality: candidate.GetLocality(), Selected: candidate.GetSelected(), Fallback: candidate.GetFallbackEligible(), RejectionCode: candidate.GetRejectionReason(), CapacityVerdict: candidate.GetCapacityVerdict()})
+	}
+	return eligibility
 }
 
 func replayProfile(v string) sharedv1.Profile {

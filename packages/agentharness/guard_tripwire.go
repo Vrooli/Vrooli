@@ -17,6 +17,17 @@ func (r Runtime) guardModeStore() *GuardModeStore {
 	return NewGuardModeStore(r.Store.Dir)
 }
 
+// relaxationMayBeActive reports whether a temporary log-only mode is active.
+// An unreadable mode store counts as active, so the tripwire fails closed.
+func (r Runtime) relaxationMayBeActive(now time.Time) bool {
+	store := r.guardModeStore()
+	if store == nil {
+		return false
+	}
+	active, err := store.Active(now)
+	return err != nil || len(active) > 0
+}
+
 func (r Runtime) hardStopDecision(event ToolEvent, risk RiskClass, hardStop HardStopClass, now time.Time) (Decision, error) {
 	return r.hardStopDecisionValue(event, risk, hardStop, now), nil
 }
@@ -63,6 +74,24 @@ func riskClassStrings(risks []RiskClass) []string {
 	return out
 }
 
+// hasOpaqueExecution reports hook events whose effects the hook cannot see:
+// a file-backed interpreter or shell script (the event carries the launcher
+// and path, not the code), or an unquoted here-document whose body expands
+// before the receiving command runs. A literal here-document file write is
+// data, not execution, and is classified by hardStopForEvent instead.
+//
+// These are tripwire inputs, not always-on hard stops. They exist so a hidden
+// action cannot slip past an active temporary log-only relaxation; the
+// runtime applies them only while one is active (see Runtime.evaluate).
+// Outside a relaxation the visible money, secret and outbound-message floor in
+// hardStopForEvent still applies to the command line itself.
+func hasOpaqueExecution(event ToolEvent) bool {
+	if _, _, ok := literalHereDocFileWrite(event); ok {
+		return false
+	}
+	return unquotedHereDocHasExpansion(event) || hasOpaqueScriptExecution(event)
+}
+
 // hardStopForEvent uses exact hook-visible tokens, never substring matches.
 // It records no command text or secret material in durable state or evidence.
 func hardStopForEvent(event ToolEvent) HardStopClass {
@@ -81,17 +110,6 @@ func hardStopForEvent(event ToolEvent) HardStopClass {
 			return HardStopUnknownEffect
 		}
 		return ""
-	}
-	if unquotedHereDocHasExpansion(event) {
-		// Unquoted here-documents perform parameter, command and arithmetic
-		// expansion before the receiving command runs. Treat this as opaque
-		// executable content; never let the literal-file exception skip it.
-		return HardStopUnknownEffect
-	}
-	if hasOpaqueScriptExecution(event) {
-		// The hook event contains the launcher and path, not the code's effects.
-		// Refuse to classify a file-backed interpreter run from argv keywords.
-		return HardStopUnknownEffect
 	}
 	if isNetworkRedirection(event) {
 		return HardStopOutsideMessage

@@ -28,36 +28,62 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	timeout, err := parseInt32(ctx.Flag("timeout-ms"), "timeout-ms")
+	limits, err := requestLimits(ctx)
 	if err != nil {
 		return nil, err
 	}
-	maxTokens, err := parseInt32(ctx.Flag("max-output-tokens"), "max-output-tokens")
+	metadata, requiredVRAMField, err := requestCapacityMetadata(ctx, limits.requiredVRAM)
 	if err != nil {
 		return nil, err
 	}
-	maxCost, err := parseFloat64(ctx.Flag("max-cost-usd"), "max-cost-usd")
-	if err != nil {
-		return nil, err
+	// GatewayRequest.sampling stays API-only because CLI callers wrap it in an
+	// envelope and the manifest resolver descends only one envelope level.
+	return &sharedv1.GatewayRequest{
+		Kind: kind, Role: ctx.Flag("role"), Profile: profile, PrivacyClass: privacy,
+		PrivacyProvenance: privacyProvenance, Operation: ctx.Flag("operation"), Scenario: ctx.Flag("scenario"),
+		TimeoutMs: limits.timeout, MaxCostUsd: limits.maxCost, MaxOutputTokens: limits.maxTokens,
+		RequestId: ctx.Flag("request-id"), Metadata: metadata, RequiredVramBytes: requiredVRAMField,
+	}, nil
+}
+
+type parsedLimits struct {
+	timeout      int32
+	maxTokens    int32
+	maxCost      float64
+	requiredVRAM int64
+}
+
+func requestLimits(ctx cliapp.RunContext) (parsedLimits, error) {
+	var limits parsedLimits
+	var err error
+	if limits.timeout, err = parseInt32(ctx.Flag("timeout-ms"), "timeout-ms"); err != nil {
+		return parsedLimits{}, err
 	}
-	requiredVRAM, err := parseInt64(ctx.Flag("required-vram-bytes"), "required-vram-bytes")
-	if err != nil {
-		return nil, err
+	if limits.maxTokens, err = parseInt32(optionalFlag(ctx, "max-output-tokens"), "max-output-tokens"); err != nil {
+		return parsedLimits{}, err
 	}
+	if limits.maxCost, err = parseFloat64(optionalFlag(ctx, "max-cost-usd"), "max-cost-usd"); err != nil {
+		return parsedLimits{}, err
+	}
+	limits.requiredVRAM, err = parseInt64(optionalFlag(ctx, "required-vram-bytes"), "required-vram-bytes")
+	return limits, err
+}
+
+func requestCapacityMetadata(ctx cliapp.RunContext, requiredVRAM int64) (map[string]string, *int64, error) {
 	expectedDigest := ""
 	if ctx.FlagDeclared("expected-worker-digest") {
 		expectedDigest = strings.TrimSpace(ctx.Flag("expected-worker-digest"))
 	}
 	if expectedDigest != "" {
 		if requiredVRAM <= 0 {
-			return nil, fmt.Errorf("--expected-worker-digest requires a positive --required-vram-bytes")
+			return nil, nil, fmt.Errorf("--expected-worker-digest requires a positive --required-vram-bytes")
 		}
 		digest := strings.TrimPrefix(strings.ToLower(expectedDigest), "sha256:")
 		if len(digest) != 64 {
-			return nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest")
+			return nil, nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest")
 		}
 		if _, err := hex.DecodeString(digest); err != nil {
-			return nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest: %w", err)
+			return nil, nil, fmt.Errorf("--expected-worker-digest must be a SHA-256 digest: %w", err)
 		}
 	}
 	metadata := map[string]string{}
@@ -71,28 +97,18 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	if expectedDigest != "" {
 		metadata["expected_worker_digest"] = expectedDigest
 	}
-	// GatewayRequest.sampling is deliberately not settable from the CLI. Every
-	// command that builds this message wraps it in an envelope (ExecuteRouteRequest,
-	// PreviewRouteRequest, …), and the manifest's argument resolver descends one
-	// envelope level, so `request.sampling.temperature` is one level out of reach.
-	// Rather than invent a JSON-blob flag for one scalar, the routing path takes
-	// sampling from API callers only; `ai-gateway inference run --temperature`
-	// covers the ergonomic case because RunRequest carries `sampling` directly.
-	return &sharedv1.GatewayRequest{
-		Kind:              kind,
-		Role:              ctx.Flag("role"),
-		Profile:           profile,
-		PrivacyClass:      privacy,
-		PrivacyProvenance: privacyProvenance,
-		Operation:         ctx.Flag("operation"),
-		Scenario:          ctx.Flag("scenario"),
-		TimeoutMs:         timeout,
-		MaxCostUsd:        maxCost,
-		MaxOutputTokens:   maxTokens,
-		RequestId:         ctx.Flag("request-id"),
-		Metadata:          metadata,
-		RequiredVramBytes: requiredVRAMField,
-	}, nil
+	return metadata, requiredVRAMField, nil
+}
+
+// optionalFlag reads a flag only when the command's schema declares it. The
+// generic GatewayRequest builder is shared by commands whose flag sets differ
+// (media submission has no output-token or VRAM controls), so an undeclared
+// optional flag means "not supplied", not a panic.
+func optionalFlag(ctx cliapp.RunContext, name string) string {
+	if !ctx.FlagDeclared(name) {
+		return ""
+	}
+	return ctx.Flag(name)
 }
 
 func InferencePrivacyProvenance(ctx cliapp.RunContext) (string, error) {

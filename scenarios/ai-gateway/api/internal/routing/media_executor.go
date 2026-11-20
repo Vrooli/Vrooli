@@ -52,24 +52,10 @@ func NewResourceOpenRouterMediaExecutor(runner providers.CommandRunner) *Resourc
 }
 
 func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *routingv1.SubmitMediaRequest) (*MediaExecutionResult, error) {
-	if req == nil || req.GetRequest() == nil {
-		return nil, errors.New("media request is required")
+	outputPath, role, err := validateResourceImageRequest(req)
+	if err != nil {
+		return nil, err
 	}
-	if req.GetRequest().GetKind() != sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION {
-		return nil, fmt.Errorf("resource-openrouter media executor does not support %s", req.GetRequest().GetKind().String())
-	}
-	if req.GetOutputCount() != 1 {
-		return nil, errors.New("resource-openrouter media executor requires output_count=1 because output_reference names one caller-owned file")
-	}
-	outputPath := strings.TrimSpace(req.GetOutputReference())
-	if !filepath.IsAbs(outputPath) {
-		return nil, fmt.Errorf("output_reference must be an absolute caller-owned path: %q", outputPath)
-	}
-	role := strings.TrimSpace(req.GetRequest().GetRole())
-	if role == "" {
-		role = "image.generate.default"
-	}
-
 	model, err := e.resolveModel(ctx, role)
 	if err != nil {
 		return nil, err
@@ -91,22 +77,9 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 		}
 	}()
 
-	args := []string{"images", "generate", "--role", role, "--output-count", "1", "--result-format", "gateway-v1"}
-	if len(req.GetInputs()) > 0 {
-		inputPath := strings.TrimSpace(req.GetInputs()[0].GetReference())
-		if !filepath.IsAbs(inputPath) {
-			return nil, fmt.Errorf("media input reference must be an absolute caller-owned path: %q", inputPath)
-		}
-		args = append(args, "--input-file", inputPath)
-	}
-	result, err := e.runResource(runCtx, providers.Command{
-		Name:    "resource-openrouter",
-		Args:    args,
-		Stdin:   req.GetPrompt(),
-		Timeout: mediaExecutionTimeout,
-	})
+	result, err := e.runImageGeneration(runCtx, req, role)
 	if err != nil {
-		return nil, fmt.Errorf("resource-openrouter image generation: %w", err)
+		return nil, err
 	}
 
 	image, mediaType, actualCostUSD, err := decodeMediaImage([]byte(result.Stdout))
@@ -150,6 +123,43 @@ func (e *ResourceOpenRouterMediaExecutor) Execute(ctx context.Context, req *rout
 		ActualCostUSD: actualCostUSD,
 		ResolvedModel: model,
 	}, nil
+}
+
+func validateResourceImageRequest(req *routingv1.SubmitMediaRequest) (string, string, error) {
+	if req == nil || req.GetRequest() == nil {
+		return "", "", errors.New("media request is required")
+	}
+	if req.GetRequest().GetKind() != sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION {
+		return "", "", fmt.Errorf("resource-openrouter media executor does not support %s", req.GetRequest().GetKind().String())
+	}
+	if req.GetOutputCount() != 1 {
+		return "", "", errors.New("resource-openrouter media executor requires output_count=1 because output_reference names one caller-owned file")
+	}
+	outputPath := strings.TrimSpace(req.GetOutputReference())
+	if !filepath.IsAbs(outputPath) {
+		return "", "", fmt.Errorf("output_reference must be an absolute caller-owned path: %q", outputPath)
+	}
+	role := strings.TrimSpace(req.GetRequest().GetRole())
+	if role == "" {
+		role = "image.generate.default"
+	}
+	return outputPath, role, nil
+}
+
+func (e *ResourceOpenRouterMediaExecutor) runImageGeneration(ctx context.Context, req *routingv1.SubmitMediaRequest, role string) (providers.Result, error) {
+	args := []string{"images", "generate", "--role", role, "--output-count", "1", "--result-format", "gateway-v1"}
+	if len(req.GetInputs()) > 0 {
+		inputPath := strings.TrimSpace(req.GetInputs()[0].GetReference())
+		if !filepath.IsAbs(inputPath) {
+			return providers.Result{}, fmt.Errorf("media input reference must be an absolute caller-owned path: %q", inputPath)
+		}
+		args = append(args, "--input-file", inputPath)
+	}
+	result, err := e.runResource(ctx, providers.Command{Name: "resource-openrouter", Args: args, Stdin: req.GetPrompt(), Timeout: mediaExecutionTimeout})
+	if err != nil {
+		return providers.Result{}, fmt.Errorf("resource-openrouter image generation: %w", err)
+	}
+	return result, nil
 }
 
 func (e *ResourceOpenRouterMediaExecutor) Cancel(_ context.Context, id string) error {
@@ -255,7 +265,7 @@ func parseGatewayImageCost(raw json.RawMessage) (*float64, error) {
 		return nil, nil
 	}
 	text := strings.TrimSpace(string(raw))
-	if text == "" || text == "null" || (text[0] != '-' && (text[0] < '0' || text[0] > '9')) {
+	if !validGatewayImageCostText(text) {
 		return nil, fmt.Errorf("resource-openrouter returned invalid actual_cost_usd")
 	}
 	value, err := strconv.ParseFloat(text, 64)
@@ -263,6 +273,14 @@ func parseGatewayImageCost(raw json.RawMessage) (*float64, error) {
 		return nil, fmt.Errorf("resource-openrouter returned invalid actual_cost_usd")
 	}
 	return &value, nil
+}
+
+func validGatewayImageCostText(text string) bool {
+	if text == "" || text == "null" {
+		return false
+	}
+	first := text[0]
+	return first == '-' || (first >= '0' && first <= '9')
 }
 
 func writeMediaOutput(path string, image []byte) error {

@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-const paceFixture = `{"generated_at":"2026-11-16T12:00:00Z","selected_tier":"use_by_thursday","selected_target_run_out_at":"2026-11-19T23:59:59Z","baseline_max_concurrent_runs":10,"effective_max_concurrent_runs":5,"tiers":[{"id":"at_reset","label":"Last until quota resets","status":"available","available_slots":8,"effective_max_concurrent_runs":8,"target_run_out_at":"2026-11-20T07:00:00Z"},{"id":"use_by_thursday","label":"Use by Thursday","status":"available","available_slots":5,"effective_max_concurrent_runs":5,"target_run_out_at":"2026-11-19T23:59:59Z"},{"id":"use_by_wednesday","label":"Use by Wednesday","status":"unavailable","reason":"no fresh provider quota forecast is available to estimate slots"},{"id":"extra_allowance","label":"Use extra allowance","status":"unavailable","reason":"provider quota readings do not identify a separate extra-allowance budget"}]}`
+const paceFixture = `{"generated_at":"2026-11-16T12:00:00Z","selected_tier":"use_by_thursday","selected_target_run_out_at":"2026-11-19T23:59:59Z","baseline_max_concurrent_runs":10,"effective_max_concurrent_runs":5,"tiers":[{"id":"at_reset","label":"Last until quota resets","status":"available","available_slots":8,"effective_max_concurrent_runs":8,"target_run_out_at":"2026-11-20T07:00:00Z","unavailable_scopes":[{"provider":"anthropic","pool":"seven_day","window":"10080m","reason":"anthropic seven_day: quota readings in the burn interval carry no source run IDs, so the burn cannot be tied to runs"}]},{"id":"use_by_thursday","label":"Use by Thursday","status":"available","available_slots":5,"effective_max_concurrent_runs":5,"target_run_out_at":"2026-11-19T23:59:59Z"},{"id":"use_by_wednesday","label":"Use by Wednesday","status":"unavailable","reason":"no fresh provider quota forecast is available to estimate slots"},{"id":"extra_allowance","label":"Use extra allowance","status":"unavailable","reason":"provider quota readings do not identify a separate extra-allowance budget"}]}`
 
 func runPace(t *testing.T, base string, args ...string) (string, error) {
 	t.Helper()
@@ -61,6 +61,9 @@ func TestPaceCommandReadsForecastAndPreservesUnknownSlots(t *testing.T) {
 	}
 	if method != http.MethodGet || !strings.Contains(out, "Selected pace: use_by_thursday") || !strings.Contains(out, "unknown (no fresh provider quota forecast") || !strings.Contains(out, "unknown (provider quota readings do not identify") {
 		t.Fatalf("human output hides selection or unknown tiers:\n%s", out)
+	}
+	if !strings.Contains(out, "not measured: anthropic seven_day (anthropic seven_day: quota readings in the burn interval carry no source run IDs") {
+		t.Fatalf("human output hides a window the ceiling does not measure:\n%s", out)
 	}
 }
 

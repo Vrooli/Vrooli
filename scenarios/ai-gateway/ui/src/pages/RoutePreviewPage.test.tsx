@@ -3,7 +3,10 @@ import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { previewRoute } from "../api/gateway";
+import { privacyOptions } from "../api/gateway";
+import { PrivacyClass } from "@vrooli/proto-types/ai-gateway/v1/shared/gateway_pb";
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
 import { renderWithProviders } from "../test-utils";
 import { RoutePreviewPage } from "./RoutePreviewPage";
 
@@ -74,7 +77,34 @@ describe("RoutePreviewPage", () => {
     await user.click(screen.getByTestId(selectors.routePreview.submit));
 
     expect(await screen.findByTestId(selectors.routePreview.candidates)).toBeInTheDocument();
-    expect(screen.getByText("open")).toBeInTheDocument();
+    expect(screen.getByText(strings.states.breakerOpen)).toBeInTheDocument();
+  });
+
+  it("renders profile labels and descriptions through the i18n key registry", () => {
+    renderWithProviders(<RoutePreviewPage />);
+
+    // test-setup runs cimode, so t() returns the key path. Asserting on the
+    // registry path proves the option came from the generated catalog rather
+    // than a hardcoded copy string.
+    expect(screen.getByTestId(selectors.routePreview.profileSelect)).toHaveDisplayValue(
+      strings.profiles.localFirst,
+    );
+    expect(screen.getByText(strings.profiles.localFirstDesc)).toBeInTheDocument();
+  });
+
+  it("renders privacy classes through i18n and covers the complete proto enum", () => {
+    renderWithProviders(<RoutePreviewPage />);
+
+    expect(screen.getByLabelText(strings.pages.routePreview.fields.privacy)).toHaveDisplayValue(
+      strings.privacyClasses.internal,
+    );
+    const protoValues = Object.values(PrivacyClass)
+      .filter((value): value is PrivacyClass => typeof value === "number" && value !== PrivacyClass.UNSPECIFIED)
+      .sort((left, right) => left - right);
+    expect(privacyOptions.map((option) => option.value).sort((left, right) => left - right)).toEqual(
+      protoValues,
+    );
+    expect(screen.getByText(strings.privacyClasses.public)).toBeInTheDocument();
   });
 
   it("renders preview errors and preserves the form", async () => {

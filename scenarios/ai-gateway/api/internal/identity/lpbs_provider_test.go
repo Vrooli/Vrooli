@@ -43,3 +43,68 @@ func TestLPBSConsumerProviderVerifiesAccountSubjectAndFailsClosed(t *testing.T) 
 		require.Error(t, err)
 	}
 }
+
+func TestLPBSConsumerProviderVerifiesScopedCreditAssertion(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	now := time.Now().UTC()
+	signer, err := consumeridentity.NewSigner("fixture-key", key, "lpbs.fixture", time.Minute)
+	require.NoError(t, err)
+	signer.Now = func() time.Time { return now }
+	jwks, err := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: signer.KeyID, Key: &key.PublicKey}).JWKS()
+	require.NoError(t, err)
+	provider := &LPBSConsumerProvider{cache: consumeridentity.NewCache("lpbs.fixture", 0, time.Hour, func(*http.Request) ([]byte, error) { return jwks, nil })}
+	expect := consumeridentity.CreditAssertionExpectation{BusinessAccountID: "acct-1", ActorID: "actor-1", AppKey: "audio-tools", FeatureID: "audio-tools.summarize", MaxCredits: 500, Audience: consumeridentity.CreditGatewayAudience, OperationID: "op-1", Source: consumeridentity.CreditAssertionSource}
+	token, _, err := signer.SignCreditAssertion(expect, 20*time.Second)
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/private/provider-routes/plan", nil)
+	require.NoError(t, provider.VerifyCreditAssertion(req, token, expect))
+	wrong := expect
+	wrong.AppKey = "web-console"
+	require.Error(t, provider.VerifyCreditAssertion(req, token, wrong))
+	wrong = expect
+	wrong.OperationID = "op-replay"
+	require.Error(t, provider.VerifyCreditAssertion(req, token, wrong))
+	wrong = expect
+	wrong.Audience = "scenario:landing-page-business-suite"
+	require.Error(t, provider.VerifyCreditAssertion(req, token, wrong))
+}
+
+func TestLPBSConsumerProviderAcceptsPublishedRotationOverlapAcrossRestart(t *testing.T) {
+	oldSigner, err := consumeridentity.GenerateSigner("old-key", "lpbs.fixture", time.Minute)
+	require.NoError(t, err)
+	newSigner, err := consumeridentity.GenerateSigner("new-key", "lpbs.fixture", time.Minute)
+	require.NoError(t, err)
+	oldToken, _, err := oldSigner.SignCreditAssertion(testCreditExpectation("operation-old"), 20*time.Second)
+	require.NoError(t, err)
+	newToken, _, err := newSigner.SignCreditAssertion(testCreditExpectation("operation-new"), 20*time.Second)
+	require.NoError(t, err)
+
+	overlap, err := consumeridentity.NewKeySet(
+		consumeridentity.PublicKey{ID: oldSigner.KeyID, Key: &oldSigner.Private.PublicKey},
+		consumeridentity.PublicKey{ID: newSigner.KeyID, Key: &newSigner.Private.PublicKey},
+	).JWKS()
+	require.NoError(t, err)
+	fetch := func(*http.Request) ([]byte, error) { return overlap, nil }
+	first := NewLPBSConsumerProvider("lpbs.fixture")
+	first.cache = consumeridentity.NewCache("lpbs.fixture", 0, time.Hour, fetch)
+	req := httptest.NewRequest(http.MethodPost, "/private", nil)
+	require.NoError(t, first.VerifyCreditAssertion(req, oldToken, testCreditExpectation("operation-old")))
+	require.NoError(t, first.VerifyCreditAssertion(req, newToken, testCreditExpectation("operation-new")))
+
+	// A restarted Gateway has no warm key cache and must recover both sides of
+	// the overlap from the issuer's published JWKS before it can admit work.
+	restarted := NewLPBSConsumerProvider("lpbs.fixture")
+	restarted.cache = consumeridentity.NewCache("lpbs.fixture", 0, time.Hour, fetch)
+	require.NoError(t, restarted.VerifyCreditAssertion(req, oldToken, testCreditExpectation("operation-old")))
+	require.NoError(t, restarted.VerifyCreditAssertion(req, newToken, testCreditExpectation("operation-new")))
+}
+
+func testCreditExpectation(operation string) consumeridentity.CreditAssertionExpectation {
+	return consumeridentity.CreditAssertionExpectation{
+		BusinessAccountID: "acct-1", ActorID: "actor-1", AppKey: "audio-tools",
+		FeatureID: "audio-tools.summarize", MaxCredits: 500,
+		Audience: consumeridentity.CreditGatewayAudience, OperationID: operation,
+		Source: consumeridentity.CreditAssertionSource,
+	}
+}

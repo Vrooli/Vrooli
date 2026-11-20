@@ -32,6 +32,7 @@ export function RoutePreviewPage() {
   };
 
   const selected = previewMutation.data?.candidates.find((candidate) => candidate.selected);
+  const selectedProfile = profileOptions.find((option) => option.value === form.profile) ?? profileOptions[0];
 
   return (
     <section
@@ -98,10 +99,13 @@ export function RoutePreviewPage() {
                 >
                   {profileOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs font-normal text-app-muted-foreground">
+                  {t(selectedProfile.descriptionKey)}
+                </p>
               </label>
               <label className="grid gap-1 text-sm font-medium">
                 {t(strings.pages.routePreview.fields.privacy)}
@@ -112,7 +116,7 @@ export function RoutePreviewPage() {
                 >
                   {privacyOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.labelKey)}
                     </option>
                   ))}
                 </select>
@@ -253,7 +257,13 @@ export function RoutePreviewPage() {
                       <div className="flex flex-wrap gap-1">
                         {candidate.breakerState && candidate.breakerState !== "closed" ? (
                           <StatusChip tone={candidate.breakerState === "open" ? "warning" : "info"}>
-                            {`${candidate.breakerState}${candidate.halfOpenProbe ? " (probe)" : ""}`}
+                            {`${
+                              candidate.breakerState === "open"
+                                ? t(strings.states.breakerOpen)
+                                : candidate.breakerState === "half_open"
+                                  ? t(strings.states.breakerHalfOpen)
+                                  : candidate.breakerState
+                            }${candidate.halfOpenProbe ? " (probe)" : ""}`}
                           </StatusChip>
                         ) : null}
                         {candidate.capacityVerdict && candidate.capacityVerdict !== "fit" ? (

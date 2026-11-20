@@ -1,6 +1,7 @@
 package utilizationhistory
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -35,30 +36,35 @@ func TestEstimateUsesProviderScopedBurnAndActualStableRunIDs(t *testing.T) {
 	}
 }
 
-func TestEstimateUnavailableWhenSampleCoverageIsNotCoextensive(t *testing.T) {
+// Missing coverage can hide a run's presence but never invent it, so it may
+// only lower the ceiling: a truncated endpoint, a gap wider than the sampler
+// supports, an unmapped neighbour or an unknown sample never raise slots.
+func TestEstimateCoverageLossOnlyLowersTheCeiling(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
-	input := estimateFixture(now, now.Add(8*time.Hour))
-	input.Samples = input.Samples[:len(input.Samples)-1]
-	got := Estimate(input)
-	if got[0].Slots != nil || got[0].Status != "unavailable" {
-		t.Fatalf("incomplete endpoint unexpectedly supported capacity: %+v", got[0])
-	}
-}
-
-func TestEstimateUnavailableOnSnapshotGapAndUnmappedRun(t *testing.T) {
-	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	full := *Estimate(estimateFixture(now, now.Add(8*time.Hour)))[0].Slots
 	for name, mutate := range map[string]func(*EstimateInput){
-		"gap":      func(in *EstimateInput) { in.Samples = append(in.Samples[:5], in.Samples[8:]...) },
-		"unmapped": func(in *EstimateInput) { in.Samples[2].UnmappedRunIDs = []string{"unmapped-7"} },
+		"truncated endpoint": func(in *EstimateInput) { in.Samples = in.Samples[:len(in.Samples)-1] },
+		"gap":                func(in *EstimateInput) { in.Samples = append(in.Samples[:5], in.Samples[8:]...) },
+		"unmapped neighbour": func(in *EstimateInput) { in.Samples[2].UnmappedRunIDs = []string{"unmapped-7"} },
+		"unknown sample": func(in *EstimateInput) {
+			in.Samples[4].Complete = false
+			in.Samples[4].Unknown = []string{"unclassified host process"}
+		},
+		"run unobserved": func(in *EstimateInput) { in.Samples[3].ProviderRunIDs = map[string][]string{} },
 	} {
 		t.Run(name, func(t *testing.T) {
 			in := estimateFixture(now, now.Add(8*time.Hour))
 			mutate(&in)
-			got := Estimate(in)
-			if got[0].Slots != nil {
-				t.Fatalf("unsupported evidence returned %d slots", *got[0].Slots)
+			got := Estimate(in)[0]
+			if got.Slots != nil && *got.Slots > full {
+				t.Fatalf("coverage loss raised the ceiling: %d > %d", *got.Slots, full)
 			}
 		})
+	}
+	in := estimateFixture(now, now.Add(8*time.Hour))
+	in.Samples = nil
+	if got := Estimate(in)[0]; got.Slots != nil || got.Status != "unavailable" || len(got.Unavailable) != 1 {
+		t.Fatalf("no physical observation of the source run must stay unavailable: %+v", got)
 	}
 }
 
@@ -107,27 +113,72 @@ func TestEstimateMapsMultipleQuotaAccountsToTheirExactSourceRuns(t *testing.T) {
 	}
 }
 
-func TestEstimateRejectsMissingOrMalformedScopedSourceRunIDs(t *testing.T) {
+// A reading without a valid source run ID still counts toward the account's
+// burn, but only valid IDs establish which runs that burn is divided over. A
+// window none of whose readings name a run cannot be measured.
+func TestEstimateRequiresAtLeastOneValidSourceRunID(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	for name, sourceID := range map[string]string{"missing": "", "malformed": "run-not-a-uuid"} {
 		t.Run(name, func(t *testing.T) {
 			in := estimateFixture(now, now.Add(8*time.Hour))
 			in.Quota[0].SourceRunID = sourceID
-			got := Estimate(in)
-			if got[0].Slots != nil || got[0].Status != "unavailable" {
-				t.Fatalf("scope with %s source run ID must remain unavailable: %+v", name, got[0])
+			if got := Estimate(in)[0]; got.Status != "available" || len(got.ProviderSlots) != 1 || len(got.ProviderSlots[0].RunIDs) != 1 {
+				t.Fatalf("one valid source run should measure the window: %+v", got)
+			}
+			in.Quota[1].SourceRunID = sourceID
+			got := Estimate(in)[0]
+			if got.Slots != nil || got.Status != "unavailable" || len(got.Unavailable) != 1 || !strings.Contains(got.Reason, "no source run IDs") {
+				t.Fatalf("window with %s source run IDs must remain unavailable: %+v", name, got)
 			}
 		})
 	}
 }
 
-func TestEstimatePreservesUnknownPhysicalCoverageGuardForScopedRuns(t *testing.T) {
+// Live shape of 2026-11-20: the Claude statusline reported a scoped account
+// without source runs while Codex reported unscoped readings from its runs.
+// The unmeasurable Claude window is reported; it does not hide the Codex
+// measurement.
+func TestEstimateMeasuresEachWindowIndependently(t *testing.T) {
+	now := time.Date(2026, 11, 20, 15, 10, 0, 0, time.UTC)
+	in := estimateFixture(now, now.Add(8*time.Hour))
+	for i := range in.Quota {
+		in.Quota[i].AccountScope = "" // Codex frames carry no account scope
+	}
+	claudeReset := now.Add(5 * 24 * time.Hour)
+	weekly := int64(10080)
+	flat := 1.0
+	for _, at := range []time.Time{now.Add(-30 * time.Minute), now.Add(-time.Minute)} {
+		in.Quota = append(in.Quota, pricing.QuotaObservation{Provider: "anthropic", AccountScope: "anthropic:sha256:a", Pool: "seven_day", Window: "10080m", ObservedAt: at, UsedPercent: &flat, ResetAt: &claudeReset, WindowMinutes: &weekly})
+	}
+	got := Estimate(in)
+	for _, tier := range got[:3] {
+		if tier.Status != "available" || tier.Slots == nil || len(tier.ProviderSlots) != 1 || tier.ProviderSlots[0].Provider != "openai" {
+			t.Fatalf("%s: measurable Codex window hidden by Claude: %+v", tier.ID, tier)
+		}
+		if len(tier.Unavailable) != 1 || tier.Unavailable[0].Provider != "anthropic" || tier.Unavailable[0].Reason == "" {
+			t.Fatalf("%s: unmeasured Claude window not reported: %+v", tier.ID, tier.Unavailable)
+		}
+		if !strings.Contains(tier.ProviderSlots[0].ScopeEvidence, "account scope not reported") {
+			t.Fatalf("unscoped membership evidence not disclosed: %+v", tier.ProviderSlots[0])
+		}
+	}
+}
+
+// Concurrent sessions re-render older cached percents. Within one reset chain
+// a lower later reading is not a refund: burn and remaining allowance use the
+// running maximum.
+func TestEstimateUsesRunningMaximumAcrossCachedReadings(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	in := estimateFixture(now, now.Add(8*time.Hour))
-	in.Samples[4].Unknown = []string{"unclassified host process"}
-	got := Estimate(in)
-	if got[0].Slots != nil || got[0].Status != "unavailable" {
-		t.Fatalf("unknown physical coverage must invalidate scoped exposure: %+v", got[0])
+	peak, cached := 12.0, 10.0
+	mid := in.Quota[0]
+	mid.ObservedAt, mid.UsedPercent = now.Add(-5*time.Minute), &peak
+	last := in.Quota[1]
+	last.UsedPercent = &cached
+	in.Quota = []pricing.QuotaObservation{in.Quota[0], mid, last}
+	got := Estimate(in)[0]
+	if got.Status != "available" || len(got.ProviderSlots) != 1 || got.ProviderSlots[0].BurnPercent != 2 {
+		t.Fatalf("burn must follow the running maximum: %+v", got)
 	}
 }
 

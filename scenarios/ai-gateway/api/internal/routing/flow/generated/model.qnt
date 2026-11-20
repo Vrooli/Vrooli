@@ -7,6 +7,7 @@ module MediaReceiptLifecycle {
   var event: Event
   var rejected: bool
 
+
   pure def isValid(s: Status, e: Event): bool =
     (s == Queued and e == Dispatch) or
     (s == Queued and e == Fail) or
@@ -38,16 +39,20 @@ module MediaReceiptLifecycle {
     else if (s == Running and e == Restart) OutcomeUnknown
     else s
 
+
+
   action init = all {
     status' = Queued,
     event' = Dispatch,
     rejected' = false,
+
   }
 
   action apply(e: Event): bool = all {
     event' = e,
     status' = nextStatus(status, e),
     rejected' = not(isValid(status, e)),
+
   }
 
   action step = any {
@@ -70,6 +75,8 @@ module MediaReceiptLifecycle {
 
   val IllegalTransitionsPreserveState =
     not(rejected) or nextStatus(status, event) == status
+
+
 
 
 
@@ -111,4 +118,5 @@ module MediaReceiptLifecycle {
       .then(assert(isValid(Cancelled, Restart) and nextStatus(Cancelled, Restart) == Cancelled))
       .then(assert(isValid(Cancelled, Retry) and nextStatus(Cancelled, Retry) == Cancelled))
   }
+
 }

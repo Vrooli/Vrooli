@@ -1,25 +1,43 @@
 {
   "_comment": "Keys that start with an underscore are sentinels skipped by codegen, parity tests, and unused-key audit.",
   "app": {
-    "title": "AI Gateway",
-    "eyebrow": "Operator console",
-    "description": "Provider-neutral AI inference control plane for route decisions, evidence, and conformance."
+    "title": "AI Gateway"
   },
   "actions": {
     "refresh": "Refresh"
+  },
+  "profiles": {
+    "localOnly": "محلي فقط",
+    "localOnlyDesc": "استخدم المزوّدات التي تعمل على هذا المضيف فقط، ولا تُدرج المرشّحات المستضافة.",
+    "localFirst": "المحلي أولاً",
+    "localFirstDesc": "فضّل المزوّدات المحلية، ثم انتقل إلى المزوّدات المستضافة فقط عندما تسمح سياسة الخصوصية.",
+    "remoteOnly": "بعيد فقط",
+    "remoteOnlyDesc": "استخدم المزوّدات المستضافة فقط، ولا تُدرج المرشّحات المحلية.",
+    "qualityFirst": "الجودة أولاً",
+    "qualityFirstDesc": "فضّل أعلى مرشّح جودةً متاحاً بغض النظر عن الموقع، مع بقاء التكلفة والخصوصية قيدين على المسار.",
+    "cheapFirst": "التكلفة أولاً",
+    "cheapFirstDesc": "فضّل أقل مرشّح تكلفةً متاحاً، مع بقاء القدرة والخصوصية قيدين على المسار.",
+    "privacySensitive": "حساس للخصوصية",
+    "privacySensitiveDesc": "أبقِ المحتوى الحساس على المزوّدات المحلية، وافشل بشكل مغلق عندما لا يتوفر مرشّح محلي."
+  },
+  "privacyClasses": {
+    "public": "عام",
+    "internal": "داخلي",
+    "confidential": "سري",
+    "secret": "شديد السرية"
   },
   "states": {
     "allowed": "Allowed",
     "blocked": "Blocked",
     "loading": "Loading",
     "none": "None",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "breakerOpen": "مفتوح",
+    "breakerHalfOpen": "نصف مفتوح"
   },
   "layout": {
     "sidebarLabel": "AI Gateway",
-    "sidebarNavLabel": "Desktop navigation",
     "bottomNavLabel": "Primary navigation",
-    "mainLabel": "Main content",
     "nav": {
       "dashboard": "لوحة التحكم",
       "providers": "Providers",

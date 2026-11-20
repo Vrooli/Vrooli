@@ -242,9 +242,13 @@ func (r *pricingRepository) listQuotaObservations(ctx context.Context, scope str
 // QuotaReadingSpans groups identical readings so the forecaster reads one row
 // per distinct (scope, reset minute, percent, standing) instead of every frame.
 // The grouping key is quotaReadingRow.reading, which the writer and the
-// compaction preserve.
+// compaction preserve. It reads every account scope, the legacy unknown scope
+// included; each span carries its own scope and spans of different scopes are
+// never merged, so forecast windows stay partitioned by account. Reading only
+// the unknown scope here hid every Claude statusline reading once the feed
+// began recording an account scope (2026-11-16).
 func (r *pricingRepository) QuotaReadingSpans(ctx context.Context, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
-	return r.quotaReadingSpans(ctx, "", provider, since)
+	return r.quotaReadingSpans(ctx, "", false, provider, since)
 }
 
 // ScopedQuotaReadingSpans excludes legacy unknown and all other accounts.
@@ -252,32 +256,32 @@ func (r *pricingRepository) ScopedQuotaReadingSpans(ctx context.Context, account
 	if strings.TrimSpace(accountScope) == "" {
 		return nil, errors.New("verified account scope is required")
 	}
-	return r.quotaReadingSpans(ctx, accountScope, provider, since)
+	return r.quotaReadingSpans(ctx, accountScope, true, provider, since)
 }
 
-func (r *pricingRepository) quotaReadingSpans(ctx context.Context, accountScope, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
+func (r *pricingRepository) quotaReadingSpans(ctx context.Context, accountScope string, scoped bool, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
 	var lower any = "" // a zero since reads the whole history
 	if !since.IsZero() {
 		lower = SQLiteTime(since.UTC())
 	}
 	// A reading without a reset time is grouped per hour of observation: its
 	// percent repeats across windows, which only the forecaster can tell apart.
-	rows, err := r.db.QueryxContext(ctx, `SELECT provider, pool, window, MAX(window_minutes), substr(reset_at,1,16) AS reset_minute, used_percent, standing, MIN(observed_at), MAX(observed_at), COUNT(*)
-		FROM quota_observations WHERE account_scope = ? AND observed_at >= ? AND (?='' OR provider=?)
-		GROUP BY provider, pool, window, reset_minute, CASE WHEN reset_at IS NULL THEN substr(observed_at,1,13) END, used_percent, standing
-		ORDER BY MIN(observed_at)`, accountScope, lower, provider, provider)
+	rows, err := r.db.QueryxContext(ctx, `SELECT account_scope, provider, pool, window, MAX(window_minutes), substr(reset_at,1,16) AS reset_minute, used_percent, standing, MIN(observed_at), MAX(observed_at), COUNT(*)
+		FROM quota_observations WHERE (?=0 OR account_scope = ?) AND observed_at >= ? AND (?='' OR provider=?)
+		GROUP BY account_scope, provider, pool, window, reset_minute, CASE WHEN reset_at IS NULL THEN substr(observed_at,1,13) END, used_percent, standing
+		ORDER BY MIN(observed_at)`, scoped, accountScope, lower, provider, provider)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	spans := []pricing.QuotaReadingSpan{}
 	for rows.Next() {
-		span := pricing.QuotaReadingSpan{AccountScope: accountScope}
+		span := pricing.QuotaReadingSpan{}
 		var windowMinutes sql.NullInt64
 		var resetMinute, firstAt, lastAt sql.NullString
 		var usedPercent sql.NullFloat64
 		var standing string
-		if err := rows.Scan(&span.Provider, &span.Pool, &span.Window, &windowMinutes, &resetMinute, &usedPercent, &standing, &firstAt, &lastAt, &span.Samples); err != nil {
+		if err := rows.Scan(&span.AccountScope, &span.Provider, &span.Pool, &span.Window, &windowMinutes, &resetMinute, &usedPercent, &standing, &firstAt, &lastAt, &span.Samples); err != nil {
 			return nil, err
 		}
 		span.Standing = pricing.QuotaStanding(standing)

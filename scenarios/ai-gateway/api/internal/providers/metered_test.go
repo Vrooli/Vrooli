@@ -29,9 +29,11 @@ func (s *meteredEgressStub) Record(_ context.Context, provider, role string, pro
 
 func TestMeteredClientForwardsBearerAndUsesProfileEndpoint(t *testing.T) {
 	var gotAuthorization string
+	var gotCallerAuthorization string
 	var gotBody string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuthorization = r.Header.Get("Authorization")
+		gotCallerAuthorization = r.Header.Get(CreditCallerAuthorizationHeader)
 		var body []byte
 		body, _ = io.ReadAll(r.Body)
 		gotBody = string(body)
@@ -46,7 +48,7 @@ func TestMeteredClientForwardsBearerAndUsesProfileEndpoint(t *testing.T) {
 		Egress:      egress,
 	})
 
-	result, err := client.Run(WithAccessToken(context.Background(), "Bearer consumer-token"), MeteredRequest{
+	result, err := client.Run(WithCreditCallerAuthorization(WithAccessToken(context.Background(), "Bearer consumer-token"), "signed-web-console-principal"), MeteredRequest{
 		Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY,
 		Messages: []MeteredMessage{{Role: "user", Content: "classify this"}}, ConstraintsJSON: `{"type":"boolean"}`,
 	})
@@ -58,6 +60,9 @@ func TestMeteredClientForwardsBearerAndUsesProfileEndpoint(t *testing.T) {
 	}
 	if gotAuthorization != "Bearer consumer-token" {
 		t.Fatalf("authorization = %q", gotAuthorization)
+	}
+	if gotCallerAuthorization != "Bearer signed-web-console-principal" {
+		t.Fatalf("caller authorization = %q", gotCallerAuthorization)
 	}
 	if !strings.Contains(gotBody, `"role":"classify.fast"`) || strings.Contains(gotBody, `"model"`) {
 		t.Fatalf("request body exposed an invalid contract: %s", gotBody)

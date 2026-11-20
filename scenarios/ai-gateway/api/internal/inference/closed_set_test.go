@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"ai-gateway/internal/rolecatalog"
+	"ai-gateway/internal/schemagate"
+
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
@@ -15,8 +18,9 @@ const october25ScreenShortPolicy = "Return only JSON with keys action and net. R
 const inventoryReservationSchema = `{"type":"object","properties":{"action":{"type":"string","enum":["reorder","hold"]},"net":{"type":"integer"}},"required":["action","net"],"additionalProperties":false}`
 
 func TestOct25ClosedSetPolicyRunsInCodeWithoutProvider(t *testing.T) {
-	response := inventoryReservationCodeService(t).Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Role: "policy.inventory-reservation", Source: october25ScreenShortPolicy,
+	response := inventoryReservationCodeService(t).Run(context.Background(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Role:              "policy.inventory-reservation", Source: october25ScreenShortPolicy,
 		SchemaJSON: inventoryReservationSchema,
 	})
 	require.Nil(t, response.GetError())
@@ -27,8 +31,9 @@ func TestOct25ClosedSetPolicyRunsInCodeWithoutProvider(t *testing.T) {
 }
 
 func TestClosedSetPolicyRejectsUnrecognizedRuleShape(t *testing.T) {
-	response := inventoryReservationCodeService(t).Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Role: "policy.inventory-reservation", Source: "choose reorder or hold based on the prompt",
+	response := inventoryReservationCodeService(t).Run(context.Background(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Role:              "policy.inventory-reservation", Source: "choose reorder or hold based on the prompt",
 		SchemaJSON: inventoryReservationSchema,
 	})
 	require.NotNil(t, response.GetError())
@@ -57,7 +62,7 @@ func TestDeclaredCodeRoleEnforcesBoundsAndCallerSchemaThroughService(t *testing.
 
 func inventoryReservationCodeService(tb testing.TB) *Service {
 	tb.Helper()
-	catalog, err := LoadCatalog(filepath.Join("..", "..", "..", "config", "inference-role-catalog.json"))
+	catalog, err := rolecatalog.LoadCatalog(filepath.Join("..", "..", "..", "config", "inference-role-catalog.json"))
 	require.NoError(tb, err)
 	repository, err := NewResourceRepository(catalog, nil)
 	require.NoError(tb, err)
@@ -66,10 +71,10 @@ func inventoryReservationCodeService(tb testing.TB) *Service {
 
 func TestDeclaredCodeRoleEnforcesCatalogBoundsAndSchemas(t *testing.T) {
 	catalogPath := filepath.Join("..", "..", "..", "config", "inference-role-catalog.json")
-	catalog, err := LoadCatalog(catalogPath)
+	catalog, err := rolecatalog.LoadCatalog(catalogPath)
 	require.NoError(t, err)
 	contract := catalog.CodeRoles["policy.inventory-reservation"]
-	callerSchema, err := (SchemaGate{}).Parse(inventoryReservationSchema)
+	callerSchema, err := (schemagate.SchemaGate{}).Parse(inventoryReservationSchema)
 	require.NoError(t, err)
 
 	value, err := evaluateDeclaredCodeRole(contract, callerSchema, october25ScreenShortPolicy)
@@ -79,7 +84,7 @@ func TestDeclaredCodeRoleEnforcesCatalogBoundsAndSchemas(t *testing.T) {
 	_, err = evaluateDeclaredCodeRole(contract, callerSchema, strings.Repeat("x", contract.MaxSourceBytes+1))
 	require.ErrorContains(t, err, "source exceeds")
 
-	wrongCallerSchema, err := (SchemaGate{}).Parse(`{"type":"string"}`)
+	wrongCallerSchema, err := (schemagate.SchemaGate{}).Parse(`{"type":"string"}`)
 	require.NoError(t, err)
 	_, err = evaluateDeclaredCodeRole(contract, wrongCallerSchema, october25ScreenShortPolicy)
 	require.ErrorContains(t, err, "caller schema")
@@ -97,8 +102,9 @@ func TestDeclaredCodeRoleEnforcesCatalogBoundsAndSchemas(t *testing.T) {
 
 func BenchmarkOct25ClosedSetPolicyCodePath(b *testing.B) {
 	service := inventoryReservationCodeService(b)
-	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Role: "policy.inventory-reservation", Source: october25ScreenShortPolicy,
+	request := ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Role:              "policy.inventory-reservation", Source: october25ScreenShortPolicy,
 		SchemaJSON: inventoryReservationSchema,
 	}
 	b.ReportAllocs()

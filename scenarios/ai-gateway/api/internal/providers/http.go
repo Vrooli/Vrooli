@@ -68,40 +68,43 @@ func (p *HTTPProvider) ResolveRole(ctx context.Context, name string) (ResolvedRo
 	if !ok || role.Model == "" {
 		return ResolvedRole{}, fmt.Errorf("provider role %q unavailable", name)
 	}
-	model := role.Model
-	if p.Declaration.Family == FamilyOllama {
-		data, err := p.request(ctx, http.MethodGet, "/api/tags", nil, "")
-		if err != nil {
-			return ResolvedRole{}, err
-		}
-		var tags struct {
-			Models []struct {
-				Name string `json:"name"`
-			} `json:"models"`
-		}
-		if err = json.Unmarshal(data, &tags); err != nil {
-			return ResolvedRole{}, err
-		}
-		installed := map[string]bool{}
-		for _, m := range tags.Models {
-			installed[m.Name] = true
-		}
-		model = ""
-		for _, candidate := range append([]string{role.Model}, role.Fallbacks...) {
-			if installed[candidate] {
-				model = candidate
-				break
-			}
-		}
-		if model == "" {
-			return ResolvedRole{}, errors.New("no declared local model is installed")
-		}
+	model, err := p.resolveModel(ctx, role)
+	if err != nil {
+		return ResolvedRole{}, err
 	}
 	cap := role.MaxTokens
 	if cap == 0 {
 		cap = role.Defaults.MaxTokens
 	}
 	return ResolvedRole{Provider: p.Declaration.ID, Role: name, Model: model, CanonicalModel: model, Capabilities: role.Capabilities, SamplingSupport: parseSamplingSupport(role.Sampling), MaxOutputTokens: cap, ContextWindow: role.ContextWindow, Locality: p.Declaration.Locality}, nil
+}
+
+func (p *HTTPProvider) resolveModel(ctx context.Context, role httpRole) (string, error) {
+	if p.Declaration.Family != FamilyOllama {
+		return role.Model, nil
+	}
+	data, err := p.request(ctx, http.MethodGet, "/api/tags", nil, "")
+	if err != nil {
+		return "", err
+	}
+	var tags struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(data, &tags); err != nil {
+		return "", err
+	}
+	installed := make(map[string]bool, len(tags.Models))
+	for _, model := range tags.Models {
+		installed[model.Name] = true
+	}
+	for _, candidate := range append([]string{role.Model}, role.Fallbacks...) {
+		if installed[candidate] {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("no declared local model is installed")
 }
 
 func (p *HTTPProvider) Execute(ctx context.Context, req ExecutionRequest) (ExecutionResult, error) {
@@ -119,58 +122,9 @@ func (p *HTTPProvider) Execute(ctx context.Context, req ExecutionRequest) (Execu
 	if cap == 0 {
 		cap = resolved.MaxOutputTokens
 	}
-	var body map[string]any
-	path := "/chat/completions"
-	key := ""
-	switch p.Declaration.Family {
-	case FamilyOllama:
-		path = "/api/generate"
-		options := map[string]any{}
-		if cap > 0 {
-			options["num_predict"] = cap
-		}
-		if req.Temperature != nil {
-			options["temperature"] = *req.Temperature
-		}
-		body = map[string]any{"model": resolved.Model, "prompt": req.InputText, "stream": false, "think": false, "options": options}
-		if req.SchemaJSON != "" {
-			var schema any
-			if err = json.Unmarshal([]byte(req.SchemaJSON), &schema); err != nil {
-				return ExecutionResult{}, err
-			}
-			body["format"] = schema
-		}
-	case FamilyOpenAICompatible:
-		if p.Declaration.CredentialIdentity == "" {
-			return ExecutionResult{}, errors.New("provider has no declared own-key credential")
-		}
-		resolve := p.ResolveKey
-		if resolve == nil {
-			resolve = resolveProviderKey
-		}
-		key, err = resolve(ctx, p.Declaration.CredentialIdentity, p.Declaration.CredentialField)
-		if err != nil {
-			return ExecutionResult{}, err
-		}
-		if key == "" {
-			return ExecutionResult{}, errors.New("own provider key is not configured")
-		}
-		body = map[string]any{"model": resolved.Model, "messages": []map[string]string{{"role": "user", "content": req.InputText}}, "stream": false}
-		if cap > 0 {
-			body["max_tokens"] = cap
-		}
-		if req.Temperature != nil {
-			body["temperature"] = *req.Temperature
-		}
-		if req.SchemaJSON != "" {
-			var schema any
-			if err = json.Unmarshal([]byte(req.SchemaJSON), &schema); err != nil {
-				return ExecutionResult{}, err
-			}
-			body["response_format"] = map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "gateway_result", "strict": true, "schema": schema}}
-		}
-	default:
-		return ExecutionResult{}, errors.New("unsupported provider wire format")
+	path, body, key, err := p.executionBody(ctx, req, resolved, cap)
+	if err != nil {
+		return ExecutionResult{}, err
 	}
 	if req.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -182,6 +136,70 @@ func (p *HTTPProvider) Execute(ctx context.Context, req ExecutionRequest) (Execu
 		return ExecutionResult{}, err
 	}
 	return ExecutionResult{OutputText: string(data)}, nil
+}
+
+func (p *HTTPProvider) executionBody(ctx context.Context, req ExecutionRequest, resolved ResolvedRole, cap int32) (string, map[string]any, string, error) {
+	switch p.Declaration.Family {
+	case FamilyOllama:
+		body, err := ollamaRequestBody(req, resolved.Model, cap)
+		return "/api/generate", body, "", err
+	case FamilyOpenAICompatible:
+		body, key, err := p.openAIRequestBody(ctx, req, resolved.Model, cap)
+		return "/chat/completions", body, key, err
+	default:
+		return "", nil, "", errors.New("unsupported provider wire format")
+	}
+}
+
+func ollamaRequestBody(req ExecutionRequest, model string, cap int32) (map[string]any, error) {
+	options := map[string]any{}
+	if cap > 0 {
+		options["num_predict"] = cap
+	}
+	if req.Temperature != nil {
+		options["temperature"] = *req.Temperature
+	}
+	body := map[string]any{"model": model, "prompt": req.InputText, "stream": false, "think": false, "options": options}
+	if req.SchemaJSON != "" {
+		var schema any
+		if err := json.Unmarshal([]byte(req.SchemaJSON), &schema); err != nil {
+			return nil, err
+		}
+		body["format"] = schema
+	}
+	return body, nil
+}
+
+func (p *HTTPProvider) openAIRequestBody(ctx context.Context, req ExecutionRequest, model string, cap int32) (map[string]any, string, error) {
+	if p.Declaration.CredentialIdentity == "" {
+		return nil, "", errors.New("provider has no declared own-key credential")
+	}
+	resolve := p.ResolveKey
+	if resolve == nil {
+		resolve = resolveProviderKey
+	}
+	key, err := resolve(ctx, p.Declaration.CredentialIdentity, p.Declaration.CredentialField)
+	if err != nil {
+		return nil, "", err
+	}
+	if key == "" {
+		return nil, "", errors.New("own provider key is not configured")
+	}
+	body := map[string]any{"model": model, "messages": []map[string]string{{"role": "user", "content": req.InputText}}, "stream": false}
+	if cap > 0 {
+		body["max_tokens"] = cap
+	}
+	if req.Temperature != nil {
+		body["temperature"] = *req.Temperature
+	}
+	if req.SchemaJSON != "" {
+		var schema any
+		if err := json.Unmarshal([]byte(req.SchemaJSON), &schema); err != nil {
+			return nil, "", err
+		}
+		body["response_format"] = map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "gateway_result", "strict": true, "schema": schema}}
+	}
+	return body, key, nil
 }
 
 func resolveProviderKey(_ context.Context, id, field string) (string, error) {
@@ -197,13 +215,9 @@ func resolveProviderKey(_ context.Context, id, field string) (string, error) {
 }
 
 func (p *HTTPProvider) request(ctx context.Context, method, path string, body any, key string) ([]byte, error) {
-	var reader io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		reader = bytes.NewReader(data)
+	reader, err := httpProviderBody(body)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(p.Declaration.Endpoint, "/")+path, reader)
 	if err != nil {
@@ -224,6 +238,21 @@ func (p *HTTPProvider) request(ctx context.Context, method, path string, body an
 		return nil, err
 	}
 	defer resp.Body.Close()
+	return readHTTPProviderResponse(resp)
+}
+
+func httpProviderBody(body any) (io.Reader, error) {
+	if body == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(data), nil
+}
+
+func readHTTPProviderResponse(resp *http.Response) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
 		return nil, err

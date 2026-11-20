@@ -38,11 +38,24 @@ type supplierCatalog struct {
 
 func (s ResourcePolicySource) Snapshot(ctx context.Context, _ string) (PrivatePolicySnapshot, error) {
 	result := PrivatePolicySnapshot{Account: policy.Account{BalanceStanding: true}}
+	paths, err := s.snapshotPaths()
+	if err != nil {
+		return result, err
+	}
+	for _, path := range paths {
+		if err := s.appendSupplierSnapshot(ctx, path, &result); err != nil {
+			return result, err
+		}
+	}
+	return result, nil
+}
+
+func (s ResourcePolicySource) snapshotPaths() ([]string, error) {
 	paths, err := filepath.Glob(filepath.Join(s.Root, "resources", "*", "model-policy.json"))
 	if s.Root == "" || s.Catalog != nil {
 		bundle, bundleErr := s.bundle()
 		if bundleErr != nil {
-			return result, bundleErr
+			return nil, bundleErr
 		}
 		paths = nil
 		for id := range bundle.Providers {
@@ -51,76 +64,120 @@ func (s ResourcePolicySource) Snapshot(ctx context.Context, _ string) (PrivatePo
 		sort.Strings(paths)
 	}
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-	for _, path := range paths {
-		data, err := s.readPolicy(filepath.Base(filepath.Dir(path)))
+	return paths, nil
+}
+
+func (s ResourcePolicySource) appendSupplierSnapshot(ctx context.Context, path string, snapshot *PrivatePolicySnapshot) error {
+	data, err := s.readPolicy(filepath.Base(filepath.Dir(path)))
+	if err != nil {
+		return err
+	}
+	var catalog supplierCatalog
+	if json.Unmarshal(data, &catalog) != nil {
+		return errors.New("invalid supplier policy catalog")
+	}
+	if catalog.Provider == nil || catalog.Provider.Terms == nil {
+		return nil
+	}
+	provider := catalog.Provider
+	models := supplierModelRules(catalog.Models)
+	record, observation, keep, err := s.verifiedSupplierPolicy(ctx, provider, models)
+	if err != nil {
+		return err
+	}
+	if !keep {
+		return nil
+	}
+	snapshot.Records = append(snapshot.Records, record)
+	if observation == policyApprovalUnverified {
+		return nil
+	}
+	if err := s.appendSupplierRoutes(ctx, provider, snapshot); err != nil {
+		return err
+	}
+	return s.appendSupplierAgreements(ctx, provider, snapshot)
+}
+
+func (s ResourcePolicySource) verifiedSupplierPolicy(ctx context.Context, provider *struct {
+	ID         string                `json:"id"`
+	Terms      *policy.ProviderTerms `json:"terms"`
+	Routes     []policy.Route        `json:"hosted_routes"`
+	Agreements []policy.Agreement    `json:"agreements"`
+}, models map[string]policy.ModelRule,
+) (policy.RuleRecord, policyReviewEvent, bool, error) {
+	digest, err := policy.ProviderRuleDigest(provider.ID, *provider.Terms, models)
+	if err != nil {
+		return policy.RuleRecord{}, "", false, err
+	}
+	verify := func(ref string) bool { return s.verify(ctx, ref, digest, policy.ProviderDecisionScopeRule) }
+	observation, err := observePolicyReview(*provider.Terms, s.now(), verify)
+	if err != nil {
+		return policy.RuleRecord{}, "", false, nil
+	}
+	status, err := transitionPolicyReview(provider.Terms.Review.Status, observation)
+	if err != nil {
+		return policy.RuleRecord{}, "", false, nil
+	}
+	terms := *provider.Terms
+	terms.Review.Status = status
+	record, err := policy.NewVerifiedRuleRecord(provider.ID, terms, models, func(string) bool { return observation == policyApprovalVerified })
+	if err != nil {
+		return policy.RuleRecord{}, "", false, nil
+	}
+	return record, observation, true, nil
+}
+
+func supplierModelRules(models map[string]policy.Model) map[string]policy.ModelRule {
+	rules := make(map[string]policy.ModelRule, len(models))
+	for name, model := range models {
+		rule := policy.ModelRule{TermsOverride: model.TermsOverride}
+		if model.Licence != nil {
+			rule.LicenceCommercialUse = model.Licence.CommercialUse
+		}
+		rules[name] = rule
+	}
+	return rules
+}
+
+func (s ResourcePolicySource) appendSupplierRoutes(ctx context.Context, provider *struct {
+	ID         string                `json:"id"`
+	Terms      *policy.ProviderTerms `json:"terms"`
+	Routes     []policy.Route        `json:"hosted_routes"`
+	Agreements []policy.Agreement    `json:"agreements"`
+}, snapshot *PrivatePolicySnapshot,
+) error {
+	for _, route := range provider.Routes {
+		if route.Supplier != provider.ID {
+			return errors.New("route supplier differs from its resource owner")
+		}
+		if route.Harness != "" {
+			route.HarnessSource = s.harnessSource(ctx, route.Harness)
+		}
+		snapshot.Routes = append(snapshot.Routes, route)
+	}
+	return nil
+}
+
+func (s ResourcePolicySource) appendSupplierAgreements(ctx context.Context, provider *struct {
+	ID         string                `json:"id"`
+	Terms      *policy.ProviderTerms `json:"terms"`
+	Routes     []policy.Route        `json:"hosted_routes"`
+	Agreements []policy.Agreement    `json:"agreements"`
+}, snapshot *PrivatePolicySnapshot,
+) error {
+	for _, agreement := range provider.Agreements {
+		digest, err := policy.ProviderAgreementDigest(agreement)
 		if err != nil {
-			return result, err
+			return err
 		}
-		var catalog supplierCatalog
-		if json.Unmarshal(data, &catalog) != nil {
-			return result, errors.New("invalid supplier policy catalog")
-		}
-		if catalog.Provider == nil || catalog.Provider.Terms == nil {
-			continue
-		}
-		provider := catalog.Provider
-		models := map[string]policy.ModelRule{}
-		for name, model := range catalog.Models {
-			models[name] = policy.ModelRule{TermsOverride: model.TermsOverride}
-			if model.Licence != nil {
-				rule := models[name]
-				rule.LicenceCommercialUse = model.Licence.CommercialUse
-				models[name] = rule
-			}
-		}
-		digest, err := policy.ProviderRuleDigest(provider.ID, *provider.Terms, models)
-		if err != nil {
-			return result, err
-		}
-		verify := func(ref string) bool { return s.verify(ctx, ref, digest, policy.ProviderDecisionScopeRule) }
-		observation, err := observePolicyReview(*provider.Terms, s.now(), verify)
-		if err != nil {
-			continue // Unknown review states close this supplier only.
-		}
-		status, err := transitionPolicyReview(provider.Terms.Review.Status, observation)
-		if err != nil {
-			continue
-		}
-		terms := *provider.Terms
-		terms.Review.Status = status
-		// Verification happened for this exact digest above. Do not perform a
-		// second Hub lookup with a potentially different answer or deadline.
-		record, err := policy.NewVerifiedRuleRecord(provider.ID, terms, models, func(string) bool { return observation == policyApprovalVerified })
-		if err != nil {
-			continue
-		}
-		result.Records = append(result.Records, record)
-		if observation == policyApprovalUnverified {
-			continue // Preserve supplier-local closure before any route/agreement work.
-		}
-		for _, route := range provider.Routes {
-			if route.Supplier != provider.ID {
-				return result, errors.New("route supplier differs from its resource owner")
-			}
-			if route.Harness != "" {
-				route.HarnessSource = s.harnessSource(ctx, route.Harness)
-			}
-			result.Routes = append(result.Routes, route)
-		}
-		for _, agreement := range provider.Agreements {
-			digest, err := policy.ProviderAgreementDigest(agreement)
-			if err != nil {
-				return result, err
-			}
-			verified, err := policy.NewVerifiedAgreement(agreement, func(ref string) bool { return s.verify(ctx, ref, digest, policy.ProviderDecisionScopeAgreement) })
-			if err == nil {
-				result.Agreements = append(result.Agreements, verified)
-			}
+		verified, err := policy.NewVerifiedAgreement(agreement, func(ref string) bool { return s.verify(ctx, ref, digest, policy.ProviderDecisionScopeAgreement) })
+		if err == nil {
+			snapshot.Agreements = append(snapshot.Agreements, verified)
 		}
 	}
-	return result, nil
+	return nil
 }
 
 func (s ResourcePolicySource) harnessSource(ctx context.Context, harness string) *policy.HarnessBillingSource {
@@ -191,24 +248,51 @@ func (s ResourcePolicySource) Endpoint(ctx context.Context, supplier string) (Su
 	if supplier == "" || filepath.Base(supplier) != supplier {
 		return SupplierEndpoint{}, errors.New("invalid supplier")
 	}
+	data, err := s.resourceEndpointData(supplier)
+	if err != nil {
+		return SupplierEndpoint{}, err
+	}
+	resource, err := decodeSupplierEndpoint(data)
+	if err != nil {
+		return SupplierEndpoint{}, err
+	}
+	result := SupplierEndpoint{URL: strings.TrimSuffix(resource.Endpoint, "/models")}
+	result.APIKey, err = s.supplierCredential(resource.Credentials.Descriptors)
+	return result, err
+}
+
+func (s ResourcePolicySource) resourceEndpointData(supplier string) ([]byte, error) {
 	var data []byte
 	var err error
 	if s.Root == "" || s.Catalog != nil {
 		bundle, bundleErr := s.bundle()
 		if bundleErr != nil {
-			return SupplierEndpoint{}, bundleErr
+			return nil, bundleErr
 		}
 		p, ok := bundle.Providers[supplier]
 		if !ok {
-			return SupplierEndpoint{}, errors.New("supplier absent from packaged catalog")
+			return nil, errors.New("supplier absent from packaged catalog")
 		}
 		data, err = json.Marshal(map[string]any{"endpoint": p.Endpoint, "credentials": map[string]any{"descriptors": []map[string]string{{"logical_id": p.CredentialIdentity, "field": p.CredentialField}}}})
 	} else {
 		data, err = os.ReadFile(filepath.Join(s.Root, "resources", supplier, "resource.json"))
 	}
 	if err != nil {
-		return SupplierEndpoint{}, err
+		return nil, err
 	}
+	return data, nil
+}
+
+func decodeSupplierEndpoint(data []byte) (struct {
+	Endpoint    string `json:"endpoint"`
+	Credentials struct {
+		Descriptors []struct {
+			Identity string `json:"logical_id"`
+			Field    string `json:"field"`
+		} `json:"descriptors"`
+	} `json:"credentials"`
+}, error,
+) {
 	var resource struct {
 		Endpoint    string `json:"endpoint"`
 		Credentials struct {
@@ -219,25 +303,29 @@ func (s ResourcePolicySource) Endpoint(ctx context.Context, supplier string) (Su
 		} `json:"credentials"`
 	}
 	if json.Unmarshal(data, &resource) != nil {
-		return SupplierEndpoint{}, errors.New("invalid resource endpoint")
+		return resource, errors.New("invalid resource endpoint")
 	}
-	result := SupplierEndpoint{URL: strings.TrimSuffix(resource.Endpoint, "/models")}
-	if len(resource.Credentials.Descriptors) > 0 && resource.Credentials.Descriptors[0].Identity != "" {
-		descriptor := resource.Credentials.Descriptors[0]
-		authority, err := credentialauthority.Default()
-		if err != nil {
-			return result, err
-		}
-		identity, err := credentialauthority.ParseIdentity(descriptor.Identity)
-		if err != nil {
-			return result, err
-		}
-		result.APIKey, err = authority.Require(identity, descriptor.Field)
-		if err != nil {
-			return result, err
-		}
+	return resource, nil
+}
+
+func (s ResourcePolicySource) supplierCredential(descriptors []struct {
+	Identity string `json:"logical_id"`
+	Field    string `json:"field"`
+},
+) (string, error) {
+	if len(descriptors) == 0 || descriptors[0].Identity == "" {
+		return "", nil
 	}
-	return result, nil
+	descriptor := descriptors[0]
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", err
+	}
+	identity, err := credentialauthority.ParseIdentity(descriptor.Identity)
+	if err != nil {
+		return "", err
+	}
+	return authority.Require(identity, descriptor.Field)
 }
 
 func (s ResourcePolicySource) bundle() (catalog.Bundle, error) {
@@ -266,7 +354,6 @@ func (s ResourcePolicySource) readPolicy(id string) ([]byte, error) {
 
 func NewResourcePrivatePolicyService(db *sql.DB, features []PrivateFeature, root string, hub *ProviderDecisionHubClient) *PrivatePolicyService {
 	source := ResourcePolicySource{Root: root, Hub: hub}
-	features = append(features, PrivateFeature{ID: "agent.session", Role: "chat", Profile: "balanced", MaxInputBytes: 1 << 20, MaxOutputBytes: 1 << 20, MaxUserTurns: 1})
 	service := NewPrivatePolicyService(features, source.Snapshot, NewSQLPrivatePlanRepository(db), NewSQLPrivateReceiptRepository(db))
 	service.SetStreamExecutor(&HTTPStreamExecutor{DB: db, ResolveSupplier: source.Endpoint})
 	return service

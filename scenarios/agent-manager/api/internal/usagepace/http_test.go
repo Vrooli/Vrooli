@@ -161,6 +161,9 @@ func TestPaceHTTPMeasuredTierUpdatesAdmissionAndReturnsRunEvidence(t *testing.T)
 	quota := []pricing.QuotaObservation{
 		{Provider: "openai", AccountScope: "verified-account", Pool: "codex", Window: "10080m", ObservedAt: now.Add(-10 * time.Minute), UsedPercent: &used0, ResetAt: &reset, WindowMinutes: &minutes, SourceRunID: runID},
 		{Provider: "openai", AccountScope: "verified-account", Pool: "codex", Window: "10080m", ObservedAt: now, UsedPercent: &used1, ResetAt: &reset, WindowMinutes: &minutes, SourceRunID: runID},
+		// A Claude window with no measurable burn is reported, not blocking.
+		{Provider: "anthropic", AccountScope: "anthropic:sha256:a", Pool: "seven_day", Window: "10080m", ObservedAt: now.Add(-20 * time.Minute), UsedPercent: &used0, ResetAt: &reset, WindowMinutes: &minutes},
+		{Provider: "anthropic", AccountScope: "anthropic:sha256:a", Pool: "seven_day", Window: "10080m", ObservedAt: now, UsedPercent: &used0, ResetAt: &reset, WindowMinutes: &minutes},
 	}
 	spans := []pricing.QuotaReadingSpan{
 		{Provider: "openai", AccountScope: "verified-account", Pool: "codex", Window: "10080m", WindowMinutes: &minutes, ResetAt: &reset, UsedPercent: &used0, Standing: pricing.QuotaStandingAvailable, FirstAt: now.Add(-10 * time.Minute), LastAt: now.Add(-10 * time.Minute), Samples: 1},
@@ -191,6 +194,9 @@ func TestPaceHTTPMeasuredTierUpdatesAdmissionAndReturnsRunEvidence(t *testing.T)
 	tier := before.Tiers[0]
 	if tier.Label == "" || tier.Status != "available" || tier.AvailableSlots == nil || *tier.AvailableSlots <= 10 || len(tier.ScopeSlots) != 1 || len(tier.ScopeSlots[0].RunIDs) != 1 || tier.ScopeSlots[0].RunIDs[0] != runID {
 		t.Fatalf("measured tier or provenance missing: %+v", tier)
+	}
+	if len(tier.UnavailableScopes) != 1 || tier.UnavailableScopes[0].Provider != "anthropic" || tier.UnavailableScopes[0].Reason == "" {
+		t.Fatalf("unmeasured window not reported beside the measured ceiling: %+v", tier.UnavailableScopes)
 	}
 	if before.UtilizationHistory.Samples != 11 || before.UtilizationHistory.Complete != 11 || before.UtilizationHistory.ProviderRunIDs["openai"][0] != runID {
 		t.Fatalf("durable sample coverage summary missing: %+v", before.UtilizationHistory)

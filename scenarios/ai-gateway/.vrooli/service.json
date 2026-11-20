@@ -13,6 +13,20 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under AI Gateway's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
@@ -131,6 +145,16 @@
     }
   },
   "dependencies": {
+    "scenarios": {
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Supplies model-evaluation readiness evidence consumed by the AI conformance provider",
+        "startup_policy": "try_start",
+        "degraded_behavior": "AI conformance reports the missing model-evaluation evidence instead of claiming readiness."
+      }
+    },
     "resources": {
       "ollama": {
         "type": "ollama",
@@ -139,8 +163,7 @@
         "description": "Local inference provider for local-first gateway profiles",
         "model_roles": [
           "chat.default",
-          "extract.structured",
-          "locate.visual"
+          "vision.default"
         ],
         "startup_policy": "try_start"
       },
@@ -159,7 +182,7 @@
         "model_roles": [
           "chat.default",
           "extract.structured",
-          "locate.visual"
+          "vision.default"
         ],
         "startup_policy": "try_start"
       },
@@ -278,7 +301,6 @@
       }
     ]
   },
-  "environment": {},
   "components": {
     "api": {
       "role": "api",

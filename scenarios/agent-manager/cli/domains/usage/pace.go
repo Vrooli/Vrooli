@@ -44,6 +44,11 @@ type paceTier struct {
 	Basis                  string     `json:"basis"`
 	Reason                 string     `json:"reason"`
 	SourceScopes           []string   `json:"source_scopes"`
+	UnavailableScopes      []struct {
+		Provider string `json:"provider"`
+		Pool     string `json:"pool"`
+		Reason   string `json:"reason"`
+	} `json:"unavailable_scopes"`
 }
 
 func paceCommand(newHTTP paceHTTPFor) cliapp.Command {
@@ -140,6 +145,14 @@ func renderPace(out io.Writer, response paceResponse) error {
 		}
 		if _, err := fmt.Fprintln(out, line); err != nil {
 			return err
+		}
+		if tier.Status == "available" {
+			// A measured ceiling does not constrain windows it could not measure.
+			for _, scope := range tier.UnavailableScopes {
+				if _, err := fmt.Fprintf(out, "    not measured: %s %s (%s)\n", scope.Provider, scope.Pool, paceTextOr(scope.Reason, "no reason reported")); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil

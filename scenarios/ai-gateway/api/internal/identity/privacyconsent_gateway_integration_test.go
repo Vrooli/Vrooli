@@ -44,6 +44,7 @@ import (
 	"ai-gateway/internal/privacyconsent"
 	"ai-gateway/internal/providers"
 	providerMocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
 	internalrouting "ai-gateway/internal/routing"
 )
 
@@ -261,9 +262,9 @@ func TestGatewayConsentBrowserJourney(t *testing.T) {
 		}
 		return count
 	}
-	inferenceCatalog := internalinference.RoleCatalog{SchemaVersion: 1, Roles: map[string]internalinference.InferenceRole{
-		"write.default":      {Candidates: []internalinference.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "write.default", Reason: "fixture remote provider"}}},
-		"extract.structured": {Candidates: []internalinference.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "fixture remote provider"}}},
+	inferenceCatalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"write.default":      {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "write.default", Reason: "fixture remote provider"}}},
+		"extract.structured": {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "fixture remote provider"}}},
 	}}
 	inferenceRepository, err := internalinference.NewResourceRepository(inferenceCatalog, []providers.Adapter{{Provider: providers.ProviderOpenRouter, CommandName: "fixture-inference-openrouter", Locality: "remote", Runner: inferenceRunner}})
 	require.NoError(t, err)
@@ -650,9 +651,7 @@ func startA15PlaywrightDriver(t *testing.T, gatewayURL, repoRoot string) (string
 			require.FailNow(t, "isolated Playwright driver exited before health: %v; %s", exitErr, stop())
 		default:
 		}
-		select {
-		case <-time.After(150 * time.Millisecond):
-		}
+		<-time.After(150 * time.Millisecond)
 	}
 	stop()
 	require.FailNow(t, "isolated Playwright driver failed health startup: %s", stop())

@@ -62,8 +62,10 @@ func (state AttemptState) CanTransition(next AttemptState) bool {
 	return ok
 }
 
-var ErrRootConflict = errors.New("root operation id is bound to different request content or device key generation")
-var ErrRootRequired = errors.New("root_operation_id must be a high-entropy value of 32 to 128 characters before HostedDoor dispatch")
+var (
+	ErrRootConflict = errors.New("root operation id is bound to different request content or device key generation")
+	ErrRootRequired = errors.New("root_operation_id must be a high-entropy value of 32 to 128 characters before HostedDoor dispatch")
+)
 
 type AttemptRecord struct {
 	Ordinal           int
@@ -145,48 +147,73 @@ func (l *SQLAttemptLedger) Begin(ctx context.Context, root, digest, generation s
 	if err != nil {
 		return AttemptRecord{}, err
 	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO ai_gateway_inference_roots(root_operation_id,request_sha256,device_key_generation)
-VALUES($1,$2,$3) ON CONFLICT(root_operation_id) DO NOTHING`, root, digest, generation); err != nil {
+	defer func() { _ = tx.Rollback() }()
+	if err = ensureAttemptRoot(ctx, tx, root, digest, generation); err != nil {
 		return AttemptRecord{}, err
 	}
-	var savedDigest, savedGeneration string
-	if err = tx.QueryRowContext(ctx, `SELECT request_sha256,device_key_generation FROM ai_gateway_inference_roots WHERE root_operation_id=$1`, root).Scan(&savedDigest, &savedGeneration); err != nil {
+	record, err := beginAttemptRecord(ctx, tx, root, validationAttempt, candidateIndex, provider, resourceRole, key)
+	if err != nil {
 		return AttemptRecord{}, err
-	}
-	if savedDigest != digest || savedGeneration != generation {
-		return AttemptRecord{}, ErrRootConflict
-	}
-	var record AttemptRecord
-	var state string
-	var credits sql.NullInt64
-	err = tx.QueryRowContext(ctx, `SELECT attempt_ordinal,validation_attempt,candidate_index,attempt_key,provider_id,resource_role,state,accounting_status,charged_credits
-FROM ai_gateway_inference_attempts WHERE root_operation_id=$1 AND validation_attempt=$2 AND candidate_index=$3`, root, validationAttempt, candidateIndex).Scan(
-		&record.Ordinal, &record.ValidationAttempt, &record.CandidateIndex, &record.Key, &record.Provider, &record.ResourceRole, &state, &record.AccountingStatus, &credits)
-	if errors.Is(err, sql.ErrNoRows) {
-		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(attempt_ordinal),-1)+1 FROM ai_gateway_inference_attempts WHERE root_operation_id=$1`, root).Scan(&record.Ordinal); err != nil {
-			return AttemptRecord{}, err
-		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO ai_gateway_inference_attempts(root_operation_id,attempt_ordinal,validation_attempt,candidate_index,attempt_key,provider_id,resource_role,state)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, root, record.Ordinal, validationAttempt, candidateIndex, key, provider, resourceRole, string(AttemptDispatching))
-		if err != nil {
-			return AttemptRecord{}, err
-		}
-		record.ValidationAttempt, record.CandidateIndex, record.Key = validationAttempt, candidateIndex, key
-		record.Provider, record.ResourceRole, record.State, record.Created = provider, resourceRole, AttemptDispatching, true
-	} else if err != nil {
-		return AttemptRecord{}, err
-	} else {
-		record.State = AttemptState(state)
-		if !record.State.Valid() {
-			return AttemptRecord{}, fmt.Errorf("inference attempt %s/%d has unknown state %q", root, record.Ordinal, record.State)
-		}
-		if credits.Valid {
-			record.ChargedCredits = &credits.Int64
-		}
 	}
 	if err = tx.Commit(); err != nil {
 		return AttemptRecord{}, err
+	}
+	return record, nil
+}
+
+func ensureAttemptRoot(ctx context.Context, tx *sql.Tx, root, digest, generation string) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ai_gateway_inference_roots(root_operation_id,request_sha256,device_key_generation)
+VALUES($1,$2,$3) ON CONFLICT(root_operation_id) DO NOTHING`, root, digest, generation); err != nil {
+		return err
+	}
+	var savedDigest, savedGeneration string
+	if err := tx.QueryRowContext(ctx, `SELECT request_sha256,device_key_generation FROM ai_gateway_inference_roots WHERE root_operation_id=$1`, root).Scan(&savedDigest, &savedGeneration); err != nil {
+		return err
+	}
+	if savedDigest != digest || savedGeneration != generation {
+		return ErrRootConflict
+	}
+	return nil
+}
+
+func beginAttemptRecord(ctx context.Context, tx *sql.Tx, root string, validationAttempt, candidateIndex int, provider, resourceRole, key string) (AttemptRecord, error) {
+	var record AttemptRecord
+	var state string
+	var credits sql.NullInt64
+	err := tx.QueryRowContext(ctx, `SELECT attempt_ordinal,validation_attempt,candidate_index,attempt_key,provider_id,resource_role,state,accounting_status,charged_credits
+FROM ai_gateway_inference_attempts WHERE root_operation_id=$1 AND validation_attempt=$2 AND candidate_index=$3`, root, validationAttempt, candidateIndex).Scan(
+		&record.Ordinal, &record.ValidationAttempt, &record.CandidateIndex, &record.Key, &record.Provider, &record.ResourceRole, &state, &record.AccountingStatus, &credits)
+	if errors.Is(err, sql.ErrNoRows) {
+		return createAttemptRecord(ctx, tx, root, validationAttempt, candidateIndex, provider, resourceRole, key)
+	}
+	if err != nil {
+		return AttemptRecord{}, err
+	}
+	return restoreAttemptRecord(root, record, state, credits)
+}
+
+func createAttemptRecord(ctx context.Context, tx *sql.Tx, root string, validationAttempt, candidateIndex int, provider, resourceRole, key string) (AttemptRecord, error) {
+	var record AttemptRecord
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(attempt_ordinal),-1)+1 FROM ai_gateway_inference_attempts WHERE root_operation_id=$1`, root).Scan(&record.Ordinal); err != nil {
+		return AttemptRecord{}, err
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO ai_gateway_inference_attempts(root_operation_id,attempt_ordinal,validation_attempt,candidate_index,attempt_key,provider_id,resource_role,state)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, root, record.Ordinal, validationAttempt, candidateIndex, key, provider, resourceRole, string(AttemptDispatching))
+	if err != nil {
+		return AttemptRecord{}, err
+	}
+	record.ValidationAttempt, record.CandidateIndex, record.Key = validationAttempt, candidateIndex, key
+	record.Provider, record.ResourceRole, record.State, record.Created = provider, resourceRole, AttemptDispatching, true
+	return record, nil
+}
+
+func restoreAttemptRecord(root string, record AttemptRecord, state string, credits sql.NullInt64) (AttemptRecord, error) {
+	record.State = AttemptState(state)
+	if !record.State.Valid() {
+		return AttemptRecord{}, fmt.Errorf("inference attempt %s/%d has unknown state %q", root, record.Ordinal, record.State)
+	}
+	if credits.Valid {
+		record.ChargedCredits = &credits.Int64
 	}
 	return record, nil
 }
@@ -195,17 +222,9 @@ func (l *SQLAttemptLedger) Set(ctx context.Context, root string, ordinal int, st
 	if l == nil || l.db == nil {
 		return errors.New("inference attempt ledger is unavailable")
 	}
-	if !state.Valid() {
-		return fmt.Errorf("unknown inference attempt state %q", state)
-	}
-	from := make([]AttemptState, 0, len(attemptStateEdges))
-	for current := range attemptStateEdges {
-		if current.CanTransition(state) {
-			from = append(from, current)
-		}
-	}
-	if len(from) == 0 {
-		return fmt.Errorf("inference attempt state %q has no valid incoming transition", state)
+	from, err := incomingAttemptStates(state)
+	if err != nil {
+		return err
 	}
 	placeholders := make([]string, len(from))
 	args := []any{string(state), status, credits, root, ordinal}
@@ -226,8 +245,28 @@ WHERE root_operation_id=$4 AND attempt_ordinal=$5 AND state IN (`+strings.Join(p
 	if rows == 1 {
 		return nil
 	}
+	return l.attemptTransitionError(ctx, root, ordinal, state)
+}
+
+func incomingAttemptStates(state AttemptState) ([]AttemptState, error) {
+	if !state.Valid() {
+		return nil, fmt.Errorf("unknown inference attempt state %q", state)
+	}
+	from := make([]AttemptState, 0, len(attemptStateEdges))
+	for current := range attemptStateEdges {
+		if current.CanTransition(state) {
+			from = append(from, current)
+		}
+	}
+	if len(from) == 0 {
+		return nil, fmt.Errorf("inference attempt state %q has no valid incoming transition", state)
+	}
+	return from, nil
+}
+
+func (l *SQLAttemptLedger) attemptTransitionError(ctx context.Context, root string, ordinal int, state AttemptState) error {
 	var exists int
-	err = l.db.QueryRowContext(ctx, `SELECT 1 FROM ai_gateway_inference_attempts WHERE root_operation_id=$1 AND attempt_ordinal=$2`, root, ordinal).Scan(&exists)
+	err := l.db.QueryRowContext(ctx, `SELECT 1 FROM ai_gateway_inference_attempts WHERE root_operation_id=$1 AND attempt_ordinal=$2`, root, ordinal).Scan(&exists)
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inference attempt %s/%d is missing", root, ordinal)
 	}

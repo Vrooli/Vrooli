@@ -33,7 +33,8 @@ func TestServiceMapsSamplingErrorsAndAlwaysReportsApplied(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			service := NewService(samplingErrRepo{err: tc.err})
-			response := service.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: strings.Repeat("a", 64),
+			response := service.Run(context.Background(), ProviderRequest{
+				PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: strings.Repeat("a", 64),
 				Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.default",
 			})
 			require.Equal(t, tc.want, response.GetError().GetCode())

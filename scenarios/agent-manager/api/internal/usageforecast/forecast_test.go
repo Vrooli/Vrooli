@@ -428,6 +428,44 @@ func TestForecastDropsScopesNoLongerRead(t *testing.T) {
 	}
 }
 
+// Live shape of 2026-11-20: the Claude statusline wrote unscoped readings up
+// to 2026-11-16 (100% of a window that reset 2026-11-18), then recorded its
+// account scope. The scoped feed is the current reading; the unscoped history
+// must not stand beside it as an expired 100% window.
+func TestCurrentDropsUnscopedHistorySupersededByAScopedFeed(t *testing.T) {
+	now := at("2026-11-20T15:10:00Z")
+	oldReset, newReset := at("2026-11-18T15:00:00Z"), at("2026-11-25T15:00:00Z")
+	legacy := claudeSpan("seven_day", at("2026-11-16T20:39:14Z"), 100, oldReset.Unix())
+	scoped := func(observed string, percent float64) pricing.QuotaReadingSpan {
+		span := claudeSpan("seven_day", at(observed), percent, newReset.Unix())
+		span.AccountScope = "anthropic:sha256:a"
+		return span
+	}
+	forecasts := Current([]pricing.QuotaReadingSpan{legacy, scoped("2026-11-19T10:00:00Z", 0), scoped("2026-11-20T15:05:00Z", 1)}, now)
+	if len(forecasts) != 1 {
+		t.Fatalf("forecasts=%d; want only the scoped current window", len(forecasts))
+	}
+	if f := forecasts[0]; f.Window.AccountScope != "anthropic:sha256:a" || f.Used != 1 || f.Expired || !f.Window.ResetAt.Equal(newReset) {
+		t.Fatalf("current window=%+v used=%v", f.Window, f.Used)
+	}
+	// Unscoped history that is still the newest reading of its window stays.
+	openai := codexWindow(now.Add(5*24*time.Hour), now.Add(-10*time.Minute), ramp(now.Add(-2*time.Hour), now.Add(-10*time.Minute), 1, 5))
+	if got := Current(append(spans(openai), scoped("2026-11-20T15:05:00Z", 1)), now); len(got) != 2 {
+		t.Fatalf("an unscoped window of another provider must remain: %d", len(got))
+	}
+}
+
+// A window whose reset has passed with no reading since is expired: its last
+// percent belongs to a finished window and is never reported as current use.
+func TestExpiredWindowReportsNoCurrentPercent(t *testing.T) {
+	now := at("2026-11-20T15:10:00Z")
+	reset := at("2026-11-18T15:00:00Z")
+	got := onlyForecast(t, []pricing.QuotaReadingSpan{claudeSpan("seven_day", at("2026-11-16T20:39:14Z"), 100, reset.Unix())}, now)
+	if !got.Expired || got.Used != 0 || got.Status != StatusUnknown || got.Projected != nil || got.BandStart != nil || got.BandEnd != nil {
+		t.Fatalf("expired window=%+v", got)
+	}
+}
+
 func keys(m map[string]Forecast) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

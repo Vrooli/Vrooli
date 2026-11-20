@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/lpbsidentity"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -19,7 +20,12 @@ var ErrInsufficientCredits = errors.New("insufficient credits")
 
 const CodeOutcomeUncertain = "outcome_uncertain"
 
-type accessTokenContextKey struct{}
+const CreditCallerAuthorizationHeader = lpbsidentity.CreditCallerAuthorizationHeader
+
+type (
+	accessTokenContextKey               struct{}
+	creditCallerAuthorizationContextKey struct{}
+)
 
 // WithAccessToken carries the already-verified consumer bearer token from the
 // Connect transport to the outbound metered provider. It is never persisted.
@@ -29,6 +35,18 @@ func WithAccessToken(ctx context.Context, token string) context.Context {
 
 func accessToken(ctx context.Context) string {
 	token, _ := ctx.Value(accessTokenContextKey{}).(string)
+	return strings.TrimSpace(token)
+}
+
+// WithCreditCallerAuthorization carries the invoking scenario's separately
+// signed service-principal bearer to LPBS. It never replaces the user's
+// Authorization token and is only useful when LPBS verifies it independently.
+func WithCreditCallerAuthorization(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, creditCallerAuthorizationContextKey{}, strings.TrimSpace(token))
+}
+
+func creditCallerAuthorization(ctx context.Context) string {
+	token, _ := ctx.Value(creditCallerAuthorizationContextKey{}).(string)
 	return strings.TrimSpace(token)
 }
 
@@ -134,44 +152,12 @@ func NewMeteredClient(opts MeteredClientOptions) *MeteredClient {
 }
 
 func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (MeteredResponse, error) {
-	if strings.TrimSpace(request.Role) == "" || len(request.Messages) == 0 {
-		return MeteredResponse{}, errors.New("metered inference role and messages are required")
+	if err := validateMeteredRequest(&request); err != nil {
+		return MeteredResponse{}, err
 	}
-	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !validMeteredRootOperationID(request.RootOperationID) {
-		return MeteredResponse{}, &CommandError{Code: CodeUnconfigured, Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires a caller-generated root_operation_id")}
-	}
-	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
-		binding := request.BrowserSession
-		if binding == nil || strings.TrimSpace(binding.RunID) == "" || strings.TrimSpace(binding.SessionID) == "" || strings.TrimSpace(binding.GrantReceipt) == "" || len(binding.RunID) > 64 || len(binding.SessionID) > 128 || len(binding.GrantReceipt) > 512 || strings.ContainsAny(binding.RunID+binding.SessionID+binding.GrantReceipt, "\r\n") {
-			return MeteredResponse{}, &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires its authenticated run, grant and BAS session binding")}
-		}
-	}
-	if request.RootOperationID != "" {
-		if request.Metadata == nil {
-			request.Metadata = make(map[string]string)
-		}
-		if existing := strings.TrimSpace(request.Metadata["gateway_root_operation_id"]); existing != "" && existing != request.RootOperationID {
-			return MeteredResponse{}, &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("metered metadata operation id conflicts with the Gateway root operation id")}
-		}
-		request.Metadata["gateway_root_operation_id"] = request.RootOperationID
-	}
-	baseURL := c.baseURL
-	if profileURL := strings.TrimSpace(c.profileURLs[request.Profile]); profileURL != "" {
-		baseURL = strings.TrimRight(profileURL, "/")
-	}
-	if baseURL == "" {
-		return MeteredResponse{}, errors.New("metered inference endpoint is not configured")
-	}
-	token := accessToken(ctx)
-	if token == "" && c.resolveToken != nil {
-		resolved, err := c.resolveToken(ctx, baseURL)
-		if err != nil {
-			return MeteredResponse{}, fmt.Errorf("resolve metered inference access token: %w", err)
-		}
-		token = strings.TrimSpace(resolved)
-	}
-	if token == "" {
-		return MeteredResponse{}, errors.New("metered inference access token is required")
+	baseURL, token, err := c.endpointAndToken(ctx, request)
+	if err != nil {
+		return MeteredResponse{}, err
 	}
 	if !c.allow() {
 		return MeteredResponse{}, errors.New("metered inference circuit breaker is open")
@@ -180,17 +166,97 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 	if err != nil {
 		return MeteredResponse{}, fmt.Errorf("marshal metered inference request: %w", err)
 	}
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/ai/inference", strings.NewReader(string(body)))
+	httpRequest, err := c.newInferenceRequest(ctx, baseURL, token, body)
 	if err != nil {
-		return MeteredResponse{}, fmt.Errorf("create metered inference request: %w", err)
+		return MeteredResponse{}, err
 	}
-	httpRequest.Header.Set("Content-Type", "application/json")
-	httpRequest.Header.Set("Authorization", token)
+	if caller := creditCallerAuthorization(ctx); caller != "" {
+		httpRequest.Header.Set(CreditCallerAuthorizationHeader, "Bearer "+caller)
+	}
 	response, err := c.httpClient.Do(httpRequest)
 	if err != nil {
 		c.failed()
 		return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: %w", request.RootOperationID, err)}
 	}
+	return c.handleResponse(ctx, request, response)
+}
+
+func validateMeteredRequest(request *MeteredRequest) error {
+	if strings.TrimSpace(request.Role) == "" || len(request.Messages) == 0 {
+		return errors.New("metered inference role and messages are required")
+	}
+	if err := validateMeteredBrowserRequest(*request); err != nil {
+		return err
+	}
+	return addMeteredOperationMetadata(request)
+}
+
+func validateMeteredBrowserRequest(request MeteredRequest) error {
+	if !strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") {
+		return nil
+	}
+	if !validMeteredRootOperationID(request.RootOperationID) {
+		return &CommandError{Code: CodeUnconfigured, Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires a caller-generated root_operation_id")}
+	}
+	if err := validateMeteredBrowserBinding(request.BrowserSession); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateMeteredBrowserBinding(binding *MeteredBrowserSession) error {
+	if binding == nil || strings.TrimSpace(binding.RunID) == "" || strings.TrimSpace(binding.SessionID) == "" || strings.TrimSpace(binding.GrantReceipt) == "" || len(binding.RunID) > 64 || len(binding.SessionID) > 128 || len(binding.GrantReceipt) > 512 || strings.ContainsAny(binding.RunID+binding.SessionID+binding.GrantReceipt, "\r\n") {
+		return &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("browser metered inference requires its authenticated run, grant and BAS session binding")}
+	}
+	return nil
+}
+
+func addMeteredOperationMetadata(request *MeteredRequest) error {
+	if request.RootOperationID != "" {
+		if request.Metadata == nil {
+			request.Metadata = make(map[string]string)
+		}
+		if existing := strings.TrimSpace(request.Metadata["gateway_root_operation_id"]); existing != "" && existing != request.RootOperationID {
+			return &CommandError{Code: "invalid_request", Command: ProviderMetered, ExitCode: -1, Err: errors.New("metered metadata operation id conflicts with the Gateway root operation id")}
+		}
+		request.Metadata["gateway_root_operation_id"] = request.RootOperationID
+	}
+	return nil
+}
+
+func (c *MeteredClient) endpointAndToken(ctx context.Context, request MeteredRequest) (string, string, error) {
+	baseURL := c.baseURL
+	if profileURL := strings.TrimSpace(c.profileURLs[request.Profile]); profileURL != "" {
+		baseURL = strings.TrimRight(profileURL, "/")
+	}
+	if baseURL == "" {
+		return "", "", errors.New("metered inference endpoint is not configured")
+	}
+	token := accessToken(ctx)
+	if token == "" && c.resolveToken != nil {
+		resolved, err := c.resolveToken(ctx, baseURL)
+		if err != nil {
+			return "", "", fmt.Errorf("resolve metered inference access token: %w", err)
+		}
+		token = strings.TrimSpace(resolved)
+	}
+	if token == "" {
+		return "", "", errors.New("metered inference access token is required")
+	}
+	return baseURL, token, nil
+}
+
+func (c *MeteredClient) newInferenceRequest(ctx context.Context, baseURL, token string, body []byte) (*http.Request, error) {
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/ai/inference", strings.NewReader(string(body)))
+	if err != nil {
+		return nil, fmt.Errorf("create metered inference request: %w", err)
+	}
+	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Authorization", token)
+	return httpRequest, nil
+}
+
+func (c *MeteredClient) handleResponse(ctx context.Context, request MeteredRequest, response *http.Response) (MeteredResponse, error) {
 	defer response.Body.Close()
 	bodyBytes, readErr := io.ReadAll(response.Body)
 	if readErr != nil {
@@ -201,44 +267,7 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 		_ = c.egress.Record(ctx, ProviderMetered, request.Role, request.Profile, response.StatusCode)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		retryAfter := strings.TrimSpace(response.Header.Get("Retry-After"))
-		detail := strings.TrimSpace(string(bodyBytes))
-		// 402 is an account-credit condition, not a transient execution fault:
-		// it is typed and deliberately does NOT trip the transient breaker,
-		// because a bounded retry cannot mint credits.
-		if response.StatusCode == http.StatusPaymentRequired {
-			return MeteredResponse{}, &CommandError{
-				Code: CodeInsufficientCredits, Command: ProviderMetered, ExitCode: -1,
-				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
-				Err: fmt.Errorf("%w: %s", ErrInsufficientCredits, detail),
-			}
-		}
-		if response.StatusCode >= http.StatusInternalServerError && request.RootOperationID != "" {
-			c.failed()
-			return MeteredResponse{}, &CommandError{Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter, Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: HTTP %d: %s", request.RootOperationID, response.StatusCode, detail)}
-		}
-		c.failed()
-		// 429 and 5xx are transient: carry the observed Retry-After so the
-		// caller can park until the provider's own recovery window.
-		if response.StatusCode == http.StatusTooManyRequests {
-			return MeteredResponse{}, &CommandError{
-				Code: CodeRateLimited, Command: ProviderMetered, ExitCode: -1,
-				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
-				Err: fmt.Errorf("metered inference rate limited: HTTP %d: %s", response.StatusCode, detail),
-			}
-		}
-		if response.StatusCode == http.StatusServiceUnavailable || response.StatusCode == 502 || response.StatusCode == 504 {
-			return MeteredResponse{}, &CommandError{
-				Code: CodeProviderOverloaded, Command: ProviderMetered, ExitCode: -1,
-				HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
-				Err: fmt.Errorf("metered inference provider overloaded: HTTP %d: %s", response.StatusCode, detail),
-			}
-		}
-		return MeteredResponse{}, &CommandError{
-			Code: CodeProviderFailed, Command: ProviderMetered, ExitCode: -1,
-			HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
-			Err: fmt.Errorf("metered inference returned HTTP %d: %s", response.StatusCode, detail),
-		}
+		return MeteredResponse{}, c.httpFailure(request, response, bodyBytes)
 	}
 	var result MeteredResponse
 	if decodeErr := json.Unmarshal(bodyBytes, &result); decodeErr != nil {
@@ -255,6 +284,41 @@ func (c *MeteredClient) Run(ctx context.Context, request MeteredRequest) (Metere
 	}
 	c.succeeded()
 	return result, nil
+}
+
+func (c *MeteredClient) httpFailure(request MeteredRequest, response *http.Response, body []byte) error {
+	retryAfter := strings.TrimSpace(response.Header.Get("Retry-After"))
+	detail := strings.TrimSpace(string(body))
+	if response.StatusCode == http.StatusPaymentRequired {
+		return &CommandError{
+			Code: CodeInsufficientCredits, Command: ProviderMetered, ExitCode: -1,
+			HTTPStatus: response.StatusCode, RetryAfter: retryAfter, Err: fmt.Errorf("%w: %s", ErrInsufficientCredits, detail),
+		}
+	}
+	if response.StatusCode >= http.StatusInternalServerError && request.RootOperationID != "" {
+		c.failed()
+		return &CommandError{
+			Code: CodeOutcomeUncertain, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+			Err: fmt.Errorf("metered inference outcome is uncertain for root_operation_id %q: HTTP %d: %s", request.RootOperationID, response.StatusCode, detail),
+		}
+	}
+	c.failed()
+	if response.StatusCode == http.StatusTooManyRequests {
+		return &CommandError{
+			Code: CodeRateLimited, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+			Err: fmt.Errorf("metered inference rate limited: HTTP %d: %s", response.StatusCode, detail),
+		}
+	}
+	if response.StatusCode == http.StatusServiceUnavailable || response.StatusCode == 502 || response.StatusCode == 504 {
+		return &CommandError{
+			Code: CodeProviderOverloaded, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+			Err: fmt.Errorf("metered inference provider overloaded: HTTP %d: %s", response.StatusCode, detail),
+		}
+	}
+	return &CommandError{
+		Code: CodeProviderFailed, Command: ProviderMetered, ExitCode: -1, HTTPStatus: response.StatusCode, RetryAfter: retryAfter,
+		Err: fmt.Errorf("metered inference returned HTTP %d: %s", response.StatusCode, detail),
+	}
 }
 
 func validMeteredRootOperationID(value string) bool {

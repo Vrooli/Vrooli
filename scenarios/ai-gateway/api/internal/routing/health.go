@@ -107,11 +107,8 @@ func ClassifyProviderFailure(err error) ProviderFailure {
 	if err == nil {
 		return ProviderFailure{}
 	}
-	if errors.Is(err, context.Canceled) {
-		return ProviderFailure{Class: FailureCancellation, Source: "context"}
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return ProviderFailure{Class: FailureTimeout, Source: "context"}
+	if contextFailure := classifyContextFailure(err); contextFailure.Class != "" {
+		return contextFailure
 	}
 	observed := ProviderFailure{}
 	if errors.Is(err, providers.ErrInsufficientCredits) {
@@ -123,42 +120,59 @@ func ClassifyProviderFailure(err error) ProviderFailure {
 		observed.RetryAfter = strings.TrimSpace(cmdErr.RetryAfter)
 		observed.ResetAt = strings.TrimSpace(cmdErr.ResetAt)
 		if observed.Class == "" {
-			switch cmdErr.Code {
-			case "missing_binary":
-				observed.Class = FailureMissingBinary
-			case "timeout":
-				observed.Class = FailureTimeout
-			case "malformed_json":
-				observed.Class = FailureMalformedJSON
-			case "exit_error", "command_failed", "provider_failed":
-				observed.Class = FailureExecution
-			case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request", "context_overflow":
-				observed.Class = FailurePolicyError
-			case "unavailable", "empty_inventory":
-				observed.Class = FailureUnavailable
-			case "insufficient_credits":
-				observed.Class = FailureInsufficientCredits
-			case "rate_limited":
-				observed.Class = FailureRateLimited
-			case "provider_overloaded", "stream_failed":
-				observed.Class = FailureProviderOverloaded
-			case "unreachable", "unconfigured":
-				observed.Class = FailureUnavailable
-			}
+			observed.Class = classifyProviderCommandCode(cmdErr.Code)
 		}
 	}
-	if observed.Source == "" {
-		switch {
-		case observed.HTTPStatus != 0:
-			observed.Source = fmt.Sprintf("http:%d", observed.HTTPStatus)
-		case observed.Class != "":
-			observed.Source = "provider-command"
-		}
-	}
+	observed.Source = providerFailureSource(observed)
 	if observed.Class == "" {
 		observed.Class = FailureExecution
 	}
 	return observed
+}
+
+func classifyContextFailure(err error) ProviderFailure {
+	if errors.Is(err, context.Canceled) {
+		return ProviderFailure{Class: FailureCancellation, Source: "context"}
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return ProviderFailure{Class: FailureTimeout, Source: "context"}
+	}
+	return ProviderFailure{}
+}
+
+func providerFailureSource(failure ProviderFailure) string {
+	if failure.HTTPStatus != 0 {
+		return fmt.Sprintf("http:%d", failure.HTTPStatus)
+	}
+	if failure.Class != "" {
+		return "provider-command"
+	}
+	return ""
+}
+
+func classifyProviderCommandCode(code string) FailureClass {
+	switch code {
+	case "missing_binary":
+		return FailureMissingBinary
+	case "timeout":
+		return FailureTimeout
+	case "malformed_json":
+		return FailureMalformedJSON
+	case "exit_error", "command_failed", "provider_failed":
+		return FailureExecution
+	case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request", "context_overflow":
+		return FailurePolicyError
+	case "unavailable", "empty_inventory", "unreachable", "unconfigured":
+		return FailureUnavailable
+	case "insufficient_credits":
+		return FailureInsufficientCredits
+	case "rate_limited":
+		return FailureRateLimited
+	case "provider_overloaded", "stream_failed":
+		return FailureProviderOverloaded
+	default:
+		return ""
+	}
 }
 
 // ClassifyProviderError returns only the stable failure class. Prefer

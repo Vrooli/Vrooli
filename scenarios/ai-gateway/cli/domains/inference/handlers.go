@@ -133,43 +133,51 @@ func decisionSummary(response *inferencev1.DecideResponse) string {
 // decisionLines renders each answer with its full distribution, then the
 // candidate walk, so a reader sees why a hosted candidate was or was not used.
 func decisionLines(response *inferencev1.DecideResponse) []string {
-	var lines []string
+	lines := make([]string, 0, len(response.GetAnswers())+len(response.GetCandidates())+1)
 	for _, answer := range response.GetAnswers() {
-		line := answer.GetQuestionId() + " "
-		switch answer.GetType() {
-		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
-			line += "choice=" + answer.GetChoice()
-		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
-			line += "score=" + strconv.FormatFloat(answer.GetScore(), 'f', 4, 64)
-		default:
-			line += "noul=" + strconv.FormatFloat(answer.GetNoul(), 'f', 4, 64)
-		}
-		if answer.Confidence != nil {
-			line += " confidence=" + strconv.FormatFloat(answer.GetConfidence(), 'f', 4, 64)
-		}
-		if len(answer.GetProbabilities()) > 0 {
-			parts := make([]string, 0, len(answer.GetProbabilities()))
-			for _, probability := range answer.GetProbabilities() {
-				parts = append(parts, probability.GetOption()+":"+strconv.FormatFloat(probability.GetProbability(), 'f', 4, 64))
-			}
-			line += " probabilities={" + strings.Join(parts, " ") + "}"
-		}
-		lines = append(lines, line)
+		lines = append(lines, decisionAnswerLine(answer))
 	}
 	if usage := response.GetUsage(); usage != nil && response.GetError() == nil {
 		lines = append(lines, fmt.Sprintf("usage input_tokens=%d output_tokens=%d cost_micros=%d", usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros()))
 	}
 	for _, candidate := range response.GetCandidates() {
-		line := fmt.Sprintf("candidate %s/%s status=%s", candidate.GetProvider(), candidate.GetResourceRole(), strings.TrimPrefix(candidate.GetStatus().String(), "DECISION_CANDIDATE_STATUS_"))
-		if candidate.GetReason() != "" {
-			line += " reason=" + candidate.GetReason()
-		}
-		if candidate.GetLatencyMs() > 0 {
-			line += fmt.Sprintf(" latency_ms=%d", candidate.GetLatencyMs())
-		}
-		lines = append(lines, line)
+		lines = append(lines, decisionCandidateLine(candidate))
 	}
 	return lines
+}
+
+func decisionAnswerLine(answer *inferencev1.DecisionAnswer) string {
+	line := answer.GetQuestionId() + " "
+	switch answer.GetType() {
+	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
+		line += "choice=" + answer.GetChoice()
+	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
+		line += "score=" + strconv.FormatFloat(answer.GetScore(), 'f', 4, 64)
+	default:
+		line += "noul=" + strconv.FormatFloat(answer.GetNoul(), 'f', 4, 64)
+	}
+	if answer.Confidence != nil {
+		line += " confidence=" + strconv.FormatFloat(answer.GetConfidence(), 'f', 4, 64)
+	}
+	if len(answer.GetProbabilities()) > 0 {
+		parts := make([]string, 0, len(answer.GetProbabilities()))
+		for _, probability := range answer.GetProbabilities() {
+			parts = append(parts, probability.GetOption()+":"+strconv.FormatFloat(probability.GetProbability(), 'f', 4, 64))
+		}
+		line += " probabilities={" + strings.Join(parts, " ") + "}"
+	}
+	return line
+}
+
+func decisionCandidateLine(candidate *inferencev1.DecisionCandidate) string {
+	line := fmt.Sprintf("candidate %s/%s status=%s", candidate.GetProvider(), candidate.GetResourceRole(), strings.TrimPrefix(candidate.GetStatus().String(), "DECISION_CANDIDATE_STATUS_"))
+	if candidate.GetReason() != "" {
+		line += " reason=" + candidate.GetReason()
+	}
+	if candidate.GetLatencyMs() > 0 {
+		line += fmt.Sprintf(" latency_ms=%d", candidate.GetLatencyMs())
+	}
+	return line
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -178,47 +186,9 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
-	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
+	request, err := runRequestFromContext(ctx)
 	if err != nil {
 		return err
-	}
-	privacyProvenance, err := gatewayreq.InferencePrivacyProvenance(ctx)
-	if err != nil {
-		return err
-	}
-	schemaPath := strings.TrimSpace(ctx.Flag("schema"))
-	if schemaPath == "" {
-		return fmt.Errorf("--schema is required")
-	}
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("read --schema %q: %w", schemaPath, err)
-	}
-	request := &inferencev1.RunRequest{
-		Source:            ctx.Flag("source"),
-		SchemaJson:        string(schema),
-		Instruction:       ctx.Flag("instruction"),
-		Role:              ctx.Flag("role"),
-		Profile:           profile,
-		PrivacyClass:      privacyClass,
-		PrivacyProvenance: privacyProvenance,
-	}
-	// An absent flag must stay absent rather than becoming an explicit 0: the
-	// role's declared sampling only applies when the caller sends nothing, and
-	// 0 is itself a meaningful temperature.
-	if raw := strings.TrimSpace(ctx.Flag("temperature")); raw != "" {
-		temperature, parseErr := strconv.ParseFloat(raw, 64)
-		if parseErr != nil {
-			return fmt.Errorf("--temperature %q must be a number: %w", raw, parseErr)
-		}
-		request.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(temperature)}
-	}
-	if raw := strings.TrimSpace(ctx.Flag("max-output-tokens")); raw != "" {
-		maxOutputTokens, parseErr := strconv.ParseInt(raw, 10, 32)
-		if parseErr != nil {
-			return fmt.Errorf("--max-output-tokens %q must be an integer: %w", raw, parseErr)
-		}
-		request.MaxOutputTokens = int32(maxOutputTokens)
 	}
 	resp, err := h.client.Run(context.Background(), connect.NewRequest(request))
 	if err != nil {
@@ -227,87 +197,109 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no inference response")
 	}
-	usage := resp.Msg.GetUsage()
-	results := []string{fmt.Sprintf("validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", resp.Msg.GetValidated(), resp.Msg.GetProvider(), resp.Msg.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}
-	if value := strings.TrimSpace(resp.Msg.GetValueJson()); value != "" {
-		results = append(results, "value="+value)
-	}
-	if applied := appliedSummary(resp.Msg.GetApplied()); applied != "" {
-		results = append(results, "applied="+applied)
-	}
-	if failure := resp.Msg.GetError(); failure != nil {
-		results = append(results, fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage()))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Typed inference completed: validated=%t.", resp.Msg.GetValidated())},
-		ResultsHeading: "Inference",
-		Results:        results,
-	})
+	return renderRun(ctx, resp.Msg)
 }
 
-func (h *handlers) runBatch(ctx cliapp.RunContext) error {
+func runRequestFromContext(ctx cliapp.RunContext) (*inferencev1.RunRequest, error) {
 	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	privacyProvenance, err := gatewayreq.InferencePrivacyProvenance(ctx)
 	if err != nil {
+		return nil, err
+	}
+	schema, err := readRequiredJSON(ctx, "schema")
+	if err != nil {
+		return nil, err
+	}
+	request := &inferencev1.RunRequest{Source: ctx.Flag("source"), SchemaJson: string(schema), Instruction: ctx.Flag("instruction"), Role: ctx.Flag("role"), Profile: profile, PrivacyClass: privacyClass, PrivacyProvenance: privacyProvenance}
+	// An absent flag must stay absent rather than becoming an explicit 0: the
+	// role's declared sampling only applies when the caller sends nothing, and
+	// 0 is itself a meaningful temperature.
+	if raw := strings.TrimSpace(ctx.Flag("temperature")); raw != "" {
+		temperature, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil {
+			return nil, fmt.Errorf("--temperature %q must be a number: %w", raw, parseErr)
+		}
+		request.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(temperature)}
+	}
+	if raw := strings.TrimSpace(ctx.Flag("max-output-tokens")); raw != "" {
+		maxOutputTokens, parseErr := strconv.ParseInt(raw, 10, 32)
+		if parseErr != nil {
+			return nil, fmt.Errorf("--max-output-tokens %q must be an integer: %w", raw, parseErr)
+		}
+		request.MaxOutputTokens = int32(maxOutputTokens)
+	}
+	return request, nil
+}
+
+func (h *handlers) runBatch(ctx cliapp.RunContext) error {
+	request, err := runBatchRequestFromContext(ctx)
+	if err != nil {
 		return err
 	}
-	itemsPath := strings.TrimSpace(ctx.Flag("items"))
-	if itemsPath == "" {
-		return fmt.Errorf("--items is required")
-	}
-	itemsJSON, err := os.ReadFile(itemsPath)
-	if err != nil {
-		return fmt.Errorf("read --items %q: %w", itemsPath, err)
-	}
-	var items []struct {
-		Source string `json:"source"`
-	}
-	if err := json.Unmarshal(itemsJSON, &items); err != nil {
-		return fmt.Errorf("decode --items %q: %w", itemsPath, err)
-	}
-	schemaPath := strings.TrimSpace(ctx.Flag("schema"))
-	if schemaPath == "" {
-		return fmt.Errorf("--schema is required")
-	}
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("read --schema %q: %w", schemaPath, err)
-	}
-	requestItems := make([]*inferencev1.RunBatchItem, 0, len(items))
-	for _, item := range items {
-		requestItems = append(requestItems, &inferencev1.RunBatchItem{Source: item.Source})
-	}
-	resp, err := h.client.RunBatch(context.Background(), connect.NewRequest(&inferencev1.RunBatchRequest{
-		Items: requestItems, SchemaJson: string(schema), Instruction: ctx.Flag("instruction"), Role: ctx.Flag("role"),
-		Profile: profile, PrivacyClass: privacyClass, PrivacyProvenance: privacyProvenance,
-	}))
+	resp, err := h.client.RunBatch(context.Background(), connect.NewRequest(request))
 	if err != nil {
 		return cliapp.WrapAPIError("run typed inference batch", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no inference batch response")
 	}
-	results := make([]string, 0, len(resp.Msg.GetResults()))
-	for index, result := range resp.Msg.GetResults() {
-		usage := result.GetUsage()
-		itemResult := fmt.Sprintf("item=%d validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", index, result.GetValidated(), result.GetProvider(), result.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())
-		if value := strings.TrimSpace(result.GetValueJson()); value != "" {
-			itemResult += " value=" + value
-		}
-		if failure := result.GetError(); failure != nil {
-			itemResult += fmt.Sprintf(" error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage())
-		}
-		results = append(results, itemResult)
+	return renderRunBatch(ctx, resp.Msg)
+}
+
+func runBatchRequestFromContext(ctx cliapp.RunContext) (*inferencev1.RunBatchRequest, error) {
+	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
+	if err != nil {
+		return nil, err
 	}
-	usage := resp.Msg.GetUsage()
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Typed inference batch completed: items=%d input_tokens=%d output_tokens=%d cost_micros=%d.", len(resp.Msg.GetResults()), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())},
-		ResultsHeading: "Inference batch",
-		Results:        results,
-	})
+	privacyProvenance, err := gatewayreq.InferencePrivacyProvenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	itemsPath := strings.TrimSpace(ctx.Flag("items"))
+	if itemsPath == "" {
+		return nil, fmt.Errorf("--items is required")
+	}
+	itemsJSON, err := os.ReadFile(itemsPath)
+	if err != nil {
+		return nil, fmt.Errorf("read --items %q: %w", itemsPath, err)
+	}
+	var items []struct {
+		Source string `json:"source"`
+	}
+	if err := json.Unmarshal(itemsJSON, &items); err != nil {
+		return nil, fmt.Errorf("decode --items %q: %w", itemsPath, err)
+	}
+	schemaPath := strings.TrimSpace(ctx.Flag("schema"))
+	if schemaPath == "" {
+		return nil, fmt.Errorf("--schema is required")
+	}
+	schema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return nil, fmt.Errorf("read --schema %q: %w", schemaPath, err)
+	}
+	requestItems := make([]*inferencev1.RunBatchItem, 0, len(items))
+	for _, item := range items {
+		requestItems = append(requestItems, &inferencev1.RunBatchItem{Source: item.Source})
+	}
+	return &inferencev1.RunBatchRequest{
+		Items: requestItems, SchemaJson: string(schema), Instruction: ctx.Flag("instruction"), Role: ctx.Flag("role"),
+		Profile: profile, PrivacyClass: privacyClass, PrivacyProvenance: privacyProvenance,
+	}, nil
+}
+
+func readRequiredJSON(ctx cliapp.RunContext, flag string) ([]byte, error) {
+	path := strings.TrimSpace(ctx.Flag(flag))
+	if path == "" {
+		return nil, fmt.Errorf("--%s is required", flag)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read --%s %q: %w", flag, path, err)
+	}
+	return data, nil
 }
 
 func (h *handlers) embed(ctx cliapp.RunContext) error {

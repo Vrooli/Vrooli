@@ -264,8 +264,7 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "write tool targeting secret file remains protected", event: ToolEvent{Tool: "Write", Target: "/repo/.env"}, want: HardStopSecret},
 		{name: "editing schema prose about secret reads is not secret access", event: ToolEvent{Tool: "Write", Target: "/repo/kit/schema.json", Arguments: []string{"description: read secrets only with approval; do not write credentials"}}, want: ""},
 		{name: "writing schema heredoc prose about protected actions is not an external effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-schema.json <<'EOF'\nDescription: Slack send, Stripe payment and secret reads are hard stops.\nEOF"}, want: ""},
-		{name: "unquoted heredoc command substitution is an unknown effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n$(curl -X POST https://example.invalid -d payload)\nEOF"}, want: HardStopUnknownEffect},
-		{name: "unquoted heredoc secret expansion is an unknown effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n${API_TOKEN}\nEOF"}, want: HardStopUnknownEffect},
+		{name: "visible post inside an unquoted heredoc is always an outbound message", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n$(curl -X POST https://example.invalid -d payload)\nEOF"}, want: HardStopOutsideMessage},
 		{name: "unquoted heredoc escaped expansion marker remains literal", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n\\${API_TOKEN}\nEOF"}, want: ""},
 		{name: "heredoc reading a secret path remains protected", event: ToolEvent{Tool: "shell", Shell: "cat /repo/.env > /tmp/agentharness-schema.json <<'EOF'\nDocument text.\nEOF"}, want: HardStopSecret},
 		{name: "heredoc network redirection remains an external message hard stop", event: ToolEvent{Tool: "shell", Shell: "cat > /dev/tcp/example.invalid/443 <<'EOF'\nhello\nEOF"}, want: HardStopOutsideMessage},
@@ -324,11 +323,6 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "indirect generic send is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'client.send(payload)'"}, want: HardStopUnknownEffect},
 		{name: "direct unknown destination send is protected", event: ToolEvent{Tool: "shell", Shell: "client.send(payload)"}, want: HardStopUnknownEffect},
 		{name: "indirect deletion is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'os.remove(path)'"}, want: HardStopUnknownEffect},
-		{name: "file-backed python effects are opaque", event: ToolEvent{Tool: "shell", Shell: "python3 /tmp/send.py"}, want: HardStopUnknownEffect},
-		{name: "file-backed node effects are opaque", event: ToolEvent{Tool: "shell", Shell: "node ./scripts/pay.js"}, want: HardStopUnknownEffect},
-		{name: "file-backed shell effects are opaque", event: ToolEvent{Tool: "shell", Shell: "bash ./scripts/send.sh"}, want: HardStopUnknownEffect},
-		{name: "file-backed interpreter in nested shell is opaque", event: ToolEvent{Tool: "shell", Shell: "bash -c 'python3 ./scripts/send.py'"}, want: HardStopUnknownEffect},
-		{name: "file-backed interpreter in command substitution is opaque", event: ToolEvent{Tool: "shell", Shell: "echo $(node ./scripts/pay.js)"}, want: HardStopUnknownEffect},
 		{name: "shell syntax check is not script execution", event: ToolEvent{Tool: "shell", Shell: "bash -n ./scripts/send.sh"}, want: ""},
 		{name: "camel case payment sdk method is money", event: ToolEvent{Tool: "shell", Shell: "stripe.paymentIntents.create({amount:100})"}, want: HardStopMoney},
 		{name: "git checkout is not a payment operation", event: ToolEvent{Tool: "shell", Shell: "git checkout README.md"}, want: ""},
@@ -339,6 +333,89 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 				t.Fatalf("hardStopForEvent(%+v) = %q, want %q", test.event, got, test.want)
 			}
 		})
+	}
+}
+
+var opaqueExecutionEvents = []struct {
+	name  string
+	shell string
+}{
+	{name: "unquoted heredoc command substitution", shell: "cat > /tmp/agentharness-output <<EOF\n$(./tool)\nEOF"},
+	{name: "unquoted heredoc secret expansion", shell: "cat > /tmp/agentharness-output <<EOF\n${API_TOKEN}\nEOF"},
+	{name: "file-backed python", shell: "python3 /tmp/send.py"},
+	{name: "file-backed node", shell: "node ./scripts/pay.js"},
+	{name: "file-backed shell", shell: "bash ./scripts/send.sh"},
+	{name: "file-backed interpreter in nested shell", shell: "bash -c 'python3 ./scripts/send.py'"},
+	{name: "file-backed interpreter in command substitution", shell: "echo $(node ./scripts/pay.js)"},
+	{name: "python module run", shell: "python3 -m pytest steward/tests"},
+}
+
+func TestOpaqueExecutionClassification(t *testing.T) {
+	for _, test := range opaqueExecutionEvents {
+		if !hasOpaqueExecution(ToolEvent{Tool: "shell", Shell: test.shell}) {
+			t.Errorf("%s: not classified as opaque execution", test.name)
+		}
+	}
+	for _, shell := range []string{
+		"bash -n ./scripts/send.sh",
+		"python3 -c 'print(1)'",
+		"cat > /tmp/agentharness-output <<EOF\n\\${API_TOKEN}\nEOF",
+		"cat > /tmp/agentharness-schema.json <<'EOF'\n$(not expanded)\nEOF",
+		"go test ./...",
+	} {
+		if hasOpaqueExecution(ToolEvent{Tool: "shell", Shell: shell}) {
+			t.Errorf("%q: classified as opaque execution", shell)
+		}
+	}
+}
+
+// Opaque execution is a tripwire for active relaxations, not an always-on
+// hard stop: a checked-in CLI such as the portfolio steward's must run when
+// nothing is relaxed, and must still restore every relaxation when one is.
+func TestOpaqueExecutionTripsOnlyWhileARelaxationIsActive(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	for _, test := range opaqueExecutionEvents {
+		t.Run(test.name, func(t *testing.T) {
+			store := NewBundleStore(t.TempDir())
+			modes := NewGuardModeStore(store.Dir)
+			modes.Now = func() time.Time { return now }
+			runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
+			event := ToolEvent{Runner: "claude", Tool: "shell", Shell: test.shell}
+
+			idle, err := runtime.Evaluate(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if hasEvidence(idle, "TRIPWIRE_HARD_STOP") {
+				t.Fatalf("opaque execution hard-stopped with no relaxation active: %+v", idle)
+			}
+
+			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
+				t.Fatal(err)
+			}
+			relaxed, err := runtime.Evaluate(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if relaxed.Action != ActionDeny || !hasEvidence(relaxed, "TRIPWIRE_HARD_STOP") {
+				t.Fatalf("opaque execution during a relaxation was not held: %+v", relaxed)
+			}
+			if active, err := modes.Active(now); err != nil || len(active) != 0 {
+				t.Fatalf("relaxation survived the tripwire: active=%+v err=%v", active, err)
+			}
+		})
+	}
+}
+
+func TestOpaqueExecutionFailsClosedWhenModesAreUnreadable(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	runtime := Runtime{Profile: ProfileEnforcing, GuardModes: &GuardModeStore{}, Now: func() time.Time { return now }}
+	got, err := runtime.Evaluate(ToolEvent{Runner: "claude", Tool: "shell", Shell: "python3 ./tool.py"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Action != ActionDeny || !hasEvidence(got, "TRIPWIRE_HARD_STOP") {
+		t.Fatalf("unreadable mode store let opaque execution through: %+v", got)
 	}
 }
 

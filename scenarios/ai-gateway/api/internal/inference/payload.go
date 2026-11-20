@@ -19,7 +19,7 @@ var (
 // surrounding prose.
 //
 // Being permissive here does not weaken the contract. The extracted text is
-// still validated against the request schema, and ValidateJSON remains the only
+// still validated against the request schema, and schemagate.ValidateJSON remains the only
 // authority on whether a response succeeds. Refusing to strip a fence would
 // only convert a recoverable formatting habit into a hard failure.
 func ExtractJSONValue(raw string) string {
@@ -60,40 +60,70 @@ func firstBalancedJSON(text string) string {
 }
 
 func balancedFrom(text string) string {
-	openers := make([]rune, 0, 8)
-	inString := false
-	escaped := false
+	scanner := balancedJSONScanner{openers: make([]rune, 0, 8)}
 	for index, char := range text {
-		if escaped {
-			escaped = false
-			continue
+		complete, invalid := scanner.consume(char)
+		if invalid {
+			return ""
 		}
-		switch {
-		case inString && char == '\\':
-			escaped = true
-		case char == '"':
-			inString = !inString
-		case inString:
-			// Structural characters inside a string literal carry no meaning.
-		case char == '{' || char == '[':
-			openers = append(openers, char)
-		case char == '}' || char == ']':
-			if len(openers) == 0 {
-				return ""
+		if complete {
+			value := text[:index+1]
+			if isJSONValue(value) {
+				return value
 			}
-			opener := openers[len(openers)-1]
-			if (char == '}' && opener != '{') || (char == ']' && opener != '[') {
-				return ""
-			}
-			openers = openers[:len(openers)-1]
-			if len(openers) == 0 {
-				value := text[:index+1]
-				if isJSONValue(value) {
-					return value
-				}
-				return ""
-			}
+			return ""
 		}
 	}
 	return ""
+}
+
+type balancedJSONScanner struct {
+	openers  []rune
+	inString bool
+	escaped  bool
+}
+
+func (scanner *balancedJSONScanner) consume(char rune) (complete, invalid bool) {
+	if scanner.escaped {
+		scanner.escaped = false
+		return false, false
+	}
+	if scanner.inString {
+		scanner.consumeStringCharacter(char)
+		return false, false
+	}
+	return scanner.consumeStructuralCharacter(char)
+}
+
+func (scanner *balancedJSONScanner) consumeStringCharacter(char rune) {
+	switch char {
+	case '\\':
+		scanner.escaped = true
+	case '"':
+		scanner.inString = false
+	}
+}
+
+func (scanner *balancedJSONScanner) consumeStructuralCharacter(char rune) (complete, invalid bool) {
+	switch char {
+	case '"':
+		scanner.inString = true
+	case '{', '[':
+		scanner.openers = append(scanner.openers, char)
+	case '}', ']':
+		return scanner.consumeClosingCharacter(char)
+	}
+	return false, false
+}
+
+func (scanner *balancedJSONScanner) consumeClosingCharacter(char rune) (complete, invalid bool) {
+	if len(scanner.openers) == 0 {
+		return false, true
+	}
+	opener := scanner.openers[len(scanner.openers)-1]
+	if (char == '}' && opener != '{') || (char == ']' && opener != '[') {
+		return false, true
+	}
+	scanner.openers = scanner.openers[:len(scanner.openers)-1]
+	return len(scanner.openers) == 0, false
 }

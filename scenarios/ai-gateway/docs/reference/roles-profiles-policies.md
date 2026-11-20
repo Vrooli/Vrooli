@@ -7,6 +7,21 @@ AI Gateway separates concepts that are currently easy to blur:
 - **Policy**: the provider/resource-specific mapping and constraints
   that make a role executable.
 
+## Current Inventory
+
+The generated [capability catalog](capability-catalog.md) is the current
+inventory of the profile vocabulary, gateway-owned roles, registered provider
+resources, and every dispatchable role candidate. It is derived from
+`config/profile-catalog.json`, `config/inference-role-catalog.json`, and
+`api/internal/providers`, and `make verify-gateway-catalog` fails when the
+committed page is stale.
+
+This page remains the ownership and policy rationale. When the generated tables
+and the prose below disagree about *inventory*, the generated tables win; when
+they disagree about *why* a boundary exists, this page owns the explanation.
+Verify the profile loop with the API vocabulary tests rather than copying the
+generated rows back into prose.
+
 ## Ownership
 
 | Layer | Owner | Examples | Source Of Truth |
@@ -34,6 +49,11 @@ identifier or history. Route evidence retains only a hash, byte count, image
 count, dimensions, and redaction flags.
 
 ## Baseline Roles
+
+The generated [capability catalog](capability-catalog.md#roles) is the current
+list of gateway-owned roles and their candidate order. The table below is the
+planning baseline for logical resource roles, including roles the gateway does
+not route to yet.
 
 The gateway should understand these logical roles even when a specific
 provider does not support every role yet:
@@ -233,6 +253,10 @@ positive attachment dimensions and rejects unknown conventions or converted
 bounds outside the image, so callers never need provider-specific coordinates.
 
 ## Recommended Gateway Profiles
+
+The generated [capability catalog](capability-catalog.md#profiles) is the
+current profile inventory, including display keys. The table below explains the
+routing intent behind each profile.
 
 | Profile | Provider Preference | Fallback | Hard Blocks |
 |---|---|---|---|

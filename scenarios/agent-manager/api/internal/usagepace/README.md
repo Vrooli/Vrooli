@@ -16,28 +16,37 @@ tier and its exact target are stored in
 effective ceiling that Agent Manager's run-admission check enforces. Selecting
 `baseline` restores the retained configured baseline.
 
-Agent Manager now records one durable physical inventory sample every minute.
+Agent Manager records one durable physical inventory sample every minute.
 Each sample retains its source timestamp, completeness and unknown reasons,
 provider-mapped active run IDs, and unmapped physical run IDs. History is kept
-for 70 days. The estimator pairs quota observations with complete samples for
-the same provider and current reset window. It requires at least ten minutes of
-positive quota burn, fresh monotone quota points, a complete sample interval
-that brackets the quota readings, and no sample gap over three minutes. Run
-exposure counts only IDs present at both ends of each sample interval, so a
-run's occupancy is never inferred from its logical status or configured
-concurrency.
+for 70 days. Terminal attached runs are not inventory candidates (their
+harness process was started outside Agent Manager and was observed gone or
+detached), and re-attaches of one harness session share the earliest run's
+physical verdict.
+
+The estimator measures each current quota window (provider, pool, window,
+account scope, reset) on its own. Burn is the running maximum of the used
+percent over the trailing 24 hours of the current reset chain (concurrent
+sessions re-render older cached percents); it needs at least ten minutes of
+history and a reading no older than ten minutes. Burn is divided by the
+run-seconds of the runs that reported the quota (their source run IDs), counted
+only between adjacent samples at most three minutes apart that both positively
+observed the run. Every bias lowers the ceiling: account burn includes usage no
+run reported, and incomplete or partial samples can hide a run but never invent
+one. A window with no positive burn, no source run IDs, a stale reading, or a
+source run reported under two account scopes is listed in `unavailable_scopes`
+with its reason and does not hide another window's measurement. A tier is
+available when at least one window is measured; its ceiling is the smallest
+measured window ceiling.
 
 Available tiers report their quota provider/pool/window/account scope, quota
 interval, utilization sample interval/count, actual contributing run IDs,
-measured run-seconds, and observed quota burn. A single provider-reported
-account scope is required, but the runner's credential identity is not mapped
-to that opaque account scope; the evidence explicitly reports this limitation.
-Multiple or unknown account scopes, unknown runners, incomplete snapshots,
-stale or non-monotone readings, and unsupported allowance remain unavailable.
-The configured baseline is the normal setting, not a hard cap: measured tiers
-can raise or lower the actual admission ceiling, while the existing ceiling
-validation still limits it to 9999. `PUT` returns HTTP 409 and leaves settings
-unchanged for every unavailable tier.
+measured run-seconds, and observed quota burn. When the provider reports no
+account scope (Codex), membership rests only on the source run IDs, and the
+scope evidence says so. The configured baseline is the normal setting, not a
+hard cap: measured tiers can raise or lower the actual admission ceiling, while
+the existing ceiling validation still limits it to 9999. `PUT` returns HTTP 409
+and leaves settings unchanged for every unavailable tier.
 
 When no fresh quota reading exists, `GET` returns this exact response shape
 (configured concurrency values are from the persisted settings):

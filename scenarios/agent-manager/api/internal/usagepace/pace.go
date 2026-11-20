@@ -31,9 +31,12 @@ type Tier struct {
 	SourceScopes           []string    `json:"source_scopes,omitempty"`
 	SourceObservedAt       *time.Time  `json:"source_observed_at,omitempty"`
 	ScopeSlots             []ScopeSlot `json:"scope_slots,omitempty"`
-	ObservedExecutingRuns  *uint32     `json:"observed_executing_runs,omitempty"`
-	UtilizationObservedAt  *time.Time  `json:"utilization_observed_at,omitempty"`
-	UtilizationComplete    bool        `json:"utilization_complete"`
+	// UnavailableScopes names current quota windows the ceiling could not
+	// measure. They do not hide a measured window's ceiling.
+	UnavailableScopes     []UnavailableScope `json:"unavailable_scopes,omitempty"`
+	ObservedExecutingRuns *uint32            `json:"observed_executing_runs,omitempty"`
+	UtilizationObservedAt *time.Time         `json:"utilization_observed_at,omitempty"`
+	UtilizationComplete   bool               `json:"utilization_complete"`
 }
 
 // ScopeSlot identifies the quota window that contributes a tier's global
@@ -56,6 +59,15 @@ type ScopeSlot struct {
 	RunSeconds      float64   `json:"measured_run_seconds"`
 	BurnPercent     float64   `json:"measured_quota_burn_percent"`
 	ScopeEvidence   string    `json:"scope_evidence"`
+}
+
+// UnavailableScope is one current quota window with no measured ceiling.
+type UnavailableScope struct {
+	Provider     string `json:"provider"`
+	Pool         string `json:"pool"`
+	Window       string `json:"window"`
+	AccountScope string `json:"account_scope,omitempty"`
+	Reason       string `json:"reason"`
 }
 
 // Utilization is a point-in-time physical execution observation. It is useful

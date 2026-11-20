@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/database"
 	testdb "github.com/vrooli/api-core/databasetest"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -26,10 +27,10 @@ func TestPreviewRouteUsesGatewayValidationBeforeRouting(t *testing.T) { // [REQ:
 	h := handler.NewConnectHandler(handler.Deps{})
 	resp, err := h.PreviewRoute(context.Background(), connect.NewRequest(&routingv1.PreviewRouteRequest{
 		Request: &sharedv1.GatewayRequest{
-			Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-			Role:         "chat.default",
-			Profile:      sharedv1.Profile_PROFILE_REMOTE_ONLY,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
+			Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+			Role:              "chat.default",
+			Profile:           sharedv1.Profile_PROFILE_REMOTE_ONLY,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
 			PrivacyProvenance: "routing_handler_test.secret_input",
 		},
 	}))
@@ -51,25 +52,73 @@ func TestPrivatePlanDoesNotAcceptRequestControlledUseClass(t *testing.T) {
 	require.Contains(t, response.Body.String(), "unknown field")
 }
 
-func TestPrivatePlanUsesOnlyRegisteredFeatures(t *testing.T) {
+func TestPrivatePlanFailsClosedWithoutCreditVerifier(t *testing.T) {
 	router := mux.NewRouter()
 	handler.Module(handler.Deps{}).Mount(router)
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/private/provider-routes/plan", strings.NewReader(`{"operation_id":"op-2","feature_id":"not.registered","model":"model-a","budget_micros":100}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/private/provider-routes/plan", strings.NewReader(`{"operation_id":"op-1","feature_id":"demo.feature","model":"model-a","budget_micros":100,"business_account_id":"acct-1","actor_id":"actor-1","app_key":"audio-tools","max_credits":100}`))
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer caller-controlled")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusServiceUnavailable, response.Code)
+	require.Contains(t, response.Body.String(), "credit_authority_unavailable")
+}
+
+func TestPrivatePlanRejectsAssertionBeforeCallingPolicy(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(internalrouting.Schema)))
+	router := mux.NewRouter()
+	verifier := rejectCreditAssertion{}
+	handler.Module(handler.Deps{DB: db, CreditAssertions: &verifier}).Mount(router)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/private/provider-routes/plan", strings.NewReader(`{"operation_id":"op-1","feature_id":"demo.feature","model":"model-a","budget_micros":100,"business_account_id":"acct-1","actor_id":"actor-1","app_key":"audio-tools","max_credits":100}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer forged")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+	require.Equal(t, int32(1), verifier.calls.Load())
+	require.Contains(t, response.Body.String(), "credit_assertion_invalid")
+	var storedPlans int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM private_provider_plans`).Scan(&storedPlans))
+	require.Zero(t, storedPlans, "invalid assertion must be refused before durable plan creation")
+}
+
+func TestPrivatePlanUsesOnlyRegisteredFeatures(t *testing.T) {
+	router := mux.NewRouter()
+	handler.Module(handler.Deps{CreditAssertions: acceptCreditAssertion{}}).Mount(router)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/private/provider-routes/plan", strings.NewReader(`{"operation_id":"op-2","feature_id":"not.registered","model":"model-a","budget_micros":100,"business_account_id":"acct-1","actor_id":"actor-1","app_key":"audio-tools","max_credits":100}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer fixture")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, http.StatusNotFound, response.Code)
 	require.Contains(t, response.Body.String(), "feature_not_found")
 }
 
+type acceptCreditAssertion struct{}
+
+func (acceptCreditAssertion) VerifyCreditAssertion(_ *http.Request, token string, expected consumeridentity.CreditAssertionExpectation) error {
+	if token != "fixture" || expected.BusinessAccountID == "" || expected.ActorID == "" || expected.AppKey == "" || expected.FeatureID == "" || expected.MaxCredits <= 0 || expected.OperationID == "" || expected.Audience != consumeridentity.CreditGatewayAudience || expected.Source != consumeridentity.CreditAssertionSource {
+		return errors.New("invalid fixture assertion")
+	}
+	return nil
+}
+
+type rejectCreditAssertion struct{ calls atomic.Int32 }
+
+func (v *rejectCreditAssertion) VerifyCreditAssertion(_ *http.Request, _ string, _ consumeridentity.CreditAssertionExpectation) error {
+	v.calls.Add(1)
+	return consumeridentity.ErrSignatureInvalid
+}
+
 func TestSubmitMediaNeverManufacturesAnExecutionWithoutDurableStore(t *testing.T) { // [REQ:AIGW-MEDIA-EXECUTION]
 	h := handler.NewConnectHandler(handler.Deps{})
 	_, err := h.SubmitMedia(context.Background(), connect.NewRequest(&routingv1.SubmitMediaRequest{
 		Request: &sharedv1.GatewayRequest{
-			Kind:         sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
-			Role:         "media.generate",
-			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			Kind:              sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
+			Role:              "media.generate",
+			Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 			PrivacyProvenance: "routing_handler_test.internal_media_request",
 		},
 		Prompt:         "a red square",

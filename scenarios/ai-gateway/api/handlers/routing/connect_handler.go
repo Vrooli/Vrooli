@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/consumeridentity"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 
 	"ai-gateway/internal/providers"
@@ -22,6 +24,11 @@ type Deps struct {
 	ProviderDecisionHub      *internalrouting.ProviderDecisionHubClient
 	PrivateFeatures          []internalrouting.PrivateFeature
 	ReportMediaRecoveryError MediaRecoveryReporter
+	CreditAssertions         CreditAssertionVerifier
+}
+
+type CreditAssertionVerifier interface {
+	VerifyCreditAssertion(*http.Request, string, consumeridentity.CreditAssertionExpectation) error
 }
 
 type connectHandler struct {
@@ -29,6 +36,7 @@ type connectHandler struct {
 	media               *internalrouting.MediaService
 	private             *internalrouting.PrivatePolicyService
 	providerDecisionHub *internalrouting.ProviderDecisionHubClient
+	creditAssertions    CreditAssertionVerifier
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
@@ -43,7 +51,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 		d.PrivatePolicy = internalrouting.NewPrivatePolicyService(d.PrivateFeatures, nil,
 			internalrouting.NewSQLPrivatePlanRepository(d.DB), internalrouting.NewSQLPrivateReceiptRepository(d.DB))
 	}
-	return &connectHandler{service: d.Service, media: internalrouting.NewMediaService(d.DB, d.MediaExecutor), private: d.PrivatePolicy, providerDecisionHub: d.ProviderDecisionHub}
+	return &connectHandler{service: d.Service, media: internalrouting.NewMediaService(d.DB, d.MediaExecutor), private: d.PrivatePolicy, providerDecisionHub: d.ProviderDecisionHub, creditAssertions: d.CreditAssertions}
 }
 
 // RecoverMedia quarantines interrupted dispatch and resumes undispatched work

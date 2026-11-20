@@ -141,6 +141,15 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 	// an admitted executor, even when historical status is unknown or running.
 	// Retained imported PIDs describe foreign history, not AM-owned execution.
 	// Active finalization contradicts that ownership and stays explicit unknown.
+	// A terminal attached run is likewise not a candidate: attach only binds
+	// identity to an operator-started harness process, and the run goes terminal
+	// when that process is observed gone or the operator detaches it. Its
+	// retained PID names a process AM never launched and cannot stop, the
+	// control plane cannot re-prove an expired lease's absence, and the host
+	// re-attaches thousands of short sessions a day. Probing that history grew
+	// the request past the owner's limit and kept every inventory incomplete
+	// (2026-11-16..20: 123k terminal attached refs). A restored attached run is
+	// non-terminal again and is observed.
 	type candidate struct {
 		ref                  ExecutorRef
 		logical              bool
@@ -152,7 +161,9 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
  CASE WHEN (status IN ('complete','failed','cancelled','needs_review') OR execution_mode='imported') AND COALESCE(finalization_status,'none') NOT IN ('pending','running') THEN 0 ELSE 1 END,
  COALESCE(execution_mode,'')='imported' AND COALESCE(finalization_status,'none') IN ('pending','running'),
  COALESCE(execution_mode,'')='attached'
- FROM runs WHERE (COALESCE(execution_mode,'') <> 'imported' AND (status IS NULL OR status NOT IN ('complete','failed','cancelled','needs_review') OR runner_pid>0 OR runner_pgid>0)) OR finalization_status IN ('pending','running')
+ FROM runs WHERE (COALESCE(execution_mode,'') NOT IN ('imported','attached') AND (status IS NULL OR status NOT IN ('complete','failed','cancelled','needs_review') OR runner_pid>0 OR runner_pgid>0))
+ OR (COALESCE(execution_mode,'')='attached' AND (status IS NULL OR status NOT IN ('complete','failed','cancelled','needs_review')))
+ OR finalization_status IN ('pending','running')
  UNION ALL SELECT id,'workflow',status,0,0,1,0,0 FROM workflow_executions WHERE status NOT IN ('succeeded','blocked','abstained','budget_exhausted','failed','cancelled')
 ) SELECT id,kind,status,pid,pgid,logical,imported_finalization,attached FROM candidates ORDER BY kind,id`)
 	if err != nil {

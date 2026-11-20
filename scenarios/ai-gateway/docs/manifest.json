@@ -137,11 +137,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -216,10 +216,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "TODO_PLACEHOLDER"
@@ -1131,6 +1131,46 @@
           }
         },
         {
+          "path": "reference/capability-catalog.md",
+          "docType": "capability-reference",
+          "title": "Capability Catalog",
+          "aliases": [
+            "capability-catalog",
+            "profile-catalog",
+            "role-inventory",
+            "provider-inventory"
+          ],
+          "description": "Generated inventory of profiles, roles, providers, and every dispatchable role candidate",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "profile-catalog",
+            "role-inventory",
+            "provider-inventory",
+            "capability-candidates"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Profiles",
+              "Roles",
+              "Providers",
+              "Role to Candidate Matrix"
+            ],
+            "forbiddenPlaceholders": [
+              "TODO_PLACEHOLDER"
+            ]
+          }
+        },
+        {
           "path": "reference/validation-provider.md",
           "docType": "validation-provider-reference",
           "title": "AI Conformance Validation Provider",
@@ -1174,7 +1214,7 @@
         },
         {
           "path": "reference/feature-routes.md",
-          "docType": "api-reference",
+          "docType": "feature-route-reference",
           "title": "Feature and Inference Route Contract",
           "aliases": [
             "features",
@@ -1228,7 +1268,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1539,7 +1579,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"
@@ -1577,6 +1617,46 @@
           "validation": {
             "requiredHeadings": [
               "Progress Log"
+            ],
+            "forbiddenPlaceholders": [
+              "TODO_PLACEHOLDER"
+            ]
+          }
+        },
+        {
+          "path": "internal/MATURATION-PLAN.md",
+          "docType": "maturation-plan",
+          "title": "Gateway Capability Manifest Maturation Plan",
+          "aliases": [
+            "capability-manifest",
+            "maturation-plan",
+            "gateway-capability-plan"
+          ],
+          "description": "Program for closing profile, role, provider, and measure vocabulary drift",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "capability-manifest-program",
+            "vocabulary-drift-program"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Stance",
+              "Baseline Surfaces",
+              "Debt Register",
+              "Phases",
+              "Metrics",
+              "Anti-Goals",
+              "Cross-References"
             ],
             "forbiddenPlaceholders": [
               "TODO_PLACEHOLDER"

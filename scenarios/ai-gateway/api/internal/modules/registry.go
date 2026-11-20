@@ -22,6 +22,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	catalogH "ai-gateway/handlers/catalog"
 	conformanceH "ai-gateway/handlers/conformance"
 	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
@@ -31,6 +32,7 @@ import (
 	routingH "ai-gateway/handlers/routing"
 	localdb "ai-gateway/internal/database"
 
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/catalog"
 	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
 	gatewayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/gateway"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -48,6 +50,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, conformanceH.Endpoints...)
+	out = append(out, catalogH.Endpoints...)
 	out = append(out, gatewayH.Endpoints...)
 	out = append(out, inferenceH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
@@ -84,6 +87,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "conformance", File: conformancev1.File_ai_gateway_v1_conformance_conformance_proto},
 		{Module: "conformance", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto, Services: []protoreflect.Name{"ScenarioValidationService"}},
+		{Module: "catalog", File: catalogv1.File_ai_gateway_v1_catalog_catalog_proto},
 		{Module: "gateway", File: gatewayv1.File_ai_gateway_v1_gateway_gateway_proto},
 		{Module: "inference", File: inferencev1.File_ai_gateway_v1_inference_inference_proto},
 		{Module: "inventory", File: inventoryv1.File_ai_gateway_v1_inventory_inventory_proto},
@@ -104,6 +108,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(conformanceH.Schema),
+		apidb.SchemaProviderFunc(catalogH.Schema),
 		apidb.SchemaProviderFunc(gatewayH.Schema),
 		apidb.SchemaProviderFunc(inferenceH.Schema),
 		apidb.SchemaProviderFunc(inventoryH.Schema),

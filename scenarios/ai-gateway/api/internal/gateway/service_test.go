@@ -180,6 +180,27 @@ func TestValidateRejectsImageDimensionMismatchAndSizeCeiling(t *testing.T) { // 
 	require.Contains(t, codes(issues), "limit_exceeded")
 }
 
+func TestValidateReadsJPEGDimensionsFromSOFHeader(t *testing.T) {
+	// The SOF segment's declared length is the smallest accepted by the header
+	// reader; pixel data is intentionally not required or decoded.
+	data := []byte{0xff, 0xd8, 0xff, 0xc0, 0x00, 0x07, 0x08, 0x00, 0xc8, 0x01, 0x40}
+	attachment := &sharedv1.Attachment{
+		Modality:  sharedv1.Modality_MODALITY_IMAGE,
+		MediaType: "image/jpeg",
+		Width:     320,
+		Height:    200,
+		Bytes:     uint64(len(data)),
+		Payload:   &sharedv1.Attachment_InlineBytes{InlineBytes: data},
+	}
+	require.Empty(t, gateway.New().Validate(validWithAttachment(attachment)))
+
+	// An incomplete SOF segment retains the existing invalid-header result.
+	attachment.Payload = &sharedv1.Attachment_InlineBytes{InlineBytes: []byte{0xff, 0xd8, 0xff, 0xc0, 0x00, 0x06, 0x08, 0x00, 0xc8, 0x01, 0x40}}
+	attachment.Bytes = 11
+	issues := gateway.New().Validate(validWithAttachment(attachment))
+	require.Contains(t, codes(issues), "invalid_image_header")
+}
+
 func TestValidateRejectsMissingRequiredFieldsAndNegativeBounds(t *testing.T) {
 	svc := gateway.New()
 	issues := svc.Validate(&sharedv1.GatewayRequest{

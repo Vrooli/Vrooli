@@ -117,7 +117,9 @@ type QuotaReadingSpan struct {
 }
 
 // QuotaReadingSource reads reading spans observed at or after since, oldest
-// first. An empty provider reads every provider.
+// first. An empty provider reads every provider. Spans of every account scope
+// are returned, each labelled with its scope (blank means unknown); consumers
+// partition windows by scope and never blend two accounts.
 type QuotaReadingSource interface {
 	QuotaReadingSpans(ctx context.Context, provider string, since time.Time) ([]QuotaReadingSpan, error)
 }

@@ -175,6 +175,33 @@ func claudeReading(ref string, minutes int64, percent float64, observed, reset t
 	return pricing.QuotaObservation{Provider: "anthropic", Provenance: pricing.ClaudeStatuslineProvenance, EvidenceRef: ref, ObservedAt: observed, WindowMinutes: &minutes, UsedPercent: &percent, ResetAt: &reset}
 }
 
+// The statusline records a digest of the authenticated Claude organization.
+// Scoped readings are current evidence: one scope is one account however far
+// its sessions' cached percents disagree, and two scopes are two accounts.
+func TestClaudeLiveQuotaUsesRecordedAccountScopes(t *testing.T) {
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	reset := now.Add(time.Hour)
+	scoped := func(scope, ref string, percent float64, observed time.Time) pricing.QuotaObservation {
+		o := claudeReading(ref, 300, percent, observed, reset)
+		o.AccountScope = scope
+		return o
+	}
+	same := (&PricingHandler{quotaStore: &quotaObservationHandlerFake{rows: []pricing.QuotaObservation{
+		scoped("anthropic:sha256:a", "session-a", 40, now),
+		scoped("anthropic:sha256:a", "session-b", 22, now.Add(-time.Minute)),
+	}}}).claudeLiveQuota(context.Background(), now)
+	if same.Match != "likely" || len(same.Windows) != 1 || same.Windows[0].UsedPercent != 40 {
+		t.Fatalf("one scoped account must report its newest reading: %+v", same)
+	}
+	two := (&PricingHandler{quotaStore: &quotaObservationHandlerFake{rows: []pricing.QuotaObservation{
+		scoped("anthropic:sha256:a", "session-a", 40, now),
+		scoped("anthropic:sha256:b", "session-b", 41, now.Add(-time.Minute)),
+	}}}).claudeLiveQuota(context.Background(), now)
+	if two.Match != "unavailable" {
+		t.Fatalf("two scoped accounts must not blend: %+v", two)
+	}
+}
+
 func TestClaudeLiveQuotaConflictKeepsItsSource(t *testing.T) {
 	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 	reset := now.Add(time.Hour)

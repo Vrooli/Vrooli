@@ -19,55 +19,6 @@ import (
 	internalrouting "ai-gateway/internal/routing"
 )
 
-type Deps struct {
-	Scanner             *internalconformance.Scanner
-	MaturitySpec        *assessment.Spec
-	ScenarioDir         string
-	ModelPolicyPath     string
-	TaskRoleCatalogPath string
-	ModelEvalSource     internalconformance.ModelEvalReadinessSource
-	ModelEvalConsumers  interface {
-		ModelEvalConsumers(context.Context) ([]string, error)
-	}
-	ModelEvalRuntimeModels func(context.Context) ([]internalrouting.ModelEvalRouteModel, error)
-	ModelEvalExecutor      ModelEvalExecutor
-}
-
-// ModelEvalExecutor is the phase-owned boundary to Agent Manager's
-// approval-gated source operation. The returned shape intentionally contains
-// only metadata; it has no prompt or output field.
-type ModelEvalExecutor interface {
-	ExecuteAgentManagerModelEval(context.Context) (ModelEvalExecutionReceipt, error)
-}
-
-type ModelEvalExecutionCase struct {
-	SourceEventID   string `json:"source_event_id"`
-	SourceRunID     string `json:"source_run_id"`
-	SourceSequence  int64  `json:"source_sequence"`
-	RequestID       string `json:"request_id"`
-	TaskRole        string `json:"task_role"`
-	PolicyRole      string `json:"policy_role"`
-	Consumer        string `json:"consumer"`
-	GatewayEventID  string `json:"gateway_event_id,omitempty"`
-	EffectiveModel  string `json:"effective_model,omitempty"`
-	Locality        string `json:"locality,omitempty"`
-	CapacityClaimID string `json:"capacity_claim_id,omitempty"`
-	Status          string `json:"status"`
-	FailureCode     string `json:"failure_code,omitempty"`
-}
-
-type ModelEvalExecutionReceipt struct {
-	DecisionID     string                   `json:"decision_id"`
-	CaseSetSHA256  string                   `json:"case_set_sha256"`
-	Denominator    int                      `json:"denominator"`
-	Succeeded      int                      `json:"succeeded"`
-	Failed         int                      `json:"failed"`
-	Refused        int                      `json:"refused"`
-	Unattempted    int                      `json:"unattempted"`
-	EffectiveModel string                   `json:"effective_model,omitempty"`
-	Cases          []ModelEvalExecutionCase `json:"cases"`
-}
-
 type connectHandler struct {
 	scanner *internalconformance.Scanner
 	deps    Deps
@@ -154,12 +105,9 @@ func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Reques
 	if req.Msg.GetPhase() == "model-eval" {
 		return h.validateModelEvalTarget(ctx, req, target)
 	}
-	path := req.Msg.GetPath()
-	if path == "" {
-		path = target.GetRoot()
-	}
-	if target.GetKind().String() != "VALIDATION_TARGET_KIND_PROJECT" {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai-gateway target validation is only defined for project targets"))
+	path, err := projectValidationPath(target, req.Msg.GetPath())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, err)
 	}
 	collector := metrics.Start()
 	report, err := h.scanner.ScanProject(ctx, path)
@@ -188,6 +136,16 @@ func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: shared.GetStatus(), Assessment: shared.GetAssessment(), NativeDetail: shared.GetNativeDetail(), Metrics: shared.GetMetrics()}), nil
 }
 
+func projectValidationPath(target *commonv1.ValidationTarget, path string) (string, error) {
+	if target.GetKind().String() != "VALIDATION_TARGET_KIND_PROJECT" {
+		return "", errors.New("ai-gateway target validation is only defined for project targets")
+	}
+	if path == "" {
+		path = target.GetRoot()
+	}
+	return path, nil
+}
+
 func (h *connectHandler) validateModelEvalTarget(
 	ctx context.Context,
 	req *connect.Request[scenariovalidationv1.ValidateTargetRequest],
@@ -200,165 +158,11 @@ func (h *connectHandler) validateModelEvalTarget(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("load model-eval maturity descriptor: %w", err))
 	}
-	roles, roleErr := internalconformance.LoadModelEvalRoles(h.deps.ModelPolicyPath)
-	taskRoles, taskRoleErr := internalconformance.LoadGatewayTaskRoles(h.deps.TaskRoleCatalogPath)
-	var consumers []string
-	var consumerErr error
-	if h.deps.ModelEvalConsumers == nil {
-		consumerErr = errors.New("route-ledger consumer inventory is not configured")
-	} else {
-		consumers, consumerErr = h.deps.ModelEvalConsumers.ModelEvalConsumers(ctx)
-	}
-	var runtimeModels []internalrouting.ModelEvalRouteModel
-	var runtimeModelsErr error
-	if h.deps.ModelEvalRuntimeModels == nil {
-		runtimeModelsErr = errors.New("route-ledger runtime-model inventory is not configured")
-	} else {
-		runtimeModels, runtimeModelsErr = h.deps.ModelEvalRuntimeModels(ctx)
-	}
 	collector := metrics.Start()
-	readiness := internalconformance.ModelEvalReadiness{}
-	readinessErr := roleErr
-	if readinessErr == nil {
-		readinessErr = taskRoleErr
-	}
-	if readinessErr == nil {
-		readinessErr = consumerErr
-	}
-	if readinessErr == nil {
-		readinessErr = runtimeModelsErr
-	}
-	if readinessErr == nil {
-		readiness, readinessErr = internalconformance.ReadModelEvalReadiness(ctx, h.deps.ModelEvalSource, internalconformance.ModelEvalRoleDenominators{PolicyRoles: roles, TaskRoles: taskRoles, Consumers: consumers})
-		for _, item := range runtimeModels {
-			readiness.ObservedRuntimeModels = append(readiness.ObservedRuntimeModels, internalconformance.ModelEvalRuntimeModel{
-				Scenario: item.Scenario, Role: item.Role, Provider: item.Provider, Locality: item.Locality,
-				Model: item.Model, Status: item.Status, SampleCount: item.SampleCount, LatestObservedAt: item.LatestObservedAt,
-			})
-		}
-	}
-	findings := make([]assessment.Finding, 0, 4)
-	executionState := "not_requested"
-	liveInferenceExecuted := false
-	executionFailed := false
-	var executionReceipt *ModelEvalExecutionReceipt
-	if readinessErr != nil {
-		findings = append(findings, assessment.Finding{
-			Code: "model_eval.readiness_source_unavailable", Severity: "SEVERITY_ERROR",
-			Title: "Model evaluation evidence source unavailable", Phase: "model-eval",
-			Message:     "Could not read authoritative role policy or Search Hub accepted-suite evidence: " + readinessErr.Error(),
-			Location:    "ai-gateway model-eval provider",
-			Remediation: "Restore the resource policy and Search Hub EvalService endpoints; rerun model-eval readiness.",
-		})
-	} else {
-		if len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 ||
-			len(readiness.MissingCorpusValidationIDs) > 0 || len(readiness.InvalidCorpusValidationIDs) > 0 ||
-			readiness.RegisteredSuites < readiness.RequiredRetrievalSuites {
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.retrieval_denominators_incomplete", Severity: "SEVERITY_ERROR",
-				Title: "Fixed retrieval denominators are incomplete", Phase: "model-eval",
-				Message: fmt.Sprintf("Search Hub has %d registered suites; required floor is %d. Missing snapshots: %v. Invalid snapshots: %v. Missing corpus-validation receipts: %v. Invalid corpus-validation receipts: %v. Stale expected document cases remain in their fixed denominators and count as misses.",
-					readiness.RegisteredSuites, readiness.RequiredRetrievalSuites,
-					readiness.MissingDenominatorIDs, readiness.InvalidDenominatorIDs,
-					readiness.MissingCorpusValidationIDs, readiness.InvalidCorpusValidationIDs),
-				Location:    "search-hub EvalService fixed-denominator snapshots and corpus-validation receipts",
-				Remediation: "Independently review each suite's positive cases, freeze a valid immutable denominator, then create a current provider-owned corpus-validation receipt. Do not remove stale expected documents; the evaluator counts them as misses.",
-			})
-		}
-		if len(readiness.ObservedRuntimeModels) == 0 {
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.runtime_model_inventory_empty", Severity: "SEVERITY_ERROR",
-				Title: "No effective runtime model observations found", Phase: "model-eval",
-				Message:     "The complete AI Gateway route ledger contains no selected runtime model identity.",
-				Location:    "AI Gateway route_events.selected_model",
-				Remediation: "Record selected runtime model identity on routed calls and rerun the model-eval census.",
-			})
-		}
-		var deficient []string
-		for _, coverage := range readiness.RoleCoverage {
-			if coverage.Deficient {
-				deficient = append(deficient, fmt.Sprintf("%s=%d/%d", coverage.Role, coverage.Cases, coverage.Required))
-			}
-		}
-		if len(deficient) > 0 {
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.real_caller_coverage_incomplete", Severity: "SEVERITY_ERROR",
-				Title: "Real caller coverage is incomplete", Phase: "model-eval",
-				Message:     "Accepted source-linked caller cases per policy role: " + strings.Join(deficient, ", "),
-				Location:    "Search Hub fixed denominator caller-audit cases",
-				Remediation: "Acquire authenticated Agent Manager caller events, bind successful Gateway receipts, independently review labels, and meet the role floor.",
-			})
-		}
-		var deficientTaskRoles []string
-		for _, coverage := range readiness.TaskRoleCoverage {
-			if coverage.Deficient {
-				deficientTaskRoles = append(deficientTaskRoles, fmt.Sprintf("%s=%d/%d", coverage.Role, coverage.Cases, coverage.Required))
-			}
-		}
-		if len(deficientTaskRoles) > 0 {
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.gateway_task_role_coverage_incomplete", Severity: "SEVERITY_ERROR",
-				Title: "AI Gateway task-role coverage is incomplete", Phase: "model-eval",
-				Message:     "Accepted source-linked caller cases per AI Gateway task role: " + strings.Join(deficientTaskRoles, ", "),
-				Location:    "AI Gateway inference-role-catalog caller cases",
-				Remediation: "Acquire and independently review real caller cases for every task role in the AI Gateway inference-role catalog.",
-			})
-		}
-		var deficientConsumers []string
-		for _, coverage := range readiness.ConsumerCoverage {
-			if coverage.Deficient {
-				deficientConsumers = append(deficientConsumers, fmt.Sprintf("%s=%d/%d", coverage.Role, coverage.Cases, coverage.Required))
-			}
-		}
-		if len(deficientConsumers) > 0 {
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.consumer_coverage_incomplete", Severity: "SEVERITY_ERROR",
-				Title: "Real caller consumer coverage is incomplete", Phase: "model-eval",
-				Message:     "Accepted source-linked caller cases per observed route-ledger consumer: " + strings.Join(deficientConsumers, ", "),
-				Location:    "Search Hub fixed denominator caller-audit cases and AI Gateway route ledger",
-				Remediation: "Independently review real caller cases for each observed consumer scenario until each reaches the caller floor.",
-			})
-		}
-	}
-	if req.Msg.GetIncludeExecution() {
-		executionState = "blocked_owner_executor_unavailable"
-		if h.deps.ModelEvalExecutor == nil {
-			executionFailed = true
-			findings = append(findings, assessment.Finding{
-				Code: "model_eval.owner_executor_unavailable", Severity: "SEVERITY_ERROR",
-				Title: "Agent Manager model-eval owner is unavailable", Phase: "model-eval",
-				Message:     "The source-selecting Agent Manager execution owner is not configured; no live inference was attempted.",
-				Location:    "Agent Manager approval-gated model-eval endpoint",
-				Remediation: "Restore the authorized Agent Manager owner client and rerun the model-eval phase.",
-			})
-		} else {
-			receipt, executionErr := h.deps.ModelEvalExecutor.ExecuteAgentManagerModelEval(ctx)
-			executionReceipt = &receipt
-			if executionErr != nil {
-				executionFailed = true
-				executionState = "owner_refused_or_failed"
-				liveInferenceExecuted = receipt.Succeeded+receipt.Failed > 0
-				findings = append(findings, assessment.Finding{
-					Code: "model_eval.owner_execution_refused_or_failed", Severity: "SEVERITY_ERROR",
-					Title: "Agent Manager model-eval batch did not complete", Phase: "model-eval",
-					Message:     "The owner returned a refusal or failed terminal outcome; see its metadata-only receipt.",
-					Location:    "Agent Manager approval-gated model-eval endpoint",
-					Remediation: "Resolve the registered approval or the failed admission gate, then rerun the bounded batch.",
-				})
-			} else {
-				executionState = "terminal_receipt_recorded"
-				liveInferenceExecuted = receipt.Succeeded+receipt.Failed > 0
-			}
-		}
-	} else {
-		findings = append(findings, assessment.Finding{
-			Code: "model_eval.operator_inference_admission_required", Severity: "SEVERITY_ERROR",
-			Title: "Live evaluation awaits operator admission", Phase: "model-eval",
-			Message:     "Readiness inspection does not dispatch inference; the separate execution phase is waiting for operator admission.",
-			Location:    "LM2 inference admission",
-			Remediation: "Obtain the separate operator-routed LM2 inference admission before executing any candidate model.",
-		})
-	}
+	readiness, readinessErr := h.readModelEvalReadiness(ctx)
+	findings := modelEvalReadinessFindings(readiness, readinessErr)
+	execution := h.executeModelEval(ctx, req.Msg.GetIncludeExecution())
+	findings = append(findings, execution.findings...)
 	maturity, err := assessment.BuildProtoAssessment(assessment.BuildInput{
 		Scenario: target.GetId(), Spec: *spec, Findings: findings, Target: target,
 	})
@@ -366,71 +170,11 @@ func (h *connectHandler) validateModelEvalTarget(
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build model-eval readiness assessment: %w", err))
 	}
-	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
-	if executionFailed {
-		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-	}
-	if readinessErr == nil && (len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 || readiness.RegisteredSuites < readiness.RequiredRetrievalSuites) {
-		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-	}
-	if readinessErr == nil && (len(readiness.MissingCorpusValidationIDs) > 0 || len(readiness.InvalidCorpusValidationIDs) > 0) {
-		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-	}
-	if readinessErr == nil {
-		for _, coverage := range readiness.RoleCoverage {
-			if coverage.Deficient {
-				status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-				break
-			}
-		}
-		for _, coverage := range readiness.TaskRoleCoverage {
-			if coverage.Deficient {
-				status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-				break
-			}
-		}
-		for _, coverage := range readiness.ConsumerCoverage {
-			if coverage.Deficient {
-				status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
-				break
-			}
-		}
-	}
-	readinessBytes, err := json.Marshal(readiness)
+	status := modelEvalValidationStatus(readiness, readinessErr, execution.failed)
+	native, err := modelEvalNativeDetail(readiness, readinessErr, execution)
 	if err != nil {
 		collector.Stop()
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode model-eval readiness: %w", err))
-	}
-	var readinessDetail map[string]any
-	if err := json.Unmarshal(readinessBytes, &readinessDetail); err != nil {
-		collector.Stop()
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode model-eval readiness: %w", err))
-	}
-	native, err := structpb.NewStruct(map[string]any{
-		"phase": "model-eval", "readiness": readinessDetail, "source_error": errorText(readinessErr),
-		"live_inference_executed": liveInferenceExecuted,
-		"execution_state":         modelEvalExecutionState(readiness, readinessErr, executionState),
-	})
-	if err != nil {
-		collector.Stop()
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode model-eval readiness detail: %w", err))
-	}
-	if executionReceipt != nil {
-		receiptJSON, marshalErr := json.Marshal(executionReceipt)
-		if marshalErr != nil {
-			collector.Stop()
-			return nil, connect.NewError(connect.CodeInternal, errors.New("encode metadata-only model-eval execution receipt"))
-		}
-		var receiptDetail map[string]any
-		if unmarshalErr := json.Unmarshal(receiptJSON, &receiptDetail); unmarshalErr != nil {
-			collector.Stop()
-			return nil, connect.NewError(connect.CodeInternal, errors.New("decode metadata-only model-eval execution receipt"))
-		}
-		native.Fields["execution_receipt"], err = structpb.NewValue(receiptDetail)
-		if err != nil {
-			collector.Stop()
-			return nil, connect.NewError(connect.CodeInternal, errors.New("build metadata-only model-eval execution receipt"))
-		}
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	shared, err := assessment.BuildValidationResponse(target.GetId(), maturity, native, collector.Stop(), assessment.WithValidationStatus(status))
 	if err != nil {
@@ -448,6 +192,250 @@ func errorText(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func (h *connectHandler) readModelEvalReadiness(ctx context.Context) (internalconformance.ModelEvalReadiness, error) {
+	roles, roleErr := internalconformance.LoadModelEvalRoles(h.deps.ModelPolicyPath)
+	taskRoles, taskRoleErr := internalconformance.LoadGatewayTaskRoles(h.deps.TaskRoleCatalogPath)
+	consumers, consumerErr := h.loadModelEvalConsumers(ctx)
+	runtimeModels, runtimeModelsErr := h.loadModelEvalRuntimeModels(ctx)
+	readiness := internalconformance.ModelEvalReadiness{}
+	readinessErr := firstReadinessError(roleErr, taskRoleErr, consumerErr, runtimeModelsErr)
+	if readinessErr == nil {
+		readiness, readinessErr = internalconformance.ReadModelEvalReadiness(ctx, h.deps.ModelEvalSource, internalconformance.ModelEvalRoleDenominators{PolicyRoles: roles, TaskRoles: taskRoles, Consumers: consumers})
+	}
+	if readinessErr == nil {
+		for _, item := range runtimeModels {
+			readiness.ObservedRuntimeModels = append(readiness.ObservedRuntimeModels, internalconformance.ModelEvalRuntimeModel{
+				Scenario: item.Scenario, Role: item.Role, Provider: item.Provider, Locality: item.Locality,
+				Model: item.Model, Status: item.Status, SampleCount: item.SampleCount, LatestObservedAt: item.LatestObservedAt,
+			})
+		}
+	}
+	return readiness, readinessErr
+}
+
+func firstReadinessError(errorsInOrder ...error) error {
+	for _, err := range errorsInOrder {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *connectHandler) loadModelEvalConsumers(ctx context.Context) ([]string, error) {
+	if h.deps.ModelEvalConsumers == nil {
+		return nil, errors.New("route-ledger consumer inventory is not configured")
+	}
+	return h.deps.ModelEvalConsumers.ModelEvalConsumers(ctx)
+}
+
+func (h *connectHandler) loadModelEvalRuntimeModels(ctx context.Context) ([]internalrouting.ModelEvalRouteModel, error) {
+	if h.deps.ModelEvalRuntimeModels == nil {
+		return nil, errors.New("route-ledger runtime-model inventory is not configured")
+	}
+	return h.deps.ModelEvalRuntimeModels(ctx)
+}
+
+func modelEvalValidationStatus(readiness internalconformance.ModelEvalReadiness, readinessErr error, executionFailed bool) scenariovalidationv1.ValidationStatus {
+	if executionFailed || readinessErr == nil && modelEvalReadinessFailed(readiness) {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	}
+	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+}
+
+func modelEvalReadinessFailed(readiness internalconformance.ModelEvalReadiness) bool {
+	return retrievalEvidenceFailed(readiness) || coverageFailed(readiness.RoleCoverage) ||
+		coverageFailed(readiness.TaskRoleCoverage) || coverageFailed(readiness.ConsumerCoverage)
+}
+
+func retrievalEvidenceFailed(readiness internalconformance.ModelEvalReadiness) bool {
+	return len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 ||
+		readiness.RegisteredSuites < readiness.RequiredRetrievalSuites ||
+		len(readiness.MissingCorpusValidationIDs) > 0 || len(readiness.InvalidCorpusValidationIDs) > 0
+}
+
+func coverageFailed(coverage []internalconformance.RoleCoverage) bool {
+	for _, role := range coverage {
+		if role.Deficient {
+			return true
+		}
+	}
+	return false
+}
+
+func modelEvalReadinessFindings(readiness internalconformance.ModelEvalReadiness, readinessErr error) []assessment.Finding {
+	findings := make([]assessment.Finding, 0, 4)
+	if readinessErr != nil {
+		return append(findings, assessment.Finding{
+			Code: "model_eval.readiness_source_unavailable", Severity: "SEVERITY_ERROR",
+			Title: "Model evaluation evidence source unavailable", Phase: "model-eval",
+			Message:     "Could not read authoritative role policy or Search Hub accepted-suite evidence: " + readinessErr.Error(),
+			Location:    "ai-gateway model-eval provider",
+			Remediation: "Restore the resource policy and Search Hub EvalService endpoints; rerun model-eval readiness.",
+		})
+	}
+	findings = appendRetrievalReadinessFinding(findings, readiness)
+	if len(readiness.ObservedRuntimeModels) == 0 {
+		findings = append(findings, assessment.Finding{
+			Code: "model_eval.runtime_model_inventory_empty", Severity: "SEVERITY_ERROR",
+			Title: "No effective runtime model observations found", Phase: "model-eval",
+			Message:     "The complete AI Gateway route ledger contains no selected runtime model identity.",
+			Location:    "AI Gateway route_events.selected_model",
+			Remediation: "Record selected runtime model identity on routed calls and rerun the model-eval census.",
+		})
+	}
+	findings = appendCoverageReadinessFindings(findings, readiness)
+	return findings
+}
+
+type modelEvalExecution struct {
+	state                 string
+	liveInferenceExecuted bool
+	failed                bool
+	receipt               *ModelEvalExecutionReceipt
+	findings              []assessment.Finding
+}
+
+func modelEvalNativeDetail(readiness internalconformance.ModelEvalReadiness, readinessErr error, execution modelEvalExecution) (*structpb.Struct, error) {
+	readinessDetail, err := readinessJSONDetail(readiness)
+	if err != nil {
+		return nil, err
+	}
+	native, err := structpb.NewStruct(map[string]any{
+		"phase": "model-eval", "readiness": readinessDetail, "source_error": errorText(readinessErr),
+		"live_inference_executed": execution.liveInferenceExecuted,
+		"execution_state":         modelEvalExecutionState(readiness, readinessErr, execution.state),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode model-eval readiness detail: %w", err)
+	}
+	if execution.receipt != nil {
+		receiptDetail, err := jsonObject(execution.receipt)
+		if err != nil {
+			return nil, err
+		}
+		native.Fields["execution_receipt"], err = structpb.NewValue(receiptDetail)
+		if err != nil {
+			return nil, errors.New("build metadata-only model-eval execution receipt")
+		}
+	}
+	return native, nil
+}
+
+func readinessJSONDetail(readiness internalconformance.ModelEvalReadiness) (map[string]any, error) {
+	data, err := json.Marshal(readiness)
+	if err != nil {
+		return nil, fmt.Errorf("encode model-eval readiness: %w", err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("decode model-eval readiness: %w", err)
+	}
+	return result, nil
+}
+
+func jsonObject(value any) (map[string]any, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, errors.New("encode metadata-only model-eval execution receipt")
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, errors.New("decode metadata-only model-eval execution receipt")
+	}
+	return result, nil
+}
+
+func (h *connectHandler) executeModelEval(ctx context.Context, requested bool) modelEvalExecution {
+	result := modelEvalExecution{state: "not_requested"}
+	if !requested {
+		result.findings = append(result.findings, assessment.Finding{
+			Code: "model_eval.operator_inference_admission_required", Severity: "SEVERITY_ERROR",
+			Title: "Live evaluation awaits operator admission", Phase: "model-eval",
+			Message:     "Readiness inspection does not dispatch inference; the separate execution phase is waiting for operator admission.",
+			Location:    "LM2 inference admission",
+			Remediation: "Obtain the separate operator-routed LM2 inference admission before executing any candidate model.",
+		})
+		return result
+	}
+	result.state = "blocked_owner_executor_unavailable"
+	if h.deps.ModelEvalExecutor == nil {
+		result.failed = true
+		result.findings = append(result.findings, unavailableModelEvalExecutorFinding())
+		return result
+	}
+	receipt, err := h.deps.ModelEvalExecutor.ExecuteAgentManagerModelEval(ctx)
+	result.receipt = &receipt
+	result.liveInferenceExecuted = receipt.Succeeded+receipt.Failed > 0
+	if err != nil {
+		result.failed = true
+		result.state = "owner_refused_or_failed"
+		result.findings = append(result.findings, failedModelEvalExecutionFinding())
+		return result
+	}
+	result.state = "terminal_receipt_recorded"
+	return result
+}
+
+func unavailableModelEvalExecutorFinding() assessment.Finding {
+	return assessment.Finding{
+		Code: "model_eval.owner_executor_unavailable", Severity: "SEVERITY_ERROR",
+		Title: "Agent Manager model-eval owner is unavailable", Phase: "model-eval",
+		Message:     "The source-selecting Agent Manager execution owner is not configured; no live inference was attempted.",
+		Location:    "Agent Manager approval-gated model-eval endpoint",
+		Remediation: "Restore the authorized Agent Manager owner client and rerun the model-eval phase.",
+	}
+}
+
+func failedModelEvalExecutionFinding() assessment.Finding {
+	return assessment.Finding{
+		Code: "model_eval.owner_execution_refused_or_failed", Severity: "SEVERITY_ERROR",
+		Title: "Agent Manager model-eval batch did not complete", Phase: "model-eval",
+		Message:     "The owner returned a refusal or failed terminal outcome; see its metadata-only receipt.",
+		Location:    "Agent Manager approval-gated model-eval endpoint",
+		Remediation: "Resolve the registered approval or the failed admission gate, then rerun the bounded batch.",
+	}
+}
+
+func appendRetrievalReadinessFinding(findings []assessment.Finding, readiness internalconformance.ModelEvalReadiness) []assessment.Finding {
+	if !retrievalEvidenceFailed(readiness) {
+		return findings
+	}
+	return append(findings, assessment.Finding{
+		Code: "model_eval.retrieval_denominators_incomplete", Severity: "SEVERITY_ERROR",
+		Title: "Fixed retrieval denominators are incomplete", Phase: "model-eval",
+		Message: fmt.Sprintf("Search Hub has %d registered suites; required floor is %d. Missing snapshots: %v. Invalid snapshots: %v. Missing corpus-validation receipts: %v. Invalid corpus-validation receipts: %v. Stale expected document cases remain in their fixed denominators and count as misses.",
+			readiness.RegisteredSuites, readiness.RequiredRetrievalSuites,
+			readiness.MissingDenominatorIDs, readiness.InvalidDenominatorIDs,
+			readiness.MissingCorpusValidationIDs, readiness.InvalidCorpusValidationIDs),
+		Location:    "search-hub EvalService fixed-denominator snapshots and corpus-validation receipts",
+		Remediation: "Independently review each suite's positive cases, freeze a valid immutable denominator, then create a current provider-owned corpus-validation receipt. Do not remove stale expected documents; the evaluator counts them as misses.",
+	})
+}
+
+func appendCoverageReadinessFindings(findings []assessment.Finding, readiness internalconformance.ModelEvalReadiness) []assessment.Finding {
+	findings = appendCoverageFinding(findings, readiness.RoleCoverage, "model_eval.real_caller_coverage_incomplete", "Real caller coverage is incomplete", "Accepted source-linked caller cases per policy role: ", "Search Hub fixed denominator caller-audit cases", "Acquire authenticated Agent Manager caller events, bind successful Gateway receipts, independently review labels, and meet the role floor.")
+	findings = appendCoverageFinding(findings, readiness.TaskRoleCoverage, "model_eval.gateway_task_role_coverage_incomplete", "AI Gateway task-role coverage is incomplete", "Accepted source-linked caller cases per AI Gateway task role: ", "AI Gateway inference-role-catalog caller cases", "Acquire and independently review real caller cases for every task role in the AI Gateway inference-role catalog.")
+	findings = appendCoverageFinding(findings, readiness.ConsumerCoverage, "model_eval.consumer_coverage_incomplete", "Real caller consumer coverage is incomplete", "Accepted source-linked caller cases per observed route-ledger consumer: ", "Search Hub fixed denominator caller-audit cases and AI Gateway route ledger", "Independently review real caller cases for each observed consumer scenario until each reaches the caller floor.")
+	return findings
+}
+
+func appendCoverageFinding(findings []assessment.Finding, coverage []internalconformance.RoleCoverage, code, title, prefix, location, remediation string) []assessment.Finding {
+	deficient := make([]string, 0)
+	for _, item := range coverage {
+		if item.Deficient {
+			deficient = append(deficient, fmt.Sprintf("%s=%d/%d", item.Role, item.Cases, item.Required))
+		}
+	}
+	if len(deficient) == 0 {
+		return findings
+	}
+	return append(findings, assessment.Finding{
+		Code: code, Severity: "SEVERITY_ERROR", Title: title, Phase: "model-eval",
+		Message: prefix + strings.Join(deficient, ", "), Location: location, Remediation: remediation,
+	})
 }
 
 func modelEvalExecutionState(readiness internalconformance.ModelEvalReadiness, readinessErr error, executionState string) string {

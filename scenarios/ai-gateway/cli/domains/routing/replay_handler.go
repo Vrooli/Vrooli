@@ -14,63 +14,87 @@ import (
 )
 
 func (h *handlers) replay(ctx cliapp.RunContext) error {
-	path := ctx.Flag("input-file")
-	if path == "" {
-		return fmt.Errorf("--input-file is required")
-	}
-	parallel := 4
-	if raw := ctx.Flag("parallel"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("--parallel must be an integer: %w", err)
-		}
-		parallel = parsed
-	}
-	mode := ctx.Flag("mode")
-	if mode == "" {
-		mode = "preview"
-	}
-	if mode != "preview" && mode != "execute" {
-		return fmt.Errorf("--mode must be preview or execute")
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("open replay input: %w", err)
-	}
-	defer file.Close()
-	cases, err := ReadReplayCases(file)
+	options, err := replayOptionsFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	if err := overrideReplayProfile(cases, ctx.Flag("profile"), mode); err != nil {
+	cases, err := readReplayInput(options.path, options.profile, options.mode)
+	if err != nil {
 		return err
 	}
-	managerURL := ctx.Flag("agent-manager-url")
-	if managerURL == "" {
-		managerURL = os.Getenv("AGENT_MANAGER_API_URL")
-	}
-	verifier, err := newAgentManagerSourceVerifier(h.sourceHTTP, managerURL)
+	verifier, err := newAgentManagerSourceVerifier(h.sourceHTTP, options.managerURL)
 	if err != nil {
 		return err
 	}
 	replayCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	var receipts []ReplayReceipt
-	if mode == "preview" {
-		receipts, err = PreviewCallerCases(replayCtx, cases, parallel, verifier.verify, func(callCtx context.Context, request *routingv1.PreviewRouteRequest) (*routingv1.PreviewRouteResponse, error) {
-			return previewReplayCall(callCtx, h.client, request)
-		})
-	} else {
-		receipts, err = ReplayCallerCases(replayCtx, cases, parallel, verifier.verify, func(callCtx context.Context, request *routingv1.ExecuteRouteRequest) (*routingv1.ExecuteRouteResponse, error) {
-			return executeReplayCall(callCtx, h.client, request)
-		})
-	}
+	receipts, err := h.dispatchReplay(replayCtx, cases, options, verifier)
 	if err != nil {
 		return err
 	}
 	if err := writeReplayReceipt(ctx.Flag("receipt-file"), receipts); err != nil {
 		return err
 	}
+	return renderReplay(ctx, receipts, options.mode, options.parallel)
+}
+
+type replayOptions struct {
+	path, mode, profile, managerURL string
+	parallel                        int
+}
+
+func replayOptionsFromContext(ctx cliapp.RunContext) (replayOptions, error) {
+	opts := replayOptions{path: ctx.Flag("input-file"), mode: ctx.Flag("mode"), profile: ctx.Flag("profile"), managerURL: ctx.Flag("agent-manager-url"), parallel: 4}
+	if opts.path == "" {
+		return replayOptions{}, fmt.Errorf("--input-file is required")
+	}
+	if raw := ctx.Flag("parallel"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return replayOptions{}, fmt.Errorf("--parallel must be an integer: %w", err)
+		}
+		opts.parallel = parsed
+	}
+	if opts.mode == "" {
+		opts.mode = "preview"
+	}
+	if opts.mode != "preview" && opts.mode != "execute" {
+		return replayOptions{}, fmt.Errorf("--mode must be preview or execute")
+	}
+	if opts.managerURL == "" {
+		opts.managerURL = os.Getenv("AGENT_MANAGER_API_URL")
+	}
+	return opts, nil
+}
+
+func readReplayInput(path, profile, mode string) ([]ReplayCase, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open replay input: %w", err)
+	}
+	defer file.Close()
+	cases, err := ReadReplayCases(file)
+	if err != nil {
+		return nil, err
+	}
+	if err := overrideReplayProfile(cases, profile, mode); err != nil {
+		return nil, err
+	}
+	return cases, nil
+}
+
+func (h *handlers) dispatchReplay(ctx context.Context, cases []ReplayCase, options replayOptions, verifier *agentManagerSourceVerifier) ([]ReplayReceipt, error) {
+	if options.mode == "preview" {
+		return PreviewCallerCases(ctx, cases, options.parallel, verifier.verify, func(callCtx context.Context, request *routingv1.PreviewRouteRequest) (*routingv1.PreviewRouteResponse, error) {
+			return previewReplayCall(callCtx, h.client, request)
+		})
+	}
+	return ReplayCallerCases(ctx, cases, options.parallel, verifier.verify, func(callCtx context.Context, request *routingv1.ExecuteRouteRequest) (*routingv1.ExecuteRouteResponse, error) {
+		return executeReplayCall(callCtx, h.client, request)
+	})
+}
+
+func renderReplay(ctx cliapp.RunContext, receipts []ReplayReceipt, mode string, parallel int) error {
 	passed, failed, p50, p95 := replayStats(receipts)
 	rows := make([]string, 0, len(receipts))
 	for _, receipt := range receipts {

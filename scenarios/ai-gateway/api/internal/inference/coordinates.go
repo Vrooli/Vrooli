@@ -33,39 +33,17 @@ type visualResult struct {
 // to the gateway's canonical relative bounds. It deliberately takes the
 // convention as an input: numeric magnitude is not a safe discriminator.
 func NormalizeLocateVisualJSON(raw, convention string, attachments []*sharedv1.Attachment) (string, error) {
-	var result visualResult
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
-		return "", fmt.Errorf("locate.visual response is not valid JSON: %w", err)
-	}
-	if len(result.Bounds) != 4 {
-		return "", fmt.Errorf("locate.visual bounds must contain exactly four numbers")
-	}
-	if !finite(result.Bounds) || math.IsNaN(result.Confidence) || math.IsInf(result.Confidence, 0) || result.Confidence < 0 || result.Confidence > 1 {
-		return "", fmt.Errorf("locate.visual response contains a non-finite or out-of-range value")
+	result, err := parseLocateVisualResult(raw)
+	if err != nil {
+		return "", err
 	}
 	width, height, err := visualDimensions(attachments)
 	if err != nil {
 		return "", err
 	}
-
-	var bounds [4]float64
-	switch strings.TrimSpace(convention) {
-	case CoordinateConventionNormalized1000:
-		for i, value := range result.Bounds {
-			bounds[i] = value / 1000
-		}
-	case CoordinateConventionAbsolutePixels:
-		bounds[0] = result.Bounds[0] / width
-		bounds[1] = result.Bounds[1] / height
-		bounds[2] = result.Bounds[2] / width
-		bounds[3] = result.Bounds[3] / height
-	default:
-		return "", fmt.Errorf("locate.visual model declared unsupported coordinate convention %q", convention)
-	}
-	for _, value := range bounds {
-		if value < 0 || value > 1 || math.IsNaN(value) || math.IsInf(value, 0) {
-			return "", fmt.Errorf("locate.visual bounds fall outside the submitted image")
-		}
+	bounds, err := normalizeLocateBounds(result.Bounds, convention, width, height)
+	if err != nil {
+		return "", err
 	}
 	result.Bounds = []float64{bounds[0], bounds[1], bounds[2], bounds[3]}
 	encoded, err := json.Marshal(result)
@@ -73,6 +51,43 @@ func NormalizeLocateVisualJSON(raw, convention string, attachments []*sharedv1.A
 		return "", fmt.Errorf("marshal normalized locate.visual response: %w", err)
 	}
 	return string(encoded), nil
+}
+
+func parseLocateVisualResult(raw string) (visualResult, error) {
+	var result visualResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return visualResult{}, fmt.Errorf("locate.visual response is not valid JSON: %w", err)
+	}
+	if len(result.Bounds) != 4 {
+		return visualResult{}, fmt.Errorf("locate.visual bounds must contain exactly four numbers")
+	}
+	if !finite(result.Bounds) || math.IsNaN(result.Confidence) || math.IsInf(result.Confidence, 0) || result.Confidence < 0 || result.Confidence > 1 {
+		return visualResult{}, fmt.Errorf("locate.visual response contains a non-finite or out-of-range value")
+	}
+	return result, nil
+}
+
+func normalizeLocateBounds(values []float64, convention string, width, height float64) ([4]float64, error) {
+	var bounds [4]float64
+	switch strings.TrimSpace(convention) {
+	case CoordinateConventionNormalized1000:
+		for i, value := range values {
+			bounds[i] = value / 1000
+		}
+	case CoordinateConventionAbsolutePixels:
+		bounds[0] = values[0] / width
+		bounds[1] = values[1] / height
+		bounds[2] = values[2] / width
+		bounds[3] = values[3] / height
+	default:
+		return [4]float64{}, fmt.Errorf("locate.visual model declared unsupported coordinate convention %q", convention)
+	}
+	for _, value := range bounds {
+		if value < 0 || value > 1 || math.IsNaN(value) || math.IsInf(value, 0) {
+			return [4]float64{}, fmt.Errorf("locate.visual bounds fall outside the submitted image")
+		}
+	}
+	return bounds, nil
 }
 
 func visualDimensions(attachments []*sharedv1.Attachment) (float64, float64, error) {

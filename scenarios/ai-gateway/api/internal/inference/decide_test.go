@@ -11,6 +11,7 @@ import (
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -69,13 +70,13 @@ func (w *decisionWorld) runTyped(_ context.Context, request ProviderRequest) *in
 
 func (w *decisionWorld) repository(t *testing.T) *ResourceRepository {
 	t.Helper()
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		decideRole: {Kind: RoleKindDecision, TimeoutMS: 30000, Candidates: []Candidate{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		decideRole: {Kind: rolecatalog.RoleKindDecision, TimeoutMS: 30000, Candidates: []rolecatalog.Candidate{
 			{Provider: "ollaya", ResourceRole: "decide.local", Reason: "local"},
 			{Provider: "ollaya", ResourceRole: "decide.hosted", Reason: "hosted"},
 			{Provider: "ai-gateway", ResourceRole: "classify.fast", Reason: "enum"},
 		}},
-		"classify.fast": {Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
+		"classify.fast": {Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: w.runner}})
 	require.NoError(t, err)
@@ -152,8 +153,10 @@ func TestDecideSkipsUnconfiguredCandidatesAndFallsBackToTheEnumPath(t *testing.T
 		Validated: true, ValueJson: `{"kind":"correction"}`, Provider: "ollama", Model: "qwen3.5:4b",
 		Usage: &inferencev1.Usage{InputTokens: 300, OutputTokens: 9},
 	}
-	request := DecisionRequest{State: "Stop, revert it.", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")},
-		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyProvenance: "caller identified an operator-authored message"}
+	request := DecisionRequest{
+		State: "Stop, revert it.", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")},
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyProvenance: "caller identified an operator-authored message",
+	}
 	response := world.decide(t, request)
 
 	require.Nil(t, response.GetError())
@@ -303,13 +306,13 @@ func TestDecisionValidationRejectsMalformedRequests(t *testing.T) {
 }
 
 func TestShippedCatalogDeclaresDecisionRolesWithGatedHostedCandidates(t *testing.T) {
-	catalog, err := LoadCatalog(filepath.Join("..", "..", "..", "config", "inference-role-catalog.json"))
+	catalog, err := rolecatalog.LoadCatalog(filepath.Join("..", "..", "..", "config", "inference-role-catalog.json"))
 	require.NoError(t, err)
 	for _, name := range []string{"decide.fast", "decide.accurate"} {
 		role := catalog.Roles[name]
 		require.True(t, role.IsDecision(), name)
 		last := role.Candidates[len(role.Candidates)-1]
-		require.Equal(t, ProviderGateway, last.Provider, "%s must end on the enum fallback", name)
+		require.Equal(t, rolecatalog.ProviderGateway, last.Provider, "%s must end on the enum fallback", name)
 		require.Equal(t, "classify.fast", last.ResourceRole)
 	}
 	require.Equal(t, "decide.local", catalog.Roles["decide.fast"].Candidates[0].ResourceRole, "decide.fast is local-first")
@@ -317,27 +320,27 @@ func TestShippedCatalogDeclaresDecisionRolesWithGatedHostedCandidates(t *testing
 }
 
 func TestCatalogRejectsMixedRoleKinds(t *testing.T) {
-	typed := InferenceRole{Candidates: []Candidate{{Provider: "ollama", ResourceRole: "r", Reason: "x"}}}
-	cases := map[string]map[string]InferenceRole{
-		"decision role on a generative provider": {"d": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: "ollama", ResourceRole: "r", Reason: "x"}}}},
-		"typed role on a decision model":         {"t": {Candidates: []Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}}},
-		"fallback to an undeclared role":         {"d": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: "ai-gateway", ResourceRole: "missing", Reason: "x"}}}},
+	typed := rolecatalog.InferenceRole{Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "r", Reason: "x"}}}
+	cases := map[string]map[string]rolecatalog.InferenceRole{
+		"decision role on a generative provider": {"d": {Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "r", Reason: "x"}}}},
+		"typed role on a decision model":         {"t": {Candidates: []rolecatalog.Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}}},
+		"fallback to an undeclared role":         {"d": {Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: "ai-gateway", ResourceRole: "missing", Reason: "x"}}}},
 		"fallback to another decision role": {
-			"d": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: "ai-gateway", ResourceRole: "e", Reason: "x"}}},
-			"e": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}},
+			"d": {Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: "ai-gateway", ResourceRole: "e", Reason: "x"}}},
+			"e": {Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}},
 		},
-		"sampling on a decision role": {"d": {Kind: RoleKindDecision, Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}}},
+		"sampling on a decision role": {"d": {Kind: rolecatalog.RoleKindDecision, Sampling: deterministicRoleSampling(), Candidates: []rolecatalog.Candidate{{Provider: "ollaya", ResourceRole: "r", Reason: "x"}}}},
 		"unknown kind":                {"d": {Kind: "oracle", Candidates: typed.Candidates}},
 	}
 	for name, roles := range cases {
-		require.Error(t, RoleCatalog{SchemaVersion: 1, Roles: roles}.Validate(), name)
+		require.Error(t, rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: roles}.Validate(), name)
 	}
 }
 
 func TestBrowserDecisionHonorsSelectedSourceAndReturnsActionableNoRoute(t *testing.T) {
 	runner := &providermocks.FakeRunner{}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"browser.decide": {Kind: RoleKindDecision, Candidates: []Candidate{{Provider: providers.ProviderOllaya, ResourceRole: "decide.local", Reason: "local"}}},
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"browser.decide": {Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllaya, ResourceRole: "decide.local", Reason: "local"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{
 		Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: runner,

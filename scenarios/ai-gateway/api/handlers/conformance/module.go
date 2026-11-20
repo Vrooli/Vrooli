@@ -19,10 +19,21 @@ import (
 var ProtoFile = conformancev1.File_ai_gateway_v1_conformance_conformance_proto
 
 func Module(logger *log.Logger, repoRoot string, deps ...Deps) module.Module {
-	var d Deps
-	if len(deps) > 0 {
-		d = deps[0]
+	d := firstDeps(deps)
+	d = withRepositoryDefaults(d, repoRoot)
+	d = withDefaultModelEvalSource(d)
+	d, describer := withMaturityAssessment(d, logger, repoRoot)
+	return registerServices(NewConnectHandler(d), describer)
+}
+
+func firstDeps(deps []Deps) Deps {
+	if len(deps) == 0 {
+		return Deps{}
 	}
+	return deps[0]
+}
+
+func withRepositoryDefaults(d Deps, repoRoot string) Deps {
 	if repoRoot != "" {
 		if d.ScenarioDir == "" {
 			d.ScenarioDir = filepath.Join(repoRoot, "scenarios", "ai-gateway")
@@ -34,9 +45,17 @@ func Module(logger *log.Logger, repoRoot string, deps ...Deps) module.Module {
 			d.TaskRoleCatalogPath = filepath.Join(repoRoot, "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
 		}
 	}
+	return d
+}
+
+func withDefaultModelEvalSource(d Deps) Deps {
 	if d.ModelEvalSource == nil {
 		d.ModelEvalSource = internalconformance.NewDiscoveredSearchHubModelEvalSource(discovery.ResolveScenarioURLDefault, nil)
 	}
+	return d
+}
+
+func withMaturityAssessment(d Deps, logger *log.Logger, repoRoot string) (Deps, assessment.Describer) {
 	// DescribeProvider answers readiness from this provider's own descriptor,
 	// so a readiness probe no longer costs a full target analysis. A load
 	// failure yields the zero Describer, which reports Unimplemented and makes
@@ -52,7 +71,10 @@ func Module(logger *log.Logger, repoRoot string, deps ...Deps) module.Module {
 		}
 		d.MaturitySpec = spec
 	}
-	handler := NewConnectHandler(d)
+	return d, describer
+}
+
+func registerServices(handler *connectHandler, describer assessment.Describer) module.Module {
 	connectPath, connectHandler := conformanceconnect.NewConformanceServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	return module.Module{

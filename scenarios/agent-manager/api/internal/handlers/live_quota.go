@@ -187,7 +187,7 @@ func (h *PricingHandler) claudeLiveQuota(ctx context.Context, now time.Time) liv
 	newest := map[int64]pricing.QuotaObservation{}
 	latest := map[sessionWindow]pricing.QuotaObservation{}
 	for _, o := range rows {
-		if o.Provider != "anthropic" || o.AccountScope != "" || o.Provenance != pricing.ClaudeStatuslineProvenance || o.EvidenceRef == "" || o.UsedPercent == nil || *o.UsedPercent < 0 || *o.UsedPercent > 100 || o.WindowMinutes == nil || *o.WindowMinutes <= 0 || o.ObservedAt.After(now.Add(time.Minute)) || now.Sub(o.ObservedAt) > pricing.QuotaFreshnessMaxAge || (o.ResetAt != nil && !o.ResetAt.After(now)) {
+		if o.Provider != "anthropic" || o.Provenance != pricing.ClaudeStatuslineProvenance || o.EvidenceRef == "" || o.UsedPercent == nil || *o.UsedPercent < 0 || *o.UsedPercent > 100 || o.WindowMinutes == nil || *o.WindowMinutes <= 0 || o.ObservedAt.After(now.Add(time.Minute)) || now.Sub(o.ObservedAt) > pricing.QuotaFreshnessMaxAge || (o.ResetAt != nil && !o.ResetAt.After(now)) {
 			continue
 		}
 		usable = append(usable, o)
@@ -227,7 +227,21 @@ func (h *PricingHandler) claudeLiveQuota(ctx context.Context, now time.Time) liv
 	return result
 }
 
+// sameKnownClaudeAccount reports whether both readings carry an account scope
+// (the statusline's digest of Claude Code's authenticated organization), and
+// therefore whether the account question is answered by the scopes rather
+// than by the percent and reset heuristics below.
+func sameKnownClaudeAccount(a, b pricing.QuotaObservation) (same, known bool) {
+	if a.AccountScope == "" || b.AccountScope == "" {
+		return false, false
+	}
+	return a.AccountScope == b.AccountScope, true
+}
+
 func differentClaudeAccount(a, b pricing.QuotaObservation) bool {
+	if same, known := sameKnownClaudeAccount(a, b); known {
+		return !same
+	}
 	if math.Abs(*a.UsedPercent-*b.UsedPercent) > claudeSameAccountPercentTolerance {
 		return true
 	}
@@ -235,6 +249,9 @@ func differentClaudeAccount(a, b pricing.QuotaObservation) bool {
 }
 
 func differentClaudeReset(a, b pricing.QuotaObservation) bool {
+	if same, known := sameKnownClaudeAccount(a, b); known {
+		return !same
+	}
 	if a.ResetAt == nil || b.ResetAt == nil {
 		return false
 	}

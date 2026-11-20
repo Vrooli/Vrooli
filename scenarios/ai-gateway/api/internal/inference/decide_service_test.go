@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"ai-gateway/internal/providers"
+	"ai-gateway/internal/rolecatalog"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -21,12 +22,12 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 	world.runner.DefaultOK = true
 	world.runner.Default = providers.Result{Stdout: `{"response":` + ollamaValue + `,"prompt_eval_count":250,"eval_count":7}`}
 	configureQualifiedLocalRole(world.runner, "classify.routing", "qwen3.5:4b", "local")
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		decideRole: {Kind: RoleKindDecision, TimeoutMS: 30000, Candidates: []Candidate{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		decideRole: {Kind: rolecatalog.RoleKindDecision, TimeoutMS: 30000, Candidates: []rolecatalog.Candidate{
 			{Provider: "ollaya", ResourceRole: "decide.local", Reason: "local"},
 			{Provider: "ai-gateway", ResourceRole: "classify.fast", Reason: "enum"},
 		}},
-		"classify.fast": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
+		"classify.fast": {Sampling: deterministicRoleSampling(), Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
 	}}
 	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{
 		{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: world.runner},
@@ -39,8 +40,9 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 func TestDecideFallbackRunsTheProductionClassifyPath(t *testing.T) {
 	world := newDecisionWorld().refusesResolve("decide.local", providers.CodeUnreachable)
 	service := serviceWorld(t, world, `"{\"kind\":\"approval\"}"`)
-	response := service.Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Role: decideRole, State: "Looks great, ship it.",
+	response := service.Decide(context.Background(), DecisionRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Role:              decideRole, State: "Looks great, ship it.",
 		Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")},
 	})
 	require.Nil(t, response.GetError())
@@ -87,8 +89,9 @@ func TestDecideBatchPreservesPrivacyProvenanceOnEnumFallback(t *testing.T) {
 func TestDecideFallbackRejectsALabelOutsideTheEnum(t *testing.T) {
 	world := newDecisionWorld().refusesResolve("decide.local", providers.CodeUnreachable)
 	service := serviceWorld(t, world, `"{\"kind\":\"refund\"}"`)
-	response := service.Decide(context.Background(), DecisionRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Role: decideRole, State: "x", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval")},
+	response := service.Decide(context.Background(), DecisionRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Role:              decideRole, State: "x", Questions: []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval")},
 	})
 	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
 	require.Equal(t, []string{"SKIPPED:unreachable", "FAILED:provider_failed"}, statuses(response))

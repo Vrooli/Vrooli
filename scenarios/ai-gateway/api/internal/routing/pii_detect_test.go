@@ -39,14 +39,14 @@ func piiAdapters(runner providers.CommandRunner) []providers.Adapter {
 
 func piiRequest() *sharedv1.GatewayRequest {
 	return &sharedv1.GatewayRequest{
-		Kind:         sharedv1.RequestKind_REQUEST_KIND_DETECT_PII,
-		Role:         "pii.small",
-		Profile:      sharedv1.Profile_PROFILE_LOCAL_ONLY,
-		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		Kind:              sharedv1.RequestKind_REQUEST_KIND_DETECT_PII,
+		Role:              "pii.small",
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 		PrivacyProvenance: "routing_test.pii_scan_input",
-		Operation:    "scan",
-		Scenario:     "fixture-scenario",
-		RequestId:    "req-pii-1",
+		Operation:         "scan",
+		Scenario:          "fixture-scenario",
+		RequestId:         "req-pii-1",
 	}
 }
 

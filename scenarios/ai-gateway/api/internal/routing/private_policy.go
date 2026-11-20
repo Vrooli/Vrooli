@@ -16,15 +16,17 @@ import (
 )
 
 var (
-	ErrPrivateFeatureNotFound = errors.New("declared AI feature was not found")
-	ErrPrivatePlanNotEligible = errors.New("no eligible provider route")
-	ErrPrivatePlanConflict    = errors.New("operation id is already bound to a different plan")
-	ErrPrivateReceiptConflict = errors.New("operation id is already bound to a different request")
-	ErrPrivateReceiptMissing  = errors.New("provider execution receipt was not found")
+	ErrPrivateFeatureNotFound      = errors.New("declared AI feature was not found")
+	ErrPrivatePlanNotEligible      = errors.New("no eligible provider route")
+	ErrPrivatePlanConflict         = errors.New("operation id is already bound to a different plan")
+	ErrPrivateReceiptConflict      = errors.New("operation id is already bound to a different request")
+	ErrPrivateReceiptMissing       = errors.New("provider execution receipt was not found")
+	ErrPrivateFeatureScopeMismatch = errors.New("private feature is outside the admitted app scope")
 )
 
 type PrivateFeature struct {
 	ID                      string          `json:"id"`
+	AppKey                  string          `json:"app_key,omitempty"`
 	Role                    string          `json:"role"`
 	Profile                 string          `json:"profile"`
 	MaxInputBytes           int             `json:"max_input_bytes"`
@@ -35,28 +37,36 @@ type PrivateFeature struct {
 }
 
 type PrivatePlanRequest struct {
-	OperationID      string `json:"operation_id"`
-	FeatureID        string `json:"feature_id"`
-	Model            string `json:"model"`
-	BudgetMicros     int64  `json:"budget_micros"`
-	Harness          string `json:"harness,omitempty"`
-	CreditMultiplier int64  `json:"credit_multiplier"`
+	OperationID       string `json:"operation_id"`
+	FeatureID         string `json:"feature_id"`
+	Model             string `json:"model"`
+	BudgetMicros      int64  `json:"budget_micros"`
+	Harness           string `json:"harness,omitempty"`
+	CreditMultiplier  int64  `json:"credit_multiplier"`
+	BusinessAccountID string `json:"business_account_id"`
+	ActorID           string `json:"actor_id"`
+	AppKey            string `json:"app_key"`
+	MaxCredits        int64  `json:"max_credits"`
 }
 
 type PrivatePlan struct {
-	OperationID      string             `json:"operation_id"`
-	FeatureID        string             `json:"feature_id"`
-	RequestedModel   string             `json:"requested_model"`
-	BudgetMicros     int64              `json:"budget_micros"`
-	Eligible         bool               `json:"eligible"`
-	Harness          string             `json:"harness,omitempty"`
-	QuotedCredits    int64              `json:"quoted_credits"`
-	StreamQuote      policy.StreamQuote `json:"stream_quote"`
-	CreditMultiplier int64              `json:"credit_multiplier"`
-	RouteID          string             `json:"route_id,omitempty"`
-	Supplier         string             `json:"supplier,omitempty"`
-	Model            string             `json:"model,omitempty"`
-	Reason           string             `json:"reason,omitempty"`
+	OperationID       string             `json:"operation_id"`
+	FeatureID         string             `json:"feature_id"`
+	RequestedModel    string             `json:"requested_model"`
+	BudgetMicros      int64              `json:"budget_micros"`
+	Eligible          bool               `json:"eligible"`
+	Harness           string             `json:"harness,omitempty"`
+	QuotedCredits     int64              `json:"quoted_credits"`
+	StreamQuote       policy.StreamQuote `json:"stream_quote"`
+	CreditMultiplier  int64              `json:"credit_multiplier"`
+	RouteID           string             `json:"route_id,omitempty"`
+	Supplier          string             `json:"supplier,omitempty"`
+	Model             string             `json:"model,omitempty"`
+	Reason            string             `json:"reason,omitempty"`
+	BusinessAccountID string             `json:"business_account_id"`
+	ActorID           string             `json:"actor_id"`
+	AppKey            string             `json:"app_key"`
+	MaxCredits        int64              `json:"max_credits"`
 }
 
 type PrivateFeatureInput struct {
@@ -139,6 +149,9 @@ func (s *PrivatePolicyService) Plan(ctx context.Context, request PrivatePlanRequ
 	request.OperationID = strings.TrimSpace(request.OperationID)
 	request.FeatureID = strings.TrimSpace(request.FeatureID)
 	request.Model = strings.TrimSpace(request.Model)
+	if feature := s.features[request.FeatureID]; feature.AppKey != "" && feature.AppKey != strings.TrimSpace(request.AppKey) {
+		return PrivatePlan{}, ErrPrivateFeatureScopeMismatch
+	}
 	if request.OperationID == "" || request.FeatureID == "" || (request.Model == "" && s.features[request.FeatureID].PinnedInstructionDigest == "") || request.BudgetMicros < 0 {
 		return PrivatePlan{}, errors.New("operation_id, feature_id, model, and a non-negative budget_micros are required")
 	}
@@ -146,7 +159,7 @@ func (s *PrivatePolicyService) Plan(ctx context.Context, request PrivatePlanRequ
 	if err != nil {
 		return PrivatePlan{}, err
 	}
-	result := PrivatePlan{OperationID: request.OperationID, FeatureID: request.FeatureID, RequestedModel: request.Model, BudgetMicros: request.BudgetMicros, Harness: request.Harness, CreditMultiplier: request.CreditMultiplier}
+	result := PrivatePlan{OperationID: request.OperationID, FeatureID: request.FeatureID, RequestedModel: request.Model, BudgetMicros: request.BudgetMicros, Harness: request.Harness, CreditMultiplier: request.CreditMultiplier, BusinessAccountID: request.BusinessAccountID, ActorID: request.ActorID, AppKey: request.AppKey, MaxCredits: request.MaxCredits}
 	if len(decision.Routes) == 0 {
 		result.Reason = "no_eligible_route"
 		return s.persistPlan(request, result)
@@ -172,19 +185,31 @@ func (s *PrivatePolicyService) Execute(ctx context.Context, request PrivateExecu
 	// its policy decision or durable receipt. Provider work added by the owning
 	// route path must use this detached operation context as well.
 	ctx = context.WithoutCancel(ctx)
-	if s == nil || s.plans == nil {
-		return PrivateReceipt{}, errors.New("provider route plan repository is unavailable")
-	}
-	savedPlan, err := s.plans.GetPlan(ctx, request.OperationID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return PrivateReceipt{}, ErrPrivatePlanNotEligible
-	}
+	savedPlan, err := s.acceptedExecutionPlan(ctx, request)
 	if err != nil {
 		return PrivateReceipt{}, err
 	}
-	if savedPlan != request.Plan {
-		return PrivateReceipt{}, ErrPrivatePlanConflict
+	return s.executeAcceptedPlan(ctx, request, savedPlan)
+}
+
+func (s *PrivatePolicyService) acceptedExecutionPlan(ctx context.Context, request PrivateExecuteRequest) (PrivatePlan, error) {
+	if s == nil || s.plans == nil {
+		return PrivatePlan{}, errors.New("provider route plan repository is unavailable")
 	}
+	savedPlan, err := s.plans.GetPlan(ctx, request.OperationID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return PrivatePlan{}, ErrPrivatePlanNotEligible
+	}
+	if err != nil {
+		return PrivatePlan{}, err
+	}
+	if savedPlan != request.Plan {
+		return PrivatePlan{}, ErrPrivatePlanConflict
+	}
+	return savedPlan, nil
+}
+
+func (s *PrivatePolicyService) executeAcceptedPlan(ctx context.Context, request PrivateExecuteRequest, savedPlan PrivatePlan) (PrivateReceipt, error) {
 	planRequest := PrivatePlanRequest{
 		OperationID:  request.OperationID,
 		FeatureID:    savedPlan.FeatureID,
@@ -200,17 +225,26 @@ func (s *PrivatePolicyService) Execute(ctx context.Context, request PrivateExecu
 		return s.persistFailure(request, "invalid_feature_request", err.Error())
 	}
 	decision, err := s.eligible(ctx, planRequest)
-	if err != nil {
-		return s.persistFailure(request, "policy_unavailable", "provider eligibility could not be verified")
-	}
-	if !savedPlan.Eligible || len(decision.Routes) == 0 {
-		return s.persistFailure(request, "no_eligible_route", "the pinned route is no longer eligible")
-	}
-	selected := decision.Routes[0]
-	if selected.ID != savedPlan.RouteID || selected.Supplier != savedPlan.Supplier || selected.Model != savedPlan.Model {
-		return s.persistFailure(request, "pinned_route_changed", "the original route is no longer the selected eligible route")
+	if failure := privateExecutionEligibilityFailure(err, savedPlan, decision); failure != nil {
+		return s.persistFailure(request, failure.code, failure.message)
 	}
 	return s.persistFailure(request, "route_executor_unavailable", "no production provider executor is configured for this policy route")
+}
+
+type privateExecutionRejection struct{ code, message string }
+
+func privateExecutionEligibilityFailure(err error, saved PrivatePlan, decision policy.EligibilityResult) *privateExecutionRejection {
+	if err != nil {
+		return &privateExecutionRejection{code: "policy_unavailable", message: "provider eligibility could not be verified"}
+	}
+	if !saved.Eligible || len(decision.Routes) == 0 {
+		return &privateExecutionRejection{code: "no_eligible_route", message: "the pinned route is no longer eligible"}
+	}
+	selected := decision.Routes[0]
+	if selected.ID != saved.RouteID || selected.Supplier != saved.Supplier || selected.Model != saved.Model {
+		return &privateExecutionRejection{code: "pinned_route_changed", message: "the original route is no longer the selected eligible route"}
+	}
+	return nil
 }
 
 func (s *PrivatePolicyService) persistPlan(request PrivatePlanRequest, plan PrivatePlan) (PrivatePlan, error) {
@@ -288,20 +322,47 @@ func (s *PrivatePolicyService) eligibleSnapshot(request PrivatePlanRequest, snap
 		return policy.EligibilityResult{}, err
 	}
 	if feature.PinnedInstructionDigest == "" {
-		bounded := make([]policy.Route, 0, len(snapshot.Routes))
-		for _, route := range snapshot.Routes {
-			quote := route.StreamQuote
-			if (quote.TokenLimitField != "max_tokens" && quote.TokenLimitField != "max_completion_tokens") || quote.MaxInputBytes <= 0 || quote.MaxOutputTokens <= 0 || quote.MaxCostMicros <= 0 || (request.BudgetMicros > 0 && quote.MaxCostMicros > request.BudgetMicros) {
-				continue
-			}
-			if request.CreditMultiplier > 0 && (quote.MaxCostMicros > (math.MaxInt64-9999)/request.CreditMultiplier || (quote.MaxCostMicros*request.CreditMultiplier+9999)/10000 > route.QuotedCredits) {
-				continue
-			}
-			bounded = append(bounded, route)
-		}
-		snapshot.Routes = bounded
+		snapshot.Routes = boundedPrivateStreamRoutes(snapshot.Routes, request.BudgetMicros, request.CreditMultiplier)
 	}
 	return policy.Eligible(policyRequest, snapshot.Account, snapshot.Records, snapshot.Agreements, snapshot.Routes, s.now()), nil
+}
+
+func boundedPrivateStreamRoutes(routes []policy.Route, budgetMicros, creditMultiplier int64) []policy.Route {
+	bounded := make([]policy.Route, 0, len(routes))
+	for _, route := range routes {
+		if streamQuoteWithinBudget(route, budgetMicros, creditMultiplier) {
+			bounded = append(bounded, route)
+		}
+	}
+	return bounded
+}
+
+func streamQuoteWithinBudget(route policy.Route, budgetMicros, creditMultiplier int64) bool {
+	quote := route.StreamQuote
+	if !streamQuoteHasBillableBounds(quote) {
+		return false
+	}
+	if budgetMicros > 0 && quote.MaxCostMicros > budgetMicros {
+		return false
+	}
+	return streamQuoteCreditsFit(quote.MaxCostMicros, creditMultiplier, route.QuotedCredits)
+}
+
+func streamQuoteHasBillableBounds(quote policy.StreamQuote) bool {
+	if quote.TokenLimitField != "max_tokens" && quote.TokenLimitField != "max_completion_tokens" {
+		return false
+	}
+	return quote.MaxInputBytes > 0 && quote.MaxOutputTokens > 0 && quote.MaxCostMicros > 0
+}
+
+func streamQuoteCreditsFit(costMicros, creditMultiplier, quotedCredits int64) bool {
+	if creditMultiplier <= 0 {
+		return true
+	}
+	if costMicros > (math.MaxInt64-9999)/creditMultiplier {
+		return false
+	}
+	return (costMicros*creditMultiplier+9999)/10000 <= quotedCredits
 }
 
 func (s *PrivatePolicyService) validateFeatureInput(featureID string, input PrivateFeatureInput) error {
@@ -367,100 +428,6 @@ func (s *PrivatePolicyService) now() time.Time {
 		return time.Now().UTC()
 	}
 	return s.clock().UTC()
-}
-
-type SQLPrivatePlanRepository struct{ db *sql.DB }
-
-func NewSQLPrivatePlanRepository(db *sql.DB) *SQLPrivatePlanRepository {
-	return &SQLPrivatePlanRepository{db: db}
-}
-
-func (r *SQLPrivatePlanRepository) PersistPlan(ctx context.Context, operationID, fingerprint string, plan PrivatePlan) (PrivatePlan, error) {
-	if r == nil || r.db == nil {
-		return PrivatePlan{}, errors.New("provider route plan repository is not configured")
-	}
-	encoded, err := json.Marshal(plan)
-	if err != nil {
-		return PrivatePlan{}, err
-	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO private_provider_plans (operation_id, request_sha256, plan_json, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(operation_id) DO NOTHING`, operationID, fingerprint, string(encoded), time.Now().UTC().Format(time.RFC3339Nano))
-	if err != nil {
-		return PrivatePlan{}, err
-	}
-	var existingFingerprint, existingJSON string
-	if err := r.db.QueryRowContext(ctx, `SELECT request_sha256, plan_json FROM private_provider_plans WHERE operation_id = ?`, operationID).Scan(&existingFingerprint, &existingJSON); err != nil {
-		return PrivatePlan{}, err
-	}
-	if existingFingerprint != fingerprint {
-		return PrivatePlan{}, ErrPrivatePlanConflict
-	}
-	var existing PrivatePlan
-	if err := json.Unmarshal([]byte(existingJSON), &existing); err != nil {
-		return PrivatePlan{}, fmt.Errorf("decode provider route plan: %w", err)
-	}
-	return existing, nil
-}
-
-func (r *SQLPrivatePlanRepository) GetPlan(ctx context.Context, operationID string) (PrivatePlan, error) {
-	if r == nil || r.db == nil {
-		return PrivatePlan{}, errors.New("provider route plan repository is not configured")
-	}
-	var encoded string
-	if err := r.db.QueryRowContext(ctx, `SELECT plan_json FROM private_provider_plans WHERE operation_id = ?`, operationID).Scan(&encoded); err != nil {
-		return PrivatePlan{}, err
-	}
-	var plan PrivatePlan
-	if err := json.Unmarshal([]byte(encoded), &plan); err != nil {
-		return PrivatePlan{}, fmt.Errorf("decode provider route plan: %w", err)
-	}
-	return plan, nil
-}
-
-type SQLPrivateReceiptRepository struct{ db *sql.DB }
-
-func NewSQLPrivateReceiptRepository(db *sql.DB) *SQLPrivateReceiptRepository {
-	return &SQLPrivateReceiptRepository{db: db}
-}
-
-func (r *SQLPrivateReceiptRepository) Persist(ctx context.Context, operationID, fingerprint string, receipt PrivateReceipt) (PrivateReceipt, error) {
-	if r == nil || r.db == nil {
-		return PrivateReceipt{}, errors.New("provider execution receipt repository is not configured")
-	}
-	encoded, err := json.Marshal(receipt)
-	if err != nil {
-		return PrivateReceipt{}, err
-	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO private_provider_receipts (operation_id, request_sha256, receipt_json, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(operation_id) DO NOTHING`, operationID, fingerprint, string(encoded), receipt.CreatedAt)
-	if err != nil {
-		return PrivateReceipt{}, err
-	}
-	var existingFingerprint, existingJSON string
-	if err := r.db.QueryRowContext(ctx, `SELECT request_sha256, receipt_json FROM private_provider_receipts WHERE operation_id = ?`, operationID).Scan(&existingFingerprint, &existingJSON); err != nil {
-		return PrivateReceipt{}, err
-	}
-	if existingFingerprint != fingerprint {
-		return PrivateReceipt{}, ErrPrivateReceiptConflict
-	}
-	var existing PrivateReceipt
-	if err := json.Unmarshal([]byte(existingJSON), &existing); err != nil {
-		return PrivateReceipt{}, fmt.Errorf("decode provider execution receipt: %w", err)
-	}
-	return existing, nil
-}
-
-func (r *SQLPrivateReceiptRepository) Get(ctx context.Context, operationID string) (PrivateReceipt, error) {
-	if r == nil || r.db == nil {
-		return PrivateReceipt{}, errors.New("provider execution receipt repository is not configured")
-	}
-	var encoded string
-	if err := r.db.QueryRowContext(ctx, `SELECT receipt_json FROM private_provider_receipts WHERE operation_id = ?`, operationID).Scan(&encoded); err != nil {
-		return PrivateReceipt{}, err
-	}
-	var receipt PrivateReceipt
-	if err := json.Unmarshal([]byte(encoded), &receipt); err != nil {
-		return PrivateReceipt{}, fmt.Errorf("decode provider execution receipt: %w", err)
-	}
-	return receipt, nil
 }
 
 // Models shares the execution eligibility function; preview never grants a

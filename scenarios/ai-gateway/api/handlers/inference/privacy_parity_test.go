@@ -71,8 +71,10 @@ func TestTypedExecutionFormsRejectInvalidProvenanceBeforeRepository(t *testing.T
 	require.Len(t, runBatch.Msg.GetResults(), 1)
 	assertInvalid(runBatch.Msg.GetResults()[0].GetError())
 
-	question := &inferencev1.DecisionQuestion{Id: "kind", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE,
-		Instructions: "Choose one", Options: []*inferencev1.DecisionOption{{Label: "yes", Description: "yes"}, {Label: "no", Description: "no"}}}
+	question := &inferencev1.DecisionQuestion{
+		Id: "kind", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE,
+		Instructions: "Choose one", Options: []*inferencev1.DecisionOption{{Label: "yes", Description: "yes"}, {Label: "no", Description: "no"}},
+	}
 	decide, err := client.Decide(t.Context(), connect.NewRequest(&inferencev1.DecideRequest{
 		Role: "decide.fast", State: "synthetic", Questions: []*inferencev1.DecisionQuestion{question},
 		Profile: confidentialLocal, PrivacyClass: confidentialClass, PrivacyProvenance: invalidSource,

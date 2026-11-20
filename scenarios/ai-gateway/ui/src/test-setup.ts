@@ -29,9 +29,16 @@ import { afterEach, beforeEach, vi } from "vitest";
 import { Providers } from "./app/providers";
 import { i18n } from "./i18n";
 
-if (!window.matchMedia) {
-  window.matchMedia = ((query: string) => ({ matches: false, media: query, onchange: null, addListener: () => undefined, removeListener: () => undefined, addEventListener: () => undefined, removeEventListener: () => undefined, dispatchEvent: () => false })) as typeof window.matchMedia;
-}
+window.matchMedia = (query: string): MediaQueryList => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: () => undefined,
+  removeListener: () => undefined,
+  addEventListener: () => undefined,
+  removeEventListener: () => undefined,
+  dispatchEvent: () => false,
+});
 
 configureTestProviders((children) => createElement(Providers, null, children));
 

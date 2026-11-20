@@ -110,16 +110,28 @@ func (s *Store) Verify(ctx context.Context, receipt, source string) error {
 	if !ok || !principal.IsHuman() || strings.TrimSpace(principal.Subject) == "" {
 		return ErrInvalidGrant
 	}
-	if len(receipt) < 32 || len(receipt) > 128 {
-		return ErrInvalidGrant
-	}
 	source = strings.ToLower(strings.TrimSpace(source))
-	if source != "own-key" && source != "vrooli-credits" {
+	if !validRemoteSource(source) || !validReceipt(receipt) {
 		return ErrInvalidGrant
 	}
+	return s.verifyStoredGrant(ctx, receipt, source, principal.Subject)
+}
+
+func validRemoteSource(source string) bool {
+	return source == "own-key" || source == "vrooli-credits"
+}
+
+func validReceipt(receipt string) bool {
+	if len(receipt) < 32 || len(receipt) > 128 {
+		return false
+	}
+	return true
+}
+
+func (s *Store) verifyStoredGrant(ctx context.Context, receipt, source, subject string) error {
 	digest := sha256.Sum256([]byte(receipt))
 	var dbSource, expires, revoked string
-	err := s.db.QueryRowContext(ctx, `SELECT remote_source, expires_at, revoked_at FROM ai_remote_consent_grants WHERE receipt_digest=? AND user_subject=?`, encodeDigest(digest[:]), principal.Subject).Scan(&dbSource, &expires, &revoked)
+	err := s.db.QueryRowContext(ctx, `SELECT remote_source, expires_at, revoked_at FROM ai_remote_consent_grants WHERE receipt_digest=? AND user_subject=?`, encodeDigest(digest[:]), subject).Scan(&dbSource, &expires, &revoked)
 	if err != nil || dbSource != source || revoked != "" {
 		return ErrInvalidGrant
 	}

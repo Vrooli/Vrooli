@@ -1,9 +1,9 @@
 package utilizationhistory
 
 import (
-	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"agent-manager/internal/pricing"
@@ -48,8 +48,10 @@ type TierEstimate struct {
 	Status string
 	Reason string
 	Basis  string
-	// ProviderSlots preserves each quota window's independent constraint.
+	// ProviderSlots preserves each measured quota window's constraint.
 	ProviderSlots []ProviderEstimate
+	// Unavailable lists the current quota windows that could not be measured.
+	Unavailable []ScopeUnavailable
 }
 
 type ProviderEstimate struct {
@@ -69,6 +71,16 @@ type ProviderEstimate struct {
 	BurnPercent   float64
 }
 
+// ScopeUnavailable explains why one current quota window contributes no
+// ceiling. It never blocks another window's measured estimate.
+type ScopeUnavailable struct {
+	Provider     string
+	Pool         string
+	Window       string
+	AccountScope string
+	Reason       string
+}
+
 type runExposure struct {
 	seconds     float64
 	runIDs      []string
@@ -77,30 +89,32 @@ type runExposure struct {
 	sampleCount int
 }
 
-func quotaSourceRunIDs(points []pricing.QuotaObservation) (map[string]bool, bool) {
-	ids := make(map[string]bool, len(points))
-	for _, point := range points {
-		parsed, err := uuid.Parse(point.SourceRunID)
-		if err != nil || parsed == uuid.Nil {
-			return nil, false
-		}
-		ids[parsed.String()] = true
-	}
-	return ids, len(ids) > 0
-}
-
 type quotaKey struct {
 	provider, pool, window, account string
 	reset                           time.Time
 }
 
+// burnHorizon bounds the trailing interval a burn rate is measured over, so
+// the ceiling follows the current pace rather than the whole reset window.
+const burnHorizon = 24 * time.Hour
+
 // Estimate computes integer ceilings from observed quota-percent burn divided
-// by conservative physical run-seconds. A run contributes exposure only when
-// its actual ID is present in both adjacent complete samples; IDs appearing
-// at only one endpoint contribute no assumed duration. Unmapped physical runs,
-// unknown snapshot coverage, missing account-to-run evidence, reset crossings,
-// stale points, or gaps wider than MaxSampleGap make the affected estimate
-// unavailable.
+// by physical run-seconds of the runs that reported that quota.
+//
+// Every bias in the evidence is resolved toward fewer slots. Account burn
+// includes usage no run reported (standalone sessions, unmapped runs), and
+// exposure counts a source run only between adjacent samples that both
+// positively observed it, never across a gap wider than MaxSampleGap; an
+// incomplete or unknown sample can hide a run but never invent one. Within one
+// reset chain the used percent is the running maximum, because concurrent
+// sessions keep rendering older cached percents.
+//
+// Each current quota window (provider, pool, window, account, reset) is
+// estimated on its own. A window that cannot be measured (stale, no positive
+// burn, no source runs, ambiguous account membership) is reported in
+// Unavailable and does not hide another window's measurement; a tier is
+// available when at least one window is measured, and its ceiling is the
+// smallest measured window ceiling.
 func Estimate(in EstimateInput) []TierEstimate {
 	now := in.Now.UTC()
 	gap := in.MaxSampleGap
@@ -128,8 +142,9 @@ func Estimate(in EstimateInput) []TierEstimate {
 			out = append(out, row)
 			continue
 		}
-		estimates, reason := estimateTarget(in, now, target.At.UTC(), gap, maxAge)
-		if reason != "" {
+		estimates, unavailable, reason := estimateTarget(in, now, target.At.UTC(), gap, maxAge)
+		row.Unavailable = unavailable
+		if len(estimates) == 0 {
 			row.Reason = reason
 			out = append(out, row)
 			continue
@@ -140,6 +155,7 @@ func Estimate(in EstimateInput) []TierEstimate {
 				ceiling = p.Slots
 			}
 		}
+		row.ProviderSlots = estimates
 		if ceiling < 1 {
 			row.Reason = "measured quota budget does not support one concurrent run through the target"
 			out = append(out, row)
@@ -150,8 +166,10 @@ func Estimate(in EstimateInput) []TierEstimate {
 		}
 		row.Slots = &ceiling
 		row.Status = "available"
-		row.Basis = "provider-scoped quota percent burn divided by stable run-ID exposure using quota source-run IDs and complete, coextensive physical snapshots"
-		row.ProviderSlots = estimates
+		row.Basis = "smallest per-window ceiling: provider quota-percent burn (running maximum, trailing 24h of the current reset window) divided by physical run-seconds of the quota's source runs; unreported usage and unobserved runs only lower the ceiling"
+		if len(unavailable) > 0 {
+			row.Basis += "; unmeasured windows are listed separately and are not constrained by this ceiling"
+		}
 		out = append(out, row)
 	}
 	if !extraAllowanceIncluded {
@@ -160,7 +178,7 @@ func Estimate(in EstimateInput) []TierEstimate {
 	return out
 }
 
-func estimateTarget(in EstimateInput, now, target time.Time, maxGap, maxAge time.Duration) ([]ProviderEstimate, string) {
+func estimateTarget(in EstimateInput, now, target time.Time, maxGap, maxAge time.Duration) ([]ProviderEstimate, []ScopeUnavailable, string) {
 	groups := map[quotaKey][]pricing.QuotaObservation{}
 	for _, q := range in.Quota {
 		if q.Provider == "" || q.Pool == "" || q.Window == "" || q.ResetAt == nil || q.ResetAt.IsZero() || q.UsedPercent == nil {
@@ -179,95 +197,146 @@ func estimateTarget(in EstimateInput, now, target time.Time, maxGap, maxAge time
 		groups[key] = append(groups[key], q)
 	}
 	if len(groups) == 0 {
-		return nil, "no provider-scoped quota observations have usable percent and reset evidence"
+		return nil, nil, "no provider-scoped quota observations have usable percent and reset evidence"
 	}
-	// Keep account curves separate. A quota point is tied to physical exposure
-	// only through its validated source run ID; provider identity alone is not
-	// sufficient when several accounts are active.
-	providers := map[string]bool{}
-	for key := range groups {
-		providers[key.provider] = true
-	}
+	// A source run reports the account it actually uses. One run reporting two
+	// account scopes of a provider makes that provider's membership ambiguous.
+	ambiguous := map[string]bool{}
 	accountRunOwner := map[string]string{}
 	for key, points := range groups {
 		for _, point := range points {
-			parsed, err := uuid.Parse(point.SourceRunID)
-			if err != nil || parsed == uuid.Nil {
-				continue // the scoped estimate below will report this as unavailable
+			id, ok := validRunID(point.SourceRunID)
+			if !ok {
+				continue
 			}
-			ownerKey := key.provider + "\x00" + parsed.String()
+			ownerKey := key.provider + "\x00" + id
 			if owner, exists := accountRunOwner[ownerKey]; exists && owner != key.account {
-				return nil, fmt.Sprintf("%s quota source run is associated with multiple account scopes", key.provider)
+				ambiguous[key.provider] = true
 			}
 			accountRunOwner[ownerKey] = key.account
 		}
 	}
+	keys := make([]quotaKey, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := keys[i], keys[j]
+		if a.provider != b.provider {
+			return a.provider < b.provider
+		}
+		if a.pool != b.pool {
+			return a.pool < b.pool
+		}
+		if a.account != b.account {
+			return a.account < b.account
+		}
+		return a.reset.Before(b.reset)
+	})
 	result := make([]ProviderEstimate, 0, len(groups))
-	for key, points := range groups {
-		if key.account == "" {
-			return nil, fmt.Sprintf("%s quota account scope is unknown; account-wide burn cannot be tied to provider runs", key.provider)
-		}
-		sort.Slice(points, func(i, j int) bool { return points[i].ObservedAt.Before(points[j].ObservedAt) })
-		if !key.reset.After(now) {
-			return nil, fmt.Sprintf("%s quota reset is not a current future reset", key.provider)
-		}
-		// Need a fresh final observation, a distinct burn delta, and ten minutes
-		// of actual quota history in the same provider/window/reset chain.
-		first, last := points[0], points[len(points)-1]
-		if len(points) < 2 || last.ObservedAt.Sub(first.ObservedAt) < minBurnHistory {
-			return nil, fmt.Sprintf("%s quota history is shorter than ten minutes or lacks multiple points", key.provider)
-		}
-		if last.ObservedAt.After(now) || now.Sub(last.ObservedAt) > maxAge {
-			return nil, fmt.Sprintf("%s latest quota observation is stale", key.provider)
-		}
-		burn := *last.UsedPercent - *first.UsedPercent
-		monotone := true
-		for i := 1; i < len(points); i++ {
-			if points[i].UsedPercent == nil || *points[i].UsedPercent < *points[i-1].UsedPercent {
-				monotone = false
-				break
-			}
-		}
-		if !monotone {
-			return nil, fmt.Sprintf("%s quota percent readings are not monotone within one reset window", key.provider)
-		}
-		if burn <= 0 {
-			return nil, fmt.Sprintf("%s quota observations do not show positive measurable burn", key.provider)
-		}
-		start, end := first.ObservedAt.UTC(), last.ObservedAt.UTC()
-		if end.Sub(start) < minBurnHistory {
-			return nil, fmt.Sprintf("%s quota burn interval is too short", key.provider)
-		}
-		scopeRunIDs, validRunIDs := quotaSourceRunIDs(points)
-		if !validRunIDs {
-			return nil, fmt.Sprintf("%s quota account scope lacks valid source run IDs", key.provider)
-		}
-		exposure, reason := stableRunExposure(in.Samples, key.provider, scopeRunIDs, start, end, maxGap)
+	unavailable := []ScopeUnavailable{}
+	for _, key := range keys {
+		estimate, reason := estimateWindow(key, groups[key], in.Samples, ambiguous[key.provider], now, target, maxGap, maxAge)
 		if reason != "" {
-			return nil, fmt.Sprintf("%s %s", key.provider, reason)
+			unavailable = append(unavailable, ScopeUnavailable{Provider: key.provider, Pool: key.pool, Window: key.window, AccountScope: key.account, Reason: reason})
+			continue
 		}
-		if exposure.seconds <= 0 {
-			return nil, fmt.Sprintf("%s physical samples contain no stable actual run-ID exposure", key.provider)
-		}
-		percentPerRunSecond := burn / exposure.seconds
-		budget := quotaBudgetUntil(key.reset, target, now, points, key.window)
-		if budget < 0 {
-			return nil, fmt.Sprintf("%s quota reset cadence or current remaining allowance is unknown", key.provider)
-		}
-		available := int(math.Floor(budget / (percentPerRunSecond * target.Sub(now).Seconds())))
-		if available < 0 {
-			available = 0
-		}
-		result = append(result, ProviderEstimate{Provider: key.provider, Pool: key.pool, Window: key.window, AccountScope: key.account, Slots: available, QuotaStart: start, QuotaEnd: end, ScopeEvidence: "provider-reported account scope mapped only to validated quota source run IDs present in complete physical samples", RunIDs: exposure.runIDs, SampleStart: exposure.sampleStart, SampleEnd: exposure.sampleEnd, SampleCount: exposure.sampleCount, RunSeconds: exposure.seconds, BurnPercent: burn})
+		result = append(result, estimate)
 	}
-	if len(result) == 0 || len(providers) == 0 {
-		return nil, "no usable provider quota burn evidence"
+	if len(result) == 0 {
+		reasons := make([]string, 0, len(unavailable))
+		for _, u := range unavailable {
+			reasons = append(reasons, u.Reason)
+		}
+		return nil, unavailable, strings.Join(reasons, "; ")
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Provider < result[j].Provider })
-	return result, ""
+	return result, unavailable, ""
 }
 
-func stableRunExposure(samples []Sample, provider string, allowedRunIDs map[string]bool, start, end time.Time, maxGap time.Duration) (runExposure, string) {
+func estimateWindow(key quotaKey, points []pricing.QuotaObservation, samples []Sample, ambiguous bool, now, target time.Time, maxGap, maxAge time.Duration) (ProviderEstimate, string) {
+	label := key.provider + " " + key.pool
+	if ambiguous {
+		return ProviderEstimate{}, label + ": a quota source run is associated with multiple account scopes"
+	}
+	sort.Slice(points, func(i, j int) bool { return points[i].ObservedAt.Before(points[j].ObservedAt) })
+	first, last := points[0], points[len(points)-1]
+	if last.ObservedAt.After(now) || now.Sub(last.ObservedAt) > maxAge {
+		return ProviderEstimate{}, label + ": latest quota observation is stale"
+	}
+	end := last.ObservedAt.UTC()
+	start := first.ObservedAt.UTC()
+	if horizon := end.Add(-burnHorizon); horizon.After(start) {
+		start = horizon
+	}
+	if len(points) < 2 || end.Sub(start) < minBurnHistory {
+		return ProviderEstimate{}, label + ": quota history is shorter than ten minutes or lacks multiple points"
+	}
+	// Running maximum: an idle session re-renders an older cached percent, so
+	// a lower later reading is not a refund.
+	usedAt := func(at time.Time) float64 {
+		value := 0.0
+		for _, p := range points {
+			if p.ObservedAt.After(at) {
+				break
+			}
+			if *p.UsedPercent > value {
+				value = *p.UsedPercent
+			}
+		}
+		return value
+	}
+	used := usedAt(end)
+	burn := used - usedAt(start)
+	if burn <= 0 {
+		return ProviderEstimate{}, label + ": quota observations do not show positive measurable burn"
+	}
+	sources := map[string]bool{}
+	for _, p := range points {
+		if p.ObservedAt.Before(start) {
+			continue
+		}
+		if id, ok := validRunID(p.SourceRunID); ok {
+			sources[id] = true
+		}
+	}
+	if len(sources) == 0 {
+		return ProviderEstimate{}, label + ": quota readings in the burn interval carry no source run IDs, so the burn cannot be tied to runs"
+	}
+	exposure := sourceRunExposure(samples, sources, start, end, maxGap)
+	if exposure.seconds <= 0 {
+		return ProviderEstimate{}, label + ": no quota source run was positively observed in adjacent physical samples during the burn interval"
+	}
+	percentPerRunSecond := burn / exposure.seconds
+	budget := quotaBudgetUntil(key.reset, target, now, 100-used, points)
+	if budget < 0 {
+		return ProviderEstimate{}, label + ": quota reset cadence or current remaining allowance is unknown"
+	}
+	available := int(math.Floor(budget / (percentPerRunSecond * target.Sub(now).Seconds())))
+	if available < 0 {
+		available = 0
+	}
+	evidence := "quota source run IDs mapped to physically observed run-seconds"
+	if key.account != "" {
+		evidence = "provider-reported account scope; " + evidence
+	} else {
+		evidence = "account scope not reported; membership established only by " + evidence
+	}
+	return ProviderEstimate{Provider: key.provider, Pool: key.pool, Window: key.window, AccountScope: key.account, Slots: available, QuotaStart: start, QuotaEnd: end, ScopeEvidence: evidence, RunIDs: exposure.runIDs, SampleStart: exposure.sampleStart, SampleEnd: exposure.sampleEnd, SampleCount: exposure.sampleCount, RunSeconds: exposure.seconds, BurnPercent: burn}, ""
+}
+
+func validRunID(value string) (string, bool) {
+	parsed, err := uuid.Parse(value)
+	if err != nil || parsed == uuid.Nil {
+		return "", false
+	}
+	return parsed.String(), true
+}
+
+// sourceRunExposure sums, for each pair of adjacent samples no further apart
+// than maxGap, the clipped interval during which a source run was positively
+// observed at both ends. Provider mapping is not required: the run reported
+// the quota itself.
+func sourceRunExposure(samples []Sample, sources map[string]bool, start, end time.Time, maxGap time.Duration) runExposure {
 	ordered := make([]Sample, 0, len(samples))
 	for _, s := range samples {
 		if !s.ObservedAt.Before(start.Add(-maxGap)) && !s.ObservedAt.After(end.Add(maxGap)) {
@@ -275,27 +344,28 @@ func stableRunExposure(samples []Sample, provider string, allowedRunIDs map[stri
 		}
 	}
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].ObservedAt.Before(ordered[j].ObservedAt) })
-	if len(ordered) < 2 || ordered[0].ObservedAt.After(start) || ordered[len(ordered)-1].ObservedAt.Before(end) {
-		return runExposure{}, "physical snapshots do not bracket the complete quota-burn interval"
+	exposure := runExposure{sampleCount: len(ordered)}
+	if len(ordered) > 0 {
+		exposure.sampleStart, exposure.sampleEnd = ordered[0].ObservedAt.UTC(), ordered[len(ordered)-1].ObservedAt.UTC()
 	}
-	exposure := runExposure{sampleStart: ordered[0].ObservedAt.UTC(), sampleEnd: ordered[len(ordered)-1].ObservedAt.UTC(), sampleCount: len(ordered)}
+	observed := func(s Sample) map[string]bool {
+		set := asSet(s.UnmappedRunIDs)
+		for _, ids := range s.ProviderRunIDs {
+			for _, id := range ids {
+				if id != "" {
+					set[id] = true
+				}
+			}
+		}
+		return set
+	}
 	contributing := map[string]bool{}
 	for i := 1; i < len(ordered); i++ {
 		prev, cur := ordered[i-1], ordered[i]
 		span := cur.ObservedAt.Sub(prev.ObservedAt)
-		if span <= 0 {
-			return runExposure{}, "physical snapshot timestamps are not strictly increasing"
+		if span <= 0 || span > maxGap {
+			continue
 		}
-		if span > maxGap {
-			return runExposure{}, "physical snapshot coverage has a gap wider than the supported maximum"
-		}
-		if !prev.Complete || !cur.Complete || len(prev.Unknown) > 0 || len(cur.Unknown) > 0 {
-			return runExposure{}, "physical snapshot coverage is incomplete or carries unknowns"
-		}
-		if len(prev.UnmappedRunIDs) > 0 || len(cur.UnmappedRunIDs) > 0 {
-			return runExposure{}, "unmapped physical run IDs prevent provider-specific attribution"
-		}
-		left, right := asSet(prev.ProviderRunIDs[provider]), asSet(cur.ProviderRunIDs[provider])
 		from, to := prev.ObservedAt, cur.ObservedAt
 		if from.Before(start) {
 			from = start
@@ -303,25 +373,22 @@ func stableRunExposure(samples []Sample, provider string, allowedRunIDs map[stri
 		if to.After(end) {
 			to = end
 		}
-		if to.After(from) {
-			for id := range left {
-				if right[id] && allowedRunIDs[id] {
-					exposure.seconds += to.Sub(from).Seconds()
-					contributing[id] = true
-				}
+		if !to.After(from) {
+			continue
+		}
+		left, right := observed(prev), observed(cur)
+		for id := range sources {
+			if left[id] && right[id] {
+				exposure.seconds += to.Sub(from).Seconds()
+				contributing[id] = true
 			}
 		}
 	}
 	for id := range contributing {
 		exposure.runIDs = append(exposure.runIDs, id)
 	}
-	for id := range allowedRunIDs {
-		if !contributing[id] {
-			return runExposure{}, "quota source run IDs are not stably present in provider-specific physical snapshots"
-		}
-	}
 	sort.Strings(exposure.runIDs)
-	return exposure, ""
+	return exposure
 }
 
 func asSet(ids []string) map[string]bool {
@@ -337,12 +404,10 @@ func asSet(ids []string) map[string]bool {
 // quotaBudgetUntil counts only the current observed remainder before reset and
 // full replenishments afterward. It requires provider-reported window length;
 // an assumed reset cadence would create fictional capacity.
-func quotaBudgetUntil(reset, target, now time.Time, points []pricing.QuotaObservation, window string) float64 {
-	latest := points[len(points)-1]
-	if latest.UsedPercent == nil || reset.IsZero() {
+func quotaBudgetUntil(reset, target, now time.Time, remaining float64, points []pricing.QuotaObservation) float64 {
+	if reset.IsZero() || remaining < 0 {
 		return -1
 	}
-	remaining := 100 - *latest.UsedPercent
 	if target.Before(reset) || target.Equal(reset) {
 		return remaining
 	}

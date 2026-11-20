@@ -448,6 +448,11 @@ type Forecast struct {
 	// stale marks a percent window whose newest reading is older than
 	// StaleAfter inside its own period; only then can it be idle.
 	stale bool
+	// Expired marks a window whose scheduled reset has passed with no reading
+	// of the new window. Its last percent describes a finished window, so Used
+	// and the projections are cleared: the current usage is unknown, never the
+	// old window's final percent.
+	Expired bool
 }
 
 // Project forecasts one window as of now. previous holds the earlier windows
@@ -617,7 +622,9 @@ func (f Forecast) withStaleness(now time.Time) Forecast {
 	case w.LastAt.IsZero():
 		f.Status, f.Reason = StatusUnknown, "no readings"
 	case !w.ResetAt.IsZero() && !now.Before(w.ResetAt):
-		f.Status, f.Reason, f.Lasting = StatusUnknown, "the window reset at "+w.ResetAt.UTC().Format(time.RFC3339)+"; no reading of the new window yet", nil
+		f.Status, f.Reason, f.Lasting = StatusUnknown, "the window reset at "+w.ResetAt.UTC().Format(time.RFC3339)+"; no reading of the new window yet, so current usage is unknown", nil
+		f.Expired, f.Used = true, 0
+		f.Projected, f.BandStart, f.BandEnd = nil, nil, nil
 	case now.Sub(w.LastAt) > StaleAfter:
 		f.Status, f.Reason = StatusUnknown, "the newest reading is older than 6 hours"
 		f.stale = w.HasPercent && f.Used < 100
@@ -750,11 +757,12 @@ func Current(spans []pricing.QuotaReadingSpan, now time.Time) []Forecast {
 		byScope[w.Scope()] = append(byScope[w.Scope()], w)
 	}
 	sort.Strings(scopes)
+	superseded := supersededLegacyScopes(byScope)
 	out := make([]Forecast, 0, len(scopes))
 	for _, scope := range scopes {
 		windows := byScope[scope]
 		current := windows[len(windows)-1]
-		if current.dead(now) {
+		if current.dead(now) || superseded[scope] {
 			continue
 		}
 		current = currentFreshWindow(current, now)
@@ -771,6 +779,45 @@ func Current(spans []pricing.QuotaReadingSpan, now time.Time) []Forecast {
 			}
 		}
 		out = append(out, f)
+	}
+	return out
+}
+
+// supersededLegacyScopes names unknown-account scopes whose provider, pool and
+// window are now read under a known account scope with a newer reading. A
+// feed that starts recording its account (the Claude statusline did on
+// 2026-11-16) leaves its unscoped history behind; that history is no longer
+// the current reading of anything and must not stand beside the live scope as
+// a stale or expired row. Unknown-scope history that is still the newest
+// reading of its window is kept.
+func supersededLegacyScopes(byScope map[string][]*Window) map[string]bool {
+	newestAt := func(windows []*Window) time.Time {
+		var at time.Time
+		for _, w := range windows {
+			if w.LastAt.After(at) {
+				at = w.LastAt
+			}
+		}
+		return at
+	}
+	scoped := map[string]time.Time{}
+	for _, windows := range byScope {
+		if w := windows[0]; w.AccountScope != "" {
+			key := w.Provider + "|" + w.Pool + "|" + w.Window
+			if at := newestAt(windows); at.After(scoped[key]) {
+				scoped[key] = at
+			}
+		}
+	}
+	out := map[string]bool{}
+	for scope, windows := range byScope {
+		w := windows[0]
+		if w.AccountScope != "" {
+			continue
+		}
+		if at, ok := scoped[w.Provider+"|"+w.Pool+"|"+w.Window]; ok && at.After(newestAt(windows)) {
+			out[scope] = true
+		}
 	}
 	return out
 }

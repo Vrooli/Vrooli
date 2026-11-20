@@ -19,22 +19,26 @@ type agentManagerSourceVerifier struct {
 	baseURL    string
 }
 
+type agentManagerEvent struct {
+	ID         string               `json:"id"`
+	RunID      string               `json:"runId"`
+	RunIDSnake string               `json:"run_id"`
+	Sequence   json.RawMessage      `json:"sequence"`
+	EventType  string               `json:"event_type"`
+	Message    *agentManagerMessage `json:"message,omitempty"`
+}
+
+type agentManagerMessage struct {
+	Role                string `json:"role"`
+	Source              string `json:"source"`
+	Content             string `json:"content"`
+	ConversationID      string `json:"conversation_id"`
+	EvidenceOnly        bool   `json:"evidence_only"`
+	ConversationIDCamel string `json:"conversationId"`
+}
+
 type agentManagerEventPage struct {
-	Events []struct {
-		ID         string          `json:"id"`
-		RunID      string          `json:"runId"`
-		RunIDSnake string          `json:"run_id"`
-		Sequence   json.RawMessage `json:"sequence"`
-		EventType  string          `json:"event_type"`
-		Message    *struct {
-			Role                string `json:"role"`
-			Source              string `json:"source"`
-			Content             string `json:"content"`
-			ConversationID      string `json:"conversation_id"`
-			EvidenceOnly        bool   `json:"evidence_only"`
-			ConversationIDCamel string `json:"conversationId"`
-		} `json:"message,omitempty"`
-	} `json:"events"`
+	Events []agentManagerEvent `json:"events"`
 }
 
 func newAgentManagerSourceVerifier(httpClient connect.HTTPClient, rawURL string) (*agentManagerSourceVerifier, error) {
@@ -58,6 +62,14 @@ func (v *agentManagerSourceVerifier) verify(ctx context.Context, c ReplayCase) e
 	if c.SourceSequence < 0 {
 		return fmt.Errorf("source_sequence must be nonnegative")
 	}
+	event, err := v.fetchEvent(ctx, c)
+	if err != nil {
+		return err
+	}
+	return validateAgentManagerEvent(event, c)
+}
+
+func (v *agentManagerSourceVerifier) fetchEvent(ctx context.Context, c ReplayCase) (agentManagerEventPage, error) {
 	query := url.Values{}
 	query.Set("after_sequence", strconv.FormatInt(c.SourceSequence-1, 10))
 	query.Set("limit", "1")
@@ -65,29 +77,40 @@ func (v *agentManagerSourceVerifier) verify(ctx context.Context, c ReplayCase) e
 	endpoint := v.baseURL + "/api/v1/runs/" + url.PathEscape(c.SourceRunID) + "/events?" + query.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return fmt.Errorf("build Agent Manager source request: %w", err)
+		return agentManagerEventPage{}, fmt.Errorf("build Agent Manager source request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 	response, err := v.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("read Agent Manager source event: %w", err)
+		return agentManagerEventPage{}, fmt.Errorf("read Agent Manager source event: %w", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("Agent Manager source event returned HTTP %d", response.StatusCode)
+		return agentManagerEventPage{}, fmt.Errorf("Agent Manager source event returned HTTP %d", response.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
-		return fmt.Errorf("read Agent Manager event response: %w", err)
+		return agentManagerEventPage{}, fmt.Errorf("read Agent Manager event response: %w", err)
 	}
 	var page agentManagerEventPage
 	if err := json.Unmarshal(body, &page); err != nil {
-		return fmt.Errorf("decode Agent Manager event response: %w", err)
+		return agentManagerEventPage{}, fmt.Errorf("decode Agent Manager event response: %w", err)
 	}
+	return page, nil
+}
+
+func validateAgentManagerEvent(page agentManagerEventPage, c ReplayCase) error {
 	if len(page.Events) != 1 {
 		return fmt.Errorf("Agent Manager source event is unavailable")
 	}
 	event := page.Events[0]
+	if err := validateAgentManagerEventIdentity(event, c); err != nil {
+		return err
+	}
+	return validateAgentManagerMessage(event, c)
+}
+
+func validateAgentManagerEventIdentity(event agentManagerEvent, c ReplayCase) error {
 	runID := event.RunID
 	if runID == "" {
 		runID = event.RunIDSnake
@@ -99,6 +122,10 @@ func (v *agentManagerSourceVerifier) verify(ctx context.Context, c ReplayCase) e
 	if event.ID != c.SourceEventID || runID != c.SourceRunID || sequence != c.SourceSequence {
 		return fmt.Errorf("Agent Manager event identity mismatch (returned_run_id=%q event_id_match=%t sequence_match=%t)", runID, event.ID == c.SourceEventID, sequence == c.SourceSequence)
 	}
+	return nil
+}
+
+func validateAgentManagerMessage(event agentManagerEvent, c ReplayCase) error {
 	message := event.Message
 	if event.EventType != "RUN_EVENT_TYPE_MESSAGE" || message == nil || message.Role != "user" || message.Source != "operator" || message.EvidenceOnly || message.Content != c.InputText {
 		return fmt.Errorf("replay input is not the exact Agent Manager user message")
@@ -136,17 +163,45 @@ func agentManagerSequence(raw json.RawMessage) (int64, error) {
 }
 
 func localAgentManagerURL(raw string) (string, error) {
+	parsed, err := parseLocalAgentManagerURL(raw)
+	if err != nil {
+		return "", err
+	}
+	if err := validateAgentManagerLoopback(parsed); err != nil {
+		return "", err
+	}
+	return strings.TrimRight(parsed.String(), "/"), nil
+}
+
+func parseLocalAgentManagerURL(raw string) (*url.URL, error) {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed == nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
-		return "", fmt.Errorf("--agent-manager-url must be an absolute local URL")
+	if err != nil || parsed == nil {
+		return nil, fmt.Errorf("--agent-manager-url must be an absolute local URL")
+	}
+	if err := validateAgentManagerURLShape(parsed); err != nil {
+		return nil, err
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", fmt.Errorf("--agent-manager-url must use http or https")
+		return nil, fmt.Errorf("--agent-manager-url must use http or https")
 	}
+	return parsed, nil
+}
+
+func validateAgentManagerURLShape(parsed *url.URL) error {
+	if parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil {
+		return fmt.Errorf("--agent-manager-url must be an absolute local URL")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+		return fmt.Errorf("--agent-manager-url must be an absolute local URL")
+	}
+	return nil
+}
+
+func validateAgentManagerLoopback(parsed *url.URL) error {
 	host := strings.Trim(parsed.Hostname(), "[]")
 	ip := net.ParseIP(host)
 	if host != "localhost" && (ip == nil || !ip.IsLoopback()) {
-		return "", fmt.Errorf("--agent-manager-url must point to a loopback host; caller prompts stay local")
+		return fmt.Errorf("--agent-manager-url must point to a loopback host; caller prompts stay local")
 	}
-	return strings.TrimRight(parsed.String(), "/"), nil
+	return nil
 }

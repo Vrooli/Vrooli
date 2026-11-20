@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"ai-gateway/internal/providers"
+	"ai-gateway/internal/rolecatalog"
+
 	"github.com/stretchr/testify/require"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -58,11 +60,12 @@ func TestServiceNormalizesLocateVisualBeforeCanonicalSchemaValidation(t *testing
 		CoordinateConvention: CoordinateConventionNormalized1000,
 	}}
 	service := NewService(repository)
-	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		SchemaJSON:  `{"type":"object","required":["found","bounds","confidence"],"properties":{"found":{"type":"boolean"},"bounds":{"type":"array","items":{"type":"number"}},"confidence":{"type":"number","minimum":0,"maximum":1}}}`,
-		Instruction: "Find the target.",
-		Role:        "locate.visual",
-		Attachments: []*sharedv1.Attachment{visualAttachment(1000, 500)},
+	response := service.Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		SchemaJSON:        `{"type":"object","required":["found","bounds","confidence"],"properties":{"found":{"type":"boolean"},"bounds":{"type":"array","items":{"type":"number"}},"confidence":{"type":"number","minimum":0,"maximum":1}}}`,
+		Instruction:       "Find the target.",
+		Role:              "locate.visual",
+		Attachments:       []*sharedv1.Attachment{visualAttachment(1000, 500)},
 	})
 	require.True(t, response.GetValidated(), response.GetError())
 	require.Contains(t, response.GetValueJson(), `0.1`)
@@ -71,7 +74,7 @@ func TestServiceNormalizesLocateVisualBeforeCanonicalSchemaValidation(t *testing
 }
 
 func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	role, ok := catalog.Roles["locate.visual"]
 	require.True(t, ok)
@@ -82,7 +85,7 @@ func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
 }
 
 func TestCatalogDeclaresBrowserRolesOnExistingInferenceRoutes(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	locate := catalog.Roles["browser.locate"]
 	require.Len(t, locate.Candidates, 4)
@@ -95,7 +98,7 @@ func TestCatalogDeclaresBrowserRolesOnExistingInferenceRoutes(t *testing.T) {
 }
 
 func TestBrowserInferenceRolesExposeLocalBYOKAndLPBSFundingPaths(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	for _, roleName := range []string{"browser.locate", "browser.plan", "browser.extract"} {
 		role := catalog.Roles[roleName]
@@ -110,7 +113,7 @@ func TestBrowserInferenceRolesExposeLocalBYOKAndLPBSFundingPaths(t *testing.T) {
 	decision := catalog.Roles["browser.decide"]
 	delegatesToTypedGateway := false
 	for _, candidate := range decision.Candidates {
-		delegatesToTypedGateway = delegatesToTypedGateway || candidate.Provider == ProviderGateway && candidate.ResourceRole == "classify.fast"
+		delegatesToTypedGateway = delegatesToTypedGateway || candidate.Provider == rolecatalog.ProviderGateway && candidate.ResourceRole == "classify.fast"
 	}
 	require.True(t, delegatesToTypedGateway, "browser decision needs a typed Gateway fallback that inherits source context")
 	classifierProviders := map[string]bool{}
@@ -123,7 +126,7 @@ func TestBrowserInferenceRolesExposeLocalBYOKAndLPBSFundingPaths(t *testing.T) {
 }
 
 func TestCatalogDeclaresUXVisualCritiqueAsLocalVisionRole(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	role, ok := catalog.Roles["ux.visual-critique"]
 	require.True(t, ok)
@@ -133,7 +136,7 @@ func TestCatalogDeclaresUXVisualCritiqueAsLocalVisionRole(t *testing.T) {
 }
 
 func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	role, ok := catalog.Roles["device-control.plan"]
 	require.True(t, ok)

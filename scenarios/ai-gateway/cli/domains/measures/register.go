@@ -10,9 +10,11 @@ import (
 	"context"
 	"fmt"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
+	aigwmeasuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures"
 	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
 )
 
@@ -26,100 +28,53 @@ const GroupName = "measures"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"MeasuresService.CountRouteEvents": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "total", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.CountRouteEvents(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("%d routes executed", r.Msg.GetCount()), nil
-			})
-		},
-		"MeasuresService.CountBreakerOpenRoutes": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "breaker-open", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.CountBreakerOpenRoutes(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("%d routes blocked by an open breaker", r.Msg.GetCount()), nil
-			})
-		},
-		"MeasuresService.CountCapacityRejections": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "capacity-rejections", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.CountCapacityRejections(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("%d local routes rejected for capacity", r.Msg.GetCount()), nil
-			})
-		},
-		"MeasuresService.RouteSuccessRate": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "success-rate", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteSuccessRate(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, "route success rate: " + formatRate(r.Msg.GetRate()), nil
-			})
-		},
-		"MeasuresService.RouteFallbackRate": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "fallback-rate", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteFallbackRate(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, "route fallback rate: " + formatRate(r.Msg.GetRate()), nil
-			})
-		},
-		"MeasuresService.RouteFailureRate": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "failure-rate", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteFailureRate(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, "route failure rate: " + formatRate(r.Msg.GetRate()), nil
-			})
-		},
-		"MeasuresService.RouteLatencyP95": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "latency-p95", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteLatencyP95(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("p95 route latency: %d ms", r.Msg.GetLatencyMs()), nil
-			})
-		},
-		"MeasuresService.RouteCost": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "cost", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteCost(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("route cost: %.6f USD", r.Msg.GetCostUsd()), nil
-			})
-		},
-		"MeasuresService.RouteTokens": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "tokens", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteTokens(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, fmt.Sprintf("route tokens: %d", r.Msg.GetTotalTokens()), nil
-			})
-		},
-		"MeasuresService.RouteLocalShare": func(ctx cliapp.RunContext) error {
-			return h.scalar(ctx, "local-share", func(c context.Context, w *measuresv1.TimeWindow) (proto.Message, string, error) {
-				r, err := h.client.RouteLocalShare(c, req(w))
-				if err != nil {
-					return nil, "", err
-				}
-				return r.Msg, "route local share: " + formatRate(r.Msg.GetShare()), nil
-			})
-		},
+		"MeasuresService.CountRouteEvents": scalarRPC(h, "total", h.client.CountRouteEvents, func(r *connect.Response[aigwmeasuresv1.RouteCountResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("%d routes executed", r.Msg.GetCount())
+		}),
+		"MeasuresService.CountBreakerOpenRoutes": scalarRPC(h, "breaker-open", h.client.CountBreakerOpenRoutes, func(r *connect.Response[aigwmeasuresv1.RouteCountResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("%d routes blocked by an open breaker", r.Msg.GetCount())
+		}),
+		"MeasuresService.CountCapacityRejections": scalarRPC(h, "capacity-rejections", h.client.CountCapacityRejections, func(r *connect.Response[aigwmeasuresv1.RouteCountResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("%d local routes rejected for capacity", r.Msg.GetCount())
+		}),
+		"MeasuresService.RouteSuccessRate": scalarRPC(h, "success-rate", h.client.RouteSuccessRate, func(r *connect.Response[aigwmeasuresv1.RouteRateResponse]) (proto.Message, string) {
+			return r.Msg, "route success rate: " + formatRate(r.Msg.GetRate())
+		}),
+		"MeasuresService.RouteFallbackRate": scalarRPC(h, "fallback-rate", h.client.RouteFallbackRate, func(r *connect.Response[aigwmeasuresv1.RouteRateResponse]) (proto.Message, string) {
+			return r.Msg, "route fallback rate: " + formatRate(r.Msg.GetRate())
+		}),
+		"MeasuresService.RouteFailureRate": scalarRPC(h, "failure-rate", h.client.RouteFailureRate, func(r *connect.Response[aigwmeasuresv1.RouteRateResponse]) (proto.Message, string) {
+			return r.Msg, "route failure rate: " + formatRate(r.Msg.GetRate())
+		}),
+		"MeasuresService.RouteLatencyP95": scalarRPC(h, "latency-p95", h.client.RouteLatencyP95, func(r *connect.Response[aigwmeasuresv1.RouteLatencyResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("p95 route latency: %d ms", r.Msg.GetLatencyMs())
+		}),
+		"MeasuresService.RouteCost": scalarRPC(h, "cost", h.client.RouteCost, func(r *connect.Response[aigwmeasuresv1.RouteCostResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("route cost: %.6f USD", r.Msg.GetCostUsd())
+		}),
+		"MeasuresService.RouteTokens": scalarRPC(h, "tokens", h.client.RouteTokens, func(r *connect.Response[aigwmeasuresv1.RouteTokenResponse]) (proto.Message, string) {
+			return r.Msg, fmt.Sprintf("route tokens: %d", r.Msg.GetTotalTokens())
+		}),
+		"MeasuresService.RouteLocalShare": scalarRPC(h, "local-share", h.client.RouteLocalShare, func(r *connect.Response[aigwmeasuresv1.RouteShareResponse]) (proto.Message, string) {
+			return r.Msg, "route local share: " + formatRate(r.Msg.GetShare())
+		}),
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("measures: load from manifest: %w", err)
 	}
 	return group, nil
+}
+
+func scalarRPC[T any](h *handlers, label string, invoke func(context.Context, *connect.Request[aigwmeasuresv1.RouteMeasureRequest]) (*connect.Response[T], error), render func(*connect.Response[T]) (proto.Message, string)) func(cliapp.RunContext) error {
+	return func(ctx cliapp.RunContext) error {
+		return h.scalar(ctx, label, func(callCtx context.Context, window *measuresv1.TimeWindow) (proto.Message, string, error) {
+			response, err := invoke(callCtx, req(window))
+			if err != nil {
+				return nil, "", err
+			}
+			message, description := render(response)
+			return message, description, nil
+		})
+	}
 }

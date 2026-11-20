@@ -266,6 +266,9 @@ func forecastWithHistory(forecasts []usageforecast.Forecast, quota []pricing.Quo
 	result := make([]Tier, 0, len(estimates))
 	for _, estimate := range estimates {
 		row := Tier{ID: estimate.ID, Label: tierLabel(estimate.ID), Status: estimate.Status, Reason: estimate.Reason, Basis: estimate.Basis, UtilizationComplete: utilization.Complete}
+		for _, scope := range estimate.Unavailable {
+			row.UnavailableScopes = append(row.UnavailableScopes, UnavailableScope{Provider: scope.Provider, Pool: scope.Pool, Window: scope.Window, AccountScope: scope.AccountScope, Reason: scope.Reason})
+		}
 		if !estimate.Target.IsZero() {
 			target := estimate.Target.UTC()
 			row.TargetRunOutAt = &target

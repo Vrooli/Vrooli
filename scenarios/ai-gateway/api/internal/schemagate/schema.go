@@ -1,4 +1,4 @@
-package inference
+package schemagate
 
 import (
 	"bytes"
@@ -76,11 +76,25 @@ func validateSchemaNode(node map[string]any, depth int) error {
 	if depth > MaxSchemaDepth {
 		return &SchemaError{Construct: "depth", Message: fmt.Sprintf("schema exceeds maximum depth %d", MaxSchemaDepth)}
 	}
+	if err := validateSchemaKeysAndTypes(node); err != nil {
+		return err
+	}
+	if err := validateSchemaChildren(node, depth); err != nil {
+		return err
+	}
+	return validateSchemaBounds(node)
+}
+
+func validateSchemaKeysAndTypes(node map[string]any) error {
 	for key := range node {
 		if _, ok := supportedSchemaKeywords[key]; !ok {
 			return &SchemaError{Construct: key, Message: "the construct is outside the enforceable subset"}
 		}
 	}
+	return validateSchemaType(node)
+}
+
+func validateSchemaType(node map[string]any) error {
 	if raw, ok := node["type"]; ok {
 		typeName, ok := raw.(string)
 		if !ok {
@@ -92,6 +106,10 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			return &SchemaError{Construct: "type", Message: fmt.Sprintf("type %q is unsupported", typeName)}
 		}
 	}
+	return validateRequiredSchema(node)
+}
+
+func validateRequiredSchema(node map[string]any) error {
 	if raw, ok := node["required"]; ok {
 		items, ok := raw.([]any)
 		if !ok {
@@ -104,6 +122,25 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func validateSchemaChildren(node map[string]any, depth int) error {
+	if err := validateProperties(node, depth); err != nil {
+		return err
+	}
+	if err := validateItems(node, depth); err != nil {
+		return err
+	}
+	if raw, ok := node["additionalProperties"]; ok {
+		if _, ok := raw.(bool); !ok {
+			return &SchemaError{Construct: "additionalProperties", Message: "additionalProperties must be a boolean"}
+		}
+	}
+	return nil
+}
+
+func validateProperties(node map[string]any, depth int) error {
 	if raw, ok := node["properties"]; ok {
 		properties, ok := raw.(map[string]any)
 		if !ok {
@@ -119,6 +156,10 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func validateItems(node map[string]any, depth int) error {
 	if raw, ok := node["items"]; ok {
 		items, ok := raw.(map[string]any)
 		if !ok {
@@ -128,11 +169,10 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			return err
 		}
 	}
-	if raw, ok := node["additionalProperties"]; ok {
-		if _, ok := raw.(bool); !ok {
-			return &SchemaError{Construct: "additionalProperties", Message: "additionalProperties must be a boolean"}
-		}
-	}
+	return nil
+}
+
+func validateSchemaBounds(node map[string]any) error {
 	if raw, ok := node["pattern"]; ok {
 		pattern, ok := raw.(string)
 		if !ok {
@@ -142,6 +182,16 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			return &SchemaError{Construct: "pattern", Message: fmt.Sprintf("pattern is invalid: %v", err)}
 		}
 	}
+	if err := validateNumericBounds(node); err != nil {
+		return err
+	}
+	if err := validateLengthBounds(node); err != nil {
+		return err
+	}
+	return validatePairedBounds(node)
+}
+
+func validateNumericBounds(node map[string]any) error {
 	for _, key := range []string{"minimum", "maximum", "exclusiveMinimum"} {
 		if raw, ok := node[key]; ok {
 			if _, ok := numberValue(raw); !ok {
@@ -149,6 +199,10 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func validateLengthBounds(node map[string]any) error {
 	for _, key := range []string{"minItems", "maxItems", "minLength", "maxLength"} {
 		if raw, ok := node[key]; ok {
 			if _, ok := nonnegativeInteger(raw); !ok {
@@ -156,6 +210,10 @@ func validateSchemaNode(node map[string]any, depth int) error {
 			}
 		}
 	}
+	return nil
+}
+
+func validatePairedBounds(node map[string]any) error {
 	for _, pair := range [][2]string{{"minItems", "maxItems"}, {"minLength", "maxLength"}} {
 		minValue, hasMin := node[pair[0]]
 		maxValue, hasMax := node[pair[1]]
@@ -171,6 +229,23 @@ func validateSchemaNode(node map[string]any, depth int) error {
 }
 
 func validateValue(value any, schema map[string]any, path string) error {
+	if err := validateScalarAssertions(value, schema, path); err != nil {
+		return err
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		return validateObjectValue(typed, schema, path)
+	case []any:
+		return validateArrayValue(typed, schema, path)
+	case string:
+		return validateStringValue(typed, schema, path)
+	case json.Number:
+		return validateNumberValue(typed, schema, path)
+	}
+	return nil
+}
+
+func validateScalarAssertions(value any, schema map[string]any, path string) error {
 	if raw, ok := schema["enum"]; ok {
 		values, ok := raw.([]any)
 		if !ok {
@@ -193,110 +268,138 @@ func validateValue(value any, schema map[string]any, path string) error {
 	if typeName, ok := schema["type"].(string); ok && !matchesType(value, typeName) {
 		return fmt.Errorf("%s: value does not match type %q", path, typeName)
 	}
-	switch typed := value.(type) {
-	case map[string]any:
-		// Assertions are checked rather than forced: ValidateJSON is exported,
-		// so a schema that never passed SchemaGate.Parse can reach here and
-		// must produce an error rather than a panic.
-		if required, ok := schema["required"].([]any); ok {
-			for _, name := range required {
-				key, ok := name.(string)
-				if !ok {
-					return fmt.Errorf("%s: required entries must be strings", path)
-				}
-				if _, exists := typed[key]; !exists {
-					return fmt.Errorf("%s: required property %q is missing", path, key)
-				}
-			}
-		}
-		if properties, ok := schema["properties"].(map[string]any); ok {
-			for name, child := range properties {
-				childValue, exists := typed[name]
-				if !exists {
-					continue
-				}
-				childSchema, ok := child.(map[string]any)
-				if !ok {
-					return fmt.Errorf("%s.%s: property schema must be an object", path, name)
-				}
-				if err := validateValue(childValue, childSchema, path+"."+name); err != nil {
-					return err
-				}
-			}
-		}
-		if additional, exists := schema["additionalProperties"]; exists {
-			allowed, ok := additional.(bool)
+	return nil
+}
+
+func validateObjectValue(typed map[string]any, schema map[string]any, path string) error {
+	if err := validateRequiredProperties(typed, schema, path); err != nil {
+		return err
+	}
+	if err := validateDeclaredProperties(typed, schema, path); err != nil {
+		return err
+	}
+	return validateAdditionalProperties(typed, schema, path)
+}
+
+func validateRequiredProperties(typed map[string]any, schema map[string]any, path string) error {
+	// Assertions are checked rather than forced: ValidateJSON is exported,
+	// so a schema that never passed SchemaGate.Parse can reach here and
+	// must produce an error rather than a panic.
+	if required, ok := schema["required"].([]any); ok {
+		for _, name := range required {
+			key, ok := name.(string)
 			if !ok {
-				return fmt.Errorf("%s: additionalProperties must be a boolean", path)
+				return fmt.Errorf("%s: required entries must be strings", path)
 			}
-			if !allowed {
-				properties, _ := schema["properties"].(map[string]any)
-				for name := range typed {
-					if _, declared := properties[name]; !declared {
-						return fmt.Errorf("%s: additional property %q is not allowed", path, name)
-					}
+			if _, exists := typed[key]; !exists {
+				return fmt.Errorf("%s: required property %q is missing", path, key)
+			}
+		}
+	}
+	return nil
+}
+
+func validateDeclaredProperties(typed map[string]any, schema map[string]any, path string) error {
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		for name, child := range properties {
+			childValue, exists := typed[name]
+			if !exists {
+				continue
+			}
+			childSchema, ok := child.(map[string]any)
+			if !ok {
+				return fmt.Errorf("%s.%s: property schema must be an object", path, name)
+			}
+			if err := validateValue(childValue, childSchema, path+"."+name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateAdditionalProperties(typed map[string]any, schema map[string]any, path string) error {
+	if additional, exists := schema["additionalProperties"]; exists {
+		allowed, ok := additional.(bool)
+		if !ok {
+			return fmt.Errorf("%s: additionalProperties must be a boolean", path)
+		}
+		if !allowed {
+			properties, _ := schema["properties"].(map[string]any)
+			for name := range typed {
+				if _, declared := properties[name]; !declared {
+					return fmt.Errorf("%s: additional property %q is not allowed", path, name)
 				}
 			}
 		}
-	case []any:
-		if raw, exists := schema["minItems"]; exists {
-			minimum, ok := nonnegativeInteger(raw)
-			if !ok || len(typed) < minimum {
-				return fmt.Errorf("%s: array has fewer than minItems", path)
+	}
+	return nil
+}
+
+func validateArrayValue(typed []any, schema map[string]any, path string) error {
+	if raw, exists := schema["minItems"]; exists {
+		minimum, ok := nonnegativeInteger(raw)
+		if !ok || len(typed) < minimum {
+			return fmt.Errorf("%s: array has fewer than minItems", path)
+		}
+	}
+	if raw, exists := schema["maxItems"]; exists {
+		maximum, ok := nonnegativeInteger(raw)
+		if !ok || len(typed) > maximum {
+			return fmt.Errorf("%s: array has more than maxItems", path)
+		}
+	}
+	if itemSchema, ok := schema["items"].(map[string]any); ok {
+		for index, item := range typed {
+			if err := validateValue(item, itemSchema, fmt.Sprintf("%s[%d]", path, index)); err != nil {
+				return err
 			}
 		}
-		if raw, exists := schema["maxItems"]; exists {
-			maximum, ok := nonnegativeInteger(raw)
-			if !ok || len(typed) > maximum {
-				return fmt.Errorf("%s: array has more than maxItems", path)
-			}
+	}
+	return nil
+}
+
+func validateStringValue(typed string, schema map[string]any, path string) error {
+	length := utf8.RuneCountInString(typed)
+	if raw, exists := schema["minLength"]; exists {
+		minimum, ok := nonnegativeInteger(raw)
+		if !ok || length < minimum {
+			return fmt.Errorf("%s: string is shorter than minLength", path)
 		}
-		if itemSchema, ok := schema["items"].(map[string]any); ok {
-			for index, item := range typed {
-				if err := validateValue(item, itemSchema, fmt.Sprintf("%s[%d]", path, index)); err != nil {
-					return err
-				}
-			}
+	}
+	if raw, exists := schema["maxLength"]; exists {
+		maximum, ok := nonnegativeInteger(raw)
+		if !ok || length > maximum {
+			return fmt.Errorf("%s: string is longer than maxLength", path)
 		}
-	case string:
-		length := utf8.RuneCountInString(typed)
-		if raw, exists := schema["minLength"]; exists {
-			minimum, ok := nonnegativeInteger(raw)
-			if !ok || length < minimum {
-				return fmt.Errorf("%s: string is shorter than minLength", path)
-			}
+	}
+	if pattern, ok := schema["pattern"].(string); ok {
+		matched, err := regexp.MatchString(pattern, typed)
+		if err != nil || !matched {
+			return fmt.Errorf("%s: value does not match pattern", path)
 		}
-		if raw, exists := schema["maxLength"]; exists {
-			maximum, ok := nonnegativeInteger(raw)
-			if !ok || length > maximum {
-				return fmt.Errorf("%s: string is longer than maxLength", path)
-			}
+	}
+	return nil
+}
+
+func validateNumberValue(typed json.Number, schema map[string]any, path string) error {
+	number, _ := typed.Float64()
+	if raw, ok := schema["minimum"]; ok {
+		minimum, _ := numberValue(raw)
+		if number < minimum {
+			return fmt.Errorf("%s: value is below minimum", path)
 		}
-		if pattern, ok := schema["pattern"].(string); ok {
-			matched, err := regexp.MatchString(pattern, typed)
-			if err != nil || !matched {
-				return fmt.Errorf("%s: value does not match pattern", path)
-			}
+	}
+	if raw, ok := schema["maximum"]; ok {
+		maximum, _ := numberValue(raw)
+		if number > maximum {
+			return fmt.Errorf("%s: value is above maximum", path)
 		}
-	case json.Number:
-		number, _ := typed.Float64()
-		if raw, ok := schema["minimum"]; ok {
-			minimum, _ := numberValue(raw)
-			if number < minimum {
-				return fmt.Errorf("%s: value is below minimum", path)
-			}
-		}
-		if raw, ok := schema["maximum"]; ok {
-			maximum, _ := numberValue(raw)
-			if number > maximum {
-				return fmt.Errorf("%s: value is above maximum", path)
-			}
-		}
-		if raw, ok := schema["exclusiveMinimum"]; ok {
-			minimum, valid := numberValue(raw)
-			if !valid || number <= minimum {
-				return fmt.Errorf("%s: value is not above exclusiveMinimum", path)
-			}
+	}
+	if raw, ok := schema["exclusiveMinimum"]; ok {
+		minimum, valid := numberValue(raw)
+		if !valid || number <= minimum {
+			return fmt.Errorf("%s: value is not above exclusiveMinimum", path)
 		}
 	}
 	return nil

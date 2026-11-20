@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
+	permissionsv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/permissions/permissionsv1connect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -708,6 +710,22 @@ func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
 	AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("PurgeData status=%d want 403", rec.Code)
+	}
+}
+
+func TestPermissionProjectionConnectProceduresAreAgentReadable(t *testing.T) {
+	procedures := []string{
+		permissionsv1connect.PermissionProjectionServiceListPermissionProjectionProcedure,
+		permissionsv1connect.PermissionProjectionServiceReadPermissionProjectionProcedure,
+	}
+	agent := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "operator", Verified: true}
+	for _, procedure := range procedures {
+		req := httptest.NewRequest(http.MethodPost, procedure, nil).WithContext(identity.WithPrincipal(context.Background(), agent))
+		rec := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Errorf("%s: status=%d want owner-backed agent read admission; body=%s", procedure, rec.Code, rec.Body.String())
+		}
 	}
 }
 

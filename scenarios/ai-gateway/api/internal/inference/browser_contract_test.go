@@ -9,6 +9,8 @@ import (
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
+
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -16,7 +18,7 @@ import (
 )
 
 func TestBrowserRoleCatalogMapsOnlyToExistingInferenceRoutes(t *testing.T) {
-	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	catalog, err := rolecatalog.LoadCatalog("../../../config/inference-role-catalog.json")
 	require.NoError(t, err)
 	require.NoError(t, catalog.Validate())
 
@@ -35,7 +37,7 @@ func TestBrowserRoleCatalogMapsOnlyToExistingInferenceRoutes(t *testing.T) {
 	require.Equal(t, []string{"decide.local", "decide.jev.edenai", "decide.jev.typesafe", "decide.clef.cloudflare", "classify.fast"}, resourceRoles("browser.decide"))
 	require.True(t, catalog.Roles["browser.decide"].IsDecision())
 	require.Equal(t, []string{"chat.default", "extract.structured", "extract.structured", "extract.structured"}, resourceRoles("browser.plan"))
-	require.Equal(t, []string{"extract.structured", "extract.structured", "extract.structured", "extract.structured"}, resourceRoles("browser.extract"))
+	require.Equal(t, []string{"chat.default", "extract.structured", "extract.structured", "extract.structured"}, resourceRoles("browser.extract"))
 }
 
 func TestBrowserRunRolesRequireCorrelationFieldsBeforeRepositoryDispatch(t *testing.T) {
@@ -112,11 +114,11 @@ func TestBrowserRolesFailClosedWhenSelectedSourceHasNoCandidate(t *testing.T) {
 	for _, role := range []string{"browser.locate", "browser.plan", "browser.extract", "browser.decide"} {
 		t.Run(role, func(t *testing.T) {
 			runner := &providermocks.FakeRunner{}
-			catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-				role: {Candidates: []Candidate{{Provider: providers.ProviderOllama, ResourceRole: "vision.default", Reason: "local-only fixture"}}},
+			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+				role: {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllama, ResourceRole: "vision.default", Reason: "local-only fixture"}}},
 			}}
 			if role == "browser.decide" {
-				catalog.Roles[role] = InferenceRole{Kind: RoleKindDecision, Candidates: []Candidate{{Provider: providers.ProviderOllaya, ResourceRole: "decide.local", Reason: "local-only fixture"}}}
+				catalog.Roles[role] = rolecatalog.InferenceRole{Kind: rolecatalog.RoleKindDecision, Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOllaya, ResourceRole: "decide.local", Reason: "local-only fixture"}}}
 			}
 			repository, err := NewResourceRepository(catalog, []providers.Adapter{
 				{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
@@ -162,8 +164,8 @@ func TestBrowserRunRolesDoNotFallbackAfterUncertainMeteredOutcome(t *testing.T) 
 			defer meteredServer.Close()
 
 			runner := &providermocks.FakeRunner{DefaultOK: true, Default: providers.Result{Stdout: `{"choices":[{"message":{"content":"{}"}}]}`}}
-			catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-				test.role: {Candidates: []Candidate{
+			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+				test.role: {Candidates: []rolecatalog.Candidate{
 					{Provider: providers.ProviderMetered, ResourceRole: test.meteredRole, Reason: "fixture account route"},
 					{Provider: providers.ProviderOpenRouter, ResourceRole: test.meteredRole, Reason: "fixture BYOK fallback"},
 				}},

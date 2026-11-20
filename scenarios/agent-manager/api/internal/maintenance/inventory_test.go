@@ -153,6 +153,91 @@ INSERT INTO runs VALUES(?, 'running','attached',0,0,'none','attached-run',NULL,N
 	}
 }
 
+// Live shape of 2026-11-20: 123k terminal attached rows retained harness PIDs.
+// Sending them grew the request past the owner limit and left every activity
+// observation incomplete. Terminal attached rows are not AM executors; live
+// attached rows and managed terminal residue are still observed.
+func TestActivityInventorySkipsTerminalAttachedHistory(t *testing.T) {
+	_, db := openGate(t, filepath.Join(t.TempDir(), "activity-attached-history.db"))
+	_, err := db.Exec(`CREATE TABLE runs(id TEXT,status TEXT,execution_mode TEXT,runner_pid INTEGER,runner_pgid INTEGER,finalization_status TEXT);
+CREATE TABLE workflow_executions(id TEXT,status TEXT);
+WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<500)
+INSERT INTO runs SELECT 'attached-done-'||x, CASE x%3 WHEN 0 THEN 'complete' WHEN 1 THEN 'needs_review' ELSE 'cancelled' END,'attached',700000+x,0,'none' FROM n;
+INSERT INTO runs VALUES('attached-live','running','attached',4242,0,'none'),('managed-residue','failed','codec_pipe',315576,315576,'none'),('attached-finalizing','complete','attached',4343,0,'pending');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var probed []string
+	observer := NewBatchedInventory(db, func(_ context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
+		out := make([]ExecutorEvidence, 0, len(refs))
+		for _, ref := range refs {
+			probed = append(probed, ref.ID)
+			out = append(out, ExecutorEvidence{ExecutorRef: ref, Alive: ref.ID == "attached-live"})
+		}
+		return out, nil
+	})
+	state, err := observer.ObserveActivity(t.Context())
+	if err != nil || !state.PhysicalComplete || len(state.Unknown) != 0 {
+		t.Fatalf("activity inventory incomplete: state=%+v err=%v", state, err)
+	}
+	if strings.Join(probed, ",") != "attached-finalizing,attached-live,managed-residue" {
+		t.Fatalf("probed=%v; want live attached, finalizing attached and managed residue only", probed)
+	}
+	if strings.Join(state.PhysicalRunIDs, ",") != "attached-live" || state.ObservedExecutors != 1 {
+		t.Fatalf("physical runs=%v executors=%d", state.PhysicalRunIDs, state.ObservedExecutors)
+	}
+}
+
+// One harness session re-attached three times keeps three live runs with one
+// process. The control plane proves the PID only inside the earliest run's
+// interval, so only that run is probed; the session counts as one executor.
+func TestControlPlaneProbesOneRunPerReattachedSession(t *testing.T) {
+	base := time.Date(2026, 11, 19, 0, 43, 29, 0, time.UTC)
+	runAt := func(offset time.Duration, session string, pid int) *domain.Run {
+		started := base.Add(offset)
+		return &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, ExecutionMode: domain.ExecutionModeAttached, HarnessKind: "opencode", HarnessSessionID: session, RunnerPID: pid, StartedAt: &started, Tag: "attached-" + session}
+	}
+	first, second, third := runAt(0, "opencode-a", 1271209), runAt(7*time.Hour, "opencode-a", 1271209), runAt(14*time.Hour, "opencode-a", 1271209)
+	other := runAt(time.Hour, "codex-b", 521025)
+	runs := []*domain.Run{third, second, other, first}
+	refs := make([]ExecutorRef, 0, len(runs))
+	for _, run := range runs {
+		refs = append(refs, ExecutorRef{WorkRef: WorkRef{ID: run.ID.String(), Kind: "run", Status: string(run.Status)}, PID: run.RunnerPID})
+	}
+	var sent []string
+	owner := &ControlPlaneObserver{
+		lookupBatch: func(context.Context, []ExecutorRef) ([]*domain.Run, error) { return runs, nil },
+		read: func(_ context.Context, input []byte) ([]byte, error) {
+			var request struct {
+				Executors []executorScopeRef `json:"executors"`
+			}
+			if err := json.Unmarshal(input, &request); err != nil {
+				t.Fatal(err)
+			}
+			items := make([]string, 0, len(request.Executors))
+			for _, ref := range request.Executors {
+				sent = append(sent, ref.RunID)
+				items = append(items, fmt.Sprintf(`{"runId":%q,"state":"present","pids":[%d],"reasons":[]}`, ref.RunID, ref.PID))
+			}
+			return []byte(`{"schemaVersion":"executor-scope-v1","identityVersion":"attached-key-v1","complete":true,"executors":[` + strings.Join(items, ",") + `]}`), nil
+		},
+	}
+	evidence, err := owner.Observe(t.Context(), refs)
+	if err != nil || len(evidence) != 4 {
+		t.Fatalf("evidence=%+v err=%v", evidence, err)
+	}
+	if len(sent) != 2 || !((sent[0] == first.ID.String() && sent[1] == other.ID.String()) || (sent[1] == first.ID.String() && sent[0] == other.ID.String())) {
+		t.Fatalf("sent=%v; want the earliest run of the re-attached session and the other session", sent)
+	}
+	alive := map[string]bool{}
+	for _, item := range evidence {
+		alive[item.ID] = item.Alive
+	}
+	if !alive[first.ID.String()] || !alive[other.ID.String()] || alive[second.ID.String()] || alive[third.ID.String()] {
+		t.Fatalf("alive=%v; re-attached duplicates must not add executors", alive)
+	}
+}
+
 func TestInventoryUnknownPhysicalEvidenceCannotDrain(t *testing.T) {
 	_, db := openGate(t, filepath.Join(t.TempDir(), "inventory.db"))
 	_, err := db.Exec(`CREATE TABLE runs(id TEXT, status TEXT, runner_pid INTEGER, runner_pgid INTEGER, finalization_status TEXT);

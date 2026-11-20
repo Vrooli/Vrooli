@@ -192,9 +192,11 @@ func TestEmbedGeneratedConnectRouteRejectsInvalidProvenanceBeforeRepository(t *t
 func TestEveryTypedRoutePreservesCallerSourceAndSharedProfile(t *testing.T) {
 	repository := &sourceCaptureRepository{}
 	connectHandler := handler.NewConnectHandler(inference.NewService(repository))
-	run := connect.NewRequest(&inferencev1.RunRequest{Source: "source", SchemaJson: `{"type":"object"}`, Role: "extract.structured",
+	run := connect.NewRequest(&inferencev1.RunRequest{
+		Source: "source", SchemaJson: `{"type":"object"}`, Role: "extract.structured",
 		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
-		PrivacyProvenance: "run-source-basis"})
+		PrivacyProvenance: "run-source-basis",
+	})
 	run.Header().Set("X-Vrooli-AI-Source", "own-key")
 	_, err := connectHandler.Run(t.Context(), run)
 	require.NoError(t, err)
@@ -212,20 +214,26 @@ func TestEveryTypedRoutePreservesCallerSourceAndSharedProfile(t *testing.T) {
 	require.Equal(t, []string{"own-key", "own-key"}, repository.sources)
 	require.Equal(t, []string{"run-source-basis", "batch-source-basis"}, repository.privacyProvenances)
 
-	question := &inferencev1.DecisionQuestion{Id: "kind", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE,
-		Instructions: "Choose one", Options: []*inferencev1.DecisionOption{{Label: "yes", Description: "yes"}, {Label: "no", Description: "no"}}}
-	decide := connect.NewRequest(&inferencev1.DecideRequest{Role: "decide.fast", State: "state", Questions: []*inferencev1.DecisionQuestion{question},
+	question := &inferencev1.DecisionQuestion{
+		Id: "kind", Type: inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE,
+		Instructions: "Choose one", Options: []*inferencev1.DecisionOption{{Label: "yes", Description: "yes"}, {Label: "no", Description: "no"}},
+	}
+	decide := connect.NewRequest(&inferencev1.DecideRequest{
+		Role: "decide.fast", State: "state", Questions: []*inferencev1.DecisionQuestion{question},
 		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
-		PrivacyProvenance: "decision-source-basis"})
+		PrivacyProvenance: "decision-source-basis",
+	})
 	decide.Header().Set("X-Vrooli-AI-Source", "own-key")
 	_, err = connectHandler.Decide(t.Context(), decide)
 	require.NoError(t, err)
 	require.Equal(t, []string{"own-key", "own-key", "own-key"}, repository.sources)
 	require.Equal(t, []string{"run-source-basis", "batch-source-basis", "decision-source-basis"}, repository.privacyProvenances)
 
-	decideBatch := connect.NewRequest(&inferencev1.DecideBatchRequest{Role: "decide.fast", Questions: []*inferencev1.DecisionQuestion{question},
+	decideBatch := connect.NewRequest(&inferencev1.DecideBatchRequest{
+		Role: "decide.fast", Questions: []*inferencev1.DecisionQuestion{question},
 		Items: []*inferencev1.DecideBatchItem{{State: "state"}}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
-		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "decision-batch-source-basis"})
+		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "decision-batch-source-basis",
+	})
 	decideBatch.Header().Set("X-Vrooli-AI-Source", "own-key")
 	_, err = connectHandler.DecideBatch(t.Context(), decideBatch)
 	require.NoError(t, err)

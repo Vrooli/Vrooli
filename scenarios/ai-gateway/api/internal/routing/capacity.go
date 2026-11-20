@@ -35,13 +35,6 @@ const (
 	CapacityAdvisoryReclaimUnavailable CapacityVerdict = "advisory_reclaim_unavailable"
 )
 
-// blocksLocal reports whether a verdict should keep a local candidate out of the
-// eligible set. Unknown/fit/reclaim_required are admissible; insufficient and
-// advisory-reclaim-unavailable are not.
-func (v CapacityVerdict) blocksLocal() bool {
-	return v == CapacityInsufficient || v == CapacityAdvisoryReclaimUnavailable
-}
-
 // CapacityRequest is the footprint a local route wants to reserve.
 type CapacityRequest struct {
 	OwnerID       string

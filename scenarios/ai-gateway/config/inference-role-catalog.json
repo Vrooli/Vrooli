@@ -438,7 +438,7 @@
         {
           "provider": "ollama",
           "resource_role": "code.local",
-          "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at two sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
+          "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at both small and large sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
         }
       ]
     },
@@ -604,8 +604,8 @@
       "candidates": [
         {
           "provider": "ollama",
-          "resource_role": "extract.structured",
-          "reason": "Local structured extraction keeps page content on the device."
+          "resource_role": "chat.default",
+          "reason": "Local structured extraction keeps page content on the device; ollama has no extract.structured role, so the local generation role carries the schema."
         },
         {
           "provider": "openrouter",

@@ -14,7 +14,7 @@ The public feature-route contract is documented in
 document owns request paths and their relation to the LPBS feature contract;
 this README remains the scenario entry point.
 
-Two inference capabilities share one role catalog and candidate walk:
+The gateway exposes inference capabilities over one role catalog and candidate walk:
 
 - **Typed inference** (`inference run`): a generative model produces a value
   that is validated against a JSON Schema. Use it when the answer needs

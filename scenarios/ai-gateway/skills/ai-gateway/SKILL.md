@@ -164,11 +164,7 @@ Add `--max-cost-usd` when the caller has a budget; the route refuses instead of 
 One entry per call site attempt, success or not:
 
 ```
-vrooli-memory journal note "<two lines>" --scope ai-gateway-usage --kind <role-note|provider-note> \
-  --trigger "<scenario/operation: what the model had to produce>" \
-  --approach "<role; profile; privacy; single|batch; schema shape>" \
-  --evidence "<event_id or request_id; provider/model; validated; cost_micros>" \
-  --outcome "<validated|validation_failed|refused:<construct>|unavailable:<provider>; next time: <one line>>"
+vrooli-memory journal note "<body>" --scope ai-gateway-usage --kind work-record --trigger "<trigger>" --approach "<approach>" --evidence "<evidence>" --outcome "<outcome>"
 ```
 
 Entry kinds: `role-note` when the lesson is about a role or schema; `provider-note` when it is about a provider, breaker, or capacity. Curation leaves: pin a role-note on its third confirmation; supersede a note whose profile advice stopped routing; propose a rule when one operation label keeps needing one facet (`prompt-manager skill read vrooli-memory` §2). `run vrooli-memory.scope-bootstrap` creates starter rules for this scope. [S3]

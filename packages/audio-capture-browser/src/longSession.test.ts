@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeVoiceTransport as FakeWebSocket, type FakeVoiceConnection, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
+import { FakeVoiceTransport as FakeWebSocket, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
 import { MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
 import { MAX_RETAINED_TURN_AUDIO_BYTES, PCM_WIRE_BATCH_SAMPLES, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import { readStreamDiagnosticTelemetry } from "./streamDiagnostic";

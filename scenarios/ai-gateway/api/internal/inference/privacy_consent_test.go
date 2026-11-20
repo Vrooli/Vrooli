@@ -3,7 +3,6 @@ package inference
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -11,17 +10,13 @@ import (
 	"ai-gateway/internal/privacyconsent"
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/identity"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	_ "modernc.org/sqlite"
 )
-
-type invalidConsent struct{}
-
-func (invalidConsent) Verify(context.Context, string, string) error {
-	return errors.New("invalid consent")
-}
 
 func TestConfidentialRemoteConsentConformanceBeforeProviderDispatch(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:typed-consent?mode=memory&cache=shared")
@@ -66,8 +61,8 @@ func TestConfidentialRemoteConsentConformanceBeforeProviderDispatch(t *testing.T
 				DefaultOK: true,
 				Default:   providers.Result{Stdout: `{"choices":[{"message":{"content":"{\"ok\":true}"}}],"usage":{"prompt_tokens":2,"completion_tokens":1}}`},
 			}
-			catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-				"extract.structured": {Candidates: []Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "hosted"}}},
+			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+				"extract.structured": {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "hosted"}}},
 			}}
 			repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner}})
 			require.NoError(t, err)
@@ -103,8 +98,8 @@ func TestConfidentialRemoteConsentConformanceBeforeProviderDispatch(t *testing.T
 
 	// SECRET remains local-only even with an otherwise valid, source-bound grant.
 	runner := &providermocks.FakeRunner{DefaultOK: true}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"extract.structured": {Candidates: []Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "hosted"}}},
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"extract.structured": {Candidates: []rolecatalog.Candidate{{Provider: providers.ProviderOpenRouter, ResourceRole: "extract.structured", Reason: "hosted"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOpenRouter, Locality: "remote", CommandName: "resource-openrouter", Runner: runner}})
 	require.NoError(t, err)

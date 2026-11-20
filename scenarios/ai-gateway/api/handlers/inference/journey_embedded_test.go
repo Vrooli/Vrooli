@@ -22,6 +22,8 @@ import (
 	"ai-gateway/internal/catalog"
 	internalinference "ai-gateway/internal/inference"
 	"ai-gateway/internal/providers"
+	"ai-gateway/internal/rolecatalog"
+
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	apidb "github.com/vrooli/api-core/database"
@@ -41,7 +43,7 @@ func packagedGateway(t *testing.T, bundle catalog.Bundle, resolve func(context.C
 
 func packagedGatewayServer(t *testing.T, bundle catalog.Bundle, resolve func(context.Context, string, string) (string, error), door *providers.HostedDoorClient, ledgers ...internalinference.AttemptLedger) *httptest.Server {
 	t.Helper()
-	var roles internalinference.RoleCatalog
+	var roles rolecatalog.RoleCatalog
 	if err := json.Unmarshal(bundle.Roles, &roles); err != nil {
 		t.Fatal(err)
 	}
@@ -397,6 +399,7 @@ func TestJ18_HostedUncertaintyRecoversThroughGeneratedConnectClient(t *testing.T
 		t.Fatal(err)
 	}
 	sqlDB, ledger = openLedger()
+	defer func() { _ = sqlDB.Close() }()
 	server = packagedGatewayServer(t, bundle, nil, door, ledger)
 	client = inferenceconnect.NewInferenceServiceClient(server.Client(), server.URL)
 	second, err := client.Run(ctx, request)

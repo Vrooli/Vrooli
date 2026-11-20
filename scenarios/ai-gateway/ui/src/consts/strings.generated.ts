@@ -14,11 +14,29 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   actions: {
     refresh: "actions.refresh",
+  },
+  profiles: {
+    localOnly: "profiles.localOnly",
+    localOnlyDesc: "profiles.localOnlyDesc",
+    localFirst: "profiles.localFirst",
+    localFirstDesc: "profiles.localFirstDesc",
+    remoteOnly: "profiles.remoteOnly",
+    remoteOnlyDesc: "profiles.remoteOnlyDesc",
+    qualityFirst: "profiles.qualityFirst",
+    qualityFirstDesc: "profiles.qualityFirstDesc",
+    cheapFirst: "profiles.cheapFirst",
+    cheapFirstDesc: "profiles.cheapFirstDesc",
+    privacySensitive: "profiles.privacySensitive",
+    privacySensitiveDesc: "profiles.privacySensitiveDesc",
+  },
+  privacyClasses: {
+    public: "privacyClasses.public",
+    internal: "privacyClasses.internal",
+    confidential: "privacyClasses.confidential",
+    secret: "privacyClasses.secret",
   },
   states: {
     allowed: "states.allowed",
@@ -26,12 +44,12 @@ export const strings = {
     loading: "states.loading",
     none: "states.none",
     unknown: "states.unknown",
+    breakerOpen: "states.breakerOpen",
+    breakerHalfOpen: "states.breakerHalfOpen",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
-    sidebarNavLabel: "layout.sidebarNavLabel",
     bottomNavLabel: "layout.bottomNavLabel",
-    mainLabel: "layout.mainLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
       providers: "layout.nav.providers",

@@ -11,6 +11,7 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	"github.com/vrooli/vrooli/packages/proto/searcheval"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestAcceptedCallerCaseAllowsAgentManagerSequenceZero(t *testing.T) {
@@ -124,6 +125,46 @@ func TestModelEvalReadinessPropagatesSearchHubInventoryFailure(t *testing.T) {
 	}
 }
 
+func TestModelEvalReadinessReportsSuiteInventoryBoundaries(t *testing.T) {
+	tests := []struct {
+		name        string
+		suites      []*evalv1.EvalSuite
+		wantInvalid []string
+		wantMissing []string
+		wantDeficit int
+	}{
+		{name: "nil and empty suite identities", suites: []*evalv1.EvalSuite{nil, {}, {SuiteId: " "}}, wantInvalid: []string{"suite-inventory-has-empty-id", "suite-inventory-has-empty-id", "suite-inventory-has-empty-id"}, wantDeficit: modelEvalMinimumRetrievalSuites - 3},
+		{name: "duplicate trimmed identity", suites: []*evalv1.EvalSuite{{SuiteId: "suite-a"}, {SuiteId: " suite-a "}}, wantInvalid: []string{"suite-a:duplicate-suite-id"}, wantMissing: []string{" suite-a ", "suite-a"}, wantDeficit: modelEvalMinimumRetrievalSuites - 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &modelEvalClientStub{suites: tt.suites, denominator: map[string]*evalv1.GetFixedDenominatorResponse{}}
+			got, err := newSearchHubModelEvalSource(client).Readiness(context.Background(), ModelEvalRoleDenominators{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Ready || got.SuiteInventoryDeficit != tt.wantDeficit {
+				t.Fatalf("readiness=%+v, want blocked with deficit %d", got, tt.wantDeficit)
+			}
+			if !equalStrings(got.InvalidDenominatorIDs, tt.wantInvalid) || !equalStrings(got.MissingDenominatorIDs, tt.wantMissing) {
+				t.Fatalf("invalid IDs=%v / missing IDs=%v, want %v / %v", got.InvalidDenominatorIDs, got.MissingDenominatorIDs, tt.wantInvalid, tt.wantMissing)
+			}
+		})
+	}
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestModelEvalCorpusValidationKeepsStaleExpectedDocumentsInDenominator(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	caseRecord := &evalv1.EvalCase{CaseId: "case-1", Query: "query", Status: "reviewed", ExpectIds: []string{"deleted-doc"}}
@@ -148,5 +189,35 @@ func TestModelEvalCorpusValidationKeepsStaleExpectedDocumentsInDenominator(t *te
 	}
 	if reason := validateModelEvalCorpusValidation(suite, snapshot, validation, now); reason != "" {
 		t.Fatalf("stale expected document removed or rejected from fixed denominator: %s", reason)
+	}
+	tests := []struct {
+		name   string
+		mutate func(*evalv1.GetLatestCorpusValidationResponse)
+		want   string
+	}{
+		{name: "missing receipt", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.Found = false }, want: "receipt-missing"},
+		{name: "suite identity", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.SuiteId = "other" }, want: "suite-identity-mismatch"},
+		{name: "suite digest", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.SuiteSha256 = strings.Repeat("c", 64) }, want: "suite-digest-mismatch"},
+		{name: "denominator cases", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.DenominatorCaseIds = []string{"other"} }, want: "denominator-case-set-mismatch"},
+		{name: "receipt digest", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.ReceiptSha256 = "bad" }, want: "receipt-digest-invalid"},
+		{name: "rollup denominator", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) {
+			v.Rollup = &evalv1.CorpusValidationRollup{Positives: 1}
+		}, want: "rollup-denominator-mismatch"},
+		{name: "invalid timestamp", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) { v.CreatedAt = "invalid" }, want: "validation-timestamp-invalid"},
+		{name: "stale timestamp", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) {
+			v.CreatedAt = now.Add(-modelEvalCorpusValidationMaxAge - time.Second).Format(time.RFC3339Nano)
+		}, want: "validation-receipt-stale"},
+		{name: "future timestamp", mutate: func(v *evalv1.GetLatestCorpusValidationResponse) {
+			v.CreatedAt = now.Add(time.Second).Format(time.RFC3339Nano)
+		}, want: "validation-receipt-stale"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			candidate := proto.Clone(validation).(*evalv1.GetLatestCorpusValidationResponse)
+			tt.mutate(candidate)
+			if got := validateModelEvalCorpusValidation(suite, snapshot, candidate, now); got != tt.want {
+				t.Fatalf("reason = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

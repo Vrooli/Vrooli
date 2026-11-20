@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-floors check setup open orient temporal-models endpoints gateway-catalog verify-gateway-catalog provider-catalog verify-provider-catalog
 
 .DEFAULT_GOAL := help
 
@@ -36,6 +36,11 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make gateway-catalog            Generate the profile catalog and capability reference\n"
+	@printf "  make verify-gateway-catalog     Verify generated operator catalogs are current\n"
+	@printf "  make provider-catalog           Project resource provider declarations into the gateway\n"
+	@printf "  make verify-provider-catalog    Verify the deployed provider catalog is current\n"
+	@printf "  make coverage-floors            Check enforced package coverage floors\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -67,7 +72,7 @@ fmt: fmt-go fmt-ui ## Format all code
 
 lint: lint-go lint-ui ## Lint all code
 
-check: fmt lint test ## Run full quality gates
+check: fmt lint test verify-gateway-catalog verify-provider-catalog coverage-floors temporal-models ## Run full quality and drift gates
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
@@ -84,11 +89,36 @@ orient: ## Show generated-scenario orientation progress
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 
+gateway-catalog: ## Generate the UI profile catalog and capability reference from data
+	@cd api && GOWORK=off go run ./cmd/gen-gateway-catalog
+
+verify-gateway-catalog: ## Verify generated profile catalog and capability reference are current
+	@cd api && GOWORK=off go run ./cmd/gen-gateway-catalog -check
+
 provider-catalog: ## Project resource-owned provider declarations into the deployed gateway
 	@cd api && GOWORK=off go run ./cmd/gen-provider-catalog
 
 verify-provider-catalog: ## Verify the deployed catalog matches its canonical owners
 	@cd api && GOWORK=off go run ./cmd/gen-provider-catalog --check
+
+coverage-floors: ## Check enforced package coverage floors (ratcheted to measured baseline)
+	@cd api && for spec in \
+		"./internal/routing 70.5" \
+		"./internal/inference 76.0" \
+		"./internal/providers 59.0" \
+		"./internal/rolecatalog 66.0" \
+		"./internal/gateway 58.0" \
+		"./internal/gatewaycatalog 84.0" \
+		"./handlers/routing 40.0" \
+		"./handlers/inference 84.0"; do \
+		pkg=$$(printf "%s" "$$spec" | awk '{print $$1}'); \
+		threshold=$$(printf "%s" "$$spec" | awk '{print $$2}'); \
+		out=$$(go test -cover -count=1 "$$pkg"); \
+		printf "%s\n" "$$out"; \
+		pct=$$(printf "%s\n" "$$out" | awk -F'coverage: |% of statements' '/coverage:/ {print $$2}'); \
+		awk -v p="$$pct" -v t="$$threshold" 'BEGIN { exit (p+0 >= t+0) ? 0 : 1 }' \
+			|| { printf "coverage gate failed: %s %s%% < %s%%\n" "$$pkg" "$$pct" "$$threshold"; exit 1; }; \
+	done
 
 run: start
 

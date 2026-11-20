@@ -26,21 +26,7 @@ var (
 func (s *Scanner) ScanProject(ctx context.Context, root string) (ScanReport, error) {
 	var findings []*conformancev1.ConformanceFinding
 	if err := walkPolicyFiles(ctx, root, func(rel, line string, lineNo int) {
-		if isPolicyAuthority(rel) {
-			return
-		}
-		code := codePortion(line)
-		if isScenarioRuntime(rel) && (strings.Contains(code, `"/api/embeddings"`) || strings.Contains(code, `"/api/generate"`) || strings.Contains(code, `"/api/chat"`)) {
-			findings = append(findings, policyFinding("AI_OLLAMA_GATEWAY_ONLY", "high", rel, lineNo, "Raw Ollama endpoint usage bypasses resource-ollama gateway policy.", "Use resource-ollama gateway or AI Gateway role routing."))
-		}
-		if isScenarioRuntime(rel) && (ollamaDimensionPattern.MatchString(code) || containsOllamaModelFact(code)) {
-			findings = append(findings, policyFinding("AI_OLLAMA_POLICY_FACTS", "high", rel, lineNo, "Local Ollama model or embedding policy fact is hard-coded.", "Resolve model and embedding metadata through resource-ollama policy."))
-		}
-		if isOpenRouterRuntime(rel) && !isPolicyAuthority(rel) {
-			if openRouterSlugPattern.MatchString(code) || openRouterModelEnv.MatchString(code) || (strings.Contains(code, "resource-openrouter") && strings.Contains(code, "generate") && strings.Contains(code, "--model")) {
-				findings = append(findings, policyFinding("AI_OPENROUTER_POLICY_FACTS", "high", rel, lineNo, "Concrete OpenRouter model policy is hard-coded in a runtime surface.", "Resolve a role through resource-openrouter policy instead of selecting a concrete model."))
-			}
-		}
+		findings = append(findings, policyLineFindings(rel, line, lineNo)...)
 	}); err != nil {
 		return ScanReport{}, err
 	}
@@ -53,42 +39,95 @@ func (s *Scanner) ScanProject(ctx context.Context, root string) (ScanReport, err
 	return ScanReport{Scenario: "repo", MaturityLevel: maturityLevel(findings), Findings: findings, Recommendations: recommendations(findings)}, nil
 }
 
+func policyLineFindings(rel, line string, lineNo int) []*conformancev1.ConformanceFinding {
+	if isPolicyAuthority(rel) {
+		return nil
+	}
+	code := codePortion(line)
+	var findings []*conformancev1.ConformanceFinding
+	if isScenarioRuntime(rel) {
+		findings = append(findings, ollamaPolicyFindings(rel, code, lineNo)...)
+	}
+	if isOpenRouterRuntime(rel) && hasOpenRouterPolicyFact(code) {
+		findings = append(findings, policyFinding("AI_OPENROUTER_POLICY_FACTS", "high", rel, lineNo, "Concrete OpenRouter model policy is hard-coded in a runtime surface.", "Resolve a role through resource-openrouter policy instead of selecting a concrete model."))
+	}
+	return findings
+}
+
+func ollamaPolicyFindings(rel, code string, lineNo int) []*conformancev1.ConformanceFinding {
+	var findings []*conformancev1.ConformanceFinding
+	if strings.Contains(code, `"/api/embeddings"`) || strings.Contains(code, `"/api/generate"`) || strings.Contains(code, `"/api/chat"`) {
+		findings = append(findings, policyFinding("AI_OLLAMA_GATEWAY_ONLY", "high", rel, lineNo, "Raw Ollama endpoint usage bypasses resource-ollama gateway policy.", "Use resource-ollama gateway or AI Gateway role routing."))
+	}
+	if ollamaDimensionPattern.MatchString(code) || containsOllamaModelFact(code) {
+		findings = append(findings, policyFinding("AI_OLLAMA_POLICY_FACTS", "high", rel, lineNo, "Local Ollama model or embedding policy fact is hard-coded.", "Resolve model and embedding metadata through resource-ollama policy."))
+	}
+	return findings
+}
+
+func hasOpenRouterPolicyFact(code string) bool {
+	return openRouterSlugPattern.MatchString(code) || openRouterModelEnv.MatchString(code) ||
+		(strings.Contains(code, "resource-openrouter") && strings.Contains(code, "generate") && strings.Contains(code, "--model"))
+}
+
 func walkPolicyFiles(ctx context.Context, root string, visit func(string, string, int)) error {
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor" || entry.Name() == "build" || entry.Name() == "dist" || entry.Name() == "coverage" || entry.Name() == "data" || strings.HasPrefix(filepath.ToSlash(path), filepath.ToSlash(filepath.Join(root, "resources", "ollama"))) || strings.HasPrefix(filepath.ToSlash(path), filepath.ToSlash(filepath.Join(root, "resources", "openrouter"))) {
-				return filepath.SkipDir
-			}
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil || !policyRuntimeDirectory(rel) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil || !policyRuntimeFile(rel) {
-			return nil
-		}
-		file, openErr := os.Open(path)
-		if openErr != nil {
-			return openErr
-		}
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
-		scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
-		lineNo := 0
-		for scanner.Scan() {
-			lineNo++
-			visit(filepath.ToSlash(rel), scanner.Text(), lineNo)
-		}
-		return scanner.Err()
+		return walkPolicyEntry(ctx, root, visit, path, entry, err)
 	})
+}
+
+func walkPolicyEntry(ctx context.Context, root string, visit func(string, string, int), path string, entry os.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if entry.IsDir() {
+		return walkPolicyDirectory(root, path, entry.Name())
+	}
+	return walkPolicyFile(root, path, visit)
+}
+
+func walkPolicyDirectory(root, path, name string) error {
+	if skipPolicyDirectory(path, name, root) {
+		return filepath.SkipDir
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || !policyRuntimeDirectory(rel) {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
+func skipPolicyDirectory(path, name, root string) bool {
+	switch name {
+	case ".git", "node_modules", "vendor", "build", "dist", "coverage", "data":
+		return true
+	}
+	path = filepath.ToSlash(path)
+	return strings.HasPrefix(path, filepath.ToSlash(filepath.Join(root, "resources", "ollama"))) ||
+		strings.HasPrefix(path, filepath.ToSlash(filepath.Join(root, "resources", "openrouter")))
+}
+
+func walkPolicyFile(root, path string, visit func(string, string, int)) error {
+	rel, err := filepath.Rel(root, path)
+	if err != nil || !policyRuntimeFile(rel) {
+		return nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
+	lineNo := 0
+	for scanner.Scan() {
+		lineNo++
+		visit(filepath.ToSlash(rel), scanner.Text(), lineNo)
+	}
+	return scanner.Err()
 }
 
 func policyRuntimeDirectory(rel string) bool {
@@ -154,13 +193,22 @@ func isOpenRouterRuntime(rel string) bool {
 }
 
 func isPolicyAuthority(rel string) bool {
-	if strings.HasPrefix(rel, "resources/") && filepath.Base(rel) == "model-policy.json" {
-		return true
-	}
-	if rel == "scenarios/image-tools/api/internal/models/registry.seed.json" {
-		return true
-	}
-	return strings.HasPrefix(rel, "resources/ollama/cli/internal/policy/") || strings.HasSuffix(rel, "_test.go") || strings.HasSuffix(rel, ".test.ts") || strings.HasSuffix(rel, ".test.tsx") || strings.HasSuffix(rel, ".spec.ts") || strings.HasSuffix(rel, ".spec.tsx") || strings.HasPrefix(rel, "scenarios/agent-manager/") || strings.HasPrefix(rel, "scenarios/ai-gateway/")
+	return isResourcePolicyAuthority(rel) || isScenarioPolicyAuthority(rel) || isPolicyTestFile(rel)
+}
+
+func isResourcePolicyAuthority(rel string) bool {
+	return strings.HasPrefix(rel, "resources/") && filepath.Base(rel) == "model-policy.json" ||
+		strings.HasPrefix(rel, "resources/ollama/cli/internal/policy/")
+}
+
+func isScenarioPolicyAuthority(rel string) bool {
+	return rel == "scenarios/image-tools/api/internal/models/registry.seed.json" ||
+		strings.HasPrefix(rel, "scenarios/agent-manager/") || strings.HasPrefix(rel, "scenarios/ai-gateway/")
+}
+
+func isPolicyTestFile(rel string) bool {
+	return strings.HasSuffix(rel, "_test.go") || strings.HasSuffix(rel, ".test.ts") ||
+		strings.HasSuffix(rel, ".test.tsx") || strings.HasSuffix(rel, ".spec.ts") || strings.HasSuffix(rel, ".spec.tsx")
 }
 
 func containsOllamaModelFact(line string) bool {

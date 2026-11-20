@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/identity"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // LPBSConsumerProvider verifies the signed LPBS browser access token used by
@@ -19,6 +20,31 @@ import (
 type LPBSConsumerProvider struct {
 	issuer string
 	cache  *consumeridentity.Cache
+}
+
+func (p *LPBSConsumerProvider) VerifyMeteredInferenceAssertion(req *http.Request, raw, operation string, owner monetization.CreditFeatureOwner) error {
+	if p == nil || p.cache == nil {
+		return consumeridentity.ErrKeySetUnavailable
+	}
+	claims, err := p.cache.Verify(req, raw)
+	if err != nil {
+		return err
+	}
+	return consumeridentity.ValidateCreditAssertionOwnerClaims(claims, consumeridentity.CreditAssertionOwnerBinding{
+		AppKey: owner.AppKey, FeatureID: owner.Feature.ID, OperationID: operation,
+		Source: consumeridentity.CreditAssertionSourceMeteredInference,
+	})
+}
+
+func (p *LPBSConsumerProvider) VerifyCreditAssertion(req *http.Request, raw string, expected consumeridentity.CreditAssertionExpectation) error {
+	if p == nil || p.cache == nil || req == nil || strings.TrimSpace(raw) == "" {
+		return identity.NewFailure(identity.FailureMissing, identity.SourceConsumerAccessToken)
+	}
+	claims, err := p.cache.Verify(req, raw)
+	if err != nil {
+		return err
+	}
+	return consumeridentity.ValidateCreditAssertionClaims(claims, expected)
 }
 
 func NewLPBSConsumerProvider(issuer string) *LPBSConsumerProvider {
@@ -57,6 +83,25 @@ func (p *LPBSConsumerProvider) VerifyRequest(ctx context.Context, req *http.Requ
 	if p == nil || p.cache == nil || req == nil {
 		return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, identity.SourceConsumerAccessToken)
 	}
+	raw := requestAccessToken(req)
+	if raw == "" {
+		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceConsumerAccessToken)
+	}
+	claims, err := p.cache.Verify(req, raw)
+	if err != nil {
+		return identity.Principal{}, identity.NewFailure(classifyConsumerTokenError(err), identity.SourceConsumerAccessToken)
+	}
+	subject := strings.TrimSpace(claims.UserID)
+	if subject == "" {
+		subject = strings.TrimSpace(claims.Subject)
+	}
+	if subject == "" {
+		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, identity.SourceConsumerAccessToken)
+	}
+	return identity.Principal{Kind: identity.ActorHuman, Subject: subject, Email: strings.TrimSpace(claims.Email), Verified: true, Source: identity.SourceConsumerAccessToken, Issuer: claims.Issuer}, nil
+}
+
+func requestAccessToken(req *http.Request) string {
 	raw := strings.TrimSpace(req.Header.Get("Authorization"))
 	if scheme, token, ok := strings.Cut(raw, " "); ok && strings.EqualFold(scheme, "Bearer") {
 		raw = strings.TrimSpace(token)
@@ -71,25 +116,15 @@ func (p *LPBSConsumerProvider) VerifyRequest(ctx context.Context, req *http.Requ
 			}
 		}
 	}
-	if raw == "" {
-		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceConsumerAccessToken)
+	return raw
+}
+
+func classifyConsumerTokenError(err error) identity.FailureClass {
+	if errors.Is(err, consumeridentity.ErrKeySetUnavailable) {
+		return identity.FailureUnavailable
 	}
-	claims, err := p.cache.Verify(req, raw)
-	if err != nil {
-		class := identity.FailureInvalid
-		if errors.Is(err, consumeridentity.ErrKeySetUnavailable) {
-			class = identity.FailureUnavailable
-		} else if errors.Is(err, consumeridentity.ErrExpired) {
-			class = identity.FailureExpired
-		}
-		return identity.Principal{}, identity.NewFailure(class, identity.SourceConsumerAccessToken)
+	if errors.Is(err, consumeridentity.ErrExpired) {
+		return identity.FailureExpired
 	}
-	subject := strings.TrimSpace(claims.UserID)
-	if subject == "" {
-		subject = strings.TrimSpace(claims.Subject)
-	}
-	if subject == "" {
-		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, identity.SourceConsumerAccessToken)
-	}
-	return identity.Principal{Kind: identity.ActorHuman, Subject: subject, Email: strings.TrimSpace(claims.Email), Verified: true, Source: identity.SourceConsumerAccessToken, Issuer: claims.Issuer}, nil
+	return identity.FailureInvalid
 }

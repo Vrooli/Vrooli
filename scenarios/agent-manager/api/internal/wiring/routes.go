@@ -63,6 +63,7 @@ import (
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
+	permissionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/permissions/permissionsv1connect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
@@ -153,6 +154,12 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.Orchestrator != nil {
 		handlers.RegisterAuthorizations(router, deps.Orchestrator)
 		handlers.RegisterStandingGrants(router, deps.Orchestrator)
+		projectionHandler, err := handlers.NewPermissionProjectionHandler(deps.Orchestrator)
+		if err != nil {
+			panic(fmt.Errorf("compose permission projection service: %w", err))
+		}
+		projectionPath, projectionConnectHandler := permissionsconnect.NewPermissionProjectionServiceHandler(projectionHandler)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: projectionPath, Handler: projectionConnectHandler})
 	}
 	handlers.RegisterPromptManagerAdmissionDiagnostic(router, standingAuthority)
 	if deps.LifecycleService != nil {

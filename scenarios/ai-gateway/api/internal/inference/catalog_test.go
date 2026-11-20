@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"ai-gateway/internal/rolecatalog"
 )
 
 func TestCatalogRejectsStaleConcreteModelSelector(t *testing.T) {
@@ -14,7 +16,7 @@ func TestCatalogRejectsStaleConcreteModelSelector(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadCatalog(path); err != nil {
+	if _, err := rolecatalog.LoadCatalog(path); err != nil {
 		t.Fatalf("load maintained catalog: %v", err)
 	}
 
@@ -26,8 +28,8 @@ func TestCatalogRejectsStaleConcreteModelSelector(t *testing.T) {
 	if err := os.WriteFile(legacyPath, []byte(legacy), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadCatalog(legacyPath); err == nil || !strings.Contains(err.Error(), `unknown field "model"`) {
-		t.Fatalf("LoadCatalog() error = %v, want stale model selector rejection", err)
+	if _, err := rolecatalog.LoadCatalog(legacyPath); err == nil || !strings.Contains(err.Error(), `unknown field "model"`) {
+		t.Fatalf("rolecatalog.LoadCatalog() error = %v, want stale model selector rejection", err)
 	}
 }
 
@@ -54,8 +56,8 @@ func TestCatalogRejectsParallelModelAndQuantizationSelectors(t *testing.T) {
 			if err := os.WriteFile(legacyPath, []byte(legacy), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := LoadCatalog(legacyPath); err == nil || !strings.Contains(err.Error(), `unknown field "`+tc.name+`"`) {
-				t.Fatalf("LoadCatalog() error = %v; want rejection of duplicated %s metadata", err, tc.name)
+			if _, err := rolecatalog.LoadCatalog(legacyPath); err == nil || !strings.Contains(err.Error(), `unknown field "`+tc.name+`"`) {
+				t.Fatalf("rolecatalog.LoadCatalog() error = %v; want rejection of duplicated %s metadata", err, tc.name)
 			}
 		})
 	}
@@ -63,7 +65,7 @@ func TestCatalogRejectsParallelModelAndQuantizationSelectors(t *testing.T) {
 
 func TestCatalogDeclaresBoundedCodeRoleOutsideProviderCandidates(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "config", "inference-role-catalog.json")
-	catalog, err := LoadCatalog(path)
+	catalog, err := rolecatalog.LoadCatalog(path)
 	if err != nil {
 		t.Fatalf("load maintained catalog: %v", err)
 	}
@@ -88,7 +90,7 @@ func TestCatalogDeclaresBoundedCodeRoleOutsideProviderCandidates(t *testing.T) {
 }
 
 func TestCodeRoleValidationRejectsUnboundedOrAmbiguousContracts(t *testing.T) {
-	valid := CodeRoleContract{
+	valid := rolecatalog.CodeRoleContract{
 		HandlerID:      "inventory-reservation-policy/v1",
 		MaxSourceBytes: 4096,
 		MaxOutputBytes: 4096,
@@ -102,17 +104,17 @@ func TestCodeRoleValidationRejectsUnboundedOrAmbiguousContracts(t *testing.T) {
 			"additionalProperties": false,
 		},
 	}
-	base := func(contract CodeRoleContract) RoleCatalog {
-		return RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-			"extract.structured": {Candidates: []Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "incumbent"}}},
-		}, CodeRoles: map[string]CodeRoleContract{"policy.inventory-reservation": contract}}
+	base := func(contract rolecatalog.CodeRoleContract) rolecatalog.RoleCatalog {
+		return rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+			"extract.structured": {Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "incumbent"}}},
+		}, CodeRoles: map[string]rolecatalog.CodeRoleContract{"policy.inventory-reservation": contract}}
 	}
 	if err := base(valid).Validate(); err != nil {
 		t.Fatalf("validate bounded code role: %v", err)
 	}
 
 	tooLarge := valid
-	tooLarge.MaxSourceBytes = MaxCodeRoleSourceBytes + 1
+	tooLarge.MaxSourceBytes = rolecatalog.MaxCodeRoleSourceBytes + 1
 	if err := base(tooLarge).Validate(); err == nil || !strings.Contains(err.Error(), "max_source_bytes") {
 		t.Fatalf("validate oversized code role error = %v; want max_source_bytes refusal", err)
 	}
@@ -130,7 +132,7 @@ func TestCodeRoleValidationRejectsUnboundedOrAmbiguousContracts(t *testing.T) {
 
 func TestCatalogKeepsCompactQualificationCandidatesOutOfRuntimeSelection(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "config", "inference-role-catalog.json")
-	catalog, err := LoadCatalog(path)
+	catalog, err := rolecatalog.LoadCatalog(path)
 	if err != nil {
 		t.Fatalf("load maintained catalog: %v", err)
 	}
@@ -143,7 +145,7 @@ func TestCatalogKeepsCompactQualificationCandidatesOutOfRuntimeSelection(t *test
 		t.Fatalf("extract qualification candidates = %+v; want one compact candidate", extract.QualificationCandidates)
 	}
 	qualified := extract.QualificationCandidates[0]
-	if qualified.Candidate.Provider != "ollama" || qualified.Candidate.ResourceRole != "chat.small" || qualified.Status != QualificationPending {
+	if qualified.Candidate.Provider != "ollama" || qualified.Candidate.ResourceRole != "chat.small" || qualified.Status != rolecatalog.QualificationPending {
 		t.Fatalf("extract qualification candidate = %+v; want pending ollama/chat.small", qualified)
 	}
 
@@ -151,7 +153,7 @@ func TestCatalogKeepsCompactQualificationCandidatesOutOfRuntimeSelection(t *test
 	if len(summary.Candidates) == 0 || summary.Candidates[0].ResourceRole != "summarize.default" {
 		t.Fatalf("active summary candidate = %+v; want incumbent summarize.default pending caller evidence", summary.Candidates)
 	}
-	if len(summary.QualificationCandidates) != 1 || summary.QualificationCandidates[0].Candidate.ResourceRole != "chat.small" || summary.QualificationCandidates[0].Status != QualificationPending {
+	if len(summary.QualificationCandidates) != 1 || summary.QualificationCandidates[0].Candidate.ResourceRole != "chat.small" || summary.QualificationCandidates[0].Status != rolecatalog.QualificationPending {
 		t.Fatalf("summary qualification candidate = %+v; want pending chat.small", summary.QualificationCandidates)
 	}
 
@@ -162,16 +164,16 @@ func TestCatalogKeepsCompactQualificationCandidatesOutOfRuntimeSelection(t *test
 }
 
 func TestCatalogKeepsSemanticEscalationSeparateFromOrdinaryCandidates(t *testing.T) {
-	role := InferenceRole{
-		Candidates:                   []Candidate{{Provider: "ollama", ResourceRole: "chat.small", Reason: "compact primary"}},
-		SemanticEscalationCandidates: []Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "explicit larger lane"}},
+	role := rolecatalog.InferenceRole{
+		Candidates:                   []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "chat.small", Reason: "compact primary"}},
+		SemanticEscalationCandidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "explicit larger lane"}},
 	}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{"extract.structured": role}}
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{"extract.structured": role}}
 	if err := catalog.Validate(); err != nil {
 		t.Fatalf("validate separated escalation stage: %v", err)
 	}
 
-	role.SemanticEscalationCandidates = []Candidate{{Provider: "ollama", ResourceRole: "chat.small", Reason: "duplicate retry target"}}
+	role.SemanticEscalationCandidates = []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "chat.small", Reason: "duplicate retry target"}}
 	catalog.Roles["extract.structured"] = role
 	if err := catalog.Validate(); err == nil || !strings.Contains(err.Error(), "repeats ordinary candidate") {
 		t.Fatalf("validate duplicate escalation candidate error = %v; want duplicate-stage rejection", err)
@@ -179,14 +181,14 @@ func TestCatalogKeepsSemanticEscalationSeparateFromOrdinaryCandidates(t *testing
 }
 
 func TestCatalogQualificationRequiresEvidenceAfterDecision(t *testing.T) {
-	role := InferenceRole{
-		Candidates: []Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "incumbent"}},
-		QualificationCandidates: []QualificationCandidate{{
-			Candidate: Candidate{Provider: "ollama", ResourceRole: "chat.small", Reason: "compact candidate"},
-			Status:    QualificationAccepted,
+	role := rolecatalog.InferenceRole{
+		Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "chat.default", Reason: "incumbent"}},
+		QualificationCandidates: []rolecatalog.QualificationCandidate{{
+			Candidate: rolecatalog.Candidate{Provider: "ollama", ResourceRole: "chat.small", Reason: "compact candidate"},
+			Status:    rolecatalog.QualificationAccepted,
 		}},
 	}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{"extract.structured": role}}
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{"extract.structured": role}}
 	if err := catalog.Validate(); err == nil || !strings.Contains(err.Error(), "requires evidence") {
 		t.Fatalf("validate evidence-less qualification error = %v; want evidence requirement", err)
 	}

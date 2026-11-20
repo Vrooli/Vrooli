@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"ai-gateway/internal/inference"
+	"ai-gateway/internal/schemagate"
 )
 
 // The executor bounds bytes before Write. Feature output is withheld until the
@@ -49,7 +49,7 @@ func (o *featureOutput) content(rawSchema json.RawMessage) (string, error) {
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
-	schema, err := (inference.SchemaGate{}).Parse(string(rawSchema))
+	schema, err := (schemagate.SchemaGate{}).Parse(string(rawSchema))
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func (o *featureOutput) content(rawSchema json.RawMessage) (string, error) {
 	if schema["type"] == "string" {
 		value, _ = json.Marshal(answer)
 	}
-	if err := inference.ValidateJSON(schema, value); err != nil {
+	if err := schemagate.ValidateJSON(schema, value); err != nil {
 		return "", err
 	}
 	return answer, nil
@@ -80,7 +80,7 @@ func (s *PrivatePolicyService) streamChat(featureID, model string, input *Privat
 	if err := s.validateFeatureInput(featureID, *input); err != nil {
 		return nil, err
 	}
-	if _, err := (inference.SchemaGate{}).Parse(string(feature.Schema)); err != nil {
+	if _, err := (schemagate.SchemaGate{}).Parse(string(feature.Schema)); err != nil {
 		return nil, err
 	}
 	return json.Marshal(map[string]any{"model": model, "messages": []PrivateTurn{{Role: "system", Content: input.Instruction}, input.Turn}})

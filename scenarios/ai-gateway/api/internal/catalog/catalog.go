@@ -21,10 +21,11 @@ type Provider struct {
 }
 
 type Bundle struct {
-	Roles     json.RawMessage            `json:"roles"`
-	Features  json.RawMessage            `json:"features"`
-	Providers map[string]Provider        `json:"providers"`
-	Harnesses map[string]json.RawMessage `json:"harnesses"`
+	Roles        json.RawMessage            `json:"roles"`
+	Features     json.RawMessage            `json:"features"`
+	CreditOwners json.RawMessage            `json:"credit_feature_owners"`
+	Providers    map[string]Provider        `json:"providers"`
+	Harnesses    map[string]json.RawMessage `json:"harnesses"`
 }
 
 func Embedded() (Bundle, error) {

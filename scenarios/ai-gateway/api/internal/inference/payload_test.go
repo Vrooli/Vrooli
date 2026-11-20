@@ -3,6 +3,8 @@ package inference
 import (
 	"testing"
 
+	"ai-gateway/internal/schemagate"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,15 +64,44 @@ func TestExtractJSONValueLeavesNonJSONTextForTheValidatorToReject(t *testing.T) 
 	require.Equal(t, "{unterminated", ExtractJSONValue("{unterminated"))
 }
 
+func TestBalancedJSONScannerSeparatesStringAndStructuralState(t *testing.T) {
+	scanner := balancedJSONScanner{openers: make([]rune, 0, 8)}
+	input := `{"text":"escaped \" } ] still text", "nested":[{}]}`
+	for index, char := range input {
+		complete, invalid := scanner.consume(char)
+		require.False(t, invalid, "character %q at byte %d", char, index)
+		require.Equal(t, index == len(input)-1, complete, "character %q at byte %d", char, index)
+	}
+	require.Empty(t, scanner.openers)
+	require.False(t, scanner.inString)
+	require.False(t, scanner.escaped)
+}
+
+func TestBalancedJSONScannerRejectsMismatchedAndUnmatchedClosers(t *testing.T) {
+	for name, input := range map[string]string{"mismatched": "{]", "unmatched": "}"} {
+		t.Run(name, func(t *testing.T) {
+			scanner := balancedJSONScanner{openers: make([]rune, 0, 8)}
+			var invalid bool
+			for _, char := range input {
+				_, invalid = scanner.consume(char)
+				if invalid {
+					break
+				}
+			}
+			require.True(t, invalid)
+		})
+	}
+}
+
 func TestValidateJSONRejectsMalformedSchemaWithoutPanicking(t *testing.T) {
-	// ValidateJSON is exported, so a schema that never passed SchemaGate.Parse
+	// schemagate.ValidateJSON is exported, so a schema that never passed schemagate.SchemaGate.Parse
 	// can reach it. It must return an error rather than panic.
 	require.NotPanics(t, func() {
-		err := ValidateJSON(map[string]any{"required": []any{42}}, []byte(`{"a":1}`))
+		err := schemagate.ValidateJSON(map[string]any{"required": []any{42}}, []byte(`{"a":1}`))
 		require.Error(t, err)
 	})
 	require.NotPanics(t, func() {
-		err := ValidateJSON(map[string]any{"properties": map[string]any{"a": "not-a-schema"}}, []byte(`{"a":1}`))
+		err := schemagate.ValidateJSON(map[string]any{"properties": map[string]any{"a": "not-a-schema"}}, []byte(`{"a":1}`))
 		require.Error(t, err)
 	})
 }

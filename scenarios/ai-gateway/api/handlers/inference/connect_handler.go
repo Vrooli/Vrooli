@@ -26,6 +26,7 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithCreditCallerAuthorization(ctx, req.Header().Get(providers.CreditCallerAuthorizationHeader))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
 	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
@@ -61,6 +62,7 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithCreditCallerAuthorization(ctx, req.Header().Get(providers.CreditCallerAuthorizationHeader))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
 	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
@@ -80,6 +82,7 @@ func (h *connectHandler) Embed(ctx context.Context, req *connect.Request[inferen
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithCreditCallerAuthorization(ctx, req.Header().Get(providers.CreditCallerAuthorizationHeader))
 	response := h.service.Embed(ctx, internalinference.EmbeddingRequest{
 		Role: req.Msg.GetRole(), Texts: req.Msg.GetTexts(), Sampling: req.Msg.GetSampling() != nil,
 		Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
@@ -95,6 +98,7 @@ func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[infere
 	// The enum fallback runs the typed path, which may reach the metered
 	// provider on the caller's behalf.
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithCreditCallerAuthorization(ctx, req.Header().Get(providers.CreditCallerAuthorizationHeader))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
 	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
@@ -110,6 +114,7 @@ func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[i
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithCreditCallerAuthorization(ctx, req.Header().Get(providers.CreditCallerAuthorizationHeader))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
 	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))

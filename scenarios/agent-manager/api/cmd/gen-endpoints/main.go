@@ -19,6 +19,7 @@ import (
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
+	permissionspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/permissions"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -53,9 +54,11 @@ func generate(output string) error {
 	}
 	routes = append(routes, muxRoutesMust("internal/wiring/routes.go")...)
 	routes = append(routes, muxRoutesMust("internal/handlers/pricing.go")...)
+	routes = append(routes, muxRoutesMust("internal/handlers/standing_grants.go")...)
 	routes = append(routes, connectRoutes(domainpb.File_agent_manager_v1_domain_episode_proto)...)
 	routes = append(routes, connectRoutes(domainpb.File_agent_manager_v1_domain_friction_proto)...)
 	routes = append(routes, connectRoutes(measurepb.File_agent_manager_v1_measures_measures_proto)...)
+	routes = append(routes, connectRoutes(permissionspb.File_agent_manager_v1_permissions_permissions_proto)...)
 	seen := map[route]bool{}
 	unique := make([]route, 0, len(routes))
 	for _, r := range routes {
@@ -104,13 +107,37 @@ func muxRoutes(path string) ([]route, error) {
 			return true
 		}
 		for _, arg := range call.Args {
-			if verb, ok := literal(arg); ok {
+			if verb, ok := methodLiteral(arg); ok {
 				routes = append(routes, route{path, verb})
 			}
 		}
 		return true
 	})
 	return routes, nil
+}
+
+func methodLiteral(expr ast.Expr) (string, bool) {
+	if value, ok := literal(expr); ok {
+		return value, true
+	}
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok {
+		return "", false
+	}
+	switch selector.Sel.Name {
+	case "MethodGet":
+		return "GET", true
+	case "MethodPost":
+		return "POST", true
+	case "MethodPut":
+		return "PUT", true
+	case "MethodPatch":
+		return "PATCH", true
+	case "MethodDelete":
+		return "DELETE", true
+	default:
+		return "", false
+	}
 }
 
 func muxRoutesMust(path string) []route {

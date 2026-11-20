@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "proto": "PROFILE_LOCAL_ONLY",
+      "key": "local-only",
+      "label_key": "profiles.localOnly",
+      "description_key": "profiles.localOnlyDesc",
+      "order": 1
+    },
+    {
+      "proto": "PROFILE_LOCAL_FIRST",
+      "key": "local-first",
+      "label_key": "profiles.localFirst",
+      "description_key": "profiles.localFirstDesc",
+      "order": 2
+    },
+    {
+      "proto": "PROFILE_REMOTE_ONLY",
+      "key": "remote-only",
+      "label_key": "profiles.remoteOnly",
+      "description_key": "profiles.remoteOnlyDesc",
+      "order": 3
+    },
+    {
+      "proto": "PROFILE_QUALITY_FIRST",
+      "key": "quality-first",
+      "label_key": "profiles.qualityFirst",
+      "description_key": "profiles.qualityFirstDesc",
+      "order": 4
+    },
+    {
+      "proto": "PROFILE_CHEAP_FIRST",
+      "key": "cheap-first",
+      "label_key": "profiles.cheapFirst",
+      "description_key": "profiles.cheapFirstDesc",
+      "order": 5
+    },
+    {
+      "proto": "PROFILE_PRIVACY_SENSITIVE",
+      "key": "privacy-sensitive",
+      "label_key": "profiles.privacySensitive",
+      "description_key": "profiles.privacySensitiveDesc",
+      "order": 6
+    }
+  ]
+}

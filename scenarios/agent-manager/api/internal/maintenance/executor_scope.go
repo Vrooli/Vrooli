@@ -162,6 +162,7 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 	attachedIdentityFailure := map[string]string{}
 	effectivePIDs := map[string]int{}
 	expected := map[string]ExecutorRef{}
+	var sessionDuplicates []ExecutorEvidence
 	identities := map[uuid.UUID]*domain.Run{}
 	if o.lookupBatch != nil {
 		runs, err := o.lookupBatch(ctx, refs)
@@ -178,7 +179,8 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 			identities[run.ID] = run
 		}
 	}
-	for _, ref := range refs {
+	hydrated := make([]*domain.Run, len(refs))
+	for i, ref := range refs {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -196,8 +198,20 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 		if run == nil || run.ID != id || run.RunnerPID != ref.PID || run.RunnerPGID != ref.PGID {
 			return nil, fmt.Errorf("durable executor identity changed during inventory")
 		}
+		hydrated[i] = run
+	}
+	reattached := reattachedSessionDuplicates(hydrated)
+	for i, ref := range refs {
+		run := hydrated[i]
+		id := run.ID
 		if _, exists := expected[ref.ID]; exists {
 			return nil, fmt.Errorf("duplicate executor scope")
+		}
+		if reattached[ref.ID] {
+			// Same harness session and process as an earlier live attach; that
+			// run carries the session's single physical executor verdict.
+			sessionDuplicates = append(sessionDuplicates, ExecutorEvidence{ExecutorRef: ref})
+			continue
 		}
 		expected[ref.ID] = ref
 		scope := executorScopeRef{RunID: ref.ID, Tag: run.GetTag(), LegacyTag: "opencode-continue-" + id.String()[:8], PID: ref.PID, PGID: ref.PGID, StartedAt: run.StartedAt, EndedAt: run.EndedAt}
@@ -236,6 +250,9 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 		}
 		request.Executors = append(request.Executors, scope)
 	}
+	if len(request.Executors) == 0 {
+		return sessionDuplicates, nil
+	}
 	input, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -258,7 +275,7 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 	// the same schema. Their exact report coverage remains useful for unanchored
 	// refs, but no verdict for an attached ref is trusted without the marker.
 	attachedIdentitySupported := report.IdentityVersion == "attached-key-v1"
-	var evidence []ExecutorEvidence
+	evidence := sessionDuplicates
 	var incomplete error
 	unknownVerdicts := 0
 	for _, item := range report.Executors {
@@ -319,6 +336,54 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 		return evidence, err
 	}
 	return evidence, incomplete
+}
+
+// reattachedSessionDuplicates names live attached runs that re-attach a
+// harness session already bound to an earlier live run with the same process.
+// Every attach of one harness session is a new run of the same conversation
+// (attachedConversationID), so the session has one physical executor. The
+// control plane proves a leased PID only inside the run's interval, so the
+// earliest run of the session is the one whose interval contains the process
+// birth; later re-attaches were reported unknown ("leased PID birth is outside
+// the recorded Agent Manager run interval") and kept every inventory
+// incomplete. Only the earliest run is probed; its verdict covers the session,
+// and the later runs remain logical work without a second physical executor.
+func reattachedSessionDuplicates(runs []*domain.Run) map[string]bool {
+	type sessionKey struct {
+		kind, session string
+		pid           int
+	}
+	earliest := map[sessionKey]*domain.Run{}
+	before := func(a, b *domain.Run) bool {
+		switch {
+		case a.StartedAt == nil || b.StartedAt == nil:
+			if (a.StartedAt == nil) != (b.StartedAt == nil) {
+				return a.StartedAt != nil
+			}
+		case !a.StartedAt.Equal(*b.StartedAt):
+			return a.StartedAt.Before(*b.StartedAt)
+		}
+		return a.ID.String() < b.ID.String()
+	}
+	key := func(run *domain.Run) (sessionKey, bool) {
+		if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeAttached || run.Status.IsTerminal() ||
+			run.RunnerPID <= 1 || strings.TrimSpace(run.HarnessKind) == "" || strings.TrimSpace(run.HarnessSessionID) == "" {
+			return sessionKey{}, false
+		}
+		return sessionKey{run.HarnessKind, run.HarnessSessionID, run.RunnerPID}, true
+	}
+	for _, run := range runs {
+		if k, ok := key(run); ok && (earliest[k] == nil || before(run, earliest[k])) {
+			earliest[k] = run
+		}
+	}
+	out := map[string]bool{}
+	for _, run := range runs {
+		if k, ok := key(run); ok && earliest[k] != run {
+			out[run.ID.String()] = true
+		}
+	}
+	return out
 }
 
 func validateExecutorScopeVerdict(item struct {

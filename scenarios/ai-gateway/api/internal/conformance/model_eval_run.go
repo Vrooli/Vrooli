@@ -161,142 +161,279 @@ type ModelEvalBatchRunner struct {
 }
 
 func (r ModelEvalBatchRunner) Run(ctx context.Context) (ModelEvalBatchReceipt, error) {
-	if r.Approval == nil || r.Source == nil || r.Privacy == nil || r.Policy == nil || r.Disk == nil || r.Capacity == nil || r.Dispatch == nil {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: required owner gate is unavailable", errModelEvalAdmissionRefused)
+	batch, err := r.prepareModelEvalBatch(ctx)
+	if err != nil {
+		return ModelEvalBatchReceipt{}, err
 	}
+	disk, err := r.measureInitialModelEvalDisk(ctx, batch.approval, batch.digest, batch.model, batch.cases)
+	if err != nil || disk.err != nil {
+		if disk.err != nil {
+			return disk.receipt, disk.err
+		}
+		return ModelEvalBatchReceipt{}, err
+	}
+	receipt := newModelEvalBatchReceipt(batch.approval, batch.digest, batch.model, batch.cases, disk.measurement)
+	err = r.runModelEvalCases(ctx, batch.model, batch.cases, &receipt)
+	recountModelEvalReceipt(&receipt)
+	return receipt, err
+}
+
+type preparedModelEvalBatch struct {
+	approval ModelEvalApproval
+	model    string
+	cases    []ModelEvalCase
+	digest   string
+}
+
+type initialModelEvalDisk struct {
+	measurement ModelEvalDiskMeasurement
+	receipt     ModelEvalBatchReceipt
+	err         error
+}
+
+func (r ModelEvalBatchRunner) prepareModelEvalBatch(ctx context.Context) (preparedModelEvalBatch, error) {
+	if err := r.validateModelEvalOwners(); err != nil {
+		return preparedModelEvalBatch{}, err
+	}
+	approval, err := r.readModelEvalApproval(ctx)
+	if err != nil {
+		return preparedModelEvalBatch{}, err
+	}
+	model, err := r.privacyAndPolicyPreflight(ctx)
+	if err != nil {
+		return preparedModelEvalBatch{}, err
+	}
+	cases, digest, err := r.loadAndFreezeModelEvalCases(ctx)
+	if err != nil {
+		return preparedModelEvalBatch{}, err
+	}
+	return preparedModelEvalBatch{approval: approval, model: model, cases: cases, digest: digest}, nil
+}
+
+func (r ModelEvalBatchRunner) validateModelEvalOwners() error {
+	if r.Approval != nil && r.Source != nil && r.Privacy != nil && r.Policy != nil && r.Disk != nil && r.Capacity != nil && r.Dispatch != nil {
+		return nil
+	}
+	return fmt.Errorf("%w: required owner gate is unavailable", errModelEvalAdmissionRefused)
+}
+
+func (r ModelEvalBatchRunner) readModelEvalApproval(ctx context.Context) (ModelEvalApproval, error) {
 	approval, err := r.Approval.ReadModelEvalApproval(ctx, modelEvalAdmissionID)
 	if err != nil {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: explicit decision unavailable", errModelEvalAdmissionRefused)
+		return ModelEvalApproval{}, fmt.Errorf("%w: explicit decision unavailable", errModelEvalAdmissionRefused)
 	}
 	if approval.DecisionID != modelEvalAdmissionID || strings.ToLower(strings.TrimSpace(approval.Answer)) != "approve" || approval.Scope != modelEvalAdmissionScope || approval.RecordedAt.IsZero() {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: exact approve answer and scope required", errModelEvalAdmissionRefused)
+		return ModelEvalApproval{}, fmt.Errorf("%w: exact approve answer and scope required", errModelEvalAdmissionRefused)
 	}
+	return approval, nil
+}
+
+func (r ModelEvalBatchRunner) privacyAndPolicyPreflight(ctx context.Context) (string, error) {
 	if err := r.Privacy.ProvePromptOutputNonPersistence(ctx); err != nil {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: prompt/output non-persistence is not proven", errModelEvalAdmissionRefused)
+		return "", fmt.Errorf("%w: prompt/output non-persistence is not proven", errModelEvalAdmissionRefused)
 	}
 	model, locality, allowRemote, err := r.Policy.ResolveChatDefault(ctx)
 	if err != nil || strings.TrimSpace(model) == "" || !strings.EqualFold(locality, "local") || allowRemote {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: current chat.default is not proven local-only", errModelEvalAdmissionRefused)
+		return "", fmt.Errorf("%w: current chat.default is not proven local-only", errModelEvalAdmissionRefused)
 	}
+	return model, nil
+}
+
+func (r ModelEvalBatchRunner) loadAndFreezeModelEvalCases(ctx context.Context) ([]ModelEvalCase, string, error) {
 	cases, err := r.Source.LoadFrozenCases(ctx, modelEvalMaxCases)
 	if err != nil || len(cases) == 0 || len(cases) > modelEvalMaxCases {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: fixed caller case set is unavailable or outside 1..%d", errModelEvalAdmissionRefused, modelEvalMaxCases)
+		return nil, "", fmt.Errorf("%w: fixed caller case set is unavailable or outside 1..%d", errModelEvalAdmissionRefused, modelEvalMaxCases)
 	}
 	if err := validateModelEvalCases(cases); err != nil {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: %v", errModelEvalAdmissionRefused, err)
+		return nil, "", fmt.Errorf("%w: %v", errModelEvalAdmissionRefused, err)
 	}
-	caseSetDigest, err := modelEvalCaseSetDigest(cases)
+	digest, err := modelEvalCaseSetDigest(cases)
 	if err != nil {
-		return ModelEvalBatchReceipt{}, fmt.Errorf("%w: cannot freeze case-set identity", errModelEvalAdmissionRefused)
+		return nil, "", fmt.Errorf("%w: cannot freeze case-set identity", errModelEvalAdmissionRefused)
 	}
 	for _, item := range cases {
 		if err := r.Source.VerifyCaseIdentity(ctx, item); err != nil {
-			return ModelEvalBatchReceipt{}, fmt.Errorf("%w: source identity verification failed", errModelEvalAdmissionRefused)
+			return nil, "", fmt.Errorf("%w: source identity verification failed", errModelEvalAdmissionRefused)
 		}
 	}
-	now := time.Now
-	if r.Now != nil {
-		now = r.Now
-	}
-	disk, err := r.Disk.MeasureModelEvalDisk(ctx)
-	if err != nil || disk.FreshAt.IsZero() || now().Sub(disk.FreshAt) > 2*time.Minute || disk.FreshAt.After(now().Add(30*time.Second)) || disk.FreeBytes < modelEvalMinDiskBytes || disk.ArtifactBytes < 0 || disk.ArtifactBytes > modelEvalMaxArtifact || !validSHA256(disk.ArtifactSHA256) {
-		return refusedModelEvalBatch(approval, caseSetDigest, model, cases, "disk_or_artifact_gate"), fmt.Errorf("%w: fresh disk floor or artifact bound is not proven", errModelEvalAdmissionRefused)
-	}
+	return cases, digest, nil
+}
 
-	receipt := ModelEvalBatchReceipt{
-		DecisionID: approval.DecisionID, DecisionScope: approval.Scope, CaseSetSHA256: caseSetDigest,
+func (r ModelEvalBatchRunner) measureInitialModelEvalDisk(ctx context.Context, approval ModelEvalApproval, digest, model string, cases []ModelEvalCase) (initialModelEvalDisk, error) {
+	disk, err := r.Disk.MeasureModelEvalDisk(ctx)
+	if err != nil || !validModelEvalDisk(disk, r.modelEvalNow(), true) {
+		return initialModelEvalDisk{receipt: refusedModelEvalBatch(approval, digest, model, cases, "disk_or_artifact_gate"), err: fmt.Errorf("%w: fresh disk floor or artifact bound is not proven", errModelEvalAdmissionRefused)}, nil
+	}
+	return initialModelEvalDisk{measurement: disk}, nil
+}
+
+func validModelEvalDisk(disk ModelEvalDiskMeasurement, now time.Time, requireFresh bool) bool {
+	if disk.FreshAt.IsZero() || disk.FreeBytes < modelEvalMinDiskBytes || disk.ArtifactBytes < 0 || disk.ArtifactBytes > modelEvalMaxArtifact || !validSHA256(disk.ArtifactSHA256) {
+		return false
+	}
+	if requireFresh && now.Sub(disk.FreshAt) > 2*time.Minute {
+		return false
+	}
+	return !disk.FreshAt.After(now.Add(30 * time.Second))
+}
+
+func newModelEvalBatchReceipt(approval ModelEvalApproval, digest, model string, cases []ModelEvalCase, disk ModelEvalDiskMeasurement) ModelEvalBatchReceipt {
+	return ModelEvalBatchReceipt{
+		DecisionID: approval.DecisionID, DecisionScope: approval.Scope, CaseSetSHA256: digest,
 		Denominator: len(cases), EffectiveModel: model, DiskFreeBytesBefore: disk.FreeBytes,
 		ArtifactBytes: disk.ArtifactBytes, ArtifactSHA256: strings.ToLower(disk.ArtifactSHA256),
 		Cases: make([]ModelEvalCaseReceipt, 0, len(cases)),
 	}
-	for i, item := range cases {
-		caseReceipt := modelEvalCaseReceipt(item)
-		if err := r.Source.VerifyCaseIdentity(ctx, item); err != nil {
-			caseReceipt.Status = ModelEvalCaseRefused
-			caseReceipt.FailureCode = "source_identity_changed_or_unavailable"
-			receipt.Cases = append(receipt.Cases, caseReceipt)
-			markModelEvalUnattempted(&receipt, cases[i+1:])
-			recountModelEvalReceipt(&receipt)
-			return receipt, fmt.Errorf("%w: frozen source event identity no longer verifies", errModelEvalAdmissionRefused)
-		}
-		currentModel, currentLocality, currentRemote, policyErr := r.Policy.ResolveChatDefault(ctx)
-		if policyErr != nil || currentModel != model || !strings.EqualFold(currentLocality, "local") || currentRemote {
-			caseReceipt.Status = ModelEvalCaseRefused
-			caseReceipt.FailureCode = "chat_default_policy_changed_or_unknown"
-			receipt.Cases = append(receipt.Cases, caseReceipt)
-			markModelEvalUnattempted(&receipt, cases[i+1:])
-			recountModelEvalReceipt(&receipt)
-			return receipt, fmt.Errorf("%w: current chat.default changed during batch", errModelEvalAdmissionRefused)
-		}
-		if err := r.Policy.CheckCurrentRights(ctx, model, item.PolicyRole); err != nil {
-			caseReceipt.Status = ModelEvalCaseRefused
-			caseReceipt.FailureCode = "current_rights_denied_or_unknown"
-			receipt.Cases = append(receipt.Cases, caseReceipt)
-			markModelEvalUnattempted(&receipt, cases[i+1:])
-			recountModelEvalReceipt(&receipt)
-			return receipt, fmt.Errorf("%w: current rights gate refused case", errModelEvalAdmissionRefused)
-		}
-		claim, release, err := r.Capacity.AcquireModelEvalClaim(ctx, "ai-gateway:model-eval:"+item.EventID, modelEvalMinClaimBytes)
-		if err != nil || release == nil || strings.TrimSpace(claim.ClaimID) == "" || claim.RequiredBytes < modelEvalMinClaimBytes || claim.GrantedBytes < modelEvalMinClaimBytes || claim.FreeBytes < modelEvalMinClaimBytes || claim.ObservedAt.IsZero() || now().Sub(claim.ObservedAt) > 30*time.Second || claim.ObservedAt.After(now().Add(10*time.Second)) {
-			if release != nil {
-				_ = release(ctx)
-			}
-			caseReceipt.Status = ModelEvalCaseRefused
-			caseReceipt.FailureCode = "live_capacity_claim_unavailable"
-			receipt.Cases = append(receipt.Cases, caseReceipt)
-			markModelEvalUnattempted(&receipt, cases[i+1:])
-			recountModelEvalReceipt(&receipt)
-			return receipt, fmt.Errorf("%w: fresh exact capacity claim unavailable", errModelEvalAdmissionRefused)
-		}
-		result, dispatchErr := r.Dispatch.DispatchModelEval(ctx, model, item.PolicyRole, item.Prompt)
-		releaseErr := release(ctx)
-		diskAfter, diskAfterErr := r.Disk.MeasureModelEvalDisk(ctx)
-		postDiskInvalid := diskAfterErr != nil || diskAfter.FreshAt.IsZero() || now().Sub(diskAfter.FreshAt) > 2*time.Minute || diskAfter.FreshAt.After(now().Add(30*time.Second)) || diskAfter.FreeBytes < modelEvalMinDiskBytes || diskAfter.ArtifactBytes < 0 || diskAfter.ArtifactBytes > modelEvalMaxArtifact || !validSHA256(diskAfter.ArtifactSHA256)
-		if diskAfterErr == nil {
-			receipt.DiskFreeBytesAfter = diskAfter.FreeBytes
-			receipt.ArtifactBytesAfter = diskAfter.ArtifactBytes
-			receipt.ArtifactSHA256After = strings.ToLower(diskAfter.ArtifactSHA256)
-		}
-		caseReceipt.EffectiveModel = result.EffectiveModel
-		caseReceipt.Locality = result.Locality
-		caseReceipt.LatencyMillis = result.Latency.Milliseconds()
-		caseReceipt.RightsAllowed = result.RightsAllowed
-		caseReceipt.CapacityClaim = claim.ClaimID
-		caseReceipt.RequiredBytes = claim.RequiredBytes
-		caseReceipt.GrantedBytes = claim.GrantedBytes
-		if dispatchErr != nil || releaseErr != nil || postDiskInvalid || result.EffectiveModel != model || !strings.EqualFold(result.Locality, "local") || !result.RightsAllowed || result.Capacity.ClaimID != claim.ClaimID || result.Capacity.RequiredBytes < modelEvalMinClaimBytes || result.Capacity.GrantedBytes < modelEvalMinClaimBytes {
-			caseReceipt.Status = ModelEvalCaseFailed
-			caseReceipt.FailureCode = "dispatch_or_postcondition_failed"
-			receipt.Cases = append(receipt.Cases, caseReceipt)
-			markModelEvalUnattempted(&receipt, cases[i+1:])
-			recountModelEvalReceipt(&receipt)
-			return receipt, errors.New("model-eval stopped after a failed dispatch or owner receipt")
-		}
-		caseReceipt.Status = ModelEvalCaseSucceeded
-		receipt.Cases = append(receipt.Cases, caseReceipt)
+}
+
+func (r ModelEvalBatchRunner) modelEvalNow() time.Time {
+	if r.Now != nil {
+		return r.Now()
 	}
-	recountModelEvalReceipt(&receipt)
-	return receipt, nil
+	return time.Now()
+}
+
+func (r ModelEvalBatchRunner) runModelEvalCases(ctx context.Context, model string, cases []ModelEvalCase, receipt *ModelEvalBatchReceipt) error {
+	for index, item := range cases {
+		caseReceipt, err := r.runModelEvalCase(ctx, model, item, receipt)
+		receipt.Cases = append(receipt.Cases, caseReceipt)
+		if err != nil {
+			markModelEvalUnattempted(receipt, cases[index+1:])
+			return err
+		}
+	}
+	return nil
+}
+
+func (r ModelEvalBatchRunner) runModelEvalCase(ctx context.Context, model string, item ModelEvalCase, receipt *ModelEvalBatchReceipt) (ModelEvalCaseReceipt, error) {
+	caseReceipt := modelEvalCaseReceipt(item)
+	if err := r.verifyActiveCase(ctx, item); err != nil {
+		return refusedCase(caseReceipt, "source_identity_changed_or_unavailable"), fmt.Errorf("%w: frozen source event identity no longer verifies", errModelEvalAdmissionRefused)
+	}
+	if err := r.verifyActivePolicy(ctx, model, item.PolicyRole); err != nil {
+		return refusedCase(caseReceipt, err.code), fmt.Errorf("%w: %s", errModelEvalAdmissionRefused, err.message)
+	}
+	claim, release, err := r.acquireModelEvalCapacity(ctx, item.EventID)
+	if err != nil {
+		return refusedCase(caseReceipt, "live_capacity_claim_unavailable"), fmt.Errorf("%w: fresh exact capacity claim unavailable", errModelEvalAdmissionRefused)
+	}
+	return r.dispatchModelEvalCase(ctx, model, item, claim, release, receipt)
+}
+
+type modelEvalRefusal struct{ code, message string }
+
+func (r ModelEvalBatchRunner) verifyActiveCase(ctx context.Context, item ModelEvalCase) error {
+	return r.Source.VerifyCaseIdentity(ctx, item)
+}
+
+func (r ModelEvalBatchRunner) verifyActivePolicy(ctx context.Context, model, role string) *modelEvalRefusal {
+	currentModel, locality, remote, err := r.Policy.ResolveChatDefault(ctx)
+	if err != nil || currentModel != model || !strings.EqualFold(locality, "local") || remote {
+		return &modelEvalRefusal{code: "chat_default_policy_changed_or_unknown", message: "current chat.default changed during batch"}
+	}
+	if err := r.Policy.CheckCurrentRights(ctx, model, role); err != nil {
+		return &modelEvalRefusal{code: "current_rights_denied_or_unknown", message: "current rights gate refused case"}
+	}
+	return nil
+}
+
+func (r ModelEvalBatchRunner) acquireModelEvalCapacity(ctx context.Context, eventID string) (ModelEvalCapacityReceipt, func(context.Context) error, error) {
+	claim, release, err := r.Capacity.AcquireModelEvalClaim(ctx, "ai-gateway:model-eval:"+eventID, modelEvalMinClaimBytes)
+	if err == nil && release != nil && validModelEvalClaim(claim, r.modelEvalNow()) {
+		return claim, release, nil
+	}
+	if release != nil {
+		_ = release(ctx)
+	}
+	return ModelEvalCapacityReceipt{}, nil, errors.New("fresh exact capacity claim unavailable")
+}
+
+func validModelEvalClaim(claim ModelEvalCapacityReceipt, now time.Time) bool {
+	return strings.TrimSpace(claim.ClaimID) != "" && claim.RequiredBytes >= modelEvalMinClaimBytes && claim.GrantedBytes >= modelEvalMinClaimBytes && claim.FreeBytes >= modelEvalMinClaimBytes && !claim.ObservedAt.IsZero() && now.Sub(claim.ObservedAt) <= 30*time.Second && !claim.ObservedAt.After(now.Add(10*time.Second))
+}
+
+func (r ModelEvalBatchRunner) dispatchModelEvalCase(ctx context.Context, model string, item ModelEvalCase, claim ModelEvalCapacityReceipt, release func(context.Context) error, receipt *ModelEvalBatchReceipt) (ModelEvalCaseReceipt, error) {
+	result, dispatchErr := r.Dispatch.DispatchModelEval(ctx, model, item.PolicyRole, item.Prompt)
+	releaseErr := release(ctx)
+	diskAfter, diskErr := r.Disk.MeasureModelEvalDisk(ctx)
+	if diskErr == nil {
+		applyModelEvalDiskAfter(receipt, diskAfter)
+	}
+	caseReceipt := modelEvalDispatchCaseReceipt(item, claim, result)
+	if !modelEvalDispatchSucceeded(model, claim, result, dispatchErr, releaseErr, diskErr, diskAfter, r.modelEvalNow()) {
+		caseReceipt.Status = ModelEvalCaseFailed
+		caseReceipt.FailureCode = "dispatch_or_postcondition_failed"
+		return caseReceipt, errors.New("model-eval stopped after a failed dispatch or owner receipt")
+	}
+	caseReceipt.Status = ModelEvalCaseSucceeded
+	return caseReceipt, nil
+}
+
+func modelEvalDispatchCaseReceipt(item ModelEvalCase, claim ModelEvalCapacityReceipt, result ModelEvalDispatchReceipt) ModelEvalCaseReceipt {
+	receipt := modelEvalCaseReceipt(item)
+	receipt.EffectiveModel = result.EffectiveModel
+	receipt.Locality = result.Locality
+	receipt.LatencyMillis = result.Latency.Milliseconds()
+	receipt.RightsAllowed = result.RightsAllowed
+	receipt.CapacityClaim = claim.ClaimID
+	receipt.RequiredBytes = claim.RequiredBytes
+	receipt.GrantedBytes = claim.GrantedBytes
+	return receipt
+}
+
+func modelEvalDispatchSucceeded(model string, claim ModelEvalCapacityReceipt, result ModelEvalDispatchReceipt, dispatchErr, releaseErr, diskErr error, disk ModelEvalDiskMeasurement, now time.Time) bool {
+	return dispatchErr == nil && releaseErr == nil && diskErr == nil && validModelEvalDisk(disk, now, true) && validModelEvalDispatchReceipt(model, claim, result)
+}
+
+func validModelEvalDispatchReceipt(model string, claim ModelEvalCapacityReceipt, result ModelEvalDispatchReceipt) bool {
+	return result.EffectiveModel == model && strings.EqualFold(result.Locality, "local") && result.RightsAllowed && result.Capacity.ClaimID == claim.ClaimID && result.Capacity.RequiredBytes >= modelEvalMinClaimBytes && result.Capacity.GrantedBytes >= modelEvalMinClaimBytes
+}
+
+func applyModelEvalDiskAfter(receipt *ModelEvalBatchReceipt, disk ModelEvalDiskMeasurement) {
+	receipt.DiskFreeBytesAfter = disk.FreeBytes
+	receipt.ArtifactBytesAfter = disk.ArtifactBytes
+	receipt.ArtifactSHA256After = strings.ToLower(disk.ArtifactSHA256)
+}
+
+func refusedCase(receipt ModelEvalCaseReceipt, code string) ModelEvalCaseReceipt {
+	receipt.Status = ModelEvalCaseRefused
+	receipt.FailureCode = code
+	return receipt
 }
 
 func validateModelEvalCases(cases []ModelEvalCase) error {
 	seen := make(map[string]struct{}, len(cases))
 	seenRequests := make(map[string]struct{}, len(cases))
 	for _, item := range cases {
-		if strings.TrimSpace(item.EventID) == "" || strings.TrimSpace(item.RunID) == "" || item.Sequence < 0 || item.EventTimestamp.IsZero() || strings.TrimSpace(item.RequestID) == "" || strings.TrimSpace(item.PolicyRole) == "" || strings.TrimSpace(item.TaskRole) == "" || strings.TrimSpace(item.Consumer) == "" || strings.TrimSpace(item.Prompt) == "" {
-			return errors.New("case is missing exact source identity, caller metadata, or ephemeral input")
+		if err := validateModelEvalCase(item, seen, seenRequests); err != nil {
+			return err
 		}
-		key := item.RunID + "/" + item.EventID + "/" + fmt.Sprint(item.Sequence)
-		if _, exists := seen[key]; exists {
-			return errors.New("case set contains a duplicate source event identity")
-		}
-		seen[key] = struct{}{}
-		requestID := strings.TrimSpace(item.RequestID)
-		if _, exists := seenRequests[requestID]; exists {
-			return errors.New("case set contains a duplicate Gateway request identity")
-		}
-		seenRequests[requestID] = struct{}{}
 	}
+	return nil
+}
+
+func validateModelEvalCase(item ModelEvalCase, seen, seenRequests map[string]struct{}) error {
+	if missingModelEvalCaseFields(item) {
+		return errors.New("case is missing exact source identity, caller metadata, or ephemeral input")
+	}
+	key := item.RunID + "/" + item.EventID + "/" + fmt.Sprint(item.Sequence)
+	if _, exists := seen[key]; exists {
+		return errors.New("case set contains a duplicate source event identity")
+	}
+	seen[key] = struct{}{}
+	return validateModelEvalRequestIdentity(item.RequestID, seenRequests)
+}
+
+func missingModelEvalCaseFields(item ModelEvalCase) bool {
+	return strings.TrimSpace(item.EventID) == "" || strings.TrimSpace(item.RunID) == "" || item.Sequence < 0 || item.EventTimestamp.IsZero() || strings.TrimSpace(item.RequestID) == "" || strings.TrimSpace(item.PolicyRole) == "" || strings.TrimSpace(item.TaskRole) == "" || strings.TrimSpace(item.Consumer) == "" || strings.TrimSpace(item.Prompt) == ""
+}
+
+func validateModelEvalRequestIdentity(request string, seenRequests map[string]struct{}) error {
+	requestID := strings.TrimSpace(request)
+	if _, exists := seenRequests[requestID]; exists {
+		return errors.New("case set contains a duplicate Gateway request identity")
+	}
+	seenRequests[requestID] = struct{}{}
 	return nil
 }
 
@@ -324,8 +461,10 @@ func modelEvalCaseSetDigest(cases []ModelEvalCase) (string, error) {
 }
 
 func modelEvalCaseReceipt(item ModelEvalCase) ModelEvalCaseReceipt {
-	return ModelEvalCaseReceipt{SourceEventID: item.EventID, SourceRunID: item.RunID, Sequence: item.Sequence,
-		RequestID: item.RequestID, PolicyRole: item.PolicyRole, TaskRole: item.TaskRole, Consumer: item.Consumer}
+	return ModelEvalCaseReceipt{
+		SourceEventID: item.EventID, SourceRunID: item.RunID, Sequence: item.Sequence,
+		RequestID: item.RequestID, PolicyRole: item.PolicyRole, TaskRole: item.TaskRole, Consumer: item.Consumer,
+	}
 }
 
 func refusedModelEvalBatch(approval ModelEvalApproval, digest, model string, cases []ModelEvalCase, code string) ModelEvalBatchReceipt {

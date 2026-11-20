@@ -1,25 +1,43 @@
 {
   "_comment": "Keys that start with an underscore are sentinels skipped by codegen, parity tests, and unused-key audit.",
   "app": {
-    "title": "AI Gateway",
-    "eyebrow": "Operator console",
-    "description": "Provider-neutral AI inference control plane for route decisions, evidence, and conformance."
+    "title": "AI Gateway"
   },
   "actions": {
     "refresh": "Refresh"
+  },
+  "profiles": {
+    "localOnly": "Local only",
+    "localOnlyDesc": "Use only providers that run on this host; hosted candidates are ineligible.",
+    "localFirst": "Local first",
+    "localFirstDesc": "Prefer local providers, then fall back to hosted providers only when privacy policy permits.",
+    "remoteOnly": "Remote only",
+    "remoteOnlyDesc": "Use only hosted providers; local candidates are ineligible.",
+    "qualityFirst": "Quality first",
+    "qualityFirstDesc": "Prefer the highest-quality viable candidate regardless of locality, while cost and privacy still bound the route.",
+    "cheapFirst": "Cheap first",
+    "cheapFirstDesc": "Prefer the lowest-cost viable candidate while capability and privacy still bound the route.",
+    "privacySensitive": "Privacy sensitive",
+    "privacySensitiveDesc": "Keep sensitive content on local providers and fail closed when no local candidate can serve."
+  },
+  "privacyClasses": {
+    "public": "Public",
+    "internal": "Internal",
+    "confidential": "Confidential",
+    "secret": "Secret"
   },
   "states": {
     "allowed": "Allowed",
     "blocked": "Blocked",
     "loading": "Loading",
     "none": "None",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "breakerOpen": "Open",
+    "breakerHalfOpen": "Half open"
   },
   "layout": {
     "sidebarLabel": "AI Gateway",
-    "sidebarNavLabel": "Desktop navigation",
     "bottomNavLabel": "Primary navigation",
-    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
       "providers": "Providers",

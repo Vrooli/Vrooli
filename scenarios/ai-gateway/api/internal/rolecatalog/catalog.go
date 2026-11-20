@@ -1,4 +1,4 @@
-package inference
+package rolecatalog
 
 import (
 	"encoding/json"
@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"ai-gateway/internal/providers"
+	"ai-gateway/internal/requestvocab"
+	"ai-gateway/internal/schemagate"
 )
 
 // DefaultRoleTimeout applies when a role declares no timeout_ms. It is sized
@@ -30,7 +32,7 @@ type RoleCatalog struct {
 
 // RoleKindDecision marks a role served by non-generative decision models
 // through Service.Decide. Every other role is a typed-value role served by Run.
-const RoleKindDecision = "decision"
+const RoleKindDecision = requestvocab.RoleKindDecision
 
 // ProviderGateway names a candidate that is one of AI Gateway's own typed
 // roles rather than a resource. A decision role uses it as its last-resort
@@ -153,6 +155,13 @@ func (c RoleCatalog) Validate() error {
 	if len(c.Roles) == 0 && len(c.CodeRoles) == 0 {
 		return fmt.Errorf("inference role catalog has no roles")
 	}
+	if err := c.validateProviderRoles(); err != nil {
+		return err
+	}
+	return c.validateCodeRoles()
+}
+
+func (c RoleCatalog) validateProviderRoles() error {
 	for role, definition := range c.Roles {
 		if err := validateRole(role, definition); err != nil {
 			return err
@@ -169,6 +178,10 @@ func (c RoleCatalog) Validate() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (c RoleCatalog) validateCodeRoles() error {
 	for role, definition := range c.CodeRoles {
 		if strings.TrimSpace(role) == "" {
 			return fmt.Errorf("code role name is required")
@@ -193,11 +206,15 @@ func validateCodeRole(role string, definition CodeRoleContract) error {
 	if definition.MaxOutputBytes < 1 || definition.MaxOutputBytes > MaxCodeRoleOutputBytes {
 		return fmt.Errorf("code role %q max_output_bytes must be between 1 and %d", role, MaxCodeRoleOutputBytes)
 	}
-	encoded, err := json.Marshal(definition.SchemaContract)
+	return validateCodeRoleSchema(role, definition.SchemaContract)
+}
+
+func validateCodeRoleSchema(role string, contract map[string]any) error {
+	encoded, err := json.Marshal(contract)
 	if err != nil {
 		return fmt.Errorf("code role %q schema_contract: %w", role, err)
 	}
-	schema, err := (SchemaGate{}).Parse(string(encoded))
+	schema, err := (schemagate.SchemaGate{}).Parse(string(encoded))
 	if err != nil {
 		return fmt.Errorf("code role %q schema_contract: %w", role, err)
 	}
@@ -220,6 +237,20 @@ func validateCodeRole(role string, definition CodeRoleContract) error {
 }
 
 func validateRole(role string, definition InferenceRole) error {
+	if err := validateRoleBounds(role, definition); err != nil {
+		return err
+	}
+	if err := validateRoleKindAndOptions(role, definition); err != nil {
+		return err
+	}
+	selectors, err := validateRoleCandidates(role, definition)
+	if err != nil {
+		return err
+	}
+	return validateQualificationCandidates(role, definition, selectors)
+}
+
+func validateRoleBounds(role string, definition InferenceRole) error {
 	if strings.TrimSpace(role) == "" || len(definition.Candidates) == 0 {
 		return fmt.Errorf("inference role %q has no candidates", role)
 	}
@@ -229,9 +260,20 @@ func validateRole(role string, definition InferenceRole) error {
 	if definition.Timeout() > MaxRoleTimeout {
 		return fmt.Errorf("inference role %q timeout_ms exceeds the %s maximum", role, MaxRoleTimeout)
 	}
-	if definition.Kind != "" && !definition.IsDecision() {
-		return fmt.Errorf("inference role %q kind %q is unsupported", role, definition.Kind)
+	return nil
+}
+
+func validateRoleKindAndOptions(role string, definition InferenceRole) error {
+	if _, err := requestvocab.NormalizeRoleKind(definition.Kind); err != nil {
+		return fmt.Errorf("inference role %q: %w", role, err)
 	}
+	if err := validateDecisionRoleOptions(role, definition); err != nil {
+		return err
+	}
+	return validateRoleSampling(role, definition.Sampling)
+}
+
+func validateDecisionRoleOptions(role string, definition InferenceRole) error {
 	if definition.IsDecision() && definition.Sampling != nil {
 		return fmt.Errorf("inference role %q is a decision role; decision models take no sampling controls", role)
 	}
@@ -241,17 +283,25 @@ func validateRole(role string, definition InferenceRole) error {
 	if definition.IsDecision() && len(definition.QualificationCandidates) > 0 {
 		return fmt.Errorf("inference role %q is a decision role; qualification candidates are supported only for typed-value roles", role)
 	}
-	if sampling := definition.Sampling; sampling != nil && sampling.Temperature != nil {
+	return nil
+}
+
+func validateRoleSampling(role string, sampling *RoleSampling) error {
+	if sampling != nil && sampling.Temperature != nil {
 		if *sampling.Temperature < MinRoleTemperature || *sampling.Temperature > MaxRoleTemperature {
 			return fmt.Errorf("inference role %q sampling.temperature %.3f is outside [%.1f,%.1f]",
 				role, *sampling.Temperature, MinRoleTemperature, MaxRoleTemperature)
 		}
 	}
+	return nil
+}
+
+func validateRoleCandidates(role string, definition InferenceRole) (map[string]string, error) {
 	if err := validateCandidates(role, definition.IsDecision(), definition.Candidates); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCandidates(role, false, definition.SemanticEscalationCandidates); err != nil {
-		return fmt.Errorf("inference role %q semantic escalation: %w", role, err)
+		return nil, fmt.Errorf("inference role %q semantic escalation: %w", role, err)
 	}
 	selectors := make(map[string]string, len(definition.Candidates)+len(definition.SemanticEscalationCandidates))
 	for _, candidate := range definition.Candidates {
@@ -260,10 +310,14 @@ func validateRole(role string, definition InferenceRole) error {
 	for _, candidate := range definition.SemanticEscalationCandidates {
 		key := candidateKey(candidate)
 		if stage, exists := selectors[key]; exists {
-			return fmt.Errorf("inference role %q repeats %s candidate %q as semantic escalation", role, stage, key)
+			return nil, fmt.Errorf("inference role %q repeats %s candidate %q as semantic escalation", role, stage, key)
 		}
 		selectors[key] = "semantic escalation"
 	}
+	return selectors, nil
+}
+
+func validateQualificationCandidates(role string, definition InferenceRole, selectors map[string]string) error {
 	for _, qualified := range definition.QualificationCandidates {
 		if err := validateCandidates(role, false, []Candidate{qualified.Candidate}); err != nil {
 			return fmt.Errorf("inference role %q qualification candidate: %w", role, err)

@@ -60,24 +60,44 @@ func (s *MediaService) Submit(ctx context.Context, req *routingv1.SubmitMediaReq
 		req = proto.Clone(req).(*routingv1.SubmitMediaRequest)
 		req.IdempotencyKey = strings.TrimSpace(req.GetIdempotencyKey())
 	}
-	if s == nil || s.db == nil {
-		if err := validateMediaSubmission(req); err != nil {
-			return nil, err
-		}
-		return nil, errors.New("media execution store is not configured")
+	if err := s.validateSubmissionStore(req); err != nil {
+		return nil, err
 	}
 	key := strings.TrimSpace(req.GetIdempotencyKey())
 	if key != "" {
-		if existing, payload, err := s.getByIdempotency(ctx, key); err == nil {
-			return matchMediaSubmission(existing, payload, req)
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
+		if existing, found, err := s.existingMediaSubmission(ctx, key, req); found || err != nil {
+			return existing, err
 		}
 	}
 	if err := validateMediaSubmission(req); err != nil {
 		return nil, err
 	}
+	return s.persistAndDispatchMedia(ctx, req, key)
+}
 
+func (s *MediaService) validateSubmissionStore(req *routingv1.SubmitMediaRequest) error {
+	if s == nil || s.db == nil {
+		if err := validateMediaSubmission(req); err != nil {
+			return err
+		}
+		return errors.New("media execution store is not configured")
+	}
+	return nil
+}
+
+func (s *MediaService) existingMediaSubmission(ctx context.Context, key string, req *routingv1.SubmitMediaRequest) (*routingv1.MediaExecution, bool, error) {
+	existing, payload, err := s.getByIdempotency(ctx, key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	result, err := matchMediaSubmission(existing, payload, req)
+	return result, true, err
+}
+
+func (s *MediaService) persistAndDispatchMedia(ctx context.Context, req *routingv1.SubmitMediaRequest, key string) (*routingv1.MediaExecution, error) {
 	payload, err := protojson.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("encode media submission: %w", err)
@@ -92,8 +112,8 @@ func (s *MediaService) Submit(ctx context.Context, req *routingv1.SubmitMediaReq
 	if err := s.insert(ctx, exec, string(payload)); err != nil {
 		// SQLite's unique constraint is the final idempotency guard when two
 		// callers race after the read above.
-		if existing, payload, lookupErr := s.getByIdempotency(ctx, key); lookupErr == nil {
-			return matchMediaSubmission(existing, payload, req)
+		if existing, found, lookupErr := s.existingMediaSubmission(ctx, key, req); found {
+			return existing, lookupErr
 		}
 		return nil, err
 	}
@@ -190,19 +210,8 @@ func (s *MediaService) Retry(ctx context.Context, id, key string) (*routingv1.Me
 
 func (s *MediaService) run(ctx context.Context, id string, req *routingv1.SubmitMediaRequest) {
 	ctx = context.WithValue(ctx, mediaExecutionIDKey{}, id)
-	started := s.now().Format(time.RFC3339Nano)
-	next, err := mediaflow.TransitionReceipt(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED, "", generated.MediaDispatch)
-	if err != nil {
+	if !s.claimMediaDispatch(ctx, id) {
 		return
-	}
-	res, err := s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, started_at = ? WHERE execution_id = ? AND status = ?`,
-		int32(next.Status), started, id,
-		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED))
-	if err != nil {
-		return
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return // cancellation won the race.
 	}
 	if s.executor == nil {
 		s.fail(ctx, id, "executor_unavailable", "no media executor is configured")
@@ -217,25 +226,52 @@ func (s *MediaService) run(ctx context.Context, id string, req *routingv1.Submit
 		s.fail(ctx, id, "executor_protocol", "media executor returned no result")
 		return
 	}
-	if result.RouteEvidence == nil {
-		s.failWithResult(ctx, id, result, "executor_protocol", "media executor returned no route evidence")
+	if code, message := validateMediaExecutionResult(result); code != "" {
+		s.failWithResult(ctx, id, result, code, message)
 		return
+	}
+	s.persistMediaExecutionResult(ctx, id, result)
+}
+
+func (s *MediaService) claimMediaDispatch(ctx context.Context, id string) bool {
+	started := s.now().Format(time.RFC3339Nano)
+	next, err := mediaflow.TransitionReceipt(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED, "", generated.MediaDispatch)
+	if err != nil {
+		return false
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, started_at = ? WHERE execution_id = ? AND status = ?`,
+		int32(next.Status), started, id,
+		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED))
+	if err != nil {
+		return false
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false // cancellation won the race.
+	}
+	return true
+}
+
+func validateMediaExecutionResult(result *MediaExecutionResult) (string, string) {
+	if result.RouteEvidence == nil {
+		return "executor_protocol", "media executor returned no route evidence"
 	}
 	if !validMediaCost(result.ActualCostUSD) {
-		s.failWithResult(ctx, id, result, "executor_protocol", "media executor returned an invalid actual cost")
-		return
+		return "executor_protocol", "media executor returned an invalid actual cost"
 	}
 	if err := validateMediaOutputs(result.Outputs); err != nil {
-		s.failWithResult(ctx, id, result, "executor_protocol", err.Error())
-		return
+		return "executor_protocol", err.Error()
 	}
+	return "", ""
+}
+
+func (s *MediaService) persistMediaExecutionResult(ctx context.Context, id string, result *MediaExecutionResult) {
 	outputs, err := protojson.Marshal(&routingv1.MediaExecution{Outputs: result.Outputs})
 	if err != nil {
 		s.failWithResult(ctx, id, result, "receipt_encode_failed", err.Error())
 		return
 	}
 	completed := s.now().Format(time.RFC3339Nano)
-	next, err = mediaflow.TransitionReceipt(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING, "", generated.MediaSucceed)
+	next, err := mediaflow.TransitionReceipt(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING, "", generated.MediaSucceed)
 	if err != nil {
 		return
 	}
@@ -280,6 +316,17 @@ func (s *MediaService) Recover(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
+	if err := s.quarantineInterruptedMedia(ctx); err != nil {
+		return err
+	}
+	pending, err := s.queuedMediaReceipts(ctx)
+	if err != nil {
+		return err
+	}
+	return s.resumeQueuedMedia(ctx, pending)
+}
+
+func (s *MediaService) quarantineInterruptedMedia(ctx context.Context) error {
 	unknown, err := mediaflow.TransitionReceipt(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING, "", generated.MediaRestart)
 	if err != nil {
 		return err
@@ -287,23 +334,33 @@ func (s *MediaService) Recover(ctx context.Context) error {
 	if _, err = s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, completed_at = ?, error_code = ?, error_message = ? WHERE status = ?`, int32(unknown.Status), s.now().Format(time.RFC3339Nano), unknown.ErrorCode, "provider outcome unknown; not replayed; cost unknown", int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING)); err != nil {
 		return fmt.Errorf("quarantine interrupted media executions: %w", err)
 	}
+	return nil
+}
+
+type pendingMediaReceipt struct{ id, payload string }
+
+func (s *MediaService) queuedMediaReceipts(ctx context.Context) ([]pendingMediaReceipt, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT execution_id, request_json FROM media_executions WHERE status = ?`, int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED))
 	if err != nil {
-		return fmt.Errorf("read queued media executions: %w", err)
+		return nil, fmt.Errorf("read queued media executions: %w", err)
 	}
-	type pendingReceipt struct{ id, payload string }
-	pending := make([]pendingReceipt, 0)
+	defer rows.Close()
+	pending := make([]pendingMediaReceipt, 0)
 	for rows.Next() {
 		var id, payload string
 		if err := rows.Scan(&id, &payload); err != nil {
 			_ = rows.Close()
-			return fmt.Errorf("read queued media execution: %w", err)
+			return nil, fmt.Errorf("read queued media execution: %w", err)
 		}
-		pending = append(pending, pendingReceipt{id: id, payload: payload})
+		pending = append(pending, pendingMediaReceipt{id: id, payload: payload})
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return fmt.Errorf("read queued media executions: %w", err)
+		return nil, fmt.Errorf("read queued media executions: %w", err)
 	}
+	return pending, nil
+}
+
+func (s *MediaService) resumeQueuedMedia(ctx context.Context, pending []pendingMediaReceipt) error {
 	var recoveryErrors []error
 	for _, receipt := range pending {
 		id, payload := receipt.id, receipt.payload

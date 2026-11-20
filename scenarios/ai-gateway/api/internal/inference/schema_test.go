@@ -8,13 +8,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"ai-gateway/internal/schemagate"
+
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func TestSchemaGateSupportedSubset(t *testing.T) {
-	gate := SchemaGate{}
+	gate := schemagate.SchemaGate{}
 	for _, test := range []struct {
 		name   string
 		schema string
@@ -35,18 +37,18 @@ func TestSchemaGateSupportedSubset(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			schema, err := gate.Parse(test.schema)
 			require.NoError(t, err)
-			require.NoError(t, ValidateJSON(schema, []byte(test.value)))
+			require.NoError(t, schemagate.ValidateJSON(schema, []byte(test.value)))
 		})
 	}
 }
 
 func TestSchemaGateRejectsUnsupportedConstructs(t *testing.T) {
-	gate := SchemaGate{}
+	gate := schemagate.SchemaGate{}
 	for _, construct := range []string{"anyOf", "oneOf", "format"} {
 		t.Run(construct, func(t *testing.T) {
 			_, err := gate.Parse(`{"type":"object","` + construct + `":{}}`)
 			require.Error(t, err)
-			var schemaErr *SchemaError
+			var schemaErr *schemagate.SchemaError
 			require.ErrorAs(t, err, &schemaErr)
 			require.Equal(t, construct, schemaErr.Construct)
 		})
@@ -57,17 +59,17 @@ func TestGeometryRecipeSchemaFixtureIsAcceptedAndEnforced(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join("testdata", "device-studio-geometry-recipe-schema-v1.json"))
 	require.NoError(t, err)
 	require.Equal(t, "20fe5ac7b117080ea3663ec91145f1b1c6149fbd7683fc7f3f3152a30c3abbfc", fmt.Sprintf("%x", sha256.Sum256(fixture)), "fixture is the retained exact Device Studio geometry.SchemaJSON contract")
-	schema, err := (SchemaGate{}).Parse(string(fixture))
+	schema, err := (schemagate.SchemaGate{}).Parse(string(fixture))
 	require.NoError(t, err)
 	valid := `{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"},{"id":"display","kind":"box","role":"display","center_mm":[0,0,6],"size_mm":[60,90,1],"rotation_deg":[0,0,0],"bevel_mm":0,"material":"glass"}],"screen":{"part_id":"display","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`
-	require.NoError(t, ValidateJSON(schema, []byte(valid)))
+	require.NoError(t, schemagate.ValidateJSON(schema, []byte(valid)))
 	for _, invalid := range []string{
 		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[0,150,12],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
 		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12,1],"parts":[{"id":"housing","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
 		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
 		`{"version":"device_geometry_recipe.v1","profile":"detailed_device_v1","operation":"construct","envelope_mm":[80,150,12],"parts":[{"id":"","kind":"rounded_box","role":"housing","center_mm":[0,0,0],"size_mm":[80,150,12],"rotation_deg":[0,0,0],"bevel_mm":3,"material":"matte_polymer"}],"screen":{"part_id":"housing","face":"front:+z","center_uv":[0.5,0.5],"size_uv":[0.7,0.5],"rotation_deg":0}}`,
 	} {
-		require.Error(t, ValidateJSON(schema, []byte(invalid)))
+		require.Error(t, schemagate.ValidateJSON(schema, []byte(invalid)))
 	}
 }
 
@@ -88,9 +90,9 @@ func TestSchemaGateBoundsEnforceTypesAndExclusiveEdges(t *testing.T) {
 		{`{"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}`, `{"name":"ok","extra":1}`, false},
 	}
 	for _, test := range cases {
-		schema, err := (SchemaGate{}).Parse(test.schema)
+		schema, err := (schemagate.SchemaGate{}).Parse(test.schema)
 		require.NoError(t, err)
-		err = ValidateJSON(schema, []byte(test.value))
+		err = schemagate.ValidateJSON(schema, []byte(test.value))
 		if test.valid {
 			require.NoError(t, err)
 		} else {
@@ -103,7 +105,7 @@ func TestSchemaGateBoundsEnforceTypesAndExclusiveEdges(t *testing.T) {
 		`{"type":"array","minItems":2,"maxItems":1}`,
 		`{"type":"object","additionalProperties":{}}`,
 	} {
-		_, err := (SchemaGate{}).Parse(invalid)
+		_, err := (schemagate.SchemaGate{}).Parse(invalid)
 		require.Error(t, err)
 	}
 }
@@ -118,11 +120,12 @@ func TestServiceMarksInvalidProviderValue(t *testing.T) {
 func TestServicePassesInstructionAsASeparateProviderField(t *testing.T) {
 	repository := &recordingRepository{result: ProviderResult{ValueJSON: `"ok"`, Provider: "fake", Model: "test", InputTokens: 3, OutputTokens: 1}}
 	service := NewService(repository)
-	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Source:      "source",
-		SchemaJSON:  `{"type":"string"}`,
-		Instruction: "Classify by root cause, not surface wording.",
-		Role:        "classify.fast",
+	response := service.Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Source:            "source",
+		SchemaJSON:        `{"type":"string"}`,
+		Instruction:       "Classify by root cause, not surface wording.",
+		Role:              "classify.fast",
 	})
 	require.True(t, response.GetValidated())
 	require.Equal(t, "Classify by root cause, not surface wording.", repository.request.Instruction)

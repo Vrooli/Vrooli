@@ -203,3 +203,18 @@ func joinReasons(reasons []string) string {
 	}
 	return out
 }
+
+func TestExecuteUsesInjectedClockForEvidenceTimestampAndLatency(t *testing.T) {
+	runner := roleRunner()
+	runner.Results[ollamaGenerateCmd] = providers.Result{Stdout: `{"response":"ok"}`}
+	db := newSchemaDB(t)
+	fixed := time.Date(2026, 11, 20, 12, 34, 56, 0, time.UTC)
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
+		routing.WithClock(func() time.Time { return fixed }))
+
+	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, fixed.Format(time.RFC3339Nano), resp.GetEvidence().GetCreatedAt())
+	require.Zero(t, resp.GetEvidence().GetLatencyMs())
+}

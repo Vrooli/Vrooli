@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	// cannot resolve those flags to the nested metadata map.
 	bindings["RoutingService.PreviewRoute"] = h.preview
 	bindings["RoutingService.ExecuteRoute"] = h.execute
+	bindings["RoutingService.SubmitMedia"] = h.mediaSubmit
 	bindings["RoutingService.GetMediaExecution"] = h.mediaShow
 	bindings["RoutingService.WaitMediaExecution"] = h.mediaWait
 	bindings["RoutingService.CancelMediaExecution"] = h.mediaCancel

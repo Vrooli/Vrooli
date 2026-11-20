@@ -28,10 +28,12 @@ Use this document to answer:
 - **Internal capability: yes — and revenue-critical.** Every paid tier's value
   proposition passes through it. If the gateway does not meter and enforce
   correctly, the subscription has no product behind it.
-- **SKU/bundle candidate: shared-utility across every SKU.** Not yet present in
-  `path:docs/monetization/catalogs/scenario-sku-map.json` — that file is
-  governed (`catalog-strategist` proposes, human curates), so the mapping should
-  be proposed rather than hand-added.
+- **SKU/bundle candidate: shared-utility across every SKU.** The scenario→SKU
+  mapping is owned by Offer Desk (`offer-desk offers catalog-edges`), not a
+  local catalog file; the old `docs/monetization/catalogs/scenario-sku-map.json`
+  was retired on 2026-08-16. The mapping is governed (`catalog-strategist`
+  proposes, human curates), so propose it through that owner rather than
+  hand-adding a local copy.
 - **Revenue line: the enabling substrate for all of them.** Tier 1 and Tier 2
   are both described in the financial model as *gateway-driven variable cost*.
 

@@ -202,15 +202,23 @@ means unknown; it does not identify a shared account. Account scope partitions
 observation identity, heartbeat deduplication, compaction and explicit scoped
 reads. Legacy rows migrate as unknown, and their original observation IDs stay
 stable for replay. Forecast and backtest accept an exact `account_scope`;
-without it they read only legacy unknown-scope history. Scoped forecasts do not
-use provider-wide activity to infer account idleness. Attribution and alerts
-still consume only legacy unknown-scope history. An exact `account_scope`
+without it they read every scope and forecast each account as its own window,
+never blending two accounts. An unknown-scope window is dropped once a scoped
+feed of the same provider, pool and window has a newer reading: the Claude
+statusline began recording its account scope on 2026-11-16, and its older
+unscoped history must not stand beside the live reading. Attribution, alerts,
+usage modes and pace read the same all-scope history. A window whose reset has
+passed with no reading since is expired: it reports no current percent
+(`has_percent` false) rather than the finished window's final percent. Scoped
+forecasts do not use provider-wide activity to infer account idleness. An exact `account_scope`
 filter on the bounded quota observation read selects only that scope; the
 caller must independently prove the selected launch uses it. The read computes
 freshness at request time, including an elapsed reset.
 
-Neither current Claude statusline samples nor current Codex transcript quota
-frames establish account identity, so their observations remain unscoped. No
+Claude statusline samples carry a digest of the organization that Claude
+Code's own auth status reports; Codex transcript quota frames carry no account
+identity and remain unscoped. The live Claude estimate treats two scoped
+readings as one account exactly when their scopes match. No
 current reading can yet be represented as verified for a Web Console launcher.
 `GET /api/v1/pricing/live-quota?agent=codex` performs a bounded, coalesced local
 app-server read, returning provider windows without account identifiers. Its

@@ -10,6 +10,7 @@ import (
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -28,9 +29,9 @@ func newTestAttemptLedger(t *testing.T) *SQLAttemptLedger {
 	return NewSQLAttemptLedger(db)
 }
 
-func hostedTestRepository(t *testing.T, serverURL string, key func() string, ledger AttemptLedger, candidates ...Candidate) *ResourceRepository {
+func hostedTestRepository(t *testing.T, serverURL string, key func() string, ledger AttemptLedger, candidates ...rolecatalog.Candidate) *ResourceRepository {
 	t.Helper()
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
 		"classify.fast": {Candidates: candidates},
 	}}
 	adapters := []providers.Adapter{{
@@ -77,8 +78,8 @@ func TestResourceRepositoryRecoversExactAttemptRejectsChangedDigestAndFailsClose
 	ledger := newTestAttemptLedger(t)
 	getKey := func() string { return key }
 	runner := &providermocks.FakeRunner{DefaultOK: true, Default: providers.Result{Stdout: `{"response":"\"fallback\""}`}}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"classify.fast": {Candidates: []Candidate{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"classify.fast": {Candidates: []rolecatalog.Candidate{
 			{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"},
 			{Provider: providers.ProviderOllama, ResourceRole: "chat.default", Reason: "local fallback"},
 		}},
@@ -146,8 +147,8 @@ func TestResourceRepositoryPreDispatchFailureKeepsFallbackEligible(t *testing.T)
 		Default:   providers.Result{Stdout: `{"response":"\"local-result\""}`},
 	}
 	configureQualifiedLocalRole(runner, "chat.default", "local-test", "local")
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"classify.fast": {Candidates: []Candidate{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"classify.fast": {Candidates: []rolecatalog.Candidate{
 			{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"},
 			{Provider: providers.ProviderOllama, ResourceRole: "chat.default", Reason: "local"},
 		}},
@@ -157,8 +158,9 @@ func TestResourceRepositoryPreDispatchFailureKeepsFallbackEligible(t *testing.T)
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, fixtureRightsContext, newTestAttemptLedger(t))
 	require.NoError(t, err)
-	result, err := repository.Run(context.Background(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
+	result, err := repository.Run(context.Background(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		RootOperationID:   root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
 	require.NoError(t, err)
 	require.Equal(t, providers.ProviderOllama, result.Provider)
@@ -198,10 +200,11 @@ func TestServiceSchemaRepairCreatesDistinctHostedAttempt(t *testing.T) {
 	}))
 	defer server.Close()
 
-	repository := hostedTestRepository(t, server.URL, func() string { return deviceKey }, newTestAttemptLedger(t), Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
+	repository := hostedTestRepository(t, server.URL, func() string { return deviceKey }, newTestAttemptLedger(t), rolecatalog.Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
 	service := NewService(repository)
-	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		RootOperationID: root, Source: "source",
+	request := ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		RootOperationID:   root, Source: "source",
 		SchemaJSON: `{"type":"object","required":["kind"],"properties":{"kind":{"enum":["ok"]}}}`,
 		Role:       "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	}
@@ -267,7 +270,7 @@ func TestResourceRepositoryReceiptRecoveryRemainsExactKeyWhenLedgerStateWriteFai
 	defer server.Close()
 
 	ledger := &failAtSetAttemptLedger{AttemptLedger: newTestAttemptLedger(t), failAt: 2}
-	repository := hostedTestRepository(t, server.URL, func() string { return "test-device-key" }, ledger, Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
+	repository := hostedTestRepository(t, server.URL, func() string { return "test-device-key" }, ledger, rolecatalog.Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
 	request := ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input", RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
 
 	first, err := repository.Run(context.Background(), request)

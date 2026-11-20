@@ -1,20 +1,24 @@
 package routing
 
 import (
-	internalrouting "ai-gateway/internal/routing"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/ai-provider-go/policy"
-	_ "modernc.org/sqlite"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	internalrouting "ai-gateway/internal/routing"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/ai-provider-go/policy"
+	"github.com/vrooli/api-core/consumeridentity"
+	_ "modernc.org/sqlite"
 )
 
 // This helper serves the production Gateway router, SQL plan/receipt stores
@@ -66,7 +70,7 @@ func TestJourneyGatewayServer(t *testing.T) {
 	}
 	root := t.TempDir()
 	dir := filepath.Join(root, "resources", supplier)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	models := map[string]policy.Model{}
@@ -108,11 +112,11 @@ func TestJourneyGatewayServer(t *testing.T) {
 			source.Review.Status = policy.ReviewPending
 		}
 		path := filepath.Join(root, "resources", harness)
-		if err := os.MkdirAll(path, 0700); err != nil {
+		if err := os.MkdirAll(path, 0o700); err != nil {
 			t.Fatal(err)
 		}
 		data, _ := json.Marshal(map[string]any{"billing": map[string]any{"sources": []policy.HarnessBillingSource{source}}})
-		if err := os.WriteFile(filepath.Join(path, "model-policy.json"), data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(path, "model-policy.json"), data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -121,11 +125,11 @@ func TestJourneyGatewayServer(t *testing.T) {
 	}
 	catalog := map[string]any{"provider": map[string]any{"id": supplier, "terms": terms, "hosted_routes": routes, "agreements": []policy.Agreement{agreement}}, "models": models}
 	encoded, _ := json.Marshal(catalog)
-	if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), encoded, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), encoded, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	encoded, _ = json.Marshal(map[string]any{"endpoint": upstream + "/models"})
-	if err := os.WriteFile(filepath.Join(dir, "resource.json"), encoded, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "resource.json"), encoded, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	source := internalrouting.ResourcePolicySource{Root: root, VerifyDecision: func(_ context.Context, ref, digest, scope string) bool {
@@ -161,7 +165,7 @@ func serveJourneyGateway(t *testing.T, db *sql.DB, source internalrouting.Resour
 	}
 
 	router := mux.NewRouter()
-	Module(Deps{DB: db, PrivatePolicy: service}).Mount(router)
+	Module(Deps{DB: db, PrivatePolicy: service, CreditAssertions: journeyCreditAssertionVerifier{}}).Mount(router)
 	done := make(chan struct{})
 	router.HandleFunc("/__journey/stop", func(w http.ResponseWriter, r *http.Request) { close(done) })
 	router.HandleFunc("/__journey/legacy-receipt/{operation}", func(w http.ResponseWriter, r *http.Request) {
@@ -178,4 +182,13 @@ func serveJourneyGateway(t *testing.T, db *sql.DB, source internalrouting.Resour
 	defer server.Close()
 	fmt.Println("GATEWAY_URL=" + server.URL)
 	<-done
+}
+
+type journeyCreditAssertionVerifier struct{}
+
+func (journeyCreditAssertionVerifier) VerifyCreditAssertion(_ *http.Request, token string, expected consumeridentity.CreditAssertionExpectation) error {
+	if token != "fixture-credit-assertion" || expected.BusinessAccountID == "" || expected.ActorID == "" || expected.AppKey == "" || expected.FeatureID == "" || expected.MaxCredits <= 0 || expected.OperationID == "" || expected.Audience != consumeridentity.CreditGatewayAudience || expected.Source != consumeridentity.CreditAssertionSource {
+		return errors.New("invalid synthetic journey credit assertion")
+	}
+	return nil
 }

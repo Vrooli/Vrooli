@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,6 +14,16 @@ import (
 
 	"ai-gateway/internal/routing"
 )
+
+func TestPrivatePlanRefusesFeatureOutsideAssertedApp(t *testing.T) {
+	db := newSchemaDB(t)
+	feature := routing.PrivateFeature{ID: "audio-tools.summarize", AppKey: "audio-tools", Role: "chat", Profile: "balanced", MaxInputBytes: 1024, MaxOutputBytes: 1024, MaxUserTurns: 1}
+	service := routing.NewPrivatePolicyService([]routing.PrivateFeature{feature}, nil, routing.NewSQLPrivatePlanRepository(db), routing.NewSQLPrivateReceiptRepository(db))
+	_, err := service.Plan(context.Background(), routing.PrivatePlanRequest{OperationID: "op-cross-app", FeatureID: feature.ID, Model: "model-a", BudgetMicros: 1, BusinessAccountID: "acct-1", ActorID: "actor-1", AppKey: "web-console"})
+	if !errors.Is(err, routing.ErrPrivateFeatureScopeMismatch) {
+		t.Fatalf("cross-app plan error = %v", err)
+	}
+}
 
 func TestPrivatePlanAndExecuteShareEligibilityAndReceiptSurvivesDisconnect(t *testing.T) {
 	db := newSchemaDB(t)

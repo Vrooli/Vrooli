@@ -48,7 +48,9 @@ func (h *Handler) usageSpans(ctx context.Context, provider, scope string, since 
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	for _, span := range spans {
-		if span.AccountScope != scope {
+		// The default read spans every account, each labelled; an exact scope
+		// must return only that account.
+		if scope != "" && span.AccountScope != scope {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("quota source returned a mismatched account scope"))
 		}
 	}
@@ -62,6 +64,12 @@ func usageProvenance(spans []pricing.QuotaReadingSpan, since, now time.Time, pro
 	}
 	if provider != "" {
 		provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: "provider", Value: provider})
+	}
+	if scope == "" {
+		// Every account, each forecast separately; the legacy unknown scope
+		// drops out once a scoped feed of the same window supersedes it.
+		provenance.ExecutedQuery += " GROUP BY account_scope (each account forecast separately)"
+		return provenance
 	}
 	provenance.ExecutedQuery += " AND account_scope = selected_scope"
 	provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: "account_scope", Value: scope})
@@ -149,6 +157,10 @@ func protoWindowForecast(f usageforecast.Forecast) *measurepb.UsageWindowForecas
 		CalibrationFactor: f.Calibration.Factor, CalibrationWindows: int64(f.Calibration.Windows),
 		ProjectedExhaustionAt: rfc3339Ptr(f.Projected), ExhaustionBandStart: rfc3339Ptr(f.BandStart), ExhaustionBandEnd: rfc3339Ptr(f.BandEnd),
 		EarlyReset: f.EarlyReset,
+	}
+	if f.Expired {
+		// The reset passed with no reading since: no current percent exists.
+		row.HasPercent, row.UsedPercent, row.LastReadingPercent = false, 0, 0
 	}
 	if f.Lasting != nil {
 		row.LastingPercentPerHour = *f.Lasting

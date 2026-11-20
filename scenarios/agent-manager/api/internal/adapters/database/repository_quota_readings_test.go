@@ -198,8 +198,8 @@ func TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent(t *tes
 }
 
 // Account scopes partition identity, heartbeat deduplication and compaction.
-// The legacy forecast has no account dimension, so it must exclude scoped data
-// rather than merge it into the existing unknown-account history.
+// The default reading read returns every scope, each span labelled with its own
+// scope and never merged into another account's history.
 func TestScopedQuotaObservationsRemainIsolated(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -239,8 +239,15 @@ func TestScopedQuotaObservationsRemainIsolated(t *testing.T) {
 		t.Fatal("empty account scope must not mean all accounts")
 	}
 	spans, err := repo.(pricing.QuotaReadingSource).QuotaReadingSpans(t.Context(), "openai", time.Time{})
-	if err != nil || len(spans) != 1 || spans[0].Samples != 2 {
-		t.Fatalf("legacy forecast must see only unscoped history: spans=%+v err=%v", spans, err)
+	if err != nil || len(spans) != 3 {
+		t.Fatalf("default read must return one span per account scope: spans=%+v err=%v", spans, err)
+	}
+	seen := map[string]int64{}
+	for _, span := range spans {
+		seen[span.AccountScope] += span.Samples
+	}
+	if len(seen) != 3 || seen[""] != 2 || seen["account-a"] != 2 || seen["account-b"] != 2 {
+		t.Fatalf("default read merged or dropped account scopes: %+v", seen)
 	}
 	if _, err := repo.(pricing.QuotaObservationCompactor).CompactQuotaObservations(t.Context()); err != nil {
 		t.Fatal(err)

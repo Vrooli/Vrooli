@@ -3,7 +3,6 @@ package conformance
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -43,15 +42,9 @@ type rule struct {
 }
 
 var (
-	modelSlugPattern      = regexp.MustCompile(`(?i)\b(gpt-[0-9][a-z0-9.-]*|claude-[0-9][a-z0-9.-]*|qwen[0-9][a-z0-9.]*:[a-z0-9._-]+|llama[0-9][a-z0-9.]*:[a-z0-9._-]+|mistral-[0-9][a-z0-9.-]*|nomic-embed-text(?::latest)?)\b`)
-	contextWindowPattern  = regexp.MustCompile(`\b(4096|8192|16384|32768|65536|128000|200000)\b`)
-	openRouterAPIURL      = regexp.MustCompile(`(?i)https?://(?:api\.)?openrouter\.ai/(?:api/)?v1(?:/|\b)`)
-	goGatewayRoleLiteral  = regexp.MustCompile(`\bRole\s*:\s*"([a-z][a-z0-9_-]*\.[a-z0-9_.-]+)"`)
-	goDefaultRoleLiteral  = regexp.MustCompile(`(?i)\bdefault\w*role\s*:?=\s*"([a-z][a-z0-9_-]*\.[a-z0-9_.-]+)"`)
-	goRoleConstant        = regexp.MustCompile(`\b[A-Z][A-Za-z0-9]*Role\s*=\s*"([a-z][a-z0-9_-]*\.[a-z0-9_.-]+)"`)
-	implicitLLMRerankRole = regexp.MustCompile(`\bNewLLMRerankerWithRunner\s*\(\s*""\s*,`)
-	jsonGatewayRole       = regexp.MustCompile(`(?i)["']role["']\s*:\s*["']([a-z][a-z0-9_-]*\.[a-z0-9_.-]+)["']`)
-	jsGatewayRole         = regexp.MustCompile(`(?i)\brole\s*:\s*["']([a-z][a-z0-9_-]*\.[a-z0-9_.-]+)["']`)
+	modelSlugPattern     = regexp.MustCompile(`(?i)\b(gpt-[0-9][a-z0-9.-]*|claude-[0-9][a-z0-9.-]*|qwen[0-9][a-z0-9.]*:[a-z0-9._-]+|llama[0-9][a-z0-9.]*:[a-z0-9._-]+|mistral-[0-9][a-z0-9.-]*|nomic-embed-text(?::latest)?)\b`)
+	contextWindowPattern = regexp.MustCompile(`\b(4096|8192|16384|32768|65536|128000|200000)\b`)
+	openRouterAPIURL     = regexp.MustCompile(`(?i)https?://(?:api\.)?openrouter\.ai/(?:api/)?v1(?:/|\b)`)
 )
 
 var rules = []rule{
@@ -173,35 +166,7 @@ func (s *Scanner) Scan(ctx context.Context, req ScanRequest) (ScanReport, error)
 	if err != nil {
 		return ScanReport{}, err
 	}
-	var findings []*conformancev1.ConformanceFinding
-	usesGateway := false
-	aiSignal := false
-
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if skipDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !scanFile(path) {
-			return nil
-		}
-		fileFindings, fileUsesGateway, fileAISignal, err := scanOneFile(root, path)
-		if err != nil {
-			return err
-		}
-		findings = append(findings, fileFindings...)
-		usesGateway = usesGateway || fileUsesGateway
-		aiSignal = aiSignal || fileAISignal || len(fileFindings) > 0
-		return nil
-	})
+	state, err := scanScenarioTree(ctx, root)
 	if err != nil {
 		return ScanReport{}, err
 	}
@@ -209,8 +174,53 @@ func (s *Scanner) Scan(ctx context.Context, req ScanRequest) (ScanReport, error)
 	if err != nil {
 		return ScanReport{}, err
 	}
-	findings = append(findings, roleFindings...)
-	if aiSignal && !usesGateway {
+	state.findings = append(state.findings, roleFindings...)
+	return buildScenarioScanReport(scenario, root, state), nil
+}
+
+type scenarioScanState struct {
+	findings    []*conformancev1.ConformanceFinding
+	usesGateway bool
+	aiSignal    bool
+}
+
+func scanScenarioTree(ctx context.Context, root string) (scenarioScanState, error) {
+	state := scenarioScanState{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skipDir(entry.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		return state.scanFile(root, path)
+	})
+	return state, err
+}
+
+func (state *scenarioScanState) scanFile(root, path string) error {
+	if !scanFile(path) {
+		return nil
+	}
+	fileFindings, fileUsesGateway, fileAISignal, err := scanOneFile(root, path)
+	if err != nil {
+		return err
+	}
+	state.findings = append(state.findings, fileFindings...)
+	state.usesGateway = state.usesGateway || fileUsesGateway
+	state.aiSignal = state.aiSignal || fileAISignal || len(fileFindings) > 0
+	return nil
+}
+
+func buildScenarioScanReport(scenario, root string, state scenarioScanState) ScanReport {
+	findings := state.findings
+	if state.aiSignal && !state.usesGateway {
 		findings = append(findings, &conformancev1.ConformanceFinding{
 			RuleId:      "ai.gateway_not_adopted",
 			Severity:    "advisory",
@@ -226,132 +236,8 @@ func (s *Scanner) Scan(ctx context.Context, req ScanRequest) (ScanReport, error)
 		return findings[i].GetPath() < findings[j].GetPath()
 	})
 	return ScanReport{
-		Scenario:        firstNonEmpty(scenario, filepath.Base(root)),
-		MaturityLevel:   maturityLevel(findings),
-		Findings:        findings,
-		Recommendations: recommendations(findings),
-	}, nil
-}
-
-// scanGatewayRoleReachability verifies literal role IDs in Gateway callers
-// against the authoritative task-role catalog. It only inspects this scenario,
-// excludes the Gateway implementation itself, and ignores indirect/dynamic role
-// values that cannot be safely resolved by a source lint.
-func scanGatewayRoleReachability(ctx context.Context, scenarioRoot string) ([]*conformancev1.ConformanceFinding, error) {
-	catalogPath, scenarioID := locateGatewayRoleCatalog(scenarioRoot)
-	if catalogPath == "" || scenarioID == "ai-gateway" {
-		return nil, nil
-	}
-	raw, err := os.ReadFile(catalogPath)
-	if err != nil {
-		return nil, fmt.Errorf("read AI Gateway task-role catalog: %w", err)
-	}
-	var catalog struct {
-		Roles map[string]json.RawMessage `json:"roles"`
-	}
-	if err := json.Unmarshal(raw, &catalog); err != nil {
-		return nil, fmt.Errorf("decode AI Gateway task-role catalog: %w", err)
-	}
-	if len(catalog.Roles) == 0 {
-		return nil, fmt.Errorf("AI Gateway task-role catalog declares no roles")
-	}
-	known := make(map[string]struct{}, len(catalog.Roles))
-	for role := range catalog.Roles {
-		known[role] = struct{}{}
-	}
-	var findings []*conformancev1.ConformanceFinding
-	err = filepath.WalkDir(scenarioRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			if skipDir(entry.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !scanFile(path) {
-			return nil
-		}
-		body, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		source := string(body)
-		if !isGatewayInferenceCaller(source) {
-			return nil
-		}
-		roleLines := map[int]map[string]struct{}{}
-		for lineNo, line := range strings.Split(source, "\n") {
-			for _, pattern := range []*regexp.Regexp{goGatewayRoleLiteral, goDefaultRoleLiteral, goRoleConstant, jsonGatewayRole, jsGatewayRole} {
-				for _, match := range pattern.FindAllStringSubmatch(line, -1) {
-					if roleLines[lineNo+1] == nil {
-						roleLines[lineNo+1] = map[string]struct{}{}
-					}
-					roleLines[lineNo+1][match[1]] = struct{}{}
-				}
-			}
-		}
-		rel, relErr := filepath.Rel(scenarioRoot, path)
-		if relErr != nil {
-			return relErr
-		}
-		for lineNo, roles := range roleLines {
-			for role := range roles {
-				if _, ok := known[role]; ok {
-					continue
-				}
-				findings = append(findings, conformanceFinding(
-					"ai.gateway_role_unreachable", "high", fmt.Sprintf("%s:%d", filepath.ToSlash(rel), lineNo),
-					"A literal AI Gateway role is absent from the authoritative task-role catalog.",
-					"Select a declared Gateway role or update the owner-reviewed role catalog through its policy owner.",
-				))
-			}
-		}
-		for lineNo, line := range strings.Split(source, "\n") {
-			if implicitLLMRerankRole.MatchString(line) {
-				findings = append(findings, conformanceFinding(
-					"ai.gateway_role_implicit", "high", fmt.Sprintf("%s:%d", filepath.ToSlash(rel), lineNo+1),
-					"The typed Gateway LLM reranker inherits an implicit shared-library role instead of naming a catalog task role.",
-					"Pass an owner-selected role declared in the AI Gateway task-role catalog; do not inherit a resource compatibility default.",
-				))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(findings, func(i, j int) bool { return findings[i].GetPath() < findings[j].GetPath() })
-	return findings, nil
-}
-
-func isGatewayInferenceCaller(source string) bool {
-	lower := strings.ToLower(source)
-	return strings.Contains(lower, "ai-gateway/v1/inference") ||
-		strings.Contains(lower, "ai_gateway.v1.inference") ||
-		strings.Contains(lower, "ai-gateway/inference/run") ||
-		strings.Contains(lower, "ai-gateway/inference/decide") ||
-		strings.Contains(lower, "ai-gateway/inference/embed") ||
-		(strings.Contains(lower, "routingconnect.") && strings.Contains(lower, "executeroute")) ||
-		strings.Contains(lower, "aigateway.newtextgenerator") ||
-		strings.Contains(lower, "inferenceconnect.")
-}
-
-func locateGatewayRoleCatalog(scenarioRoot string) (catalogPath, scenarioID string) {
-	for dir := scenarioRoot; ; dir = filepath.Dir(dir) {
-		candidate := filepath.Join(dir, "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			id := filepath.Base(scenarioRoot)
-			return candidate, id
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", ""
-		}
+		Scenario: firstNonEmpty(scenario, filepath.Base(root)), MaturityLevel: maturityLevel(findings),
+		Findings: findings, Recommendations: recommendations(findings),
 	}
 }
 
@@ -576,88 +462,4 @@ func scanFile(path string) bool {
 	default:
 		return false
 	}
-}
-
-func maturityLevel(findings []*conformancev1.ConformanceFinding) string {
-	if len(findings) == 0 {
-		return "gateway-ready"
-	}
-	for _, f := range findings {
-		if f.GetSeverity() == "high" {
-			return "blocked-needs-investigation"
-		}
-	}
-	return "resource-boundary-review"
-}
-
-func severityToken(severity string) string {
-	switch strings.ToLower(strings.TrimSpace(severity)) {
-	case "high":
-		return "SEVERITY_ERROR"
-	case "medium":
-		return "SEVERITY_WARNING"
-	case "low", "advisory":
-		return "SEVERITY_INFO"
-	default:
-		return "SEVERITY_UNSPECIFIED"
-	}
-}
-
-func titleForRule(ruleID string) string {
-	switch ruleID {
-	case "ai.direct_ollama_http":
-		return "Direct Ollama HTTP usage"
-	case "ai.direct_openrouter_http":
-		return "Direct OpenRouter HTTP usage"
-	case "ai.non_gateway_provider_client_import":
-		return "Provider client imported outside AI Gateway"
-	case "ai.invalid_provider_secret_env":
-		return "Provider secret owned by scenario"
-	case "ai.invalid_provider_url_env":
-		return "Provider URL owned by scenario"
-	case "ai.concrete_model_slug":
-		return "Concrete model slug in scenario code"
-	case "ai.gateway_role_unreachable":
-		return "Gateway role missing from task catalog"
-	case "ai.hardcoded_embedding_dimensions":
-		return "Hard-coded embedding dimensions"
-	case "ai.hardcoded_context_window":
-		return "Hard-coded context window"
-	case "ai.embedding_metadata_missing":
-		return "Embedding metadata missing"
-	case "ai.resource_gateway_missing_role":
-		return "Resource role policy missing"
-	case "ai.gateway_not_adopted":
-		return "AI Gateway adoption signal missing"
-	case "ai.unreviewed_exception":
-		return "Unreviewed AI exception"
-	default:
-		return "AI conformance finding"
-	}
-}
-
-func recommendations(findings []*conformancev1.ConformanceFinding) []string {
-	if len(findings) == 0 {
-		return []string{"no blocking AI conformance findings detected"}
-	}
-	seen := map[string]struct{}{}
-	var out []string
-	for _, f := range findings {
-		if _, ok := seen[f.GetRuleId()]; ok {
-			continue
-		}
-		seen[f.GetRuleId()] = struct{}{}
-		out = append(out, f.GetRemediation())
-	}
-	sort.Strings(out)
-	return out
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
 }

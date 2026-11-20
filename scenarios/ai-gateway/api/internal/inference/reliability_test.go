@@ -9,6 +9,7 @@ import (
 
 	"ai-gateway/internal/providers"
 	providermocks "ai-gateway/internal/providers/mocks"
+	"ai-gateway/internal/rolecatalog"
 
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -43,11 +44,12 @@ func TestServiceReAsksOnceWhenLocalValidationRejectsTheFirstValue(t *testing.T) 
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`, `{"label":"infra"}`}}
 	service := NewService(repository)
 
-	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Source:      "connection refused",
-		SchemaJSON:  `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
-		Instruction: "Classify by root cause.",
-		Role:        "classify.fast",
+	response := service.Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Source:            "connection refused",
+		SchemaJSON:        `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
+		Instruction:       "Classify by root cause.",
+		Role:              "classify.fast",
 	})
 
 	require.True(t, response.GetValidated())
@@ -73,10 +75,11 @@ func TestServiceStopsReAskingAfterTheAttemptBudget(t *testing.T) {
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`}}
 	service := NewService(repository)
 
-	response := service.Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Source:     "source",
-		SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
-		Role:       "classify.fast",
+	response := service.Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Source:            "source",
+		SchemaJSON:        `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
+		Role:              "classify.fast",
 	})
 
 	require.False(t, response.GetValidated())
@@ -88,8 +91,9 @@ func TestServiceStopsReAskingAfterTheAttemptBudget(t *testing.T) {
 
 func TestServiceGenericProviderCallLimitIncludesValidationRepair(t *testing.T) {
 	repository := &repairingRepository{values: []string{`{"label":"wrong"}`, `{"label":"infra"}`}}
-	response := NewService(repository).Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Source: "source", SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
+	response := NewService(repository).Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Source:            "source", SchemaJSON: `{"type":"object","required":["label"],"properties":{"label":{"enum":["infra"]}}}`,
 		Role: "classify.fast", MaxProviderCalls: 1,
 	})
 	require.False(t, response.GetValidated())
@@ -99,8 +103,9 @@ func TestServiceGenericProviderCallLimitIncludesValidationRepair(t *testing.T) {
 
 func TestServiceRejectsProviderCallLimitAboveGatewayMaximumBeforeDispatch(t *testing.T) {
 	repository := &repairingRepository{values: []string{`"value"`}}
-	response := NewService(repository).Run(t.Context(), ProviderRequest{PrivacyProvenance: "tests.explicit_internal_input",
-		Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1,
+	response := NewService(repository).Run(t.Context(), ProviderRequest{
+		PrivacyProvenance: "tests.explicit_internal_input",
+		Source:            "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", MaxProviderCalls: MaxProviderCalls + 1,
 	})
 	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetError().GetCode().String())
 	require.Equal(t, "max_provider_calls", response.GetError().GetConstruct())
@@ -171,8 +176,8 @@ func TestRoleTimeoutReachesTheProviderCommand(t *testing.T) {
 		"resource-ollama policy resolve --role classify.routing --json":                                                                 {Stdout: `{"role":"classify.routing","model":"qwen3.5:4b","sampling_support":{"temperature":"honored"}}`},
 		"resource-ollama gateway generate --role classify.routing --json --prompt-stdin --temperature 0 --format {\"type\":\"string\"}": {Stdout: `{"response":"\"infra\"","eval_count":2}`},
 	}}
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"classify.fast": {TimeoutMS: 45000, Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+		"classify.fast": {TimeoutMS: 45000, Sampling: deterministicRoleSampling(), Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},
 	}}
 	configureQualifiedLocalRole(runner, "classify.routing", "qwen3.5:4b", "local")
 	runner.DefaultOK = true
@@ -196,15 +201,15 @@ func TestRoleTimeoutReachesTheProviderCommand(t *testing.T) {
 }
 
 func TestRoleTimeoutFallsBackToTheDefaultWhenUndeclared(t *testing.T) {
-	require.Equal(t, DefaultRoleTimeout, InferenceRole{}.Timeout())
-	require.Equal(t, 2*time.Second, InferenceRole{TimeoutMS: 2000}.Timeout())
+	require.Equal(t, rolecatalog.DefaultRoleTimeout, rolecatalog.InferenceRole{}.Timeout())
+	require.Equal(t, 2*time.Second, rolecatalog.InferenceRole{TimeoutMS: 2000}.Timeout())
 }
 
 func TestCatalogRejectsATimeoutBeyondTheMaximum(t *testing.T) {
-	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+	catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
 		"classify.fast": {
-			TimeoutMS:  int(MaxRoleTimeout/time.Millisecond) + 1,
-			Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}},
+			TimeoutMS:  int(rolecatalog.MaxRoleTimeout/time.Millisecond) + 1,
+			Candidates: []rolecatalog.Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}},
 		},
 	}}
 	require.ErrorContains(t, catalog.Validate(), "exceeds")
@@ -223,8 +228,8 @@ func TestCatalogValidatesProviderWidening(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-				"detect.pii.default": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{
+			catalog := rolecatalog.RoleCatalog{SchemaVersion: 1, Roles: map[string]rolecatalog.InferenceRole{
+				"detect.pii.default": {Sampling: deterministicRoleSampling(), Candidates: []rolecatalog.Candidate{
 					{Provider: tc.provider, ResourceRole: "pii.small", Reason: "test"},
 				}},
 			}}

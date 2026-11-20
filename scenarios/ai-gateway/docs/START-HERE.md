@@ -431,10 +431,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component-id>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -443,17 +443,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest ai-gateway <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest ai-gateway "<source-file>" "<slug>" --experience-contract "experience/components/<component>.json" --display-name "<Name>" --slot "<slot>"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> ai-gateway
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component-id>"
+react-component-library asset check "<asset-id>" --profile style
+react-component-library asset record-check "<asset-id>"
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -461,14 +459,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario ai-gateway
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario ai-gateway
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> ai-gateway <adopted-path>
+react-component-library adoptions link "<component-id>" ai-gateway
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

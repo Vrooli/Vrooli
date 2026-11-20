@@ -56,6 +56,9 @@ func (r Runtime) evaluate(event ToolEvent) (Decision, error) {
 	if hardStop := hardStopForEvent(event); hardStop != "" {
 		return r.hardStopDecision(event, risk, hardStop, now)
 	}
+	if hasOpaqueExecution(event) && r.relaxationMayBeActive(now) {
+		return r.hardStopDecision(event, risk, HardStopUnknownEffect, now)
+	}
 	if reasons := operatorOnlyReasons(event, r.operatorEnv(event)); len(reasons) > 0 {
 		return operatorOnlyDecision(event, reasons), nil
 	}

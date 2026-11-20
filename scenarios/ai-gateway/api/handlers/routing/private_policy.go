@@ -6,10 +6,12 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 
 	internalrouting "ai-gateway/internal/routing"
+	"github.com/vrooli/api-core/consumeridentity"
 )
 
 const (
@@ -32,8 +34,15 @@ func (h *connectHandler) planPrivate(w http.ResponseWriter, r *http.Request) {
 		writePrivateError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	if !h.verifyCreditAssertion(w, r, request.BusinessAccountID, request.ActorID, request.AppKey, request.FeatureID, request.MaxCredits, request.OperationID) {
+		return
+	}
 	plan, err := h.private.Plan(r.Context(), request)
 	if err != nil {
+		if errors.Is(err, internalrouting.ErrPrivateFeatureScopeMismatch) {
+			writePrivateError(w, http.StatusForbidden, "feature_scope_mismatch", "feature is outside the admitted app scope")
+			return
+		}
 		if errors.Is(err, internalrouting.ErrPrivatePlanConflict) {
 			writePrivateError(w, http.StatusConflict, "operation_conflict", err.Error())
 			return
@@ -52,6 +61,9 @@ func (h *connectHandler) executePrivate(w http.ResponseWriter, r *http.Request) 
 	var request internalrouting.PrivateExecuteRequest
 	if err := decodePrivateJSON(w, r, &request); err != nil {
 		writePrivateError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if !h.verifyCreditAssertion(w, r, request.Plan.BusinessAccountID, request.Plan.ActorID, request.Plan.AppKey, request.Plan.FeatureID, request.Plan.MaxCredits, request.OperationID) {
 		return
 	}
 	receipt, err := h.private.Execute(r.Context(), request)
@@ -123,6 +135,9 @@ func (h *connectHandler) streamPrivate(w http.ResponseWriter, r *http.Request) {
 		writePrivateError(w, 400, "invalid_request", err.Error())
 		return
 	}
+	if !h.verifyCreditAssertion(w, r, request.BusinessAccountID, request.ActorID, request.AppKey, request.Plan.FeatureID, request.Plan.MaxCredits, request.OperationID) {
+		return
+	}
 	receipt, err := h.private.Stream(r.Context(), request, w)
 	if err != nil {
 		if errors.Is(err, internalrouting.ErrPrivateDispatchUncertain) {
@@ -144,6 +159,27 @@ func (h *connectHandler) streamPrivate(w http.ResponseWriter, r *http.Request) {
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+func (h *connectHandler) verifyCreditAssertion(w http.ResponseWriter, r *http.Request, account, actor, app, feature string, maxCredits int64, operation string) bool {
+	if h == nil || h.creditAssertions == nil {
+		writePrivateError(w, http.StatusServiceUnavailable, "credit_authority_unavailable", "credit assertion verification is unavailable")
+		return false
+	}
+	parts := strings.SplitN(strings.TrimSpace(r.Header.Get("Authorization")), " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
+		writePrivateError(w, http.StatusUnauthorized, "credit_assertion_required", "LPBS credit assertion is required")
+		return false
+	}
+	expected := consumeridentity.CreditAssertionExpectation{
+		BusinessAccountID: account, ActorID: actor, AppKey: app, FeatureID: feature, MaxCredits: maxCredits, Audience: consumeridentity.CreditGatewayAudience,
+		OperationID: operation, Source: consumeridentity.CreditAssertionSource,
+	}
+	if err := h.creditAssertions.VerifyCreditAssertion(r, strings.TrimSpace(parts[1]), expected); err != nil {
+		writePrivateError(w, http.StatusUnauthorized, "credit_assertion_invalid", "LPBS credit assertion is invalid")
+		return false
+	}
+	return true
 }
 
 func (h *connectHandler) modelsPrivate(w http.ResponseWriter, r *http.Request) {

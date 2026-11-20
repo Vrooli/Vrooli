@@ -181,6 +181,20 @@
       }
     },
     {
+      "id": "catalog_get_capability_catalog",
+      "path": "/vrooli.ai_gateway.v1.catalog.CatalogService/GetCapabilityCatalog",
+      "method": "POST",
+      "summary": "Get AI Gateway capability catalog",
+      "description": "Read-only discovery projection of native profiles, request kinds, roles, and providers; it does not confer authority or drive dispatch.",
+      "category": "catalog",
+      "request": {
+        "type": "GetCapabilityCatalogRequest"
+      },
+      "response": {
+        "type": "common.v1.AIGatewayCapabilityCatalog"
+      }
+    },
+    {
       "id": "gateway_validate_gateway_request",
       "path": "/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest",
       "method": "POST",
@@ -220,15 +234,19 @@
       "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Run",
       "method": "POST",
       "summary": "Run schema-constrained typed inference",
-      "description": "Executes one provider-neutral inference request and locally validates the returned JSON before marking it successful.",
+      "description": "Executes one provider-neutral inference request, applies the caller's profile and privacy class to candidate eligibility and ordering, and locally validates the returned JSON before marking it successful.",
       "category": "inference",
       "request": {
         "type": "RunRequest",
         "properties": {
+          "attachments": "Attachment[]",
           "instruction": "string",
+          "privacy_class": "PrivacyClass",
+          "profile": "Profile",
           "role": "string",
           "schema_json": "string",
-          "source": "string"
+          "source": "string",
+          "turns": "Turn[]"
         }
       },
       "response": {
@@ -255,13 +273,15 @@
       "path": "/vrooli.ai_gateway.v1.inference.InferenceService/RunBatch",
       "method": "POST",
       "summary": "Run ordered schema-constrained typed inference batch",
-      "description": "Runs up to 256 sources against one schema and returns ordered results with aggregate usage.",
+      "description": "Runs up to 256 sources against one schema under a shared profile and privacy class, preserving item order and aggregate usage.",
       "category": "inference",
       "request": {
         "type": "RunBatchRequest",
         "properties": {
           "instruction": "string",
           "items": "RunBatchItem[]",
+          "privacy_class": "PrivacyClass",
+          "profile": "Profile",
           "role": "string",
           "schema_json": "string"
         }
@@ -278,6 +298,116 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "The batch size or schema is invalid"
+        }
+      ]
+    },
+    {
+      "id": "inference_embed",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Embed",
+      "method": "POST",
+      "summary": "Return gateway-owned embedding vectors",
+      "description": "Resolves the requested embedding role locally and returns one vector per input text in request order. Embeddings always use the local-only profile (LOCAL_ONLY); new callers send profile, privacy_class, and privacy_provenance. Omitted legacy contracts remain local-only.",
+      "category": "inference",
+      "request": {
+        "type": "EmbedRequest",
+        "properties": {
+          "privacy_class": "PrivacyClass",
+          "privacy_provenance": "string",
+          "profile": "Profile",
+          "role": "string",
+          "sampling": "SamplingControls",
+          "texts": "string[]"
+        }
+      },
+      "response": {
+        "type": "EmbedResponse",
+        "properties": {
+          "dimension": "int32",
+          "error": "InferenceError",
+          "model": "string",
+          "provider": "string",
+          "usage": "Usage",
+          "vectors": "EmbeddingVector[]"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The role, texts, sampling controls, or embedding privacy contract are invalid"
+        }
+      ]
+    },
+    {
+      "id": "inference_decide",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Decide",
+      "method": "POST",
+      "summary": "Answer typed decision questions with a decision model",
+      "description": "Answers choice, score and noul questions about one state through a decision role's candidates. The profile and privacy class apply the same candidate eligibility and ordering contract as typed inference. Candidate outcomes are reported individually.",
+      "category": "inference",
+      "request": {
+        "type": "DecideRequest",
+        "properties": {
+          "privacy_class": "PrivacyClass",
+          "profile": "Profile",
+          "questions": "DecisionQuestion[]",
+          "role": "string",
+          "state": "string",
+          "state_json": "string"
+        }
+      },
+      "response": {
+        "type": "DecideResponse",
+        "properties": {
+          "answers": "DecisionAnswer[]",
+          "candidates": "DecisionCandidate[]",
+          "error": "InferenceError",
+          "latency_ms": "int64",
+          "locality": "string",
+          "method": "DecisionMethod",
+          "model": "string",
+          "provider": "string",
+          "resource_role": "string",
+          "usage": "Usage"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request body is missing"
+        }
+      ]
+    },
+    {
+      "id": "inference_decide_batch",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/DecideBatch",
+      "method": "POST",
+      "summary": "Answer one decision question set about many states",
+      "description": "Runs up to 256 states against one question set under a shared profile and privacy class, preserving item order and aggregate usage.",
+      "category": "inference",
+      "request": {
+        "type": "DecideBatchRequest",
+        "properties": {
+          "items": "DecideBatchItem[]",
+          "privacy_class": "PrivacyClass",
+          "profile": "Profile",
+          "questions": "DecisionQuestion[]",
+          "role": "string"
+        }
+      },
+      "response": {
+        "type": "DecideBatchResponse",
+        "properties": {
+          "results": "DecideResponse[]",
+          "usage": "Usage"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request body is missing"
         }
       ]
     },
@@ -467,6 +597,66 @@
       }
     },
     {
+      "id": "measures_route_cost",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteCost",
+      "method": "POST",
+      "summary": "Total priced AI route cost in USD over a window",
+      "description": "Total priced AI route cost in USD over a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cost_usd": "double (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_tokens",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteTokens",
+      "method": "POST",
+      "summary": "Total tokens used by AI routes over a window",
+      "description": "Total tokens used by AI routes over a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "total_tokens": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_local_share",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteLocalShare",
+      "method": "POST",
+      "summary": "Share of AI routes served locally over a window",
+      "description": "Share of AI routes served locally over a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "share": "double (scalar value_field)"
+        }
+      }
+    },
+    {
       "id": "routing_preview_route",
       "path": "/vrooli.ai_gateway.v1.routing.RoutingService/PreviewRoute",
       "method": "POST",
@@ -508,6 +698,7 @@
       "response": {
         "type": "ExecuteRouteResponse",
         "properties": {
+          "applied": "AppliedSettings",
           "evidence": "RouteEvidence",
           "issues": "array<ValidationIssue>",
           "output_text": "string",

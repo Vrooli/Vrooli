@@ -62,7 +62,7 @@ func (h *handlers) mediaSubmit(ctx cliapp.RunContext) error {
 	if err != nil || count < 1 {
 		return fmt.Errorf("--output-count must be a positive integer")
 	}
-	resp, err := h.client.SubmitMedia(context.Background(), connect.NewRequest(&routingv1.SubmitMediaRequest{Request: request, Prompt: ctx.Flag("prompt"), OutputCount: count, IdempotencyKey: ctx.Flag("idempotency-key")}))
+	resp, err := h.client.SubmitMedia(context.Background(), connect.NewRequest(&routingv1.SubmitMediaRequest{Request: request, Prompt: ctx.Flag("prompt"), OutputCount: count, IdempotencyKey: ctx.Flag("idempotency-key"), OutputReference: ctx.Flag("output-reference")}))
 	if err != nil {
 		return cliapp.WrapAPIError("submit media", err, nil)
 	}

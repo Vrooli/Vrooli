@@ -44,6 +44,15 @@ func (s *Service) Validate(req *sharedv1.GatewayRequest) []*sharedv1.ValidationI
 	if req == nil {
 		return []*sharedv1.ValidationIssue{issue("request", "required", "request is required")}
 	}
+	issues := validateRequiredFields(req)
+	issues = append(issues, validateNumericBounds(req)...)
+	issues = append(issues, validateProviderSpecificMetadata(req.GetMetadata())...)
+	issues = append(issues, validatePrivacyProfile(req)...)
+	issues = append(issues, validateAttachments(req)...)
+	return issues
+}
+
+func validateRequiredFields(req *sharedv1.GatewayRequest) []*sharedv1.ValidationIssue {
 	var issues []*sharedv1.ValidationIssue
 	if req.GetKind() == sharedv1.RequestKind_REQUEST_KIND_UNSPECIFIED {
 		issues = append(issues, issue("kind", "required", "request kind is required"))
@@ -62,6 +71,11 @@ func (s *Service) Validate(req *sharedv1.GatewayRequest) []*sharedv1.ValidationI
 	} else if !profilepolicy.ValidPrivacyProvenance(req.GetPrivacyProvenance()) {
 		issues = append(issues, issue("privacy_provenance", "invalid", "privacy provenance must be a short non-sensitive identifier containing only letters, digits, '.', '_', '-', ':' or '/'"))
 	}
+	return issues
+}
+
+func validateNumericBounds(req *sharedv1.GatewayRequest) []*sharedv1.ValidationIssue {
+	var issues []*sharedv1.ValidationIssue
 	if req.GetTimeoutMs() < 0 {
 		issues = append(issues, issue("timeout_ms", "invalid", "timeout_ms cannot be negative"))
 	}
@@ -74,9 +88,6 @@ func (s *Service) Validate(req *sharedv1.GatewayRequest) []*sharedv1.ValidationI
 	if req.RequiredVramBytes != nil && req.GetRequiredVramBytes() <= 0 {
 		issues = append(issues, issue("required_vram_bytes", "invalid", "required_vram_bytes must be positive when set"))
 	}
-	issues = append(issues, validateProviderSpecificMetadata(req.GetMetadata())...)
-	issues = append(issues, validatePrivacyProfile(req)...)
-	issues = append(issues, validateAttachments(req)...)
 	return issues
 }
 
@@ -143,56 +154,72 @@ func validateAttachments(req *sharedv1.GatewayRequest) []*sharedv1.ValidationIss
 		issues = append(issues, issue("attachments", "limit_exceeded", "attachments exceed the maximum of 4"))
 	}
 	for index, attachment := range attachments {
-		field := "attachments[" + strconv.Itoa(index) + "]"
-		if attachment == nil {
-			issues = append(issues, issue(field, "invalid", "attachment is required"))
-			continue
-		}
-		if attachment.GetModality() == sharedv1.Modality_MODALITY_UNSPECIFIED {
-			issues = append(issues, issue(field+".modality", "required", "attachment modality is required"))
-		}
-		mediaType := strings.ToLower(strings.TrimSpace(attachment.GetMediaType()))
-		if attachment.GetPayload() == nil {
-			issues = append(issues, issue(field+".payload", "required", "attachment must contain inline_bytes or an opaque reference"))
-			continue
-		}
-		if reference := strings.TrimSpace(attachment.GetReference()); reference != "" {
-			if strings.Contains(reference, "://") || strings.HasPrefix(strings.ToLower(reference), "data:") {
-				issues = append(issues, issue(field+".reference", "opaque_reference_required", "attachment references must not contain provider URLs or data URLs"))
-			}
-			if attachment.GetBytes() > MaxAttachmentSize {
-				issues = append(issues, issue(field+".bytes", "limit_exceeded", "attachment bytes exceed the maximum of 10485760"))
-			}
-			continue
-		}
-		data := attachment.GetInlineBytes()
-		if len(data) == 0 {
-			issues = append(issues, issue(field+".inline_bytes", "required", "inline attachment bytes must not be empty"))
-			continue
-		}
-		if len(data) > MaxAttachmentSize {
-			issues = append(issues, issue(field+".inline_bytes", "limit_exceeded", "attachment bytes exceed the maximum of 10485760"))
-		}
-		if attachment.GetBytes() != 0 && attachment.GetBytes() != uint64(len(data)) {
-			issues = append(issues, issue(field+".bytes", "mismatch", "declared attachment bytes do not match inline payload length"))
-		}
-		if attachment.GetModality() != sharedv1.Modality_MODALITY_IMAGE {
-			continue
-		}
-		if !supportedImageMediaType(mediaType) {
-			issues = append(issues, issue(field+".media_type", "unsupported", "image attachment media_type must be image/png, image/jpeg, or image/webp"))
-			continue
-		}
-		width, height, err := imageDimensions(mediaType, data)
-		if err != nil {
-			issues = append(issues, issue(field, "invalid_image_header", err.Error()))
-			continue
-		}
-		if (attachment.GetWidth() != 0 && attachment.GetWidth() != width) || (attachment.GetHeight() != 0 && attachment.GetHeight() != height) {
-			issues = append(issues, issue(field+".dimensions", "mismatch", "declared attachment dimensions do not match the image header"))
-		}
+		issues = append(issues, validateAttachment(attachment, "attachments["+strconv.Itoa(index)+"]")...)
 	}
 	return issues
+}
+
+func validateAttachment(attachment *sharedv1.Attachment, field string) []*sharedv1.ValidationIssue {
+	if attachment == nil {
+		return []*sharedv1.ValidationIssue{issue(field, "invalid", "attachment is required")}
+	}
+	var issues []*sharedv1.ValidationIssue
+	if attachment.GetModality() == sharedv1.Modality_MODALITY_UNSPECIFIED {
+		issues = append(issues, issue(field+".modality", "required", "attachment modality is required"))
+	}
+	mediaType := strings.ToLower(strings.TrimSpace(attachment.GetMediaType()))
+	if attachment.GetPayload() == nil {
+		return append(issues, issue(field+".payload", "required", "attachment must contain inline_bytes or an opaque reference"))
+	}
+	if reference := strings.TrimSpace(attachment.GetReference()); reference != "" {
+		issues = append(issues, validateAttachmentReference(attachment, reference, field)...)
+		return issues
+	}
+	data := attachment.GetInlineBytes()
+	issues = append(issues, validateInlineAttachment(attachment, data, mediaType, field)...)
+	return issues
+}
+
+func validateAttachmentReference(attachment *sharedv1.Attachment, reference, field string) []*sharedv1.ValidationIssue {
+	var issues []*sharedv1.ValidationIssue
+	if strings.Contains(reference, "://") || strings.HasPrefix(strings.ToLower(reference), "data:") {
+		issues = append(issues, issue(field+".reference", "opaque_reference_required", "attachment references must not contain provider URLs or data URLs"))
+	}
+	if attachment.GetBytes() > MaxAttachmentSize {
+		issues = append(issues, issue(field+".bytes", "limit_exceeded", "attachment bytes exceed the maximum of 10485760"))
+	}
+	return issues
+}
+
+func validateInlineAttachment(attachment *sharedv1.Attachment, data []byte, mediaType, field string) []*sharedv1.ValidationIssue {
+	if len(data) == 0 {
+		return []*sharedv1.ValidationIssue{issue(field+".inline_bytes", "required", "inline attachment bytes must not be empty")}
+	}
+	var issues []*sharedv1.ValidationIssue
+	if len(data) > MaxAttachmentSize {
+		issues = append(issues, issue(field+".inline_bytes", "limit_exceeded", "attachment bytes exceed the maximum of 10485760"))
+	}
+	if attachment.GetBytes() != 0 && attachment.GetBytes() != uint64(len(data)) {
+		issues = append(issues, issue(field+".bytes", "mismatch", "declared attachment bytes do not match inline payload length"))
+	}
+	if attachment.GetModality() == sharedv1.Modality_MODALITY_IMAGE {
+		issues = append(issues, validateImageAttachment(attachment, data, mediaType, field)...)
+	}
+	return issues
+}
+
+func validateImageAttachment(attachment *sharedv1.Attachment, data []byte, mediaType, field string) []*sharedv1.ValidationIssue {
+	if !supportedImageMediaType(mediaType) {
+		return []*sharedv1.ValidationIssue{issue(field+".media_type", "unsupported", "image attachment media_type must be image/png, image/jpeg, or image/webp")}
+	}
+	width, height, err := imageDimensions(mediaType, data)
+	if err != nil {
+		return []*sharedv1.ValidationIssue{issue(field, "invalid_image_header", err.Error())}
+	}
+	if (attachment.GetWidth() != 0 && attachment.GetWidth() != width) || (attachment.GetHeight() != 0 && attachment.GetHeight() != height) {
+		return []*sharedv1.ValidationIssue{issue(field+".dimensions", "mismatch", "declared attachment dimensions do not match the image header")}
+	}
+	return nil
 }
 
 func supportedImageMediaType(mediaType string) bool {
@@ -227,37 +254,53 @@ func jpegDimensions(data []byte) (uint32, uint32, error) {
 		return 0, 0, fmt.Errorf("image/jpeg header is invalid")
 	}
 	for offset := 2; offset+3 < len(data); {
-		if data[offset] != 0xff {
-			offset++
-			continue
-		}
-		for offset < len(data) && data[offset] == 0xff {
-			offset++
-		}
-		if offset >= len(data) {
+		next, marker, segmentStart, segmentLength, ok := nextJPEGSegment(data, offset)
+		if !ok {
 			break
 		}
-		marker := data[offset]
-		offset++
 		if marker == 0xd8 || marker == 0xd9 {
+			offset = next
 			continue
-		}
-		if offset+2 > len(data) {
-			break
-		}
-		segmentLength := int(binary.BigEndian.Uint16(data[offset : offset+2]))
-		if segmentLength < 2 || offset+segmentLength > len(data) {
-			break
 		}
 		if isJPEGStartOfFrame(marker) {
 			if segmentLength < 7 {
 				break
 			}
-			return uint32(binary.BigEndian.Uint16(data[offset+5 : offset+7])), uint32(binary.BigEndian.Uint16(data[offset+3 : offset+5])), nil
+			width, height := jpegFrameDimensions(data, segmentStart)
+			return width, height, nil
 		}
-		offset += segmentLength
+		offset = next
 	}
 	return 0, 0, fmt.Errorf("image/jpeg dimensions are missing")
+}
+
+func nextJPEGSegment(data []byte, offset int) (next int, marker byte, segmentStart, segmentLength int, ok bool) {
+	if data[offset] != 0xff {
+		return offset + 1, 0, 0, 0, true
+	}
+	for offset < len(data) && data[offset] == 0xff {
+		offset++
+	}
+	if offset >= len(data) {
+		return 0, 0, 0, 0, false
+	}
+	marker = data[offset]
+	offset++
+	if marker == 0xd8 || marker == 0xd9 {
+		return offset, marker, 0, 0, true
+	}
+	if offset+2 > len(data) {
+		return 0, 0, 0, 0, false
+	}
+	segmentLength = int(binary.BigEndian.Uint16(data[offset : offset+2]))
+	if segmentLength < 2 || offset+segmentLength > len(data) {
+		return 0, 0, 0, 0, false
+	}
+	return offset + segmentLength, marker, offset, segmentLength, true
+}
+
+func jpegFrameDimensions(data []byte, segmentStart int) (uint32, uint32) {
+	return uint32(binary.BigEndian.Uint16(data[segmentStart+5 : segmentStart+7])), uint32(binary.BigEndian.Uint16(data[segmentStart+3 : segmentStart+5]))
 }
 
 func isJPEGStartOfFrame(marker byte) bool {

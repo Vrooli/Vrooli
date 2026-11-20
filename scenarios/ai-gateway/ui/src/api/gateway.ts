@@ -27,6 +27,9 @@ import {
   type PreviewRouteResponse,
 } from "@vrooli/proto-types/ai-gateway/v1/routing/routing_pb";
 
+import { PROFILE_CATALOG } from "../consts/profileCatalog.generated";
+import { strings } from "../consts/strings";
+
 import { transport } from "./client";
 
 const inventoryClient = createClient(InventoryService, transport);
@@ -44,20 +47,13 @@ export interface PreviewRouteInput {
   maxOutputTokens: number;
 }
 
-export const profileOptions = [
-  { value: Profile.LOCAL_ONLY, label: "Local only" },
-  { value: Profile.LOCAL_FIRST, label: "Local first" },
-  { value: Profile.REMOTE_ONLY, label: "Remote only" },
-  { value: Profile.QUALITY_FIRST, label: "Quality first" },
-  { value: Profile.CHEAP_FIRST, label: "Cheap first" },
-  { value: Profile.PRIVACY_SENSITIVE, label: "Privacy sensitive" },
-] as const;
+export const profileOptions = PROFILE_CATALOG;
 
 export const privacyOptions = [
-  { value: PrivacyClass.PUBLIC, label: "Public" },
-  { value: PrivacyClass.INTERNAL, label: "Internal" },
-  { value: PrivacyClass.CONFIDENTIAL, label: "Confidential" },
-  { value: PrivacyClass.SECRET, label: "Secret" },
+  { value: PrivacyClass.PUBLIC, labelKey: strings.privacyClasses.public },
+  { value: PrivacyClass.INTERNAL, labelKey: strings.privacyClasses.internal },
+  { value: PrivacyClass.CONFIDENTIAL, labelKey: strings.privacyClasses.confidential },
+  { value: PrivacyClass.SECRET, labelKey: strings.privacyClasses.secret },
 ] as const;
 
 export const defaultPreviewInput: PreviewRouteInput = {

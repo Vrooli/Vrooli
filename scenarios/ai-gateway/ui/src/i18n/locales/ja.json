@@ -1,25 +1,43 @@
 {
   "_comment": "Keys that start with an underscore are sentinels skipped by codegen, parity tests, and unused-key audit.",
   "app": {
-    "title": "AI Gateway",
-    "eyebrow": "Operator console",
-    "description": "Provider-neutral AI inference control plane for route decisions, evidence, and conformance."
+    "title": "AI Gateway"
   },
   "actions": {
     "refresh": "Refresh"
+  },
+  "profiles": {
+    "localOnly": "ローカルのみ",
+    "localOnlyDesc": "このホスト上で実行されるプロバイダーのみを使用し、ホスト型の候補は対象外にします。",
+    "localFirst": "ローカル優先",
+    "localFirstDesc": "ローカルプロバイダーを優先し、プライバシーポリシーが許可する場合にのみホスト型へフォールバックします。",
+    "remoteOnly": "リモートのみ",
+    "remoteOnlyDesc": "ホスト型プロバイダーのみを使用し、ローカルの候補は対象外にします。",
+    "qualityFirst": "品質優先",
+    "qualityFirstDesc": "コストとプライバシーの制約内で、場所に関係なく最も品質の高い実行可能な候補を優先します。",
+    "cheapFirst": "コスト優先",
+    "cheapFirstDesc": "能力とプライバシーの制約内で、最も低コストの実行可能な候補を優先します。",
+    "privacySensitive": "プライバシー重視",
+    "privacySensitiveDesc": "機密性の高い内容をローカルプロバイダーに限定し、ローカル候補がない場合は失敗させます。"
+  },
+  "privacyClasses": {
+    "public": "公開",
+    "internal": "内部",
+    "confidential": "機密",
+    "secret": "極秘"
   },
   "states": {
     "allowed": "Allowed",
     "blocked": "Blocked",
     "loading": "Loading",
     "none": "None",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "breakerOpen": "オープン",
+    "breakerHalfOpen": "ハーフオープン"
   },
   "layout": {
     "sidebarLabel": "AI Gateway",
-    "sidebarNavLabel": "Desktop navigation",
     "bottomNavLabel": "Primary navigation",
-    "mainLabel": "Main content",
     "nav": {
       "dashboard": "ダッシュボード",
       "providers": "Providers",

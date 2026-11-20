@@ -26,6 +26,7 @@ func (f *modelEvalSourceFixture) LoadFrozenCases(context.Context, int) ([]ModelE
 	f.loaded.Add(1)
 	return append([]ModelEvalCase(nil), f.cases...), nil
 }
+
 func (f *modelEvalSourceFixture) VerifyCaseIdentity(_ context.Context, item ModelEvalCase) error {
 	if item.EventID == "bad" {
 		return errors.New("identity mismatch")
@@ -50,6 +51,7 @@ func (f modelEvalPolicyFixture) ResolveChatDefault(context.Context) (string, str
 	}
 	return "ollama/qwen3:8b", locality, f.remote, nil
 }
+
 func (f modelEvalPolicyFixture) CheckCurrentRights(context.Context, string, string) error {
 	return f.rightsErr
 }
@@ -105,8 +107,10 @@ func (f *modelEvalDispatchFixture) DispatchModelEval(_ context.Context, model, _
 	if !strings.HasPrefix(prompt, "PRIVATE_") {
 		return ModelEvalDispatchReceipt{}, errors.New("fixture prompt not supplied")
 	}
-	return ModelEvalDispatchReceipt{EffectiveModel: model, Locality: "local", Latency: 12 * time.Millisecond, RightsAllowed: true,
-		Capacity: ModelEvalCapacityReceipt{ClaimID: fmt.Sprintf("claim-ai-gateway:model-eval:event-%d", call-1), RequiredBytes: modelEvalMinClaimBytes, GrantedBytes: modelEvalMinClaimBytes}}, nil
+	return ModelEvalDispatchReceipt{
+		EffectiveModel: model, Locality: "local", Latency: 12 * time.Millisecond, RightsAllowed: true,
+		Capacity: ModelEvalCapacityReceipt{ClaimID: fmt.Sprintf("claim-ai-gateway:model-eval:event-%d", call-1), RequiredBytes: modelEvalMinClaimBytes, GrantedBytes: modelEvalMinClaimBytes},
+	}, nil
 }
 
 func modelEvalRunnerFixture(answer string, source *modelEvalSourceFixture, dispatch *modelEvalDispatchFixture, capacityFail bool) ModelEvalBatchRunner {

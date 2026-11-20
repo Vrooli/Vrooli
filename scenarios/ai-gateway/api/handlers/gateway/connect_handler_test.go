@@ -16,10 +16,10 @@ func TestValidateGatewayRequestRejectsProviderSpecificFields(t *testing.T) { // 
 	h := handler.NewConnectHandler(handler.Deps{})
 	resp, err := h.ValidateGatewayRequest(context.Background(), connect.NewRequest(&gatewayv1.ValidateGatewayRequestRequest{
 		Request: &sharedv1.GatewayRequest{
-			Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-			Role:         "chat.default",
-			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+			Role:              "chat.default",
+			Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 			PrivacyProvenance: "gateway_handler_test.internal_content",
 			Metadata: map[string]string{
 				"provider":   "openrouter",
@@ -37,10 +37,10 @@ func TestValidateGatewayRequestAcceptsProviderNeutralShape(t *testing.T) { // [R
 	h := handler.NewConnectHandler(handler.Deps{})
 	resp, err := h.ValidateGatewayRequest(context.Background(), connect.NewRequest(&gatewayv1.ValidateGatewayRequestRequest{
 		Request: &sharedv1.GatewayRequest{
-			Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
-			Role:         "embedding.default",
-			Profile:      sharedv1.Profile_PROFILE_LOCAL_ONLY,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+			Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
+			Role:              "embedding.default",
+			Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 			PrivacyProvenance: "gateway_handler_test.confidential_embedding_input",
 		},
 	}))

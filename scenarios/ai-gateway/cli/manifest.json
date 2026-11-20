@@ -24,11 +24,13 @@
             {
               "name": "profile",
               "description": "Routing profile: local-only, local-first, remote-only, quality-first, cheap-first, or privacy-sensitive",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"],
               "default": "local-first"
             },
             {
               "name": "privacy-class",
               "description": "Privacy class: public, internal, confidential, or secret",
+              "values": ["public", "internal", "confidential", "secret"],
               "default": "internal",
               "aliases": [
                 "privacy"
@@ -496,12 +498,21 @@
             {
               "name": "profile",
               "description": "Routing profile",
-              "default": "local-first"
+              "default": "local-first",
+              "values": [
+                "local-only",
+                "local-first",
+                "remote-only",
+                "quality-first",
+                "cheap-first",
+                "privacy-sensitive"
+              ]
             },
             {
               "name": "privacy-class",
               "description": "Privacy class",
               "default": "internal",
+              "values": ["public", "internal", "confidential", "secret"],
               "aliases": [
                 "privacy"
               ]
@@ -578,12 +589,14 @@
             {
               "name": "profile",
               "description": "Routing profile",
-              "default": "local-first"
+              "default": "local-first",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
               "description": "Privacy class",
               "default": "internal",
+              "values": ["public", "internal", "confidential", "secret"],
               "aliases": [
                 "privacy"
               ]
@@ -666,7 +679,8 @@
             },
             {
               "name": "profile",
-              "description": "Optional profile override applied to every case for paired local-only or remote-only previews; remote-only execution is forbidden"
+              "description": "Optional profile override applied to every case for paired local-only or remote-only previews; remote-only execution is forbidden",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "receipt-file",
@@ -785,14 +799,21 @@
               "description": "Caller retry key"
             },
             {
+              "name": "output-reference",
+              "required": true,
+              "description": "Caller-owned absolute path where the produced media bytes are written"
+            },
+            {
               "name": "profile",
               "default": "local-first",
-              "description": "Routing profile"
+              "description": "Routing profile",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
               "default": "internal",
               "description": "Privacy class",
+              "values": ["public", "internal", "confidential", "secret"],
               "aliases": [
                 "privacy"
               ]
@@ -1124,11 +1145,13 @@
             {
               "name": "profile",
               "description": "Routing profile for candidate eligibility and order",
-              "default": "local-first"
+              "default": "local-first",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
-              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible",
+              "values": ["public", "internal", "confidential", "secret"]
             },
             {
               "name": "privacy-provenance",
@@ -1193,11 +1216,13 @@
             {
               "name": "profile",
               "description": "Routing profile for candidate eligibility and order",
-              "default": "local-first"
+              "default": "local-first",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+              ,"values": ["public", "internal", "confidential", "secret"]
             },
             {
               "name": "privacy-provenance",
@@ -1239,12 +1264,14 @@
             {
               "name": "profile",
               "description": "Embedding locality; embeddings are local-only",
-              "default": "local-only"
+              "default": "local-only",
+              "values": ["local-only"]
             },
             {
               "name": "privacy-class",
               "required": true,
-              "description": "Explicit privacy class: public, internal, confidential, or secret"
+              "description": "Explicit privacy class: public, internal, confidential, or secret",
+              "values": ["public", "internal", "confidential", "secret"]
             },
             {
               "name": "privacy-provenance",
@@ -1277,11 +1304,13 @@
             {
               "name": "profile",
               "description": "Routing profile for candidate eligibility and order",
-              "default": "local-first"
+              "default": "local-first",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+              ,"values": ["public", "internal", "confidential", "secret"]
             },
             {
               "name": "privacy-provenance",
@@ -1336,11 +1365,13 @@
             {
               "name": "profile",
               "description": "Routing profile for candidate eligibility and order",
-              "default": "local-first"
+              "default": "local-first",
+              "values": ["local-only", "local-first", "remote-only", "quality-first", "cheap-first", "privacy-sensitive"]
             },
             {
               "name": "privacy-class",
               "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+              ,"values": ["public", "internal", "confidential", "secret"]
             },
             {
               "name": "privacy-provenance",
@@ -1389,6 +1420,22 @@
       {
         "domain": "media_executions",
         "reason": "Media execution state is owned by the media capability and has no route-analytics measure in this phase."
+      },
+      {
+        "domain": "ai_gateway_inference_roots",
+        "reason": "This recovery ledger stores request digests and device-key generations only to enforce idempotent inference retries; recovery metadata is not an operator analytics surface."
+      },
+      {
+        "domain": "ai_remote_consent_grants",
+        "reason": "Consent grants are human privacy decisions whose records exist only to authorize, revoke, and inspect an individual user's grants; aggregate measures would add no operational decision and risk treating consent as usage telemetry."
+      },
+      {
+        "domain": "private_provider_plans",
+        "reason": "Private provider plans are idempotency records for policy-gated customer operations; policy evaluation and human approval remain their owner, and this gateway exposes no analytics contract for them."
+      },
+      {
+        "domain": "private_provider_receipts",
+        "reason": "Private provider receipts are execution and billing evidence owned by the private provider route; they are not route analytics and must not become a second usage or settlement source."
       }
     ],
     "domains": [
@@ -1408,6 +1455,31 @@
         "reason": "Route execution persists metadata-only route evidence in the route_events table; covered by the route_events.* measures."
       },
       {
+        "domain": "media_executions",
+        "stateful": true,
+        "reason": "Media requests persist execution state owned by the media capability; gateway route analytics do not measure this domain."
+      },
+      {
+        "domain": "ai_gateway_inference_roots",
+        "stateful": true,
+        "reason": "Inference root records are a recovery and idempotency ledger; only opaque digests and key generations are retained."
+      },
+      {
+        "domain": "ai_remote_consent_grants",
+        "stateful": true,
+        "reason": "Human-owned remote consent grants are persisted for verification, expiry, revocation, and per-user review."
+      },
+      {
+        "domain": "private_provider_plans",
+        "stateful": true,
+        "reason": "Private provider route plans persist idempotent policy decisions and request digests for owner-gated execution."
+      },
+      {
+        "domain": "private_provider_receipts",
+        "stateful": true,
+        "reason": "Private provider receipts persist idempotent execution outcomes and billing evidence for the private route owner."
+      },
+      {
         "domain": "conformance",
         "stateful": false,
         "reason": "Conformance scans target scenario files and reports findings."
@@ -1420,6 +1492,11 @@
     ]
   },
   "omitted": [
+    {
+      "service": "CatalogService",
+      "method": "GetCapabilityCatalog",
+      "reason": "The read-only common.v1 capability catalog is a cross-scenario Connect discovery contract, not an operator CLI command."
+    },
     {
       "service": "ScenarioValidationService",
       "method": "ValidateTarget",

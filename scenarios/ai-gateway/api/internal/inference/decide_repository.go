@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"ai-gateway/internal/providers"
+	"ai-gateway/internal/rolecatalog"
+
 	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -58,6 +60,11 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 	if err != nil {
 		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "questions")
 	}
+	r.decideCandidates(ctx, definition, request, classify, body, response)
+	return finishDecision(request, response)
+}
+
+func (r *ResourceRepository) decideCandidates(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, classify TypedRunner, body string, response *inferencev1.DecideResponse) {
 	for _, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
 		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
 		response.Candidates = append(response.Candidates, row)
@@ -68,12 +75,15 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 		switch {
 		case response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED:
 			row.Status = inferencev1.DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED
-		case candidate.Provider == ProviderGateway:
+		case candidate.Provider == rolecatalog.ProviderGateway:
 			r.decideByEnum(ctx, request, candidate, classify, row, response)
 		default:
 			r.decideByModel(ctx, definition, request, candidate, body, row, response)
 		}
 	}
+}
+
+func finishDecision(request DecisionRequest, response *inferencev1.DecideResponse) *inferencev1.DecideResponse {
 	if response.Method != inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED {
 		finalizeUsage(response.Usage)
 		return response
@@ -89,7 +99,7 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 	return decideError(response, code, message, construct)
 }
 
-func (r *ResourceRepository) decideByModel(ctx context.Context, definition InferenceRole, request DecisionRequest, candidate Candidate, body string, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
+func (r *ResourceRepository) decideByModel(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, candidate rolecatalog.Candidate, body string, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
 	adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
 	if !ok {
 		skip(row, providers.CodeUnconfigured, "adapter not configured")
@@ -137,8 +147,12 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 		fail(row, candidateReason(err), err.Error())
 		return
 	}
+	r.acceptDecisionOutput(request, candidate, resolved, row, response, execution.OutputText)
+}
+
+func (r *ResourceRepository) acceptDecisionOutput(request DecisionRequest, candidate rolecatalog.Candidate, resolved providers.ResolvedRole, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse, outputText string) {
 	var output decisionOutput
-	if err := json.Unmarshal([]byte(execution.OutputText), &output); err != nil {
+	if err := json.Unmarshal([]byte(outputText), &output); err != nil {
 		fail(row, reasonInvalidAnswers, "decode decision output: "+err.Error())
 		return
 	}
@@ -154,7 +168,7 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 	addUsage(response.Usage, decisionUsage(output))
 }
 
-func (r *ResourceRepository) decideByEnum(ctx context.Context, request DecisionRequest, candidate Candidate, classify TypedRunner, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
+func (r *ResourceRepository) decideByEnum(ctx context.Context, request DecisionRequest, candidate rolecatalog.Candidate, classify TypedRunner, row *inferencev1.DecisionCandidate, response *inferencev1.DecideResponse) {
 	fallback, ok := enumFallback(request)
 	if !ok {
 		skip(row, reasonUnsupportedTypes, "the LLM enum fallback answers choice questions only")
@@ -197,15 +211,21 @@ func browserCandidateMatchesSource(source, provider, locality string) bool {
 	}
 	switch source {
 	case "local":
-		return provider == providers.ProviderOllama || provider == ProviderGateway ||
-			(provider == providers.ProviderOllaya && (locality == "" || strings.EqualFold(strings.TrimSpace(locality), "local")))
+		return browserLocalProvider(provider, locality)
 	case "own-key":
-		return provider == providers.ProviderOpenRouter || provider == providers.ProviderOrcaRouter || provider == ProviderGateway
+		return provider == providers.ProviderOpenRouter || provider == providers.ProviderOrcaRouter || provider == rolecatalog.ProviderGateway
 	case "vrooli-credits":
-		return provider == providers.ProviderMetered || provider == ProviderGateway
+		return provider == providers.ProviderMetered || provider == rolecatalog.ProviderGateway
 	default:
 		return false
 	}
+}
+
+func browserLocalProvider(provider, locality string) bool {
+	if provider == providers.ProviderOllama || provider == rolecatalog.ProviderGateway {
+		return true
+	}
+	return provider == providers.ProviderOllaya && (locality == "" || strings.EqualFold(strings.TrimSpace(locality), "local"))
 }
 
 func browserNoRouteOnly(rows []*inferencev1.DecisionCandidate) bool {
@@ -292,13 +312,6 @@ func decideError(response *inferencev1.DecideResponse, code inferencev1.Inferenc
 	finalizeUsage(response.Usage)
 	response.Error = &inferencev1.InferenceError{Code: code, Message: message, Construct: construct}
 	return response
-}
-
-// profileAdmits applies the caller's locality stance to one candidate's
-// declared locality: LOCAL_ONLY never leaves the host and REMOTE_ONLY never
-// runs locally. Other profiles rank candidates by catalog order.
-func profileAdmits(profile sharedv1.Profile, locality string) bool {
-	return profileAdmitsRequest(profile, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, locality)
 }
 
 func profileAdmitsRequest(profile sharedv1.Profile, privacyClass sharedv1.PrivacyClass, locality string) bool {

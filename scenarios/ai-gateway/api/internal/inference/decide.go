@@ -84,41 +84,59 @@ func validateQuestionShape(where string, question *inferencev1.DecisionQuestion)
 	noulText := question.GetTrueDescription() != "" || question.GetFalseDescription() != ""
 	switch question.GetType() {
 	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
-		if len(levels) > 0 || noulText {
-			return &DecisionError{where, "a choice question takes options only"}
-		}
-		if len(options) < MinChoiceOptions || len(options) > MaxChoiceOptions {
-			return &DecisionError{where + ".options", fmt.Sprintf("a choice question needs %d to %d options", MinChoiceOptions, MaxChoiceOptions)}
-		}
-		labels := map[string]struct{}{}
-		for _, option := range options {
-			label := option.GetLabel()
-			if strings.TrimSpace(label) == "" || label != strings.TrimSpace(label) || len(label) > 100 || len(option.GetDescription()) > maxDecisionTextBytes {
-				return &DecisionError{where + ".options", "labels must be 1-100 bytes without surrounding space; descriptions at most 4096 bytes"}
-			}
-			if _, dup := labels[label]; dup {
-				return &DecisionError{where + ".options", fmt.Sprintf("label %q is repeated", label)}
-			}
-			labels[label] = struct{}{}
-		}
+		return validateChoiceQuestion(where, options, levels, noulText)
 	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
-		if len(options) > 0 || noulText {
-			return &DecisionError{where, "a score question takes levels only"}
-		}
-		if len(levels) < MinScoreLevels || len(levels) > MaxScoreLevels {
-			return &DecisionError{where + ".levels", fmt.Sprintf("a score question needs %d to %d levels", MinScoreLevels, MaxScoreLevels)}
-		}
-		for _, level := range levels {
-			if strings.TrimSpace(level) == "" || len(level) > maxDecisionTextBytes {
-				return &DecisionError{where + ".levels", "every level needs a description of at most 4096 bytes"}
-			}
-		}
+		return validateScoreQuestion(where, options, levels, noulText)
 	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_NOUL:
 		if len(options) > 0 || len(levels) > 0 {
 			return &DecisionError{where, "a noul question takes only optional true/false descriptions"}
 		}
 	default:
 		return &DecisionError{where + ".type", "type must be choice, score or noul"}
+	}
+	return nil
+}
+
+func validateChoiceQuestion(where string, options []*inferencev1.DecisionOption, levels []string, noulText bool) error {
+	if len(levels) > 0 || noulText {
+		return &DecisionError{where, "a choice question takes options only"}
+	}
+	if len(options) < MinChoiceOptions || len(options) > MaxChoiceOptions {
+		return &DecisionError{where + ".options", fmt.Sprintf("a choice question needs %d to %d options", MinChoiceOptions, MaxChoiceOptions)}
+	}
+	labels := map[string]struct{}{}
+	for _, option := range options {
+		label := option.GetLabel()
+		if err := validateChoiceOption(where, option); err != nil {
+			return err
+		}
+		if _, dup := labels[label]; dup {
+			return &DecisionError{where + ".options", fmt.Sprintf("label %q is repeated", label)}
+		}
+		labels[label] = struct{}{}
+	}
+	return nil
+}
+
+func validateChoiceOption(where string, option *inferencev1.DecisionOption) error {
+	label := option.GetLabel()
+	if strings.TrimSpace(label) == "" || label != strings.TrimSpace(label) || len(label) > 100 || len(option.GetDescription()) > maxDecisionTextBytes {
+		return &DecisionError{where + ".options", "labels must be 1-100 bytes without surrounding space; descriptions at most 4096 bytes"}
+	}
+	return nil
+}
+
+func validateScoreQuestion(where string, options []*inferencev1.DecisionOption, levels []string, noulText bool) error {
+	if len(options) > 0 || noulText {
+		return &DecisionError{where, "a score question takes levels only"}
+	}
+	if len(levels) < MinScoreLevels || len(levels) > MaxScoreLevels {
+		return &DecisionError{where + ".levels", fmt.Sprintf("a score question needs %d to %d levels", MinScoreLevels, MaxScoreLevels)}
+	}
+	for _, level := range levels {
+		if strings.TrimSpace(level) == "" || len(level) > maxDecisionTextBytes {
+			return &DecisionError{where + ".levels", "every level needs a description of at most 4096 bytes"}
+		}
 	}
 	return nil
 }
@@ -158,48 +176,61 @@ func systemOneBody(request DecisionRequest) (string, error) {
 		if index > 0 {
 			out.WriteByte(',')
 		}
-		writeJSON(&out, question.GetId())
-		out.WriteString(`:{"type":`)
-		writeJSON(&out, wireType(question.GetType()))
-		if question.GetInstructions() != "" {
-			out.WriteString(`,"instructions":`)
-			writeJSON(&out, question.GetInstructions())
-		}
-		switch question.GetType() {
-		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
-			out.WriteString(`,"criteria":{`)
-			for i, option := range question.GetOptions() {
-				if i > 0 {
-					out.WriteByte(',')
-				}
-				writeJSON(&out, option.GetLabel())
-				out.WriteByte(':')
-				writeJSON(&out, option.GetDescription())
-			}
-			out.WriteByte('}')
-		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
-			out.WriteString(`,"criteria":`)
-			writeJSON(&out, question.GetLevels())
-		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_NOUL:
-			if question.GetTrueDescription() != "" || question.GetFalseDescription() != "" {
-				criteria := map[string]string{}
-				if question.GetTrueDescription() != "" {
-					criteria["true"] = question.GetTrueDescription()
-				}
-				if question.GetFalseDescription() != "" {
-					criteria["false"] = question.GetFalseDescription()
-				}
-				out.WriteString(`,"criteria":`)
-				writeJSON(&out, criteria)
-			}
-		}
-		out.WriteByte('}')
+		writeSystemOneQuestion(&out, question)
 	}
 	out.WriteString(`}}`)
 	if !json.Valid(out.Bytes()) {
 		return "", fmt.Errorf("decision request did not encode to valid JSON")
 	}
 	return out.String(), nil
+}
+
+func writeSystemOneQuestion(out *bytes.Buffer, question *inferencev1.DecisionQuestion) {
+	writeJSON(out, question.GetId())
+	out.WriteString(`:{"type":`)
+	writeJSON(out, wireType(question.GetType()))
+	if question.GetInstructions() != "" {
+		out.WriteString(`,"instructions":`)
+		writeJSON(out, question.GetInstructions())
+	}
+	switch question.GetType() {
+	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
+		writeChoiceCriteria(out, question.GetOptions())
+	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
+		out.WriteString(`,"criteria":`)
+		writeJSON(out, question.GetLevels())
+	case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_NOUL:
+		writeNoulCriteria(out, question)
+	}
+	out.WriteByte('}')
+}
+
+func writeChoiceCriteria(out *bytes.Buffer, options []*inferencev1.DecisionOption) {
+	out.WriteString(`,"criteria":{`)
+	for i, option := range options {
+		if i > 0 {
+			out.WriteByte(',')
+		}
+		writeJSON(out, option.GetLabel())
+		out.WriteByte(':')
+		writeJSON(out, option.GetDescription())
+	}
+	out.WriteByte('}')
+}
+
+func writeNoulCriteria(out *bytes.Buffer, question *inferencev1.DecisionQuestion) {
+	if question.GetTrueDescription() == "" && question.GetFalseDescription() == "" {
+		return
+	}
+	criteria := map[string]string{}
+	if question.GetTrueDescription() != "" {
+		criteria["true"] = question.GetTrueDescription()
+	}
+	if question.GetFalseDescription() != "" {
+		criteria["false"] = question.GetFalseDescription()
+	}
+	out.WriteString(`,"criteria":`)
+	writeJSON(out, criteria)
 }
 
 func writeJSON(out *bytes.Buffer, value any) {

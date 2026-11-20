@@ -95,8 +95,9 @@ cat > questions.json <<'EOF'
              {"label":"question","description":"Asking for information"}]},
  {"id":"stop","type":"DECISION_QUESTION_TYPE_NOUL","instructions":"The operator wants the agent to stop."}]
 EOF
-ai-gateway inference decide --questions questions.json --state "No, stop. Revert the migration file."
-ai-gateway inference decide-batch --questions questions.json --items items.json   # [{"state":"..."}, ...]
+ai-gateway inference decide --questions questions.json --privacy-provenance docs.reference --state "No, stop. Revert the migration file."
+# items.json is an array of {"state":"..."} objects
+ai-gateway inference decide-batch --questions questions.json --items items.json --privacy-provenance docs.reference
 ```
 
 Measured on the reference host (RTX 4070 Ti SUPER, Laya on CUDA, 2026-10-30):

@@ -130,27 +130,47 @@ func (c *ProviderDecisionHubClient) Publish(ctx context.Context, eventID string,
 }
 
 func (c *ProviderDecisionHubClient) post(ctx context.Context, path string, input, output any) error {
-	if c == nil || c.identity == nil || c.baseURL == nil || c.httpClient == nil {
-		return errors.New("provider-decision Hub client is unavailable")
-	}
-	token, err := c.identity.Token(ctx)
+	req, err := c.request(ctx, path, input)
 	if err != nil {
 		return err
 	}
+	resp, err := c.send(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("notification-hub provider-decision request returned HTTP %d", resp.StatusCode)
+	}
+	return decodeProviderDecisionResponse(resp.Body, output)
+}
+
+func (c *ProviderDecisionHubClient) request(ctx context.Context, path string, input any) (*http.Request, error) {
+	if c == nil || c.identity == nil || c.baseURL == nil || c.httpClient == nil {
+		return nil, errors.New("provider-decision Hub client is unavailable")
+	}
+	token, err := c.identity.Token(ctx)
+	if err != nil {
+		return nil, err
+	}
 	base, err := c.baseURL(ctx)
 	if err != nil || strings.TrimSpace(base) == "" {
-		return errors.New("notification-hub endpoint is unavailable")
+		return nil, errors.New("notification-hub endpoint is unavailable")
 	}
 	body, err := json.Marshal(input)
 	if err != nil {
-		return errors.New("provider-decision request could not be encoded")
+		return nil, errors.New("provider-decision request could not be encoded")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+path, bytes.NewReader(body))
 	if err != nil {
-		return errors.New("provider-decision request could not be created")
+		return nil, errors.New("provider-decision request could not be created")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
+	return req, nil
+}
+
+func (c *ProviderDecisionHubClient) send(req *http.Request) (*http.Response, error) {
 	// Service credentials must never follow a redirect, even when callers
 	// inject an HTTP client with a permissive redirect policy. Clone the client
 	// so the security rule applies without mutating a shared caller-owned client.
@@ -160,17 +180,17 @@ func (c *ProviderDecisionHubClient) post(ctx context.Context, path string, input
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return errors.New("notification-hub provider-decision request failed")
+		return nil, errors.New("notification-hub provider-decision request failed")
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("notification-hub provider-decision request returned HTTP %d", resp.StatusCode)
-	}
+	return resp, nil
+}
+
+func decodeProviderDecisionResponse(body io.Reader, output any) error {
 	if output == nil {
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+		_, _ = io.Copy(io.Discard, io.LimitReader(body, 64<<10))
 		return nil
 	}
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, 64<<10))
+	decoder := json.NewDecoder(io.LimitReader(body, 64<<10))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(output); err != nil {
 		return errors.New("notification-hub provider-decision response was invalid")
