@@ -1,0 +1,5 @@
+=== RUN   TestControlledConcurrencyReducesMultiHostWaitTime
+    concurrency_test.go:66: controlled multi-host wait: serial=40.592467ms parallel=20.374863ms
+--- PASS: TestControlledConcurrencyReducesMultiHostWaitTime (0.06s)
+PASS
+ok  	web-search/internal/research	0.067s

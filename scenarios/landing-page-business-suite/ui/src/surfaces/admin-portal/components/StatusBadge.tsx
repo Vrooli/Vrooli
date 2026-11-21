@@ -130,7 +130,7 @@ export function StatusBadgeGrid({ badges, columns = 4, testId, className }: Stat
         <StatusBadge
           key={badge.label}
           {...badge}
-          testId={badge.testId ?? `${testId}-badge-${index}`}
+          testId={badge.testId ?? (testId ? `${testId}-badge-${String(index)}` : undefined)}
         />
       ))}
     </div>

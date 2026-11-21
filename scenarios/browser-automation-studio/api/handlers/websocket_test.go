@@ -5,13 +5,42 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 // ============================================================================
 // HandleWebSocket Tests
 // ============================================================================
+
+func TestHandleRecordingWebSocketRejectsMissingOrForeignCookie(t *testing.T) {
+	handler, _, _, _, _, _ := createTestHandler()
+	handler.wsAllowedOrigins = nil
+	router := chi.NewRouter()
+	router.Get("/ws/sessions/{sessionID}", handler.HandleRecordingWebSocket)
+	sessionID := uuid.NewString()
+	for _, tc := range []struct {
+		name   string
+		cookie *http.Cookie
+	}{
+		{name: "missing"},
+		{name: "foreign", cookie: &http.Cookie{Name: wsHub.SessionStreamCookieName(sessionID), Value: "foreign-cookie"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/ws/sessions/"+sessionID, nil)
+			if tc.cookie != nil {
+				req.AddCookie(tc.cookie)
+			}
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, req)
+			if rr.Code != http.StatusForbidden {
+				t.Fatalf("status=%d, want %d: %s", rr.Code, http.StatusForbidden, rr.Body.String())
+			}
+		})
+	}
+}
 
 func TestHandleWebSocket_UpgradeFailure(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
@@ -84,7 +113,6 @@ func TestHandleWebSocket_OriginRejected(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
 	// Set up upgrader to reject all origins
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 	handler.upgrader = websocket.Upgrader{
 		CheckOrigin: handler.isOriginAllowed,

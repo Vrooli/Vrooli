@@ -16,6 +16,7 @@ import {
   Cloud,
 } from "lucide-react";
 import type { PipelineStage } from "./pipelineStore";
+import { StageName } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 /** Section identifiers matching pipeline stages + configuration */
 export type SectionId =
@@ -39,8 +40,14 @@ export const SECTION_IDS: SectionId[] = [
 ];
 
 /** Section metadata for display */
-export const SECTION_METADATA: Record<SectionId, { label: string; description: string }> = {
-  configuration: { label: "Configuration", description: "Set up your desktop app" },
+export const SECTION_METADATA: Record<
+  SectionId,
+  { label: string; description: string }
+> = {
+  configuration: {
+    label: "Configuration",
+    description: "Set up your desktop app",
+  },
   bundle: { label: "Bundle", description: "Package dependencies" },
   preflight: { label: "Preflight", description: "Validate environment" },
   generate: { label: "Generate", description: "Create wrapper code" },
@@ -62,12 +69,12 @@ export const SECTION_ICONS: Record<SectionId, typeof Settings> = {
 
 /** Map section ID to pipeline stage (configuration has no stage) */
 export const SECTION_TO_STAGE: Partial<Record<SectionId, PipelineStage>> = {
-  bundle: "bundle",
-  preflight: "preflight",
-  generate: "generate",
-  build: "build",
-  smoketest: "smoketest",
-  deploy: "deploy",
+  bundle: StageName.BUNDLE,
+  preflight: StageName.PREFLIGHT,
+  generate: StageName.GENERATE,
+  build: StageName.BUILD,
+  smoketest: StageName.SMOKE_TEST,
+  deploy: StageName.DEPLOY,
 };
 
 interface SidebarStoreState {
@@ -110,8 +117,8 @@ export const useSidebarStore = create<SidebarStore>()(
       name: "scenario-to-desktop-sidebar",
       // Only persist collapsed state, not active section
       partialize: (state) => ({ collapsed: state.collapsed }),
-    }
-  )
+    },
+  ),
 );
 
 // Selectors

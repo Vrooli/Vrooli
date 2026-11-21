@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/measures;measuresv1";
+
+// MeasuresService exposes auditable, read-only commercial-volume measures.
+// Each operation answers one independently addressable question over the
+// authoritative Postgres domain state. The shared TimeWindow contract makes
+// relative and explicit windows deterministic across CLI, API, and registry
+// consumers.
+service MeasuresService {
+  rpc CountSubscriptionsCreated(CountSubscriptionsCreatedRequest) returns (CountSubscriptionsCreatedResponse);
+  rpc CountCreditTransactionsCreated(CountCreditTransactionsCreatedRequest) returns (CountCreditTransactionsCreatedResponse);
+  rpc CountCheckoutSessionsCreated(CountCheckoutSessionsCreatedRequest) returns (CountCheckoutSessionsCreatedResponse);
+  rpc CountBundleProductsCreated(CountBundleProductsCreatedRequest) returns (CountBundleProductsCreatedResponse);
+  rpc CountBundlePricesCreated(CountBundlePricesCreatedRequest) returns (CountBundlePricesCreatedResponse);
+  rpc CountSubscriptionSchedulesCreated(CountSubscriptionSchedulesCreatedRequest) returns (CountSubscriptionSchedulesCreatedResponse);
+  rpc CountIntroCouponUsageCreated(CountIntroCouponUsageCreatedRequest) returns (CountIntroCouponUsageCreatedResponse);
+  rpc CountPaymentAnomaliesCreated(CountPaymentAnomaliesCreatedRequest) returns (CountPaymentAnomaliesCreatedResponse);
+  rpc CountUsersCreated(CountUsersCreatedRequest) returns (CountUsersCreatedResponse);
+  rpc CountUserSessionsCreated(CountUserSessionsCreatedRequest) returns (CountUserSessionsCreatedResponse);
+  rpc CountAuthTokensCreated(CountAuthTokensCreatedRequest) returns (CountAuthTokensCreatedResponse);
+  rpc CountAPIKeysCreated(CountAPIKeysCreatedRequest) returns (CountAPIKeysCreatedResponse);
+  rpc CountCreditReservationsCreated(CountCreditReservationsCreatedRequest) returns (CountCreditReservationsCreatedResponse);
+  rpc CountSubscriptionTierLimitsCreated(CountSubscriptionTierLimitsCreatedRequest) returns (CountSubscriptionTierLimitsCreatedResponse);
+  rpc CountUsageRecordsCreated(CountUsageRecordsCreatedRequest) returns (CountUsageRecordsCreatedResponse);
+  rpc CountAdminSessionsCreated(CountAdminSessionsCreatedRequest) returns (CountAdminSessionsCreatedResponse);
+  rpc CountAdminUsersCreated(CountAdminUsersCreatedRequest) returns (CountAdminUsersCreatedResponse);
+  rpc CountAssetsCreated(CountAssetsCreatedRequest) returns (CountAssetsCreatedResponse);
+  rpc CountDownloadAppsCreated(CountDownloadAppsCreatedRequest) returns (CountDownloadAppsCreatedResponse);
+  rpc CountDownloadArtifactsCreated(CountDownloadArtifactsCreatedRequest) returns (CountDownloadArtifactsCreatedResponse);
+  rpc CountDownloadAssetsCreated(CountDownloadAssetsCreatedRequest) returns (CountDownloadAssetsCreatedResponse);
+  rpc CountDownloadStorageSettingsCreated(CountDownloadStorageSettingsCreatedRequest) returns (CountDownloadStorageSettingsCreatedResponse);
+  rpc CountFeedbackRequestsCreated(CountFeedbackRequestsCreatedRequest) returns (CountFeedbackRequestsCreatedResponse);
+  rpc CountMetricsEventsCreated(CountMetricsEventsCreatedRequest) returns (CountMetricsEventsCreatedResponse);
+  rpc CountRemoteProfilesCreated(CountRemoteProfilesCreatedRequest) returns (CountRemoteProfilesCreatedResponse);
+  rpc CountWaitlistEmailsCreated(CountWaitlistEmailsCreatedRequest) returns (CountWaitlistEmailsCreatedResponse);
+}
+
+message CountSubscriptionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountSubscriptionsCreatedResponse {
+  int64 count = 1;
+}
+
+message CountCreditTransactionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountCreditTransactionsCreatedResponse {
+  int64 count = 1;
+}
+
+message CountCheckoutSessionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountCheckoutSessionsCreatedResponse {
+  int64 count = 1;
+}
+
+message CountBundleProductsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountBundleProductsCreatedResponse {
+  int64 count = 1;
+}
+
+message CountBundlePricesCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountBundlePricesCreatedResponse {
+  int64 count = 1;
+}
+
+message CountSubscriptionSchedulesCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountSubscriptionSchedulesCreatedResponse {
+  int64 count = 1;
+}
+
+message CountIntroCouponUsageCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountIntroCouponUsageCreatedResponse {
+  int64 count = 1;
+}
+
+message CountPaymentAnomaliesCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message CountPaymentAnomaliesCreatedResponse {
+  int64 count = 1;
+}
+
+message CountUsersCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUsersCreatedResponse {
+  int64 count = 1;
+}
+message CountUserSessionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUserSessionsCreatedResponse {
+  int64 count = 1;
+}
+message CountAuthTokensCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAuthTokensCreatedResponse {
+  int64 count = 1;
+}
+message CountAPIKeysCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAPIKeysCreatedResponse {
+  int64 count = 1;
+}
+message CountCreditReservationsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountCreditReservationsCreatedResponse {
+  int64 count = 1;
+}
+message CountSubscriptionTierLimitsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountSubscriptionTierLimitsCreatedResponse {
+  int64 count = 1;
+}
+message CountUsageRecordsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUsageRecordsCreatedResponse {
+  int64 count = 1;
+}
+message CountAdminSessionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAdminSessionsCreatedResponse {
+  int64 count = 1;
+}
+message CountAdminUsersCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAdminUsersCreatedResponse {
+  int64 count = 1;
+}
+message CountAssetsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAssetsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadAppsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadAppsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadArtifactsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadArtifactsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadAssetsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadAssetsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadStorageSettingsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadStorageSettingsCreatedResponse {
+  int64 count = 1;
+}
+message CountFeedbackRequestsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountFeedbackRequestsCreatedResponse {
+  int64 count = 1;
+}
+message CountMetricsEventsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountMetricsEventsCreatedResponse {
+  int64 count = 1;
+}
+message CountRemoteProfilesCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountRemoteProfilesCreatedResponse {
+  int64 count = 1;
+}
+message CountWaitlistEmailsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountWaitlistEmailsCreatedResponse {
+  int64 count = 1;
+}

@@ -1,6 +1,25 @@
+---
+name: "visited-tracker-tools"
+description: "Use visited-tracker to record file visits, exclusions, and handoff notes with glob and batch-friendly patterns."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["visited-tracker","memory","coverage","workflow"]
+  status: "active"
+  revision: 11
+  createdAt: "2026-02-04T20:30:00Z"
+  updatedAt: "2026-02-05T01:07:20Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Visited Tracker Tools
 
-Use `visited-tracker` to record file coverage, avoid duplicate work, and leave handoff notes that persist across conversations.
+Use the visited-tracker CLI to record file coverage, avoid duplicate work, and leave handoff notes that persist across conversations.
 
 ---
 
@@ -15,9 +34,9 @@ visited-tracker least-visited \
   --limit 5
 ```
 
-**Check campaign status:**
+**Check campaign coverage:**
 ```bash
-visited-tracker status \
+visited-tracker coverage \
   --location {{LOCATION}} \
   --tag {{TAG}}
 ```
@@ -65,6 +84,6 @@ visited-tracker campaigns note \
 
 ### 3. Guardrails
 
-- Keep tags consistent per skill (e.g., `ux`, `react-stability`, `cli-steer`) to avoid mixing coverage.
+- Keep tags consistent per skill (for example, UX, UI health, or CLI steer) to avoid mixing coverage.
 - Prefer a single `visited-tracker visit` command with repeated `--file-note` entries (or `--note` + `--` list) over multiple single-file commands.
 - Use glob patterns relative to `--location`; verify they match expected files.

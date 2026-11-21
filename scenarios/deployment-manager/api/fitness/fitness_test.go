@@ -1,8 +1,25 @@
 package fitness
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestCalculateScoreUsesScenarioTierFeasibility(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "declared", ".vrooli")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "monetization.json"), []byte(`{"tier_feasibility":{"desktop":91}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_ROOT", root)
+	if got := CalculateScore("declared", TierDesktop); got.Overall != 91 {
+		t.Fatalf("scenario feasibility ignored: %+v", got)
+	}
+}
 
 // [REQ:DM-P0-003] TestCalculateScore tests the actual fitness score calculation logic
 func TestCalculateScore(t *testing.T) {

@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package vrooli.browser_automation_studio.v1.uxcapture;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxcapture;uxcapture";
+
+// =============================================================================
+// UX CAPTURE BUNDLE
+// =============================================================================
+//
+// @stability beta
+//
+// Canonical EX9 interchange contract for one redaction-screened browser
+// session. Artifact bytes are stored as digest-bound files beside this manifest.
+//
+// Bundle is the versioned interchange format produced by the EX9 capture kernel.
+// Artifacts are content-addressed files beside the bundle manifest and README.
+message Bundle {
+  string schema_version = 1;
+  string id = 2;
+  string captured_at = 3;
+  Source source = 4;
+  Session session = 5;
+  Viewport viewport = 6;
+  string theme = 7;
+  map<string, Lens> lenses = 8;
+  repeated Artifact artifacts = 9;
+  Privacy privacy = 10;
+  repeated string next_commands = 11;
+}
+
+message Source {
+  string kind = 1; // scenario | url | file
+  string scenario = 2;
+  string route = 3;
+  string url = 4;
+  string filename = 5;
+  string build_id = 6;
+  string revision = 7;
+}
+
+message Session {
+  string id = 1;
+  string browser = 2;
+  string identity = 3;
+}
+
+message Viewport {
+  int32 width = 1;
+  int32 height = 2;
+  double device_scale_factor = 3;
+}
+
+message Lens {
+  string status = 1; // present | partial | absent
+  string reason = 2;
+  string detail = 3;
+}
+
+message Artifact {
+  string kind = 1;
+  string path = 2;
+  string media_type = 3;
+  int64 size_bytes = 4;
+  string sha256 = 5;
+}
+
+message Privacy {
+  string redaction_status = 1; // complete | partial
+  string redaction_reason = 2;
+  repeated string redacted_classes = 3;
+  bool external = 4;
+  bool ephemeral = 5;
+}

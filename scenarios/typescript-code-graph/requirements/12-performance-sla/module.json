@@ -1,0 +1,101 @@
+{
+  "description": "Extraction completes in \u003c5 seconds for any scenario with ≤200 files and \u003c30 seconds for any scenario with ≤2000 files, measured end-to-end including Connect-RPC transport and Node sidecar round-trip. Performance regression tests live in CI.",
+  "module_id": "MOD-P0-012",
+  "prd_ref": "OT-P0-012",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "performance",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007",
+        "REQ-P0-009"
+      ],
+      "description": "Extraction must complete end-to-end (including Connect-RPC transport and Node sidecar round-trip) within defined time bounds: under 5 seconds for projects with 200 or fewer source files, and under 30 seconds for projects with 2000 or fewer source files. Performance regression tests must run in CI against representative fixture projects. Any commit that causes extraction to exceed these bounds must fail CI. Measurements must be wall-clock time from RPC call initiation to full response receipt.",
+      "id": "REQ-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "draft",
+      "title": "Extraction Performance SLA with CI Enforcement",
+      "validation": [
+        {
+          "notes": "Test that performance measurement utilities correctly capture wall-clock time from RPC start to response",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the performance test harness generates synthetic TS projects with configurable file counts",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-PERF-200: Extract a 200-file representative fixture completes in under 5 seconds end-to-end in CI (p95 across 5 runs)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-PERF-2000: Extract a 2000-file representative fixture completes in under 30 seconds end-to-end in CI (p95 across 3 runs)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI performance test fails if measured extraction time exceeds SLA thresholds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance tests run on a consistent CI runner configuration to avoid environment variance",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "200-file extraction: p95 \u003c 5 seconds wall-clock including Connect-RPC and sidecar",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "2000-file extraction: p95 \u003c 30 seconds wall-clock including Connect-RPC and sidecar",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance regression: CI fails if any run exceeds 110% of the SLA threshold",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "react-component-library migration tooling operates within acceptable latency for developer feedback loops",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance SLA is documented in the operator runbook with measurement methodology",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Performance SLA"
+}

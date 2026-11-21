@@ -3,17 +3,36 @@ package main
 import (
 	"context"
 
+	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/sshidentity"
 )
 
-func (s *Server) resolveCanonicalIdentity(manifest domain.CloudManifest, dep *domain.Deployment) sshidentity.DeploymentSSHIdentity {
+// boundSSHKeyPath is the key file the deployment's credential binding
+// names, or "" (ambient identity) when there is none or no ledger.
+func (s *Server) boundSSHKeyPath(ctx context.Context, deploymentID string) string {
+	if s.repo == nil {
+		return ""
+	}
+	keyPath, err := credentials.ResolveSSHKeyPath(ctx, s.repo, deploymentID)
+	if err != nil {
+		s.log("resolve ssh key binding failed", map[string]interface{}{"deployment_id": deploymentID, "error": err.Error()})
+		return ""
+	}
+	return keyPath
+}
+
+func (s *Server) resolveCanonicalIdentity(ctx context.Context, dep *domain.Deployment) sshidentity.DeploymentSSHIdentity {
 	resolver := sshidentity.DefaultResolver{}
 	var existing *sshidentity.DeploymentSSHIdentity
 	if parsed, err := sshidentity.FromDeployment(dep); err == nil {
 		existing = &parsed
 	}
-	resolved, err := resolver.Resolve(manifest, existing)
+	boundKey := ""
+	if dep != nil {
+		boundKey = s.boundSSHKeyPath(ctx, dep.ID)
+	}
+	resolved, err := resolver.Resolve(boundKey, existing)
 	if err != nil {
 		s.log("resolve ssh identity failed", map[string]interface{}{"error": err.Error()})
 		return sshidentity.DeploymentSSHIdentity{

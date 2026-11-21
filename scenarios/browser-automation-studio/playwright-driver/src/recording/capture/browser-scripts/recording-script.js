@@ -3,7 +3,7 @@
  *
  * This script is injected into browser pages to capture user actions during recording.
  * It runs in the MAIN context via context.addInitScript() and communicates with the
- * Playwright driver via context.exposeBinding().
+ * Playwright driver through its intercepted event route.
  *
  * IMPORTANT: This file runs in the BROWSER context, not Node.js.
  * - No imports/requires - must be self-contained
@@ -21,7 +21,7 @@
  * 5. Unified captureAction - Single function to send events to backend
  *
  * @see ../init-script-generator.ts - The Node.js module that generates this script
- * @see ../context-initializer.ts - Sets up the init script and binding
+ * @see ../context-initializer.ts - Sets up the init script and event route
  * @see ../selector-config.ts - Configuration source of truth
  */
 
@@ -40,9 +40,8 @@
   if (typeof window.__vrooli_recording_cleanup === 'function') {
     try {
       window.__vrooli_recording_cleanup();
-      console.log('[Recording] Previous instance cleaned up');
     } catch (e) {
-      console.warn('[Recording] Cleanup failed:', e.message);
+      throw e;
     }
   }
 
@@ -56,7 +55,6 @@
   // Skip if already initialized with the same page load ID
   if (window.__recordingInitialized &&
       window.__vrooli_recording_page_load_id === document.__vrooli_page_load_id) {
-    console.log('[Recording] Already initialized for this page load, skipping');
     return;
   }
 
@@ -97,160 +95,79 @@
   // SECTION 1.5: Event Persistence (for reliability across navigation)
   // ============================================================================
 
-  /**
-   * SessionStorage-based event persistence for navigation resilience.
-   * Events are saved to storage BEFORE sending and removed on successful send.
-   * This ensures events survive page navigation when routes are cleared mid-flight.
-   */
+  // One pending queue owns both retries and navigation recovery. Removal follows
+  // an acknowledged response and a successful update of its persistent mirror.
   var PENDING_EVENTS_KEY = '__vrooli_pending_events__';
-
-  /**
-   * Get pending events from sessionStorage.
-   * @returns {Array<{data: object, savedAt: number}>}
-   */
-  function getPendingEvents() {
-    try {
-      var stored = sessionStorage.getItem(PENDING_EVENTS_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /**
-   * Save a pending event to sessionStorage.
-   * @param {object} eventData - The event data to save
-   */
-  function savePendingEvent(eventData) {
-    try {
-      var pending = getPendingEvents();
-      pending.push({ data: eventData, savedAt: Date.now() });
-      // Limit to last 50 events to prevent storage bloat
-      if (pending.length > 50) pending = pending.slice(-50);
-      sessionStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(pending));
-    } catch (e) {
-      console.warn('[Recording] Failed to save pending event:', e.message);
-    }
-  }
-
-  /**
-   * Remove a pending event from sessionStorage after successful send.
-   * @param {object} eventData - The event data to remove (matched by timestamp)
-   */
-  function removePendingEvent(eventData) {
-    try {
-      var pending = getPendingEvents();
-      // Remove by timestamp match
-      pending = pending.filter(function(p) {
-        return p.data.timestamp !== eventData.timestamp;
-      });
-      sessionStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(pending));
-    } catch (e) {
-      // Ignore - not critical if removal fails
-    }
-  }
-
-  /**
-   * Clear all pending events from sessionStorage.
-   */
-  function clearPendingEvents() {
-    try {
-      sessionStorage.removeItem(PENDING_EVENTS_KEY);
-    } catch (e) {
-      // Ignore
-    }
-  }
-
-  // ============================================================================
-  // SECTION 1.6: Event Queue (for reliability during transient failures)
-  // ============================================================================
-
-  /**
-   * Event queue for resilience during transient failures.
-   * Events are queued when fetch fails and retried later.
-   * This ensures events survive brief handler unavailability.
-   */
   var EVENT_QUEUE_MAX_SIZE = 100;
   var EVENT_QUEUE_RETRY_INTERVAL_MS = 1000;
-  var eventQueue = [];
+  // Opaque origins (including about:blank) have no Web Storage. They still
+  // record through the acknowledged driver; their pending mirror is memory-only.
+  var pendingStorage = null;
+  try { pendingStorage = sessionStorage; } catch (error) { if (error.name !== 'SecurityError') throw error; }
+  var eventQueue = JSON.parse((pendingStorage && pendingStorage.getItem(PENDING_EVENTS_KEY)) || '[]');
+  if (!Array.isArray(eventQueue)) throw new Error('Invalid pending recording journal');
   var queueRetryTimer = null;
+  var captureFailure = null;
 
-  /**
-   * Add an event to the queue for later retry.
-   */
-  function enqueueEvent(eventData) {
-    if (eventQueue.length >= EVENT_QUEUE_MAX_SIZE) {
-      // Drop oldest event to make room
-      eventQueue.shift();
-      console.warn('[Recording] Event queue full, dropped oldest event');
-    }
-    eventQueue.push({
-      data: eventData,
-      queuedAt: Date.now(),
-      retryCount: 0
-    });
-    window.__vrooli_recording_telemetry.eventsQueued++;
-
-    // Start retry timer if not already running
-    if (!queueRetryTimer) {
-      queueRetryTimer = setInterval(processEventQueue, EVENT_QUEUE_RETRY_INTERVAL_MS);
-    }
+  function eventIdentity() {
+    var bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    var hex = Array.from(bytes, function (byte) { return byte.toString(16).padStart(2, '0'); }).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
   }
 
-  /**
-   * Process queued events, trying to send them.
-   */
-  function processEventQueue() {
-    if (eventQueue.length === 0) {
-      // No events to process, stop timer
-      if (queueRetryTimer) {
-        clearInterval(queueRetryTimer);
+  function persistPending(items) {
+    if (pendingStorage) pendingStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(items.map(function (item) { return { data: item.data, savedAt: item.savedAt }; })));
+  }
+
+  function retryPending() {
+    if (!queueRetryTimer && eventQueue.length) {
+      queueRetryTimer = setTimeout(function () {
         queueRetryTimer = null;
-      }
-      return;
+        processEventQueue().catch(function () {});
+      }, EVENT_QUEUE_RETRY_INTERVAL_MS);
     }
-
-    // Try to send the oldest event
-    var item = eventQueue[0];
-
-    // Give up on events that have been queued too long (30 seconds)
-    if (Date.now() - item.queuedAt > 30000) {
-      eventQueue.shift();
-      console.warn('[Recording] Dropped stale queued event (>30s old)');
-      return;
-    }
-
-    // Try to send
-    fetch(RECORDING_EVENT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item.data),
-      keepalive: true,
-    }).then(function() {
-      // Success! Remove from queue
-      eventQueue.shift();
-      window.__vrooli_recording_telemetry.eventsDequeued++;
-      console.log('[Recording] Queued event sent successfully, queue size:', eventQueue.length);
-    }).catch(function() {
-      // Still failing, increment retry count
-      item.retryCount++;
-      if (item.retryCount > 10) {
-        // Too many retries, give up on this event
-        eventQueue.shift();
-        console.warn('[Recording] Dropped event after 10 retries');
-      }
-    });
   }
 
-  /**
-   * Get current queue status for diagnostics.
-   */
-  window.__vrooli_recording_getQueueStatus = function() {
+  function deliverPending(item) {
+    if (item.delivery) return item.delivery;
+    item.delivery = (async function () {
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 5000);
+      try {
+        window.__vrooli_recording_telemetry.eventsSent++;
+        var response = await fetch(RECORDING_EVENT_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.data), keepalive: true, signal: controller.signal,
+        });
+        if (!response.ok) throw new Error('Recording delivery returned ' + response.status);
+        var acknowledgement = await response.json();
+        if (acknowledgement.ok !== true || acknowledgement.entry_id !== item.data.id) throw new Error('Recording delivery was not acknowledged');
+        var remaining = eventQueue.filter(function (pending) { return pending.data.id !== item.data.id; });
+        persistPending(remaining);
+        eventQueue = remaining;
+        window.__vrooli_recording_telemetry.eventsSendSuccess++;
+        window.__vrooli_recording_telemetry.eventsDequeued++;
+      } finally { clearTimeout(timeout); }
+    })().catch(function (error) {
+      window.__vrooli_recording_telemetry.eventsSendFailed++;
+      window.__vrooli_recording_telemetry.lastError = error.message;
+      retryPending();
+      throw error;
+    }).finally(function () { delete item.delivery; });
+    return item.delivery;
+  }
+
+  function processEventQueue() {
+    return Promise.all(eventQueue.map(deliverPending));
+  }
+
+  window.__vrooli_recording_getQueueStatus = function () {
     return {
-      queueSize: eventQueue.length,
-      maxSize: EVENT_QUEUE_MAX_SIZE,
-      retryTimerActive: !!queueRetryTimer,
-      oldestEventAge: eventQueue.length > 0 ? Date.now() - eventQueue[0].queuedAt : null
+      queueSize: eventQueue.length, maxSize: EVENT_QUEUE_MAX_SIZE,
+      retryTimerActive: !!queueRetryTimer, error: captureFailure,
+      oldestEventAge: eventQueue.length ? Date.now() - eventQueue[0].savedAt : null,
     };
   };
 
@@ -279,42 +196,31 @@
   var RECORDING_EVENT_URL = '/__vrooli_recording_event__';
 
   function sendEvent(eventData) {
-    // Track that we're sending an event
-    window.__vrooli_recording_telemetry.eventsSent++;
-
-    // Save to sessionStorage BEFORE sending (survives navigation)
-    // This is critical for events that trigger navigation (clicks on links, etc.)
-    savePendingEvent(eventData);
-
-    // Use fetch with keepalive to ensure the request completes even if page navigates
-    fetch(RECORDING_EVENT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventData),
-      keepalive: true,
-    }).then(function() {
-      window.__vrooli_recording_telemetry.eventsSendSuccess++;
-      // Remove from sessionStorage on success
-      removePendingEvent(eventData);
-    }).catch(function(e) {
-      window.__vrooli_recording_telemetry.eventsSendFailed++;
-      window.__vrooli_recording_telemetry.lastError = e.message;
-      // Queue for retry (in-memory) - sessionStorage already has it for navigation recovery
-      enqueueEvent(eventData);
-      console.warn('[Recording] Failed to send event, queued for retry:', e.message);
-    });
+    eventData.id = eventIdentity();
+    eventData.recordingId = sessionId;
+    var item = { data: eventData, savedAt: Date.now() };
+    eventQueue.push(item);
+    window.__vrooli_recording_telemetry.eventsQueued++;
+    // Keep the event that crossed capacity in one reserved slot, then halt
+    // capture explicitly. Never evict an unacknowledged observation.
+    if (eventQueue.length > EVENT_QUEUE_MAX_SIZE) {
+      isActive = false;
+      captureFailure = 'Recording capture stopped because delivery capacity was exceeded';
+      window.__vrooli_recording_telemetry.lastError = captureFailure;
+    }
+    try { persistPending(eventQueue); }
+    catch (error) { window.__vrooli_recording_telemetry.lastError = error.message; }
+    // Dispatch before navigation can destroy this document. The driver owns
+    // ordered commitment; this bounded queue retains each independent receipt.
+    deliverPending(item).catch(function () {});
   }
 
   window.__recordingInitialized = true;
-  console.log('[Recording] Init script loaded');
 
-  // Recording state - starts ACTIVE by default
-  // The Node.js side controls whether events are actually processed
-  // This avoids complex cross-context activation issues with rebrowser-playwright
-  var isActive = true;
-  var sessionId = 'auto';
+  // Capture starts only after the owning pipeline acknowledges activation.
+  var isActive = false;
+  var sessionId = null;
 
-  console.log('[Recording] Starting in active mode');
 
   // ============================================================================
   // SECTION 2: Configuration (injected from selector-config.ts)
@@ -371,6 +277,17 @@
   var inputBuffer = '';
   var inputTarget = null;
   var inputTimeout = null;
+  var sensitiveAutocompleteTokens = [
+    'current-password',
+    'new-password',
+    'one-time-code',
+    'cc-name',
+    'cc-number',
+    'cc-exp',
+    'cc-exp-month',
+    'cc-exp-year',
+    'cc-csc',
+  ];
 
   // Scroll debouncing state
   var scrollTimeout = null;
@@ -827,9 +744,26 @@
 
   function getVisibleText(element) {
     if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      if (isSensitiveInput(element)) return '';
       return (element.value || element.placeholder || '').slice(0, CONFIG.MAX_TEXT_LENGTH);
     }
     return (element.textContent || '').trim().slice(0, CONFIG.MAX_TEXT_LENGTH);
+  }
+
+  function isSensitiveInput(element) {
+    if (!element || (element.tagName !== 'INPUT' && element.tagName !== 'TEXTAREA')) {
+      return false;
+    }
+
+    var type = (element.type || '').toLowerCase();
+    if (type === 'password' || type === 'hidden') return true;
+
+    var autocomplete = (element.getAttribute('autocomplete') || '').toLowerCase().split(/\s+/);
+    for (var i = 0; i < autocomplete.length; i++) {
+      if (sensitiveAutocompleteTokens.indexOf(autocomplete[i]) !== -1) return true;
+    }
+
+    return false;
   }
 
   function escapeCssSelector(str) {
@@ -869,6 +803,7 @@
     var interesting = [
       'type',
       'name',
+      'autocomplete',
       'placeholder',
       'title',
       'alt',
@@ -879,13 +814,15 @@
 
     for (var i = 0; i < interesting.length; i++) {
       var attr = interesting[i];
+      if (attr === 'value' && isSensitiveInput(element)) continue;
       var val = element.getAttribute(attr);
       if (val) attrs[attr] = val.slice(0, 100);
     }
 
+    var includeDataAttributes = !isSensitiveInput(element);
     for (var j = 0; j < element.attributes.length; j++) {
       var a = element.attributes[j];
-      if (a.name.startsWith('data-')) {
+      if (includeDataAttributes && a.name.startsWith('data-')) {
         attrs[a.name] = a.value.slice(0, 100);
       }
     }
@@ -947,10 +884,8 @@
       payload: payload,
     };
 
-    console.log('[Recording] Event captured:', type, 'active:', isActive);
 
-    // Send to Playwright via postMessage bridge
-    // The bridge in ISOLATED context receives this and forwards to the exposed binding
+    // Retain the observation until the event route acknowledges delivery.
     sendEvent(action);
   }
 
@@ -964,7 +899,6 @@
   function handleClick(e) {
     // Track that DOM event handler fired
     window.__vrooli_recording_telemetry.eventsDetected++;
-    console.error('[Recording] DIAGNOSTIC: Click detected, isActive=' + isActive + ', eventsDetected=' + window.__vrooli_recording_telemetry.eventsDetected);
     captureAction('click', e.target, e, {
       button: e.button === 0 ? 'left' : e.button === 2 ? 'right' : 'middle',
       modifiers: getModifiers(e),
@@ -1005,6 +939,17 @@
     // Only capture for form elements
     if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') return;
 
+    // Credential and payment fields remain interactive, but their values must
+    // never enter the passive recording buffer or event stream.
+    if (isSensitiveInput(target)) {
+      if (inputTarget === target) {
+        clearTimeout(inputTimeout);
+        inputBuffer = '';
+        inputTarget = null;
+      }
+      return;
+    }
+
     // Track that DOM event handler fired (for input events)
     window.__vrooli_recording_telemetry.eventsDetected++;
 
@@ -1023,7 +968,7 @@
    * Flush buffered input to capture action.
    */
   function flushInput() {
-    if (inputBuffer && inputTarget) {
+    if (inputTarget && !isSensitiveInput(inputTarget)) {
       captureAction('type', inputTarget, null, {
         text: inputBuffer,
       });
@@ -1332,25 +1277,21 @@
     // Focus handlers - register if enabled
     if (isCategoryEnabled('focus')) {
       registerFocusHandlers();
-      console.log('[Recording] Focus handlers registered');
     }
 
     // Hover handlers - register if enabled
     if (isCategoryEnabled('hover')) {
       registerHoverHandlers();
-      console.log('[Recording] Hover handlers registered');
     }
 
     // Drag/drop handlers - register if enabled
     if (isCategoryEnabled('dragDrop')) {
       registerDragDropHandlers();
-      console.log('[Recording] Drag/drop handlers registered');
     }
 
     // Gesture handlers - register if enabled
     if (isCategoryEnabled('gesture')) {
       registerGestureHandlers();
-      console.log('[Recording] Gesture handlers registered');
     }
   }
 
@@ -1393,9 +1334,8 @@
       },
     };
 
-    console.log('[Recording] Navigation captured:', cause, targetUrl.slice(0, 50));
 
-    // Send to Playwright via postMessage bridge
+    // Navigation uses the same retained delivery owner as other observations.
     sendEvent(action);
   }
 
@@ -1486,61 +1426,45 @@
     var data = event.data;
     if (!data || data.type !== MESSAGE_TYPE) return;
 
-    console.log('[Recording] Received control message:', data.action, 'source:', event.source === window ? 'window' : 'other');
 
+    var reply = event.ports && event.ports[0];
+    var operation;
     if (data.action === 'start' && data.sessionId) {
-      isActive = true;
-      sessionId = data.sessionId;
-      console.log('[Recording] Activated for session:', sessionId);
-      console.error('[Recording] DIAGNOSTIC: Activated for session:', sessionId);
+      operation = Promise.resolve().then(function () {
+        if (captureFailure || eventQueue.some(function (item) { return item.data.recordingId !== data.sessionId; })) {
+          throw new Error(captureFailure || 'Previous recording delivery is still pending');
+        }
+        isActive = true;
+        sessionId = data.sessionId;
+      });
     } else if (data.action === 'stop') {
+      flushInput();
       isActive = false;
-      sessionId = null;
-      console.log('[Recording] Deactivated');
-    }
+      operation = processEventQueue().then(function () {
+        if (captureFailure) throw new Error(captureFailure);
+        sessionId = null;
+      });
+    } else { return; }
+    operation.then(function () {
+      if (reply) reply.postMessage({ ok: true });
+    }, function (error) {
+      window.__vrooli_recording_telemetry.lastError = error.message;
+      if (reply) reply.postMessage({ ok: false, error: error.message });
+    }).finally(function () { if (reply) reply.close(); });
   });
 
   // ============================================================================
   // SECTION 17: Initialize
   // ============================================================================
 
-  /**
-   * Recover pending events from sessionStorage.
-   * Called during initialization to resend events that were saved before navigation
-   * but failed to send because the route handler was cleared mid-flight.
-   */
-  function recoverPendingEvents() {
-    var pending = getPendingEvents();
-    if (pending.length === 0) return;
-
-    console.log('[Recording] Recovering', pending.length, 'pending events from before navigation');
-    window.__vrooli_recording_telemetry.eventsRecovered = pending.length;
-
-    // Clear storage first to prevent duplicate recovery on re-injection
-    clearPendingEvents();
-
-    // Give route handler time to register after navigation, then resend
-    setTimeout(function() {
-      pending.forEach(function(item) {
-        // Skip events older than 30 seconds (likely stale)
-        if (Date.now() - item.savedAt > 30000) {
-          console.log('[Recording] Skipping stale event (>30s old)');
-          return;
-        }
-
-        // Resend the event (sendEvent will re-save to sessionStorage)
-        console.log('[Recording] Resending recovered event:', item.data.actionType);
-        sendEvent(item.data);
-      });
-    }, 100);
-  }
-
-  // Register all handlers
+  // Register capture once and retry persisted observations without clearing
+  // them first. A reinjection may never erase an unacknowledged event.
   registerAllHandlers();
   registerNavigationHandlers();
-
-  // Recover any pending events from before navigation
-  recoverPendingEvents();
+  if (eventQueue.length) {
+    window.__vrooli_recording_telemetry.eventsRecovered = eventQueue.length;
+    retryPending();
+  }
 
   // Expose helpers for testing/debugging
   window.__generateSelectors = generateSelectors;
@@ -1558,6 +1482,7 @@
    * This enables safe re-injection without listener accumulation.
    */
   window.__vrooli_recording_cleanup = function() {
+    if (eventQueue.length) throw new Error('Recording delivery is still pending');
     // Remove all tracked event listeners
     for (var i = 0; i < registeredListeners.length; i++) {
       var l = registeredListeners[i];
@@ -1582,13 +1507,10 @@
 
     // Clear event queue retry timer
     if (queueRetryTimer) {
-      clearInterval(queueRetryTimer);
+      clearTimeout(queueRetryTimer);
       queueRetryTimer = null;
     }
-    eventQueue = [];
-
-    // Clear pending events from sessionStorage
-    clearPendingEvents();
+    // The queue is already acknowledged and empty; retain its persistent mirror.
 
     // Restore original History API methods
     if (originalPushState) {
@@ -1603,7 +1525,6 @@
     window.__vrooli_recording_ready = false;
     isActive = false;
 
-    console.log('[Recording] Cleanup complete');
   };
 
   // ============================================================================
@@ -1614,8 +1535,6 @@
   window.__vrooli_recording_ready = true;
   window.__vrooli_recording_handlers_count = registeredListeners.length;
 
-  console.log('[Recording] Event listeners attached (' + registeredListeners.length + ' handlers)');
-  console.error('[Recording] DIAGNOSTIC: Script loaded and initialized');
 
   } catch (e) {
     console.error('[Recording] FATAL ERROR during initialization:', e.message, e.stack);

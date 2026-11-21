@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-topics-spec-smoke",
+    "description": "Observer smoke: the Topics page renders at phone width against the real research home.",
+    "requirement": "OT-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "topics",
+      "surface": "experience-topics"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-topics",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/topics",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Topics"
+        }
+      }
+    },
+    {
+      "id": "wait-topics-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.topics",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Topics page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-topics",
+      "source": "navigate-topics",
+      "target": "wait-topics-page"
+    }
+  ]
+}

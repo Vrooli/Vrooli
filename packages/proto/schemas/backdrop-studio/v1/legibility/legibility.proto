@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package vrooli.backdrop_studio.v1.legibility;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility;legibility_v1";
+
+message Region {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  string kind = 5;
+  string text_color = 6;
+}
+
+service LegibilityService {
+  rpc Measure(MeasureRequest) returns (Verdict);
+}
+
+message MeasureRequest {
+  bytes image_png = 1;
+  repeated Region regions = 2;
+  double threshold = 3;
+  string placement = 4;
+}
+
+message Amendment {
+  string kind = 1;
+  string description = 2;
+  double value = 3;
+}
+message RegionVerdict {
+  int32 region_index = 1;
+  double minimum_ratio = 2;
+  bool passes = 3;
+}
+message Verdict {
+  bool passes = 1;
+  double minimum_ratio = 2;
+  double threshold = 3;
+  repeated RegionVerdict regions = 4;
+  repeated Amendment amendments = 5;
+  string placement = 6;
+}

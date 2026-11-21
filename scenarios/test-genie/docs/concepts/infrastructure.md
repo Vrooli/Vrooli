@@ -20,7 +20,7 @@ api/
 │   ├── requirements/      # Requirements sync engine
 │   └── workspace.go       # Scenario workspace management
 ├── execution/             # Execution history and tracking
-├── queue/                 # Suite request queue
+├── remediation/           # Immutable evidence and verified remediation jobs
 └── scenarios/             # Scenario catalog and discovery
 ```
 
@@ -31,6 +31,21 @@ api/
 - **Structured logging**: Consistent error handling and tracing
 - **Direct integration**: CLI and API share the same orchestration code
 - **Portable**: Works consistently across environments
+
+## Workspace Mapping
+
+Suite execution separates the scenario's physical filesystem location from its
+logical repo placement.
+
+- `scenarioPath` is the physical scenario directory test-genie reads and writes.
+- `logicalRepoRoot` is the repo root used for repo-relative validation.
+- `logicalScenarioRelPath` is the scenario directory relative to that logical
+  root.
+
+Most runs only need the physical path resolved from the scenario name. Template
+deep validation uses all three fields because it generates a temporary scenario
+under `/tmp` while documentation and standards checks must behave as if that
+scenario lived under `scenarios/<scenario-id>` in the Vrooli repo.
 
 ## Test Directory Structure
 
@@ -52,7 +67,7 @@ scenario/
 ├── ui/src/
 │   └── **/*.test.tsx        # Vitest unit tests
 └── cli/
-    └── *.bats               # CLI BATS tests (if applicable)
+    └── **/*_test.go         # CLI Go tests
 ```
 
 ### Coverage Output
@@ -63,7 +78,7 @@ in `internal/shared/artifacts/paths.go` to ensure consistency across phases.
 ```
 coverage/
 ├── logs/                    # Per-run phase logs
-│   └── <run-id>/phase.log   # e.g., 20251208-151044/lint.log
+│   └── <run-id>/phase.log   # e.g., 20251208-151044/quality.log
 ├── latest/                  # Pointers to most recent run
 │   ├── manifest.json        # Run metadata + artifact map
 │   └── *.log                # Symlinks or pointers to latest logs
@@ -78,7 +93,7 @@ coverage/
 │   ├── screenshot.png       # Page screenshot
 │   ├── console.json         # Browser console logs
 │   ├── network.json         # Failed network requests
-│   ├── dom.html             # DOM snapshot
+│   ├── raw.json             # Raw engine-agnostic evidence (minus screenshot bytes)
 │   └── README.md            # Human-readable summary
 ├── automation/              # Playbook execution timelines
 │   └── *.timeline.json
@@ -148,10 +163,10 @@ cat coverage/phase-results/unit.json | jq '.requirements[] | select(.id == "MY-R
 ### Via API
 
 ```bash
-# Start execution
+# Start execution (scenarioName is the legacy alias; target accepts kind:id)
 curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
-  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
+  -d '{"target": "package:api-core", "preset": "quick"}'
 
 # Check execution status
 curl "http://localhost:${API_PORT}/api/v1/executions/{id}"

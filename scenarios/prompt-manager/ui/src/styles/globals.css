@@ -58,6 +58,35 @@ body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
+/* Installed iOS apps with a translucent status bar render below the system
+ * chrome. Keep every route inside the safe area, not only the home canvas. */
+#root {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* CollectionPage owns the shared inspector shell. Keep long effort paths
+ * legible when that shell becomes the full-width mobile pane. */
+.team-files-surface [data-rcl-collection-inspector] {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.team-files-surface [data-rcl-collection-detail-title] {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  font-size: clamp(1rem, 4vw, 1.25rem) !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 code, pre {
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Monaco', monospace;
 }
@@ -237,4 +266,43 @@ code, pre {
 .inline-code-copy-btn-floating svg {
   width: 12px;
   height: 12px;
+}
+
+/* xyflow theme alignment — overrides @xyflow/react/dist/style.css defaults
+ * so Controls, MiniMap, and attribution match the surrounding card surface
+ * in both light and dark themes. */
+.react-flow__controls {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__controls-button {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--muted));
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.react-flow__attribution {
+  background: transparent;
 }

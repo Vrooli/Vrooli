@@ -1,14 +1,55 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export default defineConfig(({ mode }) => {
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../../../scenarios/react-component-library/library");
+const apiBaseRoot = resolve(rootDir, "node_modules/@vrooli/api-base");
+// Library sources import runtime packages as bare specifiers. They resolve
+// against the application that bundles them, not against the authored library
+// directory, so every such package the library uses is aliased here.
+const libraryDependencyAliases = [
+  { find: "@vrooli/api-base/notifications/react", replacement: resolve(apiBaseRoot, "dist/client/notification-preferences-react.js") },
+  { find: "@vrooli/api-base/notifications", replacement: resolve(apiBaseRoot, "dist/client/notification-preferences.js") },
+  // Exact match: a prefix alias rewrote legitimate subpath exports such as
+  // `@vrooli/api-base/testing` into `dist/index.js/testing`, which broke the
+  // shared test harness in every scenario that used it.
+  { find: /^@vrooli\/api-base$/, replacement: resolve(apiBaseRoot, "dist/index.js") },
+  ...["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
+    find: name,
+    replacement: resolve(rootDir, "node_modules", name),
+  })),
+];
+
+export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), "");
+  const isProfile = mode === "profile";
 
   return {
     // INTEROP-CRITICAL: Keep relative base so proxied deployments resolve assets
     // under nested /apps/<scenario>/proxy paths.
     base: "./",
-    plugins: [react()],
+    plugins: [react(), sourceLibraryResolver({ libraryRoot })],
+    resolve: {
+      // Shared source packages must use the application's context singletons.
+      // Separate React Query instances disconnect providers from consumers.
+      dedupe: ["react", "react-dom", "@tanstack/react-query", "@testing-library/react", "react-router-dom"],
+      alias: isProfile
+        ? [
+            ...libraryDependencyAliases,
+            { find: "react-dom/client", replacement: "react-dom/profiling" },
+            { find: "react-dom$", replacement: "react-dom/profiling" },
+          ]
+        : libraryDependencyAliases,
+    },
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
     server: {
       port: env.VITE_DEV_SERVER_PORT ? Number(env.VITE_DEV_SERVER_PORT) : 5173,
       host: true
@@ -18,8 +59,28 @@ export default defineConfig(({ mode }) => {
       host: true
     },
     test: {
-      // tests/ directory uses node:test runner — exclude from vitest
-      exclude: ["tests/**", "node_modules/**"]
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/test-setup.ts"],
+      include: ["src/**/*.test.{ts,tsx}"],
+      coverage: {
+        provider: "v8",
+        reporter: ["json-summary", "json", "text"],
+        reportOnFailure: true,
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
+          "src/**/generated/**",
+        ],
+      }
     }
   };
 });

@@ -1,0 +1,137 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "mail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Mail",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://gmail.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-message",
+                        "status": "sent"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "sheets",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Sheets",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://sheets.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/rows": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "append",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "updatedRange": "A2:B2",
+                        "status": "appended"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/products": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": {
+                "sheetName": "products"
+              },
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "product_name": "Synthetic Lantern",
+                          "description": "Compact outdoor light",
+                          "image_url": "https://images.synthetic.invalid/lantern.png",
+                          "referral_link": "https://shop.synthetic.invalid/lantern",
+                          "send_date": "2026-11-11"
+                        },
+                        {
+                          "product_name": "Synthetic Mug",
+                          "description": "Insulated travel mug",
+                          "image_url": "",
+                          "referral_link": "",
+                          "send_date": "2026-11-09"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/recipients": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": {
+                "sheetName": "recipients"
+              },
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "email": "avery@example.invalid"
+                        },
+                        {
+                          "email": "jules@example.invalid"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

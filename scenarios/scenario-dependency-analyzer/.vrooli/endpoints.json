@@ -247,7 +247,23 @@
           "type": "object",
           "properties": {
             "scenario": { "type": "string" },
-            "type": { "type": "string", "enum": ["resource", "deployment", "cost", "all"] }
+            "type": { "type": "string", "enum": ["dependency_reduction", "resource_swap", "all"] },
+            "apply": { "type": "boolean" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/optimize-scenarios",
+        "method": "POST",
+        "description": "Preview or apply removal recommendations for exact selected scenario dependencies; requires one target and a nonempty selection",
+        "request_body": {
+          "type": "object",
+          "required": ["scenario", "only_scenarios"],
+          "properties": {
+            "scenario": { "type": "string" },
+            "only_scenarios": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+            "type": { "type": "string" },
+            "apply": { "type": "boolean" }
           }
         }
       }

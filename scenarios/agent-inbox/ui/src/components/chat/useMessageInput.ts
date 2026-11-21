@@ -4,9 +4,8 @@
  * This hook wires together draft persistence, attachments, templates, skills,
  * slash commands, suggestions, and send logic into a single return value.
  */
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useDeferredValue, useRef, useEffect } from "react";
 import { useAttachments } from "../../hooks/useAttachments";
-import { useTools } from "../../hooks/useTools";
 import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useAutoSuggestSkills } from "../../hooks/useAutoSuggestSkills";
@@ -26,26 +25,27 @@ import { useSendMessage } from "./useSendMessage";
 import { useTextareaEffects, useModelCapabilities } from "./useMessageInputEffects";
 import { useMessageInputHandlers } from "./useMessageInputHandlers";
 
-export function useMessageInput({
-  onSend,
-  isLoading,
-  isGenerating,
-  enableAttachments = true,
-  enableWebSearch = true,
-  enableForceTools = true,
-  autoFocus = false,
-  currentModel = null,
-  chatId,
-  chatWebSearchDefault = false,
-  editingMessage,
-  onCancelEdit,
-  onSubmitEdit,
-  onTemplateActivated,
-  disableSend,
-  disableSendReason,
-  customUploadFn,
-  placeholder = "Type a message...",
-}: MessageInputProps) {
+export function useMessageInput(props: MessageInputProps) {
+  const {
+    onSend,
+    isLoading,
+    enableAttachments = true,
+    enableWebSearch = true,
+    autoFocus = false,
+    currentModel = null,
+    chatId,
+    chatWebSearchDefault = false,
+    editingMessage,
+    onCancelEdit,
+    onSubmitEdit,
+    onTemplateActivated,
+    disableSend,
+    disableSendReason,
+    customUploadFn,
+    placeholder = "Type a message...",
+  } = props;
+  // Read deprecated isGenerating indirectly to avoid triggering deprecation warnings
+  const isGenerating = (props as { isGenerating?: boolean }).isGenerating;
   const loading = isLoading ?? isGenerating ?? false;
 
   // -- Draft persistence --
@@ -104,18 +104,9 @@ export function useMessageInput({
   } = useAttachments(customUploadFn);
 
   const {
-    forcedTool,
-    setForcedTool,
     handleImageSelect,
     handlePDFSelect,
-    handleForceTool,
-    handleClearForcedTool,
   } = useAttachmentHandlers({ addAttachment });
-
-  const { toolsByScenario } = useTools({
-    chatId: enableForceTools && chatId ? chatId : undefined,
-    enabled: enableForceTools && !!chatId,
-  });
 
   // -- Templates & skills --
   const {
@@ -148,6 +139,7 @@ export function useMessageInput({
     resetTemplate,
   } = useTemplatesAndSkills();
 
+  const deferredSuggestionText = useDeferredValue(message);
   const {
     suggestions: suggestedSkills,
     isLoading: suggestionsLoading,
@@ -156,7 +148,7 @@ export function useMessageInput({
     dismissAll: dismissAllSuggestions,
   } = useAutoSuggestSkills({
     chatId,
-    inputText: message,
+    inputText: deferredSuggestionText,
     selectedSkillIds,
     enabled: autoSuggest.enabled,
     debounceMs: autoSuggest.debounceMs,
@@ -181,10 +173,10 @@ export function useMessageInput({
     addSkill,
     toggleSuggestionsVisible,
     currentModePath,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    resetTemplate,
+    createTemplate: (data) => { void createTemplate(data); },
+    updateTemplate: (id, data) => { void updateTemplate(id, data); },
+    deleteTemplate: (id) => { void deleteTemplate(id); },
+    resetTemplate: (id) => { void resetTemplate(id); },
   });
 
   // -- Model capabilities (extracted) --
@@ -214,8 +206,6 @@ export function useMessageInput({
     webSearchEnabled,
     setWebSearchEnabled,
     chatWebSearchDefault,
-    forcedTool,
-    setForcedTool,
     loading,
     isEditMode,
     onSend,
@@ -258,17 +248,16 @@ export function useMessageInput({
 
   return {
     // Core state
-    message, setMessageState, draft, loading, isEditMode,
+    message, setMessage, setMessageState, draft, loading, isEditMode,
     textareaRef, placeholder, webSearchEnabled, setWebSearchEnabled,
 
     // Capabilities
-    enableAttachments, enableWebSearch, enableForceTools,
+    enableAttachments, enableWebSearch,
     ...capabilities,
 
     // Attachments
-    removeAttachment, isUploading, forcedTool,
-    handleImageSelect, handlePDFSelect, handleForceTool,
-    handleClearForcedTool, toolsByScenario,
+    removeAttachment, isUploading,
+    handleImageSelect, handlePDFSelect,
 
     // Templates & skills
     templates, skills, skillsLoading, syncSkills,

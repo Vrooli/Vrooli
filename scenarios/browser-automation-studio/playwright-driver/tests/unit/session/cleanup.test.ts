@@ -1,27 +1,17 @@
+import * as verification from '../../../src/recording/validation/verification';
+import { playwrightProvider } from '../../../src/playwright';
 import { SessionCleanup } from '../../../src/session/cleanup';
 import { SessionManager } from '../../../src/session/manager';
-import { createTestConfig } from '../../helpers';
+import { createTestConfig, createMockBrowser } from '../../helpers';
 
-// Mock playwright
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({
-          on: jest.fn(),
-          goto: jest.fn(),
-          close: jest.fn().mockResolvedValue(undefined),
-        }),
-        clearCookies: jest.fn().mockResolvedValue(undefined),
-        clearPermissions: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn().mockResolvedValue(undefined),
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-      isConnected: jest.fn().mockReturnValue(true),
-      version: jest.fn().mockReturnValue('mock-version'),
-    }),
-  },
-}));
+// Exercise the actual configured provider through the existing fixture seam.
+let readinessSpy: jest.SpiedFunction<typeof verification.waitForScriptReady>;
+let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+beforeEach(() => {
+  launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(createMockBrowser());
+  readinessSpy = jest.spyOn(verification, 'waitForScriptReady').mockResolvedValue({ loaded: true, ready: true, inMainContext: true, handlersCount: 1, loadTime: 1, version: 'fixture' });
+});
+afterEach(() => { launchSpy.mockRestore(); readinessSpy.mockRestore(); });
 
 describe('SessionCleanup', () => {
   let manager: SessionManager;
@@ -179,18 +169,18 @@ describe('SessionCleanup', () => {
         required_capabilities: {},
       });
 
-      // Start cleanup
-      realCleanup.start();
-
-      // Wait for session to become idle and cleanup to run
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Session should be cleaned up
-      const sessions = (realManager as unknown as { sessions: Map<string, unknown> }).sessions;
-      expect(sessions.has(sessionId)).toBe(false);
-
-      await realCleanup.stop();
-      await realManager.shutdown();
+      try {
+        expect(await realManager.waitForPipelineReady(sessionId)).toBe(true);
+        jest.useFakeTimers();
+        realCleanup.start();
+        await jest.advanceTimersByTimeAsync(100);
+        expect(realManager.getSessionCount()).toBe(0);
+        expect(launchSpy).toHaveBeenCalled();
+      } finally {
+        await realCleanup.stop();
+        jest.useRealTimers();
+        await realManager.shutdown();
+      }
     }, 10000);
   });
 });

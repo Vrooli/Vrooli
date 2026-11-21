@@ -1,0 +1,202 @@
+package runtimeapp
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
+)
+
+type nativeBrokerObserverFixture struct{ closed, updates int }
+
+func (f *nativeBrokerObserverFixture) Close() error { f.closed++; return nil }
+func (f *nativeBrokerObserverFixture) ResumeManagedUpdate(context.Context) error {
+	f.updates++
+	return nil
+}
+
+func nativeSourcePointerFixture(t *testing.T, home, root string) {
+	t.Helper()
+	p := repocontract.SourceRootPointerPath(home)
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(root+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNativeBrokerSupervisorRunsOnlyResourcePlaneAndActualOperator(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(t.TempDir(), "temporarily-absent-source")
+	nativeSourcePointerFixture(t, home, root)
+	o := platform.NativeSystemServiceBrokerOptions{OperatorHome: home}
+	observer := &nativeBrokerObserverFixture{}
+	var commands []platform.NativeBrokerOperatorCommand
+	var quiesce func(context.Context) error
+	actorCalls := 0
+	lost := errors.New("private actor lost")
+	e := nativeBrokerSupervisorEffects{startObserver: func(ctx context.Context, h, r string, q func(context.Context) error, _ func(context.Context) error) (nativeBrokerObserver, error) {
+		if h != home || r != root {
+			t.Fatal("wrong logical source")
+		}
+		quiesce = q
+		return observer, nil
+	}, operator: func(_ context.Context, actual platform.NativeSystemServiceBrokerOptions, c platform.NativeBrokerOperatorCommand) (platform.NativeBrokerOperatorCommandResult, error) {
+		if actual != o {
+			t.Fatal("operator changed")
+		}
+		commands = append(commands, c)
+		return platform.NativeBrokerOperatorCommandResult{}, nil
+	}, supervisor: func(ctx context.Context, actual platform.NativeSystemServiceBrokerOptions) (platform.NativeBrokerOperatorCommandResult, error) {
+		actorCalls++
+		if actual != o {
+			t.Fatal("worker operator changed")
+		}
+		if err := quiesce(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return platform.NativeBrokerOperatorCommandResult{}, lost
+	}, serve: func(ctx context.Context, tick, actor func(context.Context) error) error {
+		if observer.closed != 0 {
+			t.Fatal("observer closed early")
+		}
+		if err := tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return actor(ctx)
+	}}
+	err := (&Service{}).runNativeSystemBrokerSupervisor(context.Background(), home, SupervisorRunOptions{NativeSystemBroker: &o}, e)
+	if !errors.Is(err, lost) || observer.closed != 1 || observer.updates != 1 || actorCalls != 1 {
+		t.Fatalf("wrong root/actor lifetime %v %+v calls=%d", err, observer, actorCalls)
+	}
+	if len(commands) != 1 || commands[0].Action != platform.NativeBrokerOperatorLightingQuiesce || commands[0].SourceRoot != home {
+		t.Fatalf("root dispatched unbounded user work: %+v", commands)
+	}
+}
+
+func TestNativeBrokerSupervisorOptOutAndMissingSourceStayInert(t *testing.T) {
+	home := t.TempDir()
+	o := platform.NativeSystemServiceBrokerOptions{OperatorHome: home}
+	effects := 0
+	actors := 0
+	lost := errors.New("fixture actor exit")
+	e := nativeBrokerSupervisorEffects{startObserver: func(context.Context, string, string, func(context.Context) error, func(context.Context) error) (nativeBrokerObserver, error) {
+		return nil, os.ErrNotExist
+	}, operator: func(context.Context, platform.NativeSystemServiceBrokerOptions, platform.NativeBrokerOperatorCommand) (platform.NativeBrokerOperatorCommandResult, error) {
+		effects++
+		return platform.NativeBrokerOperatorCommandResult{}, nil
+	}, supervisor: func(context.Context, platform.NativeSystemServiceBrokerOptions) (platform.NativeBrokerOperatorCommandResult, error) {
+		actors++
+		return platform.NativeBrokerOperatorCommandResult{}, lost
+	}, serve: func(ctx context.Context, tick, actor func(context.Context) error) error {
+		if err := tick(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return actor(ctx)
+	}}
+	if err := (&Service{}).runNativeSystemBrokerSupervisor(context.Background(), home, SupervisorRunOptions{NativeSystemBroker: &o}, e); !errors.Is(err, lost) || actors != 1 || effects != 0 {
+		t.Fatalf("optout effects=%d actors=%d err=%v", effects, actors, err)
+	}
+	if _, err := os.Stat(repocontract.SourceRootPointerPath(home)); !os.IsNotExist(err) {
+		t.Fatal("optout created source pointer")
+	}
+}
+
+func TestNativeBrokerLostActorEndsRootServiceForNativeRecovery(t *testing.T) {
+	lost := errors.New("private worker lost")
+	if err := serveNativeBrokerActors(context.Background(), func(context.Context) error { return nil }, func(context.Context) error { return lost }); !errors.Is(err, lost) {
+		t.Fatalf("lost actor did not trigger native recovery: %v", err)
+	}
+}
+
+func TestNativeBrokerLateObserverUsesServingContext(t *testing.T) {
+	serving, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	home := t.TempDir()
+	o := platform.NativeSystemServiceBrokerOptions{OperatorHome: home}
+	attempts := 0
+	observer := &nativeBrokerObserverFixture{}
+	var attached context.Context
+	e := nativeBrokerSupervisorEffects{startObserver: func(ctx context.Context, _, _ string, _ func(context.Context) error, _ func(context.Context) error) (nativeBrokerObserver, error) {
+		attempts++
+		attached = ctx
+		return observer, nil
+	}, serve: func(ctx context.Context, tick, actor func(context.Context) error) error {
+		if attempts != 0 {
+			t.Fatal("missing pointer latched a HOME-based observer")
+		}
+		nativeSourcePointerFixture(t, home, filepath.Join(t.TempDir(), "source"))
+		operation, stop := context.WithCancel(ctx)
+		if err := tick(operation); err != nil {
+			t.Fatal(err)
+		}
+		stop()
+		if attached != serving || attached.Err() != nil {
+			t.Fatal("late observer was tied to cancelled short worker context")
+		}
+		return nil
+	}}
+	if err := (&Service{}).runNativeSystemBrokerSupervisor(serving, home, SupervisorRunOptions{NativeSystemBroker: &o}, e); err != nil || observer.closed != 1 {
+		t.Fatalf("late observer cleanup %v %+v", err, observer)
+	}
+}
+
+func TestResolveNativeOperatorSourceBoundedAndCanonical(t *testing.T) {
+	home := t.TempDir()
+	for _, value := range []string{"relative", "/source/../other", strings.Repeat("x", 4097), "/source\x00injection"} {
+		nativeSourcePointerFixture(t, home, value)
+		if _, err := ResolveNativeOperatorSource(home); err == nil {
+			t.Fatalf("accepted %q", value)
+		}
+	}
+}
+
+func TestResolveNativeOperatorSourceRejectsAlias(t *testing.T) {
+	home := t.TempDir()
+	target := filepath.Join(t.TempDir(), "source-pointer")
+	if err := os.WriteFile(target, []byte("/source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := repocontract.SourceRootPointerPath(home)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Skipf("symlink fixture unavailable: %v", err)
+	}
+	if _, err := ResolveNativeOperatorSource(home); err == nil {
+		t.Fatal("source pointer alias accepted")
+	}
+}
+
+func TestNativeBrokerSourcePointerChangeReplacesExactObserver(t *testing.T) {
+	home := t.TempDir()
+	firstRoot := filepath.Join(t.TempDir(), "first")
+	secondRoot := filepath.Join(t.TempDir(), "second")
+	nativeSourcePointerFixture(t, home, firstRoot)
+	first, second := &nativeBrokerObserverFixture{}, &nativeBrokerObserverFixture{}
+	var roots []string
+	o := platform.NativeSystemServiceBrokerOptions{OperatorHome: home}
+	e := nativeBrokerSupervisorEffects{startObserver: func(_ context.Context, _, root string, _, _ func(context.Context) error) (nativeBrokerObserver, error) {
+		roots = append(roots, root)
+		if root == firstRoot {
+			return first, nil
+		}
+		return second, nil
+	}, serve: func(ctx context.Context, tick, actor func(context.Context) error) error {
+		nativeSourcePointerFixture(t, home, secondRoot)
+		return tick(ctx)
+	}}
+	if err := (&Service{}).runNativeSystemBrokerSupervisor(context.Background(), home, SupervisorRunOptions{NativeSystemBroker: &o}, e); err != nil {
+		t.Fatal(err)
+	}
+	if len(roots) != 2 || roots[0] != firstRoot || roots[1] != secondRoot || first.closed != 1 || second.closed != 1 {
+		t.Fatalf("stale source remained latched roots=%v old=%+v new=%+v", roots, first, second)
+	}
+}

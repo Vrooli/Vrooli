@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package vrooli.proto_health.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared;shared_v1";
+
+// =============================================================================
+// SHARED DOMAIN - proto surface facts
+// =============================================================================
+//
+// @stability stable
+//
+// Shared wire shapes for proto-health's validation and proto-surface RPCs.
+// These messages describe one scenario's Protocol Buffer contract only; any
+// fleet graph or dependency interpretation belongs to downstream consumers.
+// =============================================================================
+
+// ProtoSurface is the per-scenario inventory emitted by proto-health.
+message ProtoSurface {
+  reserved 7;
+  reserved "adoption_signals";
+
+  string scenario = 1;
+  repeated ProtoFile files = 2;
+  repeated ProtoService services = 3;
+  repeated ProtoMessage messages = 4;
+  repeated ProtoImport intra_scenario_imports = 5;
+  repeated ProtoImport cross_scenario_imports = 6;
+  TransportWorld transport_world = 8;
+  repeated RestExceptionRef rest_exception_refs = 9;
+  repeated RestExceptionEndpoint rest_exceptions = 10;
+  repeated RestExceptionPayloadRef rest_exception_payloads = 11;
+}
+
+// ProtoFile describes one .proto file owned by the scenario.
+message ProtoFile {
+  string path = 1;
+  string package = 2;
+  string version = 3;
+  string domain = 4;
+  string stability = 5;
+  repeated Annotation annotations = 6;
+}
+
+// Annotation is a supported or unsupported header annotation parsed from
+// leading comments, without assigning policy to it.
+message Annotation {
+  string name = 1;
+  string value = 2;
+}
+
+// ProtoService describes one service and its RPC methods.
+message ProtoService {
+  string file_path = 1;
+  string package = 2;
+  string name = 3;
+  string full_name = 4;
+  string domain = 5;
+  repeated ProtoRpc rpcs = 6;
+}
+
+// ProtoRpc describes one service method.
+message ProtoRpc {
+  string name = 1;
+  string input = 2;
+  string output = 3;
+  TransportKind transport = 4;
+}
+
+// ProtoMessage describes one message and its fields.
+message ProtoMessage {
+  string file_path = 1;
+  string package = 2;
+  string name = 3;
+  string full_name = 4;
+  string domain = 5;
+  repeated ProtoField fields = 6;
+  bool is_map_entry = 7;
+  repeated Annotation annotations = 8;
+  bool has_validation_rules = 9;
+}
+
+// ProtoField describes one message field.
+message ProtoField {
+  string name = 1;
+  string type = 2;
+  string message_type = 3;
+  string enum_type = 4;
+  bool repeated = 5;
+  bool optional = 6;
+  int32 number = 7;
+  repeated Annotation annotations = 8;
+  bool has_validation_rules = 9;
+}
+
+// ProtoImport is an import edge recorded as a fact.
+message ProtoImport {
+  string from_file = 1;
+  string to_file = 2;
+  string from_scenario = 3;
+  string to_scenario = 4;
+  string from_package = 5;
+  string to_package = 6;
+  string from_version = 7;
+  string to_version = 8;
+  string from_domain = 9;
+  string to_domain = 10;
+  ImportKind kind = 11;
+}
+
+// ImportKind classifies an import edge from the scenario's point of view.
+enum ImportKind {
+  IMPORT_KIND_UNSPECIFIED = 0;
+  IMPORT_KIND_SCENARIO_LOCAL = 1;
+  IMPORT_KIND_CROSS_SCENARIO = 2;
+  IMPORT_KIND_EXTERNAL = 3;
+}
+
+// RestExceptionRef records a proto message used by a documented REST
+// exception endpoint, such as a multipart upload response.
+message RestExceptionRef {
+  string endpoint_id = 1;
+  string path = 2;
+  string method = 3;
+  string domain = 4;
+  string message = 5;
+  string full_name = 6;
+}
+
+// RestExceptionEndpoint records a documented REST exception endpoint whose
+// payload intent should be explicitly declared.
+message RestExceptionEndpoint {
+  string endpoint_id = 1;
+  string path = 2;
+  string method = 3;
+  string domain = 4;
+  string reason = 5;
+  bool has_payload_declarations = 6;
+}
+
+// RestExceptionPayloadRef records one declared request/response/error payload
+// role for a REST exception endpoint. Proof status is explicit because
+// proto-health does not prove handler implementation conformance in this tier.
+message RestExceptionPayloadRef {
+  string endpoint_id = 1;
+  string path = 2;
+  string method = 3;
+  string domain = 4;
+  string reason = 5;
+  RestPayloadRole role = 6;
+  string proto_full_name = 7;
+  string transport = 8;
+  string conformance = 9;
+  RestPayloadProofStatus proof_status = 10;
+}
+
+// RestPayloadRole identifies which REST payload role a declaration describes.
+enum RestPayloadRole {
+  REST_PAYLOAD_ROLE_UNSPECIFIED = 0;
+  REST_PAYLOAD_ROLE_REQUEST = 1;
+  REST_PAYLOAD_ROLE_RESPONSE = 2;
+  REST_PAYLOAD_ROLE_ERROR = 3;
+}
+
+// RestPayloadProofStatus states whether implementation conformance was proven.
+enum RestPayloadProofStatus {
+  REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED = 0;
+  REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED = 1;
+}
+
+// TransportWorld summarizes how the scenario exposes proto-owned methods.
+enum TransportWorld {
+  TRANSPORT_WORLD_UNSPECIFIED = 0;
+  TRANSPORT_WORLD_CONNECT = 1;
+  TRANSPORT_WORLD_HAND_ROLLED = 2;
+  TRANSPORT_WORLD_MIXED = 3;
+  TRANSPORT_WORLD_NONE = 4;
+}
+
+// TransportKind describes one RPC's discovered transport.
+enum TransportKind {
+  TRANSPORT_KIND_UNSPECIFIED = 0;
+  TRANSPORT_KIND_CONNECT = 1;
+  TRANSPORT_KIND_REST = 2;
+  TRANSPORT_KIND_HAND_ROLLED = 3;
+  TRANSPORT_KIND_NOT_SERVED = 4;
+}

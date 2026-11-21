@@ -1,0 +1,449 @@
+{
+  "schema_version": 1,
+  "resource": "openrgb",
+  "records": [
+    {
+      "state": {
+        "schema_version": 1,
+        "id": "update-fixture",
+        "request_id": "request-fixture",
+        "resource": "openrgb",
+        "revision": 1,
+        "phase": "prepared",
+        "created_at": "2026-11-05T21:00:00Z",
+        "updated_at": "2026-11-05T21:00:00Z",
+        "source_revision": "f59ba773f24b766f1f7a70da64ef7f2de402a3ffb970bdd8dd6803c010ce4e5a",
+        "target": {
+          "manifest": {
+            "name": "openrgb",
+            "display_name": "OpenRGB",
+            "description": "Opt-in, locally bound OpenRGB SDK backend for enrolled lighting controllers.",
+            "cli": {
+              "enabled": true,
+              "command": "resource-openrgb",
+              "adapter": {
+                "kind": "go_module",
+                "module_dir": "cli"
+              },
+              "artifacts": {
+                "manifest": {
+                  "location": "sibling"
+                },
+                "build_metadata": {
+                  "location": "sibling"
+                }
+              },
+              "distribution": {
+                "kind": "prebuilt_artifact",
+                "artifact_name": "resource-openrgb_${os}_${arch}"
+              },
+              "source_build": {
+                "kind": "go_module"
+              },
+              "invoke": {
+                "kind": "installed_command",
+                "command": "resource-openrgb"
+              },
+              "freshness": {
+                "inputs": [
+                  "cli/**",
+                  "README.md",
+                  "resource.json"
+                ]
+              }
+            },
+            "driver": "managed-service",
+            "credentials": {},
+            "privilege": "user",
+            "bundling": "host-required",
+            "requirements": {
+              "class": "developer-tooling",
+              "weight": 1,
+              "source": "estimated",
+              "confidence": "low"
+            },
+            "platforms": {
+              "linux": "supported",
+              "macos": "unsupported",
+              "windows": "unsupported"
+            },
+            "ports": [
+              {
+                "name": "sdk",
+                "container": 6742,
+                "host": 6742
+              }
+            ],
+            "health_checks": [
+              {
+                "type": "openrgb-sdk-v6",
+                "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+                "kind": "readiness",
+                "interval_seconds": 5,
+                "timeout_seconds": 5
+              },
+              {
+                "type": "openrgb-sdk-v6",
+                "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+                "kind": "liveness",
+                "interval_seconds": 30,
+                "timeout_seconds": 5
+              }
+            ],
+            "install": {},
+            "runtime": {},
+            "environment_exports": {},
+            "orchestration": {
+              "startup_order": 900,
+              "startup_timeout_seconds": 60,
+              "recovery_attempts": 1,
+              "priority": "low"
+            },
+            "lifecycle": {},
+            "capabilities": {},
+            "deployment": {
+              "profiles": {
+                "desktop": {
+                  "linux": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB remains a host-required optional resource and is not integrated as a desktop-bundled service. Its separate control-plane resource lifecycle is currently Linux amd64 only."
+                  },
+                  "macos": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB headless startup and narrow device permissions are not integrated or qualified on macOS."
+                  },
+                  "windows": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB headless startup, isolated configuration, and narrow device permissions are not integrated or qualified on Windows."
+                  }
+                }
+              }
+            },
+            "managed_service": {
+              "update_policy": {
+                "strategy": "exclusive-stop-start",
+                "candidate_port": "sdk"
+              },
+              "provider_policy": {
+                "default_mode": "",
+                "target_defaults": {
+                  "control-plane": "managed-private",
+                  "desktop-bundle": "managed-private"
+                },
+                "allowed_modes": [
+                  "managed-private"
+                ],
+                "shared_reuse_requires_consent": false,
+                "external_management": "forbidden"
+              },
+              "artifact_role": "managed-service",
+              "provenance_class": "upstream-digest",
+              "artifact": {
+                "path": "server/openrgb.AppImage",
+                "version": "1.1",
+                "sha256_by_platform": {
+                  "linux-amd64": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d"
+                },
+                "layout": "file"
+              },
+              "host_tool_executable": "openrgb",
+              "host_tool_version": "1.1",
+              "source_selection_required": true,
+              "acquisition": {
+                "kind": "url",
+                "license": "GPL-2.0-or-later",
+                "targets": [
+                  {
+                    "when": {
+                      "arch": "amd64",
+                      "os": "linux"
+                    },
+                    "url": "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_x86_64_8e16de2.AppImage",
+                    "sha256": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d",
+                    "layout": "file",
+                    "bin_path": "OpenRGB.AppImage",
+                    "mode": "0755"
+                  },
+                  {
+                    "when": {
+                      "arch": "arm64",
+                      "os": "linux"
+                    },
+                    "unsupported": "OpenRGB 1.1 arm64 assets are published, but the headless runtime and package dependencies have not been qualified by this resource."
+                  },
+                  {
+                    "when": {
+                      "os": "macos"
+                    },
+                    "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on macOS."
+                  },
+                  {
+                    "when": {
+                      "os": "windows"
+                    },
+                    "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on Windows."
+                  }
+                ],
+                "provenance": {
+                  "kind": "none"
+                }
+              },
+              "arguments": [
+                "--server",
+                "--server-host",
+                "127.0.0.1",
+                "--server-port",
+                "${RESOURCE_PORT_SDK}",
+                "--config",
+                "${RESOURCE_CONFIG_DIR}/OpenRGB"
+              ],
+              "environment": {
+                "QT_QPA_PLATFORM": "offscreen",
+                "XDG_CONFIG_HOME": "${RESOURCE_CONFIG_DIR}"
+              },
+              "config": {
+                "path": "OpenRGB/OpenRGB.json",
+                "content_file": "config/detectors-release_1.1.json"
+              }
+            }
+          },
+          "artifact": {
+            "resource": "openrgb",
+            "path": "/retained/openrgb-1.1.AppImage",
+            "version": "1.1",
+            "sha256": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d"
+          },
+          "digest": "50236487a91de7c722599638d8843668c27a98baf2a4d2df621fa834487ac80d"
+        },
+        "rollback": {
+          "manifest": {
+            "name": "openrgb",
+            "display_name": "OpenRGB",
+            "description": "Opt-in, locally bound OpenRGB SDK backend for enrolled lighting controllers.",
+            "cli": {
+              "enabled": true,
+              "command": "resource-openrgb",
+              "adapter": {
+                "kind": "go_module",
+                "module_dir": "cli"
+              },
+              "artifacts": {
+                "manifest": {
+                  "location": "sibling"
+                },
+                "build_metadata": {
+                  "location": "sibling"
+                }
+              },
+              "distribution": {
+                "kind": "prebuilt_artifact",
+                "artifact_name": "resource-openrgb_${os}_${arch}"
+              },
+              "source_build": {
+                "kind": "go_module"
+              },
+              "invoke": {
+                "kind": "installed_command",
+                "command": "resource-openrgb"
+              },
+              "freshness": {
+                "inputs": [
+                  "cli/**",
+                  "README.md",
+                  "resource.json"
+                ]
+              }
+            },
+            "driver": "managed-service",
+            "credentials": {},
+            "privilege": "user",
+            "bundling": "host-required",
+            "requirements": {
+              "class": "developer-tooling",
+              "weight": 1,
+              "source": "estimated",
+              "confidence": "low"
+            },
+            "platforms": {
+              "linux": "supported",
+              "macos": "unsupported",
+              "windows": "unsupported"
+            },
+            "ports": [
+              {
+                "name": "sdk",
+                "container": 6742,
+                "host": 6742
+              }
+            ],
+            "health_checks": [
+              {
+                "type": "openrgb-sdk-v6",
+                "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+                "kind": "readiness",
+                "interval_seconds": 5,
+                "timeout_seconds": 5
+              },
+              {
+                "type": "openrgb-sdk-v6",
+                "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+                "kind": "liveness",
+                "interval_seconds": 30,
+                "timeout_seconds": 5
+              }
+            ],
+            "install": {},
+            "runtime": {},
+            "environment_exports": {},
+            "orchestration": {
+              "startup_order": 900,
+              "startup_timeout_seconds": 60,
+              "recovery_attempts": 1,
+              "priority": "low"
+            },
+            "lifecycle": {},
+            "capabilities": {},
+            "deployment": {
+              "profiles": {
+                "desktop": {
+                  "linux": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB remains a host-required optional resource and is not integrated as a desktop-bundled service. Its separate control-plane resource lifecycle is currently Linux amd64 only."
+                  },
+                  "macos": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB headless startup and narrow device permissions are not integrated or qualified on macOS."
+                  },
+                  "windows": {
+                    "support": "unsupported",
+                    "mode": "manual",
+                    "reason": "OpenRGB headless startup, isolated configuration, and narrow device permissions are not integrated or qualified on Windows."
+                  }
+                }
+              }
+            },
+            "managed_service": {
+              "update_policy": {
+                "strategy": "exclusive-stop-start",
+                "candidate_port": "sdk"
+              },
+              "provider_policy": {
+                "default_mode": "",
+                "target_defaults": {
+                  "control-plane": "managed-private",
+                  "desktop-bundle": "managed-private"
+                },
+                "allowed_modes": [
+                  "managed-private"
+                ],
+                "shared_reuse_requires_consent": false,
+                "external_management": "forbidden"
+              },
+              "artifact_role": "managed-service",
+              "provenance_class": "upstream-digest",
+              "artifact": {
+                "path": "server/openrgb.AppImage",
+                "version": "1.0.0",
+                "sha256_by_platform": {
+                  "linux-amd64": "dfd75df90c87e958ba6d9dde487cf1374fe245e6fa3f62f69b668a6048255a91"
+                },
+                "layout": "file"
+              },
+              "host_tool_executable": "openrgb",
+              "host_tool_version": "1.1",
+              "source_selection_required": true,
+              "acquisition": {
+                "kind": "url",
+                "license": "GPL-2.0-or-later",
+                "targets": [
+                  {
+                    "when": {
+                      "arch": "amd64",
+                      "os": "linux"
+                    },
+                    "url": "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_x86_64_8e16de2.AppImage",
+                    "sha256": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d",
+                    "layout": "file",
+                    "bin_path": "OpenRGB.AppImage",
+                    "mode": "0755"
+                  },
+                  {
+                    "when": {
+                      "arch": "arm64",
+                      "os": "linux"
+                    },
+                    "unsupported": "OpenRGB 1.1 arm64 assets are published, but the headless runtime and package dependencies have not been qualified by this resource."
+                  },
+                  {
+                    "when": {
+                      "os": "macos"
+                    },
+                    "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on macOS."
+                  },
+                  {
+                    "when": {
+                      "os": "windows"
+                    },
+                    "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on Windows."
+                  }
+                ],
+                "provenance": {
+                  "kind": "none"
+                }
+              },
+              "arguments": [
+                "--server",
+                "--server-host",
+                "127.0.0.1",
+                "--server-port",
+                "${RESOURCE_PORT_SDK}",
+                "--config",
+                "${RESOURCE_CONFIG_DIR}/OpenRGB"
+              ],
+              "environment": {
+                "QT_QPA_PLATFORM": "offscreen",
+                "XDG_CONFIG_HOME": "${RESOURCE_CONFIG_DIR}"
+              },
+              "config": {
+                "path": "OpenRGB/OpenRGB.json",
+                "content_file": "config/detectors-release_1.1.json"
+              }
+            }
+          },
+          "artifact": {
+            "resource": "openrgb",
+            "path": "/retained/openrgb-prior.AppImage",
+            "version": "1.0.0",
+            "sha256": "dfd75df90c87e958ba6d9dde487cf1374fe245e6fa3f62f69b668a6048255a91"
+          },
+          "digest": "af786ab622666a06041e977617764b9665f2e3773b497f4b87dc000f3c243732"
+        },
+        "rollback_qualification_required": false,
+        "rollback_probe": {},
+        "rollback_probe_quiescent": false,
+        "original": {
+          "instance_id": "original",
+          "ownership_token_hash": "6d51a42dad13f5df5a1839035d40aafe1a02fd4b41f857d3d7d4a375402538a5",
+          "pid": 100,
+          "incarnation": "boot:100",
+          "artifact_path": "/retained/openrgb-prior.AppImage",
+          "artifact_sha256": "dfd75df90c87e958ba6d9dde487cf1374fe245e6fa3f62f69b668a6048255a91",
+          "artifact_version": "1.0.0",
+          "started_at": "2026-11-05T20:00:00Z"
+        },
+        "candidate": {},
+        "primary": {},
+        "restored": {},
+        "candidate_quiescent": false,
+        "primary_stop_verified": false,
+        "primary_quiescent": false,
+        "abort_requested": false
+      }
+    }
+  ]
+}

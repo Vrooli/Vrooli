@@ -1,0 +1,301 @@
+package providers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+)
+
+type meteredEgressStub struct {
+	provider string
+	role     string
+	profile  sharedv1.Profile
+	status   int
+}
+
+func (s *meteredEgressStub) Record(_ context.Context, provider, role string, profile sharedv1.Profile, status int) error {
+	s.provider, s.role, s.profile, s.status = provider, role, profile, status
+	return nil
+}
+
+func TestMeteredClientForwardsBearerAndUsesProfileEndpoint(t *testing.T) {
+	var gotAuthorization string
+	var gotCallerAuthorization string
+	var gotBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuthorization = r.Header.Get("Authorization")
+		gotCallerAuthorization = r.Header.Get(CreditCallerAuthorizationHeader)
+		var body []byte
+		body, _ = io.ReadAll(r.Body)
+		gotBody = string(body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"run-1","content":"{\"ok\":true}","prompt_tokens":4,"completion_tokens":2,"credits_charged":8}`))
+	}))
+	defer server.Close()
+	egress := &meteredEgressStub{}
+	client := NewMeteredClient(MeteredClientOptions{
+		BaseURL:     "http://invalid.example",
+		ProfileURLs: map[sharedv1.Profile]string{sharedv1.Profile_PROFILE_REMOTE_ONLY: server.URL},
+		Egress:      egress,
+	})
+
+	result, err := client.Run(WithCreditCallerAuthorization(WithAccessToken(context.Background(), "Bearer consumer-token"), "signed-web-console-principal"), MeteredRequest{
+		Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY,
+		Messages: []MeteredMessage{{Role: "user", Content: "classify this"}}, ConstraintsJSON: `{"type":"boolean"}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ID != "run-1" || result.CreditsCharged != 8 {
+		t.Fatalf("result = %+v", result)
+	}
+	if gotAuthorization != "Bearer consumer-token" {
+		t.Fatalf("authorization = %q", gotAuthorization)
+	}
+	if gotCallerAuthorization != "Bearer signed-web-console-principal" {
+		t.Fatalf("caller authorization = %q", gotCallerAuthorization)
+	}
+	if !strings.Contains(gotBody, `"role":"classify.fast"`) || strings.Contains(gotBody, `"model"`) {
+		t.Fatalf("request body exposed an invalid contract: %s", gotBody)
+	}
+	if egress.provider != ProviderMetered || egress.role != "classify.fast" || egress.status != http.StatusOK {
+		t.Fatalf("egress = %+v", egress)
+	}
+}
+
+func TestMeteredClientRequiresToken(t *testing.T) {
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: "http://invalid.example"})
+	_, err := client.Run(context.Background(), MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}})
+	if err == nil || !strings.Contains(err.Error(), "access token") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestMeteredBrowserClientBindsLPBSReservationToRootOperation(t *testing.T) {
+	rootOperationID := strings.Repeat("a", 64)
+	var gotRootOperationID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Metadata       map[string]string     `json:"metadata"`
+			BrowserSession MeteredBrowserSession `json:"browser_session"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode metered request: %v", err)
+		}
+		gotRootOperationID = request.Metadata["gateway_root_operation_id"]
+		if request.BrowserSession.RunID != "87026a72-90ba-4e0b-9897-b2b09dc8a750" || request.BrowserSession.SessionID != "bas-session-1" || request.BrowserSession.GrantReceipt != "grant-receipt" {
+			t.Errorf("LPBS request lost the authenticated browser binding: %+v", request.BrowserSession)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(MeteredResponse{ID: "provider-result", RootOperationID: rootOperationID, BillingOperationID: "session-reservation", Content: `{"ok":true}`})
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	adapter := Adapter{Provider: ProviderMetered, Metered: client}
+	result, err := adapter.Execute(WithAccessToken(context.Background(), "Bearer fixture"), ExecutionRequest{
+		Role: "browser.plan", RootOperationID: rootOperationID, InputText: "choose next action",
+		BrowserSession: &inferencev1.BrowserSessionBinding{RunId: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionId: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	if err != nil {
+		t.Fatalf("metered browser execute: %v", err)
+	}
+	if gotRootOperationID != rootOperationID || result.BillingOperationID != "session-reservation" || !strings.Contains(result.OutputText, `"root_operation_id":"`+rootOperationID+`"`) {
+		t.Fatalf("LPBS request/response did not preserve Gateway operation id: request=%q response=%s", gotRootOperationID, result.OutputText)
+	}
+}
+
+func TestMeteredBrowserRejectsMismatchedRootOperationReceipt(t *testing.T) {
+	wantRoot := strings.Repeat("c", 64)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(MeteredResponse{ID: "reservation", RootOperationID: strings.Repeat("d", 64), Content: `{"ok":true}`})
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: wantRoot, Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+		BrowserSession: &MeteredBrowserSession{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeOutcomeUncertain {
+		t.Fatalf("mismatched LPBS receipt error=%v, want typed outcome uncertainty", err)
+	}
+}
+
+func TestMeteredBrowserUncertainOutcomeIsTypedAndNeverFallsBackAtClient(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"settlement response was lost"}`))
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: strings.Repeat("b", 64),
+		Messages:       []MeteredMessage{{Role: "user", Content: "inspect page"}},
+		BrowserSession: &MeteredBrowserSession{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "grant-receipt"},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeOutcomeUncertain {
+		t.Fatalf("uncertain LPBS response error=%v, want typed outcome uncertainty", err)
+	}
+	if requests != 1 {
+		t.Fatalf("LPBS dispatches=%d, want exactly one", requests)
+	}
+}
+
+func TestMeteredBrowserRequiresRootOperationBeforeLPBSDispatch(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { requests++ }))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != CodeUnconfigured {
+		t.Fatalf("missing browser root error=%v, want pre-dispatch refusal", err)
+	}
+	if requests != 0 {
+		t.Fatalf("LPBS dispatches=%d, want zero", requests)
+	}
+}
+
+func TestMeteredBrowserRequiresSessionBindingBeforeLPBSDispatch(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests++ }))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+	_, err := client.Run(WithAccessToken(context.Background(), "Bearer fixture"), MeteredRequest{
+		Role: "browser.plan", RootOperationID: strings.Repeat("f", 64), Messages: []MeteredMessage{{Role: "user", Content: "inspect page"}},
+	})
+	var commandErr *CommandError
+	if !errors.As(err, &commandErr) || commandErr.Code != "invalid_request" {
+		t.Fatalf("missing browser session binding error=%v, want invalid request", err)
+	}
+	if requests != 0 {
+		t.Fatalf("LPBS dispatches=%d, want zero without a run/grant/session binding", requests)
+	}
+}
+
+func TestMeteredClientResolvesSharedAccessTokenOnlyWhenCallerDidNotForwardOne(t *testing.T) {
+	var gotAuthorization string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuthorization = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"resolved","content":"{\"ok\":true}"}`))
+	}))
+	defer server.Close()
+	resolverCalls := 0
+	client := NewMeteredClient(MeteredClientOptions{
+		BaseURL: server.URL,
+		ResolveAccessToken: func(_ context.Context, baseURL string) (string, error) {
+			resolverCalls++
+			if baseURL != server.URL {
+				t.Fatalf("resolver base URL = %q", baseURL)
+			}
+			return "Bearer shared-access", nil
+		},
+	})
+	request := MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}}
+	if _, err := client.Run(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if gotAuthorization != "Bearer shared-access" || resolverCalls != 1 {
+		t.Fatalf("authorization = %q, resolver calls = %d", gotAuthorization, resolverCalls)
+	}
+	if _, err := client.Run(WithAccessToken(context.Background(), "Bearer caller-access"), request); err != nil {
+		t.Fatal(err)
+	}
+	if gotAuthorization != "Bearer caller-access" || resolverCalls != 1 {
+		t.Fatalf("forwarded authorization = %q, resolver calls = %d", gotAuthorization, resolverCalls)
+	}
+}
+
+func TestMeteredClientTypesProviderLimitHTTPErrors(t *testing.T) {
+	statuses := []struct {
+		name       string
+		status     int
+		retryAfter string
+		wantCode   string
+	}{
+		{"insufficient credits", http.StatusPaymentRequired, "", CodeInsufficientCredits},
+		{"rate limited", http.StatusTooManyRequests, "45", CodeRateLimited},
+		{"overloaded", http.StatusServiceUnavailable, "12", CodeProviderOverloaded},
+	}
+	for _, tc := range statuses {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.retryAfter != "" {
+					w.Header().Set("Retry-After", tc.retryAfter)
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":"provider says no"}`))
+			}))
+			defer server.Close()
+			client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL})
+			_, err := client.Run(WithAccessToken(context.Background(), "Bearer token"), MeteredRequest{
+				Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}},
+			})
+			var cmdErr *CommandError
+			if !errors.As(err, &cmdErr) {
+				t.Fatalf("error = %v, want *CommandError", err)
+			}
+			if cmdErr.Code != tc.wantCode || cmdErr.HTTPStatus != tc.status || cmdErr.RetryAfter != tc.retryAfter {
+				t.Fatalf("command error = %+v, want code %q status %d retry-after %q", cmdErr, tc.wantCode, tc.status, tc.retryAfter)
+			}
+		})
+	}
+}
+
+func TestMeteredClientInsufficientCreditsDoesNotTripTransientBreaker(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusPaymentRequired)
+		_, _ = w.Write([]byte(`{"error":"insufficient credits"}`))
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL, FailureLimit: 1, Cooldown: time.Hour})
+	ctx := WithAccessToken(context.Background(), "Bearer token")
+	request := MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}}
+	for attempt := 0; attempt < 2; attempt++ {
+		_, err := client.Run(ctx, request)
+		var cmdErr *CommandError
+		if !errors.As(err, &cmdErr) || cmdErr.Code != CodeInsufficientCredits {
+			t.Fatalf("attempt %d error = %v, want insufficient-credits CommandError", attempt, err)
+		}
+		if !errors.Is(err, ErrInsufficientCredits) {
+			t.Fatalf("attempt %d lost the ErrInsufficientCredits sentinel", attempt)
+		}
+	}
+}
+
+func TestMeteredClientOpensCircuitAfterBoundedFailures(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"upstream"}`))
+	}))
+	defer server.Close()
+	client := NewMeteredClient(MeteredClientOptions{BaseURL: server.URL, FailureLimit: 2, Cooldown: time.Hour})
+	request := MeteredRequest{Role: "classify.fast", Messages: []MeteredMessage{{Role: "user", Content: "x"}}}
+	ctx := WithAccessToken(context.Background(), "Bearer token")
+	for attempt := 0; attempt < 2; attempt++ {
+		if _, err := client.Run(ctx, request); err == nil {
+			t.Fatal("expected upstream failure")
+		}
+	}
+	_, err := client.Run(ctx, request)
+	if err == nil || !strings.Contains(err.Error(), "circuit breaker") {
+		t.Fatalf("third request error = %v", err)
+	}
+}

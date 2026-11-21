@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime"
@@ -85,7 +87,7 @@ func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.Re
 
 // StoreScreenshot writes raw bytes to disk and returns API URLs.
 func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, sanitizeStepName(stepName))
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s%s", executionID, sanitizeStepName(stepName), screenshotExtension(contentType))
 	path, err := f.objectPath(objectName)
 	if err != nil {
 		return nil, err
@@ -126,8 +128,7 @@ func (f *FileStorage) GetArtifact(_ context.Context, objectName string) (io.Read
 
 // StoreArtifactFromFile copies a file into storage and returns the artifact metadata.
 func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
-	info, err := os.Stat(filePath)
-	if err != nil {
+	if _, err := os.Stat(filePath); err != nil {
 		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
 	}
 	ext := filepath.Ext(filePath)
@@ -150,7 +151,9 @@ func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.
 	if err != nil {
 		return nil, fmt.Errorf("failed to create artifact file: %w", err)
 	}
-	if _, err := io.Copy(dest, src); err != nil {
+	digest := sha256.New()
+	written, err := io.Copy(dest, io.TeeReader(src, digest))
+	if err != nil {
 		_ = dest.Close()
 		return nil, fmt.Errorf("failed to copy artifact file: %w", err)
 	}
@@ -161,7 +164,8 @@ func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.
 	derivedType := detectContentTypeFromFile(filePath, contentType)
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
-		SizeBytes:   info.Size(),
+		SizeBytes:   written,
+		SHA256:      hex.EncodeToString(digest.Sum(nil)),
 		ContentType: derivedType,
 		ObjectName:  objectName,
 		Path:        destPath,
@@ -191,6 +195,7 @@ func (f *FileStorage) StoreArtifact(_ context.Context, objectName string, data [
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
 		SizeBytes:   int64(len(data)),
+		SHA256:      artifactDigest(data),
 		ContentType: contentType,
 		ObjectName:  objectName,
 		Path:        path,

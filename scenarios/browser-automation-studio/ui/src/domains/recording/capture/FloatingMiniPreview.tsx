@@ -19,10 +19,6 @@ import { PlaywrightView, type FrameStats } from './PlaywrightView';
 interface FloatingMiniPreviewProps {
   /** Session ID for the live preview */
   sessionId: string;
-  /** Stream quality */
-  quality?: number;
-  /** Stream FPS */
-  fps?: number;
   /** Whether WebSocket frames are being used */
   isWsConnected?: boolean;
   /** Callback to expand to full view */
@@ -42,8 +38,6 @@ const GOLDEN_RATIO = 1.618;
 
 export function FloatingMiniPreview({
   sessionId,
-  quality = 50,
-  fps = 10,
   isWsConnected = false,
   onExpandToFull,
   onStatsUpdate,
@@ -150,8 +144,6 @@ export function FloatingMiniPreview({
         >
           <PlaywrightView
             sessionId={sessionId}
-            quality={quality}
-            fps={fps}
             viewport={{ width, height }}
             onStatsUpdate={onStatsUpdate}
           />

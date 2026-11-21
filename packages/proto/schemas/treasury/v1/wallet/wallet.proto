@@ -1,0 +1,138 @@
+syntax = "proto3";
+package vrooli.treasury.v1.wallet;
+import "google/protobuf/timestamp.proto";
+import "treasury/v1/shared/transfer_observation.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1";
+
+// Receive-only custody metadata. No field confers signing or spending authority.
+message ControlProof {
+  vrooli.treasury.v1.shared.Wallet wallet = 1;
+  string message = 2;
+  string signature = 3;
+  string scheme = 4;
+  bool verified = 5;
+}
+
+// A durable record of one operator-requested read from the configured Base
+// RPC. Provider claims remain observations, not consensus or fiat accounting.
+enum BaseUSDCReceiptRelation {
+  BASE_USDC_RECEIPT_RELATION_UNSPECIFIED = 0;
+  BASE_USDC_RECEIPT_RELATION_SAME_INCLUSION = 1;
+  BASE_USDC_RECEIPT_RELATION_REINCLUDED_NEW_REVISION = 2;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_NOT_CANONICAL = 3;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_REPORTS_PENDING = 4;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_CHECK_FAILED = 5;
+  BASE_USDC_RECEIPT_RELATION_PROVIDER_OBSERVATION_CHANGED = 6;
+}
+
+// Each recheck record links to an earlier check without changing that prior
+// record. Relations describe provider-reported observations, not consensus or
+// a financial reversal instruction.
+message BaseUSDCReceiptCheck {
+  string id = 1;
+  string wallet_id = 2;
+  string network = 3;
+  string transaction_hash = 4;
+  string provider_id = 5;
+  string outcome = 6;
+  string error_code = 7;
+  google.protobuf.Timestamp checked_at = 8;
+  repeated vrooli.treasury.v1.shared.BaseUSDCTransferObservation transfers = 9;
+  string prior_check_id = 10;
+  BaseUSDCReceiptRelation relation = 11;
+}
+
+message CreateResearchWalletRequest { string id = 1; string book_id = 2; string network = 3; }
+message RotateResearchWalletRequest { string id = 1; string network = 2; string successor_id = 3; }
+message ResearchWalletRequest { string id = 1; string network = 2; }
+message ResearchWalletResponse { vrooli.treasury.v1.shared.Wallet wallet = 1; }
+message ExportPortableResearchWalletRecoveryRequest {
+  string id = 1;
+  string network = 2;
+  string operator_secret = 3;
+}
+message ExportPortableResearchWalletRecoveryResponse {
+  string relative_path = 1;
+  string sha256 = 2;
+  uint64 size_bytes = 3;
+  string witness_relative_path = 4;
+}
+message RestorePortableResearchWalletRecoveryRequest {
+  string id = 1;
+  string network = 2;
+  bytes bundle = 3;
+  string operator_secret = 4;
+  bytes witness = 5;
+  bytes revocation = 6;
+}
+// Rotation is split so Treasury retains the old scalar until the operator
+// publishes and reads back the exact signed tombstone from off-host DBM.
+message PreparePortableResearchWalletRotationRequest {
+  string id = 1;
+  string network = 2;
+  string successor_id = 3;
+}
+message PreparePortableResearchWalletRotationResponse {
+  vrooli.treasury.v1.shared.Wallet wallet = 1;
+  string revocation_tombstone_json = 2;
+  string tombstone_sha256 = 3;
+}
+message CommitPortableResearchWalletRotationRequest {
+  string id = 1;
+  string network = 2;
+  string successor_id = 3;
+  string destination_id = 4;
+  string destination_backend = 5;
+  string plan_id = 6;
+  string run_id = 7;
+  string target_name = 8;
+  string snapshot_id = 9;
+  string latest_snapshot_id = 10;
+  string tombstone_sha256 = 11;
+  string restored_revocation_sha256 = 12;
+  bool bundle_present = 13;
+  bool dbm_verify_passed = 14;
+  bool restored_tombstone_matches = 15;
+  string verified_at = 16;
+  string address = 17;
+  string reservation_id = 18;
+  string reservation_expires_at = 19;
+  // Canonical api-core SignatureEnvelope JSON. Treasury verifies it against
+  // DBM's public-key ring; this request never includes private signer bytes.
+  string dbm_attestation_json = 20;
+}
+message CommitPortableResearchWalletRotationResponse { vrooli.treasury.v1.shared.Wallet wallet = 1; }
+message ProveResearchWalletRequest { string id = 1; string network = 2; string nonce = 3; }
+message ProveResearchWalletResponse { ControlProof proof = 1; }
+message VerifyBaseUSDCReceiptRequest { string wallet_id = 1; string transaction_hash = 2; }
+message VerifyBaseUSDCReceiptResponse {
+  repeated vrooli.treasury.v1.shared.BaseUSDCTransferObservation transfers = 1;
+  string check_id = 2;
+  string check_outcome = 3;
+  string provider_id = 4;
+  google.protobuf.Timestamp checked_at = 5;
+}
+message RecheckBaseUSDCReceiptRequest {
+  string wallet_id = 1;
+  string transaction_hash = 2;
+  string prior_check_id = 3;
+}
+message RecheckBaseUSDCReceiptResponse { BaseUSDCReceiptCheck check = 1; }
+message ListBaseUSDCReceiptChecksRequest { string wallet_id = 1; string transaction_hash = 2; uint32 limit = 3; }
+message ListBaseUSDCReceiptChecksResponse { repeated BaseUSDCReceiptCheck checks = 1; }
+
+service WalletAdminService {
+  rpc CreateResearchWallet(CreateResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc RotateResearchWallet(RotateResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc GetResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc ProveResearchWallet(ProveResearchWalletRequest) returns (ProveResearchWalletResponse);
+  rpc ExportPortableResearchWalletRecovery(ExportPortableResearchWalletRecoveryRequest) returns (ExportPortableResearchWalletRecoveryResponse);
+  rpc RestorePortableResearchWalletRecovery(RestorePortableResearchWalletRecoveryRequest) returns (ResearchWalletResponse);
+  rpc PreparePortableResearchWalletRotation(PreparePortableResearchWalletRotationRequest) returns (PreparePortableResearchWalletRotationResponse);
+  rpc CommitPortableResearchWalletRotation(CommitPortableResearchWalletRotationRequest) returns (CommitPortableResearchWalletRotationResponse);
+  rpc QualifyResearchWalletRecovery(ResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc RecoverResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc VerifyBaseUSDCReceipt(VerifyBaseUSDCReceiptRequest) returns (VerifyBaseUSDCReceiptResponse);
+  rpc RecheckBaseUSDCReceipt(RecheckBaseUSDCReceiptRequest) returns (RecheckBaseUSDCReceiptResponse);
+  rpc ListBaseUSDCReceiptChecks(ListBaseUSDCReceiptChecksRequest) returns (ListBaseUSDCReceiptChecksResponse);
+}

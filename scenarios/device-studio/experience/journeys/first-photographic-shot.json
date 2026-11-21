@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "first-photographic-shot",
+    "title": "First photographic presentation",
+    "purpose": "Complete a first local photographic shot while preserving the full recording and making external generation an explicit separate choice.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "projects",
+      "state": "empty",
+      "intent": "Create a local project without signing in or making a provider call.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "project-settings",
+      "state": "default",
+      "intent": "Inspect local-only privacy and choose output and spend limits before external work.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "library",
+      "state": "default",
+      "intent": "Select a rights-cleared photographic plate or explicitly begin a separately authorized generation.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "calibrating",
+      "intent": "Contain real capture, fit active display and exclude pill and occluders with numeric alternatives.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "render-preflight",
+      "intent": "Inspect exact shot revision, source clock, final profile and any cost before submitting.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "running",
+      "intent": "Observe durable bounded execution and inspect representative frames.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "review-needed",
+      "intent": "Inspect direct final image/video, validation and attribution before final-look acceptance.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "first-photographic-shot-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Complete a first local photographic shot while preserving the full recording and making external generation an explicit separate choice.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

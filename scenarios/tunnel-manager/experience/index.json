@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "tunnel-manager",
+  "description": "Active experience contract for the Tunnel Manager Exposure Command Center. It binds operator surfaces to route, probe, lease, policy, recovery, and credential evidence without implying remote Cloudflare capability when credentials are absent.",
+  "pages": [
+    {"id": "overview", "path": "pages/overview.json", "title": "Overview", "status": "active"},
+    {"id": "exposure", "path": "pages/exposure.json", "title": "Exposure", "status": "active"},
+    {"id": "recovery", "path": "pages/recovery.json", "title": "Recovery & Events", "status": "active"},
+    {"id": "metrics", "path": "pages/metrics.json", "title": "Diagnostics", "status": "active"},
+    {"id": "audit", "path": "pages/audit.json", "title": "Governance", "status": "active"},
+    {"id": "drift", "path": "pages/drift.json", "title": "Ingress Drift", "status": "active"},
+    {"id": "settings", "path": "pages/settings.json", "title": "Settings & Readiness", "status": "active"}
+  ],
+  "journeys": [
+    {"id": "expose-scenario", "path": "journeys/expose-scenario.json", "title": "Expose a scenario", "status": "active"},
+    {"id": "reexpose-expired-route", "path": "journeys/reexpose-expired-route.json", "title": "Re-expose an expired route", "status": "active"},
+    {"id": "enable-public-assets", "path": "journeys/enable-public-assets.json", "title": "Enable anonymous public assets", "status": "active"},
+    {"id": "diagnose-route", "path": "journeys/diagnose-route.json", "title": "Diagnose a route", "status": "active"}
+  ]
+}

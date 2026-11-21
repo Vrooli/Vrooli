@@ -235,6 +235,39 @@ describe("validateBundlePreFlight", () => {
             expect(result.valid).toBe(false);
             expect(result.errors.some(e => e.includes("ipc.host"))).toBe(true);
         });
+
+        it("accepts ipc.port 0 as an allocator request", async () => {
+            const manifest = createValidManifest();
+            manifest.ipc.port = 0;
+            fs._files.set("/bundle/manifest.json", JSON.stringify(manifest));
+
+            const result = await validateBundlePreFlight("/bundle", "/bundle/manifest.json", fs, path, platform);
+
+            expect(result.errors.some(e => e.includes("ipc.port"))).toBe(false);
+            expect(result.valid).toBe(true);
+        });
+
+        it("fails for a missing ipc.port", async () => {
+            const manifest = createValidManifest();
+            delete (manifest.ipc as Partial<typeof manifest.ipc>).port;
+            fs._files.set("/bundle/manifest.json", JSON.stringify(manifest));
+
+            const result = await validateBundlePreFlight("/bundle", "/bundle/manifest.json", fs, path, platform);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes("ipc.port"))).toBe(true);
+        });
+
+        it("fails for an out-of-range ipc.port", async () => {
+            const manifest = createValidManifest();
+            manifest.ipc.port = 70000;
+            fs._files.set("/bundle/manifest.json", JSON.stringify(manifest));
+
+            const result = await validateBundlePreFlight("/bundle", "/bundle/manifest.json", fs, path, platform);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes("ipc.port"))).toBe(true);
+        });
     });
 
     describe("service binary validation", () => {

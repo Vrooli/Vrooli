@@ -24,8 +24,8 @@ func TestHealthHandler(t *testing.T) {
 			t.Errorf("Expected status 'healthy', got '%v'", result["status"])
 		}
 
-		if result["service"] != "local-info-scout" {
-			t.Errorf("Expected service 'local-info-scout', got '%v'", result["service"])
+		if result["service"] != "local-info-scout-api" {
+			t.Errorf("Expected service 'local-info-scout-api', got '%v'", result["service"])
 		}
 
 		if result["timestamp"] == nil {
@@ -35,12 +35,12 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("CORSHeaders", func(t *testing.T) {
 		w := makeHTTPRequest(enableCORS(healthHandler), HTTPTestRequest{
-			Method: "GET",
-			Path:   "/health",
+			Method:  "GET",
+			Path:    "/health",
+			Headers: map[string]string{"Origin": "http://localhost:3000"},
 		})
 
-		assertHeaderPresent(t, w, "Access-Control-Allow-Origin")
-		assertHeaderValue(t, w, "Access-Control-Allow-Origin", "*")
+		assertHeaderValue(t, w, "Access-Control-Allow-Origin", "http://localhost:3000")
 	})
 
 	t.Run("OPTIONSMethod", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestSearchHandler(t *testing.T) {
 			Body:   req,
 		})
 
-		places := assertPlacesResponse(t, w, http.StatusOK)
+		places := assertSearchResponse(t, w, http.StatusOK)
 
 		if len(places) == 0 {
 			t.Error("Expected at least one place in results")
@@ -144,7 +144,7 @@ func TestSearchHandler(t *testing.T) {
 			Body:   req,
 		})
 
-		places := assertPlacesResponse(t, w, http.StatusOK)
+		places := assertSearchResponse(t, w, http.StatusOK)
 
 		// Verify all places match the requested category
 		for _, place := range places {
@@ -170,7 +170,7 @@ func TestSearchHandler(t *testing.T) {
 			Body:   req,
 		})
 
-		places := assertPlacesResponse(t, w, http.StatusOK)
+		places := assertSearchResponse(t, w, http.StatusOK)
 
 		// Verify all places meet minimum rating
 		for _, place := range places {
@@ -196,7 +196,7 @@ func TestSearchHandler(t *testing.T) {
 			Body:   req,
 		})
 
-		places := assertPlacesResponse(t, w, http.StatusOK)
+		places := assertSearchResponse(t, w, http.StatusOK)
 
 		// Verify all places meet price requirement (except parks)
 		for _, place := range places {
@@ -222,7 +222,7 @@ func TestSearchHandler(t *testing.T) {
 			Body:   req,
 		})
 
-		places := assertPlacesResponse(t, w, http.StatusOK)
+		places := assertSearchResponse(t, w, http.StatusOK)
 
 		// All results should be open now or be 24-hour
 		for _, place := range places {

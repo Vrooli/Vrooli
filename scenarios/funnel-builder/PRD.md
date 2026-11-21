@@ -29,7 +29,7 @@
 ### 🔴 P0 – Must ship for viability
 
 - [x] OT-P0-001 | Visual drag-and-drop funnel builder | React/TypeScript UI with intuitive step creation and ordering
-- [x] OT-P0-002 | Multiple step types support | Quiz, form, content, and CTA step types with customizable fields
+- [ ] OT-P0-002 | Multiple step types support | Quiz, form, content, and CTA step types with customizable fields
 - [x] OT-P0-003 | Lead capture and storage | PostgreSQL-backed lead storage with full response tracking
 - [x] OT-P0-004 | Linear funnel flow execution | Sequential step progression with session management
 - [x] OT-P0-006 | API endpoints for funnel operations | Complete CRUD and execution endpoints with JSON responses

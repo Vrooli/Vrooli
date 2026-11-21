@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-tree]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty tree","args":{"nodes":[]},"expect":[{"kind":"visible","selector":"[data-rcl-tree]"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One tree node","args":{"nodes":[{"id":"one","label":"Root"}]},"expect":[{"kind":"visible","selector":"[data-rcl-tree]"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many tree nodes","args":{"nodes":[{"id":"one","label":"Root"},{"id":"two","label":"Child one"},{"id":"three","label":"Child two"},{"id":"four","label":"Child three"}]},"expect":[{"kind":"visible","selector":"[data-rcl-tree]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long tree node label","args":{"nodes":[{"id":"long","label":"A deliberately long tree node label that must wrap without clipping"}]},"expect":[{"kind":"visible","selector":"[data-rcl-tree]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

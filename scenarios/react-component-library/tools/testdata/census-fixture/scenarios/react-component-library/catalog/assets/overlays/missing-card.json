@@ -1,0 +1,9 @@
+{
+  "asset": {
+    "id": "overlays.missing-card",
+    "name": "MissingCard",
+    "domain": "overlays",
+    "target": { "priority": "P1", "maturity": "experimental" }
+  },
+  "requiredCapabilities": []
+}

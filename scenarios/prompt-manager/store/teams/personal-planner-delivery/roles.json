@@ -1,0 +1,17 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "personal-planner-delivery",
+  "roles": [
+    {
+      "id": "personal-planner-delivery-orchestrator",
+      "name": "Personal Planner Delivery Orchestrator",
+      "description": "Own approved I18 Planner delivery goal and epochs using native large-effort-orchestration."
+    },
+    {
+      "id": "personal-planner-acceptance-reviewer",
+      "name": "Personal Planner Acceptance Reviewer",
+      "description": "Independent acceptance of approved I18 Planner journeys and evidence; never self-accept implementation."
+    }
+  ]
+}

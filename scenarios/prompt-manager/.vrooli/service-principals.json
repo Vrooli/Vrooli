@@ -1,0 +1,16 @@
+{
+  "principals": [
+    {
+      "name": "prompt-manager",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:write"]
+    },
+    {
+      "name": "prompt-manager-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    }
+  ]
+}

@@ -101,16 +101,5 @@ TODO: Implementation required
 
 // CheckPlainTextContentTypeHeaders validates plain text response Content-Type headers
 func CheckPlainTextContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement plain text Content-Type checking
-	// This is the trickiest because "plain text" is catch-all
-	// Need to carefully distinguish from JSON/HTML/XML
-	// Low priority because browsers handle missing header well
-	// But important for API consistency
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

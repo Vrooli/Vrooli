@@ -106,7 +106,7 @@ export function AgentStatusIndicator({
 
   if (!status) return null;
 
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const config = STATUS_CONFIG[status];
   const isRunning = status === "running" || status === "starting" || status === "pending";
 
   // Aggregate metrics for display
@@ -172,7 +172,7 @@ export function AgentStatusIndicator({
             {errorMsg}
           </span>
           <button
-            onClick={handleCopy}
+            onClick={() => { void handleCopy(); }}
             className="flex-shrink-0 p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
             title="Copy error message"
           >

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// DEPLOYMENT DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Readiness checks are an administrative/service operation used before a
+// download-enabled application is deployed. The legacy JSON endpoint remains
+// available while its clients migrate to this generated Connect contract.
+
+message CheckDeploymentReadinessRequest {
+  string app_key = 1;
+  string remote_profile = 2;
+  string channel = 3;
+}
+
+message DeploymentReadinessGate {
+  string name = 1;
+  bool ready = 2;
+  string message = 3;
+}
+
+message CheckDeploymentReadinessResponse {
+  bool ready = 1;
+  repeated DeploymentReadinessGate gates = 2;
+  string error = 3;
+}
+
+service DeploymentService {
+  rpc CheckReadiness(CheckDeploymentReadinessRequest) returns (CheckDeploymentReadinessResponse);
+}

@@ -1,0 +1,14 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Card",
+      "Button",
+      "Input",
+      "FormSection"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:AutoAnimateLayout",
+  "version": "1.0.6"
+}

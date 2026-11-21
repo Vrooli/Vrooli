@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "agentId": "director-contrarian",
+  "roles": [
+    "director-contrarian"
+  ],
+  "status": "active"
+}

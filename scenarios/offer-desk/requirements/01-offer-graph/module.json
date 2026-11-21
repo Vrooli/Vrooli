@@ -1,0 +1,126 @@
+{
+  "_metadata": {
+    "description": "The typed offer graph and the lifecycle the API enforces on it.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "offer-graph",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GRAPH-001",
+      "title": "Typed nodes share one status vocabulary",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Offers, variants, channels and revenue lines are node kinds in one graph, each carrying exactly one status from a closed vocabulary. The source documents used four separate vocabularies across four file families; a single vocabulary is what makes a cross-kind board possible.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "The catalog test exercises the real typed deliverable class and edge matrix, while the lifecycle tests exercise the closed status vocabulary on stored nodes."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Create one node of each kind over Connect-RPC and read them back through a single list call."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-002",
+      "title": "Typed edges connect node kinds",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Edges are typed and directional: a channel feeds a revenue line, an offer is sold at a variant, a deliverable belongs to an offer. An untyped or self-referential edge is rejected at write time.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "Reject an edge whose kind pair is not in the allowed matrix; reject a self-edge."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-003",
+      "title": "Illegal transitions are refused",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The lifecycle is a state machine owned by the service. A transition outside the declared adjacency is refused with an error naming the rule and the transitions that would be legal from the current state. Prose that merely describes a lifecycle cannot refuse anything, which is the defect this replaces.",
+      "tags": [
+        "policy",
+        "state-machine"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "The catalog test exercises an illegal lifecycle transition against a real stored node and asserts the named refusal rule."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A refused transition leaves the stored state unchanged."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-004",
+      "title": "Status changes are audited append-only",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Every transition writes an audit entry carrying actor, timestamp, prior status, new status and reason. Entries are append-only; a correction is a new entry, never an edit. This replaces what version control was providing before the state moved into a database.",
+      "tags": [
+        "storage",
+        "audit"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "An update writes exactly one audit row with the prior value preserved."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "No API path can delete or mutate an existing audit row."
+        }
+      ]
+    },
+    {
+      "id": "GRAPH-005",
+      "title": "Duplicate catalog nodes merge with a complete audit",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "An explicitly selected surviving node can absorb a same-kind duplicate in one audited transaction. Every edge, trigger, evaluation, proposal and migration finding moves, duplicate edges collapse visibly, and the duplicate row is removed only after the audit is written.",
+      "tags": ["storage", "merge", "audit"],
+      "validation": [
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Merge moves every reference and removes the duplicate while preserving an audit naming both ids."},
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Cross-kind merges are refused with both kinds and ids named."},
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Duplicate graph edges collapse to one and the discarded edge id is reported."}
+      ]
+    }
+  ]
+}

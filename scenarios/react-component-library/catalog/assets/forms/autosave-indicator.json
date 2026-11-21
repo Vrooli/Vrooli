@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.autosave-indicator",
+    "name": "AutosaveIndicator",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The status component moving through unchanged, unsaved, queued, saving, saved, offline, conflict, and failed with meaningful timestamps rather than a permanent spinner.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Last-saved time is rendered and updated through the shared component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "status-announced",
+    "non-color-status",
+    "freshness-disclosure",
+    "offline-behavior"
+  ],
+  "requiredStates": [
+    "default",
+    "saving",
+    "success",
+    "stale",
+    "offline",
+    "request-error"
+  ]
+}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { StatusGrid } from "./StatusGrid";
 import { Skeleton } from "../components/ui/LoadingStates";
-import type { HealthResponse, VaultSecretsStatus, ComplianceResponse, VulnerabilityResponse } from "../lib/api";
+import type { HealthResponse, CredentialCoverageStatus, ComplianceResponse, VulnerabilityResponse } from "../lib/api";
 
 interface SnapshotPanelProps {
   heroStats?: {
@@ -10,13 +10,13 @@ interface SnapshotPanelProps {
     readiness_label: string;
     risk_score: number;
     confidence: number;
-    vault_configured: number;
-    vault_total: number;
+    credential_configured: number;
+    credential_total: number;
     missing_secrets: number;
   };
   updatedAt?: string;
   healthData?: HealthResponse;
-  vaultData?: VaultSecretsStatus;
+  credentialData?: CredentialCoverageStatus;
   complianceData?: ComplianceResponse;
   vulnerabilityData?: VulnerabilityResponse;
   isLoading: boolean;
@@ -26,7 +26,7 @@ export const SnapshotPanel = ({
   heroStats,
   updatedAt,
   healthData,
-  vaultData,
+  credentialData,
   complianceData,
   vulnerabilityData,
   isLoading
@@ -94,11 +94,11 @@ export const SnapshotPanel = ({
         <div className="mt-4">
           <StatusGrid
             healthData={healthData}
-            vaultData={vaultData}
+            credentialData={credentialData}
             complianceData={complianceData}
             vulnerabilityData={vulnerabilityData}
             isHealthLoading={isLoading}
-            isVaultLoading={isLoading}
+            isCredentialLoading={isLoading}
             isComplianceLoading={isLoading}
             isVulnerabilityLoading={isLoading}
           />

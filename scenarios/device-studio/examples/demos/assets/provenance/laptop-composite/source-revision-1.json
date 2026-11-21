@@ -1,0 +1,109 @@
+{
+  "revision":  {
+    "shot_id":  "a2e0756a-fbe6-4442-a153-ca20f2165872",
+    "revision":  "1",
+    "created_at":  "2026-10-21T03:55:57.863553479Z",
+    "name":  "Demo — reviewed laptop closing with browser/desktop",
+    "snapshot":  {
+      "presentation":  {
+        "source_media_id":  "154b348c-8fb3-4417-915f-872fbaf19b11",
+        "capture_area":  "CAPTURE_AREA_APP_ONLY",
+        "kind":  "PRESENTATION_KIND_BROWSER_DESKTOP",
+        "fit_mode":  "SCREEN_FIT_MODE_CONTAIN",
+        "browser_desktop_chrome":  {
+          "window_title":  "Meridian — product preview",
+          "address_text":  "studio.local/projects/meridian",
+          "show_window_controls":  true,
+          "show_toolbar":  true,
+          "appearance":  "PRESENTATION_APPEARANCE_LIGHT",
+          "window":  {
+            "x":  800,
+            "y":  800,
+            "width":  8400,
+            "height":  8000
+          },
+          "show_menu_bar":  true,
+          "show_dock":  true
+        }
+      },
+      "motion_mode":  "MOTION_MODE_FIXED",
+      "physical_binding":  {
+        "device":  {
+          "id":  "jack-baeten-macbook-pro-m3-16-screen-vflip-candidate-v1",
+          "revision":  1,
+          "sha256":  "e9d3278ddc3c9a5daa95dab148cf80f4561ca557657402a05eda206333cfdce7"
+        },
+        "scene":  {
+          "id":  "laptop-study-room-screen-vflip-candidate-v1",
+          "revision":  1,
+          "sha256":  "da119805f93cb83e8e3feaa90c41d4466edfad5134fa25fad993bc965226a55e"
+        },
+        "motion":  {
+          "id":  "laptop-lid-vflip-reviewed-10s-v1",
+          "revision":  1,
+          "sha256":  "21c94a3a27cf0fdfbc63765fd23f3ba59fd036c40fc8ca231e65a3b4a2fa81d5"
+        },
+        "display_id":  "main_display",
+        "device_support_id":  "laptop-root-support",
+        "scene_support_id":  "laptop-tabletop",
+        "camera_id":  "laptop-candidate-camera-screen-vflip-v1",
+        "scene_support_world":  {
+          "translation_m":  {
+            "y":  0.75
+          },
+          "rotation_xyzw":  {
+            "w":  1
+          },
+          "scale":  {
+            "x":  1,
+            "y":  1,
+            "z":  1
+          }
+        },
+        "support_pivot_m":  {
+          "y":  0.01068804
+        },
+        "device_root_rest":  {
+          "translation_m":  {},
+          "rotation_xyzw":  {
+            "w":  1
+          },
+          "scale":  {
+            "x":  1,
+            "y":  1,
+            "z":  1
+          }
+        },
+        "screen_width_pixels":  1644,
+        "screen_height_pixels":  1000,
+        "renderer_profile_id":  "device-studio-physical-cycles-v1",
+        "renderer_profile_version":  1,
+        "backend":  "PHYSICAL_RENDER_BACKEND_OPTIX",
+        "motion_output":  {
+          "profile_id":  "device-studio-physical-motion-1080p-v2",
+          "profile_version":  2,
+          "width":  1920,
+          "height":  1080,
+          "output_rate_numerator":  24,
+          "output_rate_denominator":  1,
+          "frame_count":  240
+        }
+      }
+    },
+    "recipe_sha256":  "3d2334b584e2e22ad166b935b2cabc99890b6e86550cf9cf02ac2fcda0207315",
+    "scene_sha256":  "da119805f93cb83e8e3feaa90c41d4466edfad5134fa25fad993bc965226a55e",
+    "presentation_sha256":  "84dbab9fec0b5882d25f3e1b8829f91f443fa1b597c734cb9eacae7a97a73c85",
+    "scene_version":  "device-studio-physical-scene-v1",
+    "presentation_version":  "device-studio-presentation-v2",
+    "compositor_profile":  "go-still-presentation-v2",
+    "screen":  {
+      "id":  "154b348c-8fb3-4417-915f-872fbaf19b11",
+      "sha256":  "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+      "size_bytes":  "406368",
+      "media_type":  "image/png",
+      "width_pixels":  1644,
+      "height_pixels":  1000
+    },
+    "render_eligible":  true
+  }
+}

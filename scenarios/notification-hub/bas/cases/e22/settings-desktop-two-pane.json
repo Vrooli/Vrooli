@@ -1,0 +1,160 @@
+{
+  "metadata": {
+    "name": "settings-desktop-two-pane",
+    "description": "On a wide screen Settings shows the list beside the open screen and the open row is marked current.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-desktop-two-pane"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "On a wide screen Settings shows the list beside the open screen and the open row is marked current.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 1280,
+      "viewport_height": 800
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Settings on desktop"
+          }
+        }
+      },
+      {
+        "id": "wait-reach-content",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.root",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "The first screen is already open beside the list"
+          }
+        }
+      },
+      {
+        "id": "assert-current-row",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const row=document.querySelector('[data-testid=\"settings-row-reach\"]');if(!row||row.getAttribute('aria-current')!=='page')throw new Error('Devices and channels is not marked current');return true;})()"
+          },
+          "metadata": {
+            "label": "The open row is marked current"
+          }
+        }
+      },
+      {
+        "id": "capture-reach",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture two-pane Settings on desktop"
+          }
+        }
+      },
+      {
+        "id": "open-quiet",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settings.row(key=quietHours)"
+          },
+          "metadata": {
+            "label": "Choose Quiet hours from the list"
+          }
+        }
+      },
+      {
+        "id": "wait-quiet-add",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.add",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Quiet hours opens beside the list"
+          }
+        }
+      },
+      {
+        "id": "assert-two-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const row=document.querySelector('[data-testid=\"settings-row-quietHours\"]');if(!row||row.getAttribute('aria-current')!=='page')throw new Error('Quiet hours is not marked current');if(!document.querySelector('[data-testid=\"settings-row-escalation\"]'))throw new Error('the list left the page');return location.pathname;})()"
+          },
+          "metadata": {
+            "label": "The list stays and the new row is current"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-settings",
+        "target": "wait-reach-content",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "wait-reach-content",
+        "target": "assert-current-row",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "assert-current-row",
+        "target": "capture-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "capture-reach",
+        "target": "open-quiet",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "open-quiet",
+        "target": "wait-quiet-add",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "wait-quiet-add",
+        "target": "assert-two-pane",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

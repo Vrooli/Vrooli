@@ -157,13 +157,13 @@ export const ResourcePanel = ({
                 <div className="space-y-2 rounded-xl border border-dashed border-white/20 bg-white/5 p-3 text-sm text-white/70">
                   <p className="font-semibold text-white">No secrets were returned for this resource.</p>
                   <p className="text-white/70">
-                    If this resource has secrets, make sure its <code>config/secrets.yaml</code> is present under{" "}
-                    <code>resources/{activeResource}/</code> and sync with Vault via{" "}
-                    <code>resource-vault secrets check {activeResource}</code> or <code>secrets-manager</code> refresh.
+                    Credentials are declared by descriptors in <code>resources/{activeResource}/resource.json</code>.
+                    Refresh this view after updating the manifest or provisioning a declared credential through onboarding or the
+                    <code>vrooli credentials</code> control-plane command.
                   </p>
                   <p className="text-white/70">
-                    Need to add declarations? Run <code>resource-vault secrets create-template {activeResource}</code>,
-                    edit the file, then <code>resource-vault secrets init {activeResource}</code> to populate Vault.
+                    Do not add a resource-private secrets file or a remote secret path as a runtime fallback. The native authority
+                    resolves configured values only into the target process.
                   </p>
                 </div>
               )}

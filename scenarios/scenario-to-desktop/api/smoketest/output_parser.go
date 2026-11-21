@@ -2,6 +2,7 @@ package smoketest
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -13,11 +14,11 @@ type AppError struct {
 
 // DefaultOutputParser implements OutputParser using configurable markers.
 type DefaultOutputParser struct {
-	config Config
+	config SmokeTestConfig
 }
 
 // NewOutputParser creates a new output parser with the given config.
-func NewOutputParser(config Config) *DefaultOutputParser {
+func NewOutputParser(config SmokeTestConfig) *DefaultOutputParser {
 	return &DefaultOutputParser{config: config}
 }
 
@@ -90,6 +91,7 @@ func (p *DefaultOutputParser) ExtractLastLifecycleState(output string) string {
 // LifecycleStateDescription returns a human-readable description for a lifecycle state.
 // This helps users understand where the app failed during startup.
 func LifecycleStateDescription(state string) string {
+	// #nosec G101 -- lifecycle labels describe a token file; they contain no credential material.
 	descriptions := map[string]string{
 		"":                  "App crashed before smoke test code ran. Check for missing dependencies or Electron initialization failures.",
 		"init":              "App started smoke test but crashed during initialization. A bundled service likely failed to start.",
@@ -159,6 +161,9 @@ func (p *DefaultOutputParser) ValidateSequence(output string) SequenceValidation
 	for name, lineNum := range stageLines {
 		validation.Stages = append(validation.Stages, SequenceStage{Name: name, LineNumber: lineNum})
 	}
+	sort.Slice(validation.Stages, func(i, j int) bool {
+		return validation.Stages[i].LineNumber < validation.Stages[j].LineNumber
+	})
 
 	checkMissingStages(&validation, expectedOrder, stageLines)
 	checkSequenceOrder(&validation, expectedOrder, stageLines)

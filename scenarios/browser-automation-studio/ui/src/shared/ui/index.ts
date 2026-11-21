@@ -9,8 +9,8 @@ export { default as LoadingSpinner, LoadingOverlay, InlineLoading, ContentLoadin
 export { default as RangeSlider } from './RangeSlider';
 export { default as UsageMeter } from './UsageMeter';
 export type { UsageMeterProps } from './UsageMeter';
-export { default as TierBadge } from './TierBadge';
-export type { TierBadgeProps } from './TierBadge';
+export { PlanBadge } from '@components/MonetizationAccount';
+export type { PlanTier } from '@components/MonetizationAccount';
 export { ConfirmDialog } from './ConfirmDialog';
 export { PromptDialog } from './PromptDialog';
 export { ViewportPicker } from './ViewportPicker';

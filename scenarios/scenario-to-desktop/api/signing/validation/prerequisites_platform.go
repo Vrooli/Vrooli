@@ -15,6 +15,7 @@ import (
 	"scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/signing/types"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
@@ -64,7 +65,20 @@ func (c *PrerequisiteChecker) checkMacOSPrerequisites(ctx context.Context, confi
 		}
 	}
 
-	// Check API key file if using API key auth
+	// Check API key bindings if using API key auth. The generated hook needs
+	// all three public identifiers plus the private file path; a partial
+	// binding must not look like a usable notarization method.
+	hasAPIKeyBinding := config.AppleAPIKeyID != "" || config.AppleAPIKeyFile != "" || config.AppleAPIIssuerID != ""
+	hasCompleteAPIKey := config.AppleAPIKeyID != "" && config.AppleAPIKeyFile != "" && config.AppleAPIIssuerID != ""
+	if hasAPIKeyBinding && !hasCompleteAPIKey {
+		addError(result, types.ValidationError{
+			Code:        "MACOS_API_KEY_BINDING_INCOMPLETE",
+			Platform:    types.PlatformMacOS,
+			Message:     "Apple API-key notarization requires a key ID, issuer ID, and private .p8 file path",
+			Remediation: "Set apple_api_key_id, apple_api_issuer_id, and apple_api_key_file together, or use the Apple ID app-password method",
+		})
+		pv.Errors = append(pv.Errors, "Apple API key binding incomplete")
+	}
 	if config.AppleAPIKeyFile != "" {
 		if !c.fs.Exists(config.AppleAPIKeyFile) {
 			addError(result, types.ValidationError{
@@ -78,22 +92,29 @@ func (c *PrerequisiteChecker) checkMacOSPrerequisites(ctx context.Context, confi
 		}
 	}
 
-	// Check environment variables
-	if config.AppleIDEnv != "" {
-		if _, exists := c.env.LookupEnv(config.AppleIDEnv); !exists {
+	// Check app-password environment variables when API-key notarization is not
+	// selected. Empty config fields intentionally use the generator defaults.
+	if (config.Notarize || config.AppleIDEnv != "" || config.AppleIDPasswordEnv != "") && !hasCompleteAPIKey {
+		appleIDEnv := config.AppleIDEnv
+		if appleIDEnv == "" {
+			appleIDEnv = types.DefaultAppleIDEnv
+		}
+		appleIDPasswordEnv := config.AppleIDPasswordEnv
+		if appleIDPasswordEnv == "" {
+			appleIDPasswordEnv = types.DefaultAppleIDPasswordEnv
+		}
+		if _, exists := c.env.LookupEnv(appleIDEnv); !exists {
 			addWarning(result, types.ValidationWarning{
 				Code:     "MACOS_APPLE_ID_ENV_NOT_SET",
 				Platform: types.PlatformMacOS,
-				Message:  fmt.Sprintf("Environment variable %s is not set", config.AppleIDEnv),
+				Message:  fmt.Sprintf("Environment variable %s is not set", appleIDEnv),
 			})
 		}
-	}
-	if config.AppleIDPasswordEnv != "" {
-		if _, exists := c.env.LookupEnv(config.AppleIDPasswordEnv); !exists {
+		if _, exists := c.env.LookupEnv(appleIDPasswordEnv); !exists {
 			addWarning(result, types.ValidationWarning{
 				Code:     "MACOS_APPLE_PASSWORD_ENV_NOT_SET",
 				Platform: types.PlatformMacOS,
-				Message:  fmt.Sprintf("Environment variable %s is not set", config.AppleIDPasswordEnv),
+				Message:  fmt.Sprintf("Environment variable %s is not set", appleIDPasswordEnv),
 			})
 		}
 	}
@@ -217,7 +238,8 @@ func (c *PrerequisiteChecker) checkLinuxPrerequisites(ctx context.Context, confi
 	pv.ToolPath = gpgResult.Path
 	pv.ToolVersion = gpgResult.Version
 
-	if !gpgResult.Installed {
+	switch {
+	case !gpgResult.Installed:
 		addError(result, types.ValidationError{
 			Code:        "LINUX_GPG_NOT_FOUND",
 			Platform:    types.PlatformLinux,
@@ -225,13 +247,16 @@ func (c *PrerequisiteChecker) checkLinuxPrerequisites(ctx context.Context, confi
 			Remediation: gpgResult.Remediation,
 		})
 		pv.Errors = append(pv.Errors, "gpg not found")
-	} else if config.GPGKeyID != "" {
+	case config.ManagedKey != nil:
+		c.checkManagedGPGKey(config.ManagedKey, &pv, result)
+	case config.GPGKeyID != "":
 		// Check if the key exists
 		c.checkGPGKey(ctx, config.GPGKeyID, config.GPGHomedir, &pv, result)
 	}
 
-	// Check passphrase environment variable
-	if config.GPGPassphraseEnv != "" {
+	// A managed key resolves its passphrase from the credential authority at
+	// build time, so an absent ambient variable is not a warning.
+	if config.ManagedKey == nil && config.GPGPassphraseEnv != "" {
 		if _, exists := c.env.LookupEnv(config.GPGPassphraseEnv); !exists {
 			addWarning(result, types.ValidationWarning{
 				Code:     "LINUX_GPG_PASSPHRASE_ENV_NOT_SET",
@@ -242,6 +267,76 @@ func (c *PrerequisiteChecker) checkLinuxPrerequisites(ctx context.Context, confi
 	}
 
 	result.Platforms[types.PlatformLinux] = pv
+}
+
+// checkManagedGPGKey verifies the credential authority holds both halves of a
+// managed signing key. It never reads the values.
+func (c *PrerequisiteChecker) checkManagedGPGKey(managed *types.ManagedSigningKey, pv *types.PlatformValidation, result *types.ValidationResult) {
+	identity, err := parseManagedIdentity(managed.LogicalID)
+	if err != nil {
+		addError(result, types.ValidationError{
+			Code:        "LINUX_MANAGED_KEY_IDENTITY_INVALID",
+			Platform:    types.PlatformLinux,
+			Field:       "managed_key.logical_id",
+			Message:     fmt.Sprintf("invalid managed key identity: %v", err),
+			Remediation: "Use a namespaced identity such as vrooli/desktop-signing",
+		})
+		pv.Errors = append(pv.Errors, "invalid managed key identity")
+		return
+	}
+
+	authority := c.authority
+	if authority == nil {
+		opened, openErr := openCredentialAuthority()
+		if openErr != nil {
+			addError(result, types.ValidationError{
+				Code:        "LINUX_MANAGED_KEY_AUTHORITY_UNAVAILABLE",
+				Platform:    types.PlatformLinux,
+				Field:       "managed_key.logical_id",
+				Message:     fmt.Sprintf("credential authority unavailable: %v", openErr),
+				Remediation: "Run 'vrooli credentials doctor' to diagnose the host credential store",
+			})
+			pv.Errors = append(pv.Errors, "credential authority unavailable")
+			return
+		}
+		authority = opened
+	}
+
+	if availabilityErr := authority.Availability(); availabilityErr != nil {
+		addError(result, types.ValidationError{
+			Code:        "LINUX_MANAGED_KEY_AUTHORITY_UNAVAILABLE",
+			Platform:    types.PlatformLinux,
+			Field:       "managed_key.logical_id",
+			Message:     fmt.Sprintf("credential authority unavailable: %v", availabilityErr),
+			Remediation: "Unlock the host credential store or run 'vrooli credentials doctor'",
+		})
+		pv.Errors = append(pv.Errors, "credential authority unavailable")
+		return
+	}
+
+	for _, check := range []struct {
+		field   string
+		message string
+		missing string
+	}{
+		{managed.ResolvedPrivateKeyField(), "managed signing private key is not configured", "private key not configured"},
+		{managed.ResolvedPassphraseField(), "managed signing passphrase is not configured", "passphrase not configured"},
+	} {
+		if !authority.Status(identity, check.field).Configured {
+			addError(result, types.ValidationError{
+				Code:        "LINUX_MANAGED_KEY_NOT_CONFIGURED",
+				Platform:    types.PlatformLinux,
+				Field:       "managed_key.logical_id",
+				Message:     fmt.Sprintf("%s: %s:%s", check.message, identity, check.field),
+				Remediation: fmt.Sprintf("Provision the key with 'vrooli credentials provision --identity %s --field %s'", identity, check.field),
+			})
+			pv.Errors = append(pv.Errors, check.missing)
+		}
+	}
+}
+
+func parseManagedIdentity(logicalID string) (credentialauthority.Identity, error) {
+	return credentialauthority.ParseIdentity(logicalID)
 }
 
 func (c *PrerequisiteChecker) checkGPGKey(ctx context.Context, keyID, homedir string, pv *types.PlatformValidation, result *types.ValidationResult) {

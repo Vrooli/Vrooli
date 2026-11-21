@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "document-manager",
+  "description": "Three active surfaces carry Document Manager's read spine: the Corpus (what is here), the Reader (what the machine understood), and the Receipt (where every step ran). Each exists to make one normally invisible thing visible, and the organizing principle across all of them is that locality is a first-class visual property rather than a settings page. Source and watched-directory configuration lives inside the Corpus surface; there is deliberately no separate settings route. The P2 Composer and Templates documents remain authored as draft design references but are not active routes or runtime validation targets.",
+  "pages": [
+    {
+      "id": "corpus",
+      "path": "pages/corpus.json",
+      "title": "Corpus",
+      "status": "active"
+    },
+    {
+      "id": "reader",
+      "path": "pages/reader.json",
+      "title": "Reader",
+      "status": "active"
+    },
+    {
+      "id": "receipt",
+      "path": "pages/receipt.json",
+      "title": "Receipt",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "ingest-to-citation",
+      "path": "journeys/ingest-to-citation.json",
+      "title": "Ingest a document and cite a passage from it",
+      "status": "active"
+    }
+  ]
+}

@@ -1,19 +1,29 @@
 package app
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
-	"scenario-dependency-analyzer/internal/seams"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	return a.AnalyzeScenarioContext(context.Background(), scenarioName)
+}
+
+func (a *Analyzer) AnalyzeScenarioContext(ctx context.Context, scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
@@ -28,68 +38,59 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 		return nil, fmt.Errorf("detector not initialized")
 	}
 
-	a.collectDetections(response, scenarioPath, scenarioName, serviceConfig)
+	if err := a.collectDetections(ctx, response, scenarioPath, scenarioName, serviceConfig); err != nil {
+		return nil, err
+	}
 
 	declaredScenarioDeps := convertDeclaredScenariosToDependencies(scenarioName, response.DeclaredScenarioSpecs)
 	response.ResourceDiff = buildResourceDiff(appconfig.ResolvedResourceMap(serviceConfig), response.DetectedResources)
 	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
 
-	a.persistAnalysisResults(response, declaredScenarioDeps, scenarioName, scenarioPath, serviceConfig)
-	a.attachDeploymentReport(response, scenarioName, scenarioPath, serviceConfig)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := a.persistAnalysisResults(response, declaredScenarioDeps, scenarioName, scenarioPath, serviceConfig); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := a.attachDeploymentReport(ctx, response, scenarioName, scenarioPath, serviceConfig); err != nil {
+		return nil, err
+	}
 	return response, nil
 }
 
-func (a *Analyzer) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+// ScenarioNames captures the fleet without retaining full analysis responses.
+func (a *Analyzer) ScenarioNames(ctx context.Context) ([]string, error) {
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
-	results := make(map[string]*types.DependencyAnalysisResponse)
-	scenariosDir := a.cfg.ScenariosDir
-	entries, err := os.ReadDir(scenariosDir)
+	entries, err := os.ReadDir(a.cfg.ScenariosDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read scenarios directory: %w", err)
+		return nil, fmt.Errorf("read scenarios: %w", err)
 	}
-
+	var names []string
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !entry.IsDir() {
 			continue
 		}
-
-		scenarioName := entry.Name()
-		serviceConfigPath := filepath.Join(scenariosDir, scenarioName, ".vrooli", "service.json")
-		if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
+		_, err := os.Stat(filepath.Join(a.cfg.ScenariosDir, entry.Name(), ".vrooli", "service.json"))
+		if os.IsNotExist(err) {
 			continue
 		}
-
-		analysis, err := a.AnalyzeScenario(scenarioName)
 		if err != nil {
-			log.Printf("Warning: failed to analyze scenario %s: %v", scenarioName, err)
-			continue
+			return nil, err
 		}
-
-		results[scenarioName] = analysis
+		names = append(names, entry.Name())
 	}
-
-	return results, nil
+	return names, nil
 }
 
-func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
-	analyzer := analyzerInstance()
-	if analyzer == nil {
-		return nil, fmt.Errorf("analyzer not initialized")
-	}
-	return analyzer.AnalyzeScenario(scenarioName)
-}
-
-func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
-	analyzer := analyzerInstance()
-	if analyzer == nil {
-		return nil, fmt.Errorf("analyzer not initialized")
-	}
-	return analyzer.AnalyzeAllScenarios()
-}
-
-func newAnalysisResponse(scenarioName string, serviceConfig *types.ServiceConfig) *types.DependencyAnalysisResponse {
+func newAnalysisResponse(scenarioName string, serviceConfig *types.Manifest) *types.DependencyAnalysisResponse {
 	declaredSpecs := map[string]types.ScenarioDependencySpec{}
 	if serviceConfig != nil {
 		declaredSpecs = normalizeScenarioSpecs(serviceConfig.Dependencies.Scenarios)
@@ -114,28 +115,17 @@ func newAnalysisResponse(scenarioName string, serviceConfig *types.ServiceConfig
 	return response
 }
 
-func (a *Analyzer) collectDetections(response *types.DependencyAnalysisResponse, scenarioPath, scenarioName string, serviceConfig *types.ServiceConfig) {
-	if a == nil || a.detector == nil {
-		return
+func (a *Analyzer) collectDetections(ctx context.Context, response *types.DependencyAnalysisResponse, scenarioPath, scenarioName string, serviceConfig *types.Manifest) error {
+	resources, err := a.detector.ScanResourcesContext(ctx, scenarioPath, scenarioName, serviceConfig)
+	if err != nil {
+		return fmt.Errorf("scan resource usage: %w", err)
 	}
-
-	if detectedResources, err := a.detector.ScanResources(scenarioPath, scenarioName, serviceConfig); err != nil {
-		log.Printf("Warning: failed to scan for resource usage: %v", err)
-	} else {
-		response.DetectedResources = detectedResources
+	scenarios, err := a.detector.ScanScenarioDependenciesContext(ctx, scenarioPath, scenarioName)
+	if err != nil {
+		return fmt.Errorf("scan scenario dependencies: %w", err)
 	}
-
-	if scenarioDeps, err := a.detector.ScanScenarioDependencies(scenarioPath, scenarioName); err != nil {
-		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
-	} else {
-		response.Scenarios = append(response.Scenarios, scenarioDeps...)
-	}
-
-	if workflowDeps, err := a.detector.ScanSharedWorkflows(scenarioPath, scenarioName); err != nil {
-		log.Printf("Warning: failed to scan for shared workflows: %v", err)
-	} else {
-		response.SharedWorkflows = append(response.SharedWorkflows, workflowDeps...)
-	}
+	response.DetectedResources, response.Scenarios = resources, scenarios
+	return nil
 }
 
 func (a *Analyzer) persistAnalysisResults(
@@ -143,49 +133,67 @@ func (a *Analyzer) persistAnalysisResults(
 	declaredScenarioDeps []types.ScenarioDependency,
 	scenarioName string,
 	scenarioPath string,
-	serviceConfig *types.ServiceConfig,
-) {
+	serviceConfig *types.Manifest,
+) error {
 	if a == nil || a.store == nil {
-		log.Printf("Warning: store not initialized; dependency metadata not persisted")
-		return
+		return fmt.Errorf("dependency store not initialized")
 	}
 
 	if err := a.store.StoreDependencies(response, declaredScenarioDeps); err != nil {
-		log.Printf("Warning: failed to store dependencies in database: %v", err)
+		return fmt.Errorf("store dependencies: %w", err)
 	}
 
 	if err := a.store.UpdateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
-		log.Printf("Warning: failed to update scenario metadata: %v", err)
+		return fmt.Errorf("store metadata: %w", err)
 	}
+	return nil
 }
 
 func (a *Analyzer) attachDeploymentReport(
+	ctx context.Context,
 	response *types.DependencyAnalysisResponse,
 	scenarioName string,
 	scenarioPath string,
-	serviceConfig *types.ServiceConfig,
-) {
-	if deploymentReport := deployment.BuildReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
+	serviceConfig *types.Manifest,
+) error {
+	deploymentReport, err := deployment.BuildReportContext(ctx, scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig)
+	if err != nil {
+		return err
+	}
+	if deploymentReport != nil {
 		response.DeploymentReport = deploymentReport
 		if err := deployment.PersistReport(scenarioPath, deploymentReport); err != nil {
-			log.Printf("Warning: failed to persist deployment report: %v", err)
+			return fmt.Errorf("persist deployment report: %w", err)
 		}
 	}
+	return nil
 }
 
 // extractDeclaredResources extracts declared resources using default seams.
 // For testable code, use extractDeclaredResourcesWithSeams.
-func extractDeclaredResources(scenarioName string, cfg *types.ServiceConfig) []types.ScenarioDependency {
+func extractDeclaredResources(scenarioName string, cfg *types.Manifest) []types.ScenarioDependency {
 	return extractDeclaredResourcesWithSeams(scenarioName, cfg, seams.Default)
 }
 
 // extractDeclaredResourcesWithSeams extracts declared resources using injected seams.
 // This enables deterministic testing by controlling time and ID generation.
-func extractDeclaredResourcesWithSeams(scenarioName string, cfg *types.ServiceConfig, deps *seams.Dependencies) []types.ScenarioDependency {
+func extractDeclaredResourcesWithSeams(scenarioName string, cfg *types.Manifest, deps *seams.Dependencies) []types.ScenarioDependency {
 	resources := appconfig.ResolvedResourceMap(cfg)
 	declared := make([]types.ScenarioDependency, 0, len(resources))
 	now := deps.Clock.Now()
 	for name, resource := range resources {
+		configuration := map[string]interface{}{
+			"type":     resource.Type,
+			"enabled":  resource.Enabled,
+			"purpose":  resource.Purpose,
+			"declared": true,
+		}
+		var resourceConfig struct {
+			Models []string `json:"models"`
+		}
+		if len(resource.Config) > 0 && json.Unmarshal(resource.Config, &resourceConfig) == nil && len(resourceConfig.Models) > 0 {
+			configuration["models"] = resourceConfig.Models
+		}
 		declared = append(declared, types.ScenarioDependency{
 			ID:             deps.IDs.NewID(),
 			ScenarioName:   scenarioName,
@@ -194,16 +202,9 @@ func extractDeclaredResourcesWithSeams(scenarioName string, cfg *types.ServiceCo
 			Required:       resource.Required,
 			Purpose:        resource.Purpose,
 			AccessMethod:   "declared",
-			Configuration: map[string]interface{}{
-				"type":       resource.Type,
-				"enabled":    resource.Enabled,
-				"purpose":    resource.Purpose,
-				"declared":   true,
-				"models":     resource.Models,
-				"init_files": resource.Initialization,
-			},
-			DiscoveredAt: now,
-			LastVerified: now,
+			Configuration:  configuration,
+			DiscoveredAt:   now,
+			LastVerified:   now,
 		})
 	}
 	sort.Slice(declared, func(i, j int) bool { return declared[i].DependencyName < declared[j].DependencyName })
@@ -271,8 +272,8 @@ func buildScenarioDiff(declared map[string]types.ScenarioDependencySpec, detecte
 	return buildDependencyDiff(names, detected, func(name string) map[string]interface{} {
 		spec := declared[name]
 		return map[string]interface{}{
-			"required": spec.Required,
-			"version":  spec.Version,
+			"required":      spec.Required,
+			"version_range": spec.VersionRange,
 		}
 	})
 }
@@ -325,7 +326,6 @@ func convertDeclaredScenariosToDependenciesWithSeams(scenarioName string, specs 
 			Purpose:        spec.Description,
 			AccessMethod:   "declared",
 			Configuration: map[string]interface{}{
-				"version":       spec.Version,
 				"version_range": spec.VersionRange,
 				"declared":      true,
 			},

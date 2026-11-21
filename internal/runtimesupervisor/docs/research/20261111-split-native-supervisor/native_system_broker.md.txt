@@ -1,0 +1,95 @@
+# Native machine supervisor composition
+
+Darwin/Windows explicit system installation hashes the actual CLI and resolves
+its original operator account from native metadata. The platform installer seals
+that exact image in a machine directory. Executable/log/state results describe
+the sealed installation. Operator source, HOME and logs never become root unit
+settings. Linux and explicit user-service installation retain existing owners.
+
+The fixed hidden broker entrypoint precedes normal CLI/session/source startup.
+It verifies the installed descriptor and current native service process, pins
+the compiled runtime-home authority and guards the operator activation state.
+`RunNativeSystemSupervisor` provides launchd/SCM lifetime. The privileged parent
+keeps its private machine HOME and hosts **only fixed native resource operations**.
+
+One retained child executes the existing RuntimeSupervisor loop under the actual
+operator UID/token. This is the sole fleet registry/lease/process supervisor.
+It owns the operator SQLite DB/WAL/SHM naturally; root never interprets mutable
+user PID records as privileged signal targets. There is no second service,
+alternate roster, forged SUDO environment or root-plus-user-HOME execution.
+The worker performs the existing native-unit takeover as the actual operator.
+
+`RunNativeBrokerOperatorSupervisor(ctx, options)` accepts no argv, executable,
+source directory or environment. It uses the sealed image and operator's actual
+home as a private starting directory, with no source-root environment hints.
+The user loop resolves the existing make-install source pointer lazily. Root
+reads that pointer only as bounded fixed resource metadata: no home-tree scan,
+no source scripts. Alias, FIFO/nonregular, replacement and over-4096-byte reads
+are rejected. A recorded checkout may temporarily be absent without stopping
+lease supervision.
+
+Darwin starts the worker with explicit UID/GID/supplementary groups and its own
+process group. A parent-held pipe cancels the actor when the parent dies. The
+actual-user worker signals its own still-live group during orderly cancellation;
+root escalates only its exact child process if the grace expires. This does not
+claim universal containment of escaped descendants. Windows atomically admits
+the actor to a root-held unnamed kill-on-close Job during native process creation.
+Silent breakaway permits subsequently independently owned lifecycle children to
+survive ordinary supervisor maintenance. Vendor/backend Jobs remain strict.
+A private inherited pipe permits graceful cancellation; the Job bounds hangs.
+Lifetime handles cannot propagate into later child launches.
+
+The parent retains the native resource observer for its complete lifetime, even
+when preparation appears later. Late attachment uses the serving context, never
+a short reconcile context. Missing preparation remains inert. Its fixed root
+worker continues only OpenRGB's retained native update; generic resource scripts
+and generic fleet cleanup never execute in the root parent. Unexpected private
+actor exit ends the parent service so the native manager performs recovery.
+Already detached scenario/agent executors retain their existing lifecycle owners.
+
+Root resource update/generation replacement uses a fixed actual-operator quiesce
+command. It neither resolves a checkout nor starts a scenario nor acquires the
+lighting-intent lock, preventing inversion with an operator reconcile awaiting
+its fixed resource RPC. Normal lighting reconciliation runs in the retained
+operator loop and uses that same root observer for privileged resource actions.
+
+`vrooli runtime lighting prepare --json` is the manifest-owned public provisioning
+operation. It holds the disabled lighting-intent fence, requires native elevation
+and a governed stamped CLI, then prepares the narrow resource account/metadata
+and sealed service. It performs no backend launch, device scan or enablement.
+Explicit Setup calls the same native preparation callback inside its existing
+fence before source/artifact writes, without reacquiring the intent lock.
+Unprivileged errors show the exact public operation for sudo or elevated
+PowerShell. No grant or interactive-token fallback is invented.
+
+Targets without an official governed asset retain useful status: disabled intent,
+explicit degraded launch blocker, no invented pinned selection and no backend
+observation. Setup/enable refuse unsupported targets before provisioning or
+changing enablement.
+
+Source checkpoint: protobuf freshness verification passed. Focused race fixtures
+cover installer identity/sealed results, source alias/FIFO/bounds, root/user
+separation, lost actor/native recovery, opt-out, late observer lifetime, setup
+ordering, public parser, unsupported-target status, fixed early dispatch and
+parent-pipe EOF/cleanup. Windows amd64 and Darwin amd64/arm64 root commands built
+without CGO. These builds do not qualify Darwin's native CGO SDK branch.
+
+Actual native S4U/credential execution, Job/parent-death behavior, logged-out boot,
+recovery with retained executors, device permissions, physical Off/static and
+suspend/resume remain target qualification. Whole-fleet invoker scans require
+scenario fixtures omitted from the sparse source copy; persistence qualification
+requires its governed build stamp. The enclosing effort owns those gates and
+fresh independent adversarial acceptance. No native account/service/token/device
+effects were performed in this source lane.
+
+Active review corrections: the retained Darwin actor inherits the validated
+launchd job PGID; its root plist explicitly disables AbandonProcessGroup. The
+parent sends cancellation only to its exact child, never an arbitrary/root-wide
+group. Launchd owns hard group teardown, including a stopped trusted worker;
+actual native SIGSTOP/parent-death execution remains unqualified. Missing source
+pointers no longer create a HOME-based observer; pointer return/change triggers
+exact observer reattachment. Privileged preparation now orders sealed service
+installation, final Windows host configuration, device provisioning and fixed
+actual-service launcher RPC. Root SDA invocation was removed: a closed actual-
+operator acquisition action executes the existing fixed SDA gateway, while root
+reopens and verifies the exact raw envelope before immutable publication.

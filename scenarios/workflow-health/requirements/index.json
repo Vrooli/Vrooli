@@ -1,0 +1,75 @@
+{
+  "_metadata": {
+    "entity": "workflow-health",
+    "description": "Parent registry linking Workflow Health operational targets to technical requirements.",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-workflow-asset-catalog/module.json",
+    "02-scenario-validation-provider/module.json",
+    "03-safe-bas-execution/module.json",
+    "04-test-genie-workflow-migration/module.json",
+    "05-workflow-search-and-action-discovery/module.json",
+    "06-deterministic-remediation/module.json",
+    "07-operational-workflow-ui/module.json",
+    "08-workflow-maturity-intelligence/module.json",
+    "09-fleet-workflow-rollout-evidence/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-workflow-asset-catalog",
+      "priority": "P0",
+      "title": "Workflow asset catalog"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-scenario-validation-provider",
+      "priority": "P0",
+      "title": "Scenario validation provider"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-safe-bas-execution",
+      "priority": "P0",
+      "title": "Safe BAS execution"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-test-genie-workflow-migration",
+      "priority": "P0",
+      "title": "Test Genie workflow migration"
+    },
+    {
+      "id": "MOD-P1-005",
+      "path": "05-workflow-search-and-action-discovery",
+      "priority": "P1",
+      "title": "Workflow search and action discovery"
+    },
+    {
+      "id": "MOD-P1-006",
+      "path": "06-deterministic-remediation",
+      "priority": "P1",
+      "title": "Deterministic remediation"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-operational-workflow-ui",
+      "priority": "P1",
+      "title": "Operational workflow UI"
+    },
+    {
+      "id": "MOD-P2-008",
+      "path": "08-workflow-maturity-intelligence",
+      "priority": "P2",
+      "title": "Workflow maturity intelligence"
+    },
+    {
+      "id": "MOD-P2-009",
+      "path": "09-fleet-workflow-rollout-evidence",
+      "priority": "P2",
+      "title": "Fleet workflow rollout evidence"
+    }
+  ]
+}

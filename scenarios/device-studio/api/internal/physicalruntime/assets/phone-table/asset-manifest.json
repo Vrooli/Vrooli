@@ -1,0 +1,505 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-phone-table-v1",
+  "status": "packaged_unreviewed_not_library_promoted",
+  "asset": {
+    "path": "phone-table-scene.glb",
+    "media_type": "model/gltf-binary",
+    "gltf_version": "2.0",
+    "size_bytes": 350488,
+    "sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+    "source_unit": "m",
+    "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "source_to_canonical": {
+      "translation_meters": [
+        0,
+        0,
+        0
+      ],
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    "triangle_count": 4904,
+    "world_bounds_meters": {
+      "minimum": [
+        -0.4749999941,
+        0,
+        -0.3899999857
+      ],
+      "maximum": [
+        0.4749999941,
+        0.8306641579,
+        0.3899999857
+      ],
+      "measurement": "transformed POSITION accessor AABB corners using emitted node translation, quaternion and scale; not a physical room envelope"
+    },
+    "source_manifest": "assets/sources/phone-table/export-manifest.json",
+    "source_manifest_sha256": "a5587b445c029211dfece07a71709bb94c4287171526318fa8022d78170d86cf",
+    "source_exporter_sha256": "2a36b813c050497524a75d170deb53f4d23fb8d3c39054f3d5836a34abfa6659",
+    "native_export_inventory": "docs/internal/goal/evidence/E3/scene-studies/phone/scene-candidate/runs/export-3/cpu-export/outputs/scene-inventory.json",
+    "native_export_inventory_sha256": "063e8c14b5da97849289a3af242e1c05833381a50ddf691440023fa9b767f2e6",
+    "native_profile": "blender-5.2.2-linux-x64",
+    "native_backend": "CPU",
+    "native_operation_outcome": "PASS; parent-owned CPU export-3 operation terminal receipt and output inventory are retained and hash-pinned"
+  },
+  "parts": [
+    {
+      "id": "table-leg-ne",
+      "role": "support_leg",
+      "node_index": 0,
+      "node_name": "TableLeg-NE",
+      "mesh_index": 0,
+      "local_frame": {
+        "translation_meters": [
+          0.3899999857,
+          0.3600000143,
+          -0.3000000119
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 0,
+          "material_id": "timber-legs"
+        }
+      ]
+    },
+    {
+      "id": "table-leg-nw",
+      "role": "support_leg",
+      "node_index": 1,
+      "node_name": "TableLeg-NW",
+      "mesh_index": 1,
+      "local_frame": {
+        "translation_meters": [
+          -0.3899999857,
+          0.3600000143,
+          -0.3000000119
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 0,
+          "material_id": "timber-legs"
+        }
+      ]
+    },
+    {
+      "id": "table-leg-se",
+      "role": "support_leg",
+      "node_index": 2,
+      "node_name": "TableLeg-SE",
+      "mesh_index": 2,
+      "local_frame": {
+        "translation_meters": [
+          0.3899999857,
+          0.3600000143,
+          0.3000000119
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 0,
+          "material_id": "timber-legs"
+        }
+      ]
+    },
+    {
+      "id": "table-leg-sw",
+      "role": "support_leg",
+      "node_index": 3,
+      "node_name": "TableLeg-SW",
+      "mesh_index": 3,
+      "local_frame": {
+        "translation_meters": [
+          -0.3899999857,
+          0.3600000143,
+          0.3000000119
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 0,
+          "material_id": "timber-legs"
+        }
+      ]
+    },
+    {
+      "id": "table-top",
+      "role": "support_surface",
+      "node_index": 4,
+      "node_name": "TableTop",
+      "mesh_index": 4,
+      "local_frame": {
+        "translation_meters": [
+          0,
+          0.7329999804,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 1,
+          "material_id": "mineral-sides"
+        },
+        {
+          "primitive_index": 1,
+          "gltf_material_index": 2,
+          "material_id": "travertine-top"
+        }
+      ]
+    },
+    {
+      "id": "tea-cup",
+      "role": "prop_vessel",
+      "node_index": 5,
+      "node_name": "TeaCup",
+      "mesh_index": 5,
+      "local_frame": {
+        "translation_meters": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 3,
+          "material_id": "ivory-ceramic"
+        }
+      ]
+    },
+    {
+      "id": "tea-cup-handle",
+      "role": "prop_handle",
+      "node_index": 6,
+      "node_name": "TeaCupHandle",
+      "mesh_index": 6,
+      "local_frame": {
+        "translation_meters": [
+          0.1449999958,
+          0.7950000167,
+          -0.0900000036
+        ],
+        "rotation_xyzw": [
+          0.7071068287,
+          0,
+          0,
+          0.7071068287
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 3,
+          "material_id": "ivory-ceramic"
+        }
+      ]
+    },
+    {
+      "id": "tea-surface",
+      "role": "prop_surface",
+      "node_index": 7,
+      "node_name": "TeaSurface",
+      "mesh_index": 7,
+      "local_frame": {
+        "translation_meters": [
+          0.1049999967,
+          0.8109999895,
+          -0.0900000036
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "primitive_material_bindings": [
+        {
+          "primitive_index": 0,
+          "gltf_material_index": 4,
+          "material_id": "dark-tea-cue"
+        }
+      ]
+    }
+  ],
+  "support_interface": {
+    "id": "table-top-flat",
+    "frame_part_id": "table-top",
+    "local_frame": {
+      "translation_meters": [
+        0,
+        0.0170000196,
+        0
+      ],
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    "contact_region_part_id": "table-top",
+    "world_height_meters": 0.7499999814,
+    "note": "support frame is local to TableTop; world top height is measured separately from the emitted transform and mesh bounds"
+  },
+  "materials": [
+    {
+      "id": "travertine-top",
+      "surface_profile": "PRINCIPLED_V1",
+      "base_color_linear_rgba": [
+        0.65,
+        0.6,
+        0.5,
+        1
+      ],
+      "metallic": 0,
+      "roughness": 0.78,
+      "alpha_mode": "OPAQUE",
+      "inputs": [
+        {
+          "socket": "base_color",
+          "texture": "textures/travertine-color.jpg",
+          "semantic": "base_color",
+          "color_space": "SRGB",
+          "channel": "RGB",
+          "coordinates": "GENERATED_BOUNDS_X_NEG_Z_V1",
+          "physical_repeat_meters": [
+            1.2,
+            1.2
+          ]
+        },
+        {
+          "socket": "normal",
+          "texture": "textures/travertine-normal-gl.jpg",
+          "semantic": "normal_gl",
+          "color_space": "NON_COLOR",
+          "channel": "RGB",
+          "coordinates": "GENERATED_BOUNDS_X_NEG_Z_V1",
+          "normal_convention": "OPENGL_TANGENT_PLUS_Y_V1",
+          "normal_strength": 0.45
+        },
+        {
+          "socket": "roughness",
+          "texture": "textures/travertine-roughness.jpg",
+          "semantic": "roughness",
+          "color_space": "NON_COLOR",
+          "channel": "RED",
+          "coordinates": "GENERATED_BOUNDS_X_NEG_Z_V1"
+        },
+        {
+          "socket": "bump_height",
+          "texture": "textures/travertine-height.jpg",
+          "semantic": "bump_height",
+          "color_space": "NON_COLOR",
+          "channel": "RED",
+          "coordinates": "GENERATED_BOUNDS_X_NEG_Z_V1",
+          "bump_strength": 0.08,
+          "bump_distance_meters": 0.00012
+        }
+      ]
+    },
+    {
+      "id": "mineral-sides",
+      "surface_profile": "PRINCIPLED_V1",
+      "base_color_linear_rgba": [
+        0.69,
+        0.63,
+        0.54,
+        1
+      ],
+      "metallic": 0,
+      "roughness": 0.715,
+      "alpha_mode": "OPAQUE"
+    },
+    {
+      "id": "timber-legs",
+      "surface_profile": "PRINCIPLED_V1",
+      "base_color_linear_rgba": [
+        0.38,
+        0.29,
+        0.2,
+        1
+      ],
+      "metallic": 0,
+      "roughness": 0.72,
+      "alpha_mode": "OPAQUE"
+    },
+    {
+      "id": "ivory-ceramic",
+      "surface_profile": "PRINCIPLED_V1",
+      "base_color_linear_rgba": [
+        0.78,
+        0.73,
+        0.65,
+        1
+      ],
+      "metallic": 0,
+      "roughness": 0.24,
+      "alpha_mode": "OPAQUE"
+    },
+    {
+      "id": "dark-tea-cue",
+      "surface_profile": "PRINCIPLED_V1",
+      "base_color_linear_rgba": [
+        0.055,
+        0.032,
+        0.018,
+        1
+      ],
+      "metallic": 0,
+      "roughness": 0.2,
+      "alpha_mode": "OPAQUE"
+    }
+  ],
+  "textures": [
+    {
+      "path": "textures/travertine-color.jpg",
+      "role": "texture_image",
+      "semantic": "base_color",
+      "color_space": "SRGB",
+      "size_bytes": 16152869,
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "textures/travertine-normal-gl.jpg",
+      "role": "texture_image",
+      "semantic": "normal_gl",
+      "color_space": "NON_COLOR",
+      "size_bytes": 5152752,
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "textures/travertine-roughness.jpg",
+      "role": "texture_image",
+      "semantic": "roughness",
+      "color_space": "NON_COLOR",
+      "size_bytes": 5302649,
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "textures/travertine-height.jpg",
+      "role": "texture_image",
+      "semantic": "bump_height",
+      "color_space": "NON_COLOR",
+      "size_bytes": 355941,
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "license": "CC0-1.0",
+      "use": "bump only, not geometric displacement"
+    }
+  ],
+  "limitations": [
+    "This package is the tabletop, four legs, cup, handle and tea-surface geometry only; it is not the full phone study scene.",
+    "The approved study's back wall, window panel and frame are not in this GLB and affect indirect light; a separate full-scene profile and asset are pending.",
+    "Geometry is Vrooli-authored procedural interpretation of the approved study, not measured furniture or product CAD.",
+    "This package has not been reviewed into a Library bundle and contains no fake ArtifactRef, approval, or rights receipt."
+  ],
+  "provenance": {
+    "native_operation": "docs/internal/goal/evidence/E3/scene-studies/phone/scene-candidate/runs/export-3/cpu-export/operation-intent.json",
+    "inventory": "docs/internal/goal/evidence/E3/scene-studies/phone/scene-candidate/runs/export-3/cpu-export/outputs/scene-inventory.json",
+    "ambientcg_acquisition_record": "docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001-acquisition.json",
+    "ambientcg_acquisition_sha256": "4268b08091b930230a90de78c6e82f793c887fb870ec0adc28bf923317153f4a",
+    "geometry_source": "Vrooli-authored fixed exporter from approved phone study source",
+    "native_operation_receipt": "docs/internal/goal/evidence/E3/scene-studies/phone/scene-candidate/runs/export-3/cpu-export/operation-terminal.json",
+    "native_operation_receipt_sha256": "dd147eca93f8c26024687b5cf5a1fbd7baefb0768840d6fac795c74d62516f63"
+  }
+}

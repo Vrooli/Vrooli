@@ -1,0 +1,209 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "knowledge-observatory",
+  "description": "Governed agent knowledge-base read operations; legacy REST commands remain available.",
+  "groups": [
+    {
+      "name": "knowledge-base",
+      "description": "Source-grounded agent knowledge workflows",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Find documentation with stable source identity and declared applicability.",
+          "flags": [
+            {
+              "name": "query",
+              "description": "query"
+            },
+            {
+              "name": "scope",
+              "description": "scope"
+            },
+            {
+              "name": "target",
+              "description": "target"
+            },
+            {
+              "name": "mode",
+              "description": "mode"
+            },
+            {
+              "name": "limit",
+              "description": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "SearchDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Read bounded source content, revision hash, metadata, and local references.",
+          "flags": [
+            {
+              "name": "path",
+              "description": "path"
+            },
+            {
+              "name": "offset",
+              "description": "offset"
+            },
+            {
+              "name": "limit",
+              "description": "limit"
+            },
+            {
+              "name": "expected-sha256",
+              "description": "expected sha256"
+            },
+            {
+              "name": "allow-missing",
+              "description": "Return a typed missing observation for retirement verification",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "InspectDocument"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review",
+          "description": "Review selected sources for duplicate bytes, incoming references, and portability cues without editing.",
+          "flags": [
+            {
+              "name": "paths",
+              "description": "paths"
+            },
+            {
+              "name": "base-path",
+              "description": "base path"
+            },
+            {
+              "name": "max-files",
+              "description": "max files"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "ReviewDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read documentation index availability and reconcile status.",
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeBaseService",
+            "method": "KnowledgeStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Read documentation contract and reference health.",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "scope"
+            },
+            {
+              "name": "path",
+              "description": "path"
+            },
+            {
+              "name": "scenario-name",
+              "description": "scenario name"
+            },
+            {
+              "name": "checks",
+              "description": "Comma-separated checks, for example links,refs"
+            },
+            {
+              "name": "skip-external-links",
+              "description": "skip external links",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "KnowledgeObservatoryService",
+            "method": "DocHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "knowledge",
+      "description": "Bounded knowledge maintenance observations",
+      "commands": [
+        {
+          "name": "inventory",
+          "description": "Scan documentation candidates with hashes, owner hints, portability signals, and inspect/propose handles; never edits files.",
+          "flags": [
+            {"name": "roots", "description": "Comma-separated repository-relative roots"},
+            {"name": "includes", "description": "Optional comma-separated file globs"},
+            {"name": "excludes", "description": "Optional comma-separated file globs"},
+            {"name": "max-files", "description": "Maximum candidate records"},
+            {"name": "max-bytes", "description": "Maximum bytes read per candidate"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "proposals",
+          "description": "Generate bounded review-only disposition proposals from inventory JSON; proposals require owner authorization.",
+          "flags": [{"name": "input", "description": "Inventory JSON file"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "route",
+          "description": "Dry-run or route an owner-authorized proposal with source-hash and idempotency guards; no Knowledge Observatory mutation.",
+          "flags": [{"name": "input", "description": "Proposal JSON file"}, {"name": "expected-sha256", "description": "Expected source hash"}, {"name": "idempotency-key", "description": "Stable request key"}, {"name": "authorization", "description": "Owner authorization marker"}, {"name": "dry-run", "description": "Preview only", "bool": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    }
+  ]
+}

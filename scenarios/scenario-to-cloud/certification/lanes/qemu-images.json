@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "note": "CL2 QEMU proving ground requires pinned Ubuntu 24.04 amd64 and arm64 cloud images. After A2 approval, verify the dated Canonical release checksums/signature, record absolute path, sha256, os and arch here, and keep source images read-only. Empty means no QEMU guest can be qualified. The provider never downloads or mutates an image.",
+  "images": []
+}

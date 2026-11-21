@@ -16,7 +16,7 @@ interface CouponCardProps {
  */
 function formatDiscount(coupon: StripeCoupon): string {
   if (coupon.percent_off != null) {
-    return `${coupon.percent_off}% off`;
+    return `${String(coupon.percent_off)}% off`;
   }
   if (coupon.amount_off != null) {
     const currency = (coupon.currency || 'usd').toUpperCase();
@@ -39,7 +39,7 @@ function getDurationBadge(coupon: StripeCoupon): { label: string; icon: React.Re
       };
     case 'repeating':
       return {
-        label: `${coupon.duration_in_months ?? 0} months`,
+        label: `${String(coupon.duration_in_months ?? 0)} months`,
         icon: <Repeat className="h-3 w-3" />,
         color: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
       };
@@ -75,7 +75,7 @@ export function CouponCard({ coupon, usageStats, onDelete, onEdit, isDeleting }:
 
   const handleDelete = async () => {
     const warning = coupon.is_intro_coupon
-      ? `This coupon is configured for intro pricing (${coupon.intro_tier} tier). Deleting it will break intro pricing for that tier. Are you sure?`
+      ? `This coupon is configured for intro pricing (${coupon.intro_tier ?? 'unknown'} tier). Deleting it will break intro pricing for that tier. Are you sure?`
       : 'Are you sure you want to delete this coupon? This cannot be undone.';
 
     if (!confirm(warning)) return;
@@ -131,7 +131,7 @@ export function CouponCard({ coupon, usageStats, onDelete, onEdit, isDeleting }:
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onEdit(coupon)}
+                  onClick={() => { onEdit(coupon); }}
                   className="text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0"
                   title="Edit coupon"
                 >
@@ -141,7 +141,7 @@ export function CouponCard({ coupon, usageStats, onDelete, onEdit, isDeleting }:
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleDelete}
+                onClick={() => { void handleDelete(); }}
                 disabled={isDeleting}
                 className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
                 title="Delete coupon"
@@ -156,7 +156,7 @@ export function CouponCard({ coupon, usageStats, onDelete, onEdit, isDeleting }:
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/5 text-xs text-slate-500">
           <span>
             Used: {coupon.times_redeemed}
-            {coupon.max_redemptions != null && ` / ${coupon.max_redemptions}`}
+            {coupon.max_redemptions != null && ` / ${String(coupon.max_redemptions)}`}
           </span>
           {usageCount > 0 && (
             <span className="text-cyan-400">

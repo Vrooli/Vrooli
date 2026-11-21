@@ -1,0 +1,448 @@
+/*
+ * Annunciator primitives.
+ *
+ * The five reusable pieces the instrument surfaces are built from, in the
+ * `vrooli-annunciator` language declared in this scenario's `DESIGN.md`:
+ *
+ *   .plate      engraved legend plate       — the section header
+ *   .lamp       annunciator lamp cell       — one (device, rung) state
+ *   .ring       segmented rung ring         — five rung states on one node
+ *   .stat       stat plate                  — one headline figure
+ *   .grid-row   annunciator grid row        — a row of lamps against a device
+ *
+ * Every colour here resolves through a token defined unconditionally on
+ * `:root` in `theme/tokens.css`. Nothing in this file may introduce a literal
+ * colour or a theme-conditional declaration; see the header of that file for
+ * why this surface is a committed single world.
+ *
+ * These are plain CSS classes rather than Tailwind compositions because each
+ * primitive carries structural pseudo-elements (engraved rules, instrument
+ * grid, lamp inner glow) that read far better as one named thing than as a
+ * long utility string repeated at every call site.
+ */
+
+/* ---------------------------------------------------------------- panel -- */
+
+/*
+ * The panel is the ground every instrument surface sits on: a faint radial
+ * lift at the centre and a machined grid that fades out toward the edges, so
+ * the surface reads as a physical plate rather than as a flat div.
+ */
+.panel {
+  position: relative;
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background:
+    radial-gradient(120% 90% at 50% 45%, var(--color-surface-muted) 0%, var(--color-background) 72%);
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgb(58 72 77 / 16%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(58 72 77 / 16%) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 45%, #000 10%, transparent 78%);
+  mask-image: radial-gradient(120% 90% at 50% 45%, #000 10%, transparent 78%);
+}
+
+.panel > * {
+  position: relative;
+}
+
+/* --------------------------------------------------------------- chrome -- */
+
+/*
+ * The top chrome band.
+ *
+ * `apple-mobile-web-app-status-bar-style: black-translucent` means the OS status
+ * bar OVERLAYS the top of the page rather than reserving space above it, so the
+ * page must paint that band itself — and it must paint it in the chrome colour,
+ * not the page ground, or the status bar sits on a different colour from the
+ * header beneath it.
+ *
+ * The gutter is therefore `max(safe-area-inset, 24px)`: the real inset on a
+ * device that has one, and a floor everywhere else so no header content falls
+ * inside the band. Without the floor the band contains glyphs, which is both a
+ * visual seam at the top edge and, on a narrow viewport, a measurably different
+ * colour from the one the page declares.
+ */
+.top-chrome {
+  padding-top: max(var(--safe-area-inset-top, 0px), 1.5rem);
+}
+
+/*
+ * The bottom-nav safe gutter.
+ *
+ * A fixed bottom bar must keep its tap targets OUT of the device's bottom
+ * interaction zone — the home-indicator strip on a modern phone, where a tap
+ * is claimed by the OS rather than the page. `env(safe-area-inset-bottom)` is
+ * the real measurement on a device that reports one, and `1.5rem` is the floor
+ * everywhere else, because a browser that reports no inset is not the same as
+ * a device that has none.
+ *
+ * This replaces the adopted component's `pb-safe pb-4` pair, which set the same
+ * property twice and resolved to whichever utility the layer emitted last.
+ */
+.bottom-nav-safe {
+  padding-bottom: max(var(--safe-area-inset-bottom, 0px), 1.5rem);
+}
+
+/* ---------------------------------------------------------------- plate -- */
+
+/*
+ * The engraved legend plate. Its `.plate__tag` carries a REAL reference — a
+ * substrate cell id such as `SB1`, a rung number, or a device address — never
+ * a decorative counter. A section with no real reference to carry renders no
+ * tag at all rather than inventing one.
+ */
+.plate {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  border-block: var(--border-hairline) solid var(--color-border);
+  padding-block: 0.55rem;
+}
+
+.plate__tag {
+  flex: none;
+  color: var(--signal-covered);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.plate__legend {
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.plate__rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.plate__aside {
+  flex: none;
+  color: var(--color-subtle-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+/* ----------------------------------------------------------------- lamp -- */
+
+/*
+ * One annunciator lamp: a single (device, rung) state.
+ *
+ * State is carried three ways at once — colour, a distinct glyph rendered by
+ * the component, and an accessible label — so the lamp survives colour
+ * removal. `--blind` is the default rather than a special case, because on
+ * this panel an unlit lamp is the content, not an absence of content.
+ */
+.lamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  width: 100%;
+  max-width: 68px;
+  min-height: 26px;
+  padding-inline: 0.35rem;
+  border: var(--border-hairline) solid var(--color-border-lit);
+  border-radius: var(--radius-control);
+  background: var(--signal-blind);
+  color: var(--signal-blind-text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lamp--covered {
+  border-color: var(--signal-covered);
+  background: var(--signal-covered-soft);
+  color: var(--signal-covered);
+  box-shadow: inset 0 0 12px var(--signal-covered-glow);
+}
+
+.lamp--partial {
+  border-color: var(--signal-partial);
+  background: var(--signal-partial-soft);
+  color: var(--signal-partial);
+}
+
+.lamp--excursion {
+  border-color: var(--signal-excursion);
+  background: var(--signal-excursion-soft);
+  color: var(--signal-excursion);
+}
+
+/*
+ * `unmeasurable` is NOT blindness. The device exists and the platform cannot
+ * read this signal from it, for a stated reason. It gets a struck field so it
+ * is distinguishable from an unlit lamp at a glance and without colour.
+ */
+.lamp--unmeasurable {
+  border-color: var(--color-border-lit);
+  border-style: dashed;
+  background: var(--color-surface-raised);
+  color: var(--color-muted-foreground);
+}
+
+/*
+ * `UNAVAILABLE` means the MECHANISM that would produce the value is not present
+ * on this host at all — a missing tool, a missing interface. The host is
+ * answering honestly and nothing is broken, so this reads as an empty socket
+ * rather than as a fault.
+ */
+.lamp--unavailable {
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-muted-foreground);
+}
+
+/*
+ * `NOT_APPLICABLE` means the rung is meaningless for this device class and is
+ * graded elsewhere. It must not read as a gap, so it is the quietest treatment
+ * on the panel: no fill, no border, just a muted glyph. A reader scanning for
+ * holes should slide past it.
+ */
+.lamp--not-applicable {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-subtle-foreground);
+}
+
+/*
+ * `UNAUTHORED` means nobody has declared a cell for this rung on this class.
+ * There is nothing to grade, so it must read as ABSENCE OF A QUESTION rather
+ * than as a gap: the faintest treatment on the panel, quieter even than
+ * not-applicable, so it never competes with a real hole for attention.
+ */
+.lamp--unauthored {
+  border-color: transparent;
+  background: transparent;
+  color: var(--signal-blind-text);
+}
+
+/*
+ * `SOURCE_DOWN` is a fact about the INSTRUMENT. It borrows no signal colour and
+ * takes a dotted border so it is visibly a different KIND of statement from
+ * every plant-side state beside it.
+ */
+.lamp--source-down {
+  border-color: var(--color-border);
+  border-style: dotted;
+  background: transparent;
+  color: var(--color-muted-foreground);
+}
+
+.lamp--blind {
+  /* Default styling; named so call sites can be explicit rather than relying
+     on the absence of a modifier to mean something. */
+  background: var(--signal-blind);
+}
+
+/* ----------------------------------------------------------------- ring -- */
+
+/*
+ * The segmented rung ring: five arcs around one device node, one per ladder
+ * rung, drawn innermost-first so the reader sees the shape of what is unlit
+ * before reading a single label.
+ */
+.ring__segment {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: butt;
+}
+
+/*
+ * The one piece of motion in this language: lamps come up in sequence on
+ * first paint, the way an annunciator panel self-tests at power-on. Under
+ * half a second, never looping. The panel is fully legible with motion off,
+ * which is why the animation only ever moves opacity from 0 to 1.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .ring__segment--live {
+    opacity: 0;
+    animation: annunciator-lamp-test 0.5s ease-out forwards;
+  }
+}
+
+@keyframes annunciator-lamp-test {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ----------------------------------------------------------------- stat -- */
+
+/*
+ * Stat plates sit in a 1px-gap grid over a border-coloured ground, so the
+ * seams between them read as machined joints rather than as shadowed cards.
+ */
+.stat-strip {
+  display: grid;
+  gap: var(--border-hairline);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-border);
+}
+
+.stat {
+  background: var(--color-surface);
+  padding: 1.4rem 1.5rem 1.5rem;
+}
+
+.stat__value {
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: 2.3rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__value--covered {
+  color: var(--signal-covered);
+}
+
+.stat__value--excursion {
+  color: var(--signal-excursion);
+}
+
+.stat__key {
+  margin-top: 0.7rem;
+  color: var(--color-subtle-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------- grid row -- */
+
+/*
+ * The annunciator grid: rows are devices, columns are the five ladder rungs.
+ * It is a real <table> because it is real tabular data with two headers, and
+ * a screen reader must be able to say "storage, anticipation, unmeasurable".
+ */
+.annunciator {
+  width: 100%;
+  min-width: 660px;
+  border-collapse: collapse;
+  background: var(--color-surface);
+}
+
+.annunciator caption {
+  caption-side: bottom;
+  padding: 0.95rem 1.2rem;
+  border-top: var(--border-hairline) solid var(--color-border);
+  color: var(--color-subtle-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.annunciator :is(th, td) {
+  padding: 0.72rem 0.9rem;
+  border-bottom: var(--border-hairline) solid var(--color-border);
+  text-align: left;
+}
+
+.annunciator thead th {
+  background: var(--color-surface-raised);
+  color: var(--color-muted-foreground);
+  font-family: var(--font-display);
+  font-size: 0.97rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.annunciator tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.annunciator__device {
+  white-space: nowrap;
+}
+
+.annunciator__device-name {
+  font-weight: 600;
+}
+
+.annunciator__device-tag {
+  display: block;
+  color: var(--color-subtle-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.annunciator__lamp-cell {
+  width: 96px;
+  text-align: center;
+}
+
+/*
+ * Wide content scrolls inside its own container so the page body never
+ * scrolls sideways.
+ */
+.scroller {
+  overflow-x: auto;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+/* ---------------------------------------------------------------- misc --- */
+
+.legend-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.legend-key__swatch {
+  flex: none;
+  width: 22px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+/*
+ * A blindness note: the dated label attached to an unlit region. This is the
+ * differentiator of the whole surface, so it gets a named primitive rather
+ * than being assembled ad hoc at each call site.
+ */
+.blind-note {
+  color: var(--signal-blind-text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.blind-note__age {
+  color: var(--signal-excursion);
+}

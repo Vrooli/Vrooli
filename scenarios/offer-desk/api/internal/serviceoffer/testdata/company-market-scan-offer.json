@@ -1,0 +1,47 @@
+{
+  "id": "company-market-scan",
+  "version": 1,
+  "name": "Company Market Scan",
+  "summary": "A cited snapshot of public company and market information.",
+  "audience": "Small teams deciding whether to evaluate a market or vendor.",
+  "limits": [
+    "One market or vendor category per order; sector input is 1 to 500 characters.",
+    "Public business sources only; no personal contact data or private records.",
+    "Descriptive summary only; not investment, legal, or accounting advice."
+  ],
+  "privacy_terms": "No account or contact details are required. Do not submit passwords, payment data, personal contact data, or confidential information. The local test checkout uses a deterministic fixture and stores no real payment credentials.",
+  "intake_schema": {
+    "type": "object",
+    "properties": {
+      "sector": { "type": "string", "description": "Market or vendor category to examine.", "minLength": 1, "maxLength": 500 }
+    },
+    "required": ["sector"]
+  },
+  "proposed_price": { "amount_minor": 4900, "currency": "USD" },
+  "delivery": { "target_minutes": 60, "format": "markdown" },
+  "verification_promise": "Every material factual claim has a resolving public citation; source dates and unchecked areas are reported.",
+  "refund_rule": "Release the authorization if citation validation fails; refund a captured test order if the delivered report materially misses its stated scope.",
+  "sample": {
+    "path": "company-market-scan.md",
+    "sha256": "9eaad98cf6fd2b3e7cf99f7175b1d704345871a60e6b655d265baf6451a0104f",
+    "description": "Public-company scan sample with source, reported facts, and unchecked areas.",
+    "no_signup": true
+  },
+  "legal": {
+    "reviewed_at": "2026-11-13",
+    "status": "open",
+    "notes": [
+      "Use public business sources only; no personal contact data or scraping against source terms.",
+      "The sample is a descriptive summary of a public SEC filing, not investment, legal, or accounting advice."
+    ],
+    "evidence": [
+      "https://www.sec.gov/Archives/edgar/data/320193/000032019326000026/aapl-20260926.htm"
+    ]
+  },
+  "checkout_mode": "test",
+  "mcp_tool_name": "company-market-scan",
+  "mpp_resource_path": "/api/v1/services/company-market-scan",
+  "x402_price_id": "company-market-scan-v1",
+  "plugin_disposition": "free-discovery-only",
+  "operator_approval": "pending"
+}

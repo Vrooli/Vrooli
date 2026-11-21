@@ -2,13 +2,52 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/infrastructure"
-	"system-monitor-api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
+
+type selfMetricsCollector struct {
+	collectors.BaseCollector
+}
+
+type blockingLifecycleCollector struct {
+	collectors.BaseCollector
+	started chan struct{}
+	release chan struct{}
+}
+
+func (c *blockingLifecycleCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	select {
+	case <-c.started:
+	default:
+		close(c.started)
+	}
+	<-c.release
+	return &collectors.MetricData{CollectorName: c.GetName(), Timestamp: time.Now(), Values: map[string]interface{}{"ok": true}}, nil
+}
+
+func newSelfMetricsCollector() *selfMetricsCollector {
+	return &selfMetricsCollector{BaseCollector: collectors.NewBaseCollector("self-test", 10*time.Second)}
+}
+
+func (c *selfMetricsCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	return &collectors.MetricData{
+		CollectorName: c.GetName(),
+		Timestamp:     time.Now(),
+		Type:          "test",
+		Values:        map[string]interface{}{"ok": true},
+	}, nil
+}
 
 func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	// Setup
@@ -42,6 +81,98 @@ func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	}
 }
 
+func TestOnDemandMetricsDoNotResampleStatefulCollectors(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}}
+	repo := memory.NewRepository()
+	var calls atomic.Int32
+	collector := &countingMetricCollector{BaseCollector: collectors.NewBaseCollector("cpu", time.Second), calls: &calls}
+	svc := NewMonitorService(cfg, repo, infrastructure.NewStaticProvider(), WithCollectors(collector))
+
+	before, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("initial current metrics: %v", err)
+	}
+	if before.CPUState.Status != "not_yet_sampled" {
+		t.Fatalf("initial CPU state = %q, want not_yet_sampled", before.CPUState.Status)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("on-demand read invoked collector %d times", calls.Load())
+	}
+
+	svc.collectMetrics()
+	after, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("current metrics after cycle: %v", err)
+	}
+	if after.CPUState.Status != "measured" || after.CPUUsage != 42 {
+		t.Fatalf("after cycle CPU = %#v, want measured 42", after.CPUState)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("scheduler invoked collector %d times, want 1", calls.Load())
+	}
+	if _, err := svc.GetDetailedMetrics(context.Background()); err != nil {
+		t.Fatalf("detailed metrics: %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("detailed read resampled collector %d times, want scheduler-only sampling", calls.Load())
+	}
+}
+
+func TestUpdateLatestSnapshotPreservesCollectorsSkippedByCadence(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}}
+	svc := NewMonitorService(cfg, memory.NewRepository(), infrastructure.NewStaticProvider())
+	firstObserved := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
+	secondObserved := firstObserved.Add(10 * time.Second)
+
+	disk := &collectors.MetricData{
+		CollectorName: "disk",
+		Timestamp:     firstObserved,
+		Values: map[string]interface{}{"usage": map[string]interface{}{
+			"used": int64(70), "total": int64(100), "free": int64(30), "percent": float64(70),
+		}},
+		Tags: map[string]string{"source": "test disk"},
+	}
+	svc.updateLatestSnapshot("cycle-disk", firstObserved, []*collectors.MetricData{disk})
+
+	// The next scheduler tick only collects CPU. Disk must remain the last
+	// measured value instead of falling back to the response type's zero value.
+	cpu := &collectors.MetricData{
+		CollectorName: "cpu",
+		Timestamp:     secondObserved,
+		Values:        map[string]interface{}{"status": "measured", "usage_percent": float64(23)},
+		Tags:          map[string]string{"source": "test cpu"},
+	}
+	svc.updateLatestSnapshot("cycle-cpu", secondObserved, []*collectors.MetricData{cpu})
+
+	got, err := svc.GetCurrentMetricsFresh(context.Background())
+	if err != nil {
+		t.Fatalf("read merged snapshot: %v", err)
+	}
+	if got.CPUState.Status != "measured" || got.CPUUsage != 23 {
+		t.Fatalf("CPU snapshot = %#v, want measured 23", got.CPUState)
+	}
+	if got.DiskState.Status != "measured" || got.DiskUsage != 70 {
+		t.Fatalf("disk snapshot = %#v, want preserved measured 70", got.DiskState)
+	}
+	if got.DiskState.CycleID != "cycle-disk" || !got.DiskState.ObservedAt.Equal(firstObserved) {
+		t.Fatalf("disk provenance = %#v, want original observation", got.DiskState)
+	}
+}
+
+type countingMetricCollector struct {
+	collectors.BaseCollector
+	calls *atomic.Int32
+}
+
+func (c *countingMetricCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	c.calls.Add(1)
+	return &collectors.MetricData{
+		CollectorName: c.GetName(),
+		Timestamp:     time.Now(),
+		Values:        map[string]interface{}{"usage_percent": float64(42)},
+	}, nil
+}
+
 func TestMonitorService_CollectorRegistration(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
@@ -71,6 +202,35 @@ func TestMonitorService_CollectorRegistration(t *testing.T) {
 	}
 }
 
+func TestCollectorCostBudgetsCoverDefaultCollectorsWithHeadroom(t *testing.T) {
+	names := []string{"cpu", "memory", "network", "disk", "process", "pressure", "gpu"}
+	if err := ValidateCollectorCostBudgets(names, 10*time.Second); err != nil {
+		t.Fatalf("default collector cost policy is not headroom-safe: %v", err)
+	}
+	if _, ok := collectorBudget("disk"); !ok {
+		t.Fatal("disk collector has no declared cost budget")
+	}
+}
+
+func TestCollectorCostBudgetsRejectUndeclaredCollector(t *testing.T) {
+	if err := ValidateCollectorCostBudgets([]string{"cpu", "new-probe"}, 10*time.Second); err == nil {
+		t.Fatal("expected undeclared collector to fail cost policy")
+	}
+}
+
+func TestMonitorSelfMetricsFlagCycleWithoutHeadroom(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: 10 * time.Second}}
+	svc := NewMonitorService(cfg, memory.NewRepository(), infrastructure.NewStaticProvider())
+	svc.recordCycleSelfMetrics(6*time.Second, 0, time.Now())
+	metrics := svc.SelfMetrics()
+	if metrics["headroom_ok"] != false {
+		t.Fatalf("headroom_ok = %#v, want false", metrics["headroom_ok"])
+	}
+	if metrics["headroom_reason"] == "" {
+		t.Fatal("headroom breach did not include a reason")
+	}
+}
+
 func TestMonitorService_GetMetricsTimeline_Empty(t *testing.T) {
 	cfg := &config.Config{
 		Monitoring: config.MonitoringConfig{
@@ -90,6 +250,9 @@ func TestMonitorService_GetMetricsTimeline_Empty(t *testing.T) {
 	}
 	if timeline.WindowSeconds != 120 {
 		t.Errorf("expected WindowSeconds=120, got %d", timeline.WindowSeconds)
+	}
+	if timeline.WindowStart.IsZero() || timeline.WindowEnd.Sub(timeline.WindowStart) != 120*time.Second {
+		t.Errorf("invalid exact timeline bounds: %v to %v", timeline.WindowStart, timeline.WindowEnd)
 	}
 	if timeline.SampleIntervalSeconds != 5 {
 		t.Errorf("expected SampleIntervalSeconds=5, got %d", timeline.SampleIntervalSeconds)
@@ -111,9 +274,10 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	ctx := context.Background()
 
 	// Seed metrics
-	_ = repo.SaveMetrics(ctx, "cpu", map[string]interface{}{"usage_percent": 42.5})
-	_ = repo.SaveMetrics(ctx, "memory", map[string]interface{}{"usage_percent": 65.3})
-	_ = repo.SaveMetrics(ctx, "network", map[string]interface{}{"tcp_connections": 120})
+	_ = repo.SaveMetricCycle(ctx, "timeline-cpu", time.Now(), []repository.MetricObservation{{CollectorName: "cpu", Values: map[string]interface{}{"usage_percent": 42.5}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-memory", time.Now(), []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{"usage_percent": 65.3}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-network", time.Now(), []repository.MetricObservation{{CollectorName: "network", Values: map[string]interface{}{"tcp_connections": 120}}})
+	_ = repo.SaveMetricCycle(ctx, "timeline-disk", time.Now(), []repository.MetricObservation{{CollectorName: "disk", Values: map[string]interface{}{"usage": map[string]interface{}{"percent": 73.2}}}})
 
 	timeline, err := svc.GetMetricsTimeline(ctx, 120, 5)
 	if err != nil {
@@ -124,6 +288,115 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	}
 	if len(timeline.Samples) == 0 {
 		t.Error("expected at least 1 sample after seeding metrics")
+	}
+	var foundDisk bool
+	for _, sample := range timeline.Samples {
+		if sample.DiskUsageState.Status == "measured" {
+			foundDisk = true
+			if sample.DiskUsage != 73.2 {
+				t.Errorf("disk usage = %v, want 73.2", sample.DiskUsage)
+			}
+		}
+	}
+	if !foundDisk {
+		t.Fatal("disk usage observation was omitted from timeline")
+	}
+}
+
+func TestMetricsTimelineIncludesPersistedDiskIORatesAndFailureGaps(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	repo := memory.NewRepository()
+	measuredAt := now.Add(-20 * time.Second)
+	failedAt := now.Add(-10 * time.Second)
+	if err := repo.SaveMetricCycle(ctx, "disk-io-measured", measuredAt, []repository.MetricObservation{{
+		CollectorName: "disk_io",
+		Values: map[string]interface{}{
+			"read_rate_status":      "measured",
+			"read_rate":             0.0,
+			"read_rate_units":       "MB/s",
+			"read_rate_observed_at": measuredAt.Format(time.RFC3339Nano),
+			"read_rate_provenance":  "physical disk counters",
+			"write_rate_status":     "not_yet_sampled",
+			"write_rate_reason":     "second counter sample is required",
+			"write_rate_units":      "MB/s",
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveMetricCycle(ctx, "disk-io-failed", failedAt, []repository.MetricObservation{{
+		CollectorName: "disk_io",
+		Values: map[string]interface{}{
+			"read_rate_status":  "failed",
+			"read_rate_reason":  "counter reset",
+			"read_rate_units":   "MB/s",
+			"write_rate_status": "unsupported",
+			"write_rate_reason": "physical counters unavailable",
+			"write_rate_units":  "MB/s",
+		},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewMonitorService(&config.Config{}, repo, infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(ctx, 60, 5)
+	if err != nil {
+		t.Fatalf("GetMetricsTimeline: %v", err)
+	}
+	var measured, failed bool
+	for _, sample := range timeline.Samples {
+		if sample.DiskReadRateState.Status == "measured" {
+			measured = true
+			if sample.DiskReadRateState.Value != 0 || sample.DiskReadRateState.Units != "MB/s" || !sample.DiskReadRateState.ObservedAt.Equal(measuredAt) {
+				t.Errorf("measured zero lost its value or provenance: %+v", sample.DiskReadRateState)
+			}
+		}
+		if sample.DiskReadRateState.Status == "failed" {
+			failed = true
+			if sample.DiskReadRateState.Reason != "counter reset" {
+				t.Errorf("failure gap lost its reason: %+v", sample.DiskReadRateState)
+			}
+		}
+		if sample.DiskWriteRateState.Status == "unsupported" && sample.DiskWriteRateState.Reason != "physical counters unavailable" {
+			t.Errorf("unsupported rate lost its reason: %+v", sample.DiskWriteRateState)
+		}
+	}
+	if !measured || !failed {
+		t.Fatalf("disk I/O history states missing: measured=%v failed=%v", measured, failed)
+	}
+}
+
+func TestMetricsTimelineUsesRequestedSamplingAcrossWindow(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	repo := memory.NewRepository()
+	for i := 0; i < 30; i++ {
+		if err := repo.SaveMetricCycle(ctx, fmt.Sprintf("cycle-%d", i), now.Add(-time.Duration(i)*time.Minute), []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{"usage_percent": float64(i)}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := NewMonitorService(&config.Config{}, repo, infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(ctx, 30*60, 10*60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(timeline.Samples) != 3 {
+		t.Fatalf("got %d samples, want three ten-minute buckets", len(timeline.Samples))
+	}
+	if !timeline.Samples[0].Timestamp.Equal(now.Add(-20*time.Minute)) || !timeline.Samples[2].Timestamp.Equal(now) {
+		t.Fatalf("timeline doesn't cover the requested window: %+v", timeline.Samples)
+	}
+}
+
+func TestMetricsTimelineReportsEffectiveBoundedWindow(t *testing.T) {
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	svc := NewMonitorService(&config.Config{}, memory.NewRepository(), infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(context.Background(), 86400, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timeline.WindowSeconds != 5000 || !timeline.WindowStart.Equal(now.Add(-5000*time.Second)) {
+		t.Fatalf("bounded window was not reported: %+v", timeline)
 	}
 }
 
@@ -179,5 +452,94 @@ func TestMonitorService_StartStop(t *testing.T) {
 		// Expected - context canceled synchronously by Stop.
 	case <-time.After(500 * time.Millisecond):
 		t.Error("service context not canceled after Stop()")
+	}
+}
+
+func TestMonitorService_StopContextWaitsForCycleAndAllowsRestart(t *testing.T) {
+	collector := &blockingLifecycleCollector{
+		BaseCollector: collectors.NewBaseCollector("lifecycle-test", time.Second),
+		started:       make(chan struct{}),
+		release:       make(chan struct{}),
+	}
+	svc := NewMonitorService(
+		&config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: time.Second}},
+		memory.NewRepository(), infrastructure.NewStaticProvider(), WithCollectors(collector),
+	)
+	if err := svc.Start(); err != nil {
+		t.Fatalf("start monitor: %v", err)
+	}
+	select {
+	case <-collector.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("collector cycle did not start")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := svc.StopContext(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("StopContext error = %v, want deadline while collector is still active", err)
+	}
+	if err := svc.Start(); err == nil {
+		t.Fatal("Start succeeded while the previous collector loop lacked a completion receipt")
+	}
+
+	close(collector.release)
+	if err := svc.StopContext(context.Background()); err != nil {
+		t.Fatalf("wait for collector completion: %v", err)
+	}
+	if err := svc.Start(); err != nil {
+		t.Fatalf("restart monitor after joined stop: %v", err)
+	}
+	if err := svc.StopContext(context.Background()); err != nil {
+		t.Fatalf("stop restarted monitor: %v", err)
+	}
+}
+
+func TestMonitorServiceSelfMetricsRecordedAfterCollection(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: 10 * time.Second}}
+	svc := NewMonitorService(
+		cfg,
+		memory.NewRepository(),
+		infrastructure.NewStaticProvider(),
+		WithCollectors(newSelfMetricsCollector()),
+		WithProcessSampling(nil, nil, nil),
+	)
+
+	svc.collectMetrics()
+	self := svc.SelfMetrics()
+
+	durations, ok := self["collector_duration_ms"].(map[string]float64)
+	if !ok {
+		t.Fatalf("collector_duration_ms type = %T", self["collector_duration_ms"])
+	}
+	if _, ok := durations["self-test"]; !ok {
+		t.Fatalf("self-test duration missing from %+v", durations)
+	}
+
+	forks, ok := self["collector_forks"].(map[string]uint64)
+	if !ok {
+		t.Fatalf("collector_forks type = %T", self["collector_forks"])
+	}
+	if got := forks["self-test"]; got != 0 {
+		t.Fatalf("self-test forks = %d, want 0", got)
+	}
+
+	if self["recorded_at"] == "0001-01-01T00:00:00Z" {
+		t.Fatal("recorded_at was not updated")
+	}
+}
+
+func TestDiskPressureIsScopedToSelectedMount(t *testing.T) {
+	partitions := []models.DiskPartitionInfo{
+		{MountPoint: "/", UsePercent: 72.5},
+		{MountPoint: "/var", UsePercent: 91.25},
+		{MountPoint: "/tmp", UsePercent: 12},
+	}
+	pressure, ok := diskPressureForMount(partitions, "/")
+	if !ok || pressure != 72.5 {
+		t.Fatalf("root pressure = %v, found=%v, want 72.5", pressure, ok)
+	}
+	if _, ok := diskPressureForMount(partitions, "/missing"); ok {
+		t.Fatal("missing mount pressure was treated as a measurement")
 	}
 }

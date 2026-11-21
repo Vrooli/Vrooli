@@ -1,0 +1,141 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.compare-sources",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Research two to four comparison questions as bounded subject, dimension, and temporal cells against explicit sources and preserve incomplete evidence.",
+  "inputs": {
+    "questions": {
+      "type": "array",
+      "required": true
+    },
+    "subjects": {
+      "type": "array"
+    },
+    "dimensions": {
+      "type": "array"
+    },
+    "temporal_scope": {
+      "type": "string"
+    },
+    "source_domains": {
+      "type": "array"
+    },
+    "minimum_sources": {
+      "type": "integer",
+      "default": 2
+    },
+    "top_n": {
+      "type": "integer",
+      "default": 5
+    }
+  },
+  "assumptions": [
+    "Declared owner bindings are reachable. External answers require independent verification before claiming measured quality improvements."
+  ],
+  "invariants": [
+    "One bounded envelope on every path.",
+    "Unknown observations remain unknown.",
+    "No retry or polling loops."
+  ],
+  "bindings": [
+    {
+      "id": "web-search/research/answer",
+      "effect": "write"
+    }
+  ],
+  "verbs": [
+    "capture",
+    "tasks.get",
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "answers": "Complete per-question briefs and citation provenance",
+      "cells": "Bounded subject, question, dimension, and temporal evidence cells",
+      "unresolved": "Questions whose evidence requirements were not met"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "source_unavailable",
+        "answer_output_limit",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Durable references, never raw source bodies"
+  },
+  "budget": {
+    "wall_ms": 300000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536,
+    "async": true
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "questions": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "bounded-cells",
+      "inputs": {
+        "subjects": [
+          "product-a",
+          "product-b"
+        ],
+        "questions": [
+          "price",
+          "support"
+        ],
+        "dimensions": [
+          "current"
+        ],
+        "temporal_scope": "2026"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search"
+}

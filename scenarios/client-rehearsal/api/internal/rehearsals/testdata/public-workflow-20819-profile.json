@@ -1,0 +1,57 @@
+{
+  "kind": "openapi",
+  "document": {
+    "openapi": "3.0.3",
+    "info": {
+      "title": "Synthetic error-log and Telegram endpoints",
+      "version": "1"
+    },
+    "servers": [
+      {
+        "url": "https://alerts.synthetic.invalid"
+      }
+    ],
+    "paths": {
+      "/v1/sheets/error-log": {
+        "post": {
+          "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+          "x-n8n-resource": "sheet",
+          "x-n8n-operation": "append",
+          "responses": {
+            "200": {
+              "description": "recorded",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "status": "recorded",
+                    "rowId": "synthetic-row-1"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/v1/telegram/send": {
+        "post": {
+          "x-n8n-node-type": "n8n-nodes-base.telegram",
+          "x-n8n-resource": "message",
+          "x-n8n-operation": "sendMessage",
+          "responses": {
+            "200": {
+              "description": "recorded",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "status": "recorded",
+                    "messageId": "synthetic-message-1"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

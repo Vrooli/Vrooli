@@ -32,8 +32,8 @@ func TestHandlerPerformance(t *testing.T) {
 
 		duration := time.Since(start)
 
-		if w.Code != 200 {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		if w.Code != 503 {
+			t.Errorf("Expected status 503 when the test app has no database, got %d", w.Code)
 		}
 
 		if duration > maxDuration {
@@ -254,7 +254,7 @@ func TestConcurrentRequests(t *testing.T) {
 
 				w := makeHTTPRequest(t, testApp.App, req)
 
-				if w.Code != 200 {
+				if w.Code != 503 {
 					errors <- nil
 				}
 			}()

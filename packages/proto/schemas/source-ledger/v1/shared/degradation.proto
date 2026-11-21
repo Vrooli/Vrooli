@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package vrooli.source_ledger.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/shared;shared_v1";
+
+// Degradation names a retrieval leg that was skipped or partial while the
+// response itself is still a valid answer (for example: semantic ranking
+// unavailable, lexical hits returned). Search Hub maps it through
+// `degradations_field`, so an honest partial answer never trips its breaker.
+message Degradation {
+  string reason = 1;
+  string leg = 2;
+  string detail = 3;
+  bool retryable = 4;
+}

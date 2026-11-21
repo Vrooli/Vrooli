@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.styles;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/styles;styles_v1";
+
+// =============================================================================
+// STYLES DOMAIN — container styles and product lines
+// =============================================================================
+//
+// A container style is the deterministic frame a mark is composed into; a
+// product line is a set of brands sharing one container style. Render, apply and
+// validation read the container style, so the tile, background, padding, glow and
+// safe zone are data, not code.
+// =============================================================================
+
+service StylesService {
+  rpc ListContainerStyles(ListContainerStylesRequest) returns (ListContainerStylesResponse);
+  rpc GetContainerStyle(GetContainerStyleRequest) returns (GetContainerStyleResponse);
+  rpc CreateContainerStyle(CreateContainerStyleRequest) returns (CreateContainerStyleResponse);
+  rpc UpdateContainerStyle(UpdateContainerStyleRequest) returns (UpdateContainerStyleResponse);
+  rpc ListProductLines(ListProductLinesRequest) returns (ListProductLinesResponse);
+  rpc CreateProductLine(CreateProductLineRequest) returns (CreateProductLineResponse);
+}
+
+// ContainerStyle is the deterministic composition frame.
+message ContainerStyle {
+  string id = 1;
+  string name = 2;
+  // shape is "rounded_square" or "square".
+  string shape = 3;
+  // corner_ratio is the corner radius as a fraction of the edge.
+  double corner_ratio = 4;
+  // background_kind is "gradient" or "solid".
+  string background_kind = 5;
+  string background_top = 6;
+  string background_bottom = 7;
+  // mark_scale is the mark bounding-box edge as a fraction of the tile edge.
+  double mark_scale = 8;
+  // maskable_scale is the mark's circumscribed-circle radius as a fraction of
+  // the tile edge (the safe zone).
+  double maskable_scale = 9;
+  // accent_glow is the accent colour plus its halo layers.
+  string accent_color = 10;
+  repeated GlowLayer glow = 11;
+  int32 small_mark_threshold_px = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message GlowLayer {
+  double width = 1;
+  double opacity = 2;
+}
+
+// ProductLine is a set of products sharing one container style.
+message ProductLine {
+  string id = 1;
+  string name = 2;
+  string container_style_id = 3;
+  repeated string products = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message ListContainerStylesRequest {
+  string name_contains = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+message ListContainerStylesResponse {
+  repeated ContainerStyle styles = 1;
+}
+
+message GetContainerStyleRequest {
+  string id = 1;
+}
+message GetContainerStyleResponse {
+  ContainerStyle style = 1;
+}
+
+message CreateContainerStyleRequest {
+  string name = 1;
+  string shape = 2;
+  double corner_ratio = 3;
+  string background_kind = 4;
+  string background_top = 5;
+  string background_bottom = 6;
+  double mark_scale = 7;
+  double maskable_scale = 8;
+  string accent_color = 9;
+  repeated GlowLayer glow = 10;
+  int32 small_mark_threshold_px = 11;
+}
+message CreateContainerStyleResponse {
+  ContainerStyle style = 1;
+}
+
+message UpdateContainerStyleRequest {
+  string id = 1;
+  string name = 2;
+  string shape = 3;
+  double corner_ratio = 4;
+  string background_kind = 5;
+  string background_top = 6;
+  string background_bottom = 7;
+  double mark_scale = 8;
+  double maskable_scale = 9;
+  string accent_color = 10;
+  repeated GlowLayer glow = 11;
+  int32 small_mark_threshold_px = 12;
+}
+message UpdateContainerStyleResponse {
+  ContainerStyle style = 1;
+}
+
+message ListProductLinesRequest {}
+message ListProductLinesResponse {
+  repeated ProductLine lines = 1;
+}
+
+message CreateProductLineRequest {
+  string name = 1;
+  string container_style_id = 2;
+  repeated string products = 3;
+}
+message CreateProductLineResponse {
+  ProductLine line = 1;
+}

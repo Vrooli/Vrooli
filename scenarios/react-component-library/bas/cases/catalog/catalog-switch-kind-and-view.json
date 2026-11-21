@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "name": "catalog-switch-kind-and-view",
+    "description": "Opens the unified catalog root, switches from Components to Hooks, and changes its presentation mode. This protects the root workspace and its selector-backed primary catalog controls after the dashboard/components/adoptions routes were removed.",
+    "requirement": "TC-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "catalog-workspace",
+      "spec_entry_id": "catalog-workspace",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "requirements_json": "[\"TC-006\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": { "viewport_width": 1400, "viewport_height": 900 },
+  "nodes": [
+    {
+      "id": "navigate-catalog",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open unified catalog" }
+      }
+    },
+    {
+      "id": "wait-catalog-settled",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Primary catalog exposes loading or a terminal lifecycle state" }
+      }
+    },
+    {
+      "id": "wait-catalog-terminal",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Primary catalog reaches a terminal lifecycle state" }
+      }
+    },
+    {
+      "id": "switch-hooks",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/catalog.hooksTab" }, "metadata": { "label": "Switch to Hooks" } }
+    },
+    {
+      "id": "assert-hooks-selected",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": { "selector": "@selector/catalog.hooksTab", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "The Hooks catalog tab is unavailable." },
+        "metadata": { "label": "Hooks tab remains visible" }
+      }
+    },
+    {
+      "id": "switch-presentation",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/catalog.presentation" }, "metadata": { "label": "Switch catalog presentation" } }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-catalog", "target": "wait-catalog-settled", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-catalog-settled", "target": "wait-catalog-terminal", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "wait-catalog-terminal", "target": "switch-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "switch-hooks", "target": "assert-hooks-selected", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-hooks-selected", "target": "switch-presentation", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -809,7 +809,7 @@
       "examples": [
         {
           "command": "browser-automation-studio status",
-          "description": "Check if API and browserless are running"
+          "description": "Check if the API is running"
         },
         {
           "command": "browser-automation-studio status --json",
@@ -910,7 +910,7 @@
     },
     {
       "name": "execution render-video",
-      "description": "Generate an MP4/WEBM replay video via the API's Browserless renderer"
+      "description": "Generate an MP4/WEBM replay video via the API's Playwright renderer"
     },
     {
       "name": "recording",

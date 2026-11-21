@@ -57,6 +57,14 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   }
 }
 
+function firstSkill(skills: Skill[]): Skill {
+  const skill = skills[0]
+  if (!skill) {
+    throw new Error('test fixture must include at least one skill')
+  }
+  return skill
+}
+
 describe('skillService', () => {
   beforeEach(() => {
     // Clear all mocks
@@ -282,21 +290,21 @@ describe('skillService', () => {
   })
 
   describe('searchSkills', () => {
-    it('should search in cached data when available', async () => {
+    it('should use API search even when cached data is available', async () => {
       const mockSkills = [
         createTestSkill({ id: '1', name: 'Alpha Skill' }),
         createTestSkill({ id: '2', name: 'Beta Skill' }),
         createTestSkill({ id: '3', name: 'Gamma Skill' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
 
       // Populate cache
       await getSkills()
 
-      // Search - should use cache
       const results = await searchSkills('Alpha')
 
-      expect(api.searchSkills).not.toHaveBeenCalled()
+      expect(api.searchSkills).toHaveBeenCalledWith('Alpha')
       expect(results).toHaveLength(1)
       expect(results[0]?.name).toBe('Alpha Skill')
     })
@@ -307,6 +315,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', name: 'Another', description: 'Nothing matching' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('search term')
@@ -321,6 +330,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', content: 'No match' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('keyword')
@@ -335,6 +345,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', tags: ['low-priority'] }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('urgent')
@@ -349,6 +360,7 @@ describe('skillService', () => {
         createTestSkill({ id: '2', modes: ['testing'] }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('react')
@@ -357,7 +369,7 @@ describe('skillService', () => {
       expect(results[0]?.id).toBe('1')
     })
 
-    it('should fall back to API when cache is empty', async () => {
+    it('should use API search when cache is empty', async () => {
       const mockSkills = [createTestSkill({ id: '1', name: 'Result' })]
       vi.mocked(api.searchSkills).mockResolvedValue(mockSkills)
 
@@ -372,11 +384,27 @@ describe('skillService', () => {
         createTestSkill({ id: '1', name: 'UPPERCASE' }),
       ]
       vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockResolvedValue([firstSkill(mockSkills)])
       await getSkills()
 
       const results = await searchSkills('uppercase')
 
       expect(results).toHaveLength(1)
+    })
+
+    it('should fall back to cached local matching when API search fails', async () => {
+      const mockSkills = [
+        createTestSkill({ id: '1', name: 'UPPERCASE' }),
+        createTestSkill({ id: '2', name: 'lowercase' }),
+      ]
+      vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+      vi.mocked(api.searchSkills).mockRejectedValue(new Error('search unavailable'))
+      await getSkills()
+
+      const results = await searchSkills('uppercase')
+
+      expect(results).toHaveLength(1)
+      expect(results[0]?.id).toBe('1')
     })
   })
 

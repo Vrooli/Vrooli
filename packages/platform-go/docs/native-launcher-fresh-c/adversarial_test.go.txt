@@ -1,0 +1,85 @@
+package platform
+
+import (
+ "context"
+ "crypto/sha256"
+ "encoding/binary"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "os"
+ "path/filepath"
+ "strings"
+ "testing"
+)
+
+type freshCNative struct { *darwinFixtureNative; guard darwinMaintainedLaunchGuard }
+func (n freshCNative) ValidateLaunch(ctx context.Context,i OperationIntent,s OperationSpec) error { return n.guard.validate(ctx,i,s) }
+
+func TestFreshCProofSurvivesUncertainDispatchAndRetiresWithoutBootAuthority(t *testing.T) {
+ b,n,_,s:=newDarwinFixture(t)
+ root:=t.TempDir()
+ // An independent, raw thin Mach-O containing one canonical dylib command.
+ library:="/usr/lib/libSystem.B.dylib"
+ size:=(24+len(library)+1+7)&^7
+ image:=make([]byte,32+size); put:=binary.LittleEndian.PutUint32
+ put(image,0xfeedfacf);put(image[4:],0x100000c);put(image[12:],2)
+ put(image[16:],1);put(image[20:],uint32(size));put(image[32:],0xc)
+ put(image[36:],uint32(size));put(image[40:],24);copy(image[56:],library)
+ digest:=fmt.Sprintf("%x",sha256.Sum256(image))
+ s.Path=filepath.Join(root,digest,"vrooli");s.Dir=filepath.Dir(s.Path)
+ if err:=os.Mkdir(s.Dir,0700);err!=nil {t.Fatal(err)}
+ if err:=os.WriteFile(s.Path,image,0555);err!=nil {t.Fatal(err)}
+ s.NativeLauncher=&NativeLauncherProof{SchemaVersion:1,Profile:NativeLauncherProfileOpenRGB,SHA256:digest}
+ i,err:=NewServiceIntent("resource-initial","fixture-1",OwnedServiceSpec{Path:s.Path,Dir:s.Dir,Args:s.Args,Env:s.Env,NativeAccount:s.NativeAccount,ObserverPrincipal:s.ObserverPrincipal,NativeLauncher:s.NativeLauncher,Limits:ServiceLimits{MemoryMaxBytes:s.Limits.MemoryMaxBytes,TasksMax:s.Limits.TasksMax,CPUWeight:s.Limits.CPUWeight,Enforcement:s.Limits.Enforcement}})
+ if err!=nil {t.Fatal(err)}
+ intent:=OperationIntent(i)
+ installed:=0
+ reader:=darwinPublishedLauncherReader{path:func(context.Context,string,bool)error{return nil},format:func(f *os.File)error{return validateDarwinBrokerMachO(f,"arm64")}}
+ guard:=darwinMaintainedLaunchGuard{approved:func(context.Context)(*os.File,error){installed++;return nil,ErrOperationNotFound},published:func(ctx context.Context,path string,p NativeLauncherProof)(*os.File,error){return openPublishedNativeLauncherWith(ctx,path,p,"vrooli",func()(string,error){return root,nil},reader.open)}}
+ b.native=freshCNative{n,guard};n.uncertainBootstrap=true
+ if _,err=b.start(t.Context(),intent,s);err==nil {t.Fatal("lost native submission became success")}
+ record,err:=b.store.Read(intent)
+ if err!=nil||!record.DispatchPrepared||record.Spec.NativeLauncher==nil||*record.Spec.NativeLauncher!=*s.NativeLauncher {t.Fatalf("frozen uncertain intent lost proof: %+v %v",record,err)}
+ // Lookup consumes durable metadata and the native birth; it does not need boot authority.
+ ref,err:=b.lookup(t.Context(),intent);if err!=nil||ref.RootPID!=42 {t.Fatal(ref,err)}
+ if _,err=b.start(t.Context(),intent,s);!errors.Is(err,ErrOperationExists){t.Fatal("uncertain invocation replayed",err)}
+ if len(n.calls)!=1 {t.Fatal("replay issued native dispatch",n.calls)}
+ if _,err=b.stop(t.Context(),ref);err!=nil {t.Fatal(err)}
+ record,err=b.store.Read(intent)
+ if err!=nil||!record.Revoked||record.Spec.NativeLauncher==nil {t.Fatal("revocation lost proof",record,err)}
+ if err=b.release(t.Context(),ref);err!=nil {t.Fatal(err)}
+ if _,err=b.store.Read(intent);!errors.Is(err,ErrOperationNotFound){t.Fatal("retirement retained ledger",err)}
+ if installed!=0 {t.Fatal("lifecycle consulted removed installed authority",installed)}
+ // Publication remains independently admissible after the entire old ledger is removed.
+ fd,err:=guard.published(t.Context(),s.Path,*s.NativeLauncher);if err!=nil {t.Fatal(err)};fd.Close()
+}
+
+func TestFreshCDurableCodecsRejectProofDowngradeAndSubstitution(t *testing.T) {
+ for _,native:=range []string{"darwin","windows"} {
+  t.Run(native,func(t *testing.T){
+   account,enforcement:="uid:501","native-advisory"
+   if native=="windows" {account="sid:S-1-5-21-100-200-300-1001";enforcement="native-process-limits"}
+   spec:=OwnedServiceSpec{Path:"/immutable/vrooli",Dir:"/immutable",Args:[]string{"__vrooli-openrgb-native-capsule","/resource/launch/attempt/capsule.json"},Env:[]string{},NativeAccount:account,ObserverPrincipal:account,NativeLauncher:&NativeLauncherProof{SchemaVersion:1,Profile:NativeLauncherProfileOpenRGB,SHA256:strings.Repeat("a",64)},Limits:ServiceLimits{MemoryMaxBytes:64<<20,TasksMax:32,CPUWeight:100,Enforcement:enforcement}}
+   intent,err:=NewServiceIntent("resource-update","attempt",spec);if err!=nil {t.Fatal(err)}
+   boot:="11111111-2222-3333-4444-555555555555"
+   decode:=func(s OperationSpec)error{
+    if native=="windows" {raw,e:=json.Marshal(windowsOwnedPayload{Version:2,Intent:OperationIntent(intent),Spec:s,BootID:boot});if e!=nil{return e};_,e=decodeWindowsOperatorPayloadJSON(string(raw),OperationIntent(intent));return e}
+    sum:=sha256.Sum256([]byte(darwinOwnedPlist(OperationIntent(intent),s)))
+    raw,e:=json.Marshal(darwinOwnedRecord{Version:2,Intent:OperationIntent(intent),Spec:s,UID:501,GID:20,BootID:boot,PlistHash:fmt.Sprintf("%x",sum)});if e!=nil{return e};_,e=decodeDarwinOwnedRecord(raw);return e
+   }
+   if err=decode(spec.processSpec());err!=nil {t.Fatal("valid frozen proof rejected",err)}
+   mutations:=map[string]func(*OperationSpec){"omit":func(s *OperationSpec){s.NativeLauncher=nil},"profile":func(s *OperationSpec){s.NativeLauncher.Profile="different"},"version":func(s *OperationSpec){s.NativeLauncher.SchemaVersion=2},"digest":func(s *OperationSpec){s.NativeLauncher.SHA256=strings.Repeat("b",64)},"account":func(s *OperationSpec){s.NativeAccount="uid:502"},"entrypoint":func(s *OperationSpec){s.Args=[]string{"arbitrary","/resource/launch/attempt/capsule.json"}}}
+   for name,mutate:=range mutations {t.Run(name,func(t *testing.T){s:=spec.processSpec();proof:=*s.NativeLauncher;s.NativeLauncher=&proof;mutate(&s);if err:=decode(s);err==nil {t.Fatal("changed frozen authority accepted")}})}
+  })
+ }
+}
+
+func TestFreshCRewindFailureReturnsNoDescriptor(t *testing.T) {
+ root:=t.TempDir();p:=NativeLauncherProof{SchemaVersion:1,Profile:NativeLauncherProfileOpenRGB,SHA256:strings.Repeat("a",64)}
+ // A pipe is deliberately not seekable. Failure at the final rewind must close it.
+ read,write,err:=os.Pipe();if err!=nil {t.Fatal(err)};defer write.Close()
+ got,err:=openPublishedNativeLauncherWith(t.Context(),filepath.Join(root,p.SHA256,"vrooli"),p,"vrooli",func()(string,error){return root,nil},func(context.Context,string,string)(*os.File,error){return read,nil})
+ if err==nil||got!=nil {t.Fatal("unrewindable image returned",got,err)}
+ if _,err=read.Stat();err==nil {t.Fatal("unrewindable image descriptor leaked")}
+}

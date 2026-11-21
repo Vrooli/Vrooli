@@ -1,0 +1,155 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "iphone-16-pro",
+  "group": "phone",
+  "kind": "slab_phone",
+  "identity_status": "documented_product",
+  "manufacturer": "Apple",
+  "model": "iPhone 16 Pro",
+  "dimensions": {
+    "rigid-slab": {
+      "width": {
+        "value": 71.5,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "rigid-slab",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/121031",
+            "kind": "manufacturer_specification",
+            "qualifier": "Nominal manufacturer body/case dimensions; exact protrusion envelope and tolerance not independently measured."
+          }
+        ]
+      },
+      "height": {
+        "value": 149.6,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "rigid-slab",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/121031",
+            "kind": "manufacturer_specification",
+            "qualifier": "Nominal manufacturer body/case dimensions; exact protrusion envelope and tolerance not independently measured."
+          }
+        ]
+      },
+      "depth": {
+        "value": 8.25,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "rigid-slab",
+        "method": "manufacturer",
+        "uncertainty": {
+          "status": "source_unspecified",
+          "explanation": "Manufacturer publishes nominal value; tolerance and protrusion envelope are not provided in this source record."
+        },
+        "evidence": [
+          {
+            "source": "https://support.apple.com/en-us/121031",
+            "kind": "manufacturer_specification",
+            "qualifier": "Nominal manufacturer body/case dimensions; exact protrusion envelope and tolerance not independently measured."
+          }
+        ]
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "front",
+      "topology": "planar",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "front-facing",
+      "status": "candidate_only"
+    },
+    {
+      "name": "rear-facing",
+      "status": "candidate_only"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "whole_device_rotation",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "unknown"
+    },
+    {
+      "kind": "floating",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "imported-iphone-15-pro-max-v4",
+      "status": "candidate_only",
+      "source_path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v4/phone/default/imported-phone.glb",
+      "sha256": "bd7df340ddc809b3f65c5e91f91a9fc8dca30a4a4c68c331eadeda732c78a3ff",
+      "listing_url": "https://sketchfab.com/3d-models/iphone-15-pro-max-5b7b35513a154ac69619dc2b2fe15686",
+      "author": "MajdyModels / MG990",
+      "license": "CC BY 4.0",
+      "attribution": "Credit MajdyModels / MG990 (embedded credit MpPower™)",
+      "rights_notes": "Exact inspected archive bytes; this is iPhone 15 Pro Max, not the iPhone 16 Pro measured below; attribution/change notice and other-rights obligations remain."
+    },
+    {
+      "id": "authored-iphone-16-pro-v4",
+      "status": "candidate_only",
+      "source_path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v4/phone/default/authored-phone.glb",
+      "sha256": "90fcee097a403431d08ce028952f72659cd2b83aa5867233ff4716b09039d110",
+      "license": "license unresolved",
+      "rights_notes": "Built using Apple reference photos; author/source rights and redistribution are unresolved; file is not dimension- or visual-qualified."
+    },
+    {
+      "id": "iphone-16-pro-free-listing",
+      "status": "not_acquired",
+      "listing_url": "https://sketchfab.com/3d-models/iphone-16-pro-96be8c7e49fa4f949855db3e7f2e64e0",
+      "author": "tranminhluan",
+      "license": "CC BY 4.0 listing",
+      "attribution": "Credit tranminhluan; follow CC BY 4.0 attribution/change notices",
+      "rights_notes": "Listing metadata only; file not downloaded/inspected, exact mesh rights/dependencies and scale remain unverified."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "https://support.apple.com/en-us/121031",
+      "kind": "manufacturer_specification",
+      "qualifier": "Apple iPhone 16 Pro; published size and weight; dimensions are nominal case values."
+    },
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/mobile-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "iPhone 16 Pro dimensions, screen geometry unknown, model candidate status."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Active display, Dynamic Island/camera occlusion geometry, physical screen outline, contact envelope and rotation recipe are not established."
+}

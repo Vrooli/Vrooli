@@ -1,0 +1,22 @@
+{
+  "catalogId": "legacy.ingest-probe",
+  "category": "uncategorized",
+  "deprecatedVersions": [],
+  "description": "Ingested from react-component-library:ui/src/components/ingest-probe/IngestProbe.tsx",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "IngestProbe",
+  "draft": "",
+  "entry": "IngestProbe.tsx",
+  "kind": "control",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:IngestProbe",
+  "slot": "ui-primitive",
+  "tags": [],
+  "evictedVersions": []
+}

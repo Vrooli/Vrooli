@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { create, toJson } from '@bufbuild/protobuf'
+import { ListSharedFilesResponseSchema } from '@vrooli/proto-types/prompt-manager/v1/teams/teams_pb'
 import {
   TeamDetailsSchema,
+  TeamSharedFileListResponseSchema,
+  UpdateTeamRequestSchema,
   buildBoundedParallelExecution,
   buildDefaultCreateTeamRequest,
   buildIndependentCoordination,
@@ -80,11 +84,33 @@ describe('buildDefaultCreateTeamRequest', () => {
     expect(result.coordination.messagingMode).toBe('disabled')
     expect(result.execution.queuePolicy).toBe('bounded-parallel')
     expect(result.execution.maxConcurrentRuns).toBe(2)
-    expect(result.decisionMode).toBe('yolo')
+    expect(result.operatingContract.schemaVersion).toBe(1)
   })
 })
 
 describe('TeamDetailsSchema', () => {
+  it('preserves legacy teams without inventing classification or objective grants', () => {
+    const result = TeamDetailsSchema.parse({
+      ...buildDefaultCreateTeamRequest('Legacy'), id: 'legacy', enabled: false,
+      memberCount: 0, roles: [], members: [],
+      objectivesServed: [{ id: 'objective:quality', customEvidence: 'receipt:7' }],
+      createdAt: '2026-04-09T00:00:00Z', updatedAt: '2026-04-09T00:00:00Z',
+    })
+    expect(result.purpose).toBeUndefined()
+    expect(result.lifetime).toBeUndefined()
+    expect(result.effortRefs).toBeUndefined()
+    expect(result.objectivesServed?.[0]).toEqual({ id: 'objective:quality', customEvidence: 'receipt:7' })
+    expect(result.enabled).toBe(false)
+  })
+
+  it('accepts independent classification and explicit clearing while rejecting invalid metadata', () => {
+    expect(UpdateTeamRequestSchema.parse({ purpose: 'delivery', lifetime: 'standing' })).toEqual({ purpose: 'delivery', lifetime: 'standing' })
+    expect(UpdateTeamRequestSchema.parse({ purpose: '', lifetime: '', effortRefs: [] })).toEqual({ purpose: '', lifetime: '', effortRefs: [] })
+    expect(UpdateTeamRequestSchema.safeParse({ purpose: 'temporary' }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ lifetime: 'delivery' }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ effortRefs: ['   '] }).success).toBe(false)
+  })
+
   it('normalizes nullable role and member arrays to empty arrays', () => {
     const result = TeamDetailsSchema.parse({
       id: 'scenario-qa',
@@ -93,7 +119,7 @@ describe('TeamDetailsSchema', () => {
       runtime: { mode: 'multi-process' },
       coordination: buildIndependentCoordination(),
       execution: buildBoundedParallelExecution(2),
-      decisionMode: 'yolo',
+      operatingContract: buildDefaultCreateTeamRequest('Scenario QA').operatingContract,
       memberCount: 0,
       roles: null,
       members: null,
@@ -103,5 +129,109 @@ describe('TeamDetailsSchema', () => {
 
     expect(result.roles).toEqual([])
     expect(result.members).toEqual([])
+  })
+
+  it('normalizes legacy nullable operating-contract arrays so team lists remain readable', () => {
+    const result = TeamDetailsSchema.parse({
+      ...buildDefaultCreateTeamRequest('Legacy contract'),
+      id: 'legacy-contract',
+      operatingContract: {
+        ...buildDefaultCreateTeamRequest('Legacy contract').operatingContract,
+        documents: { planOfRecord: null, sharedState: null },
+      },
+      memberCount: 0,
+      createdAt: '2026-04-09T00:00:00Z',
+      updatedAt: '2026-04-09T00:00:00Z',
+    })
+
+    expect(result.operatingContract.documents.planOfRecord).toEqual([])
+    expect(result.operatingContract.documents.sharedState).toEqual([])
+  })
+})
+
+describe('team operating-contract document references', () => {
+  const researchHub = {
+    base: 'external',
+    path: '/home/operator/.vrooli/research/design-to-implementation/MISSION.md',
+  }
+  const operatingContract = {
+    schemaVersion: 1,
+    governance: {},
+    documents: {
+      planOfRecord: [{
+        id: 'canonical-research',
+        hub: researchHub,
+        paths: [researchHub],
+        writePolicy: 'read-only',
+        useFor: 'Read canonical research before choosing implementation work.',
+      }],
+      sharedState: [{
+        id: 'research-evidence',
+        path: { ...researchHub, path: '/home/operator/.vrooli/research/design-to-implementation/EVIDENCE.md' },
+        kind: 'rolling-snapshot',
+        required: true,
+      }],
+    },
+    knowledgeTopics: {
+      findings: { ownerMemberId: 'researcher', supersedesPrevious: true },
+    },
+    members: {
+      researcher: {
+        lane: 'research',
+        allowedWrites: [{ base: 'team-shared', path: 'FINDINGS.md' }],
+        readOnlyModeBehavior: { stillWriteKnowledge: true, stillWriteHandoff: true },
+      },
+    },
+  }
+  const teamDetails = {
+    ...buildDefaultCreateTeamRequest('Research'),
+    id: 'research',
+    operatingContract,
+    createdAt: '2026-11-10T00:00:00Z',
+    updatedAt: '2026-11-10T00:00:00Z',
+  }
+
+  it('preserves external read-only documents and canonical metadata through team reads and updates', () => {
+    const result = TeamDetailsSchema.parse(teamDetails)
+
+    expect(result.operatingContract).toEqual(operatingContract)
+    expect(UpdateTeamRequestSchema.parse({ operatingContract: result.operatingContract }))
+      .toEqual({ operatingContract })
+  })
+
+  it.each(['allowedWrites', 'forbiddenWrites'])('rejects external %s in team reads and updates', (field) => {
+    const invalidContract = {
+      ...operatingContract,
+      members: {
+        researcher: {
+          ...operatingContract.members.researcher,
+          [field]: [researchHub],
+        },
+      },
+    }
+
+    expect(TeamDetailsSchema.safeParse({ ...teamDetails, operatingContract: invalidContract }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ operatingContract: invalidContract }).success).toBe(false)
+  })
+})
+
+describe('TeamSharedFileListResponseSchema (proto int64 wire form)', () => {
+  it('treats an omitted proto3 repeated files field as an empty directory', () => {
+    expect(TeamSharedFileListResponseSchema.parse({ teamId: 'empty-team' }).files).toEqual([])
+  })
+
+  it('parses a ListSharedFiles response whose int64 size is serialized as a string', () => {
+    const proto = create(ListSharedFilesResponseSchema, {
+      teamId: 'marketing-crew',
+      files: [{ path: 'SHARED.md', isDir: false, size: 321n }],
+    })
+    const wire = toJson(ListSharedFilesResponseSchema, proto) as {
+      files?: Array<{ size?: unknown }>
+    }
+
+    expect(wire.files?.[0]?.size).toBe('321')
+
+    const parsed = TeamSharedFileListResponseSchema.parse(wire)
+    expect(parsed.files[0]).toMatchObject({ path: 'SHARED.md', isDir: false, size: 321 })
   })
 })

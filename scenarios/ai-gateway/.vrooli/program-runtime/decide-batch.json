@@ -1,0 +1,185 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "ai-gateway.decide-batch",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Answer typed decision questions about up to 32 states with a decision model, keeping each item's answers, probabilities, method, provider, locality and usage.",
+  "inputs": {
+    "states": {
+      "type": "array",
+      "required": true,
+      "description": "1 to 32 nonempty texts; at most 16384 UTF-8 bytes each and 131072 total."
+    },
+    "questions": {
+      "type": "array",
+      "required": true,
+      "description": "1 to 4 questions with distinct ids of at most 64 bytes: {id, type: choice|score|noul, instructions?, options?: {label: description} or [labels] (2-12, labels at most 32 bytes; object keys may be reordered by JSON transports, so pass [labels] when order matters), levels?: [2-10 level descriptions, level 0 first], true?, false?}."
+    },
+    "role": {
+      "type": "string",
+      "required": false,
+      "description": "decide.fast (default; local Laya first) or decide.accurate (local Winnow first)."
+    }
+  },
+  "assumptions": [
+    "AI Gateway serves decide.fast and decide.accurate through its governed decide-batch binding.",
+    "Hosted decision candidates without provisioned credentials are skipped by the gateway, not failed."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every execution path.",
+    "One batch RPC at most; the candidate walk and answer validation remain bounded by AI Gateway.",
+    "Only answers inside each question's declared closed set count toward answered or by_choice.",
+    "Every requested index is retained when a positional result is missing or invalid.",
+    "Input texts are not copied into the result envelope."
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/inference/decide-batch",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "decide",
+        "report"
+      ]
+    },
+    "signals": {
+      "results": "Ordered item evidence: answers by question id (value, confidence, probabilities listed in the option or level order of inputs.questions), method, provider, model, locality and latency, or an indexed error.",
+      "by_choice": "Counts of answered choice labels per question id.",
+      "methods": "Answered items per method (DECISION_MODEL or LLM_ENUM).",
+      "answered": "Number of items whose every answer is inside its declared set.",
+      "requested": "Number of admitted states.",
+      "usage": "Owner-supplied batch usage; null when unavailable or invalid.",
+      "candidates": "The first item's candidate walk: provider/resource-role to skip or failure reason, showing which hosted candidates lack credentials."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "invalid_response",
+        "invalid_result",
+        "missing_result",
+        "decision_failed",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Batch binding, role and item count; provider, method and measured usage live in item evidence."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 33,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "operator-correction-live",
+      "inputs": {
+        "states": [
+          "No, stop. That is not what I asked for; revert the file."
+        ],
+        "questions": [
+          {
+            "id": "kind",
+            "type": "choice",
+            "instructions": "What is the operator doing?",
+            "options": {
+              "correction": "Correcting or redirecting the agent",
+              "approval": "Approving the work",
+              "question": "Asking a question"
+            }
+          },
+          {
+            "id": "stop",
+            "type": "noul",
+            "instructions": "The operator wants the agent to stop."
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "answered": 1
+        }
+      },
+      "requires": [
+        "ai-gateway",
+        "ollaya"
+      ]
+    },
+    {
+      "id": "empty-states",
+      "inputs": {
+        "states": [],
+        "questions": [
+          {
+            "id": "stop",
+            "type": "noul"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "signals": {
+          "requested": 0
+        }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "one-option-choice",
+      "inputs": {
+        "states": [
+          "x"
+        ],
+        "questions": [
+          {
+            "id": "kind",
+            "type": "choice",
+            "options": [
+              "only"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "ai-gateway"
+}

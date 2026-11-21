@@ -10,18 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestHandleShutdown(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/shutdown", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -41,7 +39,7 @@ func TestHandleShutdown(t *testing.T) {
 	}
 
 	time.Sleep(150 * time.Millisecond)
-	if !rt.shutdownCalled {
+	if !rt.shutdownCalled.Load() {
 		t.Error("handleShutdown() should have called Shutdown()")
 	}
 }
@@ -68,13 +66,11 @@ func TestHandleSecretsGet(t *testing.T) {
 	}
 	rt := testRuntime(t, m)
 	rt.secretStore.Set(map[string]string{"api_key": "secret-value"})
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -126,14 +122,12 @@ func TestHandleSecretsPost(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 
 		payload := `{"secrets": {"api_key": "my-secret"}}`
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -172,14 +166,12 @@ func TestHandleSecretsPost(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 
 		payload := `{"secrets": {"api_key": "my-secret"}}`
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -214,14 +206,12 @@ func TestHandleSecretsPost(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 
 		payload := `{"secrets": {"api_key": "my-secret"}}`
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -263,14 +253,12 @@ func TestHandleSecretsPost(t *testing.T) {
 		}
 		rt := testRuntime(t, m)
 		rt.secretStore.Set(map[string]string{"api_key": "existing"})
-		server := NewServer(rt, "test-token")
 
 		payload := `{"secrets": {"db_pass": "new-pass"}}`
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(payload))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -314,13 +302,11 @@ func TestHandleSecretsPost(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader("{invalid-json}"))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -365,13 +351,11 @@ func TestHandleSecretsPost(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader(`{}`))
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -398,13 +382,11 @@ func TestHandleSecretsPost(t *testing.T) {
 func TestHandleTelemetry(t *testing.T) {
 	rt := testRuntime(t, nil)
 	rt.uploadURL = "https://example.com/upload"
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/telemetry", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -488,10 +470,8 @@ func TestAuthMiddleware(t *testing.T) {
 
 func TestRegisterHandlers(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 
 	routes := []string{"/healthz", "/readyz", "/ports", "/shutdown", "/secrets", "/telemetry"}
 

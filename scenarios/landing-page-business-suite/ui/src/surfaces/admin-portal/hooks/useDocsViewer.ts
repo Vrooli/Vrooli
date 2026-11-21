@@ -90,7 +90,7 @@ export function useDocsViewer(options: UseDocsViewerOptions = {}): UseDocsViewer
         // Auto-select first markdown file if available
         const firstFile = findFirstMarkdownFile(data);
         if (firstFile) {
-          loadDoc(firstFile);
+          void loadDoc(firstFile);
         }
       }
     } catch (err) {
@@ -117,7 +117,7 @@ export function useDocsViewer(options: UseDocsViewerOptions = {}): UseDocsViewer
 
   // Load tree on mount
   useEffect(() => {
-    loadTree();
+    void loadTree();
   }, [loadTree]);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export function useDocsViewer(options: UseDocsViewerOptions = {}): UseDocsViewer
 
     setExpandedPaths(getExpandedPathsForDocPath(tree, requestedPath));
     if (selectedPath !== requestedPath) {
-      loadDoc(requestedPath);
+      void loadDoc(requestedPath);
     }
   }, [options.requestedPath, loadDoc, selectedPath, tree]);
 

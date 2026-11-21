@@ -1,4 +1,4 @@
-// DOC: docs/internal/UTILS_UNIFICATION_NOTES.md
+// DOC: docs/concepts/ARCHITECTURE.md#code-organization-pattern
 /**
  * Convert a display label into a URL/testId-safe slug.
  *

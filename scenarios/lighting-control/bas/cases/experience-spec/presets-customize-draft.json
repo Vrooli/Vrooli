@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "experience-presets-customize-draft",
+    "description": "Given the complete phone Customize editor in an isolated browser and routed storage lease, when physical bands, browser preview preference, freshness, fallback and Load thresholds are saved as drafts, then each draft restores independently without selecting a policy.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "execution_mode": "EXECUTION_MODE_MUTATING",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "fixture": "browser-local-customize",
+      "spec_entry_id": "presets",
+      "surface": "experience-presets"
+    }
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-presets",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "lighting-control",
+          "scenario_path": "/presets",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open isolated Customize"
+        }
+      }
+    },
+    {
+      "id": "wait-editor",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/lightDesk.presetActions",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for loaded editor"
+        }
+      }
+    },
+    {
+      "id": "exercise-local-drafts",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => {\n  const page = document.querySelector('@selector/pages.presets');\n  const settle = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));\n  const input = async (element, value) => { if (!element) throw new Error('Customize input missing'); const prototype = element.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); await settle(); };\n  const saveDraft = async () => { const actions = page.querySelector('@selector/lightDesk.presetActions'); const button = actions?.querySelector('button'); if (!button || button.disabled) throw new Error('Save draft unavailable'); button.click(); await settle(); };\n  const effects = [...page.querySelectorAll('select')];\n  if (effects.length !== 2) throw new Error('Both physical activity bands must be editable');\n  const originalBusy = effects[1].value;\n  await input(effects[0], '');\n  await input(page.querySelector('input[type=\"number\"]'), '120');\n  const ranges = [...page.querySelectorAll('input[type=\"range\"]')];\n  await input(ranges[ranges.length - 1], '0');\n  const checkboxes = [...page.querySelectorAll('input[type=\"checkbox\"]')];\n  const previewMotion = checkboxes[checkboxes.length - 1];\n  if (!previewMotion) throw new Error('Browser-only reduced-motion choice missing');\n  if (previewMotion.checked) { previewMotion.click(); await settle(); }\n  await saveDraft();\n  const combined = JSON.parse(localStorage.getItem('lighting-control.preset-drafts.v1') || '{}')['5'];\n  const loadButton = [...page.querySelectorAll('button')].find((button) => button.querySelector('strong')?.textContent.trim() === 'Load');\n  if (!loadButton) throw new Error('Load preset selection missing');\n  loadButton.click(); await settle();\n  const details = page.querySelector('details'); if (!details) throw new Error('Load threshold controls missing'); details.open = true;\n  const numbers = [...page.querySelectorAll('input[type=\"number\"]')];\n  if (numbers.length !== 4) throw new Error('Freshness and all load thresholds must be editable');\n  await input(numbers[1], '75'); await input(numbers[2], '55'); await input(numbers[3], '12');\n  await saveDraft();\n  const drafts = JSON.parse(localStorage.getItem('lighting-control.preset-drafts.v1') || '{}');\n  const load = drafts['2'];\n  const combinedButton = [...page.querySelectorAll('button')].find((button) => button.querySelector('strong')?.textContent.trim() === 'Combined');\n  combinedButton.click(); await settle();\n  const restored = [...page.querySelectorAll('select')];\n  const clear = combined?.activity?.activeEffectId === '' && combined.activity.busyEffectId === originalBusy && combined.guardrails.sourceMaxAgeSeconds === 120 && combined.guardrails.staleFallbackBrightnessPercent === 0 && combined.respectReducedMotion === false && load?.guardrails?.loadEnterPercent === 75 && load.guardrails.loadExitPercent === 55 && load.guardrails.debounceSeconds === 12 && restored[0]?.value === '' && restored[1]?.value === originalBusy && page.querySelector('input[type=\"number\"]')?.value === '120';\n  page.dataset.lightdeskCustomizeDraftClear = String(clear);\n  return { clear, combined, load, restoredPhysicalEffects: restored.map((select) => select.value) };\n})()",
+          "store_result": "customizeDraftProof"
+        },
+        "metadata": {
+          "label": "Edit physical bands, preview preference, freshness and load draft controls without selecting a policy"
+        }
+      }
+    },
+    {
+      "id": "assert-local-drafts",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.presets",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-lightdesk-customize-draft-clear",
+          "expected": {
+            "string_value": "true"
+          },
+          "failure_message": "Customize must keep physical effect and browser motion choices independent, persist freshness/fallback/load drafts locally, and restore each selected preset draft."
+        },
+        "metadata": {
+          "label": "Require complete independent Customize draft persistence"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "open-presets",
+      "target": "wait-editor",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-2",
+      "source": "wait-editor",
+      "target": "exercise-local-drafts",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-3",
+      "source": "exercise-local-drafts",
+      "target": "assert-local-drafts",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

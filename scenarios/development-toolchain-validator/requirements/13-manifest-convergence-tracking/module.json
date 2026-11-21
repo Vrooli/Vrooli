@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-003",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "title": "Manifest Convergence Tracking",
+  "description": "Manifests with convergence_target=empty_diff are tracked toward actual empty-diff verdicts. Surface 'X of N converged' as a top-level scenario-health metric.",
+  "requirements": [
+    {
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "title": "Convergence counter + dashboard surface",
+      "description": "Aggregate query over manifests where convergence_target=empty_diff: count how many have a most-recent verdict of pass with empty diff. Expose as a single number + ratio on the dashboard index and per-golden views.",
+      "category": "ui",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

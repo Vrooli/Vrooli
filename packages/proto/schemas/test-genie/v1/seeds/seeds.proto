@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.seeds;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "dev-routing/v1/routing/routing.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/seeds;seeds_v1";
+
+// Test Genie owns seed processes, backing resources, and the paired target
+// storage lease. Workflow Health consumes this surface instead of maintaining
+// another seed runner. Session tokens are private bearer capabilities; callers
+// must not include them in public validation evidence.
+// @stability beta
+service SeedService {
+  // ApplySeed is idempotent for the same scenario/request while the owner
+  // retains that session. Conflicting active requests never share a lease.
+  rpc ApplySeed(ApplySeedRequest) returns (ApplySeedResponse);
+  // GetSeed returns current owner health. Missing owner state is an error,
+  // including after an owner restart; it is never reconstructed as success.
+  rpc GetSeed(GetSeedRequest) returns (GetSeedResponse);
+  // ClearSeed releases the exact retained lease and then its backing resources.
+  // Repeating it returns the retained outcome and counters without replaying
+  // an acknowledged clear. A cleanup failure remains visible on later reads.
+  rpc ClearSeed(ClearSeedRequest) returns (ClearSeedResponse);
+}
+
+message ApplySeedRequest {
+  string scenario = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string request_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+  // Optional source checkout path; runtime discovery still binds the scenario.
+  string scenario_path = 3;
+}
+
+message ApplySeedResponse {
+  // Bearer secret used only by GetSeed/ClearSeed. Never log this field.
+  string session_token = 1;
+  SeedEvidence evidence = 2;
+  // Truly dynamic values authored by the selected scenario's seed contract.
+  google.protobuf.Struct initial_params = 3;
+}
+
+message GetSeedRequest {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  string session_token = 2 [(buf.validate.field).string.min_len = 1];
+}
+message GetSeedResponse { SeedEvidence evidence = 1; }
+
+message ClearSeedRequest {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  string session_token = 2 [(buf.validate.field).string.min_len = 1];
+}
+message ClearSeedResponse { SeedEvidence evidence = 1; }
+
+// ACTIVE may transition to CLEARED or FAILED. A failed health or cleanup
+// observation is sticky; a subsequent successful transport cannot erase it.
+enum SeedState {
+  SEED_STATE_UNSPECIFIED = 0;
+  SEED_STATE_ACTIVE = 1;
+  SEED_STATE_CLEARED = 2;
+  SEED_STATE_FAILED = 3;
+}
+
+message SeedEvidence {
+  string scenario = 1;
+  string lease_id = 2;
+  SeedState state = 3;
+  bool paired_storage_installed = 4;
+  string heartbeat_error = 5;
+  string cleanup_error = 6;
+  // Present only after the target acknowledges clear with routing counters.
+  optional vrooli.dev_routing.v1.routing.LeaseStats stats = 7;
+}

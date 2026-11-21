@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "description": "Superseded legacy examples/control metadata. Story contracts in 21-story-contracts now own preview, generated controls, fixtures, and catalog-test declarations.",
+    "last_validated_at": "2026-07-18T00:58:59-04:00",
+    "module": "examples-as-data",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EX-001",
+      "title": "Version folders may declare data-only component examples",
+      "status": "pending",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "Superseded by SC-001 and SC-003. `examples.json`, per-example controls, and setup metadata are removed during the greenfield story-contract cutover.",
+      "tags": [
+        "examples",
+        "preview",
+        "catalog"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunIndexesVersionExamples",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves `examples.json` is parsed from version folders and indexed as component_examples rows. Verified passing 2026-07-14."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/components/indexer_test.go::TestIndexer_RunReportsInvalidExamplesWithoutRejectingComponent",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Invalid examples emit non-fatal findings rather than dropping otherwise valid component metadata. Verified passing 2026-07-14."
+        }
+      ]
+    },
+    {
+      "id": "EX-002",
+      "title": "Examples are queryable through API and CLI",
+      "status": "pending",
+      "prd_ref": "OT-P0-007",
+      "category": "api-cli",
+      "criticality": "P0",
+      "description": "Superseded by SC-001. API and CLI expose validated typed story data rather than legacy examples.",
+      "tags": [
+        "examples",
+        "connect-rpc",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/components/handlers_test.go::TestComponentsExamples_ForwardsInputsAndRenders",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI test proves component id/version forwarding and rendered examples output. Verified passing 2026-07-14. (Requirement remains in_progress pending the live-round-trip manual check below.)"
+        },
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Live round trip during Phase 5: `react-component-library components examples \u003cButton id\u003e --version 1.2.0 --json` returned the seeded `primary` example after reindex."
+        }
+      ]
+    },
+    {
+      "id": "EX-003",
+      "title": "Specimen gallery renders every named example and checks expectations",
+      "status": "pending",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "Superseded by SC-002 through SC-004. The workbench renders named stories using one generated argument schema, explicit fixtures, and validated interaction/expectation contracts.",
+      "tags": [
+        "examples",
+        "gallery",
+        "e2e"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/components/ComponentEditor.test.tsx::renders example gallery iframes with named harness URLs",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "UI test proves the gallery emits named harness URLs for indexed examples."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/catalog/module.go",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "`pnpm run test:preview-evidence` records per-story BAS artifact references and visual gate results through the catalog evidence service."
+        }
+      ]
+    },
+    {
+      "id": "EX-004",
+      "title": "Generated docs can be derived from prop types",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "docs",
+      "criticality": "P2",
+      "description": "Superseded by SC-001. Documentation derives from the asset-level story contract rather than legacy examples.",
+      "tags": [
+        "docs",
+        "prop-types",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Future docs-generation tests should parse prop metadata and render reference docs for at least one component with multiple named examples."
+        }
+      ]
+    }
+  ]
+}

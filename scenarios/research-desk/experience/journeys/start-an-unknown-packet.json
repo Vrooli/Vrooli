@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "start-an-unknown-packet",
+    "title": "Start a packet the desk cannot classify, or relaunch it",
+    "purpose": "A packet the desk reads as unknown can still be started on the operator's word that it never ran, which the API checks against every session it can read and records; otherwise it is relaunched as a new commission. The two manual messages stay hidden until then.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-010"
+    ]
+  },
+  "steps": [
+    {
+      "page": "now",
+      "state": "default",
+      "intent": "See the packet among the packets that launch as they are.",
+      "via": "Prepared packets"
+    },
+    {
+      "page": "launch-status",
+      "state": "empty",
+      "intent": "Read why its state is unknown and tick that it was never started, or tap Relaunch as a new commission.",
+      "via": "packet row"
+    },
+    {
+      "page": "launch-status",
+      "state": "manual",
+      "intent": "With the assertion made, read the two messages to paste by hand if automatic launch is unavailable.",
+      "via": "never-started tick"
+    },
+    {
+      "page": "launch-status",
+      "state": "retry",
+      "intent": "After a failed start, discard with a reason and relaunch as a new commission.",
+      "via": "failed step"
+    }
+  ]
+}

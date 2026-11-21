@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -409,15 +410,29 @@ func NewJSONFileStoreString[T any](path string, mode FileStoreMode, opts ...JSON
 		opts = append([]JSONFileStoreOption[string, T]{
 			WithFileKeyConverter[string, T](
 				func(k string) string {
-					// Sanitize key for safe filename
-					return sanitizeFilename(k) + ".json"
+					// Preserve already-safe keys for compatibility with files written by
+					// earlier versions. Encode other keys reversibly: sanitizing them
+					// would make distinct keys such as "a/b" and "a_b" collide and
+					// prevents the original key from being recovered during Load.
+					if sanitizeFilename(k) == k {
+						return k + ".json"
+					}
+					return "key-" + base64.RawURLEncoding.EncodeToString([]byte(k)) + ".json"
 				},
 				func(filename string) (string, bool) {
 					// Remove .json extension
 					if len(filename) < 6 || filename[len(filename)-5:] != ".json" {
 						return "", false
 					}
-					return filename[:len(filename)-5], true
+					key := filename[:len(filename)-5]
+					if len(key) >= 4 && key[:4] == "key-" {
+						decoded, err := base64.RawURLEncoding.DecodeString(key[4:])
+						if err != nil {
+							return "", false
+						}
+						return string(decoded), true
+					}
+					return key, true
 				},
 			),
 		}, opts...)

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { ValidationErrors } from "./ValidationErrors";
 import type { ValidationError } from "../../domain/generator";
 
@@ -19,7 +19,9 @@ describe("ValidationErrors", () => {
     ];
     render(<ValidationErrors errors={errors} />);
     expect(screen.getByText("Scenario name is required")).toBeInTheDocument();
-    expect(screen.getByText(/Please fix the following issue/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please fix the following issue/),
+    ).toBeInTheDocument();
   });
 
   it("renders multiple errors correctly", () => {
@@ -30,16 +32,18 @@ describe("ValidationErrors", () => {
     ];
     render(<ValidationErrors errors={errors} />);
     expect(screen.getByText("Scenario name is required")).toBeInTheDocument();
-    expect(screen.getByText("Select at least one platform")).toBeInTheDocument();
+    expect(
+      screen.getByText("Select at least one platform"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Output location is required")).toBeInTheDocument();
-    expect(screen.getByText(/Please fix the following issues/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please fix the following issues/),
+    ).toBeInTheDocument();
   });
 
   it("renders dismiss button when onDismiss is provided", () => {
     const onDismiss = vi.fn();
-    const errors: ValidationError[] = [
-      { id: "test", message: "Test error" },
-    ];
+    const errors: ValidationError[] = [{ id: "test", message: "Test error" }];
     render(<ValidationErrors errors={errors} onDismiss={onDismiss} />);
 
     const dismissButton = screen.getByRole("button");
@@ -48,9 +52,7 @@ describe("ValidationErrors", () => {
 
   it("calls onDismiss when dismiss button is clicked", () => {
     const onDismiss = vi.fn();
-    const errors: ValidationError[] = [
-      { id: "test", message: "Test error" },
-    ];
+    const errors: ValidationError[] = [{ id: "test", message: "Test error" }];
     render(<ValidationErrors errors={errors} onDismiss={onDismiss} />);
 
     const dismissButton = screen.getByRole("button");
@@ -59,20 +61,16 @@ describe("ValidationErrors", () => {
   });
 
   it("does not render dismiss button when onDismiss is not provided", () => {
-    const errors: ValidationError[] = [
-      { id: "test", message: "Test error" },
-    ];
+    const errors: ValidationError[] = [{ id: "test", message: "Test error" }];
     render(<ValidationErrors errors={errors} />);
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("applies custom className when provided", () => {
-    const errors: ValidationError[] = [
-      { id: "test", message: "Test error" },
-    ];
+    const errors: ValidationError[] = [{ id: "test", message: "Test error" }];
     const { container } = render(
-      <ValidationErrors errors={errors} className="custom-class" />
+      <ValidationErrors errors={errors} className="custom-class" />,
     );
 
     const wrapper = container.firstChild;
@@ -85,7 +83,9 @@ describe("ValidationErrors", () => {
     ];
     render(<ValidationErrors errors={errors} />);
     expect(screen.getByText(/issue before generating/)).toBeInTheDocument();
-    expect(screen.queryByText(/issues before generating/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/issues before generating/),
+    ).not.toBeInTheDocument();
   });
 
   it("uses correct plural form for multiple issues", () => {

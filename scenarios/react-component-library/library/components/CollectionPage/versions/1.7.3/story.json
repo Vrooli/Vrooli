@@ -1,0 +1,216 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "kind": "structured",
+        "path": "regions.header",
+        "region": "header"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.filters",
+        "region": "filters"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.collection",
+        "region": "collection"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.bulkActions",
+        "region": "bulk-actions"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.inspector",
+        "region": "inspector"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.inspectorActions",
+        "region": "inspector-actions"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.inspectorNotice",
+        "region": "inspector-notice"
+      },
+      {
+        "kind": "structured",
+        "path": "regions.overlays",
+        "region": "overlays"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ServiceCatalog",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Service catalog"
+        },
+        {
+          "kind": "text",
+          "value": "Billing API"
+        },
+        {
+          "kind": "role",
+          "name": "Service details",
+          "role": "region"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-collection-page-story-row]",
+          "value": "3"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-collection-filters]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-collection-inspector]"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default collection workspace",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ServiceCatalog",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Service catalog"
+        },
+        {
+          "kind": "text",
+          "value": "Billing API"
+        },
+        {
+          "kind": "role",
+          "name": "Service details",
+          "role": "region"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-collection-page-story-row]",
+          "value": "3"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-collection-filters]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-collection-inspector]"
+        }
+      ],
+      "id": "service-catalog",
+      "mode": "live",
+      "name": "Service catalog with selected record",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "MobileCollection",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Service catalog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[aria-label='Services']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-collection-page-story-row]",
+          "value": "3"
+        }
+      ],
+      "id": "mobile-collection",
+      "mode": "live",
+      "name": "Mobile collection pane",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "MobileInspector",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Billing API"
+        },
+        {
+          "kind": "role",
+          "name": "Service details",
+          "role": "region"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-collection-inspector]"
+        }
+      ],
+      "id": "mobile-inspector",
+      "mode": "live",
+      "name": "Mobile selected service detail",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "EmptyCollection",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-state=empty]"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty collection state",
+      "role": "boundary"
+    }
+  ],
+  "title": "CollectionPage"
+}

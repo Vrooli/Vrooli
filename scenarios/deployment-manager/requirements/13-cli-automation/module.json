@@ -3,6 +3,11 @@
   "title": "CLI Automation Features",
   "priority": "P2",
   "description": "Batch operations, CI/CD integration, and CLI workflows",
-  "requirements": [],
+  "requirements": [
+    {"id":"DM-P2-009","title":"CLI Profile Creation from Templates","status":"planned","prd_ref":"OT-P2-009","domain":"profiles","description":"Create profiles from YAML templates through the CLI","tags":["cli"],"validation":[{"type":"test","ref":"cli/profiles/commands_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P2-010","title":"Headless CLI Deployment","status":"planned","prd_ref":"OT-P2-010","domain":"releases","description":"Support non-interactive CI/CD deployment execution","tags":["cli","ci"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P2-011","title":"Machine-Readable Status Output","status":"planned","prd_ref":"OT-P2-011","domain":"releases","description":"Provide JSON status output for automation","tags":["cli","ci"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P2-012","title":"CI/CD Exit Code Conventions","status":"planned","prd_ref":"OT-P2-012","domain":"releases","description":"Return conventional success and failure exit codes for CI/CD","tags":["cli","ci"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]}
+  ],
   "_metadata": {}
 }

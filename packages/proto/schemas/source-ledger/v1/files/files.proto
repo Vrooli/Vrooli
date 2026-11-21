@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package vrooli.source_ledger.v1.files;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/files;filesv1";
+
+import "source-ledger/v1/shared/degradation.proto";
+
+// FilesService searches a file-authoritative corpus (today: the research
+// home). Files are the authority; the index is a rebuildable cache that is
+// synced against the files on every read, so a hit never cites stale text.
+service FilesService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse);
+}
+
+message SearchRequest {
+  string query = 1;
+  // Corpus id; empty means "research".
+  string corpus = 2;
+  // Restrict to one topic folder (topics/<topic>/); empty searches the corpus.
+  string topic = 3;
+  // Restrict to one feed (a topic's top-level folder or a feeds.json feed id).
+  string feed = 4;
+  int32 limit = 5;
+  // Rank raw material (run output, support copies, preimages, history,
+  // compiled files) like curated pages. By default it ranks lower, so a
+  // question finds the finding before the evidence behind it.
+  bool include_raw = 6;
+}
+
+message Hit {
+  // Citation: corpus-relative path plus line span, e.g. "topics/x/README.md#L4-L19".
+  string citation = 1;
+  // Corpus-relative path.
+  string path = 2;
+  // Absolute path on this host.
+  string abs_path = 3;
+  string topic = 4;
+  string feed = 5;
+  int32 line_start = 6;
+  int32 line_end = 7;
+  // Nearest heading (markdown) or record label (csv/jsonl) for the span.
+  string heading = 8;
+  string snippet = 9;
+  double score = 10;
+  // RFC 3339 modification time of the file that was read for this hit.
+  string modified_at = 11;
+  // The file is longer than the corpus max_file_kb: only its head (or, for
+  // logs and tables, its tail) is indexed.
+  bool truncated = 12;
+}
+
+message SyncReport {
+  int32 files_seen = 1;
+  int32 files_changed = 2;
+  int32 files_removed = 3;
+  int32 duration_ms = 4;
+  string synced_at = 5;
+  // True when the sync budget ran out; unsynced changed files are reported in
+  // `pending` and are not served from the old index.
+  bool partial = 6;
+  int32 pending = 7;
+  // Coverage: files the indexing policy left out or cut short.
+  // Private: operator conversations and personal data (feeds.json `private`).
+  int32 skipped_private = 8;
+  // Matched an exclude glob.
+  int32 skipped_excluded = 9;
+  // In run-depth, dataset or code folders, which index only README, INDEX
+  // and SUMMARY files.
+  int32 summarised = 10;
+  // .json files over max_json_kb.
+  int32 skipped_oversize_json = 11;
+  // Indexed but longer than max_file_kb.
+  int32 truncated = 12;
+  // Unreadable folders and malformed feeds.json files.
+  repeated string problems = 13;
+}
+
+message SearchResponse {
+  repeated Hit hits = 1;
+  SyncReport sync = 2;
+  // "hybrid" (lexical candidates plus nearest-by-meaning candidates, fused)
+  // or "lexical".
+  string mode = 3;
+  // Legs that were skipped or partial. Hits are still valid when present.
+  repeated vrooli.source_ledger.v1.shared.Degradation degradations = 4;
+  // "source-ledger" for this service; the file fallback reports "files".
+  string source = 5;
+}
+
+message ListFeedsRequest {
+  string corpus = 1;
+  string topic = 2;
+  // Recent items per feed (default 3).
+  int32 recent = 3;
+}
+
+message FeedItem {
+  string path = 1;
+  string heading = 2;
+  string modified_at = 3;
+}
+
+message Feed {
+  string topic = 1;
+  string feed = 2;
+  int32 files = 3;
+  int64 bytes = 4;
+  string last_modified = 5;
+  repeated FeedItem recent = 6;
+  // Distinct chunks in the feed, and how many have vectors (semantic coverage).
+  int32 chunks = 7;
+  int32 embedded = 8;
+}
+
+message ListFeedsResponse {
+  repeated Feed feeds = 1;
+  SyncReport sync = 2;
+  repeated vrooli.source_ledger.v1.shared.Degradation degradations = 3;
+}

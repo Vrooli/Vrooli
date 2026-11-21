@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "Bounty Replay Scorer",
+  "profileKey": "agent-manager/bounty-scorer",
+  "description": "Independent, read-only scorer profile. It receives only bounded frozen-evaluator facts and opaque receipt digests, never source, reference patches, or answer content.",
+  "roleRef": "code.judgment",
+  "roleReason": "Independently judge whether immutable evaluator evidence meets the replay acceptance rule, without reading candidate or reference source.",
+  "maxTurns": 8,
+  "timeout": "300s",
+  "allowedTools": [],
+  "toolRestrictionPolicy": "enforced",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "manualReview": false,
+    "autoApply": false,
+    "applyOnFailure": false,
+    "networkMode": "NETWORK_ACCESS_NONE",
+    "writePolicy": {"paths": []}
+  },
+  "networkAccess": "NETWORK_ACCESS_NONE",
+  "createdBy": "agent-manager",
+  "effort": "medium"
+}

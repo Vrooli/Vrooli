@@ -1,0 +1,10 @@
+{
+  "id": "vrooli-core",
+  "name": "vrooli-core",
+  "enabled": true,
+  "transport": "http-json",
+  "baseUrlEnv": "VROOLI_API_BASE_URL",
+  "paths": [
+    "/scenarios"
+  ]
+}

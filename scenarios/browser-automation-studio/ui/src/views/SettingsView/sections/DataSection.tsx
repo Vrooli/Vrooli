@@ -11,7 +11,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useProjectStore } from '@/domains/projects';
+import { useProjectStore } from '@/domains/projects/store';
 import { useExportStore } from '@/domains/exports';
 import { SettingSection } from './shared';
 

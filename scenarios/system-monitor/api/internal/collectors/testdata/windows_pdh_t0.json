@@ -1,0 +1,1 @@
+{"_source":"PDH raw counter shape: \\Memory\\Pages Input/sec FirstValue, \\Memory\\Page Reads/sec FirstValue, \\Paging File(_Total)\\% Usage formatted; GlobalMemoryStatusEx; QueryMemoryResourceNotification","pages_input_total":81234567,"page_reads_total":20345678,"paging_file_usage_percent":41.5,"commit_charge":25769803776,"commit_limit":34359738368,"low_memory":false}

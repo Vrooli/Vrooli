@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  Technique: walk the operator through a physical task with video, a photo and
+  a 3D model that opens in the Hub viewer.
+  Shows: .hub-figure with <video>, <img> and a data-hub-open tile, .hub-timeline.
+  Based on a real request to safely eject and reconnect the Elements backup
+  drive. The media below are examples of what the agent would record or export
+  first; the page refers to them by attachment name and the Hub swaps in the
+  files; an attachment's name is its file name. Send it with:
+
+  notification-hub conversations ask \
+    --question 'Can you safely eject and reconnect the Elements drive once, then tell me when it is back?' \
+    --big-picture '...' \
+    --option 'done=I reconnected it' \
+    --option 'later=Not now; leave the drive test for another day' \
+    --recommend done --recommend-reason '...' \
+    --subject-key elements-drive-reconnect \
+    --attach ./media/safe-eject.mp4 \
+    --attach ./media/safe-eject-poster.png \
+    --attach ./media/drive-ports.jpg \
+    --attach ./media/elements-drive.glb \
+    --explainer ./media-walkthrough.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reconnect the Elements drive</title>
+<style>
+  :root { --hub-radius: 1rem; }
+  body { padding-top: 0; }
+  header { margin: 0 -1rem 1.25rem; padding: 1.5rem 1rem; background: linear-gradient(135deg, var(--hub-accent), var(--hub-primary)); color: var(--hub-on-primary); }
+  header h1 { margin: 0 0 0.25rem; font-size: 1.75rem; }
+  header p { margin: 0; opacity: 0.92; }
+  .model { display: grid; place-items: center; gap: 0.5rem; min-height: 9rem; width: 100%; border: 1px dashed var(--hub-primary); border-radius: var(--hub-radius); background: var(--hub-surface); color: var(--hub-primary); font-weight: 600; }
+  .model svg { width: 3rem; height: 3rem; }
+  .hub-timeline h3 { font-size: 1rem; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Reconnect the drive</h1>
+    <p>One safe eject and one reconnect.</p>
+  </header>
+
+  <p>The backup program is watching the Elements drive right now. I want to see it return to ready by itself when you reconnect it, with no help from me. Doing it while the program is active is the whole test.</p>
+
+  <figure class="hub-figure">
+    <video controls playsinline preload="metadata" poster="safe-eject-poster.png" src="safe-eject.mp4"></video>
+    <figcaption>The whole routine on video. Watch it once before you start.</figcaption>
+  </figure>
+
+  <h2>The steps</h2>
+  <ol class="hub-timeline">
+    <li class="is-now"><h3>Eject it safely</h3><p>Use your computer's eject option, not the cable. Wait for it to say the drive is safe to remove.</p></li>
+    <li><h3>Unplug the cable</h3><p>Leave it out for a moment.</p></li>
+    <li><h3>Plug it back in</h3><p>Use the same port. The program should notice it on its own.</p></li>
+    <li><h3>Tell me</h3><p>Answer below once it is plugged in. I will check that it came back.</p></li>
+  </ol>
+
+  <figure class="hub-figure">
+    <img src="drive-ports.jpg" alt="The Elements drive with its cable port and status light marked">
+    <figcaption>Where the cable goes and where the status light is.</figcaption>
+  </figure>
+
+  <button type="button" class="model" data-hub-open="elements-drive.glb">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>
+    Turn the drive around in 3D
+  </button>
+  <p><small>Opens in the Hub viewer. Pinch to zoom, drag to turn.</small></p>
+
+  <div class="hub-callout is-success">
+    <strong>Nothing is at risk.</strong> If the drive does not come back, tell me and I will take it from there.
+  </div>
+</body>
+</html>

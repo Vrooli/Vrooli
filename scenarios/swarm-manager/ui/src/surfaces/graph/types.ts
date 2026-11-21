@@ -5,7 +5,7 @@ import {
   BACKLOG_STATUSES,
   CAPTURE_STATUSES,
   EXECUTION_STATUSES,
-  INITIATIVE_STATUSES,
+  GOAL_STATUSES,
   SCENARIO_STATUSES,
   type AgentActivityInteractionType,
   type AgentActivityPurpose,
@@ -18,7 +18,13 @@ import {
   type ExecutionStatus,
 } from "../../types";
 
-export type GraphLens = "focus" | "topology" | "operations";
+/**
+ * Internal graph data modes. Only "plan" and the single Graph surface are
+ * user-facing navigation targets. "topology" is the server projection
+ * (GET /api/v1/graph?lens=topology); "focus" is a client-side graph mode that
+ * filters topology data.
+ */
+export type GraphLens = "plan" | "focus" | "topology";
 
 export type GraphEntityType =
   | "backlog"
@@ -27,9 +33,8 @@ export type GraphEntityType =
   | "agent-activity"
   | "capture"
   | "agent-run"
-  | "initiative";
+  | "goal";
 
-export type GraphGroupingMode = "initiative" | "none";
 
 /**
  * Maps each entity type to its known status values.
@@ -41,15 +46,21 @@ export const ENTITY_STATUS_REGISTRY: Partial<Record<GraphEntityType, readonly st
   "agent-activity": AGENT_ACTIVITY_STATUSES,
   "agent-run": AGENT_RUN_STATUSES,
   scenario: SCENARIO_STATUSES,
-  initiative: INITIATIVE_STATUSES,
+  goal: GOAL_STATUSES,
 };
 
-export interface InitiativeRollupData {
+export interface GoalRollupData {
   total: number;
   completed: number;
   in_progress: number;
   failed: number;
   pending: number;
+}
+
+export interface GoalBadge {
+  name: string;
+  title: string;
+  priority: number;
 }
 
 interface GraphBaseNodeData {
@@ -62,6 +73,7 @@ interface GraphBaseNodeData {
   pulsing?: boolean;
   pulseMode?: "oneshot" | "persistent";
   priority?: number;
+  goalBadges?: GoalBadge[];
 }
 
 export interface BacklogGraphNodeData extends GraphBaseNodeData {
@@ -76,13 +88,13 @@ export interface BacklogGraphNodeData extends GraphBaseNodeData {
   activeExecutionCount?: number;
 }
 
-export interface InitiativeGraphNodeData extends GraphBaseNodeData {
-  entityType: "initiative";
-  rawType: "Initiative";
+export interface GoalGraphNodeData extends GraphBaseNodeData {
+  entityType: "goal";
+  rawType: "Goal";
   name: string;
   title: string;
   status: string;
-  rollup: InitiativeRollupData;
+  rollup: GoalRollupData;
 }
 
 export interface CaptureGraphNodeData extends GraphBaseNodeData {
@@ -138,10 +150,10 @@ export interface RunGraphNodeData extends GraphBaseNodeData {
 
 export interface ClusterGraphNodeData extends GraphBaseNodeData {
   label: string;
-  entityType: "initiative";
+  entityType: "goal";
   rawType: "Cluster";
   collapsed: boolean;
-  rollup: InitiativeRollupData | null;
+  rollup: GoalRollupData | null;
   isUnassigned?: boolean;
   pulsing?: boolean;
 }
@@ -155,7 +167,7 @@ export interface CappedGraphNodeData extends GraphBaseNodeData {
 
 export type GraphNodeData =
   | BacklogGraphNodeData
-  | InitiativeGraphNodeData
+  | GoalGraphNodeData
   | CaptureGraphNodeData
   | ScenarioGraphNodeData
   | ExecutionGraphNodeData
@@ -172,7 +184,7 @@ export interface GraphEdgeData {
 }
 
 export type GraphNode = FlowNode<GraphNodeData>;
-export type GraphEdge = FlowEdge<GraphEdgeData>;
+export type GraphEdge = FlowEdge;
 
 export function getGraphNodeData(node: { data?: unknown }): GraphNodeData {
   return node.data as GraphNodeData;

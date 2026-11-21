@@ -1,0 +1,537 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "notification-hub/kit/usage-mode.schema.json",
+  "title": "Usage-mode decision",
+  "description": "Data for templates/usage-mode.html: a decision about how fast agents may spend a provider allowance (for example: keep low power until the reset). Every number must come from the producer's real forecast; omit a section, or mark its source unavailable, rather than estimating. The Hub sends it as a decision; the operator's choice arrives as the answer key 'answer' with an option key.",
+  "type": "object",
+  "required": [
+    "meta",
+    "options"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "const": "usage-mode",
+      "description": "Optional self-identification; when present must be 'usage-mode'."
+    },
+    "meta": {
+      "$ref": "#/$defs/meta"
+    },
+    "recommendation": {
+      "type": "object",
+      "description": "What the producer recommends, shown first. Omit when there is no view.",
+      "required": [
+        "option",
+        "headline"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "option": {
+          "type": "string",
+          "description": "Key of the recommended option in options[]. Selected when the page opens."
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence: what you recommend, in plain words."
+        },
+        "why": {
+          "type": "string",
+          "description": "One or two sentences: why, with the decisive numbers."
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "description": "The allowance window and its readings, from the provider forecast. Drawn as the burn chart and the four stat tiles. Omit, or set source.status 'unavailable', when there is no forecast.",
+      "required": [
+        "start",
+        "reset",
+        "now",
+        "readings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the window began (left edge of the chart)."
+        },
+        "reset": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the provider resets used percent to zero (right edge; the Reset marker)."
+        },
+        "now": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The forecast's anchor time (the Now marker). Projections start here."
+        },
+        "endLabel": {
+          "type": "string",
+          "description": "Label of the right-edge marker. Default 'Reset'."
+        },
+        "readings": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Observed used percent, oldest first. The last reading is 'used now'.",
+          "items": {
+            "$ref": "#/$defs/reading"
+          }
+        },
+        "lowPower": {
+          "type": "array",
+          "description": "Spans when low power was (or is) on, shaded on the chart.",
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        },
+        "paceNow": {
+          "type": "object",
+          "description": "The observed burn rate now, from the forecast's trailing burn.",
+          "required": [
+            "ratePerHour"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "ratePerHour": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Used percent per hour."
+            },
+            "label": {
+              "type": "string",
+              "description": "Tile label, e.g. 'Pace now (low power)'."
+            }
+          }
+        },
+        "safePace": {
+          "type": "boolean",
+          "description": "Draw the safe-pace line from the last reading to 100% at the reset. Default true. The safe-pace tile is computed as (100 - used now) / hours to reset."
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The choices, each with its own projection. Keys must match the ask's --option keys so 'Choose this' fills the Hub answer.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "description": "Option key; the answer value."
+          },
+          "title": {
+            "type": "string",
+            "description": "Full name, e.g. 'Keep low power until reset'."
+          },
+          "short": {
+            "type": "string",
+            "description": "Short name for the preview switch and strips, e.g. 'A · Keep'."
+          },
+          "recommended": {
+            "type": "boolean",
+            "description": "Marks the recommended option when recommendation is absent."
+          },
+          "pill": {
+            "$ref": "#/$defs/pill"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What happens next, its cost or risk; three short lines."
+          },
+          "projection": {
+            "type": "object",
+            "description": "The forecast if this option is chosen, from now to the reset.",
+            "additionalProperties": false,
+            "properties": {
+              "points": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/projected"
+                },
+                "description": "Projected used percent after now, oldest first. lo/hi draw the likely range band."
+              },
+              "runOut": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "Central run-out time, or null when the allowance lasts to the reset."
+              },
+              "runOutRange": {
+                "type": "object",
+                "additionalProperties": false,
+                "description": "Likely run-out range. early or late may be omitted when it lies past the reset.",
+                "properties": {
+                  "early": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Earliest likely run-out."
+                  },
+                  "late": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Latest likely run-out."
+                  }
+                }
+              },
+              "atReset": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "used"
+                ],
+                "description": "Used percent at the reset when it does not run out.",
+                "properties": {
+                  "used": {
+                    "type": "number",
+                    "description": "Central used percent at the reset."
+                  },
+                  "lo": {
+                    "type": "number",
+                    "description": "Low end of the likely range."
+                  },
+                  "hi": {
+                    "type": "number",
+                    "description": "High end of the likely range (may exceed 100 when running out is possible)."
+                  }
+                }
+              }
+            }
+          },
+          "segments": {
+            "type": "array",
+            "description": "Agent power from now to the reset under this option, drawn as one strip per option.",
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to",
+                "mode"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Segment start."
+                },
+                "to": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Segment end."
+                },
+                "mode": {
+                  "enum": [
+                    "full",
+                    "low",
+                    "stopped"
+                  ],
+                  "description": "full power, low power, or stopped (allowance used up)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "recurrence": {
+      "type": "object",
+      "description": "The producer's copy of the asks on this subject, in the same shape as the Hub's hub.context.recurrence. The page prefers the Hub's history and uses this only when the Hub has none (count 0). 'stop' is always used.",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Times asked so far, this ask included (as the Hub counts)."
+        },
+        "dates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "When each ask was sent, oldest first, this one last."
+        },
+        "previousAnswers": {
+          "type": "array",
+          "description": "Answers to earlier asks, oldest first (unanswered asks are left out).",
+          "items": {
+            "type": "object",
+            "required": [
+              "answer"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "answer": {
+                "type": "string",
+                "description": "The option key chosen (shown with its option title when it matches one) or a short text."
+              },
+              "note": {
+                "type": "string",
+                "description": "The operator's note with that answer."
+              },
+              "answeredAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When it was answered; places it on the timeline."
+              }
+            }
+          }
+        },
+        "stop": {
+          "type": "string",
+          "description": "Which answer ends the repeats, e.g. 'Option D turns your answer into a standing rule.'"
+        }
+      }
+    },
+    "cause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "description": "Why this decision exists and how the recommended option fixes the cause.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Section heading, e.g. 'Fourth time in nine days'."
+        },
+        "text": {
+          "type": "string",
+          "description": "The cause in plain words, and the fix."
+        }
+      }
+    },
+    "noAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "description": "What happens with no answer.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The consequence, stated as a real choice."
+        },
+        "closesIn": {
+          "type": "string",
+          "description": "Short clock label, e.g. '24h'."
+        }
+      }
+    },
+    "technical": {
+      "$ref": "#/$defs/technical"
+    }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "description": "Page header.",
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision as a question, shown as the page heading."
+        },
+        "producer": {
+          "type": "string",
+          "description": "Who sends it, e.g. 'Agent Manager · model usage'."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the data was produced."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone for every time on the page, e.g. 'America/New_York'. Default: the device's zone."
+        },
+        "notice": {
+          "type": "string",
+          "description": "Optional note shown under the header, e.g. that the data is a sample."
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Data provenance for one section, shown as a badge. 'unavailable' replaces the section's chart with a plain notice.",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "real",
+            "partial",
+            "unavailable"
+          ],
+          "description": "real: measured; partial: some parts measured, the rest missing (say which in note); unavailable: the source is missing."
+        },
+        "label": {
+          "type": "string",
+          "description": "Where the data comes from, e.g. 'Agent Manager forecast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "What is missing or how it was measured; shown on tap and in the unavailable notice."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source was read."
+        }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "required": [
+        "t",
+        "used"
+      ],
+      "additionalProperties": false,
+      "description": "One observed reading.",
+      "properties": {
+        "t": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Reading time."
+        },
+        "used": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Used percent."
+        }
+      }
+    },
+    "projected": {
+      "type": "object",
+      "required": [
+        "t",
+        "used"
+      ],
+      "additionalProperties": false,
+      "description": "One projected point.",
+      "properties": {
+        "t": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Point time."
+        },
+        "used": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Central projected used percent (capped at 100)."
+        },
+        "lo": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Low end of the likely range."
+        },
+        "hi": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "High end of the likely range."
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "description": "A time span.",
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start."
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End."
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional label drawn at the span's start."
+        }
+      }
+    },
+    "pill": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A short status label on a card.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Label text, e.g. 'Runs out'."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit",
+            "info"
+          ],
+          "description": "Colour: good green, warn amber, crit red, info accent."
+        }
+      }
+    },
+    "technical": {
+      "type": "array",
+      "description": "IDs, rules and evidence for the agent that acts, in a collapsed section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Term."
+          },
+          "value": {
+            "type": "string",
+            "description": "Value."
+          }
+        }
+      }
+    }
+  }
+}

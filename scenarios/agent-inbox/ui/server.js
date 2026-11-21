@@ -8,7 +8,6 @@ const app = createScenarioServer({
   apiPort: API_PORT,
   distDir: './dist',
   serviceName: 'agent-inbox',
-  corsOrigins: '*',
   verbose: process.env.DEBUG === 'true',
   // Extended timeout for AI completions with web search (can take 60+ seconds)
   proxyTimeoutMs: 180000, // 3 minutes

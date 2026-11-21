@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "asks",
+    "title": "Needs you",
+    "routes": [
+      "/",
+      "/asks"
+    ],
+    "purpose": "Show the operator the decisions that need an answer and the context needed to respond.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    {
+      "id": "default"
+    },
+    {
+      "id": "loading",
+      "description": "The first read is in flight; placeholder rows hold the place and are announced as loading."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing is waiting: a checked all-clear with a link to past decisions."
+    },
+    {
+      "id": "partial",
+      "description": "Rows are shown while a refresh or a further page failed; the failure is said above the list and Retry keeps the rows."
+    },
+    {
+      "id": "request-error",
+      "description": "The read failed: the cause is named with a retry, or the sign-in card when the owner session is missing."
+    },
+    {
+      "id": "stale",
+      "description": "Rows from an earlier read stay on screen while a refresh runs, and the footer says how long ago they were updated."
+    },
+    {
+      "id": "filtered",
+      "description": "Urgency or sender filters are in force: they are chips under the sort menu, each removable in one tap, and the header says how many of the waiting decisions are shown."
+    },
+    {
+      "id": "filter-sheet",
+      "description": "The Filters sheet lists urgency and sender with how many decisions each would show; choosing one applies at once and the sheet stays open."
+    }
+  ]
+}

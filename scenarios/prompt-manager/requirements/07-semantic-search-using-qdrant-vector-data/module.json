@@ -13,7 +13,7 @@
       "description": "Implement semantic search functionality using Qdrant vector database",
       "id": "REQ-P1-001",
       "prd_ref": "prompt-manager-should-have-semantic-search-using-qdrant-vector-database",
-      "status": "draft",
+      "status": "planned",
       "title": "Qdrant Vector Search",
       "validation": [
         {
@@ -38,7 +38,7 @@
           "type": "test"
         },
         {
-          "notes": "Qdrant-PostgreSQL synchronization",
+          "notes": "Qdrant-search synchronization",
           "phase": "integration",
           "ref": "",
           "status": "pending",

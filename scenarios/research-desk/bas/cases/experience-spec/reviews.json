@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-reviews-spec-smoke",
+    "description": "Observer smoke: the Reviews page renders at phone width against the real research home.",
+    "requirement": "OT-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "reviews",
+      "surface": "experience-reviews"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-reviews",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/reviews",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Reviews"
+        }
+      }
+    },
+    {
+      "id": "wait-reviews-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.reviews",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Reviews page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-reviews",
+      "source": "navigate-reviews",
+      "target": "wait-reviews-page"
+    }
+  ]
+}

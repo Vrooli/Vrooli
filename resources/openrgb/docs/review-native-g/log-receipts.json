@@ -1,0 +1,130 @@
+[
+  {
+    "path": "proto-preflight.log",
+    "cwd": "/home/matthalloran8/Vrooli-native-lighting/packages/proto",
+    "command": "make verify-committed-gen",
+    "exit_code": 0,
+    "bytes": 46,
+    "sha256": "c1b83d3cf55904bd5a201b8a7b01a784858a57a367b3134fb31ddad99802b8d9"
+  },
+  {
+    "path": "new-history.jsonl",
+    "cwd": "/home/matthalloran8/Vrooli-native-lighting",
+    "command": "go test -race -overlay /home/matthalloran8/Vrooli-native-lighting/resources/openrgb/docs/review-native-g/overlay.json ./internal/resources -run '^TestNativeG' -count=1 -json",
+    "exit_code": 0,
+    "bytes": 4493,
+    "sha256": "7a090e2d8277f0c100bdce4668e07c783740c9ea803297957c8955ada364cc80",
+    "tests": {
+      "github.com/vrooli/vrooli/internal/resources": {
+        "pass": 2
+      }
+    },
+    "packages": [
+      {
+        "package": "github.com/vrooli/vrooli/internal/resources",
+        "result": "pass",
+        "elapsed": 28.711
+      }
+    ],
+    "skipped_tests": []
+  },
+  {
+    "path": "resource-boundaries.jsonl",
+    "cwd": "/home/matthalloran8/Vrooli-native-lighting",
+    "command": "go test -race ./internal/resources -run '^(TestOpenRGB|TestNativeOpenRGB|TestNativeD|TestNativeE)' -count=1 -json",
+    "exit_code": 0,
+    "bytes": 358040,
+    "sha256": "838c120214568c83a9bd9fb7c57659826d660b66cf22266f280a375011ea936e",
+    "tests": {
+      "github.com/vrooli/vrooli/internal/resources": {
+        "pass": 180,
+        "skip": 8
+      }
+    },
+    "packages": [
+      {
+        "package": "github.com/vrooli/vrooli/internal/resources",
+        "result": "pass",
+        "elapsed": 160.351
+      }
+    ],
+    "skipped_tests": [
+      "TestOpenRGBAdoptedArtifactInspectionUsesExactNativeProfile",
+      "TestOpenRGBPinnedAppImageStageFixture",
+      "TestOpenRGBCompleteMacLoaderOfflineEvidence",
+      "TestOpenRGBMacDerivedManagedAndAdoptedRecovery",
+      "TestOpenRGBPinnedRuntimeNormalizationFixture",
+      "TestOpenRGBARM64OfflineExtraction",
+      "TestOpenRGBNativeLinuxPrerequisiteReadiness",
+      "TestOpenRGBReleaseProfileMeasurement"
+    ]
+  },
+  {
+    "path": "runtime-full.jsonl",
+    "cwd": "/home/matthalloran8/Vrooli-native-lighting",
+    "command": "VROOLI_OPENRGB_STAGE_FIXTURE=/home/matthalloran8/.vrooli/artifacts/openrgb-sealed/1.1/d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d/OpenRGB.AppImage go test -race ./internal/app/runtime ./internal/lightingruntime -count=1 -json",
+    "exit_code": 0,
+    "bytes": 134018,
+    "sha256": "27a3fd33ddc00a1d6b965d9a0b2254fef3bda660293715ff95373b3f7c05c7ad",
+    "tests": {
+      "github.com/vrooli/vrooli/internal/lightingruntime": {
+        "pass": 26
+      },
+      "github.com/vrooli/vrooli/internal/app/runtime": {
+        "pass": 56,
+        "skip": 1
+      }
+    },
+    "packages": [
+      {
+        "package": "github.com/vrooli/vrooli/internal/lightingruntime",
+        "result": "pass",
+        "elapsed": 2.499
+      },
+      {
+        "package": "github.com/vrooli/vrooli/internal/app/runtime",
+        "result": "pass",
+        "elapsed": 27.244
+      }
+    ],
+    "skipped_tests": [
+      "TestActualBuildsAdmitBehaviourOnlyChangesAndRefuseStoredShapeChanges"
+    ]
+  },
+  {
+    "path": "device-boundaries.jsonl",
+    "cwd": "/home/matthalloran8/Vrooli-native-lighting",
+    "command": "go test -race ./internal/hostreqkit ./internal/operatorstate ./internal/config -run '(OpenRGB|NativeHID|Lighting|Native|Disable|ResourceUpdate)' -count=1 -json",
+    "exit_code": 0,
+    "bytes": 95840,
+    "sha256": "205c57c3a4d42c52b4db4a19d6ff5363074cca625a560c53c50970a5ea7680c1",
+    "tests": {
+      "github.com/vrooli/vrooli/internal/hostreqkit": {
+        "pass": 41
+      },
+      "github.com/vrooli/vrooli/internal/operatorstate": {
+        "skip": 1
+      }
+    },
+    "packages": [
+      {
+        "package": "github.com/vrooli/vrooli/internal/config",
+        "result": "pass",
+        "elapsed": 1.011
+      },
+      {
+        "package": "github.com/vrooli/vrooli/internal/operatorstate",
+        "result": "pass",
+        "elapsed": 1.022
+      },
+      {
+        "package": "github.com/vrooli/vrooli/internal/hostreqkit",
+        "result": "pass",
+        "elapsed": 3.223
+      }
+    ],
+    "skipped_tests": [
+      "TestNativeOperatorMissingLoadHasNoEffects"
+    ]
+  }
+]

@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.identity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/identity;identityv1";
+
+// =============================================================================
+// IDENTITY — canonical cloud deployment, target, release and operation refs
+// =============================================================================
+//
+// @stability beta
+//
+// These messages are the only wire shape for cloud identities. A deployment is
+// identified by its stable id, never by a scenario name, a domain, a URL or a
+// mutable host address. Targets compose the Bridge machine/node identity with
+// the enrollment generation so a replaced node cannot inherit an old approval.
+// The locator (host, port, user, workdir) is reachability metadata: it may
+// change without changing the deployment identity.
+//
+// USAGE CONTEXTS:
+//   - api/identity: Go domain types mirror these messages one-to-one.
+//   - deployments/deployments.proto: DeploymentsService resolves selectors to
+//     DeploymentRef.
+//   - Later domains (plans, operations, releases, health) reference these
+//     identities instead of copying their fields.
+//
+// =============================================================================
+
+// DeploymentRef is the stable identity of one installed scenario on one target
+// in one environment.
+message DeploymentRef {
+  // @format uuid
+  string id = 1;
+  string scenario_id = 2;
+  // Environment name. "production" is the default for legacy records.
+  string environment = 3;
+  TargetRef target = 4;
+}
+
+// TargetRef composes the Bridge machine identity with the transport used to
+// reach it. machine_id and node_id are empty for SSH-only targets that have
+// not been enrolled with the Bridge yet.
+message TargetRef {
+  string machine_id = 1;
+  string node_id = 2;
+  uint64 enrollment_generation = 3;
+  // Transport selected for this target: "bridge" or "ssh".
+  string transport = 4;
+  TargetLocator locator = 5;
+}
+
+// TargetLocator is mutable reachability metadata. It is never identity.
+message TargetLocator {
+  string host = 1;
+  int32 port = 2;
+  string user = 3;
+  string workdir = 4;
+}
+
+// ReleaseRef identifies an immutable release by content digests.
+message ReleaseRef {
+  string digest = 1;
+  string provenance_ref = 2;
+  string closure_digest = 3;
+  string configuration_digest = 4;
+}
+
+// OperationRef identifies one durable operation admitted against a
+// deployment. The fence is the deployment fence captured at acquisition.
+message OperationRef {
+  // @format uuid
+  string id = 1;
+  string request_key = 2;
+  string plan_digest = 3;
+  uint64 fence = 4;
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "grab3d-generic-dashboard-neutral-display-v1",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/vehicle-center-stack/generic-dashboard-cc0-neutral-v1.glb",
+    "sha256": "4f7dee2ca8790baab3c8f115f21e582af710e0ed2f16d976058a56814b431b26",
+    "size_bytes": 1741092
+  },
+  "source": {
+    "model": "Grab3D Car Dashboard",
+    "page": "https://grab3d.com/models/vehicles/car-dashboard/",
+    "download": "https://grab3d.com/dl/car-dashboard/car-dashboard.glb",
+    "license_claim": "CC0-1.0, stated by retained source package LICENSE.txt and manifest.json",
+    "license_reference": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source_sha256": "17a5c6a762c5eeeaa7941ee385f2bba0bec453fb3a9b208c4eb39d0d643a8baf",
+    "lineage_packet": "scenarios/device-studio/assets/sources/grab3d-car-dashboard-neutral-display-v1-20261021/manifest.json",
+    "license_status": "package claim verified; not an independent legal determination"
+  },
+  "screen": {
+    "node": "vehicle-display-assembly",
+    "mesh_index": 3,
+    "primitive_index": 0,
+    "material_index": 10,
+    "uv_min": [0,0],
+    "uv_max": [1,1],
+    "origin": "upper-left; U right, V down",
+    "facing_normal_local": [0,0.208,0.978]
+  },
+  "adaptation": "Uses retained CC0 source-preserving neutral-screen derivative: source map overlays removed, one clean upper-left-origin display plane and bezel retained, mint coloration neutralized. Both named presentations are simulated layouts only.",
+  "allowed_use": ["internal_candidate_review", "screen_geometry_reuse_under_CC0"],
+  "limitations": ["No OEM identity, vehicle fit, ergonomic/safety review, CarPlay integration, or Android Auto integration claim.", "Asset has not passed Device Studio native visual review."]
+}

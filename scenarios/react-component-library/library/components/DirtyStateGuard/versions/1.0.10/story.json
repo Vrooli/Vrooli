@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-dirty-guard]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"No dirty changes","args":{"dirty":false},"expect":[{"kind":"visible","selector":"[data-rcl-dirty-guard]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Saving changes","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-dirty-guard]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Save error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-dirty-guard]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long unsaved changes copy","args":{"message":"This deliberately long message explains that unsaved changes remain on the page while the save request is retried."},"expect":[{"kind":"visible","selector":"[data-rcl-dirty-guard]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

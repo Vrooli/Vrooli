@@ -8,9 +8,26 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/vps"
 )
+
+func inspectProber(manifest domain.CloudManifest, runner sshadapter.Runner) vps.Prober {
+	return vps.Prober{
+		Reach: &sshadapter.Adapter{
+			Runner: runner,
+			Config: func(_ context.Context, target identity.TargetRef) (sshadapter.ConnectionConfig, error) {
+				return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, ""), nil
+			},
+		},
+		Target: domain.TargetRefFromManifest(manifest),
+	}
+}
+
+func inspectCommand(workdir string, argv ...string) string {
+	return sshadapter.RemoteCommand(workdir, argv)
+}
 
 func TestVPSInspectPlanAndApply(t *testing.T) {
 	// [REQ:STC-P0-006] Remote status and logs retrieval
@@ -47,22 +64,20 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 	if len(plan.Steps) != 3 {
 		t.Fatalf("expected 3 steps, got: %+v", plan)
 	}
-	if !strings.Contains(plan.Steps[2].Command, "--tail 123") {
+	if !strings.Contains(plan.Steps[2].Command, "'--tail' '123'") {
 		t.Fatalf("expected tail override, got: %s", plan.Steps[2].Command)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	// Commands now include PATH setup for SSH non-interactive sessions
-	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json":   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
+	runner := &FakeSSHRunner{Responses: map[string]sshadapter.Result{
+		inspectCommand("/root/Vrooli", "scenario", "status", "landing-page-business-suite", "--json"):      {ExitCode: 0, Stdout: `{"status":"healthy"}`},
+		inspectCommand("/root/Vrooli", "resource", "status", "--json"):                                     {ExitCode: 0, Stdout: `{"resources":[]}`},
+		inspectCommand("/root/Vrooli", "scenario", "logs", "landing-page-business-suite", "--tail", "123"): {ExitCode: 0, Stdout: "hello\nworld"},
 	}}
 
-	result := vps.RunInspect(ctx, manifest, opts, runner)
+	result := vps.RunInspect(ctx, manifest, opts, inspectProber(manifest, runner))
 	if !result.OK {
 		t.Fatalf("expected OK, got: %+v", result)
 	}
@@ -164,9 +179,9 @@ func TestBuildInspectPlanSteps(t *testing.T) {
 		id       string
 		contains string
 	}{
-		{"scenario_status", "vrooli scenario status"},
-		{"resource_status", "vrooli resource status"},
-		{"scenario_logs", "vrooli scenario logs"},
+		{"scenario_status", "scenario status"},
+		{"resource_status", "resource status"},
+		{"scenario_logs", "scenario logs"},
 	}
 
 	if len(plan.Steps) != len(expectedSteps) {
@@ -178,8 +193,13 @@ func TestBuildInspectPlanSteps(t *testing.T) {
 		if step.ID != exp.id {
 			t.Errorf("step %d: expected ID %q, got %q", i, exp.id, step.ID)
 		}
-		if !strings.Contains(step.Command, exp.contains) {
-			t.Errorf("step %d: expected command to contain %q, got: %s", i, exp.contains, step.Command)
+		contains := strings.NewReplacer(
+			"scenario status", "'scenario' 'status'",
+			"resource status", "'resource' 'status'",
+			"scenario logs", "'scenario' 'logs'",
+		).Replace(exp.contains)
+		if !strings.Contains(step.Command, contains) {
+			t.Errorf("step %d: expected command to contain %q, got: %s", i, contains, step.Command)
 		}
 		if step.Title == "" {
 			t.Errorf("step %d: missing title", i)
@@ -198,7 +218,7 @@ func TestBuildInspectPlanSteps(t *testing.T) {
 	}
 
 	// Verify tail lines are in logs command
-	if !strings.Contains(plan.Steps[2].Command, "--tail 50") {
+	if !strings.Contains(plan.Steps[2].Command, "'--tail' '50'") {
 		t.Errorf("expected --tail 50 in logs command: %s", plan.Steps[2].Command)
 	}
 }
@@ -247,26 +267,25 @@ func TestRunInspectHandlesErrors(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-			responses := map[string]ssh.Result{
-				pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test-app' --json":   {ExitCode: 0, Stdout: `{}`},
-				pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":              {ExitCode: 0, Stdout: `{}`},
-				pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100": {ExitCode: 0, Stdout: "logs"},
+			responses := map[string]sshadapter.Result{
+				inspectCommand("/root/Vrooli", "scenario", "status", "test-app", "--json"):      {ExitCode: 0, Stdout: `{}`},
+				inspectCommand("/root/Vrooli", "resource", "status", "--json"):                  {ExitCode: 0, Stdout: `{}`},
+				inspectCommand("/root/Vrooli", "scenario", "logs", "test-app", "--tail", "100"): {ExitCode: 0, Stdout: "logs"},
 			}
 			errs := map[string]error{}
 
 			// Set up failure based on test case
 			switch tt.failOn {
 			case "status":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli scenario status 'test-app' --json"] = errors.New(tt.expectedError)
+				errs[inspectCommand("/root/Vrooli", "scenario", "status", "test-app", "--json")] = errors.New(tt.expectedError)
 			case "resource":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli resource status --json"] = errors.New(tt.expectedError)
+				errs[inspectCommand("/root/Vrooli", "resource", "status", "--json")] = errors.New(tt.expectedError)
 			case "logs":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100"] = errors.New(tt.expectedError)
+				errs[inspectCommand("/root/Vrooli", "scenario", "logs", "test-app", "--tail", "100")] = errors.New(tt.expectedError)
 			}
 
 			runner := &FakeSSHRunner{Responses: responses, Errs: errs}
-			result := vps.RunInspect(ctx, manifest, opts, runner)
+			result := vps.RunInspect(ctx, manifest, opts, inspectProber(manifest, runner))
 
 			if result.OK {
 				t.Fatal("expected not OK")
@@ -298,16 +317,15 @@ func TestRunInspectTimestamp(t *testing.T) {
 	}
 	opts := vps.InspectOptions{TailLines: 10}
 
-	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
-	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test' --json":  {ExitCode: 0, Stdout: `{}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":         {ExitCode: 0, Stdout: `{}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test' --tail 10": {ExitCode: 0, Stdout: ""},
+	runner := &FakeSSHRunner{Responses: map[string]sshadapter.Result{
+		inspectCommand("/root/Vrooli", "scenario", "status", "test", "--json"):     {ExitCode: 0, Stdout: `{}`},
+		inspectCommand("/root/Vrooli", "resource", "status", "--json"):             {ExitCode: 0, Stdout: `{}`},
+		inspectCommand("/root/Vrooli", "scenario", "logs", "test", "--tail", "10"): {ExitCode: 0, Stdout: ""},
 	}}
 
 	// Subtract 1 second from before to allow for rounding differences in RFC3339 format
 	before := time.Now().UTC().Add(-time.Second)
-	result := vps.RunInspect(ctx, manifest, opts, runner)
+	result := vps.RunInspect(ctx, manifest, opts, inspectProber(manifest, runner))
 	after := time.Now().UTC().Add(time.Second)
 
 	if result.Timestamp == "" {

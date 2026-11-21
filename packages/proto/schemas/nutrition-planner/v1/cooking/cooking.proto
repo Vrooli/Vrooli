@@ -1,0 +1,25 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.cooking;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cooking;cooking_v1";
+service CookingService {
+  rpc StartSession(StartSessionRequest) returns (SessionResponse);
+  rpc GetSession(GetSessionRequest) returns (SessionResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc SaveSession(SaveSessionRequest) returns (SessionResponse);
+}
+message Timer { string id=1; string step_id=2; int64 duration_seconds=3; string started_at=4; string paused_at=5; int64 elapsed_seconds=6; }
+message CookingSession {
+  string id=1; string workspace_id=2; string recipe_id=3; int64 recipe_revision=4; string method_id=5; string scale=6;
+  int32 current_step_index=7; repeated string completed_steps=8; repeated Timer timers=9; string status=10;
+  string actual_yield=11; string yield_unit=12; int64 version=13; string started_at=14; string updated_at=15; string finished_at=16;
+}
+message StartSessionRequest { string workspace_id=1; string session_id=2; string recipe_id=3; int64 recipe_revision=4; string method_id=5; string scale=6; }
+message GetSessionRequest { string workspace_id=1; string session_id=2; }
+message ListSessionsRequest { string workspace_id=1; }
+message ListSessionsResponse { repeated CookingSession sessions=1; }
+message SaveSessionRequest {
+  string workspace_id=1; string session_id=2; string event_id=3; int64 expected_version=4;
+  int32 current_step_index=5; repeated string completed_steps=6; repeated Timer timers=7;
+  bool finish=8; string actual_yield=9; string yield_unit=10;
+}
+message SessionResponse { CookingSession session=1; }

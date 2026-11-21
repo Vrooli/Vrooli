@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Start",
+  "route": "/",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.migration-generator",
+    "name": "MigrationGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces codemods and guided migration steps for renamed APIs, changed tokens, reorganized packages, and deprecated assets.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "rationale": "Under copy-adoption a migration cannot be applied centrally, so every breaking change has to ship a codemod the adopting scenario can run on its own schedule."
+}

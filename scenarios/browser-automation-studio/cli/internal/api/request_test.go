@@ -4,10 +4,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/testutil"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -23,7 +23,7 @@ func TestDo_SetsClientSourceHeader(t *testing.T) {
 	defer ts.Close()
 
 	// Create a minimal context with the test server URL
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -36,9 +36,8 @@ func TestDo_SetsClientSourceHeader(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	// Make a request
@@ -65,16 +64,14 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Set token via environment variable (the way ScenarioApp expects it)
+	// Supply an isolated environment through the same seam production uses.
 	const testTokenEnv = "TEST_APP_API_TOKEN"
-	os.Setenv(testTokenEnv, "test-token-123")
-	defer os.Unsetenv(testTokenEnv)
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:           "test-app",
-		Version:        "1.0.0",
-		AllowAnonymous: true,
-		TokenEnvVars:   []string{testTokenEnv},
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:              "test-app",
+		Version:           "1.0.0",
+		AllowAnonymous:    true,
+		ExtraTokenEnvVars: []string{testTokenEnv},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create scenario app: %v", err)
@@ -83,9 +80,9 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 
 	ctx := &appctx.Context{
 		Name:         "test-app",
-		Version:      "1.0.0",
 		Core:         core,
 		TokenEnvVars: []string{testTokenEnv},
+		Environment:  testutil.MapEnv{testTokenEnv: "test-token-123"},
 	}
 
 	_, _, err = Do(ctx, "GET", "/test", nil, nil, nil)
@@ -107,7 +104,7 @@ func TestDo_SetsContentTypeForBody(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -118,9 +115,8 @@ func TestDo_SetsContentTypeForBody(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	// Request with body
@@ -144,7 +140,7 @@ func TestDo_CustomHeaders(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -155,9 +151,8 @@ func TestDo_CustomHeaders(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	customHeaders := map[string]string{
@@ -188,7 +183,7 @@ func TestDo_NilContext(t *testing.T) {
 }
 
 func TestDo_EmptyAPIBase(t *testing.T) {
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -199,9 +194,8 @@ func TestDo_EmptyAPIBase(t *testing.T) {
 	// Don't set API base - leave it empty
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	_, _, err = Do(ctx, "GET", "/test", nil, nil, nil)

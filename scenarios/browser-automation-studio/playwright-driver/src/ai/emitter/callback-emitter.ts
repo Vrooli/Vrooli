@@ -152,37 +152,3 @@ export async function emitNavigationComplete(
 
   await sendWithRetry(callbackUrl, event, timeoutMs, retries, retryDelayMs);
 }
-
-/**
- * Create a mock emitter for testing.
- */
-export function createMockEmitter(): StepEmitterInterface & {
-  getEmittedSteps(): NavigationStep[];
-  clearEmittedSteps(): void;
-  setFailMode(shouldFail: boolean): void;
-} {
-  const emittedSteps: NavigationStep[] = [];
-  let shouldFail = false;
-
-  return {
-    emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
-      if (shouldFail) {
-        return Promise.reject(new Error('Mock emitter failure'));
-      }
-      emittedSteps.push(step);
-      return Promise.resolve();
-    },
-
-    getEmittedSteps(): NavigationStep[] {
-      return [...emittedSteps];
-    },
-
-    clearEmittedSteps(): void {
-      emittedSteps.length = 0;
-    },
-
-    setFailMode(fail: boolean): void {
-      shouldFail = fail;
-    },
-  };
-}

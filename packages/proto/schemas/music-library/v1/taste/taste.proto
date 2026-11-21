@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package vrooli.music_library.v1.taste;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-library/v1/taste;taste_v1";
+
+// TasteService is the durable, auditable interface to the listener's
+// preference profile. Every judgment is bound to exact catalog identities;
+// callers cannot submit feature vectors as labels.
+service TasteService {
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc SetControl(SetControlRequest) returns (SetControlResponse);
+  rpc SelectPair(SelectPairRequest) returns (SelectPairResponse);
+  rpc RecordJudgment(RecordJudgmentRequest) returns (RecordJudgmentResponse);
+  rpc Recommend(RecommendRequest) returns (RecommendResponse);
+}
+
+message TasteProfile {
+  string context = 1;
+  string model_version = 2;
+  string feature_space = 3;
+  int64 revision = 4;
+  repeated TasteControl controls = 5;
+  repeated TasteWeight weights = 6;
+  repeated PairwiseJudgment judgments = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message TasteControl {
+  string attribute = 1;
+  string mode = 2;
+  double value = 3;
+}
+
+message TasteWeight {
+  string attribute = 1;
+  double mean = 2;
+  double variance = 3;
+  int64 evidence_count = 4;
+}
+
+message PairwiseJudgment {
+  string id = 1;
+  string context = 2;
+  string left_track_sha256 = 3;
+  string right_track_sha256 = 4;
+  string choice = 5;
+  string reason = 6;
+  string attribute_scope = 7;
+  string source = 8;
+  string reverses_judgment_id = 9;
+  repeated TasteFeature left_evidence = 10;
+  repeated TasteFeature right_evidence = 11;
+  google.protobuf.Timestamp judged_at = 12;
+}
+
+message TasteFeature {
+  string attribute = 1;
+  double value = 2;
+  double confidence = 3;
+  string evidence_source = 4;
+}
+
+message TasteCandidate {
+  string track_sha256 = 1;
+  string title = 2;
+  string artist = 3;
+  string genre = 4;
+  repeated string tags = 5;
+  repeated TasteFeature features = 6;
+}
+
+message TasteContribution {
+  string attribute = 1;
+  double feature_value = 2;
+  double feature_confidence = 3;
+  double learned_weight = 4;
+  double contribution = 5;
+  string evidence_source = 6;
+}
+
+message TasteRecommendation {
+  TasteCandidate candidate = 1;
+  int32 rank = 2;
+  double predicted_preference = 3;
+  double uncertainty = 4;
+  bool exploration = 5;
+  repeated TasteContribution contributions = 6;
+  double selection_score = 7;
+  double exploration_bonus = 8;
+}
+
+message GetProfileRequest { string context = 1; }
+message GetProfileResponse { TasteProfile profile = 1; }
+
+message SetControlRequest {
+  string context = 1;
+  TasteControl control = 2;
+}
+message SetControlResponse { TasteProfile profile = 1; }
+
+message SelectPairRequest {
+  string context = 1;
+  bool random_baseline = 2;
+  int64 random_seed = 3;
+}
+message SelectPairResponse {
+  TasteCandidate left = 1;
+  TasteCandidate right = 2;
+  double expected_information = 3;
+  int64 available_candidate_count = 4;
+  bool insufficient_evidence = 5;
+}
+
+message RecordJudgmentRequest {
+  string context = 1;
+  string left_track_sha256 = 2;
+  string right_track_sha256 = 3;
+  string choice = 4;
+  string reason = 5;
+  string attribute_scope = 6;
+  string reverses_judgment_id = 7;
+}
+message RecordJudgmentResponse { TasteProfile profile = 1; }
+
+message RecommendRequest {
+  string context = 1;
+  string seed_track_sha256 = 2;
+  int32 limit = 3;
+}
+message RecommendResponse {
+  TasteCandidate seed = 1;
+  repeated TasteRecommendation recommendations = 2;
+  string evidence_state = 3;
+  string mq2_brief = 4;
+  repeated string chosen_features = 5;
+  repeated string avoided_features = 6;
+  repeated string provenance = 7;
+}

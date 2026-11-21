@@ -1,8 +1,9 @@
 package docschema
 
 import (
-	"regexp"
 	"strings"
+
+	"github.com/vrooli/api-core/relationshiprefs"
 )
 
 // DOC: ../prompt-manager/skills/core/documentation-health.md#bidirectional-reference-format
@@ -22,46 +23,29 @@ type Reference struct {
 	Line   int
 }
 
-var (
-	markdownReference   = regexp.MustCompile(`\[(CODE|DOC|REQ):\s*([^\]]+)\]`)
-	docCommentReference = regexp.MustCompile(`^\s*//\s*DOC:\s*(\S+)`)
-)
-
 // ParseMarkdownReferences extracts [CODE:], [DOC:], and [REQ:] references from markdown.
 func ParseMarkdownReferences(content string) []Reference {
-	lines := strings.Split(content, "\n")
 	var refs []Reference
-	for i, line := range lines {
-		matches := markdownReference.FindAllStringSubmatch(line, -1)
-		if len(matches) == 0 {
-			continue
-		}
-		for _, match := range matches {
-			refs = append(refs, Reference{
-				Kind:   referenceKindFromTag(match[1]),
-				Target: strings.TrimSpace(match[2]),
-				Raw:    match[0],
-				Line:   i + 1,
-			})
-		}
+	for _, ref := range relationshiprefs.ExtractMarkdownRefs(content) {
+		refs = append(refs, Reference{
+			Kind:   referenceKindFromShared(ref.Kind),
+			Target: strings.TrimSpace(ref.Value),
+			Raw:    ref.Raw,
+			Line:   ref.Line,
+		})
 	}
 	return refs
 }
 
 // ParseDocCommentReferences extracts DOC references from code.
 func ParseDocCommentReferences(content string) []Reference {
-	lines := strings.Split(content, "\n")
 	var refs []Reference
-	for i, line := range lines {
-		match := docCommentReference.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
+	for _, ref := range relationshiprefs.ExtractDocCommentRefs(content) {
 		refs = append(refs, Reference{
 			Kind:   ReferenceKindDoc,
-			Target: strings.TrimSpace(match[1]),
-			Raw:    strings.TrimSpace(line),
-			Line:   i + 1,
+			Target: strings.TrimSpace(ref.Value),
+			Raw:    ref.Raw,
+			Line:   ref.Line,
 		})
 	}
 	return refs
@@ -72,6 +56,17 @@ func referenceKindFromTag(tag string) ReferenceKind {
 	case "CODE":
 		return ReferenceKindCode
 	case "REQ":
+		return ReferenceKindReq
+	default:
+		return ReferenceKindDoc
+	}
+}
+
+func referenceKindFromShared(kind relationshiprefs.Kind) ReferenceKind {
+	switch kind {
+	case relationshiprefs.KindCode:
+		return ReferenceKindCode
+	case relationshiprefs.KindReq:
 		return ReferenceKindReq
 	default:
 		return ReferenceKindDoc

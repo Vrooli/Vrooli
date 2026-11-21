@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package vrooli.lighting_control.v1.policy;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "lighting-control/v1/control/control.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy;policy";
+
+enum PresetKind {
+  PRESET_KIND_UNSPECIFIED = 0;
+  PRESET_KIND_OFF = 1;
+  PRESET_KIND_LOAD = 2;
+  PRESET_KIND_WORK = 3;
+  PRESET_KIND_HEALTH = 4;
+  PRESET_KIND_COMBINED = 5;
+  PRESET_KIND_STATIC = 6;
+}
+
+enum EvidenceState {
+  EVIDENCE_STATE_UNSPECIFIED = 0;
+  EVIDENCE_STATE_FRESH = 1;
+  EVIDENCE_STATE_STALE = 2;
+  EVIDENCE_STATE_UNAVAILABLE = 3;
+  EVIDENCE_STATE_DEGRADED = 4;
+}
+
+message Preset {
+  PresetKind kind = 1;
+  string label = 2;
+  vrooli.lighting_control.v1.control.Color color = 3;
+  uint32 brightness_cap_percent = 4 [(buf.validate.field).uint32.lte = 100];
+  string effect_id = 5;
+  bool enabled = 6;
+}
+
+message HealthPalette {
+  vrooli.lighting_control.v1.control.Color healthy = 1;
+  vrooli.lighting_control.v1.control.Color attention = 2;
+  vrooli.lighting_control.v1.control.Color failure = 3;
+}
+
+message ActivityEffects {
+  // The effect used while 1..busy_agent_threshold-1 active agents are present.
+  string active_effect_id = 1;
+  // The effect used when activity reaches busy_agent_threshold or more.
+  string busy_effect_id = 2;
+  uint32 busy_agent_threshold = 3 [(buf.validate.field).uint32 = {gte: 2, lte: 5000}];
+}
+
+message PolicyConfig {
+  PresetKind default_preset = 1;
+  repeated Preset presets = 2;
+  uint32 source_max_age_seconds = 3 [(buf.validate.field).uint32 = {gte: 5, lte: 86400}];
+  // Enter/exit thresholds prevent rapid switching around a load boundary.
+  uint32 load_enter_percent = 4 [(buf.validate.field).uint32.lte = 100];
+  uint32 load_exit_percent = 5 [(buf.validate.field).uint32.lte = 100];
+  uint32 debounce_seconds = 6 [(buf.validate.field).uint32.lte = 3600];
+  uint32 brightness_cap_percent = 7 [(buf.validate.field).uint32.lte = 100];
+  vrooli.lighting_control.v1.control.Color stale_fallback_color = 8;
+  uint32 stale_fallback_brightness_percent = 9 [(buf.validate.field).uint32.lte = 100];
+  HealthPalette health_palette = 10;
+  ActivityEffects activity_effects = 11;
+}
+
+message EvidenceSource {
+  string source = 1;
+  EvidenceState state = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  google.protobuf.Timestamp source_timestamp = 4;
+  string reason = 5;
+  map<string, double> measurements = 6;
+}
+
+message EffectivePolicy {
+  PresetKind preset = 1;
+  vrooli.lighting_control.v1.control.Color color = 2;
+  uint32 brightness_percent = 3;
+  string effect_id = 4;
+  string reason = 5;
+  google.protobuf.Timestamp evaluated_at = 6;
+  repeated EvidenceSource evidence = 7;
+  bool manual_priority = 8;
+  google.protobuf.Timestamp request_expires_at = 9;
+  bool static_fallback = 10;
+}
+
+message GetPolicyRequest {}
+message GetPolicyResponse {
+  PolicyConfig config = 1;
+  EffectivePolicy effective = 2;
+}
+
+message SetPolicyRequest { PolicyConfig config = 1; }
+message SetPolicyResponse { PolicyConfig config = 1; }
+
+message SetManualPresetRequest {
+  PresetKind preset = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+message PolicyZoneResult {
+  string controller_id = 1;
+  string zone_id = 2;
+  bool static_fallback = 3;
+  vrooli.lighting_control.v1.control.ZoneApplyResult result = 4;
+}
+
+message SetManualPresetResponse {
+  EffectivePolicy effective = 1;
+  repeated PolicyZoneResult results = 2;
+}
+
+message ClearManualPresetRequest {}
+message ClearManualPresetResponse { bool cleared = 1; }
+
+message EvaluatePolicyRequest { string trigger = 1; }
+message EvaluatePolicyResponse {
+  EffectivePolicy effective = 1;
+  repeated PolicyZoneResult results = 2;
+}
+
+service PolicyService {
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc SetPolicy(SetPolicyRequest) returns (SetPolicyResponse);
+  rpc SetManualPreset(SetManualPresetRequest) returns (SetManualPresetResponse);
+  rpc ClearManualPreset(ClearManualPresetRequest) returns (ClearManualPresetResponse);
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "review",
+    "title": "Review candidate",
+    "routes": [
+      "/reviews/:reviewId"
+    ],
+    "purpose": "Compare candidate outputs with references and acceptance gates before deliberate release or a documented request for changes.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "See actual visual and temporal evidence."
+    },
+    {
+      "statement": "Separate passed checks, human judgment and unknowns."
+    },
+    {
+      "statement": "Accept only the scope that was actually reviewed."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "changes-requested",
+      "description": "Keep candidate and marked issue evidence visible; new iteration does not overwrite prior review."
+    },
+    {
+      "id": "release-pending",
+      "description": "List the remaining independent rights, fidelity, motion, portable and worker gates."
+    },
+    {
+      "id": "approved",
+      "description": "Record operator decision, exact artifacts and scoped claims; unresolved limitations remain visible."
+    }
+  ],
+  "claims": [
+    {
+      "id": "review-intent-1",
+      "type": "custom",
+      "statement": "Review never collapses source correctness, visual quality, license, temporal behavior and successful decoding into one misleading success badge.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "review-intent-2",
+      "type": "custom",
+      "statement": "A release decision binds the inspected candidate version and does not approve later autonomous edits.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Large candidate/reference comparison with synchronized views and temporal filmstrip where applicable; issue list, evidence and scoped release decision adjacent.",
+    "controls": [
+      "Compare neutral/beauty/front/side and representative encoded frames",
+      "Inspect calibration/mask edges, pill coverage, screen color, aliasing and readable hold",
+      "Play/scrub actual final-profile physical motion samples before a long render to inspect joints, support, intersections and silhouette crawl",
+      "Inspect source/license, per-viewer/native validation, worker and output-color receipts",
+      "Request changes with anchored observations; approve exact candidate/version and scope"
+    ],
+    "details": [
+      "Automated checks and operator visual acceptance are separate statuses; one cannot impersonate the other.",
+      "A photographic after image is appearance evidence, not proof of 3D articulation or environment geometry.",
+      "Release lists exact artifact hashes and supported routes; changing geometry/materials/UV or source invalidates affected evidence.",
+      "No generated attestation or green check substitutes for missing captures, calibrated masks or human judgment."
+    ]
+  },
+  "x-requirements": [
+    "DS-CREATION-REVIEW"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

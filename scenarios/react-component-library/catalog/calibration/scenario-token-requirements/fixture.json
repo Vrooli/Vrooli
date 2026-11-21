@@ -1,0 +1,1 @@
+{"gate":"scenario-token-requirements","assetId":"__corpus__.scenario-token-requirements","kind":"corpus","runner":"static","requiredFailureCode":"catalog.scenario_token_requirements","mutation":"scenario-token-requirements","description":"A scenario imports an active library release but omits its required Expression-tier property from the managed ramp."}

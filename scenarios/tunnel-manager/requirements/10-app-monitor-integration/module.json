@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Exposure-query API for app-monitor: answer is-<scenario>-exposed and create-lease-and-return-tunnel-URL, backing app-monitor's open-in-new-tab feature.",
+    "last_validated_at": "2026-06-18T20:12:10-04:00",
+    "module": "exposure-query",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APPMON-001",
+      "title": "Answer whether a scenario is currently exposed",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "exposure",
+      "criticality": "P1",
+      "description": "An IsExposed(scenario) query returns whether the scenario has an active (enabled, unexpired) route, for app-monitor to decide if an open-in-new-tab link is live.",
+      "tags": [
+        "exposure-query",
+        "is-exposed",
+        "app-monitor"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
+          "phase": "api",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "APPMON-002",
+      "title": "Create a lease on demand and return the tunnel URL",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "exposure",
+      "criticality": "P1",
+      "description": "ExposeAndGetURL(scenario) ensures a LEASED route exists (creating and ensure-running it if needed) and returns the resulting public tunnel URL for app-monitor's open-in-new-tab action.",
+      "tags": [
+        "exposure-query",
+        "expose-and-get-url",
+        "app-monitor"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
+          "phase": "api",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "APPMON-003",
+      "title": "Return a stable contract consumable by app-monitor",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "exposure",
+      "criticality": "P1",
+      "description": "The exposure-query responses are proto-typed messages (scenario, exposed, public_url, lease expiry) so app-monitor consumes a stable contract rather than ad-hoc JSON.",
+      "tags": [
+        "exposure-query",
+        "proto",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

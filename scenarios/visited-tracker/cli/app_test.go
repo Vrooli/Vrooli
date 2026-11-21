@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -102,5 +104,27 @@ func TestSetCampaignID(t *testing.T) {
 	app.setCampaignID("   ")
 	if got := os.Getenv("VISITED_TRACKER_CAMPAIGN_ID"); got != "test-id" {
 		t.Fatalf("expected campaign env to remain unchanged, got %q", got)
+	}
+}
+
+func TestCampaignCommandHelpIncludesArguments(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"campaigns", "list", "--help"}, want: "visited-tracker campaigns list [--tag <tag>] [--json]"},
+		{args: []string{"campaigns", "delete", "--help"}, want: "visited-tracker campaigns delete <campaign-id> [--json]"},
+	} {
+		var output bytes.Buffer
+		if err := app.core.CLI.RunWithWriters(tc.args, &output, &output); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(output.String(), tc.want) {
+			t.Errorf("help for %v = %q, want usage %q", tc.args, output.String(), tc.want)
+		}
 	}
 }

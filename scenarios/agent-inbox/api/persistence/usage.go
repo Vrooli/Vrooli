@@ -13,7 +13,7 @@ import (
 
 // SaveUsageRecord persists a usage record to the database.
 func (r *Repository) SaveUsageRecord(ctx context.Context, record *domain.UsageRecord) error {
-	var messageID interface{} = nil
+	var messageID interface{}
 	if record.MessageID != "" {
 		messageID = record.MessageID
 	}

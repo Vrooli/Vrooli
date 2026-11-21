@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "case_id": "GOV-03",
+  "verdict": "passed",
+  "lane": "api",
+  "requirement_refs": [
+    "STC-P0-035"
+  ],
+  "candidate": {
+    "release_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "configuration_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "closure_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "target": {
+    "machine_id": "fixture-host-203.0.113.10",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go-test:scenarios/scenario-to-cloud/api/evidence/evidence_test.go#TestDecideRefusesEverythingButTheExactApprovedReview",
+  "artifact_refs": [
+    "scenarios/scenario-to-cloud/api/evidence/evidence_test.go#TestDecideRefusesEverythingButTheExactApprovedReview",
+    "scenarios/scenario-to-cloud/api/handlers_publication_test.go#TestPublicationApplyRefusesUnlessTheExactApprovalStands"
+  ],
+  "assertions": [
+    "an approved review whose artifact digest differs from the requested identity refuses publication with review_identity_mismatch",
+    "a stored identity whose bytes changed after the request is refused"
+  ],
+  "observed_at": "2026-09-09T15:00:00Z",
+  "limitations": [
+    "package/api lane only: proven against fakes (fake governance owner, fake target pointer reader, in-memory SQLite) inside the scenario test suites",
+    "real publication lane pending EXT-01 (real VPS target with the native control plane); workflow and real_vps lanes hold no receipt and stay missing"
+  ]
+}

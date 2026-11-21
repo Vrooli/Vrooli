@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "description": "Parent registry linking operational targets to technical requirements",
     "auto_sync_enabled": true,
+    "description": "Parent registry linking operational targets to technical requirements",
     "schema_version": "1.0.0"
   },
   "imports": [
@@ -12,6 +12,7 @@
     "05-ui-dashboard/module.json",
     "06-policy/module.json",
     "07-subscriptions/module.json",
-    "08-discovery-integration/module.json"
+    "08-discovery-integration/module.json",
+    "90-uncovered-targets/module.json"
   ]
 }

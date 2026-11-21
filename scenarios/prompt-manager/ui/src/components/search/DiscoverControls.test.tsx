@@ -6,9 +6,24 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@/test-utils/renderWithProviders'
 import { DiscoverControls } from './DiscoverControls'
 import type { BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
+
+vi.mock('@vrooli/react-component-library/OverlayActionBar/1.0.1', () => ({
+  OverlayActionBar: ({ actions, className }: {
+    actions: Array<{ id: string; label: string; onSelect: () => void; disabled?: boolean; testId?: string }>
+    className?: string
+  }) => (
+    <div className={className} data-rcl-overlay-action-bar role="group" aria-label="Actions">
+      {actions.map((action) => (
+        <button key={action.id} type="button" data-testid={action.testId} disabled={action.disabled} onClick={action.onSelect}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  ),
+}))
 
 const defaultBudgetConfig: BudgetConfig = {
   minor: 4000,
@@ -92,6 +107,18 @@ describe('DiscoverControls', () => {
       expect(screen.getByText('Discovery Filters')).toBeDefined()
       expect(screen.getByText('Save')).toBeDefined()
       expect(screen.getByText('Cancel')).toBeDefined()
+    })
+
+    it('renders its save and cancel actions together in the shared footer row at phone width', () => {
+      Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true })
+      renderControls()
+      fireEvent.click(screen.getByTitle('Configure discovery settings'))
+
+      const actionGroup = screen.getByRole('group', { name: 'Actions' })
+      expect(actionGroup.hasAttribute('data-rcl-overlay-action-bar')).toBe(true)
+      expect(actionGroup.querySelectorAll(':scope > button')).toHaveLength(2)
+      expect(within(actionGroup).getByRole('button', { name: 'Save' })).toBeDefined()
+      expect(within(actionGroup).getByRole('button', { name: 'Cancel' })).toBeDefined()
     })
 
     it('calls onBudgetConfigSave with edited values on save', () => {

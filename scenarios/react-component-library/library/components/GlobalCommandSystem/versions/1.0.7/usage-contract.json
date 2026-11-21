@@ -1,0 +1,20 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "any-content-composition"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:GlobalCommandSystem",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 30,
+    "maximumLabelCharacters": 48,
+    "primaryAction": "not-applicable",
+    "property": "commands",
+    "stableIdField": "id",
+    "typicalCount": 10
+  },
+  "version": "1.0.7"
+}

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
+import { renderWithProviders } from "../../../test-utils";
 
 // Mock lazy-loaded pages — use default export so React.lazy resolves immediately.
 vi.mock("../../../pages/SettingsPage", () => ({
@@ -23,6 +24,8 @@ import { useGraphSettingsStore, cloneGraphSettingsInitialState } from "../stores
 import { makeBacklogNode, makeExecutionNode, makeScenarioNode } from "../test-helpers";
 import { SettingsDrawer } from "./SettingsDrawer";
 
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
 function resetStore() {
   useGraphDataStore.setState(cloneGraphDataInitialState());
   useGraphSettingsStore.setState(cloneGraphSettingsInitialState());
@@ -30,7 +33,15 @@ function resetStore() {
 }
 
 describe("SettingsDrawer — entity node counts", () => {
-  beforeEach(resetStore);
+  beforeEach(() => {
+    resetStore();
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
 
   it("shows the number of nodes per entity type, not the number of status types", async () => {
     // Seed the store with 3 backlog + 2 execution + 1 scenario = 6 nodes
@@ -45,7 +56,7 @@ describe("SettingsDrawer — entity node counts", () => {
       ],
     });
 
-    render(<SettingsDrawer isOpen onClose={vi.fn()} />);
+    renderWithProviders(<SettingsDrawer isOpen onClose={vi.fn()} />, { withRouter: false });
 
     // Wait for lazy components to resolve so Suspense reveals content.
     await waitFor(() => expect(screen.getByText("Statuses")).toBeInTheDocument());
@@ -76,7 +87,7 @@ describe("SettingsDrawer — entity node counts", () => {
   it("shows (0) when there are no nodes of that entity type", async () => {
     useGraphDataStore.setState({ nodes: [] });
 
-    render(<SettingsDrawer isOpen onClose={vi.fn()} />);
+    renderWithProviders(<SettingsDrawer isOpen onClose={vi.fn()} />, { withRouter: false });
 
     await waitFor(() => expect(screen.getByText("Statuses")).toBeInTheDocument());
 

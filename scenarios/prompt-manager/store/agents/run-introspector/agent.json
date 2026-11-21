@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "run-introspector",
+  "displayName": "Run Introspector",
+  "description": "Inspects recent agent-manager runs — errored → retried → slow → random-success triage — and captures durable lessons grounded in execution reality. One run, one lesson per heartbeat.",
+  "status": "active",
+  "appearance": {
+    "body": "#DC2626",
+    "head": "#F87171",
+    "accent": "#FEE2E2"
+  },
+  "tags": [
+    "meta",
+    "runs",
+    "introspection",
+    "lessons"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "neo4j",
+  "display_name": "Neo4j",
+  "category": "database",
+  "summary": "Property-graph storage and query capability for relationship-centric workloads.",
+  "why_it_matters": "Neo4j is a possible future graph-storage option, but no current production scenario declares or uses it. The blueprint preserves the option without maintaining an unused Docker and shell implementation.",
+  "when_to_use": [
+    "A scenario has demonstrated relationship-query needs that its existing PostgreSQL or vector-store design cannot meet.",
+    "An owning scenario commits to a defined graph model, query contract, and migration plan."
+  ],
+  "example_scenarios": [
+    "Knowledge graphs",
+    "Dependency analysis",
+    "Recommendation systems"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The former implementation used Docker. Reassess whether Docker is appropriate for the future owner's deployment and desktop requirements.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "A concrete owning scenario with a declared resource dependency",
+    "A validated graph-data model and query workload",
+    "A retention, backup, and operational plan"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Start with the resource maturity migration playbook.",
+    "Implement the selected lifecycle and integration surface in Go without Bash dependencies.",
+    "Do not select Neo4j by default; compare it with the owning scenario's existing storage options first."
+  ],
+  "operational_notes": [
+    "Define graph-schema migration and backup procedures before accepting production data.",
+    "Health checks must verify the required query path, not only the database process."
+  ],
+  "risks": [
+    "No active consumer currently justifies maintenance.",
+    "An additional database increases operational and data-model complexity."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "neo4j"
+  ],
+  "references": [
+    {
+      "kind": "resource",
+      "value": "resources/neo4j"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
+  ],
+  "last_reviewed": "2026-07-19"
+}

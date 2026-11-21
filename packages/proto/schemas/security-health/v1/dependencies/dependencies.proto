@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package vrooli.security_health.v1.dependencies;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies;dependencies_v1";
+
+// =============================================================================
+// DEPENDENCIES DOMAIN — fleet dependency & vulnerability intelligence
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain dependencies
+// @stability unstable
+//
+// Wire contract for the DependencyService Connect-RPC service. Indexes every
+// scenario's dependency lockfiles (go.mod, pnpm-lock.yaml) into a local Qdrant
+// collection (security-health-deps), annotates each record with known-vuln
+// status from the same scanners the validation domain runs, and serves AI-first
+// semantic queries with a deterministic TEXT fallback plus structured filters.
+// This is the justifying feature: it answers "which scenarios are exposed to
+// CVE-X?" in a single query.
+//
+// Consumed by:
+//   - API: handlers/dependencies/connect_handler.go implements DependencyServiceHandler.
+//   - CLI: cli/domains/deps/handlers.go renders `security-health deps search|status`.
+//   - UI:  ui/src/api/dependencies.ts exposes the generated Connect-Web client.
+// =============================================================================
+
+service DependencyService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc ListVulnerabilities(ListVulnerabilitiesRequest) returns (ListVulnerabilitiesResponse);
+  rpc ExplainVulnerability(ExplainVulnerabilityRequest) returns (ExplainVulnerabilityResponse);
+}
+
+// Mode selects the retrieval strategy. AI uses ollama embeddings + Qdrant; TEXT
+// uses deterministic substring/keyword matching over the same corpus.
+// UNSPECIFIED lets the server pick (AI if available, else TEXT).
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_AI = 1;
+  MODE_TEXT = 2;
+}
+
+// Ecosystem identifies the package manager a dependency belongs to.
+enum Ecosystem {
+  ECOSYSTEM_UNSPECIFIED = 0;
+  ECOSYSTEM_GO = 1;
+  ECOSYSTEM_NPM = 2;
+  ECOSYSTEM_YARN = 3;
+  ECOSYSTEM_BUN = 4;
+  ECOSYSTEM_PYTHON = 5;
+  ECOSYSTEM_RUST = 6;
+  ECOSYSTEM_C = 7;
+  ECOSYSTEM_CPP = 8;
+}
+
+// Scanner/source that produced vulnerability evidence.
+enum VulnerabilitySource {
+  VULNERABILITY_SOURCE_UNSPECIFIED = 0;
+  VULNERABILITY_SOURCE_OSV = 1;
+  VULNERABILITY_SOURCE_GOVULNCHECK = 2;
+  VULNERABILITY_SOURCE_PNPM_AUDIT = 3;
+}
+
+// Reachability describes how directly the vulnerable code is known to be used.
+enum Reachability {
+  REACHABILITY_UNSPECIFIED = 0;
+  REACHABILITY_UNKNOWN = 1;
+  REACHABILITY_LOCKFILE_AFFECTED = 2;
+  REACHABILITY_REACHABLE = 3;
+}
+
+// EvidenceConfidence controls how downstream governance should treat evidence.
+enum EvidenceConfidence {
+  EVIDENCE_CONFIDENCE_UNSPECIFIED = 0;
+  EVIDENCE_CONFIDENCE_DEGRADED = 1;
+  EVIDENCE_CONFIDENCE_ADVISORY = 2;
+  EVIDENCE_CONFIDENCE_GATING = 3;
+}
+
+// DependencyRecord is the indexed unit: one resolved dependency of one
+// scenario, annotated with any known vulnerabilities.
+message DependencyRecord {
+  // Scenario id that depends on this package.
+  string scenario = 1;
+  Ecosystem ecosystem = 2;
+  // Package/module name (e.g. "golang.org/x/net", "react").
+  string name = 3;
+  string version = 4;
+  // Lockfile the record was discovered in, relative to the scenario root.
+  string source_file = 5;
+  // Known vulnerability ids affecting this version (e.g. "GO-2024-1234",
+  // "GHSA-xxxx"). Empty when none known.
+  repeated string vuln_ids = 6;
+  // Highest normalized severity across vuln_ids ("", "low", "moderate",
+  // "high", "critical").
+  string max_severity = 7;
+  // RFC3339 timestamp of the most recent reconcile that observed this record.
+  string last_seen = 8;
+}
+
+message AffectedVersionRange {
+  string range = 1;
+  string introduced = 2;
+  string fixed = 3;
+  string last_affected = 4;
+}
+
+message FixedVersionRange {
+  string range = 1;
+  string version = 2;
+}
+
+// VulnerabilityRecord is structured evidence for one vulnerable package version
+// as observed across one or more scenarios.
+message VulnerabilityRecord {
+  string vulnerability_id = 1;
+  repeated string aliases = 2;
+  Ecosystem ecosystem = 3;
+  string name = 4;
+  string version = 5;
+  repeated AffectedVersionRange affected_ranges = 6;
+  repeated FixedVersionRange fixed_ranges = 7;
+  string severity = 8;
+  string normalized_severity = 9;
+  string advisory_url = 10;
+  string summary = 11;
+  string details = 12;
+  VulnerabilitySource source = 13;
+  Reachability reachability = 14;
+  EvidenceConfidence confidence = 15;
+  bool production = 16;
+  bool dev_only = 17;
+  string first_seen = 18;
+  string last_seen = 19;
+  repeated string scenarios = 20;
+  repeated string source_files = 21;
+  string remediation = 22;
+}
+
+// SearchRequest is the body accepted by DependencyService.Search.
+message SearchRequest {
+  // Free-text natural-language query. May be empty when using only filters.
+  string query = 1;
+  // Maximum number of results. Server clamps to a sane upper bound.
+  int32 limit = 2;
+  // Optional explicit retrieval mode. UNSPECIFIED lets the server choose.
+  Mode mode = 3;
+  // Structured filters (composable with the semantic query).
+  Ecosystem ecosystem = 4;
+  // When true, only records with non-empty vuln_ids are returned.
+  bool vulnerable_only = 5;
+  // Optional glob over the dependency name (e.g. "golang.org/x/*").
+  string name_glob = 6;
+}
+
+// SearchResult is one ranked hit from the corpus.
+message SearchResult {
+  DependencyRecord record = 1;
+  // Higher is better. AI mode returns cosine similarity; TEXT mode returns a
+  // normalized lexical score in [0, 1].
+  double score = 2;
+}
+
+// SearchResponse echoes which Mode actually served the request so callers can
+// render a "(text mode fallback)" hint when AI is unavailable.
+message SearchResponse {
+  repeated SearchResult results = 1;
+  Mode mode_used = 2;
+}
+
+message ListVulnerabilitiesRequest {
+  Ecosystem ecosystem = 1;
+  string package_name = 2;
+  string scenario = 3;
+  string vulnerability_id = 4;
+  EvidenceConfidence minimum_confidence = 5;
+  int32 limit = 6;
+}
+
+message ListVulnerabilitiesResponse {
+  repeated VulnerabilityRecord vulnerabilities = 1;
+  int32 total = 2;
+}
+
+message ExplainVulnerabilityRequest {
+  string vulnerability_id = 1;
+  Ecosystem ecosystem = 2;
+  string package_name = 3;
+}
+
+message ExplainVulnerabilityResponse {
+  VulnerabilityRecord vulnerability = 1;
+  bool found = 2;
+}
+
+// StatusRequest is currently empty; reserved for future filters.
+message StatusRequest {}
+
+// StatusResponse reports backend availability and the last reconcile state.
+message StatusResponse {
+  // True iff either AI or TEXT mode can serve a query end-to-end.
+  bool available = 1;
+  // True iff the ollama embedding endpoint is reachable.
+  bool ollama = 2;
+  // True iff the qdrant vector store is reachable.
+  bool qdrant = 3;
+  // Number of dependency records currently indexed across all scenarios.
+  int32 indexed_count = 4;
+  // Number of indexed records currently annotated as vulnerable.
+  int32 vulnerable_count = 5;
+  // RFC3339 timestamp of the most recent reconcile run, or "" if none.
+  string last_reconcile_at = 6;
+  // Free-form outcome string from the most recent reconcile.
+  string last_reconcile_outcome = 7;
+
+  // Vector-index coverage (Plan B). indexed_vectors / expected_vectors gives the
+  // fraction of distinct packages currently embedded; the UI renders a
+  // "building… N%" state until index_ready flips true.
+  //
+  // These describe the Qdrant vector index specifically — distinct
+  // (ecosystem, name, version) packages — whereas indexed_count is the SQLite
+  // per-scenario row count.
+  int32 indexed_vectors = 8; // points currently in Qdrant
+  int32 expected_vectors = 9; // distinct packages that should be indexed
+  // True ⇒ coverage ≥ threshold and MODE_AI is served; false ⇒ the backfill is
+  // still populating and search degrades to TEXT.
+  bool index_ready = 10;
+}

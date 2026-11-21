@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.swipe-action",
+    "name": "SwipeAction",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The touch-first row interaction revealing contextual actions, with thresholds, velocity, exclusivity between rows, cancellation, and equivalent visible buttons for every action.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-swipe",
+        "reason": "Axis locking, velocity, and cancellation are shared."
+      },
+      {
+        "asset": "controls.icon-button",
+        "reason": "Revealed actions are shared icon controls with accessible names."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "tap-target-size",
+    "safe-area-respected"
+  ],
+  "beauty": {
+    "avoid": [
+      "hover-only-affordance"
+    ]
+  }
+}

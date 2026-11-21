@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-laptop-candidate-room-no-cup-v1",
+  "status": "candidate_only_unqualified_scene_derivative",
+  "asset": {
+    "path": "laptop-study-environment-no-cup.glb",
+    "media_type": "model/gltf-binary",
+    "size_bytes": 420960,
+    "sha256": "68a8ad34f5af76f681e9aab7337ce80514221bda333c6713b58f624556660f56",
+    "source_sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+    "source_size_bytes": 421404,
+    "source_label": "Vrooli-authored phone-study room/table environment",
+    "license": "AGPL-3.0-only",
+    "adaptation": "Deterministic active-scene pruning removes the three leaf cup nodes TeaCup, TeaCupHandle, and TeaSurface, remaps retained node indices in the scene root list, and preserves the complete source BIN chunk plus all mesh/material/accessor arrays. The source table and room remain an unqualified Vrooli-authored candidate, not measured furniture/room CAD."
+  },
+  "active_scene_nodes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "support": {
+    "id": "laptop-study-tabletop",
+    "node_index": 5,
+    "contact_region_part_id": "laptop-scene-part-5",
+    "interface": "horizontal_surface",
+    "status": "candidate_only"
+  },
+  "camera": {
+    "id": "laptop-candidate-camera",
+    "status": "candidate_only",
+    "fit_basis": "candidate GLB-derived bounds and exploratory render only"
+  },
+  "limits": [
+    "Vrooli-authored room interpretation, not real measured desk/room CAD.",
+    "Phone-study table material appearance has not been reviewed for a laptop scene.",
+    "Do not claim scene qualification or physical fit."
+  ],
+  "retained_node_count": 11,
+  "preserved_mesh_count": 14,
+  "omitted_scene_nodes": [
+    "TeaCup",
+    "TeaCupHandle",
+    "TeaSurface"
+  ],
+  "derivation_script": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/laptop/physical-candidate/derive_cup_free_room.py",
+  "derivation_script_sha256": "5d8ef5b5a5e057086c7692c48969ba3ddd3b3985b2c38366ba1d56e670918cf6"
+}

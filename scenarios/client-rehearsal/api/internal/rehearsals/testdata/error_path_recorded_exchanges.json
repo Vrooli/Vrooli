@@ -1,0 +1,7 @@
+{
+  "kind": "recorded-exchanges",
+  "exchanges": [
+    {"method": "GET", "host": "crm.synthetic.invalid", "path": "/v1/broken", "status": 503, "response": {"error": "synthetic upstream unavailable"}},
+    {"method": "POST", "host": "crm.synthetic.invalid", "path": "/v1/events", "status": 201, "response": {"id": "event-synthetic-01", "status": "recorded"}}
+  ]
+}

@@ -14,11 +14,9 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useExecutionExport } from '@/domains/executions/viewer/useExecutionExport';
 import { useReplayCustomization } from '@/domains/executions/viewer/useReplayCustomization';
 import { useExportStore, type Export } from '@/domains/exports/store';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from '@/domains/executions/export/components/ExportDialog';
+import { ExportDialogProvider } from '@/domains/executions/export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from '@/domains/executions/export/context/ExportDialogContext';
 import { ExportSuccessPanel } from './ExportSuccessPanel';
 import { parseExportSettings } from './utils/parseExportSettings';
 import type { Execution } from '@/domains/executions/store';

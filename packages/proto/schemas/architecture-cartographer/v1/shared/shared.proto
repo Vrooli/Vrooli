@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.shared;
+
+import "common/v1/attestation.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared;shared_v1";
+
+// =============================================================================
+// SHARED TYPES
+// =============================================================================
+//
+// @stability stable
+//
+// Scenario-local support messages and enums reused by multiple
+// architecture-cartographer domains. These types intentionally avoid service
+// ownership so domain protos can depend on common wire envelopes without
+// creating cross-domain ownership.
+// =============================================================================
+
+// Severity classifies how blocking an architecture finding is.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARN = 2;
+  SEVERITY_ERROR = 3;
+  SEVERITY_BLOCKER = 4;
+}
+
+// FindingClass separates hard deterministic facts from advisory
+// heuristics. Only deterministic ERROR/BLOCKER findings gate audit
+// outcomes; heuristic findings are surfaced for consideration.
+enum FindingClass {
+  FINDING_CLASS_UNSPECIFIED = 0;
+  FINDING_CLASS_DETERMINISTIC = 1;
+  FINDING_CLASS_HEURISTIC = 2;
+}
+
+// FixKind enumerates operator-facing suggested fix categories.
+enum FixKind {
+  FIX_KIND_UNSPECIFIED = 0;
+  FIX_KIND_MOVE_FILE = 1;
+  FIX_KIND_REASSIGN_DOMAIN = 2;
+  FIX_KIND_BREAK_CYCLE = 3;
+  FIX_KIND_ADD_DEPENDENCY = 4;
+  FIX_KIND_ADD_TRANSITIONAL = 5;
+}
+
+// Tier classifies an aggregated placement verdict by confidence band.
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_AUTO_PLACE = 1;
+  TIER_SUGGEST = 2;
+  TIER_CONFLICT = 3;
+}
+
+// Evidence is one signal-supplied justification for a Score.
+message Evidence {
+  string kind = 1;
+  string summary = 2;
+  string locator = 3;
+  double weight = 4;
+}
+
+// Score is one signal's output for one chunk.
+message Score {
+  string signal = 1;
+  string domain = 2;
+  double value = 3;
+  string reason = 4;
+  repeated Evidence evidence = 5;
+}
+
+// Abstention is an explicit no-data emission from a signal.
+message Abstention {
+  string signal = 1;
+  string reason = 2;
+  repeated Evidence evidence = 3;
+}
+
+// DomainValue is one row of the aggregator's per-domain summary.
+message DomainValue {
+  string domain = 1;
+  double value = 2;
+}
+
+// Verdict is the aggregator's output for one chunk.
+message Verdict {
+  string chunk_id = 1;
+  string chunk_path = 2;
+  Tier tier = 3;
+  string top_domain = 4;
+  double top_value = 5;
+  string runner_up_domain = 6;
+  double runner_up_value = 7;
+  repeated Score scores = 8;
+  repeated DomainValue domain_values = 9;
+  bool tied = 10;
+  repeated Abstention abstentions = 11;
+}
+
+// ConflictEvidence is one detector-supplied piece of justification.
+message ConflictEvidence {
+  string kind = 1;
+  string summary = 2;
+  string locator = 3;
+  bytes payload = 4;
+}
+
+// Fix is one suggested resolution attached to a Conflict by a detector.
+message Fix {
+  string id = 1;
+  FixKind kind = 2;
+  string resolver = 3;
+  string summary = 4;
+  bytes payload = 5;
+  double confidence = 6;
+}
+
+// Conflict is the canonical envelope a Detector emits.
+message Conflict {
+  string id = 1;
+  string scenario = 2;
+  string detector = 3;
+  string type = 4;
+  string subtype = 5;
+  Severity severity = 6;
+  repeated string locations = 7;
+  repeated string domains = 8;
+  repeated ConflictEvidence evidence = 9;
+  repeated Fix suggested_fixes = 10;
+  reserved 11, 12, 13;
+  reserved "status", "assigned_domain", "resolution_note";
+  string snapshot_id = 14;
+  Verdict verdict = 15;
+  google.protobuf.Timestamp detected_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  bool suppressed = 18;
+  string suppression_reason = 19;
+  string stable_id = 20;
+  string instance_id = 21;
+  FindingClass finding_class = 22;
+  // Honesty contract for this finding: a drift conflict (glossary/surface/zone/
+  // archetype) carries basis CONTRADICTED with citations to both the doc and the
+  // code; a code-computed finding (cycle/coupling) carries DERIVED with code
+  // citations. Built via internal/attest so CLI/RPC and future federated search
+  // present identically.
+  common.v1.AttestedAnswer attestation = 23;
+}

@@ -1,0 +1,246 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Template Manager هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "Template Manager"
+  },
+  "layout": {
+    "sidebarLabel": "تنقل الشريط الجانبي",
+    "bottomNavLabel": "التنقل السفلي",
+    "mobileMenuLabel": "قائمة الهاتف",
+    "closeMenuLabel": "إغلاق قائمة التنقل",
+    "mainLabel": "المحتوى الرئيسي",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "templates": "القوالب",
+      "runs": "عمليات التحقق",
+      "debt": "الديون",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "لوحة التحكم",
+      "description": "حالة الأسطول وديون القوالب وسجل التحقق والسجل المحكوم من API الحي لمدير القوالب."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    },
+    "templateList": {
+      "title": "سجل القوالب",
+      "description": "كل قوالب السيناريو والتصميم والموارد المحكومة. صفِّ حسب النوع، ثم افتح قالبًا لعرض إصداراته وانحرافه وسجل تحققه."
+    },
+    "runList": {
+      "title": "سجل التحقق",
+      "description": "كل عمليات التحقق المحفوظة عبر الأسطول. صفِّ حسب الحالة، ثم افتح عملية لعرض نتائج مراحلها ونتائجها."
+    },
+    "debtList": {
+      "title": "سجل الديون",
+      "description": "كل عيوب القوالب الموروثة عبر الأسطول. صفِّ حسب القالب أو الحالة، ثم افتح عنصرًا لعرض مصدره الكامل."
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  },
+  "dashboard": {
+    "loadingTitle": "جارٍ تحميل حالة القوالب",
+    "loadingDescription": "قراءة السجل والديون والتحقق والانحراف والمقاييس.",
+    "errorTitle": "تعذر تحميل لوحة القوالب",
+    "errorDescription": "تحقق من تشغيل template-manager وأن API Connect قابل للوصول.",
+    "metrics": {
+      "openDebt": "ديون مفتوحة",
+      "deepStreak": "سلسلة عميقة",
+      "versionLag": "أقصى تأخر",
+      "templates": "القوالب"
+    },
+    "standing": {
+      "title": "حالة الأسطول",
+      "description": "القوالب المحكومة مصنفة حسب الحالة الأكثر إلحاحًا."
+    },
+    "registry": {
+      "title": "سجل القوالب",
+      "description": "قوالب السيناريو والتصميم والموارد المحكومة حاليًا."
+    },
+    "monitor": {
+      "title": "مراقب التحقق العميق",
+      "description": "حالة المجدول المتكرر للتحقق اليومي من القوالب.",
+      "status": "الحالة",
+      "nextRun": "التشغيل التالي",
+      "interval": "الفاصل",
+      "streak": "سلسلة النجاح",
+      "lastRun": "آخر تشغيل",
+      "unscheduled": "غير مجدول"
+    },
+    "runs": {
+      "title": "سجل التحقق",
+      "description": "أحدث عمليات التحقق المحفوظة.",
+      "empty": "لا توجد عمليات تحقق مسجلة"
+    },
+    "debt": {
+      "title": "سجل الديون",
+      "description": "عيوب القوالب الموروثة المفتوحة والمتتبعة.",
+      "empty": "لا توجد عناصر دين مسجلة"
+    },
+    "drift": {
+      "title": "لقطات الانحراف",
+      "description": "أحدث لقطات انحراف الأسطول.",
+      "empty": "لا توجد لقطات انحراف مسجلة"
+    },
+    "empty": {
+      "title": "لا توجد بيانات حالة",
+      "description": "شغّل التحقق أو تسجيل الانحراف لملء مجموعات الحالة."
+    }
+  },
+  "list": {
+    "pagination": {
+      "label": "ترقيم الصفحات",
+      "prev": "السابق",
+      "next": "التالي",
+      "status": "الصفحة {{page}} من {{total}}"
+    }
+  },
+  "templateList": {
+    "search": "بحث في القوالب",
+    "searchPlaceholder": "ابحث بالاسم أو المعرف أو الإصدار",
+    "empty": "لا توجد قوالب تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض القالب",
+    "filters": {
+      "kind": "النوع",
+      "allKinds": "كل الأنواع"
+    }
+  },
+  "runList": {
+    "search": "بحث في عمليات التحقق",
+    "searchPlaceholder": "ابحث بمعرف العملية أو القالب",
+    "empty": "لا توجد عمليات تحقق تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض عملية التحقق",
+    "filters": {
+      "status": "الحالة",
+      "allStatuses": "كل الحالات"
+    }
+  },
+  "detail": {
+    "back": {
+      "dashboard": "العودة إلى لوحة التحكم",
+      "debtList": "العودة إلى سجل الديون"
+    },
+    "loadingTitle": "جارٍ التحميل",
+    "loadingDescription": "جارٍ جلب أحدث سجل من API مدير القوالب.",
+    "errorTitle": "تعذر التحميل",
+    "errorDescription": "تحقق من تشغيل template-manager وأن هذا السجل لا يزال موجودًا."
+  },
+  "templateDetail": {
+    "overview": "نظرة عامة",
+    "runs": "عمليات التحقق",
+    "runsEmpty": "لا توجد عمليات تحقق مسجلة",
+    "drift": "لقطات الانحراف",
+    "driftEmpty": "لا توجد لقطات انحراف مسجلة",
+    "debt": "الديون",
+    "debtEmpty": "لا توجد عناصر دين مسجلة",
+    "fields": {
+      "kind": "النوع",
+      "version": "الإصدار",
+      "status": "الحالة",
+      "latestVersion": "أحدث إصدار",
+      "lag": "تأخر الإصدار",
+      "updatedAt": "آخر تحديث",
+      "tags": "الوسوم",
+      "manifestPath": "مسار البيان",
+      "sourcePath": "مسار المصدر"
+    }
+  },
+  "runDetail": {
+    "overview": "نظرة عامة",
+    "phases": "نتائج المراحل",
+    "phasesEmpty": "لا توجد نتائج مراحل مسجلة",
+    "findings": "النتائج",
+    "findingsEmpty": "لا توجد نتائج — تشغيل نظيف",
+    "columns": {
+      "findingCount": "النتائج",
+      "source": "المصدر"
+    },
+    "fields": {
+      "template": "القالب",
+      "mode": "الوضع",
+      "status": "الحالة",
+      "trigger": "المُشغِّل",
+      "target": "الهدف",
+      "startedAt": "بدأ",
+      "finishedAt": "انتهى",
+      "duration": "المدة"
+    }
+  },
+  "debtDetail": {
+    "overview": "نظرة عامة",
+    "message": "التفاصيل",
+    "messageEmpty": "لا توجد تفاصيل إضافية مسجلة",
+    "fields": {
+      "key": "المفتاح",
+      "template": "القالب",
+      "severity": "الخطورة",
+      "status": "الحالة",
+      "source": "المصدر",
+      "firstSeen": "أول ظهور",
+      "lastSeen": "آخر ظهور"
+    }
+  },
+  "debtList": {
+    "search": "بحث في عناصر الديون",
+    "searchPlaceholder": "ابحث بالمفتاح أو القالب أو العنوان",
+    "empty": "لا توجد عناصر دين تطابق عوامل التصفية الحالية",
+    "viewEntry": "عرض عنصر الدين",
+    "filters": {
+      "template": "القالب",
+      "allTemplates": "كل القوالب",
+      "status": "الحالة",
+      "allStatuses": "كل الحالات"
+    }
+  }
+}

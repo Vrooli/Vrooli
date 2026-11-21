@@ -1,0 +1,35 @@
+{
+  "id": "revenue_today",
+  "label": "Revenue today",
+  "description": "Sum of successful checkout sessions in the current day.",
+  "unit": "currency",
+  "format": "currency",
+  "shape": "series",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "revenue_today",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "revenue_today",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "revenue_today",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW",
+  "sample": {
+    "value": 410,
+    "series": [
+      220,
+      310,
+      180,
+      390,
+      275,
+      410
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

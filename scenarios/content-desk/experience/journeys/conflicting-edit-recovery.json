@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "conflicting-edit-recovery",
+    "title": "Conflicting edit recovery",
+    "purpose": "Demonstrate the accepted conflicting edit recovery outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-024",
+      "OT-P0-030",
+      "OT-P0-031"
+    ]
+  },
+  "steps": [
+    {
+      "page": "create",
+      "state": "save-outcome-unknown",
+      "intent": "Retain exact typing and operation identity after malformed or lost response."
+    },
+    {
+      "page": "recovery",
+      "state": "compare-branches",
+      "intent": "Compare common base, newer server revision and permitted local branch."
+    },
+    {
+      "page": "recovery",
+      "state": "identity-changed",
+      "intent": "Prevent sync of prior-account text into a new session identity."
+    },
+    {
+      "page": "create",
+      "state": "proposal-comparison",
+      "intent": "Save an explicit guarded composed revision without deleting either history."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

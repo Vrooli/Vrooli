@@ -6,24 +6,42 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // SQLiteRepository implements Repository using SQLite.
 type SQLiteRepository struct {
-	db  *sql.DB
-	log *logrus.Logger
+	db sqlExecutor
 }
 
 // NewSQLiteRepository creates a new SQLite-backed repository.
-func NewSQLiteRepository(db *sql.DB, log *logrus.Logger) *SQLiteRepository {
+// sqlExecutor is the smallest persistence surface this domain needs. Both a
+// standard *sql.DB and api-core's context-routed database satisfy it, keeping
+// unit tests simple while production requests honor the Test Genie lease.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+var (
+	_ sqlExecutor = (*sql.DB)(nil)
+	_ sqlExecutor = (*coredb.RoutedDB)(nil)
+)
+
+func NewSQLiteRepository(db sqlExecutor) *SQLiteRepository {
 	return &SQLiteRepository{
-		db:  db,
-		log: log,
+		db: db,
 	}
 }
 
@@ -84,7 +102,7 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 	// Get action count
 	countQuery := `SELECT COUNT(*) FROM timeline_entries WHERE session_id = $1`
 	if err := r.db.QueryRowContext(ctx, countQuery, sessionID).Scan(&session.ActionCount); err != nil {
-		r.log.WithError(err).Warn("Failed to count session actions")
+		return nil, fmt.Errorf("count session entries: %w", err)
 	}
 
 	return &session, nil
@@ -92,10 +110,35 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 
 // CloseSession marks a session as closed.
 func (r *SQLiteRepository) CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error {
-	query := `UPDATE recording_sessions SET status = $1, closed_at = $2 WHERE id = $3`
-	_, err := r.db.ExecContext(ctx, query, domain.SessionStatusClosed, closedAt, sessionID)
+	session, err := r.GetSession(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return nil
+	}
+	previousStatus := session.Status
+	if err := session.Close(closedAt); err != nil {
+		return err
+	}
+	query := `UPDATE recording_sessions SET status = $1, closed_at = $2 WHERE id = $3 AND status = $4`
+	result, err := r.db.ExecContext(ctx, query, session.Status, closedAt, sessionID, previousStatus)
 	if err != nil {
 		return fmt.Errorf("close session: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("close session: read changed row count: %w", err)
+	}
+	if changed == 0 {
+		current, err := r.GetSession(ctx, sessionID)
+		if err != nil {
+			return err
+		}
+		if current != nil && current.Status == domain.SessionStatusClosed {
+			return nil
+		}
+		return fmt.Errorf("close session: %w", domain.ErrInvalidSessionStatusTransition)
 	}
 	return nil
 }
@@ -176,100 +219,104 @@ func (r *SQLiteRepository) DeleteSession(ctx context.Context, sessionID string) 
 	return nil
 }
 
-// SaveTimelineEntry persists a single timeline entry.
-func (r *SQLiteRepository) SaveTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) error {
-	// Serialize action or page event to JSON
-	var actionJSON, pageEventJSON sql.NullString
-
-	if entry.Action != nil {
-		data, err := json.Marshal(entry.Action)
-		if err != nil {
-			return fmt.Errorf("marshal action: %w", err)
-		}
-		actionJSON = sql.NullString{String: string(data), Valid: true}
+// AppendTimelineEntry assigns order in the same SQLite write statement as the
+// insert. SQLite serializes writers, including writers in other API processes.
+func (r *SQLiteRepository) AppendTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) (bool, error) {
+	if entry == nil || entry.ID == uuid.Nil || entry.SessionID == "" {
+		return false, fmt.Errorf("journal entry requires identity and session")
 	}
-
+	switch entry.Type {
+	case TimelineEntryTypeAction:
+		if entry.Entry == nil || entry.Action != nil {
+			return false, fmt.Errorf("journal action requires one canonical proto timeline entry")
+		}
+		if entry.Entry.GetId() != entry.ID.String() {
+			return false, fmt.Errorf("journal identity %s does not match proto entry %q", entry.ID, entry.Entry.GetId())
+		}
+		if entry.PageEvent != nil {
+			return false, fmt.Errorf("journal action cannot contain a page event")
+		}
+	case TimelineEntryTypePageEvent:
+		if entry.PageEvent == nil || entry.Entry != nil || entry.Action != nil {
+			return false, fmt.Errorf("journal page event requires one page event payload")
+		}
+	default:
+		return false, fmt.Errorf("unknown journal entry type %q", entry.Type)
+	}
+	var actionJSON, pageEventJSON any
+	if entry.Entry != nil {
+		data, err := (protojson.MarshalOptions{UseProtoNames: false}).Marshal(entry.Entry)
+		if err != nil {
+			return false, fmt.Errorf("marshal proto timeline entry: %w", err)
+		}
+		actionJSON = string(data)
+	}
 	if entry.PageEvent != nil {
 		data, err := json.Marshal(entry.PageEvent)
 		if err != nil {
-			return fmt.Errorf("marshal page event: %w", err)
+			return false, fmt.Errorf("marshal page event: %w", err)
 		}
-		pageEventJSON = sql.NullString{String: string(data), Valid: true}
+		pageEventJSON = string(data)
 	}
-
-	query := `
-		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
-	_, err := r.db.ExecContext(ctx, query,
-		entry.ID.String(),
-		entry.Type,
-		entry.Timestamp,
-		entry.SessionID,
-		entry.PageID.String(),
-		entry.Sequence,
-		actionJSON,
-		pageEventJSON,
-	)
+	const query = `WITH next_sequence(sequence) AS (
+ SELECT COALESCE(MAX(sequence),0)+1 FROM timeline_entries WHERE session_id=$4
+)
+INSERT INTO timeline_entries (id,type,timestamp,session_id,page_id,sequence,action_json,page_event_json)
+ SELECT $1,$2,$3,$4,$5,next_sequence.sequence,
+ CASE WHEN $6 IS NULL THEN NULL ELSE json_set($6,'$.sequenceNum',next_sequence.sequence) END,
+ $7 FROM next_sequence WHERE 1
+ ON CONFLICT(id) DO NOTHING RETURNING sequence`
+	err := r.db.QueryRowContext(ctx, query, entry.ID.String(), entry.Type, entry.Timestamp, entry.SessionID, entry.PageID.String(), actionJSON, pageEventJSON).Scan(&entry.Sequence)
+	if err == nil {
+		setDurableProtoSequence(entry)
+		return true, nil
+	}
+	if err != sql.ErrNoRows {
+		return false, fmt.Errorf("append timeline entry: %w", err)
+	}
+	committed, err := r.GetTimelineEntry(ctx, entry.ID)
 	if err != nil {
-		return fmt.Errorf("save timeline entry: %w", err)
+		return false, err
 	}
-
-	return nil
+	if committed == nil {
+		return false, fmt.Errorf("journal retry lost its committed identity")
+	}
+	if !sameObservation(entry, committed) {
+		return false, fmt.Errorf("journal identity %s conflicts with a committed observation", entry.ID)
+	}
+	entry.Sequence = committed.Sequence
+	setDurableProtoSequence(entry)
+	return false, nil
 }
 
-// SaveTimelineEntries persists multiple entries in a batch.
-func (r *SQLiteRepository) SaveTimelineEntries(ctx context.Context, entries []*UnifiedTimelineEntry) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+func setDurableProtoSequence(entry *UnifiedTimelineEntry) {
+	if entry.Entry != nil {
+		entry.Entry.SequenceNum = int32(entry.Sequence)
 	}
-	defer tx.Rollback()
+}
 
-	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`)
-	if err != nil {
-		return fmt.Errorf("prepare statement: %w", err)
-	}
-	defer stmt.Close()
-
-	for _, entry := range entries {
-		var actionJSON, pageEventJSON sql.NullString
-
-		if entry.Action != nil {
-			data, err := json.Marshal(entry.Action)
-			if err != nil {
-				return fmt.Errorf("marshal action: %w", err)
-			}
-			actionJSON = sql.NullString{String: string(data), Valid: true}
+// Local commit metadata can differ on retry; observed fields may not.
+func sameObservation(a, b *UnifiedTimelineEntry) bool {
+	canonical := func(e *UnifiedTimelineEntry) []byte {
+		copyEntry := *e
+		copyEntry.Sequence = 0
+		if e.Action != nil {
+			copyAction := *e.Action
+			copyAction.CreatedAt = time.Time{}
+			copyEntry.Action = &copyAction
 		}
-
-		if entry.PageEvent != nil {
-			data, err := json.Marshal(entry.PageEvent)
-			if err != nil {
-				return fmt.Errorf("marshal page event: %w", err)
-			}
-			pageEventJSON = sql.NullString{String: string(data), Valid: true}
+		if e.Entry != nil {
+			copyEntry.Entry = proto.Clone(e.Entry).(*bastimeline.TimelineEntry)
+			copyEntry.Entry.SequenceNum = 0
 		}
-
-		_, err = stmt.ExecContext(ctx,
-			entry.ID.String(),
-			entry.Type,
-			entry.Timestamp,
-			entry.SessionID,
-			entry.PageID.String(),
-			entry.Sequence,
-			actionJSON,
-			pageEventJSON,
-		)
+		data, err := json.Marshal(copyEntry)
 		if err != nil {
-			return fmt.Errorf("insert entry: %w", err)
+			return nil
 		}
+		return data
 	}
-
-	return tx.Commit()
+	left, right := canonical(a), canonical(b)
+	return left != nil && string(left) == string(right)
 }
 
 // GetTimelineEntry retrieves a single entry by ID.
@@ -280,58 +327,66 @@ func (r *SQLiteRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UU
 		WHERE id = $1
 	`
 
-	var entry UnifiedTimelineEntry
-	var idStr, pageIDStr string
-	var entryType string
-	var actionJSON, pageEventJSON sql.NullString
-
-	err := r.db.QueryRowContext(ctx, query, entryID.String()).Scan(
-		&idStr,
-		&entryType,
-		&entry.Timestamp,
-		&entry.SessionID,
-		&pageIDStr,
-		&entry.Sequence,
-		&actionJSON,
-		&pageEventJSON,
-	)
+	entry, err := scanTimelineEntry(r.db.QueryRowContext(ctx, query, entryID.String()))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, fmt.Errorf("get timeline entry: %w", err)
+	return entry, err
+}
+
+// Both single-entry retries and paginated reads reject corrupt committed data.
+func scanTimelineEntry(row interface{ Scan(...any) error }) (*UnifiedTimelineEntry, error) {
+	var entry UnifiedTimelineEntry
+	var id, page string
+	var action, event sql.NullString
+	if err := row.Scan(&id, &entry.Type, &entry.Timestamp, &entry.SessionID, &page, &entry.Sequence, &action, &event); err != nil {
+		return nil, err
 	}
-
-	entry.ID, _ = uuid.Parse(idStr)
-	entry.PageID, _ = uuid.Parse(pageIDStr)
-	entry.Type = TimelineEntryType(entryType)
-
-	if actionJSON.Valid {
-		var action domain.RecordingAction
-		if err := json.Unmarshal([]byte(actionJSON.String), &action); err != nil {
-			r.log.WithError(err).Warn("Failed to unmarshal action JSON")
-		} else {
-			entry.Action = &action
+	var err error
+	if entry.ID, err = uuid.Parse(id); err != nil {
+		return nil, fmt.Errorf("journal identity: %w", err)
+	}
+	if entry.PageID, err = uuid.Parse(page); err != nil {
+		return nil, fmt.Errorf("journal page identity: %w", err)
+	}
+	if action.Valid {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(action.String), &fields); err != nil {
+			return nil, fmt.Errorf("committed action %s: %w", id, err)
+		}
+		if _, canonical := fields["action"]; canonical {
+			var protoEntry bastimeline.TimelineEntry
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(action.String), &protoEntry); err != nil {
+				return nil, fmt.Errorf("committed proto action %s: %w", id, err)
+			}
+			entry.Entry = &protoEntry
+		} else if err := decodeJournalJSON(action.String, &entry.Action); err != nil {
+			return nil, fmt.Errorf("committed action %s: %w", id, err)
 		}
 	}
-
-	if pageEventJSON.Valid {
-		var event domain.PageEvent
-		if err := json.Unmarshal([]byte(pageEventJSON.String), &event); err != nil {
-			r.log.WithError(err).Warn("Failed to unmarshal page event JSON")
-		} else {
-			entry.PageEvent = &event
+	if event.Valid {
+		if err := decodeJournalJSON(event.String, &entry.PageEvent); err != nil {
+			return nil, fmt.Errorf("committed page event %s: %w", id, err)
 		}
 	}
-
 	return &entry, nil
+}
+
+// Every observation uses the same whole-document and exact-number policy.
+func decodeJournalJSON(data string, value any) error {
+	if !json.Valid([]byte(data)) || strings.TrimSpace(data) == "null" {
+		return fmt.Errorf("invalid committed JSON document")
+	}
+	decoder := json.NewDecoder(strings.NewReader(data))
+	decoder.UseNumber()
+	return decoder.Decode(value)
 }
 
 // GetTimeline returns timeline entries matching the query.
 func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery) (*TimelineResponse, error) {
 	query.ApplyDefaults()
 
-	// Build query with PostgreSQL numbered placeholders
+	// Build the filtered journal query with SQLite numbered placeholders
 	baseQuery := `
 		SELECT id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json
 		FROM timeline_entries
@@ -365,7 +420,7 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 		baseQuery += `)`
 	}
 
-	baseQuery += fmt.Sprintf(` ORDER BY sequence ASC LIMIT $%d OFFSET $%d`, paramNum, paramNum+1)
+	baseQuery += fmt.Sprintf(` ORDER BY sequence ASC, id ASC LIMIT $%d OFFSET $%d`, paramNum, paramNum+1)
 	args = append(args, query.Limit+1, query.Offset)
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
@@ -376,47 +431,19 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 
 	var entries []UnifiedTimelineEntry
 	for rows.Next() {
-		var entry UnifiedTimelineEntry
-		var idStr, pageIDStr string
-		var entryType string
-		var actionJSON, pageEventJSON sql.NullString
-
-		if err := rows.Scan(
-			&idStr,
-			&entryType,
-			&entry.Timestamp,
-			&entry.SessionID,
-			&pageIDStr,
-			&entry.Sequence,
-			&actionJSON,
-			&pageEventJSON,
-		); err != nil {
-			return nil, fmt.Errorf("scan entry: %w", err)
+		entry, err := scanTimelineEntry(rows)
+		if err != nil {
+			return nil, err
 		}
-
-		entry.ID, _ = uuid.Parse(idStr)
-		entry.PageID, _ = uuid.Parse(pageIDStr)
-		entry.Type = TimelineEntryType(entryType)
-
-		if actionJSON.Valid {
-			var action domain.RecordingAction
-			if err := json.Unmarshal([]byte(actionJSON.String), &action); err == nil {
-				entry.Action = &action
-			}
-		}
-
-		if pageEventJSON.Valid {
-			var event domain.PageEvent
-			if err := json.Unmarshal([]byte(pageEventJSON.String), &event); err == nil {
-				entry.PageEvent = &event
-			}
-		}
-
-		entries = append(entries, entry)
+		entries = append(entries, *entry)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate entries: %w", err)
+	}
+
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close timeline rows: %w", err)
 	}
 
 	// Check for more entries
@@ -428,8 +455,7 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 	// Get total count
 	total, err := r.CountTimelineEntries(ctx, query.SessionID)
 	if err != nil {
-		r.log.WithError(err).Warn("Failed to count timeline entries")
-		total = len(entries)
+		return nil, fmt.Errorf("count timeline entries: %w", err)
 	}
 
 	return &TimelineResponse{
@@ -486,7 +512,7 @@ func (r *SQLiteRepository) PruneOldSessions(ctx context.Context, olderThan time.
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, id := range sessionIDs {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, id); err != nil {

@@ -31,32 +31,32 @@ function formatDuration(ms: number): string {
 
 function ActionLogRow({ log }: { log: ActionLog }) {
   return (
-    <div className="flex items-start gap-3 p-3 hover:bg-white/[0.02] transition-colors">
-      <div className="flex-shrink-0 mt-0.5">
+    <div className="flex min-w-0 items-start gap-3 p-3 transition-colors hover:bg-surface-overlay/40">
+      <div className="mt-0.5 shrink-0">
         {log.success ? (
-          <CheckCircle2 size={16} className="text-emerald-400" />
+          <CheckCircle2 size={16} className="text-accent-success" />
         ) : (
-          <XCircle size={16} className="text-red-400" />
+          <XCircle size={16} className="text-accent-danger" />
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-300">
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-medium text-text-primary">
             {log.actionId}
           </span>
-          <span className="text-xs text-slate-500">on</span>
-          <span className="text-xs font-mono text-slate-400">{log.checkId}</span>
+          <span className="text-xs text-text-muted">on</span>
+          <span className="break-all font-mono text-xs text-text-muted">{log.checkId}</span>
         </div>
-        <p className="text-xs text-slate-400 mt-0.5">{log.message}</p>
+        <p className="mt-0.5 break-words text-xs text-text-muted">{log.message}</p>
         {log.error && (
-          <p className="text-xs text-red-400 mt-1">{log.error}</p>
+          <p className="mt-1 break-words text-xs text-accent-danger">{log.error}</p>
         )}
       </div>
-      <div className="flex-shrink-0 text-right">
-        <p className="text-xs text-slate-500" title={new Date(log.timestamp).toLocaleString()}>
+      <div className="shrink-0 text-right">
+        <p className="text-xs text-text-muted" title={new Date(log.timestamp).toLocaleString()}>
           {formatRelativeTime(log.timestamp)}
         </p>
-        <p className="text-xs text-slate-600">{formatDuration(log.durationMs)}</p>
+        <p className="text-xs text-text-muted/70">{formatDuration(log.durationMs)}</p>
       </div>
     </div>
   );
@@ -71,8 +71,8 @@ export function ActionHistory({ checkId, limit = 20 }: ActionHistoryProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 text-slate-500">
-        <Loader2 size={20} className="animate-spin mr-2" />
+      <div className="flex items-center justify-center py-8 text-text-muted">
+        <Loader2 size={20} className="mr-2 animate-spin" />
         Loading action history...
       </div>
     );
@@ -80,7 +80,7 @@ export function ActionHistory({ checkId, limit = 20 }: ActionHistoryProps) {
 
   if (error) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="py-8 text-center text-text-muted">
         <XCircle size={32} className="mx-auto mb-2 opacity-50" />
         <p>Failed to load action history</p>
       </div>
@@ -91,10 +91,10 @@ export function ActionHistory({ checkId, limit = 20 }: ActionHistoryProps) {
 
   if (logs.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="py-8 text-center text-text-muted">
         <Activity size={32} className="mx-auto mb-2 opacity-50" />
         <p>No actions have been executed yet</p>
-        <p className="text-xs mt-1">
+        <p className="mt-1 text-xs">
           Use the "Actions" button on resource checks to start, stop, or restart services
         </p>
       </div>
@@ -104,12 +104,12 @@ export function ActionHistory({ checkId, limit = 20 }: ActionHistoryProps) {
   const displayLogs = logs.slice(0, limit);
 
   return (
-    <div className="divide-y divide-white/5">
+    <div className="divide-y divide-border-default/70">
       {displayLogs.map((log) => (
         <ActionLogRow key={`${log.id}-${log.timestamp}`} log={log} />
       ))}
       {logs.length > limit && (
-        <div className="p-3 text-center text-xs text-slate-500">
+        <div className="p-3 text-center text-xs text-text-muted">
           Showing {limit} of {logs.length} actions
         </div>
       )}
@@ -135,14 +135,14 @@ export function ActionHistoryCompact({ checkId }: { checkId: string }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+    <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-text-muted">
       <Clock size={10} />
-      <span>
+      <span className="min-w-0 break-words">
         Last action: {lastAction.actionId} {formatRelativeTime(lastAction.timestamp)}
         {lastAction.success ? (
-          <CheckCircle2 size={10} className="inline ml-1 text-emerald-400" />
+          <CheckCircle2 size={10} className="ml-1 inline text-accent-success" />
         ) : (
-          <XCircle size={10} className="inline ml-1 text-red-400" />
+          <XCircle size={10} className="ml-1 inline text-accent-danger" />
         )}
       </span>
     </div>

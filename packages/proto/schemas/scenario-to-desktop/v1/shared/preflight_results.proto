@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// =============================================================================
+// PREFLIGHT RESULTS
+//
+// @stability beta
+//
+// Preflight results are emitted by PreflightService and retained verbatim by
+// pipeline stage state, so their vocabulary is scenario-shared.
+//
+// =============================================================================
+
+enum PreflightStatus {
+  PREFLIGHT_STATUS_UNSPECIFIED = 0;
+  PREFLIGHT_STATUS_RUNNING = 1;
+  PREFLIGHT_STATUS_PASSED = 2;
+  PREFLIGHT_STATUS_FAILED = 3;
+  PREFLIGHT_STATUS_WARNINGS = 4;
+}
+
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED = 0;
+  CHECK_STATUS_PENDING = 1;
+  CHECK_STATUS_RUNNING = 2;
+  CHECK_STATUS_PASSED = 3;
+  CHECK_STATUS_FAILED = 4;
+  CHECK_STATUS_SKIPPED = 5;
+}
+
+// PreflightCheckStep identifies the operational area a check validates.
+enum PreflightCheckStep {
+  PREFLIGHT_CHECK_STEP_UNSPECIFIED = 0;
+  PREFLIGHT_CHECK_STEP_VALIDATION = 1;
+  PREFLIGHT_CHECK_STEP_SECRETS = 2;
+  PREFLIGHT_CHECK_STEP_RUNTIME = 3;
+  PREFLIGHT_CHECK_STEP_SERVICES = 4;
+  PREFLIGHT_CHECK_STEP_DIAGNOSTICS = 5;
+}
+
+enum SecretClass {
+  SECRET_CLASS_UNSPECIFIED = 0;
+  SECRET_CLASS_API_KEY = 1;
+  SECRET_CLASS_PASSWORD = 2;
+  SECRET_CLASS_TOKEN = 3;
+  SECRET_CLASS_CONNECTION_STRING = 4;
+  SECRET_CLASS_CERTIFICATE = 5;
+  SECRET_CLASS_GENERIC = 6;
+}
+
+message PreflightSecret {
+  string id = 1;
+  SecretClass secret_class = 2;
+  bool required = 3;
+  bool has_value = 4;
+  optional string description = 5;
+  optional string format = 6;
+  map<string, string> prompt = 7;
+}
+
+message GPUInfo {
+  bool available = 1;
+  optional string method = 2;
+  optional string reason = 3;
+  map<string, string> requirements = 4;
+}
+
+message PreflightReady {
+  bool ready = 1;
+  repeated ServiceReadiness details = 2;
+  optional GPUInfo gpu = 3;
+  google.protobuf.Timestamp snapshot_at = 4;
+  int32 waited_seconds = 5;
+}
+
+// ServiceReadiness retains the complete health observation for one service.
+message ServiceReadiness {
+  string service_id = 1;
+  bool ready = 2;
+  bool skipped = 3;
+  optional string message = 4;
+  optional int32 exit_code = 5;
+  optional google.protobuf.Timestamp started_at = 6;
+  optional google.protobuf.Timestamp ready_at = 7;
+  optional google.protobuf.Timestamp updated_at = 8;
+}
+
+// ServicePort retains a named port assignment without lossy string flattening.
+message ServicePort {
+  string service_id = 1;
+  string name = 2;
+  int32 port = 3;
+}
+
+message BundleValidationIssue {
+  string code = 1;
+  optional string service = 2;
+  optional string path = 3;
+  string message = 4;
+}
+
+message MissingBinary {
+  string service_id = 1;
+  string platform = 2;
+  string path = 3;
+}
+
+message MissingAsset {
+  string service_id = 1;
+  string path = 2;
+}
+
+message InvalidChecksum {
+  string service_id = 1;
+  string path = 2;
+  optional string expected = 3;
+  optional string actual = 4;
+}
+
+// BundleValidationResult is the structured runtime validation result. Do not
+// replace it with JSON text: consumers need stable fields for remediation.
+message BundleValidationResult {
+  bool valid = 1;
+  repeated BundleValidationIssue errors = 2;
+  repeated BundleValidationIssue warnings = 3;
+  repeated MissingBinary missing_binaries = 4;
+  repeated MissingAsset missing_assets = 5;
+  repeated InvalidChecksum invalid_checksums = 6;
+}
+
+message PreflightRuntime {
+  string instance_id = 1;
+  google.protobuf.Timestamp started_at = 2;
+  optional string app_data_dir = 3;
+  optional string bundle_root = 4;
+  bool dry_run = 5;
+  optional string manifest_hash = 6;
+  optional string manifest_schema = 7;
+  optional string target = 8;
+  optional string app_name = 9;
+  optional string app_version = 10;
+  optional string ipc_host = 11;
+  optional int32 ipc_port = 12;
+  optional string runtime_version = 13;
+  optional string build_version = 14;
+}
+
+message PreflightCheck {
+  string id = 1;
+  PreflightCheckStep step = 2;
+  string name = 3;
+  CheckStatus status = 4;
+  optional string detail = 5;
+}
+
+message ServiceLogTail {
+  string service_id = 1;
+  int32 lines = 2;
+  string content = 3;
+  optional string error = 4;
+}
+
+message ServiceFingerprint {
+  string service_id = 1;
+  string platform = 2;
+  optional string binary_path = 3;
+  optional string binary_resolved_path = 4;
+  optional string binary_sha256 = 5;
+  optional int64 binary_size_bytes = 6;
+  optional google.protobuf.Timestamp binary_mtime = 7;
+  optional string error = 8;
+}
+
+message TelemetryInfo {
+  string path = 1;
+  optional string upload_url = 2;
+}
+
+message PreflightResponse {
+  PreflightStatus status = 1;
+  optional BundleValidationResult validation = 2;
+  optional PreflightReady ready = 3;
+  repeated PreflightSecret secrets = 4;
+  repeated ServicePort ports = 5;
+  optional TelemetryInfo telemetry = 6;
+  repeated ServiceLogTail log_tails = 7;
+  repeated PreflightCheck checks = 8;
+  optional PreflightRuntime runtime = 9;
+  repeated ServiceFingerprint service_fingerprints = 10;
+  repeated ValidationError errors = 11;
+  repeated ValidationWarning warnings = 12;
+  optional string session_id = 13;
+  optional google.protobuf.Timestamp expires_at = 14;
+}

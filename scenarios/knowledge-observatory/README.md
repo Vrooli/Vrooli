@@ -106,6 +106,8 @@ knowledge-observatory docs search-files "**/README.md"
 knowledge-observatory docs search-text "health score"
 knowledge-observatory docs search-deep "How does deep search work?"
 knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs health knowledge-observatory --json
+knowledge-observatory docs audit knowledge-observatory
 
 # Watch health in real-time
 knowledge-observatory health --watch
@@ -114,6 +116,8 @@ knowledge-observatory health --watch
 Notes:
 - `search` and `ingest` are implemented and call the Knowledge Observatory API.
 - `ingest-job` and `job-status` are implemented for async chunked ingestion.
+- `docs health` reports documentation-health maturity by capability while preserving the shared `assessment.local` rollup for legacy consumers.
+- `docs audit` validates documentation structure, `[CODE:]` references, and marked inline `path:` / `doc:` references.
 - `graph`, `metrics`, and `health` are implemented and call the Knowledge Observatory API.
 - `health --watch` is supported for live polling output.
 
@@ -211,3 +215,13 @@ This scenario is essential infrastructure - it's not just a tool but a window in
 **Status**: Production Ready  
 **Maintainer**: AI Agents  
 **Review Cycle**: Weekly
+
+## Agent knowledge interface
+
+For task-oriented documentation retrieval and maintenance, load the scenario-owned
+`knowledge-observatory` skill. For outcome-driven improvement, load
+`knowledge-observatory-improve`. The [getting started guide](docs/guides/getting-started.md#agent-knowledge-workflows)
+explains the governed CLI, five bounded programs, authority/applicability metadata,
+and caller-owned Memory learning loop.
+
+For document cleanup, consolidation, and reorganization, see the [maintenance workflow](docs/guides/document-maintenance.md).

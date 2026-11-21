@@ -153,6 +153,10 @@ func TestHandleAgentGetScenarios(t *testing.T) {
 		t.Fatalf("Failed to insert test data: %v", err)
 	}
 
+	// Scenario discovery shells out to the vrooli CLI; pin its answer so the
+	// verdict does not depend on which scenarios the host has installed.
+	srv.scenarioLocator = newLocatorWithRunner(&fakeRunner{output: []byte(`{"success":true,"scenarios":[{"name":"scenario-a"},{"name":"scenario-b"}]}`)})
+
 	req := httptest.NewRequest("GET", "/api/v1/agent/scenarios", nil)
 	rr := httptest.NewRecorder()
 

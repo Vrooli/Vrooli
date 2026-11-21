@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import userEvent from '@testing-library/user-event';
 import { Select } from '../select';
 
 describe('Select', () => {
   it('renders correctly with default props', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option value="">Choose option</option>
         <option value="1">Option 1</option>
@@ -16,7 +17,7 @@ describe('Select', () => {
   });
 
   it('applies default styling classes', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -36,7 +37,7 @@ describe('Select', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Select className="custom-class">
         <option>Test</option>
       </Select>
@@ -46,7 +47,7 @@ describe('Select', () => {
   });
 
   it('renders options correctly', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option value="1">Option 1</option>
         <option value="2">Option 2</option>
@@ -63,7 +64,7 @@ describe('Select', () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <Select onChange={handleChange}>
         <option value="">Select</option>
         <option value="1">Option 1</option>
@@ -82,7 +83,7 @@ describe('Select', () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <Select disabled onChange={handleChange}>
         <option value="1">Option 1</option>
         <option value="2">Option 2</option>
@@ -99,7 +100,7 @@ describe('Select', () => {
   });
 
   it('includes focus styles', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -114,7 +115,7 @@ describe('Select', () => {
   });
 
   it('includes hover transition', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -124,7 +125,7 @@ describe('Select', () => {
   });
 
   it('supports required attribute', () => {
-    render(
+    renderWithProviders(
       <Select required>
         <option value="">Select</option>
         <option value="1">Option 1</option>
@@ -136,7 +137,7 @@ describe('Select', () => {
   });
 
   it('sets aria-required to false when not required', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -147,7 +148,7 @@ describe('Select', () => {
   });
 
   it('supports custom aria-invalid attribute', () => {
-    render(
+    renderWithProviders(
       <Select aria-invalid={true}>
         <option>Test</option>
       </Select>
@@ -157,7 +158,7 @@ describe('Select', () => {
   });
 
   it('defaults aria-invalid to false', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -167,7 +168,7 @@ describe('Select', () => {
   });
 
   it('supports defaultValue', () => {
-    render(
+    renderWithProviders(
       <Select defaultValue="2">
         <option value="1">Option 1</option>
         <option value="2">Option 2</option>
@@ -179,7 +180,7 @@ describe('Select', () => {
   });
 
   it('supports controlled value', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <Select value="1" onChange={() => {}}>
         <option value="1">Option 1</option>
         <option value="2">Option 2</option>
@@ -198,7 +199,7 @@ describe('Select', () => {
   });
 
   it('supports name attribute for forms', () => {
-    render(
+    renderWithProviders(
       <Select name="category">
         <option value="1">Category 1</option>
       </Select>
@@ -208,7 +209,7 @@ describe('Select', () => {
   });
 
   it('includes option background styling', () => {
-    render(
+    renderWithProviders(
       <Select>
         <option>Test</option>
       </Select>
@@ -219,7 +220,7 @@ describe('Select', () => {
   });
 
   it('supports multiple attribute', () => {
-    render(
+    renderWithProviders(
       <Select multiple>
         <option value="1">Option 1</option>
         <option value="2">Option 2</option>
@@ -231,7 +232,7 @@ describe('Select', () => {
   });
 
   it('supports optgroup', () => {
-    render(
+    renderWithProviders(
       <Select>
         <optgroup label="Group 1">
           <option value="1">Option 1</option>
@@ -249,7 +250,7 @@ describe('Select', () => {
   });
 
   it('supports responsive width classes', () => {
-    render(
+    renderWithProviders(
       <Select className="w-full sm:w-1/2 md:w-1/3">
         <option>Test</option>
       </Select>

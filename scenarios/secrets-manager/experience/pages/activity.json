@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "activity",
+    "title": "Activity",
+    "routes": [
+      "/activity"
+    ],
+    "purpose": "Inspect metadata-only activity and audit integrity without displaying credential values.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Audit integrity and event metadata are the first information a reviewer sees."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The page is ready for its primary task."
+    },
+    {
+      "id": "loading",
+      "description": "The page is loading protected metadata."
+    },
+    {
+      "id": "empty",
+      "description": "The page is ready but has no records to show."
+    },
+    {
+      "id": "partial",
+      "description": "The primary task is usable while supporting evidence is unavailable."
+    },
+    {
+      "id": "request-error",
+      "description": "The page explains the failed request and offers a recovery path."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot use this destination or action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "activity-region",
+      "role": "region",
+      "name": "Activity with safe evidence"
+    },
+    {
+      "id": "integrity-status",
+      "role": "status",
+      "name": "Evidence"
+    },
+    {
+      "id": "event-list",
+      "role": "list",
+      "name": "Activity events"
+    }
+  ],
+  "claims": [
+    {
+      "id": "metadata-only",
+      "type": "element-present",
+      "statement": "Activity identifies actors, operations, outcomes, and request metadata without rendering secret values.",
+      "tier": "manual",
+      "elements": [
+        "activity-region",
+        "event-list"
+      ],
+      "states": [
+        "default",
+        "empty"
+      ]
+    },
+    {
+      "id": "integrity-visible",
+      "type": "state-covered",
+      "statement": "Audit integrity is visibly distinct when evidence is unknown or tampered.",
+      "tier": "manual",
+      "elements": [
+        "integrity-status"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "activity-timeline",
+      "purpose": "Render the audit timeline and its empty or error state.",
+      "component": {
+        "library": {
+          "component": "async-panel",
+          "version": "1.0.5"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "activity-timeline": {
+        "selector": "[data-experience-surface=\"activity-timeline\"]"
+      }
+    },
+    "elements": {
+      "activity-region": {
+        "selector": "[data-experience-surface=\"activity-timeline\"]"
+      },
+      "integrity-status": {
+        "selector": ".status-chip"
+      },
+      "event-list": {
+        "selector": ".activity-list"
+      }
+    }
+  }
+}

@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.probes;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/probes;probes_v1";
+
+// =============================================================================
+// PROBES DOMAIN — liveness probing & classification
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for ProbesService. Probes each exposed route's local port
+// (internal) and public URL (external) on a schedule, records probe history,
+// and classifies failures (tunnel-down / scenario-down / cloudflare-outage /
+// dns-failure / config-drift). Knowing WHERE a failure is lets recovery act
+// precisely.
+//
+// Consumed by:
+//   - API: handlers/probes/connect_handler.go implements ProbesServiceHandler.
+//   - CLI: cli/domains/probes/handlers.go (probe run|history).
+//   - UI:  ui/src/features/probes/ (per-route drill-down).
+// =============================================================================
+
+service ProbesService {
+  // RunProbes executes one probe cycle across all exposed routes and persists
+  // the results.
+  rpc RunProbes(RunProbesRequest) returns (RunProbesResponse);
+  // ListProbes returns recent probe history.
+  rpc ListProbes(ListProbesRequest) returns (ListProbesResponse);
+  // Classify returns the per-route reachability classification derived from
+  // the latest internal+external probes.
+  rpc Classify(ClassifyRequest) returns (ClassifyResponse);
+}
+
+// ProbeKind distinguishes internal (local port) from external (public URL)
+// probes.
+enum ProbeKind {
+  PROBE_KIND_UNSPECIFIED = 0;
+  PROBE_KIND_INTERNAL = 1;
+  PROBE_KIND_EXTERNAL = 2;
+}
+
+// ProbeStatus is the outcome of a single probe.
+enum ProbeStatus {
+  PROBE_STATUS_UNSPECIFIED = 0;
+  PROBE_STATUS_UP = 1;
+  PROBE_STATUS_DOWN = 2;
+  PROBE_STATUS_TIMEOUT = 3;
+  PROBE_STATUS_ERROR = 4;
+}
+
+// FailureClass is the diagnosis of why a route is unreachable.
+enum FailureClass {
+  FAILURE_CLASS_UNSPECIFIED = 0;
+  FAILURE_CLASS_HEALTHY = 1;
+  FAILURE_CLASS_TUNNEL_DOWN = 2;
+  FAILURE_CLASS_SCENARIO_DOWN = 3;
+  FAILURE_CLASS_CLOUDFLARE_OUTAGE = 4;
+  FAILURE_CLASS_DNS_FAILURE = 5;
+  FAILURE_CLASS_CONFIG_DRIFT = 6;
+}
+
+// ProbeResult is one recorded probe outcome.
+message ProbeResult {
+  string id = 1;
+  string subdomain = 2;
+  ProbeKind kind = 3;
+  ProbeStatus status = 4;
+  int32 latency_ms = 5;
+  int32 status_code = 6;
+  string error_msg = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// RouteClassification is the diagnosed reachability of one route.
+message RouteClassification {
+  string subdomain = 1;
+  FailureClass classification = 2;
+  ProbeStatus internal = 3;
+  ProbeStatus external = 4;
+  // Human-readable assessment.
+  string assessment = 5;
+}
+
+message RunProbesRequest {}
+
+message RunProbesResponse {
+  repeated ProbeResult results = 1;
+}
+
+message ListProbesRequest {
+  // Optional subdomain filter; empty returns all.
+  string subdomain = 1;
+  // Max rows to return; 0 uses the default.
+  int32 limit = 2;
+}
+
+message ListProbesResponse {
+  repeated ProbeResult results = 1;
+}
+
+message ClassifyRequest {}
+
+message ClassifyResponse {
+  repeated RouteClassification classifications = 1;
+}

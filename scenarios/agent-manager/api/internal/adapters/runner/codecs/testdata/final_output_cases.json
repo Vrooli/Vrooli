@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "provenance": "composition of sanitized observed field shapes from sibling JSONL captures",
+  "cases": [
+    {
+      "name": "claude_terminal_result_beats_post_handoff_chatter",
+      "runner": "claude-code",
+      "kind": "composition",
+      "events": [
+        {"type":"assistant","message":{"id":"msg-main","role":"assistant","content":[{"type":"text","text":"handoff"}],"stop_reason":"end_turn"},"session_id":"session-1"},
+        {"type":"result","subtype":"success","is_error":false,"result":"handoff","session_id":"session-1"},
+        {"type":"assistant","message":{"id":"msg-chatter","role":"assistant","content":[{"type":"text","text":"incidental chatter"}],"stop_reason":null},"session_id":"session-1"}
+      ],
+      "expectedStatus": "selected",
+      "expectedText": "handoff"
+    },
+    {
+      "name": "claude_interleaved_child_is_not_main_handoff",
+      "runner": "claude-code",
+      "kind": "composition",
+      "events": [
+        {"type":"assistant","parent_tool_use_id":"tool-child","message":{"id":"msg-child","role":"assistant","content":[{"type":"text","text":"child result"}],"stop_reason":"end_turn"},"session_id":"session-1"},
+        {"type":"assistant","message":{"id":"msg-main","role":"assistant","content":[{"type":"text","text":"main result"}],"stop_reason":"end_turn"},"session_id":"session-1"},
+        {"type":"result","subtype":"success","is_error":false,"result":"main result","session_id":"session-1"}
+      ],
+      "expectedStatus": "selected",
+      "expectedText": "main result"
+    },
+    {
+      "name": "codex_task_complete_identifies_turn_handoff",
+      "runner": "codex",
+      "kind": "composition",
+      "events": [
+        {"type":"event_msg","payload":{"type":"agent_message","message":"handoff"}},
+        {"type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-1"}},
+        {"type":"event_msg","payload":{"type":"agent_message","message":"post-handoff chatter"}}
+      ],
+      "expectedStatus": "selected",
+      "expectedText": "handoff"
+    },
+    {
+      "name": "codex_missing_terminal_with_two_messages_abstains",
+      "runner": "codex",
+      "kind": "composition",
+      "events": [
+        {"type":"item.completed","item":{"id":"item-1","type":"agent_message","text":"candidate one"}},
+        {"type":"item.completed","item":{"id":"item-2","type":"agent_message","text":"candidate two"}}
+      ],
+      "expectedStatus": "ambiguous"
+    },
+    {
+      "name": "opencode_step_finish_text_is_terminal_handoff",
+      "runner": "opencode",
+      "kind": "composition",
+      "events": [
+        {"type":"text","sessionID":"session-1","part":{"type":"text","text":"draft"}},
+        {"type":"step_finish","sessionID":"session-1","part":{"type":"step-finish","reason":"stop","text":"handoff"}},
+        {"type":"text","sessionID":"session-1","part":{"type":"text","text":"chatter"}}
+      ],
+      "expectedStatus": "selected",
+      "expectedText": "handoff"
+    },
+    {
+      "name": "opencode_missing_step_finish_abstains",
+      "runner": "opencode",
+      "kind": "composition",
+      "events": [
+        {"type":"text","sessionID":"session-1","part":{"type":"text","text":"only candidate"}}
+      ],
+      "expectedStatus": "unavailable"
+    },
+    {
+      "name": "grok_end_correlates_accumulated_text",
+      "runner": "grok",
+      "kind": "composition",
+      "events": [
+        {"type":"text","data":"hand"},
+        {"type":"text","data":"off"},
+        {"type":"end","stopReason":"EndTurn","sessionId":"session-1","requestId":"request-1"}
+      ],
+      "expectedStatus": "selected",
+      "expectedText": "handoff"
+    },
+    {
+      "name": "grok_text_without_end_abstains",
+      "runner": "grok",
+      "kind": "composition",
+      "events": [
+        {"type":"text","data":"candidate"}
+      ],
+      "expectedStatus": "unavailable"
+    }
+  ]
+}

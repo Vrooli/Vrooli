@@ -1,0 +1,119 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-console.continuity-integrity-audit",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Run a bounded, read-only continuity inventory and classify whether Web Console needs operator reconciliation.",
+  "inputs": {
+    "include_generation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include the opaque inventory generation and event-content hash in evidence."
+    }
+  },
+  "assumptions": [
+    "Web Console owns local continuity truth and its typed integrity endpoint",
+    "an unavailable result is unknown and never treated as zero",
+    "event content hashes are safe evidence and contain no transcript text"
+  ],
+  "invariants": [
+    "only the read-only continuity integrity binding is called",
+    "the program never applies reconciliation or reads raw transcript content",
+    "output contains counts, bounded classifications, and opaque hashes only",
+    "the envelope is printed exactly once"
+  ],
+  "bindings": [
+    {
+      "id": "web-console/continuity/integrity",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "source_counts": "Bounded counts for each continuity source relation.",
+      "orphan_counts": "Bounded counts by orphan class.",
+      "uncataloged_conversations": "Message-bearing conversation projections with neither a live session row nor a continuity catalog record.",
+      "orphan_total": "Total orphan evidence rows across the three reported classes.",
+      "classification": "healthy when no uncataloged conversations or projection drift exists, degraded when message-bearing evidence lacks a catalog record, projection_drift when only rebuildable projections are stale, and unknown when the source is unavailable.",
+      "generation": "Opaque inventory generation when requested.",
+      "event_content_hash": "Opaque conservation hash when requested.",
+      "next_actions": "Closed operator actions derived from the classification."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Binding id, source counts, orphan counts, and opaque hashes only."
+  },
+  "budget": {
+    "wall_ms": 15000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 4096
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {
+        "include_generation": true
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-console"
+      ]
+    },
+    {
+      "id": "hashless",
+      "inputs": {
+        "include_generation": false
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-console"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-console-continuity-improve",
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ]
+}

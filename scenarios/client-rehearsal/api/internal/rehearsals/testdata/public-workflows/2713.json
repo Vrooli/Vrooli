@@ -1,0 +1,116 @@
+{
+  "entryWorkflowId": "synthetic-caller",
+  "workflows": [
+    {
+      "id": "synthetic-caller",
+      "name": "Synthetic caller for public subworkflow 2713",
+      "nodes": [
+        {
+          "id": "caller-trigger",
+          "name": "Manual Trigger",
+          "type": "n8n-nodes-base.manualTrigger",
+          "typeVersion": 1,
+          "parameters": {}
+        },
+        {
+          "id": "caller-node",
+          "name": "Call public subworkflow",
+          "type": "n8n-nodes-base.executeWorkflow",
+          "typeVersion": 1,
+          "parameters": {
+            "workflowId": "2713-export"
+          }
+        }
+      ],
+      "connections": {
+        "Manual Trigger": {
+          "main": [
+            [
+              {
+                "node": "Call public subworkflow",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Call public subworkflow": {
+          "main": [
+            []
+          ]
+        }
+      }
+    },
+    {
+      "id": "2713-export",
+      "name": "Using external workflows as tools in n8n",
+      "nodes": [
+        {
+          "id": "public-subworkflow-trigger",
+          "name": "Execute Workflow Trigger",
+          "type": "n8n-nodes-base.executeWorkflowTrigger",
+          "typeVersion": 1,
+          "parameters": {}
+        },
+        {
+          "id": "public-crawl-http",
+          "name": "FireCrawl",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.2,
+          "parameters": {
+            "url": "https://crawl.synthetic.invalid/v1/scrape",
+            "method": "POST"
+          },
+          "credentials": {
+            "httpHeaderAuth": {
+              "name": "synthetic-credential"
+            }
+          }
+        },
+        {
+          "id": "public-crawl-output",
+          "name": "Edit Fields",
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.4,
+          "parameters": {
+            "mode": "manual",
+            "options": {},
+            "assignments": {
+              "assignments": [
+                {
+                  "name": "response",
+                  "type": "string",
+                  "value": "={{ $json.data.markdown }}"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Execute Workflow Trigger": {
+          "main": [
+            [
+              {
+                "node": "FireCrawl",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "FireCrawl": {
+          "main": [
+            [
+              {
+                "node": "Edit Fields",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      }
+    }
+  ]
+}

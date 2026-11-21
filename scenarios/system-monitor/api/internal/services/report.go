@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#reporting
 
 import (
@@ -9,10 +10,10 @@ import (
 	"sort"
 	"time"
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // ReportService handles report generation and analysis
@@ -48,7 +49,10 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 	reportID := fmt.Sprintf("report_%s_%d", reportType, s.clock.Now().Unix())
 
 	// Determine time range based on report type
-	timeRange := s.calculateTimeRange(reportType)
+	timeRange, err := s.calculateTimeRange(ctx, reportType)
+	if err != nil {
+		return nil, apierrors.Internal("Unable to determine report time range", err)
+	}
 
 	// Gather historical metrics from repository
 	historicalMetrics, err := s.gatherHistoricalMetrics(ctx, timeRange)
@@ -79,11 +83,19 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		alerts = []*models.Alert{}
 	}
 
+	ownerResources, ownerResourceErr := s.ownerResourceReport(ctx, timeRange)
+	if ownerResourceErr != nil {
+		warnings = append(warnings, fmt.Sprintf("Owner resource data unavailable: %v", ownerResourceErr))
+	}
+
 	// Analyze the data
 	executiveSummary := s.generateExecutiveSummary(historicalMetrics, investigations, alerts, reportType)
 	performanceAnalysis := s.analyzePerformance(historicalMetrics, timeRange)
 	trends := s.analyzeTrends(historicalMetrics)
 	recommendations := s.generateRecommendations(performanceAnalysis, trends, alerts)
+	if ownerResourceErr == nil {
+		recommendations = append(recommendations, ownerResourceFollowUps(ownerResources)...)
+	}
 	highlights := s.generateHighlights(historicalMetrics, investigations, alerts, reportType)
 
 	// Calculate actual duration and date range display
@@ -109,6 +121,7 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 		AlertsCount:         len(alerts),
 		InvestigationsCount: len(investigations),
 		Warnings:            warnings,
+		OwnerResources:      ownerResources,
 	}
 
 	// Store the report
@@ -120,44 +133,151 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 	return report, nil
 }
 
+// ownerResourceFollowUps turns incomplete accounting into bounded, runnable
+// next steps. It deliberately does not describe sampled process sums as host
+// swap or reclaimed bytes.
+func ownerResourceFollowUps(report models.OwnerResourceReport) []string {
+	if report.SwapCoverageComplete && report.AttributionComplete {
+		return nil
+	}
+	actions := make([]string, 0, 2)
+	if !report.SwapCoverageComplete {
+		actions = append(actions, fmt.Sprintf(
+			"Swap coverage is partial (%d measured samples, %d unknown). These process-group readings are not a host-wide swap total. Collect a fresh 15-minute window with `system-monitor metrics process-timeline --window 15m --rank swap --top 100`; preserve the measured/unknown counts and compare the coverage timestamps before making reclaim decisions.",
+			report.SwapMeasuredSamples, report.SwapUnknownSamples,
+		))
+	}
+	if !report.AttributionComplete {
+		unknownGroups := 0
+		for _, owner := range report.Owners {
+			if owner.Owner == "unknown" {
+				unknownGroups = owner.ProcessGroups
+				break
+			}
+		}
+		actions = append(actions, fmt.Sprintf(
+			"Owner attribution is incomplete across this retained report window (%d unknown process groups). Historical samples keep the owner label captured at collection time and may predate current host-identity rules. Inspect a fresh tail with `system-monitor metrics process-timeline --window 15m --owner unknown --rank swap --top 100`; repair the resolver only if current user, app, service, or agent processes still appear unknown. Preserve legacy rows and do not assign their bytes to a scenario by inference.",
+			unknownGroups,
+		))
+	}
+	return actions
+}
+
+const ownerResourceReportTop = repository.MaxProcessTimelineGroups
+
+// Process sampling is configured at 20 seconds by default. Two minutes allows
+// a few delayed cycles while still exposing a truncated weekly history.
+const ownerResourceCoverageEdgeTolerance = 2 * time.Minute
+
+func (s *ReportService) ownerResourceReport(ctx context.Context, timeRange repository.TimeRange) (models.OwnerResourceReport, error) {
+	report := models.OwnerResourceReport{
+		WindowStart: timeRange.StartTime,
+		WindowEnd:   timeRange.EndTime,
+		Owners:      []models.OwnerResourceSummary{},
+	}
+	entries, err := s.repo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
+		Start: timeRange.StartTime,
+		End:   timeRange.EndTime.Add(time.Nanosecond),
+		Top:   ownerResourceReportTop,
+		Rank:  "swap",
+	})
+	if err != nil {
+		return report, err
+	}
+	report.ReturnedProcessGroups = len(entries)
+	if len(entries) > 0 {
+		report.SampleCoverageStart = entries[0].FirstSeen
+		report.SampleCoverageEnd = entries[0].LastSeen
+		for _, entry := range entries[1:] {
+			if !entry.FirstSeen.IsZero() && (report.SampleCoverageStart.IsZero() || entry.FirstSeen.Before(report.SampleCoverageStart)) {
+				report.SampleCoverageStart = entry.FirstSeen
+			}
+			if entry.LastSeen.After(report.SampleCoverageEnd) {
+				report.SampleCoverageEnd = entry.LastSeen
+			}
+		}
+	}
+	coverageComplete := !report.SampleCoverageStart.IsZero() && !report.SampleCoverageEnd.IsZero() &&
+		!report.SampleCoverageStart.After(timeRange.StartTime.Add(ownerResourceCoverageEdgeTolerance)) &&
+		!report.SampleCoverageEnd.Before(timeRange.EndTime.Add(-ownerResourceCoverageEdgeTolerance))
+	report.Complete = len(entries) > 0 && len(entries) < ownerResourceReportTop && coverageComplete
+	report.AttributionComplete = len(entries) > 0
+	report.SwapCoverageComplete = len(entries) > 0
+	byOwner := make(map[string]*models.OwnerResourceSummary)
+	for _, entry := range entries {
+		owner := entry.Owner
+		if owner == "" {
+			owner = "unknown"
+		}
+		if owner == "unknown" {
+			report.AttributionComplete = false
+		}
+		summary := byOwner[owner]
+		if summary == nil {
+			summary = &models.OwnerResourceSummary{Owner: owner}
+			byOwner[owner] = summary
+		}
+		summary.ProcessGroups++
+		summary.Samples += entry.SampleCount
+		summary.SwapMeasuredSamples += entry.SwapMeasuredSamples
+		summary.SwapUnknownSamples += entry.SwapUnknownSamples
+		summary.CoreHours += entry.CPUSeconds / 3600
+		summary.MeanRSSGiBProcessSum += float64(entry.RSSKB) / 1024 / 1024
+		summary.MeanSwapGiBProcessSum += float64(entry.SwapKB) / 1024 / 1024
+		report.SwapMeasuredSamples += entry.SwapMeasuredSamples
+		report.SwapUnknownSamples += entry.SwapUnknownSamples
+		if entry.SwapMeasuredSamples > 0 {
+			if report.SwapCoverageStart.IsZero() || entry.SwapCoverageStart.Before(report.SwapCoverageStart) {
+				report.SwapCoverageStart = entry.SwapCoverageStart
+			}
+			if entry.SwapCoverageEnd.After(report.SwapCoverageEnd) {
+				report.SwapCoverageEnd = entry.SwapCoverageEnd
+			}
+		}
+		if entry.SwapUnknownSamples > 0 || entry.SwapMeasuredSamples == 0 {
+			report.SwapCoverageComplete = false
+		}
+		vramGiB := entry.GPUVRAMMB / 1024
+		if vramGiB > summary.PeakSingleProcessVRAMGiB {
+			summary.PeakSingleProcessVRAMGiB = vramGiB
+		}
+	}
+	for _, summary := range byOwner {
+		report.Owners = append(report.Owners, *summary)
+	}
+	report.SwapCoverageComplete = report.SwapCoverageComplete && report.SwapMeasuredSamples > 0 &&
+		!report.SwapCoverageStart.IsZero() && !report.SwapCoverageEnd.IsZero() &&
+		!report.SwapCoverageStart.After(timeRange.StartTime.Add(ownerResourceCoverageEdgeTolerance)) &&
+		!report.SwapCoverageEnd.Before(timeRange.EndTime.Add(-ownerResourceCoverageEdgeTolerance))
+	sort.Slice(report.Owners, func(i, j int) bool {
+		if report.Owners[i].CoreHours != report.Owners[j].CoreHours {
+			return report.Owners[i].CoreHours > report.Owners[j].CoreHours
+		}
+		return report.Owners[i].Owner < report.Owners[j].Owner
+	})
+	return report, nil
+}
+
 // calculateTimeRange determines the time range for the report
-func (s *ReportService) calculateTimeRange(reportType string) repository.TimeRange {
+func (s *ReportService) calculateTimeRange(ctx context.Context, reportType string) (repository.TimeRange, error) {
 	now := s.clock.Now()
-
-	// Get earliest metrics time to ensure we don't request data before collection started
-	earliest, err := s.repo.GetEarliestMetricTime(context.Background())
-	if err == nil {
-		// Determine the intended start time
-		var intendedStart time.Time
-		switch reportType {
-		case "daily":
-			intendedStart = now.AddDate(0, 0, -1) // Last 24 hours
-		case "weekly":
-			intendedStart = now.AddDate(0, 0, -7) // Last 7 days
-		default:
-			intendedStart = now.AddDate(0, 0, -1) // Default to daily
-		}
-
-		// Use the later of intended start or earliest available data
-		if earliest.After(intendedStart) {
-			return repository.TimeRange{StartTime: earliest, EndTime: now}
-		}
-		return repository.TimeRange{StartTime: intendedStart, EndTime: now}
+	start := reportStart(now, reportType)
+	// Clamp the requested window to the first retained sample when available.
+	earliest, err := s.repo.GetEarliestMetricTime(ctx)
+	if err != nil && ctx.Err() != nil {
+		return repository.TimeRange{}, ctx.Err()
 	}
-
-	// Fallback to standard time ranges if we can't get earliest time
-	switch reportType {
-	case "daily":
-		start := now.AddDate(0, 0, -1) // Last 24 hours
-		return repository.TimeRange{StartTime: start, EndTime: now}
-	case "weekly":
-		start := now.AddDate(0, 0, -7) // Last 7 days
-		return repository.TimeRange{StartTime: start, EndTime: now}
-	default:
-		// Default to daily
-		start := now.AddDate(0, 0, -1)
-		return repository.TimeRange{StartTime: start, EndTime: now}
+	if err == nil && earliest.After(start) {
+		start = earliest
 	}
+	return repository.TimeRange{StartTime: start, EndTime: now}, nil
+}
+
+func reportStart(now time.Time, reportType string) time.Time {
+	if reportType == "weekly" {
+		return now.AddDate(0, 0, -7)
+	}
+	return now.AddDate(0, 0, -1)
 }
 
 // gatherHistoricalMetrics retrieves all metrics within the time range
@@ -185,21 +305,37 @@ func (s *ReportService) generateExecutiveSummary(metrics []*models.MetricsRespon
 	var highCPUCount, highMemoryCount int
 
 	for _, metric := range metrics {
-		totalCPU += metric.CPUUsage
-		totalMemory += metric.MemoryUsage
-		totalTCP += metric.TCPConnections
+		if metric.CPUState.Status == "measured" {
+			totalCPU += metric.CPUUsage
+		}
+		if metric.MemoryState.Status == "measured" {
+			totalMemory += metric.MemoryUsage
+		}
+		if metric.ConnectionsState.Status == "measured" {
+			totalTCP += metric.TCPConnections
+		}
 
-		if metric.CPUUsage > 80 {
+		if metric.CPUState.Status == "measured" && metric.CPUUsage > 80 {
 			highCPUCount++
 		}
-		if metric.MemoryUsage > 85 {
+		if metric.MemoryState.Status == "measured" && metric.MemoryUsage > 85 {
 			highMemoryCount++
 		}
 	}
 
-	avgCPU := totalCPU / float64(len(metrics))
-	avgMemory := totalMemory / float64(len(metrics))
-	avgTCP := float64(totalTCP) / float64(len(metrics))
+	cpuMetrics := measuredCPU(metrics)
+	memoryMetrics := measuredMemory(metrics)
+	networkMetrics := measuredConnections(metrics)
+	avgCPU, avgMemory, avgTCP := 0.0, 0.0, 0.0
+	if len(cpuMetrics) > 0 {
+		avgCPU = totalCPU / float64(len(cpuMetrics))
+	}
+	if len(memoryMetrics) > 0 {
+		avgMemory = totalMemory / float64(len(memoryMetrics))
+	}
+	if len(networkMetrics) > 0 {
+		avgTCP = float64(totalTCP) / float64(len(networkMetrics))
+	}
 
 	// Determine overall health
 	health := "healthy"
@@ -250,8 +386,8 @@ func (s *ReportService) analyzePerformance(metrics []*models.MetricsResponse, ti
 	}
 
 	// Calculate performance statistics with timestamps
-	cpuStats := calculateStatsWithTime(metrics, func(m *models.MetricsResponse) float64 { return m.CPUUsage })
-	memoryStats := calculateStatsWithTime(metrics, func(m *models.MetricsResponse) float64 { return m.MemoryUsage })
+	cpuStats := calculateStatsWithTime(measuredCPU(metrics), func(m *models.MetricsResponse) float64 { return m.CPUUsage })
+	memoryStats := calculateStatsWithTime(measuredMemory(metrics), func(m *models.MetricsResponse) float64 { return m.MemoryUsage })
 
 	return models.PerformanceAnalysis{
 		CPU: models.MetricStats{
@@ -332,6 +468,28 @@ func calculateStatsWithTime(metrics []*models.MetricsResponse, valueExtractor fu
 		minTime: minTime,
 		maxTime: maxTime,
 	}
+}
+
+func measuredCPU(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.CPUState.Status == "measured" })
+}
+
+func measuredMemory(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.MemoryState.Status == "measured" })
+}
+
+func measuredConnections(metrics []*models.MetricsResponse) []*models.MetricsResponse {
+	return measuredMetric(metrics, func(m *models.MetricsResponse) bool { return m.ConnectionsState.Status == "measured" })
+}
+
+func measuredMetric(metrics []*models.MetricsResponse, keep func(*models.MetricsResponse) bool) []*models.MetricsResponse {
+	result := make([]*models.MetricsResponse, 0, len(metrics))
+	for _, metric := range metrics {
+		if keep(metric) {
+			result = append(result, metric)
+		}
+	}
+	return result
 }
 
 // formatDuration formats a duration in a human-readable format

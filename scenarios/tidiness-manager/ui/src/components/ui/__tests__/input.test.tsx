@@ -1,18 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import userEvent from '@testing-library/user-event';
 import { Input } from '../input';
 
 describe('Input', () => {
   it('renders correctly with default props', () => {
-    render(<Input placeholder="Enter text" />);
+    renderWithProviders(<Input placeholder="Enter text" />);
     const input = screen.getByPlaceholderText('Enter text');
     expect(input).toBeInTheDocument();
     expect(input).toHaveClass('flex', 'h-10', 'w-full', 'rounded-lg');
   });
 
   it('applies default styling classes', () => {
-    render(<Input />);
+    renderWithProviders(<Input />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveClass(
       'border',
@@ -26,32 +27,32 @@ describe('Input', () => {
   });
 
   it('renders with text type by default', () => {
-    render(<Input />);
+    renderWithProviders(<Input />);
     const input = screen.getByRole('textbox');
     // Input type defaults to text when not specified (browser default)
     expect(input.getAttribute('type')).toBeNull(); // or expect 'text' if explicitly set
   });
 
   it('supports custom type attribute', () => {
-    render(<Input type="email" />);
+    renderWithProviders(<Input type="email" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('type', 'email');
   });
 
   it('supports password type', () => {
-    render(<Input type="password" />);
+    renderWithProviders(<Input type="password" />);
     const input = document.querySelector('input[type="password"]');
     expect(input).toBeInTheDocument();
   });
 
   it('supports number type', () => {
-    render(<Input type="number" />);
+    renderWithProviders(<Input type="number" />);
     const input = screen.getByRole('spinbutton');
     expect(input).toHaveAttribute('type', 'number');
   });
 
   it('applies custom className', () => {
-    render(<Input className="custom-class" />);
+    renderWithProviders(<Input className="custom-class" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveClass('custom-class');
   });
@@ -60,7 +61,7 @@ describe('Input', () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
 
-    render(<Input onChange={handleChange} />);
+    renderWithProviders(<Input onChange={handleChange} />);
     const input = screen.getByRole('textbox');
 
     await user.type(input, 'Hello');
@@ -72,7 +73,7 @@ describe('Input', () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
 
-    render(<Input disabled onChange={handleChange} />);
+    renderWithProviders(<Input disabled onChange={handleChange} />);
     const input = screen.getByRole('textbox');
 
     expect(input).toBeDisabled();
@@ -84,7 +85,7 @@ describe('Input', () => {
   });
 
   it('includes focus styles', () => {
-    render(<Input />);
+    renderWithProviders(<Input />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveClass(
       'focus:border-white/40',
@@ -95,52 +96,52 @@ describe('Input', () => {
   });
 
   it('supports placeholder text', () => {
-    render(<Input placeholder="Search..." />);
+    renderWithProviders(<Input placeholder="Search..." />);
     const input = screen.getByPlaceholderText('Search...');
     expect(input).toBeInTheDocument();
     expect(input).toHaveClass('placeholder:text-slate-400');
   });
 
   it('supports required attribute', () => {
-    render(<Input required />);
+    renderWithProviders(<Input required />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('required');
     expect(input).toHaveAttribute('aria-required', 'true');
   });
 
   it('sets aria-required to false when not required', () => {
-    render(<Input />);
+    renderWithProviders(<Input />);
     const input = screen.getByRole('textbox');
     expect(input).not.toHaveAttribute('required');
     expect(input).toHaveAttribute('aria-required', 'false');
   });
 
   it('supports custom aria-invalid attribute', () => {
-    render(<Input aria-invalid={true} />);
+    renderWithProviders(<Input aria-invalid={true} />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('defaults aria-invalid to false', () => {
-    render(<Input />);
+    renderWithProviders(<Input />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('aria-invalid', 'false');
   });
 
   it('supports maxLength attribute', () => {
-    render(<Input maxLength={10} />);
+    renderWithProviders(<Input maxLength={10} />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('maxLength', '10');
   });
 
   it('supports defaultValue', () => {
-    render(<Input defaultValue="Default text" />);
+    renderWithProviders(<Input defaultValue="Default text" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveValue('Default text');
   });
 
   it('supports controlled value', () => {
-    const { rerender } = render(<Input value="Initial" onChange={() => {}} />);
+    const { rerender } = renderWithProviders(<Input value="Initial" onChange={() => {}} />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveValue('Initial');
 
@@ -149,7 +150,7 @@ describe('Input', () => {
   });
 
   it('includes file upload styles', () => {
-    render(<Input type="file" />);
+    renderWithProviders(<Input type="file" />);
     const input = document.querySelector('input[type="file"]');
     expect(input).toHaveClass('file:border-0', 'file:bg-transparent', 'file:text-sm');
   });
@@ -159,7 +160,7 @@ describe('Input', () => {
     const handleBlur = vi.fn();
     const user = userEvent.setup();
 
-    render(<Input onFocus={handleFocus} onBlur={handleBlur} />);
+    renderWithProviders(<Input onFocus={handleFocus} onBlur={handleBlur} />);
     const input = screen.getByRole('textbox');
 
     await user.click(input);
@@ -170,19 +171,19 @@ describe('Input', () => {
   });
 
   it('supports autoComplete attribute', () => {
-    render(<Input autoComplete="email" />);
+    renderWithProviders(<Input autoComplete="email" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('autoComplete', 'email');
   });
 
   it('supports name attribute for forms', () => {
-    render(<Input name="username" />);
+    renderWithProviders(<Input name="username" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveAttribute('name', 'username');
   });
 
   it('supports responsive width classes', () => {
-    render(<Input className="w-full sm:w-1/2 md:w-1/3" />);
+    renderWithProviders(<Input className="w-full sm:w-1/2 md:w-1/3" />);
     const input = screen.getByRole('textbox');
     expect(input).toHaveClass('w-full', 'sm:w-1/2', 'md:w-1/3');
   });

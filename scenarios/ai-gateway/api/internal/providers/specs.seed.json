@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ollama",
+    "command_name": "resource-ollama",
+    "locality": "local",
+    "family": "ollama",
+    "text": true,
+    "spend_capable": false
+  },
+  {
+    "id": "openrouter",
+    "command_name": "resource-openrouter",
+    "locality": "remote",
+    "family": "openai-compatible",
+    "text": true,
+    "spend_capable": true
+  },
+  {
+    "id": "orcarouter",
+    "command_name": "resource-orcarouter",
+    "locality": "remote",
+    "family": "openai-compatible",
+    "text": true,
+    "spend_capable": false
+  },
+  {
+    "id": "abliteration",
+    "command_name": "resource-abliteration",
+    "locality": "remote",
+    "family": "openai-compatible",
+    "text": true,
+    "spend_capable": false
+  },
+  {
+    "id": "pii-detector",
+    "command_name": "resource-pii-detector",
+    "locality": "local",
+    "family": "pii-detector",
+    "text": false,
+    "spend_capable": false
+  },
+  {
+    "id": "ollaya",
+    "command_name": "resource-ollaya",
+    "locality": "local",
+    "family": "decision",
+    "text": false,
+    "spend_capable": false
+  }
+]

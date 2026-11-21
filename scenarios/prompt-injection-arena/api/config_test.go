@@ -126,7 +126,7 @@ func TestLoadConfig(t *testing.T) {
 		envVars := []string{
 			"POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER",
 			"POSTGRES_PASSWORD", "POSTGRES_DB", "QDRANT_URL",
-			"OLLAMA_URL", "API_PORT", "VROOLI_LIFECYCLE_MANAGED",
+			"API_PORT", "VROOLI_LIFECYCLE_MANAGED",
 			"USE_MOCK_TESTING",
 		}
 		for _, v := range envVars {
@@ -218,11 +218,7 @@ func TestConfigConnectionString(t *testing.T) {
 	connStr := config.GetDatabaseConnectionString()
 
 	expectedParts := []string{
-		"host=testhost",
-		"port=5432",
-		"user=testuser",
-		"password=testpass",
-		"dbname=testdb",
+		"postgres://testuser:testpass@testhost:5432/testdb",
 		"sslmode=disable",
 	}
 

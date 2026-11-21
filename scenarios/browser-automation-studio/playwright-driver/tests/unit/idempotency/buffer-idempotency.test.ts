@@ -7,7 +7,10 @@
 
 import {
   bufferTimelineEntry,
-  clearTimelineEntries,
+  acknowledgeTimelineEntries,
+  assertRecordingAcknowledged,
+  deliverTimelineEntry,
+  flushRecordingDeliveries,
   getBufferStats,
   getTimelineEntries,
   initRecordingBuffer,
@@ -15,6 +18,8 @@ import {
   removeRecordingBuffer,
 } from '../../../src/recording/io/buffer';
 import { TimelineEntrySchema, type TimelineEntry } from '../../../src/recording/types';
+import { ActionTelemetrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
+import { MAX_RECORDING_BUFFER_SIZE } from '../../../src/utils';
 import { create } from '@bufbuild/protobuf';
 
 function createTestEntry(overrides: Partial<TimelineEntry> = {}): TimelineEntry {
@@ -33,6 +38,7 @@ describe('Recording Buffer Idempotency', () => {
   });
 
   afterEach(() => {
+    acknowledgeTimelineEntries(sessionId, getTimelineEntries(sessionId).map((entry) => entry.id));
     removeRecordingBuffer(sessionId);
   });
 
@@ -114,6 +120,7 @@ describe('Recording Buffer Idempotency', () => {
       expect(getTimelineEntries(newSessionId)).toHaveLength(1);
 
       // Cleanup
+      acknowledgeTimelineEntries(newSessionId, [entry.id]);
       removeRecordingBuffer(newSessionId);
     });
   });
@@ -135,33 +142,110 @@ describe('Recording Buffer Idempotency', () => {
     });
   });
 
-  describe('clearTimelineEntries', () => {
-    it('clears entry tracking state', () => {
-      const entry1 = createTestEntry({ id: 'to-clear-1', sequenceNum: 0 });
-      const entry2 = createTestEntry({ id: 'to-clear-2', sequenceNum: 1 });
-
-      bufferTimelineEntry(sessionId, entry1);
-      bufferTimelineEntry(sessionId, entry2);
-
-      expect(getTimelineEntries(sessionId)).toHaveLength(2);
-      expect(isEntryBuffered(sessionId, 'to-clear-1')).toBe(true);
-
-      clearTimelineEntries(sessionId);
-
-      expect(getTimelineEntries(sessionId)).toHaveLength(0);
-      expect(isEntryBuffered(sessionId, 'to-clear-1')).toBe(false);
+  describe('acknowledgement and capacity', () => {
+    it('refuses replacement and removal while observations are pending', () => {
+      const entry = createTestEntry({ id: 'pending' });
+      bufferTimelineEntry(sessionId, entry);
+      expect(() => initRecordingBuffer(sessionId)).toThrow('pending');
+      expect(() => removeRecordingBuffer(sessionId)).toThrow('pending');
+      expect(getTimelineEntries(sessionId)).toEqual([entry]);
     });
 
-    it('allows rebuffering after clear', () => {
-      const entry = createTestEntry({ id: 'rebuffer-test', sequenceNum: 0 });
-
+    it('preserves replay identity when committed entries are cleared', () => {
+      const entry = createTestEntry({ id: 'committed' });
       bufferTimelineEntry(sessionId, entry);
-      clearTimelineEntries(sessionId);
+      acknowledgeTimelineEntries(sessionId, [entry.id], true);
+      expect(getTimelineEntries(sessionId)).toEqual([]);
+      expect(bufferTimelineEntry(sessionId, entry)).toBe(false);
+      expect(isEntryBuffered(sessionId, entry.id)).toBe(true);
+      expect(getTimelineEntries(sessionId)).toEqual([]);
+      expect(() => bufferTimelineEntry(sessionId, createTestEntry({ id: entry.id, sequenceNum: 99 }))).toThrow('conflicts');
+    });
 
-      // Should be able to buffer same entry again after clear
-      const result = bufferTimelineEntry(sessionId, entry);
-      expect(result).toBe(true);
-      expect(getTimelineEntries(sessionId)).toHaveLength(1);
+    it('reports the changed canonical field when a retry reuses an identity with different contents', () => {
+      const entry = createTestEntry({ id: 'conflicting-sequence', sequenceNum: 1 });
+      bufferTimelineEntry(sessionId, entry);
+
+      expect(() => bufferTimelineEntry(sessionId, createTestEntry({ id: entry.id, sequenceNum: 2 })))
+        .toThrow('changed fields: sequenceNum');
+    });
+
+    it('reports nested attribution fields without leaking their contents', () => {
+      const entry = createTestEntry({
+        id: 'conflicting-attribution',
+        telemetry: create(ActionTelemetrySchema, { framePath: ['#original-frame'], driverPageId: 'original-page' }),
+      });
+      bufferTimelineEntry(sessionId, entry);
+
+      let error: Error | undefined;
+      try {
+        bufferTimelineEntry(sessionId, createTestEntry({
+          id: entry.id,
+          telemetry: create(ActionTelemetrySchema, { framePath: ['#changed-frame'], driverPageId: 'changed-page' }),
+        }));
+      } catch (caught) {
+        error = caught as Error;
+      }
+
+      expect(error?.message).toContain('changed fields: telemetry.framePath, telemetry.driverPageId');
+      expect(error?.message).not.toContain('original-frame');
+      expect(error?.message).not.toContain('changed-frame');
+      expect(error?.message).not.toContain('original-page');
+      expect(error?.message).not.toContain('changed-page');
+    });
+
+    it('rejects an unknown acknowledgement without clearing any pending observation', () => {
+      const entry = createTestEntry({ id: 'pending' });
+      bufferTimelineEntry(sessionId, entry);
+      expect(() => acknowledgeTimelineEntries(sessionId, [entry.id, 'unknown'], true)).toThrow('Unknown');
+      expect(getBufferStats(sessionId).pendingCount).toBe(1);
+      expect(getTimelineEntries(sessionId)).toEqual([entry]);
+    });
+
+    it('never evicts pending entries at capacity; committed entries may make room', () => {
+      for (let i = 0; i < MAX_RECORDING_BUFFER_SIZE; i++) bufferTimelineEntry(sessionId, createTestEntry({ id: `bounded-${i}` }));
+      const next = createTestEntry({ id: 'next' });
+      expect(() => bufferTimelineEntry(sessionId, next)).toThrow('capacity');
+      expect(getBufferStats(sessionId).entryCount).toBe(MAX_RECORDING_BUFFER_SIZE);
+      expect(isEntryBuffered(sessionId, 'bounded-0')).toBe(true);
+      acknowledgeTimelineEntries(sessionId, ['bounded-0']);
+      expect(bufferTimelineEntry(sessionId, next)).toBe(true);
+      expect(getBufferStats(sessionId).entryCount).toBe(MAX_RECORDING_BUFFER_SIZE);
+      expect(isEntryBuffered(sessionId, 'bounded-1')).toBe(true);
+    });
+
+    it('joins concurrent delivery and retries a failed head before later entries', async () => {
+      const first = createTestEntry({ id: 'first' });
+      const second = createTestEntry({ id: 'second' });
+      bufferTimelineEntry(sessionId, first);
+      bufferTimelineEntry(sessionId, second);
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      let fail = true;
+      const calls: string[] = [];
+      const deliverFirst = async () => { calls.push('first'); await held; if (fail) throw new Error('disk full'); };
+      const a = deliverTimelineEntry(sessionId, first, deliverFirst);
+      const duplicate = deliverTimelineEntry(sessionId, first, deliverFirst);
+      const b = deliverTimelineEntry(sessionId, second, async () => { calls.push('second'); });
+      const outcomes = Promise.allSettled([a, duplicate, b]);
+      expect(calls).toEqual(['first']);
+      expect(() => assertRecordingAcknowledged(sessionId)).toThrow('pending');
+      release();
+      expect((await outcomes).every((result) => result.status === 'rejected')).toBe(true);
+      expect(calls).toEqual(['first']);
+      fail = false;
+      await flushRecordingDeliveries(sessionId);
+      expect(calls).toEqual(['first', 'first', 'second']);
+      expect(() => assertRecordingAcknowledged(sessionId)).not.toThrow();
+    });
+
+    it('retains pull-mode entries until the consumer acknowledges its commit', async () => {
+      const entry = createTestEntry({ id: 'pull' });
+      bufferTimelineEntry(sessionId, entry);
+      await deliverTimelineEntry(sessionId, entry, async () => {}, false);
+      expect(() => removeRecordingBuffer(sessionId)).toThrow('pending');
+      acknowledgeTimelineEntries(sessionId, [entry.id], true);
+      expect(() => assertRecordingAcknowledged(sessionId)).not.toThrow();
     });
   });
 

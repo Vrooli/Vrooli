@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useWebSocket } from '../contexts/WebSocketContext';
+import { useWebSocket, useWebSocketMessage } from '../contexts/WebSocketContext';
 import { logger } from '../utils/logger';
 
 /** Driver health status values */
@@ -73,7 +73,7 @@ export interface UseDriverStatusResult {
  * ```
  */
 export function useDriverStatus(): UseDriverStatusResult {
-  const { isConnected, lastMessage, send, reconnect } = useWebSocket();
+  const { isConnected, send, reconnect } = useWebSocket();
   const [health, setHealth] = useState<DriverHealth | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -94,8 +94,7 @@ export function useDriverStatus(): UseDriverStatusResult {
   }, [isConnected, isSubscribed, send]);
 
   // Handle incoming messages
-  useEffect(() => {
-    if (!lastMessage) return;
+  useWebSocketMessage((lastMessage) => {
 
     // Handle subscription confirmation
     if (lastMessage.type === 'driver_status_subscribed') {
@@ -130,7 +129,7 @@ export function useDriverStatus(): UseDriverStatusResult {
         restartCount: newHealth.restartCount,
       });
     }
-  }, [lastMessage]);
+  });
 
   // Cleanup on unmount
   useEffect(() => {

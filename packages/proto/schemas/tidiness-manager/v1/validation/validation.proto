@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package vrooli.tidiness_manager.v1.validation;
+
+import "common/v1/maturity.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tidiness-manager/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — maintainability / tidiness scan native detail
+// =============================================================================
+//
+// @layer 5
+// @domain validation
+// @stability unstable
+//
+// Scenario-level validation is served through the shared
+// scenario-validation/v1.ScenarioValidationService. Its native_detail packs
+// TidinessScanResponse so tidiness-manager's own CLI/UI can keep rendering
+// maintainability categories while Test Genie reads only the shared status and
+// common maturity assessment.
+// =============================================================================
+
+message TidinessScanResponse {
+  string scenario = 1;
+  string status = 2;
+  repeated TidinessFinding findings = 3;
+  repeated TidinessFinding violations = 4;
+  TidinessScanSummary summary = 5;
+  common.v1.MaturityAssessment assessment = 6;
+  repeated string seam_files = 7;
+}
+
+message TidinessScanSummary {
+  int32 total_findings = 1;
+  int32 long_files = 2;
+  int32 complexity = 3;
+  int32 duplication = 4;
+  int32 tech_debt = 5;
+  int32 coupling = 6;
+  int32 duplication_line_debt = 7;
+}
+
+message TidinessFinding {
+  string id = 1;
+  string rule_id = 2;
+  string scenario = 3;
+  string file_path = 4;
+  string symbol = 5;
+  int32 line_number = 6;
+  string category = 7;
+  string severity = 8;
+  string title = 9;
+  string description = 10;
+  google.protobuf.Struct evidence = 11;
+  string why_it_matters = 12;
+  string recommended_remediation = 13;
+  string remediation = 14;
+  string campaign_group_hint = 15;
+}

@@ -1,0 +1,292 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "agent-manager",
+  "phase": "agent-conformance",
+  "displayName": "Agent Conformance",
+  "description": "Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles.",
+  "source": "validation-provider",
+  "runtimeClass": "execution",
+  "orderHint": 24,
+  "timeout": "45s",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a scenario-owned agent profile and consumer declarations; the control plane has no scenario consumer contract."
+      }
+    ]
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {
+        "scenarioDependency": "agent-manager"
+      },
+      {
+        "pathGlob": ".vrooli/agent-manager/*.json"
+      }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {
+    "needsAPI": false,
+    "needsUI": false,
+    "dbIsolation": "none"
+  },
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/agent-conformance/README.md"
+  },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Agent conformance probes live agent runners and their declared capabilities over the network. Whether a runner is reachable and what it reports are properties of the running fleet, not of any file."
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "portable_profiles",
+        "label": "Portable Agent Profiles",
+        "description": "Agent Manager consumers declare non-disabled dependencies, reconcile scenario-owned role-only profiles, resolve portable roles, and keep direct executable spawns behind the platform boundary.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Contract missing",
+            "description": "The target does not declare a non-disabled Agent Manager dependency.",
+            "capability_summary": "Portable coding-agent ownership is not established.",
+            "next_unlock": "Declare a non-disabled Agent Manager dependency and portable profile contract.",
+            "entry_criteria": [],
+            "exit_criteria": [
+              "Dependency and role-only profiles are declared."
+            ]
+          },
+          {
+            "id": "L1",
+            "name": "Profile integrity",
+            "description": "Every scenario-owned profile source is declared, readable, owned by the target, and role-only.",
+            "capability_summary": "Profile ownership is explicit and inspectable.",
+            "next_unlock": "Resolve every declared roleRef through Agent Manager's role catalog.",
+            "entry_criteria": [
+              "Dependency is not explicitly disabled."
+            ],
+            "exit_criteria": [
+              "No profile source or ownership errors remain."
+            ]
+          },
+          {
+            "id": "L2",
+            "name": "Portable resolution",
+            "description": "Every declared roleRef resolves through Agent Manager's resource-owned role catalog.",
+            "capability_summary": "The target can request coding agents without concrete runner or model policy.",
+            "next_unlock": "Adopt the Agent Manager spawn boundary for all coding-agent execution.",
+            "entry_criteria": [
+              "Profile integrity is clean."
+            ],
+            "exit_criteria": [
+              "All roleRefs resolve."
+            ]
+          },
+          {
+            "id": "L3",
+            "name": "Spawn-boundary adoption",
+            "description": "The target has no known direct coding-agent executable spawn bypasses.",
+            "capability_summary": "Portable configuration and spawning follow the platform authority boundary.",
+            "next_unlock": "Continuously verify the complete contract through the discovered conformance phase.",
+            "entry_criteria": [
+              "Portable resolution is clean."
+            ],
+            "exit_criteria": [
+              "No direct-spawn bypasses remain."
+            ]
+          },
+          {
+            "id": "L4",
+            "name": "Conformant",
+            "description": "The target is clean across dependency, profile integrity, portable resolution, and spawn-boundary checks.",
+            "capability_summary": "The scenario is continuously conformant with Agent Manager-owned portable coding-agent configuration.",
+            "entry_criteria": [
+              "Spawn-boundary adoption is clean."
+            ],
+            "exit_criteria": [
+              "Conformance is continuously verified by Test Genie."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "classifier_accuracy",
+        "label": "Classifier Accuracy",
+        "description": "Every shipped friction detector has committed labelled coverage and meets its published precision and recall threshold through the shared deterministic scorer.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Unmeasured",
+            "description": "The labelled corpus or scorer cannot produce a complete result.",
+            "capability_summary": "Classifier accuracy is not established.",
+            "next_unlock": "Restore the committed labelled corpus and one shared scorer."
+          },
+          {
+            "id": "L1",
+            "name": "Measured",
+            "description": "All shipped detectors have published precision and recall.",
+            "capability_summary": "Classifier accuracy is visible.",
+            "next_unlock": "Bring every detector to its committed threshold."
+          },
+          {
+            "id": "L2",
+            "name": "Threshold met",
+            "description": "Every detector meets its committed precision and recall threshold.",
+            "capability_summary": "Classifier accuracy is continuously verified."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "agent_conformance.dependency_missing": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The scenario owner must declare its Agent Manager integration."
+      },
+      "agent_conformance.dependency_disabled": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A disabled dependency cannot provide a portable spawning contract."
+      },
+      "agent_conformance.profile_invalid": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Profile files must be repaired by their owning scenario."
+      },
+      "agent_conformance.profile_orphan": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Every scenario-owned profile file must be declared by its dependency configuration."
+      },
+      "agent_conformance.profile_ownership_mismatch": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Profile keys are scenario-owned."
+      },
+      "agent_conformance.profile_legacy_field": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Concrete runner/model inputs violate portable role ownership."
+      },
+      "agent_conformance.role_unresolved": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Every profile roleRef must resolve through Agent Manager's portable role catalog."
+      },
+      "agent_conformance.direct_spawn_bypass": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L3",
+        "global_impact": "capability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Fleet conformance proved the narrow executable-construction detection has an acceptable false-positive rate; coding-agent spawning must use Agent Manager."
+      },
+      "agent_conformance.permission_posture": {
+        "capability_id": "portable_profiles",
+        "local_level_impact": "L4",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A consumer cannot be fully conformant while Agent Manager reports unmet required native or hook-backed global permission enforcement."
+      },
+      "classifier_accuracy.unmeasured": {
+        "capability_id": "classifier_accuracy",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A phase must not report classifier accuracy when the shared scorer cannot read complete labelled coverage."
+      },
+      "classifier_accuracy.coverage_missing": {
+        "capability_id": "classifier_accuracy",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A detector without committed labelled coverage cannot claim measured classifier accuracy."
+      },
+      "classifier_accuracy.below_threshold": {
+        "capability_id": "classifier_accuracy",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A detector below its committed precision or recall threshold cannot provide trustworthy friction evidence."
+      }
+    },
+    "fallback": {
+      "capability_id": "portable_profiles",
+      "local_level_impact": "L1",
+      "global_impact": "unknown",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  }
+}

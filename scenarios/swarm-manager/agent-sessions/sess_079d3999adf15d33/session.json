@@ -1,0 +1,18 @@
+{
+  "id": "sess_079d3999adf15d33",
+  "title": "Proposal for Design Team Schema v2 With Organizational Properties",
+  "kind": "swarm_operations",
+  "status": "draft",
+  "skill_id": "swarm-manager-proposals",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-14T12:18:43Z",
+  "updated_at": "2026-07-14T12:18:43Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "proposal_target": {
+    "type": "backlog_item",
+    "ref": "research/team-schema-v2-design",
+    "name": "Design Team Schema v2 With Organizational Properties"
+  }
+}

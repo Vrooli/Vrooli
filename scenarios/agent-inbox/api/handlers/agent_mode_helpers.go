@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/middleware"
 
 	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ValidatePathRequest is the request body for the path validation endpoint.
@@ -64,12 +66,15 @@ func (h *Handlers) ValidatePath(w http.ResponseWriter, r *http.Request) {
 // GetProjectRoot returns the VROOLI_ROOT or current working directory as a default project path.
 // GET /api/v1/project-root
 func (h *Handlers) GetProjectRoot(w http.ResponseWriter, r *http.Request) {
-	root := os.Getenv("VROOLI_ROOT")
+	root := ""
+	if value := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); value != "" {
+		if resolved, err := repocontract.FindRepoRootFromPath(value); err == nil {
+			root = resolved
+		}
+	}
 	if root == "" {
-		var err error
-		root, err = os.Getwd()
-		if err != nil {
-			root = ""
+		if resolved, err := repocontract.ResolveRepoRoot(); err == nil {
+			root = resolved
 		}
 	}
 	h.JSONResponse(w, map[string]string{"project_root": root}, http.StatusOK)

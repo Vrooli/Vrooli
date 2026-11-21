@@ -16,21 +16,30 @@
       "import": "./dist/server/index.js",
       "types": "./dist/server/index.d.ts"
     },
+    "./notifications": {
+      "import": "./dist/client/notification-preferences.js",
+      "types": "./dist/client/notification-preferences.d.ts"
+    },
+    "./notifications/react": {
+      "import": "./dist/client/notification-preferences-react.js",
+      "types": "./dist/client/notification-preferences-react.d.ts"
+    },
     "./types": {
       "import": "./dist/shared/types.js",
       "types": "./dist/shared/types.d.ts"
+    },
+    "./testing": {
+      "import": "./dist/testing/index.js",
+      "types": "./dist/testing/index.d.ts"
     }
   },
   "files": [
-    "dist",
-    "src",
-    "docs",
-    "README.md",
-    "IMPLEMENTATION_PLAN.md"
+    "dist"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist coverage",
+    "clean": "node scripts/clean.mjs",
+    "prepack": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -40,9 +49,21 @@
     "express": "^4.18.2",
     "ws": "^8.16.0"
   },
+  "dependencies": {
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.1",
+    "@tanstack/react-query": "5.59.0",
+    "@testing-library/react": "16.1.0",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "axe-core": "4.10.2",
+    "i18next": "23.16.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-i18next": "15.1.1",
+    "react-router-dom": "6.30.6"
+  },
   "devDependencies": {
-    "express": "^4.18.2",
-    "ws": "^8.16.0",
     "@playwright/experimental-ct-react": "^1.56.1",
     "@playwright/test": "^1.56.1",
     "@types/express": "^4.17.21",
@@ -50,11 +71,13 @@
     "@types/node": "^20.10.0",
     "@types/ws": "^8.5.10",
     "@vitest/coverage-v8": "^1.0.4",
+    "express": "^4.18.2",
     "happy-dom": "^20.0.10",
     "jsdom": "^27.1.0",
     "playwright": "^1.56.1",
     "typescript": "^5.3.3",
-    "vitest": "^1.0.4"
+    "vitest": "^1.0.4",
+    "ws": "^8.16.0"
   },
   "keywords": [
     "vrooli",
@@ -65,5 +88,5 @@
     "iframe",
     "websocket"
   ],
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

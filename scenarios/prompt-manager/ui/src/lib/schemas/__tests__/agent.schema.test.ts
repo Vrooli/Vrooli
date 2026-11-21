@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { create, toJson } from '@bufbuild/protobuf'
+import { ListFilesResponseSchema } from '@vrooli/proto-types/prompt-manager/v1/agents/agents_pb'
 import {
   AgentSchema,
   AgentArraySchema,
   AgentStatusSchema,
   AgentAppearanceSchema,
+  AgentFileListResponseSchema,
   CreateAgentRequestSchema,
   DEFAULT_AGENT_COLORS,
 } from '../agent.schema'
@@ -199,6 +202,31 @@ describe('CreateAgentRequestSchema', () => {
 
     const parseResult = CreateAgentRequestSchema.safeParse(request)
     expect(parseResult.success).toBe(false)
+  })
+})
+
+describe('AgentFileListResponseSchema (proto int64 wire form)', () => {
+  it('parses a ListFiles response whose int64 size is serialized as a string', () => {
+    const proto = create(ListFilesResponseSchema, {
+      agentId: 'brand-manager',
+      files: [{ path: 'AGENT.md', isDir: false, size: 689n }],
+    })
+    const wire = toJson(ListFilesResponseSchema, proto) as {
+      files?: Array<{ size?: unknown }>
+    }
+
+    expect(wire.files?.[0]?.size).toBe('689')
+
+    const parsed = AgentFileListResponseSchema.parse(wire)
+    expect(parsed.files[0]).toMatchObject({ path: 'AGENT.md', size: 689 })
+  })
+
+  it('parses entries without a size field', () => {
+    const parsed = AgentFileListResponseSchema.parse({
+      agentId: 'brand-manager',
+      files: [{ path: 'docs', isDir: true }],
+    })
+    expect(parsed.files[0]).toEqual({ path: 'docs', isDir: true })
   })
 })
 

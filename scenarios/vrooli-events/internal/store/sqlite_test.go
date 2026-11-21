@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -56,6 +57,29 @@ func TestInsertAndQuery(t *testing.T) {
 	}
 }
 
+func TestPruneHonorsReceiptSpecificExpiry(t *testing.T) {
+	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
+	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxAge: 365 * 24 * time.Hour, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	expires := now.Add(-time.Minute)
+	event := makeEvent("receipt-expired", "vrooli.events.receipt.v1", "agent-manager")
+	event.ExpiresAt = &expires
+	if _, err := s.Insert(context.Background(), event); err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.Prune(context.Background())
+	if err != nil || result.TimeDeletedCount != 1 {
+		t.Fatalf("prune = %#v, %v", result, err)
+	}
+	events, err := s.Query(context.Background(), QueryFilters{})
+	if err != nil || len(events) != 0 {
+		t.Fatalf("events after expiry = %#v, %v", events, err)
+	}
+}
+
 // [REQ:REQ-ES-001] Verify query filters (source, correlation, since, limit) on SQLite store
 func TestQueryFilters(t *testing.T) {
 	s := newTestStore(t)
@@ -87,6 +111,31 @@ func TestQueryFilters(t *testing.T) {
 	events, _ = s.Query(ctx, QueryFilters{Limit: 1})
 	if len(events) != 1 {
 		t.Fatalf("limit filter: expected 1, got %d", len(events))
+	}
+}
+
+func TestQueryNewestFirstUsesExclusiveEventCursor(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	for _, id := range []string{"evt-a", "evt-b", "evt-c"} {
+		if _, err := s.Insert(ctx, makeEvent(id, "test.attempt.v1", "source-a")); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	newest, err := s.Query(ctx, QueryFilters{EventType: "test.attempt.v1", Source: "source-a", NewestFirst: true, Limit: 2})
+	if err != nil || len(newest) != 2 || newest[0].EventID != "evt-c" || newest[1].EventID != "evt-b" {
+		t.Fatalf("newest page = %#v, %v", newest, err)
+	}
+	older, err := s.Query(ctx, QueryFilters{EventType: "test.attempt.v1", Source: "source-a", NewestFirst: true, BeforeEventID: "evt-b", Limit: 2})
+	if err != nil || len(older) != 1 || older[0].EventID != "evt-a" {
+		t.Fatalf("cursor page = %#v, %v", older, err)
+	}
+	if _, err := s.Query(ctx, QueryFilters{NewestFirst: true, BeforeEventID: "missing"}); !errors.Is(err, ErrEventCursorNotFound) {
+		t.Fatalf("unknown cursor error = %v", err)
+	}
+	if _, err := s.Query(ctx, QueryFilters{BeforeEventID: "evt-b"}); err == nil {
+		t.Fatal("cursor without newest-first order was accepted")
 	}
 }
 
@@ -193,7 +242,14 @@ func TestStats(t *testing.T) {
 
 // [REQ:REQ-ES-003] Verify time-based pruning deletes expired events
 func TestPruneByTime(t *testing.T) {
-	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{MaxAge: 1 * time.Second})
+	// Inject a fake clock 10s in the future so events created at real now
+	// are older than cutoff (fakeNow - MaxAge = +9s from real now), avoiding
+	// any real-time sleep in the test.
+	fakeNow := func() time.Time { return time.Now().Add(10 * time.Second) }
+	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{
+		MaxAge: 1 * time.Second,
+		Now:    fakeNow,
+	})
 	if err != nil {
 		t.Fatalf("new store: %v", err)
 	}
@@ -201,7 +257,6 @@ func TestPruneByTime(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = s.Insert(ctx, makeEvent("evt-1", "test.v1", "src"))
-	time.Sleep(2 * time.Second)
 
 	result, err := s.Prune(ctx)
 	if err != nil {
@@ -214,6 +269,35 @@ func TestPruneByTime(t *testing.T) {
 	events, _ := s.Query(ctx, QueryFilters{})
 	if len(events) != 0 {
 		t.Fatalf("expected 0 events after prune, got %d", len(events))
+	}
+}
+
+// [REQ:REQ-ES-003] Verify time-based pruning spares events inside the retention window.
+func TestPruneByTime_WithinRetention(t *testing.T) {
+	// Clock is only 1ms past real-now; with MaxAge=1h, nothing is expired.
+	fakeNow := func() time.Time { return time.Now().Add(1 * time.Millisecond) }
+	s, err := NewSQLiteStore(context.Background(), SQLiteConfig{
+		MaxAge: 1 * time.Hour,
+		Now:    fakeNow,
+	})
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	_, _ = s.Insert(ctx, makeEvent("evt-1", "test.v1", "src"))
+
+	result, err := s.Prune(ctx)
+	if err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+	if result.TimeDeletedCount != 0 {
+		t.Fatalf("expected 0 time-deleted inside retention, got %d", result.TimeDeletedCount)
+	}
+	events, _ := s.Query(ctx, QueryFilters{})
+	if len(events) != 1 {
+		t.Fatalf("expected 1 surviving event, got %d", len(events))
 	}
 }
 

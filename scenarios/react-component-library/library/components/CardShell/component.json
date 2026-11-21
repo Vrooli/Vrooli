@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.card-shell",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "Row chrome for scenario-owned cards with selection, disabled, cursor, focus, and press states.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "CardShell",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.9",
+    "1.0.6",
+    "1.0.5",
+    "1.0.4",
+    "1.0.3",
+    "1.0.10"
+  ],
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:CardShell",
+  "tags": []
+}

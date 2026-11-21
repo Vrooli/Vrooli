@@ -14,7 +14,21 @@ import type { TokenUsage, ElementLabel } from '../vision-client/types';
 /**
  * Configuration for a navigation session.
  */
+export interface NavigationPostcondition {
+  selector: string;
+  mode: 'exists' | 'ASSERTION_MODE_EXISTS' | 'text_equals' | 'text_contains' | 'count_equals';
+  expected?: string;
+}
+export interface NavigationExtraction {
+  name: string;
+  selector: string;
+  attribute?: string;
+  limit?: number;
+}
 export interface NavigationConfig {
+  effectPolicy?: 'explicit' | 'read_only';
+  postconditions?: NavigationPostcondition[];
+  extraction?: NavigationExtraction[];
   /** User's goal prompt */
   prompt: string;
 
@@ -24,11 +38,8 @@ export interface NavigationConfig {
   /** Maximum steps before stopping */
   maxSteps: number;
 
-  /** Model identifier (e.g., "qwen3-vl-30b") */
+  /** Provider-neutral AI Gateway route profile. */
   model: string;
-
-  /** API key for the model provider */
-  apiKey: string;
 
   /** Callback invoked after each step */
   onStep: (step: NavigationStep) => Promise<void>;
@@ -38,6 +49,9 @@ export interface NavigationConfig {
 
   /** Navigation session ID for correlation */
   navigationId: string;
+
+  /** Caller idempotency root. Never logged or exposed to the browser. */
+  rootOperationId: string;
 
   /** Optional: Abort signal for cancellation */
   abortSignal?: AbortSignal;
@@ -90,6 +104,9 @@ export interface NavigationStep {
  * Final result of a navigation session.
  */
 export interface NavigationResult {
+  verifiedSuccess?: boolean;
+  extractedData?: Record<string, string[]>;
+  verificationError?: string;
   navigationId: string;
   status: NavigationStatus;
   totalSteps: number;
@@ -189,10 +206,7 @@ export interface ScreenshotOptions {
  * Testing seam: Mock for unit tests.
  */
 export interface ElementAnnotatorInterface {
-  annotate(
-    screenshot: Buffer,
-    elements: ElementLabel[]
-  ): Promise<AnnotatedScreenshot>;
+  annotate(screenshot: Buffer, elements: ElementLabel[]): Promise<AnnotatedScreenshot>;
 }
 
 /**
@@ -274,6 +288,7 @@ export interface VisionAnalysisRequestInterface {
   goal: string;
   conversationHistory: ConversationMessageInterface[];
   currentUrl: string;
+  operationId: string;
 }
 
 export interface VisionAnalysisResponseInterface {
@@ -287,16 +302,14 @@ export interface VisionAnalysisResponseInterface {
 
 export interface VisionModelSpecInterface {
   id: string;
-  apiModelId: string;
   displayName: string;
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  inputCostPer1MTokens: number;
-  outputCostPer1MTokens: number;
-  maxContextTokens: number;
+  provider: 'ai-gateway' | 'mock';
+  apiModelId?: string;
+  maxContextTokens?: number;
   supportsComputerUse: boolean;
   supportsElementLabels: boolean;
   recommended: boolean;
-  tier: 'budget' | 'standard' | 'premium';
+  tier: 'local' | 'remote' | 'mock' | 'exception';
 }
 
 export interface ConversationMessageInterface {

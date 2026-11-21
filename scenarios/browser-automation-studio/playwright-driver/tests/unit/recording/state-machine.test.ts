@@ -210,6 +210,50 @@ describe('RecordingStateMachine', () => {
         expect(newState.phase).toBe('error');
         expect(newState.error?.code).toBe('NO_HANDLERS');
       });
+
+      it('should transition to error if the event route is inactive', () => {
+        const state: RecordingPipelineState = {
+          phase: 'verifying',
+          totalGenerations: 0,
+        };
+        const badVerification: PipelineVerification = {
+          ...goodVerification,
+          eventRouteActive: false,
+        };
+
+        const newState = recordingReducer(state, {
+          type: 'VERIFICATION_COMPLETE',
+          verification: badVerification,
+        });
+
+        expect(newState.phase).toBe('error');
+        expect(newState.error?.code).toBe('EVENT_ROUTE_FAILED');
+        expect(newState.error?.recoverable).toBe(true);
+      });
+
+      it('should allow a fresh verification from a recoverable error', () => {
+        const state: RecordingPipelineState = {
+          phase: 'error',
+          verification: { ...goodVerification, eventRouteActive: false },
+          error: {
+            code: 'EVENT_ROUTE_FAILED',
+            message: 'Pipeline verification failed: event route not active',
+            recoverable: true,
+            occurredAt: new Date().toISOString(),
+            previousPhase: 'verifying',
+          },
+          totalGenerations: 0,
+        };
+
+        const newState = recordingReducer(state, {
+          type: 'VERIFICATION_COMPLETE',
+          verification: goodVerification,
+        });
+
+        expect(newState.phase).toBe('ready');
+        expect(newState.error).toBeUndefined();
+        expect(newState.verification?.eventRouteActive).toBe(true);
+      });
     });
 
     describe('START_RECORDING transition', () => {

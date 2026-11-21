@@ -1,0 +1,16 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "FormSection",
+      "Input",
+      "Select",
+      "Checkbox",
+      "Button",
+      "Text"
+    ],
+    "maximumCount": 12,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:AsyncFormFlow",
+  "version": "1.0.11"
+}

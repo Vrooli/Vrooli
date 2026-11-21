@@ -56,6 +56,7 @@ export * from './select';
 // Wait & Assert
 export * from './wait';
 export * from './assertion';
+export * from './conditional';
 
 // Data
 export * from './extraction';

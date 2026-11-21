@@ -1,23 +1,23 @@
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
-import type { ZodSchema } from "zod";
-import { parseOrThrow } from "./safeParse";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
-export const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+export const buildUrl = (path: string) =>
+  buildApiUrl(path, { baseUrl: API_BASE });
 
 /**
  * Recovery actions that indicate what a client should do to recover from an error.
  * These map to the backend RecoveryAction type.
  */
 export type RecoveryAction =
-  | "retry"                  // Transient failure, can retry immediately
-  | "retry_with_backoff"     // Rate limiting or temporary overload, retry after delay
-  | "fix_input"              // Client should correct input and resubmit
-  | "provide_credentials"    // Missing authentication or secrets
-  | "wait_for_resource"      // Resource is being prepared, try again soon
-  | "install_dependency"     // System dependency must be installed
-  | "contact_support"        // Unrecoverable error requiring human intervention
-  | "none";                  // No recovery possible
+  | "retry" // Transient failure, can retry immediately
+  | "retry_with_backoff" // Rate limiting or temporary overload, retry after delay
+  | "fix_input" // Client should correct input and resubmit
+  | "provide_credentials" // Missing authentication or secrets
+  | "wait_for_resource" // Resource is being prepared, try again soon
+  | "install_dependency" // System dependency must be installed
+  | "contact_support" // Unrecoverable error requiring human intervention
+  | "none"; // No recovery possible
 
 /**
  * Structured API error response from the backend.
@@ -64,12 +64,18 @@ export class ApiError extends Error {
 
   /** Check if this error requires user input correction */
   requiresInputFix(): boolean {
-    return this.recovery === "fix_input" || this.recovery === "provide_credentials";
+    return (
+      this.recovery === "fix_input" || this.recovery === "provide_credentials"
+    );
   }
 
   /** Check if this is a transient error that may resolve on its own */
   isTransient(): boolean {
-    return this.recovery === "retry" || this.recovery === "retry_with_backoff" || this.recovery === "wait_for_resource";
+    return (
+      this.recovery === "retry" ||
+      this.recovery === "retry_with_backoff" ||
+      this.recovery === "wait_for_resource"
+    );
   }
 
   /**
@@ -84,105 +90,125 @@ export class ApiError extends Error {
 }
 
 /**
- * Parse an API response and throw an ApiError if the response indicates an error.
- * Handles both structured error responses and fallback to simple error messages.
+ * Converts a typed Connect failure into the UI's shared error representation.
+ * Connect metadata and Any details are retained verbatim for recovery UI and
+ * diagnostics instead of being collapsed to a message string.
  */
-async function parseApiError(response: Response): Promise<ApiError> {
-  try {
-    const data: unknown = await response.json();
-    if (data && typeof data === "object" && "error" in data) {
-      return new ApiError(data as ApiErrorResponse, response.status);
+export function apiErrorFromConnect(error: ConnectError): ApiError {
+  const envelope = connectErrorEnvelope(error);
+  if (envelope) {
+    const recovery = envelope.recovery;
+    return new ApiError({
+      error: error.rawMessage,
+      code: envelope.code || Code[error.code],
+      recovery: isRecoveryAction(recovery)
+        ? recovery
+        : connectRecovery(error.code),
+      recovery_hint: envelope.recoveryHint || undefined,
+      details: {
+        ...decodeDetails(envelope.details ?? {}),
+        category: envelope.category,
+        retryStrategy: envelope.retryStrategy,
+        autoFix: envelope.autoFix,
+        manualSteps: envelope.manualSteps,
+        diagnostic: envelope.diagnostic,
+      },
+    });
+  }
+  const recovery = connectRecovery(error.code);
+  return new ApiError({
+    error: error.rawMessage,
+    code: Code[error.code],
+    recovery,
+    details: {
+      connectCode: error.code,
+      connectMetadata: Object.fromEntries(error.metadata.entries()),
+      connectDetails: error.details,
+    },
+  });
+}
+
+type ConnectEnvelope = {
+  code?: string;
+  category?: string;
+  recovery?: string;
+  recoveryHint?: string;
+  details?: Record<string, string>;
+  retryStrategy?: string;
+  autoFix?: string;
+  manualSteps?: string[];
+  diagnostic?: string;
+};
+
+// Error details are self-describing Any messages. This narrow decoder keeps
+// the client forward-compatible while the generated package is refreshed by
+// the workspace lifecycle: unknown detail types remain in connectDetails.
+function connectErrorEnvelope(
+  error: ConnectError,
+): ConnectEnvelope | undefined {
+  for (const detail of error.details) {
+    const incoming = detail as { type?: unknown; debug?: unknown };
+    if (
+      incoming.type !== "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope" ||
+      !isRecord(incoming.debug)
+    ) {
+      continue;
     }
-    // Fallback for non-structured error responses
-    const message = data && typeof data === "object" && "message" in data
-      ? (data as { message: string }).message
-      : response.statusText;
-    return new ApiError({
-      error: message,
-      code: "UNKNOWN_ERROR",
-      recovery: "none",
-    }, response.status);
-  } catch {
-    // JSON parsing failed, use status text
-    return new ApiError({
-      error: response.statusText,
-      code: "UNKNOWN_ERROR",
-      recovery: response.status >= 500 ? "retry" : "none",
-    }, response.status);
+    return incoming.debug as ConnectEnvelope;
   }
+  return undefined;
 }
 
-/**
- * Helper to throw an ApiError from a response if not OK.
- * Use this in API functions for consistent error handling.
- */
-export async function throwIfNotOk(response: Response): Promise<void> {
-  if (!response.ok) {
-    throw await parseApiError(response);
-  }
+function decodeDetails(
+  details: Record<string, string>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(details).map(([key, value]) => {
+      try {
+        return [key, JSON.parse(value) as unknown];
+      } catch {
+        return [key, value];
+      }
+    }),
+  );
 }
 
-/**
- * Fetch a GET endpoint and validate the JSON response against a Zod schema.
- *
- * Combines buildUrl + fetch + throwIfNotOk + Zod validation into a single call,
- * replacing the error-prone `response.json() as T` pattern with runtime validation
- * at the system boundary.
- *
- * @example
- * ```ts
- * const health = await fetchJson("/health", HealthResponseSchema);
- * ```
- */
-export async function fetchJson<T>(path: string, schema: ZodSchema<T>): Promise<T> {
-  const response = await fetch(buildUrl(path));
-  await throwIfNotOk(response);
-  return parseOrThrow(schema, await response.json());
+function isRecoveryAction(value: unknown): value is RecoveryAction {
+  return (
+    typeof value === "string" &&
+    [
+      "retry",
+      "retry_with_backoff",
+      "fix_input",
+      "provide_credentials",
+      "wait_for_resource",
+      "install_dependency",
+      "contact_support",
+      "none",
+    ].includes(value)
+  );
 }
 
-/**
- * Send a mutation request (POST/PUT/PATCH/DELETE) and validate the JSON response
- * against a Zod schema.
- *
- * @example
- * ```ts
- * const result = await mutateJson("/desktop/probe", ProbeResponseSchema, {
- *   method: "POST",
- *   body: { proxy_url: "http://localhost:3000" },
- * });
- * ```
- */
-export async function mutateJson<T>(
-  path: string,
-  schema: ZodSchema<T>,
-  options: {
-    method: "POST" | "PUT" | "PATCH" | "DELETE";
-    body?: unknown;
-  },
-): Promise<T> {
-  const init: RequestInit = { method: options.method };
-  if (options.body !== undefined) {
-    init.headers = { "Content-Type": "application/json" };
-    init.body = JSON.stringify(options.body);
-  }
-  const response = await fetch(buildUrl(path), init);
-  await throwIfNotOk(response);
-  return parseOrThrow(schema, await response.json());
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * Send a mutation request that returns no body (e.g., DELETE operations).
- * Only checks for HTTP errors; does not parse a response body.
- */
-export async function mutateVoid(
-  path: string,
-  options: { method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown },
-): Promise<void> {
-  const init: RequestInit = { method: options.method };
-  if (options.body !== undefined) {
-    init.headers = { "Content-Type": "application/json" };
-    init.body = JSON.stringify(options.body);
+function connectRecovery(code: Code): RecoveryAction {
+  switch (code) {
+    case Code.InvalidArgument:
+    case Code.OutOfRange:
+      return "fix_input";
+    case Code.DeadlineExceeded:
+    case Code.Unavailable:
+    case Code.ResourceExhausted:
+    case Code.Aborted:
+      return "retry_with_backoff";
+    case Code.FailedPrecondition:
+      return "wait_for_resource";
+    case Code.Unauthenticated:
+    case Code.PermissionDenied:
+      return "provide_credentials";
+    default:
+      return "none";
   }
-  const response = await fetch(buildUrl(path), init);
-  await throwIfNotOk(response);
 }

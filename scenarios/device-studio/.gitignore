@@ -1,0 +1,65 @@
+# Scenario-local build output and runtime state.
+#
+# The repo root ignores the standard shapes (api/*-api, api/main, cli/cli, ...).
+# This file is the scenario's own boundary for anything named after THIS
+# scenario, which a root glob cannot express. Add an entry here whenever a build
+# step writes an executable or generated file into the scenario tree.
+#
+# Mirrors the per-resource convention in resources/*/.gitignore. `vrooli hygiene`
+# fails the repo if a compiled binary is ever committed, so a missed entry here
+# is caught before it reaches history rather than years later.
+
+# Compiled Go binaries (any -o name, plus bare `go build` output)
+/api/api
+/api/main
+/api/*-api
+/cli/cli
+/cli/main
+/cli/*.exe
+
+# Go test/coverage output
+/api/*.test
+/cli/*.test
+/api/coverage.out
+/cli/coverage.out
+/api/*.prof
+/cli/*.prof
+
+# UI build output and dependencies
+/ui/dist/
+/ui/node_modules/
+/ui/.vite/
+
+# Local runtime state (databases, uploads, logs)
+/data/
+/logs/
+/api/uploads/
+
+# Build-freshness stamps
+/.build-fingerprint.json
+
+# Local delivery evidence includes source snapshots, compiled workers, tool
+# archives, browser captures, database copies and rendered frame sequences.
+# Keep the goal ledger and curated research/design docs in Git; preserve these
+# host-specific records on disk outside the source-control boundary.
+/docs/internal/goal/evidence/
+/captures/
+/artifacts/
+/.cache/
+/tmp/
+
+# Python/native scene scratch files. Shipped adapters and starter assets remain
+# tracked under their owning source/asset directories.
+__pycache__/
+*.pyc
+*.blend1
+*.blend2
+
+# Private ground-truth photo/page captures; source URLs and digests remain in manifests.
+/assets/sources/*/references/
+
+# Local IDs and resumable state created by opt-in demonstration curation.
+/examples/demos/run-state*.json*
+
+# Generated test-run state contains host-local project and revision identities.
+/coverage/runtime/

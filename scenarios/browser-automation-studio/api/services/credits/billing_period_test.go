@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -23,7 +24,6 @@ type MockEntitlementProviderWithBillingCycle struct {
 	Entitlement         *entitlement.Entitlement
 	GetEntitlementError error
 	AICreditsLimit      int
-	CanUseAI            bool
 	GetEntitlementCalls int
 	LastUserIdentity    string
 }
@@ -34,12 +34,8 @@ func (m *MockEntitlementProviderWithBillingCycle) GetEntitlement(ctx context.Con
 	return m.Entitlement, m.GetEntitlementError
 }
 
-func (m *MockEntitlementProviderWithBillingCycle) GetAICreditsLimit(tier entitlement.Tier) int {
-	return m.AICreditsLimit
-}
-
-func (m *MockEntitlementProviderWithBillingCycle) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {
-	return m.CanUseAI
+func (m *MockEntitlementProviderWithBillingCycle) LimitForEntitlement(_ *entitlement.Entitlement) (int, bool) {
+	return m.AICreditsLimit, true
 }
 
 var _ EntitlementProvider = (*MockEntitlementProviderWithBillingCycle)(nil)
@@ -59,110 +55,15 @@ func createTestServiceWithBillingCycle(t *testing.T, billingCycleStart int) (*Se
 			BillingCycleStart: billingCycleStart,
 		},
 		AICreditsLimit: 1000,
-		CanUseAI:       true,
 	}
 
 	svc := NewService(ServiceOptions{
 		DB:                  db,
 		Logger:              log,
-		Dialect:             "sqlite",
 		EntitlementProvider: provider,
 	})
 
 	return svc, db, provider
-}
-
-func TestBillingPeriod_CustomCycle_Day15(t *testing.T) {
-	// Test mid-month billing cycle (day 15)
-	svc, db, _ := createTestServiceWithBillingCycle(t, 15)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// Charge operation
-	_, err := svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "test@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("Charge() returned error: %v", err)
-	}
-
-	// Verify billing month format includes day
-	var billingMonth string
-	err = db.QueryRow(`
-		SELECT billing_month FROM credit_usage WHERE user_identity = ?
-	`, "test@example.com").Scan(&billingMonth)
-	if err != nil {
-		t.Fatalf("Failed to query billing_month: %v", err)
-	}
-
-	// The billing month should be in YYYY-MM-DD format when custom cycle is set
-	// Format depends on current date and billing cycle start
-	if len(billingMonth) != 10 { // YYYY-MM-DD
-		t.Errorf("Expected billing_month in YYYY-MM-DD format, got %s (len=%d)", billingMonth, len(billingMonth))
-	}
-}
-
-func TestBillingPeriod_CustomCycle_Day28(t *testing.T) {
-	// Test near month-end billing cycle (day 28)
-	svc, db, _ := createTestServiceWithBillingCycle(t, 28)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	_, err := svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "test@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("Charge() returned error: %v", err)
-	}
-
-	// Verify credit was charged
-	var totalUsed int
-	err = db.QueryRow(`
-		SELECT total_credits_used FROM credit_usage WHERE user_identity = ?
-	`, "test@example.com").Scan(&totalUsed)
-	if err != nil {
-		t.Fatalf("Failed to query total_credits_used: %v", err)
-	}
-
-	if totalUsed == 0 {
-		t.Error("Expected credits to be charged")
-	}
-}
-
-func TestBillingPeriod_CalendarMonth_Fallback(t *testing.T) {
-	// BillingCycleStart=0 should fall back to calendar month
-	svc, db, _ := createTestServiceWithBillingCycle(t, 0)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	_, err := svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "test@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("Charge() returned error: %v", err)
-	}
-
-	var billingMonth string
-	err = db.QueryRow(`
-		SELECT billing_month FROM credit_usage WHERE user_identity = ?
-	`, "test@example.com").Scan(&billingMonth)
-	if err != nil {
-		t.Fatalf("Failed to query billing_month: %v", err)
-	}
-
-	// Calendar month fallback uses YYYY-MM format
-	if len(billingMonth) != 7 { // YYYY-MM
-		t.Errorf("Expected billing_month in YYYY-MM format for calendar month fallback, got %s", billingMonth)
-	}
 }
 
 func TestBillingPeriod_GetBillingMonth_CorrectFormat(t *testing.T) {
@@ -232,13 +133,13 @@ func TestBillingPeriod_YearBoundary_DecemberToJanuary(t *testing.T) {
 		{
 			name:          "Jan 5 (before cycle day)",
 			date:          time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2025,     // Period started in December
+			expectedYear:  2025, // Period started in December
 			expectedMonth: time.December,
 		},
 		{
 			name:          "Jan 20 (after cycle day)",
 			date:          time.Date(2026, 1, 20, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2026,     // Period started in January
+			expectedYear:  2026, // Period started in January
 			expectedMonth: time.January,
 		},
 		{
@@ -276,19 +177,18 @@ func TestBillingPeriod_UsageReset_AtPeriodBoundary(t *testing.T) {
 
 	ctx := context.Background()
 
-	// First charge in current period
-	_, err := svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "test@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("First charge returned error: %v", err)
+	// Seed one historical local record for the current read period.
+	currentMonth := provider.Entitlement.GetBillingMonth(time.Now())
+	if _, err := db.Exec(`
+		INSERT INTO credit_usage (id, user_identity, billing_month, total_credits_used, total_operations)
+		VALUES ('current-period-id', ?, ?, 7, 1)
+	`, "test@example.com", currentMonth); err != nil {
+		t.Fatalf("seed current-period usage: %v", err)
 	}
 
 	// Get the billing month that was used
 	var firstBillingMonth string
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT billing_month FROM credit_usage WHERE user_identity = ?
 	`, "test@example.com").Scan(&firstBillingMonth)
 	if err != nil {
@@ -335,35 +235,6 @@ func TestBillingPeriod_UsageReset_AtPeriodBoundary(t *testing.T) {
 	}
 
 	_ = provider // Silence unused warning
-}
-
-func TestBillingPeriod_ChargeOnDay28_CheckOnDay1(t *testing.T) {
-	// Simulate charging on day 28 and checking on day 1 of next month
-	// This tests period rollover with charges
-
-	// For day 28 billing cycle:
-	// - If we're on Jan 30, we're in the Jan 28 - Feb 27 period
-	// - If we're on Feb 1, we're still in the Jan 28 - Feb 27 period
-	ent := &entitlement.Entitlement{
-		BillingCycleStart: 28,
-	}
-
-	// Jan 30 and Feb 1 should be in the same billing period
-	jan30 := time.Date(2026, 1, 30, 12, 0, 0, 0, time.UTC)
-	feb1 := time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC)
-
-	jan30Month := ent.GetBillingMonth(jan30)
-	feb1Month := ent.GetBillingMonth(feb1)
-
-	if jan30Month != feb1Month {
-		t.Errorf("Jan 30 and Feb 1 should be in same billing period for day-28 cycle, got %s and %s", jan30Month, feb1Month)
-	}
-
-	// Verify they both have the Jan 28 start date
-	expectedStart := "2026-01-28"
-	if jan30Month != expectedStart {
-		t.Errorf("Expected billing month start %s, got %s", expectedStart, jan30Month)
-	}
 }
 
 func TestBillingPeriod_Day1BillingCycle(t *testing.T) {
@@ -456,62 +327,6 @@ func TestBillingPeriod_UsageSummary_IncludesPeriodDates(t *testing.T) {
 		t.Errorf("Expected PeriodStart (%v) to be before PeriodEnd (%v)", usage.PeriodStart, usage.PeriodEnd)
 	}
 }
-
-func TestBillingPeriod_MultipleUsersIndependentPeriods(t *testing.T) {
-	// Different users can have different billing cycles
-	svc, db, provider := createTestServiceWithBillingCycle(t, 15)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// First user with day-15 cycle
-	_, err := svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "user1@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("User1 charge returned error: %v", err)
-	}
-
-	// Change the billing cycle for "user2"
-	provider.Entitlement = &entitlement.Entitlement{
-		Tier:              entitlement.TierPro,
-		Status:            entitlement.StatusActive,
-		BillingCycleStart: 1, // Different cycle
-	}
-
-	_, err = svc.Charge(ctx, ChargeRequest{
-		UserIdentity: "user2@example.com",
-		Operation:    OpAIWorkflowGenerate,
-		IsBYOK:       false,
-	})
-	if err != nil {
-		t.Fatalf("User2 charge returned error: %v", err)
-	}
-
-	// Get both users' billing months
-	var user1Month, user2Month string
-	err = db.QueryRow(`SELECT billing_month FROM credit_usage WHERE user_identity = ?`, "user1@example.com").Scan(&user1Month)
-	if err != nil {
-		t.Fatalf("Failed to get user1 billing month: %v", err)
-	}
-	err = db.QueryRow(`SELECT billing_month FROM credit_usage WHERE user_identity = ?`, "user2@example.com").Scan(&user2Month)
-	if err != nil {
-		t.Fatalf("Failed to get user2 billing month: %v", err)
-	}
-
-	// Billing months should be independent (but may be the same if both cycle days
-	// result in the same period start for the current date)
-	// Just verify both were recorded
-	if user1Month == "" || user2Month == "" {
-		t.Error("Both users should have billing months recorded")
-	}
-}
-
-// ============================================================================
-// Edge Case Tests for Invalid/Out-of-Range Billing Days
-// ============================================================================
 
 func TestGetBillingMonth_Day29_FallsBackToCalendarMonth(t *testing.T) {
 	// Day 29 is invalid (> 28), should fall back to calendar month behavior

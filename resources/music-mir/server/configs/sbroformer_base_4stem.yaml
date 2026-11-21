@@ -1,0 +1,137 @@
+audio:
+  sample_rate: 48000
+  chunk_size: 96000
+  num_channels: 2
+  min_mean_abs: 0.001
+model:
+  name: SBRoformer
+  audio_channels: 2
+  sample_rate: 48000
+  analysis_type: stft
+  mask_mode: features
+  n_fft: 32
+  stft_hop_length: 8
+  subband_n_bands: 118
+  max_half_bandwidth: 390
+  dim: 576
+  dim_sp: 128
+  dim_head: 32
+  patch_size:
+  - 4
+  - 1
+  n_layers: 12
+  n_pre_layers: 1
+  n_post_layers: 1
+  use_fusion: true
+  attn_backend: torch
+  num_stems: 4
+  gradient_checkpointing: false
+training:
+  batch_size: 2
+  gradient_accumulation_steps: 1
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  multiprocessing_context: spawn
+  prefetch_factor: 4
+  instruments:
+  - vocals
+  - bass
+  - drums
+  - other
+  target_instrument: null
+  num_epochs: 2000
+  num_steps: 1000
+  lr: 0.0003
+  betas:
+  - 0.9
+  - 0.95
+  weight_decay: 0.0
+  warmup_steps: 1000
+  min_lr_ratio: 0.0
+  mixed_precision: bf16
+  max_grad_norm: 1.0
+  ema_decay: 0.999
+  loss: l1_wav_l1_multistft
+  multistft_window_sizes:
+  - 4096
+  - 2048
+  - 1024
+  - 512
+  - 256
+  multistft_n_fft: 2048
+  multistft_hop_size: 147
+  multistft_normalized: false
+  multistft_weight: 1.0
+  eval_every_updates: 0
+  save_every_updates: 50000
+  output_dir: checkpoints/sbroformer_base_4stem
+  seed: 0
+  distributed_timeout_seconds: 7200
+validation:
+  root: data/musdb18hq
+  audios_num: 5
+  hop_ratio: 1
+augmentations:
+  enable: true
+  loudness: true
+  loudness_min: 0.5
+  loudness_max: 1.5
+  mixup: true
+  mixup_probs:
+  - 0.2
+  - 0.02
+  mixup_loudness_min: 0.5
+  mixup_loudness_max: 1.5
+  random_mixing:
+    enable: true
+    min_sources: 1
+    max_sources: 3
+    time_align: random
+  all:
+    channel_shuffle: 0.5
+    random_inverse: 0.1
+    random_polarity: 0.5
+  vocals:
+    pitch_shift: 0.1
+    pitch_shift_min_semitones: -5
+    pitch_shift_max_semitones: 5
+    seven_band_parametric_eq: 0.1
+    seven_band_parametric_eq_min_gain_db: -9
+    seven_band_parametric_eq_max_gain_db: 9
+    tanh_distortion: 0.1
+    tanh_distortion_min: 0.1
+    tanh_distortion_max: 0.7
+  bass:
+    pitch_shift: 0.1
+    pitch_shift_min_semitones: -2
+    pitch_shift_max_semitones: 2
+    seven_band_parametric_eq: 0.1
+    seven_band_parametric_eq_min_gain_db: -3
+    seven_band_parametric_eq_max_gain_db: 6
+    tanh_distortion: 0.1
+    tanh_distortion_min: 0.1
+    tanh_distortion_max: 0.5
+  drums:
+    pitch_shift: 0.1
+    pitch_shift_min_semitones: -5
+    pitch_shift_max_semitones: 5
+    seven_band_parametric_eq: 0.1
+    seven_band_parametric_eq_min_gain_db: -9
+    seven_band_parametric_eq_max_gain_db: 9
+    tanh_distortion: 0.1
+    tanh_distortion_min: 0.1
+    tanh_distortion_max: 0.6
+  other:
+    pitch_shift: 0.1
+    pitch_shift_min_semitones: -4
+    pitch_shift_max_semitones: 4
+    gaussian_noise: 0.1
+    gaussian_noise_min_amplitude: 0.001
+    gaussian_noise_max_amplitude: 0.015
+    time_stretch: 0.1
+    time_stretch_min_rate: 0.8
+    time_stretch_max_rate: 1.25
+inference:
+  batch_size: 1
+  num_overlap: 4

@@ -1,0 +1,408 @@
+// Package recordingmocks contains the recording persistence repository fake used by tests.
+package recordingmocks
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/domain"
+	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
+)
+
+// CallCounts tracks the number of times each repository method was called.
+// This enables tests to verify call patterns and frequencies.
+type CallCounts struct {
+	CreateSession        int
+	GetSession           int
+	CloseSession         int
+	ListSessions         int
+	DeleteSession        int
+	AppendTimelineEntry  int
+	GetTimelineEntry     int
+	GetTimeline          int
+	CountTimelineEntries int
+	DeleteSessionEntries int
+	PruneOldSessions     int
+}
+
+// MockRepository implements Repository for testing.
+// It stores data in memory and is safe for concurrent use.
+type MockRepository struct {
+	mu       sync.RWMutex
+	sessions map[string]*domain.RecordingSession
+	entries  map[string][]*persistence.UnifiedTimelineEntry
+
+	// Call tracking for test verification
+	callCounts CallCounts
+
+	// Error injection for testing error paths
+	CreateSessionErr        error
+	GetSessionErr           error
+	CloseSessionErr         error
+	ListSessionsErr         error
+	DeleteSessionErr        error
+	AppendTimelineEntryErr  error
+	GetTimelineEntryErr     error
+	GetTimelineErr          error
+	CountTimelineErr        error
+	DeleteSessionEntriesErr error
+	PruneOldSessionsErr     error
+}
+
+// NewMockRepository creates a new mock repository for testing.
+func NewMockRepository() *MockRepository {
+	return &MockRepository{
+		sessions: make(map[string]*domain.RecordingSession),
+		entries:  make(map[string][]*persistence.UnifiedTimelineEntry),
+	}
+}
+
+// CreateSession stores a new recording session.
+func (r *MockRepository) CreateSession(ctx context.Context, session *domain.RecordingSession) error {
+	r.mu.Lock()
+	r.callCounts.CreateSession++
+	r.mu.Unlock()
+
+	if r.CreateSessionErr != nil {
+		return r.CreateSessionErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sessions[session.ID] = session
+	r.entries[session.ID] = []*persistence.UnifiedTimelineEntry{}
+	return nil
+}
+
+// GetSession retrieves a session by ID.
+func (r *MockRepository) GetSession(ctx context.Context, sessionID string) (*domain.RecordingSession, error) {
+	r.mu.Lock()
+	r.callCounts.GetSession++
+	r.mu.Unlock()
+
+	if r.GetSessionErr != nil {
+		return nil, r.GetSessionErr
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.sessions[sessionID], nil
+}
+
+// CloseSession marks a session as closed.
+func (r *MockRepository) CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error {
+	r.mu.Lock()
+	r.callCounts.CloseSession++
+	r.mu.Unlock()
+
+	if r.CloseSessionErr != nil {
+		return r.CloseSessionErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s, ok := r.sessions[sessionID]; ok {
+		s.ClosedAt = &closedAt
+		s.Status = domain.SessionStatusClosed
+	}
+	return nil
+}
+
+// ListSessions returns sessions with optional filtering.
+func (r *MockRepository) ListSessions(ctx context.Context, profileID *string, limit, offset int) ([]*domain.RecordingSession, error) {
+	r.mu.Lock()
+	r.callCounts.ListSessions++
+	r.mu.Unlock()
+
+	if r.ListSessionsErr != nil {
+		return nil, r.ListSessionsErr
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []*domain.RecordingSession
+	for _, s := range r.sessions {
+		if profileID != nil && s.ProfileID != *profileID {
+			continue
+		}
+		result = append(result, s)
+	}
+	// Apply offset and limit
+	if offset >= len(result) {
+		return []*domain.RecordingSession{}, nil
+	}
+	result = result[offset:]
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
+// DeleteSession removes a session and its entries.
+func (r *MockRepository) DeleteSession(ctx context.Context, sessionID string) error {
+	r.mu.Lock()
+	r.callCounts.DeleteSession++
+	r.mu.Unlock()
+
+	if r.DeleteSessionErr != nil {
+		return r.DeleteSessionErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.sessions, sessionID)
+	delete(r.entries, sessionID)
+	return nil
+}
+
+func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *persistence.UnifiedTimelineEntry) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.callCounts.AppendTimelineEntry++
+	if r.AppendTimelineEntryErr != nil {
+		return false, r.AppendTimelineEntryErr
+	}
+	for _, entries := range r.entries {
+		for _, old := range entries {
+			if old.ID == entry.ID {
+				if !sameObservation(entry, old) {
+					return false, fmt.Errorf("conflicting journal identity")
+				}
+				entry.Sequence = old.Sequence
+				setDurableProtoSequence(entry)
+				return false, nil
+			}
+		}
+	}
+	entry.Sequence = len(r.entries[entry.SessionID]) + 1
+	setDurableProtoSequence(entry)
+	committed := *entry
+	if entry.Action != nil {
+		data, err := json.Marshal(entry.Action)
+		if err != nil {
+			return false, err
+		}
+		var action domain.RecordingAction
+		if err := json.Unmarshal(data, &action); err != nil {
+			return false, err
+		}
+		committed.Action = &action
+	}
+	if entry.PageEvent != nil {
+		data, err := json.Marshal(entry.PageEvent)
+		if err != nil {
+			return false, err
+		}
+		var event domain.PageEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return false, err
+		}
+		committed.PageEvent = &event
+	}
+	if entry.Entry != nil {
+		committed.Entry = proto.Clone(entry.Entry).(*bastimeline.TimelineEntry)
+	}
+	r.entries[entry.SessionID] = append(r.entries[entry.SessionID], &committed)
+	return true, nil
+}
+
+// GetTimelineEntry retrieves a single entry by ID.
+func (r *MockRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UUID) (*persistence.UnifiedTimelineEntry, error) {
+	r.mu.Lock()
+	r.callCounts.GetTimelineEntry++
+	r.mu.Unlock()
+
+	if r.GetTimelineEntryErr != nil {
+		return nil, r.GetTimelineEntryErr
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, entries := range r.entries {
+		for _, e := range entries {
+			if e.ID == entryID {
+				return e, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// GetTimeline returns timeline entries matching the query.
+func (r *MockRepository) GetTimeline(ctx context.Context, query persistence.TimelineQuery) (*persistence.TimelineResponse, error) {
+	r.mu.Lock()
+	r.callCounts.GetTimeline++
+	r.mu.Unlock()
+
+	if r.GetTimelineErr != nil {
+		return nil, r.GetTimelineErr
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entries := r.entries[query.SessionID]
+	result := make([]persistence.UnifiedTimelineEntry, 0, len(entries))
+	for _, e := range entries {
+		// Apply filters
+		if query.PageID != nil && e.PageID != *query.PageID {
+			continue
+		}
+		if query.Since != nil && !e.Timestamp.After(*query.Since) {
+			continue
+		}
+		if len(query.EntryTypes) > 0 {
+			found := false
+			for _, t := range query.EntryTypes {
+				if e.Type == t {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		result = append(result, *e)
+	}
+	query.ApplyDefaults()
+	if query.Offset >= len(result) {
+		result = []persistence.UnifiedTimelineEntry{}
+	} else {
+		result = result[query.Offset:]
+	}
+	hasMore := len(result) > query.Limit && query.Limit > 0
+	if hasMore {
+		result = result[:query.Limit]
+	}
+	return &persistence.TimelineResponse{
+		Entries:    result,
+		HasMore:    hasMore,
+		TotalCount: len(entries),
+	}, nil
+}
+
+// CountTimelineEntries returns the total entry count for a session.
+func (r *MockRepository) CountTimelineEntries(ctx context.Context, sessionID string) (int, error) {
+	r.mu.Lock()
+	r.callCounts.CountTimelineEntries++
+	r.mu.Unlock()
+
+	if r.CountTimelineErr != nil {
+		return 0, r.CountTimelineErr
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.entries[sessionID]), nil
+}
+
+// DeleteSessionEntries removes all timeline entries for a session.
+func (r *MockRepository) DeleteSessionEntries(ctx context.Context, sessionID string) error {
+	r.mu.Lock()
+	r.callCounts.DeleteSessionEntries++
+	r.mu.Unlock()
+
+	if r.DeleteSessionEntriesErr != nil {
+		return r.DeleteSessionEntriesErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.entries[sessionID] = nil
+	return nil
+}
+
+// PruneOldSessions removes sessions older than the given time.
+func (r *MockRepository) PruneOldSessions(ctx context.Context, olderThan time.Time) (int, error) {
+	r.mu.Lock()
+	r.callCounts.PruneOldSessions++
+	r.mu.Unlock()
+
+	if r.PruneOldSessionsErr != nil {
+		return 0, r.PruneOldSessionsErr
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	pruned := 0
+	for id, s := range r.sessions {
+		if s.CreatedAt.Before(olderThan) {
+			delete(r.sessions, id)
+			delete(r.entries, id)
+			pruned++
+		}
+	}
+	return pruned, nil
+}
+
+// GetAllSessions returns all sessions (test helper).
+func (r *MockRepository) GetAllSessions() []*domain.RecordingSession {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]*domain.RecordingSession, 0, len(r.sessions))
+	for _, s := range r.sessions {
+		result = append(result, s)
+	}
+	return result
+}
+
+// GetAllEntries returns all entries for a session (test helper).
+func (r *MockRepository) GetAllEntries(sessionID string) []*persistence.UnifiedTimelineEntry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.entries[sessionID]
+}
+
+// Clear removes all data (test helper).
+func (r *MockRepository) Clear() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sessions = make(map[string]*domain.RecordingSession)
+	r.entries = make(map[string][]*persistence.UnifiedTimelineEntry)
+}
+
+// GetCallCounts returns a snapshot of the call counts for all repository methods.
+// This is useful for verifying test expectations about call patterns.
+func (r *MockRepository) GetCallCounts() CallCounts {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.callCounts
+}
+
+// ResetCallCounts resets all call counters to zero.
+// This is useful for resetting state between test cases.
+func (r *MockRepository) ResetCallCounts() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.callCounts = CallCounts{}
+}
+
+// Ensure MockRepository implements Repository at compile time.
+var _ persistence.Repository = (*MockRepository)(nil)
+
+// setDurableProtoSequence mirrors persistence's commit metadata helper for the test fake.
+func setDurableProtoSequence(entry *persistence.UnifiedTimelineEntry) {
+	if entry.Entry != nil {
+		entry.Entry.SequenceNum = int32(entry.Sequence)
+	}
+}
+
+// sameObservation compares persisted observation fields while ignoring commit metadata.
+func sameObservation(a, b *persistence.UnifiedTimelineEntry) bool {
+	canonical := func(e *persistence.UnifiedTimelineEntry) []byte {
+		copyEntry := *e
+		copyEntry.Sequence = 0
+		if e.Action != nil {
+			copyAction := *e.Action
+			copyAction.CreatedAt = time.Time{}
+			copyEntry.Action = &copyAction
+		}
+		if e.Entry != nil {
+			copyEntry.Entry = proto.Clone(e.Entry).(*bastimeline.TimelineEntry)
+			copyEntry.Entry.SequenceNum = 0
+		}
+		data, err := json.Marshal(copyEntry)
+		if err != nil {
+			return nil
+		}
+		return data
+	}
+	left, right := canonical(a), canonical(b)
+	return left != nil && string(left) == string(right)
+}

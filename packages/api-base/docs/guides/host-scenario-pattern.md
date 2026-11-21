@@ -195,7 +195,6 @@ const app = createScenarioServer({
   apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'app-monitor',
-  corsOrigins: '*',
   verbose: true,
 
   setupRoutes: (app) => {
@@ -461,7 +460,7 @@ const app = createScenarioServer({
 
 ## Testing Strategy
 
-Use `resource-browserless` to test the complete flow:
+Use `browser-automation-studio` (the Playwright driver) to test the complete flow:
 
 ```bash
 # Start app-monitor
@@ -470,8 +469,8 @@ vrooli scenario start app-monitor
 # Start a scenario to proxy
 vrooli scenario start scenario-auditor
 
-# Test with browserless
-resource-browserless execute \
+# Test with browser-automation-studio
+browser-automation-studio execute \
   --url "http://localhost:${APP_MONITOR_PORT}/apps/scenario-auditor/proxy/" \
   --script "test-proxy-flow.js"
 ```

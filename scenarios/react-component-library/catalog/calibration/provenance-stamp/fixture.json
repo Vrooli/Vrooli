@@ -1,0 +1,10 @@
+{
+  "gate": "provenance-stamp",
+  "assetId": "calibration.provenance-stamp",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.provenance-stamp",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Claims ownership of an unrelated asset."
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.file-manifest",
+    "name": "FileManifestFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial file records with mixed types, oversized entries, missing previews, in-progress uploads, scan-pending states, and permanently failed transfers.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "FileRecord"
+      ]
+    },
+    "recordCount": {
+      "typical": 12,
+      "volume": 1000
+    }
+  },
+  "rationale": "The failure shape mixes succeeded, in-flight, and permanently failed uploads in one batch, which is exactly the partial state that upload surfaces report as a single unhelpful error."
+}

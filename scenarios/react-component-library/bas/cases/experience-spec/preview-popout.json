@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page preview-popout.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "preview-popout",
+      "surface": "experience-preview-popout"
+    },
+    "name": "experience-preview-popout-spec-smoke",
+    "requirement": "OT-P0-005",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": { "label": "Preview loading state asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-experience-surface=\"preview-popout\"][data-experience-state=\"loading\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-preview-loading-state"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Preview terminal state asserted" },
+        "assert": {
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-experience-surface=\"preview-popout\"][data-experience-state=\"ready\"], [data-experience-surface=\"preview-popout\"][data-experience-state=\"empty\"], [data-experience-surface=\"preview-popout\"][data-experience-state=\"error\"]",
+          "timeout_ms": 15000
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-preview-terminal-state"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Asset preview"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/assets/:id/preview",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-preview-popout"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/preview-popout",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-preview-popout-primary-binding"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-preview-popout", "target": "wait-preview-popout-primary-binding" },
+    { "id": "e2", "source": "wait-preview-popout-primary-binding", "target": "assert-preview-loading-state" },
+    { "id": "e3", "source": "assert-preview-loading-state", "target": "assert-preview-terminal-state" }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

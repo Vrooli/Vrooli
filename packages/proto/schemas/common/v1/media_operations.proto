@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// MEDIA OPERATION CATALOG — the cross-scenario workflow contract
+// =============================================================================
+//
+// @stability experimental
+//
+// A workflow builder has to answer three questions before it can run a step in
+// a peer scenario: what operations does that scenario offer, what does each
+// one consume and produce, and what does it need to be runnable. This message
+// set is the answer, and it is deliberately a CONTRACT rather than a code
+// dependency: no scenario imports another's packages or operation tables.
+//
+// Ownership rules (see scenarios/image-tools/docs/concepts/COMPOSITION.md):
+//   - each scenario publishes its own catalog;
+//   - a scenario executes only its own steps;
+//   - the aggregation/browse surface belongs to the control plane, not to any
+//     media scenario.
+//
+// The catalog is a projection of each scenario's native capability declaration,
+// so it must not become a second source of truth: a publisher derives these
+// messages from the same records it uses to run the operation.
+//
+// Contract version: bump CONTRACT_VERSION when a field changes meaning. Adding a
+// field is compatible; a consumer must ignore fields it does not know.
+
+// MediaPort is one typed input or output of an operation.
+//
+// The kinds are the composition alphabet: a builder may connect a producer's
+// `image` output only to a consumer's `image` input. A step whose ports do not
+// line up is a type error, not a runtime surprise.
+message MediaPort {
+  // Port name within the operation ("image", "mask", "source", …). Empty for a
+  // single unnamed output.
+  string name = 1;
+  // image | mask | text | data | audio | video | mesh
+  string kind = 2;
+  // True when the operation cannot run without this input.
+  bool required = 3;
+}
+
+// MediaRequirement states what must exist on the host for the operation to be
+// available. The facts are independent: an operation can need a process and
+// weights (a diffusers sidecar) or a process only (tesseract).
+message MediaRequirement {
+  // A local process/runtime must be running (python, sd, …).
+  bool process = 1;
+  // Model weights must be installed.
+  bool weights = 2;
+  // The operation reaches the network with a credential.
+  bool network = 3;
+}
+
+// MediaOperation is one publishable capability.
+message MediaOperation {
+  // Owning scenario slug ("image-tools", "audio-tools", …). A builder routes a
+  // step by this field and never by assumption.
+  string scenario = 1;
+  // Operation id, unique within the scenario.
+  string id = 2;
+  // One-line human summary.
+  string summary = 3;
+  // Application family: generate | edit | enhance | restore | extract | compose.
+  // Presentation/browsing only; it never decides execution ownership.
+  string family = 4;
+  // What executes the operation: compute | infer | fetch.
+  string mechanism = 5;
+  repeated MediaPort inputs = 6;
+  MediaPort output = 7;
+  // Parameter contract as a JSON Schema document. Empty when the operation has
+  // no parameters beyond its ports.
+  string params_schema_json = 8;
+  // none | low | high. How much the operation can change who a person is; used
+  // to compute a workflow's effective weight (the maximum over its steps).
+  string consent_weight = 9;
+  // Ordered backend preference (local first). Empty for in-process compute.
+  repeated string backends = 10;
+  MediaRequirement requires = 11;
+}
+
+// MediaOperationCatalog is one scenario's published catalog.
+message MediaOperationCatalog {
+  // Version of this message set the publisher conforms to. Start at "1".
+  string contract_version = 1;
+  // The publishing scenario's slug.
+  string scenario = 2;
+  repeated MediaOperation operations = 3;
+}

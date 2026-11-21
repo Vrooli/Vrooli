@@ -1,0 +1,16 @@
+{
+  "askLinksUnavailable": "Couldn’t check which updates have a decision, so decision links are hidden.",
+  "deliveryDetails": "Delivery details",
+  "description": "What agents told you, and whether it reached you.",
+  "emptyReturned": "No updates yet",
+  "feedHeading": "Recent updates",
+  "loadError": "Couldn’t load updates.",
+  "loadedScope": "Showing the latest {{limit}}.",
+  "openDecision": "Open decision",
+  "stale": "Showing what loaded earlier; the refresh failed.",
+  "title": "Updates",
+  "untitled": "Update",
+  "emptyDetail": "When an agent sends you something, it shows up here.",
+  "openSource": "Open source",
+  "sectionsLabel": "Updates and delivery"
+}

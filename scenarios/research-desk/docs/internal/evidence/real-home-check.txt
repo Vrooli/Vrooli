@@ -1,0 +1,16 @@
+# make real-home-check: the one read-only invariant run over the real research home, 2026-11-12T01:35Z
+# Command: make real-home-check  (go test -tags realhome ./internal/realhome/); at that time an absent home was a skip, now it fails unless REAL_HOME_CHECK_SKIP=1.
+# Asserts: every commission folder and MISSION.md topic listed, every state in the enum with a rule, every
+# derived field known with a source or unknown with a reason, desk-written files unchanged, and turning every
+# courier switch on sends none of the items already there. Home path shown as ~.
+
+    realhome_test.go:102: standing-teams-w1-20261110: unknown (packet complete, but not proven unstarted: STATE.md was written at 2026-11-10T03:38:25Z, after the packet was built at 2026-11-10T03:24:41Z)
+    realhome_test.go:102: local-models-w1-20261111: unknown (packet complete, but not proven unstarted: STATE.md was written at 2026-11-11T23:06:31Z, after the packet was built at 2026-11-11T21:26:11Z)
+    realhome_test.go:125: 24 commissions by state: map[ended:2 paused:2 stopped:2 unknown:18]
+    realhome_test.go:131: 27 topics
+    realhome_test.go:147: medical-practice-it-modernization last active 2026-11-12T01:32:42Z (~/.vrooli/research/topics/medical-practice-it-modernization/runs/programme-three-20261111/runbooks/openemr-m5-handoff-disk-admission.json )
+--- PASS: TestRealHomeInvariants (0.76s)
+    realhome_test.go:198: 7 needs-you items (7 global ATTENTION.md items) present when the switches were turned on
+--- PASS: TestTurningTheCourierOnSendsNoCurrentItem (2.35s)
+PASS
+ok  	research-desk/internal/realhome	3.116s

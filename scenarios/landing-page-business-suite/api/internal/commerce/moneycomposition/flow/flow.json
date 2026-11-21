@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "commerce.money-composition.api",
+  "domain": "commerce",
+  "description": "Composed SM1/SM2 eligibility, reservation, charge, wallet and replay outcomes observed through the real Door and Postgres store.",
+  "model": {
+    "module": "MoneyComposition",
+    "seed": "2026110402",
+    "maxSteps": 4,
+    "traceCount": 4,
+    "verify": { "invariants": ["TypeOK", "IllegalTransitionsPreserveState", "NoOvercharge", "NoNegativeWallet", "NoUnavailableFinalize"] }
+  },
+  "states": [
+    { "id": "ready", "quint": "Ready", "initial": true },
+    { "id": "rejected", "quint": "Rejected", "terminal": true },
+    { "id": "settled", "quint": "Settled", "terminal": true }
+  ],
+  "events": [
+    { "id": "deny", "quint": "Deny" },
+    { "id": "grant", "quint": "Grant" },
+    { "id": "replay", "quint": "Replay" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "ready", "event": "deny", "to": "rejected" },
+    { "from": "ready", "event": "grant", "to": "settled" },
+    { "from": "settled", "event": "replay", "to": "settled" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Scalar lifecycle state remains in its declared finite domain." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Illegal lifecycle transitions preserve status." }
+  ],
+  "traces": [
+    { "name": "deny", "initial": "ready", "steps": [{ "event": "deny", "want": "rejected", "wantError": false }] },
+    { "name": "grant_and_replay", "initial": "ready", "steps": [{ "event": "grant", "want": "settled", "wantError": false }, { "event": "replay", "want": "settled", "wantError": false }] }
+  ],
+  "runtime": {
+    "go": { "package": "flow", "statusType": "MoneyStatus", "eventType": "MoneyEvent", "constantPrefix": "Money" },
+    "sideEffects": ["The product observation adapter is fed by assertions and SQL projections from the LPBS production Door/Postgres path."]
+  },
+  "replay": { "transition": { "function": "TransitionMoneyComposition", "stateType": "MoneyStatus", "statusField": "Status" } },
+  "product": {
+    "variables": [
+      { "id": "eligibility", "quint": "eligibility", "values": [{ "id": "unavailable", "quint": "EUnavailable" }, { "id": "spendable", "quint": "ESpendable" }] },
+      { "id": "reservation", "quint": "reservation", "values": [{ "id": "none", "quint": "RNone" }, { "id": "finalized", "quint": "RFinalized" }] },
+      { "id": "charge", "quint": "charge", "values": [{ "id": "none", "quint": "CNone" }, { "id": "within", "quint": "CWithin" }, { "id": "over", "quint": "COver" }] },
+      { "id": "wallet", "quint": "wallet", "values": [{ "id": "nonnegative", "quint": "WNonnegative" }, { "id": "negative", "quint": "WNegative" }] },
+      { "id": "replay", "quint": "replay", "values": [{ "id": "fresh", "quint": "PFresh" }, { "id": "replayed", "quint": "PReplayed" }] }
+    ],
+    "initial": { "eligibility": "unavailable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" },
+    "transitions": [
+      { "fromStatus": "ready", "event": "deny", "from": { "eligibility": "unavailable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" }, "toStatus": "rejected", "to": { "eligibility": "unavailable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" } },
+      { "fromStatus": "ready", "event": "grant", "from": { "eligibility": "spendable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" }, "toStatus": "settled", "to": { "eligibility": "spendable", "reservation": "finalized", "charge": "within", "wallet": "nonnegative", "replay": "fresh" } },
+      { "fromStatus": "settled", "event": "replay", "from": { "eligibility": "spendable", "reservation": "finalized", "charge": "within", "wallet": "nonnegative", "replay": "fresh" }, "toStatus": "settled", "to": { "eligibility": "spendable", "reservation": "finalized", "charge": "within", "wallet": "nonnegative", "replay": "replayed" } }
+    ],
+    "invariants": [
+      { "id": "no_overcharge", "quint": "NoOvercharge", "description": "A finalized request is never charged above its reservation.", "expression": "charge != COver" },
+      { "id": "no_negative_wallet", "quint": "NoNegativeWallet", "description": "Composed money effects never produce a negative remaining wallet.", "expression": "wallet == WNonnegative" },
+      { "id": "no_unavailable_finalize", "quint": "NoUnavailableFinalize", "description": "An unavailable funding tuple cannot finalize a reservation.", "expression": "eligibility != EUnavailable or reservation != RFinalized" }
+    ],
+    "traces": [
+      { "name": "door_refusal", "initialStatus": "ready", "initial": { "eligibility": "unavailable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" }, "steps": [{ "event": "deny", "wantStatus": "rejected", "wantError": false, "state": { "eligibility": "unavailable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" }, "effects": { "reservations": 0, "allocations": 0, "usageRecords": 0, "usageEvents": 0, "ledgerRows": 0 } }] },
+      { "name": "door_settlement_replay", "initialStatus": "ready", "initial": { "eligibility": "spendable", "reservation": "none", "charge": "none", "wallet": "nonnegative", "replay": "fresh" }, "steps": [
+        { "event": "grant", "wantStatus": "settled", "wantError": false, "state": { "eligibility": "spendable", "reservation": "finalized", "charge": "within", "wallet": "nonnegative", "replay": "fresh" }, "effects": { "allocations": 200, "chargedCredits": 200, "usageCredits": 200, "usageEvents": 1, "ledgerRows": 0 } },
+        { "event": "replay", "wantStatus": "settled", "wantError": false, "state": { "eligibility": "spendable", "reservation": "finalized", "charge": "within", "wallet": "nonnegative", "replay": "replayed" }, "effects": { "allocations": 200, "chargedCredits": 200, "usageCredits": 200, "usageEvents": 1, "ledgerRows": 0 } }
+      ] }
+    ]
+  }
+}

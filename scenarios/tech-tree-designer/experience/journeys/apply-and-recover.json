@@ -1,0 +1,55 @@
+{
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "apply-and-recover",
+    "title": "Revision-bound apply and recovery",
+    "purpose": "Revision-bound apply and recovery with explicit authority, provenance and evidence boundaries.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P0-007"
+    ]
+  },
+  "steps": [
+    {
+      "page": "planning",
+      "state": "reviewing",
+      "intent": "Resolve the exact selected revision and externally owned approval."
+    },
+    {
+      "page": "planning",
+      "state": "permission-denied",
+      "intent": "Understand unmet authority without bypassing its owner."
+    },
+    {
+      "page": "planning",
+      "state": "applying",
+      "intent": "Inspect per-entry owner-directed application progress."
+    },
+    {
+      "page": "planning",
+      "state": "conflicted",
+      "intent": "See relevant base conflicts and dependency holds while unrelated edits remain intact."
+    },
+    {
+      "page": "planning",
+      "state": "recovering",
+      "intent": "Reconcile durable receipts and resume only authorized unresolved effects."
+    },
+    {
+      "page": "planning",
+      "state": "success",
+      "intent": "Inspect completed receipts without mistaking application for verified capability."
+    }
+  ],
+  "claims": [
+    {
+      "id": "apply-and-recover-outcome",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given interrupted multi-owner application, when the operator resumes, then applied entries are not repeated and partial outcomes remain visible until resolved.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

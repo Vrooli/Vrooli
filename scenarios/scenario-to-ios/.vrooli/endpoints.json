@@ -1,0 +1,516 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.scenario_to_ios.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.scenario_to_ios.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Lifecycle and operator capability probe surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_generate",
+      "path": "/api/v1/ios/generate",
+      "method": "POST",
+      "summary": "Generate a deterministic Capacitor iOS project",
+      "description": "",
+      "category": "builds",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator generation surface accepts a JSON source reference.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_build",
+      "path": "/api/v1/ios/build",
+      "method": "POST",
+      "summary": "Build an iOS artifact on an Apple host",
+      "description": "",
+      "category": "builds",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator build surface returns unavailable when no Apple host exists.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_targets",
+      "path": "/api/v1/ios/targets",
+      "method": "GET",
+      "summary": "Probe Apple targets and bridge readiness",
+      "description": "",
+      "category": "targets",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator probe surface returns report-shaped JSON.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_conformance_plan",
+      "path": "/api/v1/ios/conformance-plan",
+      "method": "GET",
+      "summary": "Show the twelve iOS conformance chapters",
+      "description": "",
+      "category": "journeys",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_readiness",
+      "path": "/api/v1/ios/readiness",
+      "method": "GET",
+      "summary": "Show the probed Apple readiness ladder",
+      "description": "",
+      "category": "readiness",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_distribution",
+      "path": "/api/v1/ios/distribution",
+      "method": "GET",
+      "summary": "Show independent iOS distribution channels",
+      "description": "",
+      "category": "distribution",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_matrix",
+      "path": "/api/v1/ios/matrix",
+      "method": "GET",
+      "summary": "Show the iOS validation matrix readiness",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_catalog",
+      "path": "/api/v1/validation/catalog",
+      "method": "GET",
+      "summary": "Show the provider-owned iOS validation catalog",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Catalog is a read-only matrix selection surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_profiles",
+      "path": "/api/v1/validation/profiles",
+      "method": "GET",
+      "summary": "Show validation environment profiles",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Profile catalog is provider-neutral.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrices_list",
+      "path": "/api/v1/validation/matrices",
+      "method": "GET",
+      "summary": "List durable iOS validation matrix runs",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Matrix listing is server-owned and durable.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrices_create",
+      "path": "/api/v1/validation/matrices",
+      "method": "POST",
+      "summary": "Create a durable iOS validation matrix run",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Matrix creation accepts a JSON selection and is server-owned.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix",
+      "path": "/api/v1/validation/matrices/{run_id}",
+      "method": "GET",
+      "summary": "Inspect a durable iOS validation matrix run",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Run identity and evidence remain producer-owned.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_start",
+      "path": "/api/v1/validation/matrices/{run_id}/start",
+      "method": "POST",
+      "summary": "Start a server-owned iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Start is asynchronous and durable.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_wait",
+      "path": "/api/v1/validation/matrices/{run_id}/wait",
+      "method": "GET",
+      "summary": "Wait for a durable iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Wait returns the producer-owned terminal report.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_abort",
+      "path": "/api/v1/validation/matrices/{run_id}/abort",
+      "method": "POST",
+      "summary": "Abort a durable iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Abort preserves the cancelled run record.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_rerun",
+      "path": "/api/v1/validation/matrices/{run_id}/rerun",
+      "method": "POST",
+      "summary": "Rerun selected iOS validation cells",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Rerun creates an independent immutable run.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_compare",
+      "path": "/api/v1/validation/matrices/{run_id}/compare/{prior_run_id}",
+      "method": "GET",
+      "summary": "Compare two iOS validation matrix runs",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Comparison does not mutate either run.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ export function EventLogPage() {
   const navigate = useNavigate();
   const [typeFilter, setTypeFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [targetFilter, setTargetFilter] = useState("");
   const [correlationFilter, setCorrelationFilter] = useState("");
   const [limit, setLimit] = useState(50);
   const [selected, setSelected] = useState<EventEnvelope | null>(null);
@@ -26,20 +27,23 @@ export function EventLogPage() {
     const params = new URLSearchParams(location.search);
     const type = params.get("type");
     const source = params.get("source");
+    const target = params.get("target");
     const cid = params.get("cid");
     const lim = params.get("limit");
     if (type) setTypeFilter(type);
     if (source) setSourceFilter(source);
+    if (target) setTargetFilter(target);
     if (cid) setCorrelationFilter(cid);
     if (lim) { const n = Number(lim); if (!Number.isNaN(n) && n > 0) setLimit(n); }
   }, [location.search]);
 
   // Persist filters to URL query params
   const syncFiltersToUrl = useCallback(
-    (type: string, source: string, cid: string, lim: number) => {
+    (type: string, source: string, target: string, cid: string, lim: number) => {
       const params = new URLSearchParams();
       if (type) params.set("type", type);
       if (source) params.set("source", source);
+      if (target) params.set("target", target);
       if (cid) params.set("cid", cid);
       if (lim !== 50) params.set("limit", String(lim));
       const search = params.toString();
@@ -49,37 +53,43 @@ export function EventLogPage() {
   );
 
   const updateTypeFilter = useCallback(
-    (v: string) => { setTypeFilter(v); syncFiltersToUrl(v, sourceFilter, correlationFilter, limit); },
-    [sourceFilter, correlationFilter, limit, syncFiltersToUrl],
+    (v: string) => { setTypeFilter(v); syncFiltersToUrl(v, sourceFilter, targetFilter, correlationFilter, limit); },
+    [sourceFilter, targetFilter, correlationFilter, limit, syncFiltersToUrl],
   );
   const updateSourceFilter = useCallback(
-    (v: string) => { setSourceFilter(v); syncFiltersToUrl(typeFilter, v, correlationFilter, limit); },
-    [typeFilter, correlationFilter, limit, syncFiltersToUrl],
+    (v: string) => { setSourceFilter(v); syncFiltersToUrl(typeFilter, v, targetFilter, correlationFilter, limit); },
+    [typeFilter, targetFilter, correlationFilter, limit, syncFiltersToUrl],
+  );
+  const updateTargetFilter = useCallback(
+    (v: string) => { setTargetFilter(v); syncFiltersToUrl(typeFilter, sourceFilter, v, correlationFilter, limit); },
+    [typeFilter, sourceFilter, correlationFilter, limit, syncFiltersToUrl],
   );
   const updateCorrelationFilter = useCallback(
-    (v: string) => { setCorrelationFilter(v); syncFiltersToUrl(typeFilter, sourceFilter, v, limit); },
-    [typeFilter, sourceFilter, limit, syncFiltersToUrl],
+    (v: string) => { setCorrelationFilter(v); syncFiltersToUrl(typeFilter, sourceFilter, targetFilter, v, limit); },
+    [typeFilter, sourceFilter, targetFilter, limit, syncFiltersToUrl],
   );
   const updateLimit = useCallback(
-    (v: number) => { setLimit(v); syncFiltersToUrl(typeFilter, sourceFilter, correlationFilter, v); },
-    [typeFilter, sourceFilter, correlationFilter, syncFiltersToUrl],
+    (v: number) => { setLimit(v); syncFiltersToUrl(typeFilter, sourceFilter, targetFilter, correlationFilter, v); },
+    [typeFilter, sourceFilter, targetFilter, correlationFilter, syncFiltersToUrl],
   );
 
-  const hasFilters = typeFilter !== "" || sourceFilter !== "" || correlationFilter !== "" || limit !== 50;
+  const hasFilters = typeFilter !== "" || sourceFilter !== "" || targetFilter !== "" || correlationFilter !== "" || limit !== 50;
   const resetFilters = useCallback(() => {
     setTypeFilter("");
     setSourceFilter("");
+    setTargetFilter("");
     setCorrelationFilter("");
     setLimit(50);
     navigate({ search: "" }, { replace: true });
   }, [navigate]);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["events", typeFilter, sourceFilter, correlationFilter, limit],
+    queryKey: ["events", typeFilter, sourceFilter, targetFilter, correlationFilter, limit],
     queryFn: () =>
       fetchEvents({
         type: typeFilter || undefined,
         source: sourceFilter || undefined,
+        target: targetFilter || undefined,
         correlationId: correlationFilter || undefined,
         limit,
       }),
@@ -115,6 +125,13 @@ export function EventLogPage() {
           placeholder="Source scenario"
           value={sourceFilter}
           onChange={(e) => updateSourceFilter(e.target.value)}
+          className={`w-40 ${INPUT_CLASS}`}
+        />
+        <input
+          type="text"
+          placeholder="Target scenario"
+          value={targetFilter}
+          onChange={(e) => updateTargetFilter(e.target.value)}
           className={`w-40 ${INPUT_CLASS}`}
         />
         <input

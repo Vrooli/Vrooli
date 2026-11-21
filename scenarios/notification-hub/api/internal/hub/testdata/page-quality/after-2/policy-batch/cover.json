@@ -1,0 +1,17 @@
+{
+ "question": "Which standing-team policies should the teams apply?",
+ "big_picture": "Eight policies set how far the standing-teams programme can go. Your answer lets the teams apply the selected changes; if you do not answer, every safe default stays in force and the programme continues. You can choose all eight or select the six reversible policies and decide the open-ended access grant and permanent deletion separately.",
+ "recommend": "apply",
+ "reason": "Taking all eight sets useful limits, reduces repeat permission requests and removes unnecessary code.",
+ "options": [
+  {
+   "key": "apply",
+   "label": "Apply the policies selected in the multi-select"
+  },
+  {
+   "key": "defaults",
+   "label": "Keep all eight defaults"
+  }
+ ],
+ "technical_details": "Source: Hub ask 6052a317 (15 Nov 2026); Research Desk, standing-teams programme. See the attached execution brief and facts."
+}

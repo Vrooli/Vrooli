@@ -1,0 +1,331 @@
+{
+  "variant": {
+    "slug": "control",
+    "name": "Aquila (Control)",
+    "description": "Aquila default experience for focused operators",
+    "weight": 100,
+    "axes": {
+      "conversionStyle": "emotional",
+      "jtbd": "entrepreneurship",
+      "persona": "silentFounder"
+    },
+    "header_config": {
+      "branding": {
+        "mode": "logo_and_name",
+        "label": "Aquila",
+        "subtitle": "Your calm Vrooli command center",
+        "mobile_preference": "logo"
+      },
+      "nav": {
+        "links": [
+          {
+            "id": "nav-video",
+            "type": "section",
+            "label": "Demo",
+            "section_type": "video",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          },
+          {
+            "id": "nav-features",
+            "type": "section",
+            "label": "Features",
+            "section_type": "features",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          },
+          {
+            "id": "nav-pricing",
+            "type": "section",
+            "label": "Pricing",
+            "section_type": "pricing",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          }
+        ]
+      },
+      "ctas": {
+        "primary": {
+          "mode": "inherit_hero",
+          "variant": "solid"
+        },
+        "secondary": {
+          "mode": "downloads",
+          "variant": "ghost"
+        }
+      },
+      "behavior": {
+        "sticky": true,
+        "hide_on_scroll": true
+      }
+    },
+    "seo_config": {
+      "title": "Aquila · Your calm command center",
+      "description": "Run durable terminal sessions, supervise agent work, and keep your Vrooli workspace close from any browser.",
+      "og_title": "Aquila",
+      "og_description": "A calm command center for durable sessions, agent workflows, and everyday operations.",
+      "twitter_card": "summary_large_image"
+    }
+  },
+  "sections": [
+    {
+      "section_type": "hero",
+      "content": {
+        "title": "Your work, in one calm command center",
+        "subtitle": "Aquila keeps durable terminal sessions, agent workflows, and operational context close at hand.",
+        "cta_text": "Open Aquila",
+        "cta_url": "/app/web-console",
+        "cta_url": "/checkout?price_id=price_free",
+        "secondary_cta_text": "Watch video",
+        "secondary_cta_url": "#video-2",
+        "image_url": "/assets/hero/silent-founder.png"
+      },
+      "order": 1,
+      "enabled": false
+    },
+    {
+      "section_type": "features",
+      "content": {
+        "title": "The workspace that stays with you",
+        "subtitle": "Aquila is live today. More Vrooli capabilities will appear in the same workspace as they become ready.",
+        "features": [
+          {
+            "title": "Durable sessions",
+            "description": "Keep terminal work available across reconnects so context does not disappear when the browser does.",
+            "icon": "mouse-pointer-click"
+          },
+          {
+            "title": "Pane-based focus",
+            "description": "See multiple terminal sessions together and keep the important work in view.",
+            "icon": "shield-check"
+          },
+          {
+            "title": "AI-assisted input",
+            "description": "Turn intent into useful command suggestions while keeping the operator in control.",
+            "icon": "video"
+          },
+          {
+            "title": "Built for the browser",
+            "description": "Work from desktop or mobile without giving up the terminal capabilities your workspace depends on.",
+            "icon": "activity"
+          },
+          {
+            "title": "A growing Vrooli suite",
+            "description": "Your subscription is the front door to additional capabilities as they become production-ready.",
+            "icon": "cpu"
+          }
+        ]
+      },
+      "order": 2,
+      "enabled": true
+    },
+    {
+      "section_type": "pricing",
+      "content": {
+        "title": "One subscription that keeps gaining tools",
+        "subtitle": "Start with a calm Aquila workspace and add capabilities as they become production-ready.",
+        "tiers": [
+          {
+            "name": "Free",
+            "price": "$0",
+            "description": "Quietly try the Vrooli Business Suite",
+            "features": [
+              "50 runs/month",
+              "Durable browser sessions",
+              "Aquila workspace access",
+              "No sales calls ever"
+            ],
+            "cta_text": "Start free",
+            "cta_url": "/checkout?price_id=price_free"
+          },
+          {
+            "name": "Solo",
+            "price": "$29",
+            "description": "For indie builders and hobbyists",
+            "features": [
+              "Durable browser sessions",
+              "Workspace context",
+              "Session workspace sharing",
+              "Email support"
+            ],
+            "cta_text": "Upgrade to Solo",
+            "cta_url": "/checkout?price_id=price_solo_monthly"
+          },
+          {
+            "name": "Pro",
+            "price": "$79",
+            "description": "Primary plan for quiet founders",
+            "features": [
+              "Unlimited workspace access",
+              "Command suggestions",
+              "Durable session history",
+              "Priority support",
+              "Early access to new capabilities"
+            ],
+            "cta_text": "Go Pro",
+            "cta_url": "/checkout?price_id=price_pro_monthly",
+            "highlighted": true
+          },
+          {
+            "name": "Studio",
+            "price": "$199",
+            "description": "For agencies shipping client deliverables",
+            "features": [
+              "Team workspace controls",
+              "More agent concurrency",
+              "Priority async support",
+              "Multi-seat Aquila workspaces"
+            ],
+            "cta_text": "Get Studio",
+            "cta_url": "/checkout?price_id=price_studio_monthly"
+          },
+          {
+            "name": "Business",
+            "price": "$499",
+            "description": "For teams that want API + webhooks",
+            "features": [
+              "Unlimited agent loops",
+              "API + webhooks",
+              "Higher reliability SLAs",
+              "Async onboarding—no calls required"
+            ],
+            "cta_text": "Choose Business",
+            "cta_url": "/checkout?price_id=price_business_monthly"
+          }
+        ]
+      },
+      "order": 3,
+      "enabled": true
+    },
+    {
+      "section_type": "testimonials",
+      "content": {
+        "title": "Proof for people who prefer to ship quietly",
+        "subtitle": "Operators and solo founders are already using the Vrooli Business Suite to run the business in the background.",
+        "testimonials": [
+          {
+            "name": "Jessie Patel",
+            "role": "Solo founder",
+            "company": "Quiet Systems",
+            "content": "Aquila keeps the work visible without adding another meeting or another tab.",
+            "rating": 5
+          },
+          {
+            "name": "Marco Lu",
+            "role": "Automation lead",
+            "company": "Northstack",
+            "content": "Workflows double as tests, so QA stopped being a separate job. The browser recordings cut debug time in half.",
+            "rating": 5
+          },
+          {
+            "name": "Alina Gomez",
+            "role": "Marketing ops",
+            "company": "Brightlab",
+            "content": "Aquila keeps the work visible without another meeting or another tab.",
+            "rating": 5
+          }
+        ]
+      },
+      "order": 4,
+      "enabled": true
+    },
+    {
+      "section_type": "faq",
+      "content": {
+        "title": "Quiet founder FAQs",
+        "subtitle": "Everything you need to know before you start with Aquila.",
+        "faqs": [
+          {
+            "question": "Do I need sales calls to upgrade?",
+            "answer": "No. All plans are self-serve with flat pricing. No per-seat traps or discovery calls."
+          },
+          {
+            "question": "What happens when more apps ship?",
+            "answer": "You get Aquila today. Future Vrooli Business Suite apps appear in your subscription automatically as they become ready."
+          },
+          {
+            "question": "Are replays watermarked?",
+            "answer": "Free and Solo exports keep a watermark. Pro and above remove it and allow custom branding on Studio+."
+          },
+          {
+            "question": "Can I use this for testing?",
+            "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes."
+          }
+        ]
+      },
+      "order": 5,
+      "enabled": true
+    },
+    {
+      "section_type": "cta",
+      "content": {
+        "title": "Bring your workspace closer",
+        "subtitle": "Aquila ships now. The rest of the suite arrives automatically as we build it.",
+        "cta_text": "Start free",
+        "cta_url": "/checkout?price_id=price_free"
+      },
+      "order": 6,
+      "enabled": true
+    },
+    {
+      "section_type": "footer",
+      "content": {
+        "company_name": "Aquila · Vrooli Business Suite",
+        "tagline": "Build the business quietly. Your tools and agents do the talking.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              {
+                "label": "Features",
+                "url": "#features"
+              },
+              {
+                "label": "Pricing",
+                "url": "#pricing"
+              },
+              {
+                "label": "Downloads",
+                "url": "#downloads-section"
+              }
+            ]
+          },
+          {
+            "title": "Resources",
+            "links": [
+              {
+                "label": "Docs",
+                "url": "/docs"
+              }
+            ]
+          },
+          {
+            "title": "Support",
+            "links": [
+              {
+                "label": "Status",
+                "url": "/status"
+              },
+              {
+                "label": "Security",
+                "url": "/security"
+              }
+            ]
+          }
+        ],
+        "social_links": {
+          "github": "https://github.com/vrooli",
+          "twitter": "https://x.com/vrooli"
+        }
+      },
+      "order": 7,
+      "enabled": true
+    }
+  ]
+}

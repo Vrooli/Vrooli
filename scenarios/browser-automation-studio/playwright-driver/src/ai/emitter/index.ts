@@ -11,6 +11,5 @@ export * from './types';
 export {
   createCallbackEmitter,
   emitNavigationComplete,
-  createMockEmitter,
   type CallbackEmitterConfig,
 } from './callback-emitter';

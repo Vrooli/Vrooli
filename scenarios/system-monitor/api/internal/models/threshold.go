@@ -19,32 +19,16 @@ type Threshold struct {
 
 // ThresholdViolation represents a threshold violation event
 type ThresholdViolation struct {
-	MetricName     string    `json:"metric_name"`
-	CurrentValue   float64   `json:"current_value"`
-	ThresholdValue float64   `json:"threshold_value"`
-	Severity       string    `json:"severity"`
-	ViolationType  string    `json:"violation_type"` // warning, critical
-	Timestamp      time.Time `json:"timestamp"`
-	Duration       string    `json:"duration"`
-	PreviousValue  float64   `json:"previous_value"`
-	Trend          string    `json:"trend"` // increasing, decreasing, stable
-}
-
-// ThresholdMonitorRequest represents a request to check thresholds
-type ThresholdMonitorRequest struct {
-	ForceCheck bool `json:"force_check"`
-}
-
-// ThresholdMonitorResponse represents the response from threshold monitoring
-type ThresholdMonitorResponse struct {
-	CheckID         string               `json:"check_id"`
-	Status          string               `json:"status"`
-	ViolationsFound int                  `json:"violations_found"`
-	Violations      []ThresholdViolation `json:"violations"`
-	SystemHealth    string               `json:"system_health"` // healthy, warning, critical
-	CheckedAt       time.Time            `json:"checked_at"`
-	NextCheck       time.Time            `json:"next_check"`
-	Summary         string               `json:"summary"`
+	MetricName     string                 `json:"metric_name"`
+	CurrentValue   float64                `json:"current_value"`
+	ThresholdValue float64                `json:"threshold_value"`
+	Severity       string                 `json:"severity"`
+	ViolationType  string                 `json:"violation_type"` // warning, critical
+	Timestamp      time.Time              `json:"timestamp"`
+	Duration       string                 `json:"duration"`
+	PreviousValue  float64                `json:"previous_value"`
+	Trend          string                 `json:"trend"` // increasing, decreasing, stable
+	Details        map[string]interface{} `json:"details,omitempty"`
 }
 
 // Alert represents a system alert

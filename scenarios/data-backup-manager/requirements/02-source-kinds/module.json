@@ -1,0 +1,125 @@
+{
+  "_metadata": {
+    "module": "source-kinds",
+    "description": "Capture each supported source kind into a consistent artifact handed to the backup engine.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-SRC-FS",
+      "title": "Filesystem source capture",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.filesystem",
+      "criticality": "P0",
+      "description": "Capture a filesystem path or glob, resolved storage-root-relative where possible for portability, and hand it to the kopia snapshot.",
+      "tags": ["source", "filesystem"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/fs_test.go::TestFilesystemSource_RoundTrip",
+          "notes": "Snapshot a temp tree, restore, assert byte-identical."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SRC-SQLITE",
+      "title": "SQLite source capture",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.sqlite",
+      "criticality": "P0",
+      "description": "Capture a SQLite database via a consistent VACUUM INTO snapshot rather than copying a live file.",
+      "tags": ["source", "sqlite"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/sqlite_test.go::TestSqliteSource_VacuumIntoConsistent",
+          "notes": "Snapshot under concurrent writes; restore; assert integrity_check ok."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SRC-POSTGRES",
+      "title": "Postgres source capture",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.postgres",
+      "criticality": "P0",
+      "description": "Capture a Postgres schema/database via the postgres resource CLI (pg_dump); the source resource owns its credential resolution and DBM never becomes a secret broker.",
+      "tags": ["source", "postgres"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/postgres_test.go::TestPostgresSource_DumpRestore",
+          "notes": "Dump a seeded schema, restore to a scratch schema, assert row equality."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SRC-REDIS",
+      "title": "Redis source capture (best-effort namespace)",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.redis",
+      "criticality": "P0",
+      "description": "Capture a Redis key namespace (scenario prefix) via SCAN+DUMP. Explicitly best-effort, not transactional point-in-time; this limit is documented.",
+      "tags": ["source", "redis", "best-effort"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/redis_test.go::TestRedisSource_PrefixDumpRestore",
+          "notes": "Seed prefixed keys, capture, restore into clean instance, assert key/value equality."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SRC-QDRANT",
+      "title": "Qdrant source capture",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.qdrant",
+      "criticality": "P0",
+      "description": "Capture a Qdrant collection via the snapshot API and restore by upload.",
+      "tags": ["source", "qdrant", "vector"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/qdrant_test.go::TestQdrantSource_SnapshotRestore",
+          "notes": "Snapshot a seeded collection, restore, assert point count and a sample vector match."
+        }
+      ]
+    },
+    {
+      "id": "DBM-SRC-OBJECT",
+      "title": "Object-storage source capture",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "source.object",
+      "criticality": "P0",
+      "description": "Capture an object-storage bucket/prefix (MinIO/S3) by mirroring objects; shares the S3 SDK code used for object-storage destinations.",
+      "tags": ["source", "object-storage", "minio"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/sources/object_test.go::TestObjectSource_MirrorRestore",
+          "notes": "Mirror a seeded prefix, restore to a new prefix, assert object set + checksums."
+        }
+      ]
+    }
+  ]
+}

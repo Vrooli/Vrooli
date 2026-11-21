@@ -1,0 +1,36 @@
+{
+  "background_color": "#ffffff",
+  "description": "Owned graded practice website for website data extraction tools",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "192x192",
+      "src": "maskable-icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "maskable-icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Extraction Range",
+  "scope": "../",
+  "short_name": "extraction-range",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

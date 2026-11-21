@@ -1,3 +1,23 @@
+---
+name: "failure-topography-and-graceful-degradation"
+description: "Map failure modes and implement graceful degradation"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","reliability"]
+  tags: ["skill"]
+  icon: "activity"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Failure Topography & Graceful Degradation
 
 Prioritize **understanding how this scenario fails** and improving how it behaves under stress, error, or partial outages.
@@ -10,7 +30,7 @@ Your goals are to:
 Do **not** break functionality, regress tests, or introduce new features unrelated to failure handling. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ---
 

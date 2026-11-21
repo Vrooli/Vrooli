@@ -35,7 +35,6 @@ export {
   type DriverNetworkEvent,
   type CursorPosition,
   type AssertionOutcome,
-  type ConditionOutcome,
   type PlanStep,
   type PlanEdge,
   type PlanGraph,
@@ -49,7 +48,6 @@ export {
   DriverNetworkEventSchema,
   CursorPositionSchema,
   AssertionOutcomeSchema,
-  ConditionOutcomeSchema,
   PlanStepSchema,
   PlanEdgeSchema,
   PlanGraphSchema,
@@ -176,6 +174,8 @@ export {
   type RetryAttempt,
   type AssertionResult,
   type EventContext,
+  type ConditionOutcome,
+  ConditionOutcomeSchema,
   RetryStatusSchema,
   RetryAttemptSchema,
   AssertionResultSchema,
@@ -252,7 +252,7 @@ export {
   // Data exports
   ACTION_TYPE_MAP,
   SELECTOR_OPTIONAL_ACTIONS,
-} from './action-type-utils';
+} from '../recording/action-types';
 
 // NOTE: compat.ts was removed - it contained unused legacy type definitions.
 // Use proto types directly from the exports above.
@@ -272,13 +272,12 @@ export {
 } from './instruction';
 
 // =============================================================================
-// PARAM EXTRACTORS
+// PARAM ACCESSORS
 // =============================================================================
-// CANONICAL LOCATION: ./params.ts
+// CANONICAL LOCATION: ./instruction.ts
 //
-// Re-exported here so existing imports from 'proto/' continue to work.
-// New code should import directly from './params' when only param extractors are needed.
-// This reduces bundle size for consumers that don't need all proto exports.
+// These accessors pair the generated ActionDefinition oneof with the driver's
+// instruction conversion boundary and preserve its handler-facing enum spellings.
 
 export {
   getClickParams,
@@ -305,4 +304,4 @@ export {
   getGestureParams,
   getNetworkMockParams,
   getRotateParams,
-} from './params';
+} from './instruction';

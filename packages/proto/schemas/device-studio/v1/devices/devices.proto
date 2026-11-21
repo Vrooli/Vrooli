@@ -1,0 +1,291 @@
+syntax = "proto3";
+package vrooli.device_studio.v1.devices;
+
+import "device-studio/v1/physical/physical.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/devices;devices_v1";
+service DevicesService {
+  rpc SaveDeviceCandidate(SaveDeviceCandidateRequest) returns (SaveDeviceCandidateResponse);
+  rpc GetDeviceRevision(GetDeviceRevisionRequest) returns (GetDeviceRevisionResponse);
+  rpc GetDeviceHead(GetDeviceHeadRequest) returns (GetDeviceHeadResponse);
+  rpc ListDeviceRevisions(ListDeviceRevisionsRequest) returns (ListDeviceRevisionsResponse);
+  rpc ListDeviceCandidates(ListDeviceCandidatesRequest) returns (ListDeviceCandidatesResponse);
+  rpc ReviewDeviceCandidate(ReviewDeviceCandidateRequest) returns (ReviewDeviceCandidateResponse);
+  rpc ExportQualificationPackage(ExportQualificationPackageRequest) returns (ExportQualificationPackageResponse);
+  rpc ImportQualificationPackage(ImportQualificationPackageRequest) returns (ReviewDeviceCandidateResponse);
+}
+message SaveDeviceCandidateRequest {
+  DeviceCandidate candidate = 1;
+  uint32 expected_head = 2;
+}
+message SaveDeviceCandidateResponse {
+  DeviceRevision revision = 1;
+}
+message GetDeviceRevisionRequest {
+  string device_id = 1;
+  uint32 revision = 2;
+}
+message GetDeviceRevisionResponse {
+  DeviceRevision revision = 1;
+}
+message GetDeviceHeadRequest {
+  string device_id = 1;
+}
+message GetDeviceHeadResponse {
+  DeviceRevision revision = 1;
+}
+message ListDeviceRevisionsRequest {
+  string device_id = 1;
+  uint32 after_revision = 2;
+  uint32 page_size = 3;
+}
+message ListDeviceRevisionsResponse {
+  repeated DeviceRevision revisions = 1;
+  uint32 next_after_revision = 2;
+}
+message ListDeviceCandidatesRequest {
+  string after_device_id = 1;
+  uint32 page_size = 2;
+}
+message ListDeviceCandidatesResponse {
+  repeated DeviceRevision candidates = 1;
+  string next_after_device_id = 2;
+}
+message ReviewDeviceCandidateRequest {
+  string device_id = 1;
+  uint32 candidate_revision = 2;
+  string candidate_sha256 = 3;
+  uint32 expected_head = 4;
+  QualificationReview review = 5;
+  string project_id = 6;
+}
+message ReviewDeviceCandidateResponse {
+  DeviceRevision revision = 1;
+  string preset_id = 2;
+  uint32 preset_revision = 3;
+  string preset_sha256 = 4;
+}
+message ExportQualificationPackageRequest {
+  string project_id = 1;
+  string device_id = 2;
+  uint32 qualified_revision = 3;
+}
+message ExportQualificationPackageResponse {
+  bytes package_json = 1;
+}
+message ImportQualificationPackageRequest {
+  bytes package_json = 1;
+  uint32 expected_head = 2;
+}
+message DeviceRevision {
+  string device_id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+  string state = 4;
+  DeviceCandidate candidate = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+message DeviceCandidate {
+  string version = 1;
+  DeviceDefinition definition = 2;
+  vrooli.device_studio.v1.physical.ArtifactRef geometry = 3;
+  string geometry_unit = 4;
+  string coordinate_convention = 5;
+  vrooli.device_studio.v1.physical.TRS source_to_canonical = 6;
+  repeated SemanticPart parts = 7;
+  repeated DisplayPartBinding display_bindings = 8;
+  repeated DeviceSupportFrame support_frames = 9;
+}
+message SemanticPart {
+  string id = 1;
+  string role = 2;
+  string parent_id = 3;
+  uint32 node_index = 4;
+  string node_name = 5;
+  vrooli.device_studio.v1.physical.TRS local_frame = 6;
+}
+message DisplayPartBinding {
+  string display_id = 1;
+  string part_id = 2;
+  vrooli.device_studio.v1.physical.TRS local_frame = 3;
+  optional uint32 screen_primitive_index = 5;
+  optional uint32 screen_material_index = 6;
+}
+message DeviceSupportFrame {
+  string id = 1;
+  string interface_id = 2;
+  string part_id = 3;
+  vrooli.device_studio.v1.physical.TRS local_frame = 4;
+}
+message DeviceDefinition {
+  string schema_version = 1;
+  string id = 2;
+  string group = 3;
+  string kind = 4;
+  string identity_status = 5;
+  string manufacturer = 6;
+  string model = 7;
+  string variant = 8;
+  string description = 9;
+  map<string, Dimensions> dimensions = 10;
+  repeated DisplaySurface displays = 11;
+  repeated Joint joints = 12;
+  repeated Pose supported_poses = 13;
+  repeated Capability supported_motion = 14;
+  repeated SupportedProfile supported_profiles = 15;
+  repeated SupportCapability supports = 16;
+  repeated ModelCandidate model_candidates = 17;
+  repeated Evidence provenance = 18;
+  string qualification = 19;
+  repeated QualificationReview qualification_reviews = 20;
+}
+message Evidence {
+  string source = 1;
+  string kind = 2;
+  string retrieved_at = 3;
+  string qualifier = 4;
+}
+message Uncertainty {
+  string status = 1;
+  optional double lower = 2;
+  optional double upper = 3;
+  string unit = 4;
+  string explanation = 5;
+}
+message Measurement {
+  optional double value = 1;
+  string unit = 2;
+  string meaning = 3;
+  string configuration = 4;
+  string method = 5;
+  Uncertainty uncertainty = 6;
+  repeated Evidence evidence = 7;
+}
+message Dimensions {
+  Measurement width = 1;
+  Measurement height = 2;
+  Measurement depth = 3;
+}
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+message Region {
+  string status = 1;
+  string shape = 2;
+  string geometry_ref = 3;
+  string geometry_space = 4;
+  Rect bounds = 5;
+  repeated Evidence evidence = 6;
+}
+message DisplayMetric {
+  double width_mm = 1;
+  double height_mm = 2;
+  repeated Evidence evidence = 3;
+}
+message GeometryRelation {
+  string subject = 1;
+  string relation = 2;
+  string object = 3;
+  string status = 4;
+  repeated Evidence evidence = 5;
+}
+message HardwareOcclusion {
+  string id = 1;
+  string kind = 2;
+  Region region = 3;
+}
+message DisplaySurface {
+  string id = 1;
+  string topology = 2;
+  DisplayMetric coordinate_metric = 3;
+  repeated GeometryRelation geometry_relations = 4;
+  Region physical_boundary = 5;
+  Region active_area = 6;
+  Region app_safe_area = 7;
+  repeated HardwareOcclusion hardware_occlusions = 8;
+  repeated Evidence evidence = 9;
+}
+message Joint {
+  string id = 1;
+  string parent_part = 2;
+  string child_part = 3;
+  vrooli.device_studio.v1.physical.Vec3 axis = 4;
+  vrooli.device_studio.v1.physical.Vec3 pivot_m = 5;
+  optional double lower_rad = 6;
+  optional double upper_rad = 7;
+  string status = 8;
+  repeated Evidence evidence = 9;
+}
+message Capability {
+  string name = 1;
+  string status = 2;
+  string motion_kind = 3;
+  repeated string joint_ids = 4;
+  repeated Evidence evidence = 5;
+}
+message SupportedProfile {
+  string name = 1;
+  string status = 2;
+  repeated Evidence evidence = 3;
+}
+message Pose {
+  string name = 1;
+  string status = 2;
+  map<string, double> joint_state_rad = 3;
+  repeated Evidence evidence = 4;
+  vrooli.device_studio.v1.physical.QuatXYZW root_rotation_xyzw = 5;
+}
+message SupportCapability {
+  string kind = 1;
+  string interface_id = 2;
+  string status = 3;
+  repeated Evidence evidence = 4;
+}
+message QualificationReview {
+  string scope = 1;
+  string result = 2;
+  string reviewer = 3;
+  repeated Evidence evidence = 4;
+  uint32 candidate_revision = 5;
+  string candidate_sha256 = 6;
+  string source_bundle_id = 7;
+  uint32 source_bundle_revision = 8;
+  string source_manifest_sha256 = 9;
+  string source_review_sha256 = 10;
+  string source_artifact_id = 11;
+  string source_artifact_sha256 = 12;
+  repeated string source_allowed_uses = 13;
+  repeated string dimension_states = 14;
+  repeated string display_ids = 15;
+  repeated string allowed_motion_ids = 16;
+  repeated string support_ids = 17;
+  string preset_id = 18;
+  uint32 preset_revision = 19;
+  string preset_sha256 = 20;
+  string scene_id = 21;
+  uint32 scene_revision = 22;
+  string scene_sha256 = 23;
+  string motion_id = 24;
+  uint32 motion_revision = 25;
+  string motion_sha256 = 26;
+  string native_render_job_id = 27;
+  string native_output_sha256 = 28;
+  string native_output_kind = 29;
+  bool rights_claims_acknowledged = 30;
+  string reviewed_at = 31;
+}
+message ModelCandidate {
+  string id = 1;
+  string status = 2;
+  string source_path = 3;
+  string sha256 = 4;
+  string listing_url = 5;
+  string author = 6;
+  string license = 7;
+  string attribution = 8;
+  string rights_notes = 9;
+}

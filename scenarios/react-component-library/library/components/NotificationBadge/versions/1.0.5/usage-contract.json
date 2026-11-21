@@ -1,0 +1,9 @@
+{
+  "children": {
+    "allowedChildComponents": [],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:NotificationBadge",
+  "version": "1.0.5"
+}

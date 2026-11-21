@@ -1,0 +1,16 @@
+{
+  "service": {
+    "name": "opt-b"
+  },
+  "dependencies": {
+    "scenarios": {
+      "opt-a": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "reaches opt-a over its HTTP boundary",
+        "degraded_behavior": "fails closed"
+      }
+    }
+  }
+}

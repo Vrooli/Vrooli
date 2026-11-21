@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.conflicts;
+
+import "architecture-cartographer/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts;conflicts_v1";
+
+// =============================================================================
+// CONFLICTS DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain conflicts
+// @stability stable
+//
+// Wire contract for the ConflictsService Connect-RPC service. The
+// conflicts domain is DETECTION-ONLY: it owns drift detection, the
+// pluggable Detector / Resolver registries, and conflict persistence so
+// the latest photograph can be listed. It does NOT own a lifecycle — the
+// stateful per-finding lifecycle (assign/resolve/validate/regress) lives
+// in the migration domain (MigrationService), which ingests findings and
+// tracks them over time. Conflict envelope shape is locked in v0.1: new
+// detectors do not add fields to Conflict; new optional fields on Fix are
+// allowed.
+//
+// Cross-cutting envelopes defined here and imported by other domains:
+//   - Conflict          (canonical envelope; consumed by analytics + apply)
+//   - Fix               (suggested resolution)
+//   - ConflictEvidence  (kind + locator + payload; intentionally distinct
+//                        from signals.Evidence so detector evidence can
+//                        evolve independently)
+//   - Severity          (manifest-driven severity tag)
+// =============================================================================
+
+// NOTE: the per-conflict lifecycle (ResolutionStatus) was removed when the
+// conflicts domain became detection-only. The lifecycle now lives in the
+// migration domain as TrackedFindingStatus (MigrationService). Detection is
+// a stateless photograph; tracking has the memory.
+
+// DetectorDescriptor describes one registered detector.
+message DetectorDescriptor {
+  string name = 1;
+  string description = 2;
+  string stability = 3;
+  // Conflict types this detector can emit.
+  repeated string emits_types = 4;
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 5;
+}
+
+// ResolverDescriptor describes one registered resolver.
+message ResolverDescriptor {
+  string name = 1;
+  string description = 2;
+  string stability = 3;
+  // Fix kinds this resolver handles.
+  repeated vrooli.architecture_cartographer.v1.shared.FixKind handles_kinds = 4;
+  // True when the resolver requires `apply` to execute (v0.1 surfaces
+  // this so the CLI can communicate the deferral).
+  bool requires_apply = 5;
+}
+
+// =============================================================================
+// CONFLICTS SERVICE
+// =============================================================================
+
+service ConflictsService {
+  // DetectConflicts runs every registered detector against the target
+  // scenario's current graph snapshot + manifest, persists the
+  // emitted conflicts, and returns them. Honors Idempotency-Key.
+  rpc DetectConflicts(DetectConflictsRequest) returns (DetectConflictsResponse);
+
+  // ListConflicts paginates conflicts for a scenario.
+  rpc ListConflicts(ListConflictsRequest) returns (ListConflictsResponse);
+
+  // GetConflict returns one conflict by id.
+  rpc GetConflict(GetConflictRequest) returns (GetConflictResponse);
+
+  // ValidateConflicts re-lists the current detected conflicts and reports
+  // whether the scenario is clean (zero outstanding of severity >= ERROR,
+  // suppressed findings excluded). Used by `arch-cart validate <scenario>`
+  // and by the dogfood gate. Walking findings through a lifecycle toward
+  // zero is the migration domain's job, not this one's.
+  rpc ValidateConflicts(ValidateConflictsRequest) returns (ValidateConflictsResponse);
+
+  // ListDetectors returns the registered detector set.
+  rpc ListDetectors(ListDetectorsRequest) returns (ListDetectorsResponse);
+
+  // ListResolvers returns the registered resolver set.
+  rpc ListResolvers(ListResolversRequest) returns (ListResolversResponse);
+}
+
+message DetectConflictsRequest {
+  string scenario = 1;
+  // Snapshot id; when empty, DetectConflicts extracts a fresh snapshot.
+  string snapshot_id = 2;
+  string idempotency_key = 3;
+}
+
+message DetectConflictsResponse {
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
+}
+
+message ListConflictsRequest {
+  string scenario = 1;
+  // 2 was `repeated ResolutionStatus statuses` — removed with the
+  // lifecycle. Reserved so the field number is never reused.
+  reserved 2;
+  reserved "statuses";
+  // Optional filter: only return conflicts of these types.
+  repeated string types = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListConflictsResponse {
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
+  string next_page_token = 2;
+}
+
+message GetConflictRequest {
+  string id = 1;
+}
+
+message GetConflictResponse {
+  vrooli.architecture_cartographer.v1.shared.Conflict conflict = 1;
+}
+
+message ValidateConflictsRequest {
+  string scenario = 1;
+}
+
+message ValidateConflictsResponse {
+  // Conflicts still outstanding after resolution state is applied.
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
+  // True when there are zero outstanding deterministic conflicts of
+  // severity >= ERROR.
+  bool clean = 2;
+}
+
+message ListDetectorsRequest {}
+
+message ListDetectorsResponse {
+  repeated DetectorDescriptor detectors = 1;
+}
+
+message ListResolversRequest {}
+
+message ListResolversResponse {
+  repeated ResolverDescriptor resolvers = 1;
+}

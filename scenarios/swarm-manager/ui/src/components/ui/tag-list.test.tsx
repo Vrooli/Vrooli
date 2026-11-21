@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { TagList } from "./tag-list";
 
 /**
@@ -18,14 +19,14 @@ import { TagList } from "./tag-list";
 describe("TagList", () => {
   describe("empty state handling", () => {
     it("returns null for empty tags array", () => {
-      const { container } = render(<TagList tags={[]} />);
+      const { container } = renderWithCanonicalProviders(<TagList tags={[]} />);
 
       expect(container.firstChild).toBeNull();
     });
 
     it("returns null for undefined tags array", () => {
       // @ts-expect-error - testing runtime behavior for undefined
-      const { container } = render(<TagList tags={undefined} />);
+      const { container } = renderWithCanonicalProviders(<TagList tags={undefined} />);
 
       expect(container.firstChild).toBeNull();
     });
@@ -33,13 +34,13 @@ describe("TagList", () => {
 
   describe("tag display without truncation", () => {
     it("renders single tag", () => {
-      render(<TagList tags={["react"]} />);
+      renderWithCanonicalProviders(<TagList tags={["react"]} />);
 
       expect(screen.getByText("react")).toBeInTheDocument();
     });
 
     it("renders multiple tags under default threshold", () => {
-      render(<TagList tags={["react", "typescript", "vite"]} />);
+      renderWithCanonicalProviders(<TagList tags={["react", "typescript", "vite"]} />);
 
       expect(screen.getByText("react")).toBeInTheDocument();
       expect(screen.getByText("typescript")).toBeInTheDocument();
@@ -47,13 +48,13 @@ describe("TagList", () => {
     });
 
     it("does not show +N indicator when tags equal maxTags", () => {
-      render(<TagList tags={["one", "two", "three"]} maxTags={3} />);
+      renderWithCanonicalProviders(<TagList tags={["one", "two", "three"]} maxTags={3} />);
 
       expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument();
     });
 
     it("does not show +N indicator when tags are under maxTags", () => {
-      render(<TagList tags={["one", "two"]} maxTags={3} />);
+      renderWithCanonicalProviders(<TagList tags={["one", "two"]} maxTags={3} />);
 
       expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument();
     });
@@ -61,7 +62,7 @@ describe("TagList", () => {
 
   describe("tag truncation", () => {
     it("shows +N indicator when tags exceed default maxTags (3)", () => {
-      render(
+      renderWithCanonicalProviders(
         <TagList tags={["react", "typescript", "vite", "tailwind", "shadcn"]} />
       );
 
@@ -79,13 +80,13 @@ describe("TagList", () => {
     });
 
     it("shows +1 indicator for one hidden tag", () => {
-      render(<TagList tags={["a", "b", "c", "d"]} maxTags={3} />);
+      renderWithCanonicalProviders(<TagList tags={["a", "b", "c", "d"]} maxTags={3} />);
 
       expect(screen.getByText("+1")).toBeInTheDocument();
     });
 
     it("respects custom maxTags prop", () => {
-      render(
+      renderWithCanonicalProviders(
         <TagList tags={["a", "b", "c", "d", "e"]} maxTags={2} />
       );
 
@@ -103,7 +104,7 @@ describe("TagList", () => {
     });
 
     it("shows all tags when maxTags is larger than array length", () => {
-      render(<TagList tags={["a", "b"]} maxTags={10} />);
+      renderWithCanonicalProviders(<TagList tags={["a", "b"]} maxTags={10} />);
 
       expect(screen.getByText("a")).toBeInTheDocument();
       expect(screen.getByText("b")).toBeInTheDocument();
@@ -113,7 +114,7 @@ describe("TagList", () => {
 
   describe("styling", () => {
     it("applies custom className to container", () => {
-      render(<TagList tags={["test"]} className="custom-class mt-4" />);
+      renderWithCanonicalProviders(<TagList tags={["test"]} className="custom-class mt-4" />);
 
       const container = screen.getByText("test").parentElement;
       expect(container).toHaveClass("custom-class");
@@ -121,7 +122,7 @@ describe("TagList", () => {
     });
 
     it("applies default flex and gap classes", () => {
-      render(<TagList tags={["test"]} />);
+      renderWithCanonicalProviders(<TagList tags={["test"]} />);
 
       const container = screen.getByText("test").parentElement;
       expect(container).toHaveClass("flex");
@@ -130,7 +131,7 @@ describe("TagList", () => {
     });
 
     it("renders tags with proper styling classes", () => {
-      render(<TagList tags={["styled-tag"]} />);
+      renderWithCanonicalProviders(<TagList tags={["styled-tag"]} />);
 
       const tag = screen.getByText("styled-tag");
       expect(tag).toHaveClass("rounded-full");
@@ -140,7 +141,7 @@ describe("TagList", () => {
 
   describe("edge cases", () => {
     it("handles maxTags of 0 (shows only +N)", () => {
-      render(<TagList tags={["a", "b", "c"]} maxTags={0} />);
+      renderWithCanonicalProviders(<TagList tags={["a", "b", "c"]} maxTags={0} />);
 
       expect(screen.queryByText("a")).not.toBeInTheDocument();
       expect(screen.queryByText("b")).not.toBeInTheDocument();
@@ -149,7 +150,7 @@ describe("TagList", () => {
     });
 
     it("handles maxTags of 1", () => {
-      render(<TagList tags={["only-this", "hidden"]} maxTags={1} />);
+      renderWithCanonicalProviders(<TagList tags={["only-this", "hidden"]} maxTags={1} />);
 
       expect(screen.getByText("only-this")).toBeInTheDocument();
       expect(screen.queryByText("hidden")).not.toBeInTheDocument();
@@ -157,7 +158,7 @@ describe("TagList", () => {
     });
 
     it("handles tags with special characters", () => {
-      render(<TagList tags={["c++", "c#", "node.js"]} />);
+      renderWithCanonicalProviders(<TagList tags={["c++", "c#", "node.js"]} />);
 
       expect(screen.getByText("c++")).toBeInTheDocument();
       expect(screen.getByText("c#")).toBeInTheDocument();
@@ -165,7 +166,7 @@ describe("TagList", () => {
     });
 
     it("handles tags with spaces", () => {
-      render(<TagList tags={["react query", "tanstack router"]} />);
+      renderWithCanonicalProviders(<TagList tags={["react query", "tanstack router"]} />);
 
       expect(screen.getByText("react query")).toBeInTheDocument();
       expect(screen.getByText("tanstack router")).toBeInTheDocument();
@@ -173,7 +174,7 @@ describe("TagList", () => {
 
     it("handles large number of hidden tags", () => {
       const manyTags = Array.from({ length: 100 }, (_, i) => `tag-${i}`);
-      render(<TagList tags={manyTags} maxTags={3} />);
+      renderWithCanonicalProviders(<TagList tags={manyTags} maxTags={3} />);
 
       expect(screen.getByText("tag-0")).toBeInTheDocument();
       expect(screen.getByText("tag-1")).toBeInTheDocument();

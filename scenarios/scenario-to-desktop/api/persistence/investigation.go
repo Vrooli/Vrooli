@@ -153,8 +153,8 @@ func (s *InvestigationStore) GetActive(pipelineID string) (*domain.Investigation
 	return latest, nil
 }
 
-// Update modifies an investigation using a modifier function.
-func (s *InvestigationStore) Update(id string, fn func(inv *domain.Investigation)) error {
+// updateFields changes investigation metadata without changing its lifecycle status.
+func (s *InvestigationStore) updateFields(id string, fn func(inv *domain.Investigation)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -171,8 +171,7 @@ func (s *InvestigationStore) Update(id string, fn func(inv *domain.Investigation
 
 // UpdateStatus updates the status of an investigation.
 func (s *InvestigationStore) UpdateStatus(id string, status domain.InvestigationStatus) error {
-	return s.Update(id, func(inv *domain.Investigation) {
-		inv.Status = status
+	return s.updateTransition(id, status, func(inv *domain.Investigation) {
 		if status == domain.InvestigationStatusCompleted ||
 			status == domain.InvestigationStatusFailed ||
 			status == domain.InvestigationStatusCancelled {
@@ -182,26 +181,49 @@ func (s *InvestigationStore) UpdateStatus(id string, status domain.Investigation
 	})
 }
 
+func (s *InvestigationStore) updateTransition(id string, next domain.InvestigationStatus, update func(*domain.Investigation)) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	inv, ok := s.items[id]
+	if !ok {
+		return fmt.Errorf("investigation not found: %s", id)
+	}
+	if err := inv.TransitionStatus(next); err != nil {
+		return err
+	}
+	update(inv)
+	inv.UpdatedAt = time.Now()
+	s.persistOne(inv)
+	return nil
+}
+
 // UpdateRunID sets the agent run ID for tracking.
 func (s *InvestigationStore) UpdateRunID(id, runID string) error {
-	return s.Update(id, func(inv *domain.Investigation) {
+	return s.updateFields(id, func(inv *domain.Investigation) {
 		inv.AgentRunID = &runID
 	})
 }
 
 // UpdateProgress updates the progress percentage.
 func (s *InvestigationStore) UpdateProgress(id string, progress int) error {
-	return s.Update(id, func(inv *domain.Investigation) {
+	return s.updateFields(id, func(inv *domain.Investigation) {
 		inv.Progress = progress
+	})
+}
+
+// UpdateDetails stores opaque task metadata without exposing status mutation.
+func (s *InvestigationStore) UpdateDetails(id string, details json.RawMessage) error {
+	return s.updateFields(id, func(inv *domain.Investigation) {
+		inv.Details = details
 	})
 }
 
 // UpdateFindings stores the investigation findings and details.
 func (s *InvestigationStore) UpdateFindings(id, findings string, details json.RawMessage) error {
-	return s.Update(id, func(inv *domain.Investigation) {
+	return s.updateTransition(id, domain.InvestigationStatusCompleted, func(inv *domain.Investigation) {
 		inv.Findings = &findings
 		inv.Details = details
-		inv.Status = domain.InvestigationStatusCompleted
 		inv.Progress = 100
 		now := time.Now()
 		inv.CompletedAt = &now
@@ -210,8 +232,7 @@ func (s *InvestigationStore) UpdateFindings(id, findings string, details json.Ra
 
 // UpdateError sets an error message and marks the investigation as failed.
 func (s *InvestigationStore) UpdateError(id, errorMsg string) error {
-	return s.Update(id, func(inv *domain.Investigation) {
-		inv.Status = domain.InvestigationStatusFailed
+	return s.updateTransition(id, domain.InvestigationStatusFailed, func(inv *domain.Investigation) {
 		inv.ErrorMessage = &errorMsg
 		now := time.Now()
 		inv.CompletedAt = &now
@@ -220,8 +241,7 @@ func (s *InvestigationStore) UpdateError(id, errorMsg string) error {
 
 // UpdateErrorWithDetails sets an error message and details, then marks as failed.
 func (s *InvestigationStore) UpdateErrorWithDetails(id, errorMsg string, details json.RawMessage) error {
-	return s.Update(id, func(inv *domain.Investigation) {
-		inv.Status = domain.InvestigationStatusFailed
+	return s.updateTransition(id, domain.InvestigationStatusFailed, func(inv *domain.Investigation) {
 		inv.ErrorMessage = &errorMsg
 		inv.Details = details
 		now := time.Now()

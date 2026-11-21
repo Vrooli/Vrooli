@@ -1,0 +1,88 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "taste",
+    "title": "Taste Profile",
+    "routes": ["/taste"],
+    "purpose": "Show the listener the system's model of their taste — what it believes, how sure it is, and what it is still guessing at — and let them correct it directly. This surface is the product's central claim: the model is not a secret.",
+    "prd_refs": ["OT-P0-003", "OT-P1-001", "OT-P1-002"]
+  },
+  "priorities": [
+    { "statement": "Confidence is shown alongside belief. A strongly-held preference and a guess must never look the same." },
+    { "statement": "Learned belief and listener-imposed constraints are visually distinct, and a constraint can always be removed." },
+    { "statement": "The exploration control shows its effect, not just its setting." }
+  ],
+  "states": [
+    { "id": "established", "example": "established", "description": "Enough evidence for confident beliefs." },
+    { "id": "sparse", "example": "sparse", "description": "Little evidence; most beliefs are low-confidence." },
+    { "id": "constrained", "example": "constrained", "description": "Listener has pinned, boosted, or banned attributes." },
+    { "id": "shifting", "example": "shifting", "description": "A sustained change in listening has been detected." },
+    { "id": "contracting", "example": "contracting", "description": "Served diversity has been narrowing persistently." }
+  ],
+  "elements": [
+    { "id": "attribute-weights", "role": "list", "description": "Attributes the model weights most heavily." },
+    { "id": "confidence-indicator", "role": "meter", "description": "Confidence for a given belief." },
+    { "id": "constraint-marker", "role": "status", "description": "Marks a listener-imposed constraint as distinct from learned belief." },
+    { "id": "constraint-remove", "role": "button", "description": "Removes a listener-imposed constraint." },
+    { "id": "exploration-dial", "role": "slider", "description": "Exploitation/exploration balance." },
+    { "id": "exploration-preview", "role": "status", "description": "What the current dial setting changes about the queue." },
+    { "id": "context-selector", "role": "combobox", "description": "Active listening context." },
+    { "id": "diversity-warning", "role": "status", "description": "Warning that served diversity is contracting." }
+  ],
+  "claims": [
+    {
+      "id": "confidence-shown-with-belief",
+      "type": "element-present",
+      "statement": "Every stated belief is accompanied by an indication of confidence.",
+      "tier": "machine",
+      "elements": ["attribute-weights", "confidence-indicator"],
+      "states": ["established", "sparse"]
+    },
+    {
+      "id": "constraints-are-distinguishable-and-removable",
+      "type": "element-present",
+      "statement": "Listener-imposed constraints are marked as such and can be removed.",
+      "tier": "machine",
+      "elements": ["constraint-marker", "constraint-remove"],
+      "states": ["constrained"]
+    },
+    {
+      "id": "exploration-shows-its-effect",
+      "type": "element-present",
+      "statement": "The exploration control is accompanied by a description of what it changes.",
+      "tier": "machine",
+      "elements": ["exploration-dial", "exploration-preview"],
+      "states": ["established", "sparse", "shifting"]
+    },
+    {
+      "id": "contraction-is-surfaced",
+      "type": "element-present",
+      "statement": "Persistent narrowing of served diversity raises a visible warning.",
+      "tier": "machine",
+      "elements": ["diversity-warning"],
+      "states": ["contracting"]
+    },
+    {
+      "id": "sparse-profile-is-honest",
+      "type": "element-present",
+      "statement": "With little evidence the profile presents low confidence rather than confident-looking beliefs.",
+      "tier": "machine",
+      "elements": ["confidence-indicator"],
+      "states": ["sparse"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "attribute-weights": { "testid": "taste-attribute-weights" },
+      "confidence-indicator": { "testid": "taste-confidence" },
+      "constraint-marker": { "testid": "taste-constraint-marker" },
+      "constraint-remove": { "testid": "taste-constraint-remove" },
+      "exploration-dial": { "testid": "exploration-dial" },
+      "exploration-preview": { "testid": "exploration-preview" },
+      "context-selector": { "testid": "taste-context-selector" },
+      "diversity-warning": { "testid": "diversity-warning" }
+    }
+  }
+}

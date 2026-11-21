@@ -1,0 +1,9 @@
+# Service offers
+
+## Company Market Scan (staged test offer, version 1)
+- Offer page: /services/company-market-scan
+- Machine-readable terms: /services/company-market-scan.json
+- Free sample: /samples/company-market-scan.md
+- Proposed price: $49.00 USD
+- Checkout: guest browser test only; no live payment or custom research is performed by this local fixture.
+- Approval: legal review open; operator approval pending.

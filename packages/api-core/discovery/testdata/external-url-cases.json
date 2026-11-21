@@ -1,0 +1,19 @@
+[
+  { "name": "localhost with port", "host": "localhost:3000", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "loopback address", "host": "127.0.0.1:3000", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "unspecified address", "host": "0.0.0.0:3000", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "missing host", "host": "", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "empty scenario", "host": "app.example.com", "scenario": "", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "whitespace scenario", "host": "app.example.com", "scenario": "  \t ", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "tunnel swaps first label", "host": "git-control-tower.example.com", "scenario": "my-scenario", "port": 9000, "want": "https://my-scenario.example.com" },
+  { "name": "first forwarded host wins", "host": "127.0.0.1:3000", "forwardedHost": "web-console.example.com, proxy.internal", "scenario": "my-scenario", "port": 9000, "want": "https://my-scenario.example.com" },
+  { "name": "empty forwarded entries are skipped", "host": "fallback.internal.example.com", "forwardedHost": ", web-console.example.com", "scenario": "my-scenario", "port": 9000, "want": "https://my-scenario.example.com" },
+  { "name": "scenario name is trimmed", "host": "git-control-tower.example.com", "scenario": "  my-scenario  ", "port": 9000, "want": "https://my-scenario.example.com" },
+  { "name": "deep domain swaps first label", "host": "app.staging.example.com", "scenario": "test-app", "port": 9000, "want": "https://test-app.staging.example.com" },
+  { "name": "two-label domain falls back", "host": "example.com", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "single word host falls back", "host": "myhost", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" },
+  { "name": "port stripped before analysis", "host": "app.example.com:8080", "scenario": "my-scenario", "port": 9000, "want": "https://my-scenario.example.com" },
+  { "name": "private IPv4 retains host", "host": "192.168.1.20:3000", "scenario": "my-scenario", "port": 9000, "want": "http://192.168.1.20:9000" },
+  { "name": "private IPv6 retains host", "host": "[fd12::20]:3000", "scenario": "my-scenario", "port": 9000, "want": "http://[fd12::20]:9000" },
+  { "name": "IPv6 loopback stays local", "host": "[::1]:3000", "scenario": "my-scenario", "port": 9000, "want": "http://localhost:9000" }
+]

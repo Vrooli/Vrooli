@@ -33,11 +33,15 @@
   ],
   "metadata": {
     "description": "Validates duplicating selected nodes using toolbar duplicate button",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Toolbar Duplicate Nodes",
+    "version": "1"
   },
   "nodes": [
     {
@@ -80,9 +84,6 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "click-node"
     },
     {
@@ -94,9 +95,6 @@
           "label": "Click duplicate button"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1500
       },
       "id": "click-duplicate"
     },
@@ -116,7 +114,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
+          "expression": "(() =\u003e { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final \u003e initial; })()",
           "store_result": "nodeDuplicated"
         },
         "metadata": {

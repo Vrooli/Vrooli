@@ -1,0 +1,302 @@
+{
+  "version": "1.0.0",
+  "copyTo": ".vrooli/orientation.json",
+  "startDocument": "docs/START-HERE.md",
+  "finalize": {
+    "cleanup": [
+      ".vrooli/orientation.json"
+    ],
+    "message": "Initialization complete; use normal scenario lifecycle commands."
+  },
+  "steps": [
+    {
+      "id": "scaffold-health",
+      "title": "Scaffold health",
+      "description": "Confirm the generated scaffold starts from a passing baseline before product work expands.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/internal/TESTING.md"
+      ],
+      "checks": [
+        {
+          "kind": "command",
+          "exec": [
+            "make",
+            "test"
+          ],
+          "timeout": "15m"
+        }
+      ]
+    },
+    {
+      "id": "charter",
+      "title": "Scenario charter",
+      "description": "Replace the seeded PRD placeholders with scenario-specific users, value promise, operational targets, dependencies, and UX direction.",
+      "docs": [
+        "docs/START-HERE.md",
+        "PRD.md"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": "PRD.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "PRD.md",
+          "text": "[Summarize the permanent capability this scenario adds]"
+        },
+        {
+          "kind": "text_absent",
+          "path": "PRD.md",
+          "text": "[Outcome title]"
+        }
+      ]
+    },
+    {
+      "id": "requirements-registry",
+      "title": "Requirements registry",
+      "description": "Replace the starter requirements registry with scenario-specific modules generated from the PRD.",
+      "docs": [
+        "docs/START-HERE.md",
+        "requirements/README.md",
+        "requirements/index.json"
+      ],
+      "checks": [
+        {
+          "kind": "json_path_exists",
+          "path": "requirements/index.json",
+          "query": "imports"
+        },
+        {
+          "kind": "text_absent",
+          "path": "requirements/index.json",
+          "text": "01-foundation/module.json"
+        }
+      ]
+    },
+    {
+      "id": "domain-map",
+      "title": "Domain map",
+      "description": "Record real bounded contexts before expanding implementation.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/concepts/ARCHITECTURE.md"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": "docs/concepts/DOMAINS.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/DOMAINS.md",
+          "text": "| _(your domain)_ |"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/DOMAINS.md",
+          "text": "Generated scaffold."
+        }
+      ]
+    },
+    {
+      "id": "dependency-decisions",
+      "title": "Dependency decisions",
+      "description": "Confirm resource and scenario dependencies are intentional and documented.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/concepts/ARCHITECTURE.md",
+        ".vrooli/service.json"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": ".vrooli/service.json"
+        },
+        {
+          "kind": "json_path_exists",
+          "path": ".vrooli/service.json",
+          "query": "dependencies.resources"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/INTEGRATIONS.md",
+          "text": "The generated template does not declare external Vrooli resources."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/INTEGRATIONS.md",
+          "text": "Generated scenario is standalone."
+        }
+      ]
+    },
+    {
+      "id": "design-language",
+      "title": "Design decision",
+      "description": "Decide the comparable product and primary surface, configure the library shell, link library components, and replace the home placeholder before UI work expands.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/guides/choosing-ui.md",
+        "docs/concepts/EXPERIENCE.md",
+        "DESIGN.md"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": "DESIGN.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "DESIGN.md",
+          "text": "ORIENTATION-TODO: scenario-design-adaptation"
+        },
+        {
+          "kind": "file_exists",
+          "path": "docs/concepts/EXPERIENCE.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/concepts/EXPERIENCE.md",
+          "text": "EXPERIENCE-TODO"
+        },
+        {
+          "kind": "text_absent",
+          "path": "ui/src/pages/DashboardPage.tsx",
+          "text": "PLACEHOLDER:home-surface"
+        }
+      ]
+    },
+    {
+      "id": "experience-contract",
+      "title": "Experience contract",
+      "description": "Keep the generated L0 experience spec aligned with real routes before UI work expands.",
+      "docs": [
+        "docs/START-HERE.md",
+        "experience/README.md",
+        "docs/concepts/UI-ARCHITECTURE.md"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": "experience/index.json"
+        },
+        {
+          "kind": "json_min_entries",
+          "path": "experience/index.json",
+          "query": "pages",
+          "minCount": 1
+        },
+        {
+          "kind": "json_min_entries",
+          "path": "experience/index.json",
+          "query": "journeys",
+          "minCount": 1
+        },
+        {
+          "kind": "text_absent",
+          "path": "experience/index.json",
+          "text": "Generated L0 experience contract"
+        }
+      ]
+    },
+    {
+      "id": "first-real-vertical-slice",
+      "title": "First real vertical slice",
+      "description": "Build and validate one real scenario domain beside the example before removing the example domain.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/concepts/ARCHITECTURE.md",
+        "docs/internal/SEAMS.md"
+      ],
+      "required": false,
+      "checks": [
+        {
+          "kind": "glob_min_count",
+          "pattern": "api/internal/*/service.go",
+          "minCount": 2
+        },
+        {
+          "kind": "glob_min_count",
+          "pattern": "api/handlers/*/*_test.go",
+          "minCount": 2
+        },
+        {
+          "kind": "glob_min_count",
+          "pattern": "ui/src/pages/*.test.tsx",
+          "minCount": 2
+        }
+      ]
+    },
+    {
+      "id": "example-domain-removed",
+      "title": "Example domain removed",
+      "description": "Remove the notes and attachment reference domain after a real replacement domain is green. Run `template-manager detemplate \u003cscenario\u003e` to remove it mechanically; this gate fails while any EXAMPLE-DOMAIN marker survives.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/concepts/ARCHITECTURE.md"
+      ],
+      "checks": [
+        {
+          "kind": "glob_absent",
+          "pattern": "api/internal/notes*"
+        },
+        {
+          "kind": "glob_absent",
+          "pattern": "api/handlers/notes*"
+        },
+        {
+          "kind": "glob_absent",
+          "pattern": "cli/domains/notes*"
+        },
+        {
+          "kind": "glob_absent",
+          "pattern": "ui/src/features/notes*"
+        },
+        {
+          "kind": "file_absent",
+          "path": "ui/src/api/notes.ts"
+        },
+        {
+          "kind": "text_absent_tree",
+          "text": "EXAMPLE-DOMAIN:notes"
+        }
+      ]
+    },
+    {
+      "id": "progress-handoff",
+      "title": "Progress handoff",
+      "description": "Leave durable progress and problem notes for future agents.",
+      "docs": [
+        "docs/START-HERE.md",
+        "docs/internal/PROGRESS.md",
+        "docs/internal/PROBLEMS.md"
+      ],
+      "checks": [
+        {
+          "kind": "file_exists",
+          "path": "docs/internal/PROGRESS.md"
+        },
+        {
+          "kind": "file_exists",
+          "path": "docs/internal/PROBLEMS.md"
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROGRESS.md",
+          "text": "This file ships empty in newly generated scenarios."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROBLEMS.md",
+          "text": "This file ships empty in newly generated scenarios."
+        },
+        {
+          "kind": "text_absent",
+          "path": "docs/internal/PROBLEMS.md",
+          "text": "_None yet._"
+        }
+      ]
+    }
+  ]
+}

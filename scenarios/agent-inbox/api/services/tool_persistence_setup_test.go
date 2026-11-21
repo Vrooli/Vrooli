@@ -34,21 +34,6 @@ type mockToolPersistenceRepo struct {
 	savedLeafChatID  string
 }
 
-// mockTx tracks commit/rollback calls
-type mockTx struct {
-	repo *mockToolPersistenceRepo
-}
-
-func (m *mockTx) Commit() error {
-	m.repo.commitCalled = true
-	return m.repo.commitError
-}
-
-func (m *mockTx) Rollback() error {
-	m.repo.rollbackCalled = true
-	return nil
-}
-
 func (m *mockToolPersistenceRepo) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
 	m.beginTxCalled = true
 	if m.txError != nil {

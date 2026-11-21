@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "controls.copy-icon-button",
+    "name": "CopyIconButton",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "An icon button that copies text, confirms by morphing its icon to a check in the success colour, and announces the result.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.icon-button",
+        "reason": "Surface, size, shape, tap target and the icon morph are IconButton's; this asset adds only the copy and its result."
+      },
+      {
+        "asset": "foundations.tokens",
+        "reason": "Success and failure colours resolve to the semantic status tokens."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "non-color-status",
+    "dark-parity"
+  ],
+  "requiredStates": [
+    "default",
+    "success",
+    "request-error"
+  ],
+  "rationale": "Copy was rebuilt by hand on every surface that offered it, each with a different subset of fallback, feedback, colour and announcement; the result is decided once here."
+}

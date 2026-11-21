@@ -2,6 +2,7 @@ package recovery
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 type mockRepo struct {
 	executions []*database.ExecutionIndex
 	updates    []statusUpdate
+	queries    []database.ExecutionQuery
 	listErr    error
 	updateErr  error
 }
@@ -25,11 +27,40 @@ type statusUpdate struct {
 	updatedAt    time.Time
 }
 
-func (m *mockRepo) ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error) {
-	if m.listErr != nil {
-		return nil, m.listErr
+type freshStatusRepo struct {
+	*mockRepo
+	fresh *database.ExecutionIndex
+}
+
+func (r *freshStatusRepo) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	if r.fresh == nil || r.fresh.ID != id {
+		return nil, nil
 	}
-	return m.executions, nil
+	copy := *r.fresh
+	return &copy, nil
+}
+
+func (m *mockRepo) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+	m.queries = append(m.queries, query)
+	if m.listErr != nil {
+		return nil, 0, m.listErr
+	}
+	var matches []*database.ExecutionIndex
+	for _, execution := range m.executions {
+		if query.Status != "" && execution.Status != query.Status {
+			continue
+		}
+		matches = append(matches, execution)
+	}
+	total := len(matches)
+	if query.Offset >= total {
+		return nil, total, nil
+	}
+	matches = matches[query.Offset:]
+	if query.Limit > 0 && query.Limit < len(matches) {
+		matches = matches[:query.Limit]
+	}
+	return matches, total, nil
 }
 
 func (m *mockRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
@@ -46,7 +77,17 @@ func (m *mockRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, stat
 	return nil
 }
 
-func TestRecoverStaleExecutions_NoStale(t *testing.T) {
+func (m *mockRepo) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	for _, execution := range m.executions {
+		if execution != nil && execution.ID == id {
+			copy := *execution
+			return &copy, nil
+		}
+	}
+	return nil, nil
+}
+
+func TestRecoverInterruptedExecutions_NoActiveRows(t *testing.T) {
 	repo := &mockRepo{
 		executions: []*database.ExecutionIndex{
 			{
@@ -61,20 +102,21 @@ func TestRecoverStaleExecutions_NoStale(t *testing.T) {
 	}
 	log := logrus.New()
 
-	svc := NewService(repo, log, WithStaleThreshold(2*time.Minute))
-	result, err := svc.RecoverStaleExecutions(context.Background())
+	svc := NewService(repo, log, t.TempDir())
+	result, err := svc.RecoverInterruptedExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.TotalStale != 0 {
-		t.Fatalf("expected TotalStale=0, got %d", result.TotalStale)
+	if result.TotalActive != 0 {
+		t.Fatalf("expected TotalActive=0, got %d", result.TotalActive)
 	}
 	if len(repo.updates) != 0 {
 		t.Fatalf("expected no updates, got %d", len(repo.updates))
 	}
 }
 
-func TestRecoverStaleExecutions_MarksInterrupted(t *testing.T) {
+func TestRecoverInterruptedExecutions_MarksInterrupted(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] persisted running execution becomes terminally failed on API restart")
 	staleID := uuid.New()
 	workflowID := uuid.New()
 	now := time.Now()
@@ -92,13 +134,13 @@ func TestRecoverStaleExecutions_MarksInterrupted(t *testing.T) {
 	}
 	log := logrus.New()
 
-	svc := NewService(repo, log, WithStaleThreshold(2*time.Minute))
-	result, err := svc.RecoverStaleExecutions(context.Background())
+	svc := NewService(repo, log, t.TempDir())
+	result, err := svc.RecoverInterruptedExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.TotalStale != 1 {
-		t.Fatalf("expected TotalStale=1, got %d", result.TotalStale)
+	if result.TotalActive != 1 {
+		t.Fatalf("expected TotalActive=1, got %d", result.TotalActive)
 	}
 	if result.Recovered != 1 {
 		t.Fatalf("expected Recovered=1, got %d", result.Recovered)
@@ -118,5 +160,162 @@ func TestRecoverStaleExecutions_MarksInterrupted(t *testing.T) {
 	}
 	if updated.errorMessage == nil || *updated.errorMessage == "" {
 		t.Fatalf("expected error_message to be set")
+	}
+}
+
+func TestRecoverInterruptedExecutionsReturnsErrorWhenAnyOwnerRemainsActive(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] startup recovery rejects an unresolved active owner")
+	repo := &mockRepo{
+		executions: []*database.ExecutionIndex{{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			Status:     database.ExecutionStatusRunning,
+		}},
+		updateErr: errors.New("database unavailable"),
+	}
+
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
+	if err == nil {
+		t.Fatal("RecoverInterruptedExecutions returned nil error while an active execution remained unrecovered")
+	}
+	if result == nil || result.TotalActive != 1 || result.Failed != 1 || result.Recovered != 0 {
+		t.Fatalf("recovery result = %+v, want one failed active execution", result)
+	}
+}
+
+func TestRecoverInterruptedExecutionsCountsConcurrentTerminalTransitionAsSkipped(t *testing.T) {
+	id := uuid.New()
+	listed := &database.ExecutionIndex{ID: id, WorkflowID: uuid.New(), Status: database.ExecutionStatusRunning}
+	completed := *listed
+	completed.Status = database.ExecutionStatusCompleted
+	repo := &freshStatusRepo{
+		mockRepo: &mockRepo{executions: []*database.ExecutionIndex{listed}},
+		fresh:    &completed,
+	}
+
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("RecoverInterruptedExecutions returned error: %v", err)
+	}
+	if result.TotalActive != 1 || result.Recovered != 0 || result.Skipped != 1 || result.Failed != 0 {
+		t.Fatalf("recovery result = %+v, want one concurrently completed execution skipped", result)
+	}
+	if len(repo.updates) != 0 {
+		t.Fatalf("recovery overwrote a terminal execution: updates=%+v", repo.updates)
+	}
+}
+
+func TestRecoverInterruptedExecutions_RecoversRecentRowsFromPreviousProcess(t *testing.T) {
+	t.Log("[REQ:BAS-RH-J07] recent running and pending executions are both recovered before serving work")
+	now := time.Now()
+	runningID := uuid.New()
+	pendingID := uuid.New()
+	repo := &mockRepo{
+		executions: []*database.ExecutionIndex{
+			{
+				ID:         runningID,
+				WorkflowID: uuid.New(),
+				Status:     database.ExecutionStatusRunning,
+				StartedAt:  now.Add(-2 * time.Second),
+				CreatedAt:  now.Add(-2 * time.Second),
+				UpdatedAt:  now.Add(-time.Second),
+			},
+			{
+				ID:         pendingID,
+				WorkflowID: uuid.New(),
+				Status:     database.ExecutionStatusPending,
+				StartedAt:  now.Add(-2 * time.Second),
+				CreatedAt:  now.Add(-2 * time.Second),
+				UpdatedAt:  now.Add(-time.Second),
+			},
+		},
+	}
+
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.TotalActive != 2 || result.Recovered != 2 {
+		t.Fatalf("expected recent rows from the previous process to be recovered, got total=%d recovered=%d", result.TotalActive, result.Recovered)
+	}
+	if len(repo.updates) != 2 {
+		t.Fatalf("expected both active rows updated, got %d", len(repo.updates))
+	}
+	updatedIDs := map[uuid.UUID]bool{}
+	for _, update := range repo.updates {
+		updatedIDs[update.id] = true
+		if update.status != database.ExecutionStatusFailed {
+			t.Errorf("expected interrupted row to be failed, got %q", update.status)
+		}
+	}
+	if !updatedIDs[runningID] || !updatedIDs[pendingID] {
+		t.Fatalf("expected running and pending rows updated, got %v", updatedIDs)
+	}
+}
+
+func TestRecoverInterruptedExecutions_FindsActiveRowsBeyondRecentHistory(t *testing.T) {
+	now := time.Now()
+	workflowID := uuid.New()
+	executions := make([]*database.ExecutionIndex, 0, 1003)
+	for i := range 1000 {
+		executions = append(executions, &database.ExecutionIndex{
+			ID:         uuid.New(),
+			WorkflowID: workflowID,
+			Status:     database.ExecutionStatusCompleted,
+			StartedAt:  now.Add(-time.Duration(i) * time.Second),
+			UpdatedAt:  now.Add(-time.Duration(i) * time.Second),
+		})
+	}
+	staleRunningID := uuid.New()
+	stalePendingID := uuid.New()
+	freshRunningID := uuid.New()
+	executions = append(executions,
+		&database.ExecutionIndex{
+			ID:         staleRunningID,
+			WorkflowID: workflowID,
+			Status:     database.ExecutionStatusRunning,
+			StartedAt:  now.Add(-2 * time.Hour),
+			UpdatedAt:  now.Add(-time.Hour),
+		},
+		&database.ExecutionIndex{
+			ID:         stalePendingID,
+			WorkflowID: workflowID,
+			Status:     database.ExecutionStatusPending,
+			StartedAt:  now.Add(-90 * time.Minute),
+			UpdatedAt:  now.Add(-45 * time.Minute),
+		},
+		&database.ExecutionIndex{
+			ID:         freshRunningID,
+			WorkflowID: workflowID,
+			Status:     database.ExecutionStatusRunning,
+			StartedAt:  now.Add(-time.Minute),
+			UpdatedAt:  now.Add(-time.Minute),
+		},
+	)
+	repo := &mockRepo{executions: executions}
+	svc := NewService(repo, logrus.New(), t.TempDir())
+
+	result, err := svc.RecoverInterruptedExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.TotalActive != 3 || result.Recovered != 3 || result.Failed != 0 {
+		t.Fatalf("expected all active rows recovered, got total=%d recovered=%d failed=%d", result.TotalActive, result.Recovered, result.Failed)
+	}
+	if len(repo.updates) != 3 {
+		t.Fatalf("expected 3 status updates, got %d", len(repo.updates))
+	}
+	updatedIDs := map[uuid.UUID]bool{}
+	for _, update := range repo.updates {
+		updatedIDs[update.id] = true
+	}
+	if !updatedIDs[staleRunningID] || !updatedIDs[stalePendingID] || !updatedIDs[freshRunningID] {
+		t.Fatalf("expected all active rows updated, got %v", updatedIDs)
+	}
+	if len(repo.queries) != 2 ||
+		repo.queries[0].Status != database.ExecutionStatusRunning ||
+		repo.queries[1].Status != database.ExecutionStatusPending ||
+		repo.queries[0].Limit != 0 || repo.queries[1].Limit != 0 {
+		t.Fatalf("expected unbounded status-filtered recovery queries, got %+v", repo.queries)
 	}
 }

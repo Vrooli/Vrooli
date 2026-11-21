@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "performance-health.packaged-experiment",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Validate and run the declared packaged-experiment.v1 launch matrix, then return its JSON and Markdown comparison report with explicit incomplete-cell evidence.",
+  "owner_skill": "performance-health",
+  "inputs": {
+    "manifest_json": {
+      "type": "string",
+      "required": true,
+      "description": "Complete packaged-experiment.v1 matrix with all four subjects, six profile cells per subject, runnable journey IDs, and observed environment provenance. Artifact paths and digests are supplied by the ramp builds performed by this program."
+    }
+  },
+  "assumptions": [
+    "The four declared subjects have runnable reference journeys and the target Linux build prerequisites are available.",
+    "performance-health and scenario-to-desktop are running and expose the declared current bindings.",
+    "The caller has confirmed host capacity for serial builds, cold and warm measurements."
+  ],
+  "invariants": [
+    "Validate the complete manifest before starting a launch.",
+    "Capture cells sequentially; never run concurrent desktop launches.",
+    "Build all 24 subject/profile artifacts through scenario-to-desktop before capture; never trust caller-supplied artifacts.",
+    "Each cell includes its declared journey for parity evidence.",
+    "Never infer results for a failed or missing cell; report it as incomplete.",
+    "Print exactly one bounded JSON envelope and never include raw launch samples."
+  ],
+  "bindings": [
+    {
+      "id": "performance-health/packaged-experiment/validate-experiment",
+      "effect": "read"
+    },
+    {
+      "id": "performance-health/packaged-experiment/capture-experiment-cell",
+      "effect": "write"
+    },
+    {
+      "id": "performance-health/packaged-experiment/experiment-report",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-desktop/pipeline/run",
+      "effect": "write"
+    },
+    {
+      "id": "scenario-to-desktop/pipeline/wait",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "decide",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "experiment_id": "Declared experiment identifier.",
+      "expected_launches": "Expected 480 launch samples.",
+      "completed_launches": "Samples returned by successful cell captures.",
+      "completed_cells": "Number of completed subject/profile/condition cells, at most 48.",
+      "failed_cells": "Bounded list of failed subject/profile/condition identities and owner errors.",
+      "report_json": "packaged-comparison.v1 JSON report when report retrieval succeeds.",
+      "report_markdown": "Human-readable Markdown report when report retrieval succeeds.",
+      "missing_data": "Explicit missing evidence reported by the measurement owner.",
+      "built_artifacts": "Ramp artifacts built successfully through scenario-to-desktop; at most 24.",
+      "built_pipeline_ids": "Pipeline run IDs returned by scenario-to-desktop."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "no_governed_binding",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "remote_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Owner binding IDs used and completed cell identities."
+  },
+  "budget": {
+    "wall_ms": 14400000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0,
+    "async": true,
+    "async_reason": "The 480 serial packaged launches plus journey replay can exceed the synchronous submission limit.",
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-json",
+      "inputs": {
+        "manifest_json": "{"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "empty-manifest",
+      "inputs": {
+        "manifest_json": "{}"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3"
+}

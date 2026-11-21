@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "dashboard.metricList": {
+      "testId": "metric-list",
+      "selector": "[data-testid=\"metric-list\"]"
+    },
+    "dashboard.sceneCanvas": {
+      "testId": "scene-canvas",
+      "selector": "[data-testid=\"scene-canvas\"]"
+    },
+    "dashboard.sceneStill": {
+      "testId": "scene-still",
+      "selector": "[data-testid=\"scene-still\"]"
+    },
+    "dashboard.roomHero": {
+      "testId": "room-hero",
+      "selector": "[data-testid=\"room-hero\"]"
+    },
+    "dashboard.roomLegend": {
+      "testId": "room-legend",
+      "selector": "[data-testid=\"room-legend\"]"
+    },
+    "dashboard.roomSources": {
+      "testId": "room-sources",
+      "selector": "[data-testid=\"room-sources\"]"
+    },
+    "dashboard.freshnessHairline": {
+      "testId": "freshness-hairline",
+      "selector": "[data-testid=\"freshness-hairline\"]"
+    },
+    "dashboard.samplesModeStamp": {
+      "testId": "samples-mode-stamp",
+      "selector": "[data-testid=\"samples-mode-stamp\"]"
+    },
+    "dashboard.cycleRail": {
+      "testId": "cycle-rail",
+      "selector": "[data-testid=\"cycle-rail\"]"
+    },
+    "dashboard.controlBar": {
+      "testId": "control-bar-controls",
+      "selector": "[data-testid=\"control-bar-controls\"]"
+    },
+    "dashboard.shortcutHelp": {
+      "testId": "shortcut-help",
+      "selector": "[data-testid=\"shortcut-help\"]"
+    },
+    "dashboard.errorBanner": {
+      "testId": "error-banner",
+      "selector": "[data-testid=\"error-banner\"]"
+    },
+    "dashboard.loading": {
+      "testId": "loading",
+      "selector": "[data-testid=\"loading\"]"
+    },
+    "dashboard.ladderNextRung": {
+      "testId": "ladder-next-rung",
+      "selector": "[data-testid=\"ladder-next-rung\"]"
+    },
+    "dashboard.ladderReach": {
+      "testId": "ladder-reach",
+      "selector": "[data-testid=\"ladder-reach\"]"
+    },
+    "dashboard.ladderTile": {
+      "testId": "ladder-tile",
+      "selector": "[data-testid=\"ladder-tile\"]"
+    },
+    "dashboard.panelTile": {
+      "testId": "panel-tile",
+      "selector": "[data-testid=\"panel-tile\"]"
+    },
+    "library.data-display.rolling-number.root": {
+      "testId": "data-display.rolling-number",
+      "selector": "[data-testid=\"data-display.rolling-number\"]"
+    },
+    "library.data-display.freshness-arc.freshnessHairline": {
+      "testId": "freshness-hairline",
+      "selector": "[data-testid=\"freshness-hairline\"]"
+    },
+    "library.data-display.freshness-arc.root": {
+      "testId": "data-display.freshness-arc",
+      "selector": "[data-testid=\"data-display.freshness-arc\"]"
+    },
+    "library.visualization.sample-series.root": {
+      "testId": "visualization.sample-series",
+      "selector": "[data-testid=\"visualization.sample-series\"]"
+    }
+  },
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "65bd9b3ff10eeee3425671fdf0359627ed04d94f7dfc01f8f0a8ae42bb51a701",
+    "ui/src/consts/selectors.ts": "f4e57f008072d0e4daddd227e295db87077305be076de32bf50be6f07bfa5dc3"
+  }
+}

@@ -1,4 +1,4 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type BrowserDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getUploadFileParams } from '../types';
 import { DEFAULT_TIMEOUT_MS } from '../constants';
@@ -31,9 +31,9 @@ export class UploadHandler extends BaseHandler {
     instruction: HandlerInstruction,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, sessionId } = context;
-
+    const { sessionId } = context;
     try {
+      const page = getDocument(context);
       // Get typed params from instruction.action (required after migration)
       const typedParams = instruction.action ? getUploadFileParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'uploadfile', instruction.nodeId);
@@ -146,7 +146,7 @@ export class UploadHandler extends BaseHandler {
    * Separated from execute() to enable idempotency tracking.
    */
   private async executeUpload(
-    page: import('rebrowser-playwright').Page,
+    page: BrowserDocument,
     selector: string,
     filePath: string | string[],
     timeout: number,

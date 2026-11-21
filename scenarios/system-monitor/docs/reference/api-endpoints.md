@@ -4,6 +4,15 @@
 
 **Authentication**: None currently. All endpoints are publicly accessible.
 
+**Runtime contract**: Proto-owned operations are served through generated
+Connect procedure paths such as
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics`. The
+`/api/v1/...` paths in the proto-owned sections below are HTTP annotation
+inventory and historical compatibility context; they are not mounted as manual
+REST routes after the bright-window cleanup. Runtime REST exceptions include
+health probes, development pprof, logs, forensics, explicitly requested
+process read activity, and attached-session owner alert actions.
+
 ---
 
 ## Health
@@ -22,9 +31,20 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/metrics/current` | Current system metrics snapshot |
+| GET | `/api/v1/metrics/pressure` | Typed Linux memory PSI/OOM snapshot; unavailable evidence is explicit |
+| — | `MetricsService/GetDetailedMetrics` → `memory_details.memory_pressure` | Cross-platform memory-pressure level, every raw signal with its state, and (at elevated/critical) top paging contributors |
 | GET | `/api/v1/metrics/detailed` | Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health) |
+| GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
+| GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
+| GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`); accepts a 24-hour max explicit `start_utc`/`end_utc` RFC3339 interval |
+| GET | `/api/v1/forensics/process-cpu-replay` | Read-only 15-minute historical replay of the sustained owner CPU alert rule; requires exact RFC3339 `start_utc` and `end_utc`, ends in the past, does not persist alerts or notify |
+| GET | `/api/v1/forensics/process-samples` | Timestamped raw process observations for one required `owner` and exact RFC3339 `start_utc`/`end_utc` interval (maximum 24 hours); `limit` defaults to 1000 and is capped at 5000. Returns `truncated` when the result limit omits rows and `raw_retention_seconds` for the configured raw-sample window. Older observations may already be rolled up and are not returned here. Command lines and working directories are excluded. |
+| GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
+| GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
+| GET | `/api/v1/metrics/disk` | Disk partition and usage detail through the generated Connect method |
+| GET | `/api/v1/metrics/disk/read-activity` | Explicit bounded two-sample host-wide process read activity; reports process identity, coverage and partial/unsupported states |
 
 ### GET /api/v1/metrics/current
 
@@ -43,6 +63,63 @@ Response:
 ```
 
 `[CODE: api/internal/handlers/metrics.go]`
+
+---
+
+## Alerts
+
+| Connect procedure | HTTP annotation | Description |
+|-------------------|-----------------|-------------|
+| `AlertsService/ListAlerts` | `GET /api/v1/alerts` | Persisted alerts plus per-rule evaluation state. `status`: `active` (default), `resolved`, `all`; `include_events` adds point-in-time `threshold_violation` and `anomaly` records; `limit` (default 100, max 1000). The response carries `evaluated_at`, `sustain_seconds`, and `monitoring_active` so a client can tell "no alerts" from "not evaluated". |
+| `AlertsService/AcknowledgeAlert` | `POST /api/v1/alerts/{id}/acknowledge` | Records an acknowledgement; resolution still follows the condition. |
+| `GET` | `/api/v1/owner/alerts` | Lists active condition alerts for the caller's exact attached Agent Manager session. Requires one `X-Agent-Identity-Token`; Agent Manager verifies the token and persisted Web Console session binding. `complete=false` means the 1000-row global bound was reached before owner filtering. |
+| `POST` | `/api/v1/owner/alerts/{id}/acknowledge` | Acknowledges only an active condition alert whose owner matches the verified attached session. The server records `agent-run:<run-id>`; acknowledging does not resolve the alert or count as an owner fix receipt. |
+
+An attached coding session can use its injected `VROOLI_AGENT_IDENTITY_TOKEN` to
+read and acknowledge its own alerts. Keep the token in the header; do not print
+or copy it into logs. Resolve the local API port through the control plane:
+
+```sh
+export SYSTEM_MONITOR_API_URL="http://localhost:$(vrooli scenario port system-monitor --json | jq -r '.ports[] | select(.key == "API_PORT") | .port')"
+
+python3 - <<'PY'
+import os
+import urllib.request
+
+base = os.environ["SYSTEM_MONITOR_API_URL"].rstrip("/")
+token = os.environ["VROOLI_AGENT_IDENTITY_TOKEN"]
+request = urllib.request.Request(base + "/api/v1/owner/alerts")
+request.add_header("X-Agent-Identity-Token", token)
+with urllib.request.urlopen(request, timeout=5) as response:
+    print(response.read().decode())
+PY
+
+ALERT_ID="<alert-id>" python3 - <<'PY'
+import os
+import urllib.request
+
+base = os.environ["SYSTEM_MONITOR_API_URL"].rstrip("/")
+token = os.environ["VROOLI_AGENT_IDENTITY_TOKEN"]
+alert_id = os.environ["ALERT_ID"]
+request = urllib.request.Request(
+    base + "/api/v1/owner/alerts/" + alert_id + "/acknowledge",
+    method="POST",
+)
+request.add_header("X-Agent-Identity-Token", token)
+with urllib.request.urlopen(request, timeout=5) as response:
+    print(response.read().decode())
+PY
+```
+
+Acknowledgement records that the owner saw the condition. The owner still needs
+to change the owning workload and retain a fix receipt; acknowledgement alone
+does not mark the issue fixed.
+
+Condition alerts (`type=condition`) carry `rule_id`, `key`, `escalated`,
+`anomaly_id`, and rule evidence in `details` (for `memory_pressure`: level,
+level source/reason, measured signals, and top contributors with owner).
+
+`[CODE: api/internal/handlers/alerts.go]`
 
 ---
 
@@ -65,12 +142,9 @@ Response:
 | GET | `/api/v1/investigations/cooldown` | Get cooldown status |
 | POST | `/api/v1/investigations/cooldown/reset` | Reset cooldown period |
 | PUT | `/api/v1/investigations/cooldown/period` | Update cooldown duration |
-| GET | `/api/v1/investigations/triggers` | Get all investigation triggers |
-| PUT | `/api/v1/investigations/triggers/{id}` | Update trigger config |
-| PUT | `/api/v1/investigations/triggers/{id}/threshold` | Update trigger threshold only |
-| GET | `/api/v1/investigations/scripts` | List investigation scripts (placeholder -- returns empty array) |
-| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID (placeholder -- returns not found) |
-| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script (placeholder -- returns not found) |
+| GET | `/api/v1/investigations/scripts` | List investigation scripts |
+| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID |
+| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script |
 
 ### POST /api/v1/investigations/trigger
 
@@ -137,43 +211,54 @@ Valid types: `daily`, `weekly`
 | GET | `/api/v1/maintenance/state` | Get maintenance state |
 | POST | `/api/v1/maintenance/state` | Set maintenance state (active/inactive) |
 
+`maintenance_state` follows the maintenance-orchestrator contract: `active`
+means monitoring runs normally; `inactive` means it is paused.
+
 `[CODE: api/internal/handlers/settings.go]`
 
----
-
-## Agent Configuration
+### Metrics lifecycle (retention & compaction)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/agent/config` | Get agent configuration |
-| PUT | `/api/v1/agent/config` | Update agent config |
-| GET | `/api/v1/agent/runners` | Get available runners |
+| GET | `/api/v1/maintenance/metrics/retention/preview?days=<n>` | Read-only estimate of rows/bytes/time-range a prune would remove, with DB stats |
+| POST | `/api/v1/maintenance/metrics/retention/apply` | Prune metrics older than the window. Body: `{"retentionDays": <n>, "confirm": true}`. Requires `confirm=true` |
+| GET | `/api/v1/maintenance/metrics/compaction/preview` | Read-only DB stats and estimated reclaimable bytes |
+| POST | `/api/v1/maintenance/metrics/compaction/apply` | Compact the DB (`VACUUM`). Body: `{"confirm": true}`. Requires `confirm=true` |
+
+Destructive applies without `confirm=true` return `400` validation errors.
+Compaction on a non-SQLite backend returns `503` (unsupported).
+
+`[CODE: api/internal/handlers/maintenance.go]`
+
+---
+
+## Agent Manager status
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/api/v1/agent/status` | Get agent status |
 
-### PUT /api/v1/agent/config
-
-Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_permissions`, `requires_sandbox`, `requires_approval`
+System Monitor does not select runners, models, or profile defaults. Its
+scenario-owned `.vrooli/agent-profiles/default.json` declares portable
+`roleRef` intent and is reconciled through Agent Manager. Operators inspect
+role and native-resource state in Agent Manager; System Monitor only reports
+its integration availability and active investigation count.
 
 `[CODE: api/internal/handlers/investigations.go]`
 
 ---
 
-## Tool Discovery Protocol
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/tools` | Get tool manifest |
-| GET | `/api/v1/tools/{name}` | Get specific tool definition |
-| POST | `/api/v1/tools/execute` | Execute a tool |
-
-`[CODE: api/internal/toolexecution/handler.go]`
-
----
-
-## Missing Endpoints
+## Missing Product Endpoints
 
 The following endpoints are referenced by the UI but do not exist in the API:
 
-- `GET /api/v1/metrics/timeline` -- referenced by UI sparkline charts
-- `GET /api/v1/metrics/disk/details` -- referenced by UI disk detail view
 - `POST /api/v1/processes/{pid}/kill` -- referenced by UI process kill dialog (silently fails)
+
+Disk detail is implemented through `MetricsService.GetDiskDetail`
+(`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`) and is
+read-only. Its response may include storage-manager handoff notes when disk
+pressure is high; system-monitor does not delete files or apply cleanup.
+
+## Connect Migration Notes
+
+Proto schemas and generated clients exist under `packages/proto/schemas/system-monitor/v1/` and `packages/proto/gen/`. The runtime mounts generated Connect handlers through `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. Current non-blocking drift and REST exceptions are tracked in [`SEAMS.md`](../internal/SEAMS.md#ui-and-api-contract-seam).

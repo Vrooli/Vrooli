@@ -1,0 +1,141 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-asks-to-wait-asks-page",
+      "source": "navigate-asks",
+      "target": "wait-asks-page"
+    },
+    {
+      "id": "edge-wait-asks-page-to-wait-asks-empty",
+      "source": "wait-asks-page",
+      "target": "wait-asks-empty"
+    },
+    {
+      "id": "edge-wait-asks-empty-to-wait-asks-sort",
+      "source": "wait-asks-empty",
+      "target": "wait-asks-sort"
+    },
+    {
+      "id": "edge-wait-asks-sort-to-wait-asks-sort-how",
+      "source": "wait-asks-sort",
+      "target": "wait-asks-sort-how"
+    },
+    {
+      "id": "edge-wait-asks-sort-how-to-capture-asks",
+      "source": "wait-asks-sort-how",
+      "target": "capture-asks"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable recipient with no open decision, when the owner opens Needs you at phone width, then the empty state is shown with the sort control and the line saying how the list is ordered in view, and captured.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "asks",
+      "surface": "experience-asks-routed-smoke"
+    },
+    "name": "experience-asks-routed-smoke",
+    "requirement": "OT-P0-001",
+    "version": "2"
+  },
+  "nodes": [
+    {
+      "id": "navigate-asks",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/asks?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Needs you with no open decision"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.asks",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Needs you page visible"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-empty",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/asks.empty",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The empty state is shown"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-sort",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/asks.sort",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The sort control is visible"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-sort-how",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/asks.sortHow",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The line that says how the list is ordered is visible"
+        }
+      }
+    },
+    {
+      "id": "capture-asks",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture Needs you at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

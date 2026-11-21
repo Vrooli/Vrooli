@@ -1,0 +1,14 @@
+{
+  "archetypes": {
+    "primitive": ["no-document-horizontal-overflow", "tap-target-size"],
+    "component": ["no-document-horizontal-overflow", "tap-target-size"],
+    "overlay": ["no-document-horizontal-overflow", "chrome-pinned", "single-line-chrome", "tap-target-size"],
+    "pattern": ["no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "single-line-chrome", "tap-target-size"],
+    "shell": ["no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "single-line-chrome", "safe-area-tap-targets", "tap-target-size"],
+    "page": ["no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "single-line-chrome", "safe-area-tap-targets", "tap-target-size"],
+    "template": ["no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "single-line-chrome", "safe-area-tap-targets", "tap-target-size"],
+    "hook": [],
+    "service": [],
+    "foundation": ["no-document-horizontal-overflow"]
+  }
+}

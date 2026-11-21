@@ -171,7 +171,7 @@ describe('customizationController', () => {
       oldDate.setDate(oldDate.getDate() - 40);
 
       const variants = Array.from({ length: 10 }, (_, i) =>
-        createMockVariant({ slug: `variant-${i}`, updated_at: oldDate.toISOString() })
+        createMockVariant({ slug: `variant-${String(i)}`, updated_at: oldDate.toISOString() })
       );
 
       const result = findStaleVariants(variants, 3);

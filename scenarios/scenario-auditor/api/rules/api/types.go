@@ -1,8 +1,9 @@
 package api
 
 import (
-	rules "scenario-auditor/rules"
 	"strings"
+
+	rules "scenario-auditor/rules"
 )
 
 type Violation = rules.Violation
@@ -40,3 +41,7 @@ func findWithinWindow(lines []string, start, lookahead int, predicate func(strin
 	}
 	return false
 }
+
+// noContentTypeViolations is the shared current behavior for the format-
+// specific content-type rules that have not yet been implemented.
+func noContentTypeViolations() []Violation { return nil }

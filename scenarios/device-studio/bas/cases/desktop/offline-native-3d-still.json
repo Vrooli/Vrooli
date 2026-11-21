@@ -1,0 +1,703 @@
+{
+  "edges": [
+    {
+      "id": "n0",
+      "source": "wait-projects",
+      "target": "probe-external-network"
+    },
+    {
+      "id": "n1",
+      "source": "probe-external-network",
+      "target": "open-settings"
+    },
+    {
+      "id": "n1a",
+      "source": "open-settings",
+      "target": "assert-offline-account-state"
+    },
+    {
+      "id": "n1c",
+      "source": "open-dashboard",
+      "target": "open-create"
+    },
+    {
+      "id": "n2",
+      "source": "open-create",
+      "target": "wait-project-dialog"
+    },
+    {
+      "id": "n3",
+      "source": "wait-project-dialog",
+      "target": "type-project"
+    },
+    {
+      "id": "n4",
+      "source": "type-project",
+      "target": "confirm-project"
+    },
+    {
+      "id": "n5",
+      "source": "confirm-project",
+      "target": "wait-project-link"
+    },
+    {
+      "id": "n6",
+      "source": "wait-project-link",
+      "target": "open-project"
+    },
+    {
+      "id": "n7",
+      "source": "open-project",
+      "target": "open-source-media"
+    },
+    {
+      "id": "n8",
+      "source": "open-source-media",
+      "target": "upload-screen"
+    },
+    {
+      "id": "n9",
+      "source": "upload-screen",
+      "target": "submit-screen"
+    },
+    {
+      "id": "n10",
+      "source": "submit-screen",
+      "target": "wait-screen"
+    },
+    {
+      "id": "n11",
+      "source": "wait-screen",
+      "target": "open-physical-shot"
+    },
+    {
+      "id": "n12",
+      "source": "open-physical-shot",
+      "target": "wait-physical-shot"
+    },
+    {
+      "id": "n13",
+      "source": "wait-physical-shot",
+      "target": "choose-phone-starter"
+    },
+    {
+      "id": "n14",
+      "source": "choose-phone-starter",
+      "target": "initialize-phone-starter"
+    },
+    {
+      "id": "n15",
+      "source": "initialize-phone-starter",
+      "target": "wait-initialized-preset"
+    },
+    {
+      "id": "n16",
+      "source": "wait-initialized-preset",
+      "target": "assert-initialized-preset"
+    },
+    {
+      "id": "n17",
+      "source": "assert-initialized-preset",
+      "target": "select-device-step"
+    },
+    {
+      "id": "n18",
+      "source": "select-device-step",
+      "target": "assert-device-selected"
+    },
+    {
+      "id": "n19",
+      "source": "assert-device-selected",
+      "target": "select-screen-step"
+    },
+    {
+      "id": "n20",
+      "source": "select-screen-step",
+      "target": "select-screen-source"
+    },
+    {
+      "id": "n22",
+      "source": "select-screen-source",
+      "target": "assert-screen-source"
+    },
+    {
+      "id": "n23",
+      "source": "assert-screen-source",
+      "target": "select-app-only-plain-contain"
+    },
+    {
+      "id": "n23a",
+      "source": "select-app-only-plain-contain",
+      "target": "assert-app-only-plain-contain"
+    },
+    {
+      "id": "n23b",
+      "source": "assert-app-only-plain-contain",
+      "target": "select-export-step"
+    },
+    {
+      "id": "n24",
+      "source": "select-export-step",
+      "target": "select-cpu"
+    },
+    {
+      "id": "n21",
+      "source": "select-cpu",
+      "target": "assert-cpu"
+    },
+    {
+      "id": "n25",
+      "source": "assert-cpu",
+      "target": "observe-create-shot"
+    },
+    {
+      "id": "n26",
+      "source": "observe-create-shot",
+      "target": "create-physical-shot"
+    },
+    {
+      "id": "n27",
+      "source": "create-physical-shot",
+      "target": "compile-physical-shot"
+    },
+    {
+      "id": "n1f",
+      "source": "assert-offline-account-state",
+      "target": "wait-optional-capabilities"
+    },
+    {
+      "id": "n1g",
+      "source": "wait-optional-capabilities",
+      "target": "assert-optional-capabilities-unavailable"
+    },
+    {
+      "id": "n1h",
+      "source": "assert-optional-capabilities-unavailable",
+      "target": "open-dashboard"
+    },
+    {
+      "id": "n27a",
+      "source": "compile-physical-shot",
+      "target": "wait-compiled-render-control"
+    },
+    {
+      "id": "n27b",
+      "source": "wait-compiled-render-control",
+      "target": "run-native-still"
+    }
+  ],
+  "metadata": {
+    "description": "Offline bundled AppImage: verify link and credit-sharing owners report unavailable rather than claiming an unknown remote identity, the authoritative credit balance is signed out, and local work remains available; then import the unchanged authentic 430\u00d7880 portrait app capture, initialize the pinned phone candidate preset, create an app-only plain/contain physical still with display raster derived from the exact device metric, select CPU (bounded 600-second render budget), and render/download the managed-Blender PNG. Also checks AI Gateway and Workspace Sandbox unavailable in the packaged offline app. Compile the exact saved shot revision before submitting its native render.",
+    "execution_mode": "mutating",
+    "labels": {
+      "desktop_target": "true",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "surface": "projects",
+      "required": "true",
+      "network_profile": "offline"
+    },
+    "name": "desktop-offline-native-3d-still",
+    "requirement": "DS-PHYSICAL-RENDER-OFFLINE-PACKAGED",
+    "version": "6"
+  },
+  "nodes": [
+    {
+      "id": "wait-projects",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"projects-create-button\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 30000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "probe-external-network",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const url='http://192.0.2.1:81/offline-probe-initial';let csp=false;const onViolation=e=>{if(String(e.blockedURI).includes('192.0.2.1'))csp=true};document.addEventListener('securitypolicyviolation',onViolation);const controller=new AbortController();let timedOut=false,resolved=false,failure='';const timeout=setTimeout(()=>{timedOut=true;controller.abort()},2000);try{await fetch(url,{mode:'no-cors',credentials:'omit',cache:'no-store',signal:controller.signal});resolved=true}catch(error){failure=String(error)}finally{clearTimeout(timeout)}await new Promise(resolve=>setTimeout(resolve,0));document.removeEventListener('securitypolicyviolation',onViolation);const observed=performance.getEntriesByName(url).length>0;if(resolved||timedOut||csp||!observed)throw new Error('External TEST-NET denial not proven: '+JSON.stringify({resolved,timedOut,csp,resourceTimingObserved:observed,failure}));return {url,rejected:true,resourceTimingObserved:observed,error:failure}})()",
+          "store_result": "offline_external_probe_initial"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "a[href=\"/settings\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-offline-account-state",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const account=document.querySelector(`[data-testid=\\\"page-settings-account-status\\\"]`)?.textContent?.trim()||'';const capabilities=document.querySelector(`[data-testid=\\\"settings-credit-session\\\"]`)?.textContent||'';const balance=document.querySelector(`[data-testid=\\\"settings-credit-balance\\\"]`)?.textContent||'';if(!account.includes('Account owner unavailable'))throw new Error('Expected honest offline link-owner state; got '+account);if(!capabilities.includes('Credential owner unavailable'))throw new Error('Expected honest offline credit-sharing owner state; got '+capabilities.trim());if(!balance.includes('Sign in to view'))throw new Error('Expected no authenticated credit balance; got '+balance.trim());if(!document.body.innerText.includes('Local authoring and rendering work offline'))throw new Error('Missing offline local-work availability statement');return {accountState:'owner_unavailable',creditShareState:'owner_unavailable',balanceState:'signed_out',localWork:'available'}})()",
+          "store_result": "offline_account_credit_state"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "a[href=\"/\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"projects-create-button\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-project-dialog",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[role=\"dialog\"] [data-testid=\"projects-name-input\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "type-project",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "[data-testid=\"projects-name-input\"]",
+          "value": "Offline PNG round trip",
+          "clear_first": true
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "confirm-project",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"confirm-create-project\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-project-link",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "article.studio-featured a[href^=\"/projects/\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-project",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "article.studio-featured a[href^=\"/projects/\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-source-media",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "details.shot-source-intake > summary"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "upload-screen",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "[data-testid=\"project-source-media-file\"]",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/device-studio/examples/demos/assets/source/phone-app-capture-frame0.png"
+          ]
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "submit-screen",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"project-source-media-upload\"]"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-screen",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "button:has-text(\"phone-app-capture-frame0.png\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "open-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"New physical shot\")"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"physical-shot-create\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "choose-phone-starter",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "select[aria-label=\"Initialize candidate starter\"]",
+          "label": "Phone study setup"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "initialize-phone-starter",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Initialize candidate starter\")"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-initialized-preset",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "label:has-text(\"Saved physical setup\") select",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-initialized-preset",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const label=Array.from(document.querySelectorAll('label')).find(x=>x.textContent.includes('Saved physical setup'));const s=label?.querySelector('select');if(!s?.value||!s.selectedOptions[0]?.textContent?.includes('candidate'))throw new Error('Phone starter did not resolve to a saved candidate setup');const scene=Array.from(document.querySelectorAll('label')).find(x=>x.textContent.includes('Scene candidate'))?.querySelector('select');if(!scene?.value)throw new Error('Pinned starter scene revision is not selected');return {preset:s.value,presetLabel:s.selectedOptions[0].textContent.trim(),scene:scene.value}})()",
+          "store_result": "native_still_candidate_binding"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-device-step",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": ".physical-shot__steps button:nth-child(2)"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-device-selected",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const e=Array.from(document.querySelectorAll('label')).find(x=>x.textContent.includes('Device candidate'))?.querySelector('select');if(!e?.value)throw new Error('Exact starter device revision is not selected');return {deviceRevision:e.value}})()",
+          "store_result": "native_still_device_binding"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-screen-step",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": ".physical-shot__steps button:nth-child(3)"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-screen-source",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "label:has-text(\"Screen source\") select",
+          "label": "phone-app-capture-frame0.png \u00b7 image \u00b7 430 \u00d7 880"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-screen-source",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const s=Array.from(document.querySelectorAll('label')).find(x=>x.textContent.includes('Screen source'))?.querySelector('select');if(!s?.value||!s.selectedOptions[0]?.textContent?.includes('430 \u00d7 880'))throw new Error('Imported app source was not selected for the physical display');return {source:s.selectedOptions[0].textContent.trim()}})()",
+          "store_result": "native_still_screen_source"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-app-only-plain-contain",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const all=Array.from(document.querySelectorAll('label.shot-field select'));const has=(select,text)=>Array.from(select.options).some(option=>option.textContent?.trim()===text);const area=all.find(select=>has(select,'Already composed'));const kind=all.find(select=>has(select,'Plain capture'));const fit=all.find(select=>has(select,'Contain'));if(!area||!kind||!fit)throw new Error('Screen presentation controls for app-only/plain/contain are missing');const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')?.set;if(!setter)throw new Error('Native select setter is unavailable');for(const select of [area,kind,fit]){setter.call(select,'1');select.dispatchEvent(new Event('change',{bubbles:true}));}return {captureArea:area.value,kind:kind.value,fitMode:fit.value}})()",
+          "store_result": "native_still_presentation_selected"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-app-only-plain-contain",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const all=Array.from(document.querySelectorAll('label.shot-field select'));const has=(select,text)=>Array.from(select.options).some(option=>option.textContent?.trim()===text);const area=all.find(select=>has(select,'Already composed'));const kind=all.find(select=>has(select,'Plain capture'));const fit=all.find(select=>has(select,'Contain'));const values={captureArea:area?.value,kind:kind?.value,fitMode:fit?.value};if(values.captureArea!=='1'||values.kind!=='1'||values.fitMode!=='1')throw new Error('Expected explicit APP_ONLY/PLAIN/CONTAIN presentation, got '+JSON.stringify(values));return values})()",
+          "store_result": "native_still_presentation_asserted"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-export-step",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": ".physical-shot__steps button:nth-child(5)"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "select-cpu",
+      "action": {
+        "type": "ACTION_TYPE_SELECT",
+        "select_option": {
+          "selector": "label:has-text(\"Render backend\") select",
+          "label": "CPU"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-cpu",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const s=Array.from(document.querySelectorAll('label')).find(x=>x.textContent.includes('Render backend'))?.querySelector('select');if(!s||s.value!=='CPU')throw new Error('CPU backend was not explicitly selected');return {backend:s.value}})()",
+          "store_result": "native_still_backend"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "observe-create-shot",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const original=window.fetch.bind(window);window.__deviceStudioCreateShotProbe=[];window.fetch=(input,init)=>{const raw=input instanceof Request?input.url:String(input);let parsed;try{parsed=new URL(raw,location.href)}catch{return original(input,init)}if(!parsed.pathname.endsWith('/vrooli.device_studio.v1.shots.ShotsService/CreateShot'))return original(input,init);const rec={url:parsed.origin+parsed.pathname,method:init?.method||'GET',state:'pending',status:null,durationMs:null,error:null};window.__deviceStudioCreateShotProbe.push(rec);const started=performance.now();return original(input,init).then(response=>{rec.state='response';rec.status=response.status;rec.durationMs=Math.round(performance.now()-started);void response.clone().json().then(body=>{const error=body?.error||body;if(error?.message)rec.error={code:String(error.code||'').slice(0,80),message:String(error.message).replace(/(bearer|token|password|secret)[^ ]*/ig,'[redacted]').slice(0,240)}}).catch(()=>{});return response},error=>{rec.state='network-error';rec.durationMs=Math.round(performance.now()-started);rec.error=String(error).replace(/(bearer|token|password|secret)[^ ]*/ig,'[redacted]').slice(0,240);throw error})};return {installed:true,origin:location.origin}})()",
+          "store_result": "native_create_shot_probe_installed"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "create-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Create physical shot\")"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "compile-physical-shot",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Compile saved revision\")"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-compiled-render-control",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "button:has-text(\"Render physical still\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 120000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "run-native-still",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const waitFor=async(fn,ms)=>{const end=Date.now()+ms;while(Date.now()<end){const value=fn();if(value)return value;await new Promise(resolve=>setTimeout(resolve,100))}return null};const alerts=()=>Array.from(document.querySelectorAll('[role=alert]')).map(e=>e.textContent?.trim()).filter(Boolean).slice(0,5);const editor=await waitFor(()=>document.querySelector('[data-testid=\"physical-shot-editor\"]'),15000);const calls=window.__deviceStudioCreateShotProbe||[];if(!editor)throw new Error('CreateShot did not open the editor within 15s; API calls='+JSON.stringify(calls)+'; alerts='+JSON.stringify(alerts()));const button=await waitFor(()=>Array.from(document.querySelectorAll('button')).find(e=>e.textContent?.includes('Render physical still')&&!e.disabled),15000);if(!button)throw new Error('Physical still render control is unavailable after 15s; CreateShot calls='+JSON.stringify(calls)+'; alerts='+JSON.stringify(alerts())+'; visibleText='+document.body.innerText.slice(-4000));button.click();const view=await waitFor(()=>{const ready=Array.from(document.querySelectorAll('button')).find(e=>e.textContent?.includes('View final PNG'));if(ready)return ready;const status=Array.from(document.querySelectorAll('[role=status]')).map(e=>e.textContent?.trim()).filter(Boolean).join(' | ');if(/\\bfailed\\b/i.test(status))throw new Error('Native render entered failed state: '+status+'; alerts='+JSON.stringify(alerts()));return null},600000);if(!view)throw new Error('Submitted still did not reach a successful output state within 240s; alerts='+JSON.stringify(alerts()));view.click();const link=await waitFor(()=>document.querySelector('a.shot-download'),15000);const image=await waitFor(()=>document.querySelector('.shot-final-stage img'),15000);if(!link||!image||!link.download.endsWith('.png')||!image.complete||image.naturalWidth!==2560||image.naturalHeight!==1440)throw new Error('Rendered output is not a complete 2560x1440 PNG with a visible image and download link');const response=await fetch(link.href);if(!response.ok)throw new Error('Rendered PNG blob fetch failed with status '+response.status);const bytes=await response.arrayBuffer();const digest=await crypto.subtle.digest('SHA-256',bytes);const sha=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');const data=new Uint8Array(bytes);if(data.length<24||data[0]!==137||data[1]!==80||data[2]!==78||data[3]!==71)throw new Error('Rendered output bytes do not have a PNG signature');const details=document.querySelector('.shot-render-result details')?.textContent||'';return {width:image.naturalWidth,height:image.naturalHeight,downloadName:link.download,byteLength:bytes.byteLength,sha256:sha,signature:'PNG',metadata:details.trim(),createShotCalls:calls}})()",
+          "store_result": "offline_native_3d_still"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "wait-optional-capabilities",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"settings-capability-ai-gateway\"][data-status=\"unavailable\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    },
+    {
+      "id": "assert-optional-capabilities-unavailable",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{for(const id of ['ai-gateway','workspace-sandbox']){const row=document.querySelector('[data-testid=\\\"settings-capability-'+id+'\\\"]');if(!row||row.dataset.status!=='unavailable')throw new Error('Expected offline optional capability '+id+' to be unavailable');if(!row.textContent?.includes('local project work remains available'))throw new Error('Missing local-work guidance for '+id)}return {aiGateway:'unavailable',workspaceSandbox:'unavailable',localProjectWork:'available'}})()",
+          "store_result": "offline_optional_capabilities"
+        }
+      },
+      "execution_settings": {
+        "continue_on_error": false
+      }
+    }
+  ],
+  "settings": {
+    "timeout_ms": 900000,
+    "viewport_width": 1440,
+    "viewport_height": 900
+  }
+}

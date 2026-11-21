@@ -1,0 +1,22 @@
+package validation
+
+import (
+	"context"
+	"testing"
+
+	readinessreporter "github.com/vrooli/vrooli/packages/proto/readinessreporter"
+)
+
+func TestReadinessReporterDefersLocalDiscoveryUntilReport(t *testing.T) {
+	for key, value := range map[string]string{
+		"_TOKEN": "token", "_POLICY_VERSION": "1", "_SCENARIO": "storage-manager",
+		"_PROFILE_ID": "profile", "_CANDIDATE_COMMIT": "commit", "_ARTIFACT_DIGEST": "digest",
+		"_TARGETS": "linux", "_CHANNEL": "local", "_URL": "",
+	} {
+		t.Setenv(storageManagerReadinessPrefix+key, value)
+	}
+	reporter, ok := newReadinessReporter(context.Background()).(*readinessreporter.Reporter)
+	if !ok || reporter == nil {
+		t.Fatalf("reporter = %T; want resolver-backed readiness reporter without a startup lookup", reporter)
+	}
+}

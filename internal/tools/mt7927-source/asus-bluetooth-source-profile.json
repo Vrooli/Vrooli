@@ -1,0 +1,24 @@
+{
+  "version": "fc088966f2357af65f16f48178e047fa553ed5eabad34bcf0c7ab4ce2033435a",
+  "scope": "Operator-local qualification for the ASUS ProArt X870E-CREATOR WIFI and observed USB 0489:e13a. Download and data staging are separate from firmware installation and device operation.",
+  "terms": {
+    "package_eula": "No standalone EULA or license was found in the exact archive or the inspected setup resources.",
+    "local_use_assessment": "Official device-support package, requested by the hardware owner. ASUS documents archive extraction. Package-specific Linux-use entitlement remains uncertain.",
+    "redistribution": "Unqualified. Proprietary package and extracted firmware stay in machine-local artifacts.",
+    "sources": [
+      "https://www.asus.com/motherboards-components/motherboards/proart/proart-x870e-creator-wifi/helpdesk_download?model2Name=ProArt-X870E-CREATOR-WIFI",
+      "https://www.asus.com/support/faq/1045127/",
+      "https://www.asus.com/terms_of_use_notice_privacy_policy/official-site/"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "DRV_Bluetooth_MTK_MT7925_27_TP_W11_64_V111470610_20260706R.zip",
+      "url": "https://dlcdnets.asus.com/pub/ASUS/mb/02BT/DRV_Bluetooth_MTK_MT7925_27_TP_W11_64_V111470610_20260706R.zip",
+      "sha256": "fc088966f2357af65f16f48178e047fa553ed5eabad34bcf0c7ab4ce2033435a",
+      "bytes": 7142068,
+      "provenance": "ASUS publishes this SHA-256 for MTK Bluetooth driver 1.1147.0.610, dated 2026-07-16, on the exact motherboard support page. The supplied INF and setup configuration include USB 0489:e13a interface 00.",
+      "license": "Proprietary MediaTek/ASUS package. Local-use assessment and redistribution uncertainty are recorded above."
+    }
+  ]
+}

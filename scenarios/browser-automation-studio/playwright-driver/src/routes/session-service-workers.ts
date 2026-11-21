@@ -9,19 +9,22 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { SessionManager } from '../session';
 import { sendError, sendJson } from '../middleware';
+import { requireSessionLease } from './session-lease';
 
 /**
  * GET /session/:id/service-workers
  * Returns list of registered service workers and control settings.
  */
 export function handleSessionServiceWorkers(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return Promise.resolve();
+    const session = owner.session;
     const swController = session.serviceWorkerController;
 
     if (!swController) {
@@ -51,13 +54,15 @@ export function handleSessionServiceWorkers(
  * Unregister all service workers.
  */
 export async function handleSessionServiceWorkersDelete(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return;
+    const session = owner.session;
     const swController = session.serviceWorkerController;
 
     if (!swController) {
@@ -85,14 +90,16 @@ export async function handleSessionServiceWorkersDelete(
  * Unregister a specific service worker by scope URL.
  */
 export async function handleSessionServiceWorkerDelete(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   scopeURL: string,
   sessionManager: SessionManager
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return;
+    const session = owner.session;
     const swController = session.serviceWorkerController;
 
     if (!swController) {

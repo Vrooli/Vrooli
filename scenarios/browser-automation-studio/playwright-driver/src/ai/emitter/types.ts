@@ -52,6 +52,9 @@ export interface NavigationStepEvent {
  * Navigation completion event sent to the API callback.
  */
 export interface NavigationCompleteEvent {
+  verifiedSuccess?: boolean;
+  extractedData?: Record<string, string[]>;
+  verificationError?: string;
   /** Navigation session ID */
   navigationId: string;
   /** Final status */

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/reach/sshadapter"
 )
 
 // InspectRequest is the request body for VPS inspection.
@@ -62,60 +62,53 @@ type InspectResult struct {
 	Timestamp      string          `json:"timestamp"`
 }
 
-// BuildInspectPlan creates a plan of steps for VPS inspection.
-func BuildInspectPlan(manifest domain.CloudManifest, opts InspectOptions) (InspectPlan, error) {
-	cfg := ssh.ConfigFromManifest(manifest)
-	workdir := manifest.Target.VPS.Workdir
+// inspectProbes are the three typed reads an inspection issues.
+func inspectProbes(manifest domain.CloudManifest, opts InspectOptions) []probe {
 	targetScenario := manifest.Scenario.ID
-
-	steps := []domain.VPSPlanStep{
-		{
-			ID:          "scenario_status",
-			Title:       "Scenario status",
-			Description: "Fetch `vrooli scenario status --json` for the target scenario.",
-			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellutil.QuoteSingle(targetScenario)))),
-		},
-		{
-			ID:          "resource_status",
-			Title:       "Resource status",
-			Description: "Fetch `vrooli resource status --json` for the mini install.",
-			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, "vrooli resource status --json")),
-		},
-		{
-			ID:          "scenario_logs",
-			Title:       "Scenario logs",
-			Description: "Fetch bounded logs output for the target scenario.",
-			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellutil.QuoteSingle(targetScenario), opts.TailLines))),
-		},
+	return []probe{
+		verb("scenario_status", "scenario status", targetScenario, "--json"),
+		verb("resource_status", "resource status", "--json"),
+		verb("scenario_logs", "scenario logs", targetScenario, "--tail", strconv.Itoa(opts.TailLines)),
 	}
+}
 
+// BuildInspectPlan creates a plan of steps for VPS inspection. The displayed
+// command is the typed argv rendered through the SSH adapter's quoting rule;
+// it is a preview, never what is executed.
+func BuildInspectPlan(manifest domain.CloudManifest, opts InspectOptions) (InspectPlan, error) {
+	workdir := manifest.Target.VPS.Workdir
+	titles := map[string][2]string{
+		"scenario_status": {"Scenario status", "Fetch the typed scenario status for the target scenario."},
+		"resource_status": {"Resource status", "Fetch the typed resource status for the mini install."},
+		"scenario_logs":   {"Scenario logs", "Fetch bounded logs output for the target scenario."},
+	}
+	var steps []domain.VPSPlanStep
+	for _, p := range inspectProbes(manifest, opts) {
+		steps = append(steps, domain.VPSPlanStep{
+			ID:          p.id,
+			Title:       titles[p.id][0],
+			Description: titles[p.id][1],
+			Command:     sshadapter.RemoteCommand(workdir, p.cmd.Argv()[1:]),
+		})
+	}
 	return InspectPlan{Steps: steps}, nil
 }
 
-// RunInspect performs VPS inspection.
-func RunInspect(ctx context.Context, manifest domain.CloudManifest, opts InspectOptions, sshRunner ssh.Runner) InspectResult {
-	cfg := ssh.ConfigFromManifest(manifest)
-	workdir := manifest.Target.VPS.Workdir
-	targetScenario := manifest.Scenario.ID
-
-	statusRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellutil.QuoteSingle(targetScenario))), ssh.DefaultRunOptions())
-	if err != nil {
-		return InspectResult{OK: false, Error: coalesce(statusRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+// RunInspect performs VPS inspection through the prober.
+func RunInspect(ctx context.Context, manifest domain.CloudManifest, opts InspectOptions, prober Prober) InspectResult {
+	answers := make(map[string]reach.Result, 3)
+	for _, p := range inspectProbes(manifest, opts) {
+		res, err := prober.Reach.Exec(ctx, prober.Target, p.cmd)
+		if err != nil {
+			return InspectResult{OK: false, Error: coalesce(res.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+		}
+		answers[p.id] = res
 	}
-	resourceRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "vrooli resource status --json"), ssh.DefaultRunOptions())
-	if err != nil {
-		return InspectResult{OK: false, Error: coalesce(resourceRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-	logsRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellutil.QuoteSingle(targetScenario), opts.TailLines)), ssh.DefaultRunOptions())
-	if err != nil {
-		return InspectResult{OK: false, Error: coalesce(logsRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-
 	return InspectResult{
 		OK:             true,
-		ScenarioStatus: json.RawMessage(statusRes.Stdout),
-		ResourceStatus: json.RawMessage(resourceRes.Stdout),
-		ScenarioLogs:   logsRes.Stdout,
+		ScenarioStatus: json.RawMessage(answers["scenario_status"].Stdout),
+		ResourceStatus: json.RawMessage(answers["resource_status"].Stdout),
+		ScenarioLogs:   answers["scenario_logs"].Stdout,
 		Timestamp:      time.Now().UTC().Format(time.RFC3339),
 	}
 }

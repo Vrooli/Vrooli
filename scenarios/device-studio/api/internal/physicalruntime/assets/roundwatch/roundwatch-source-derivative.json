@@ -1,0 +1,25 @@
+{
+  "version": "device-studio-source-derivative/v1",
+  "source": {
+    "path": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/anonymous-candidates-20261020/grab3d-smartwatch/smartwatch.glb",
+    "sha256": "763ba7570daad6e1024ab8242efb7c3dccb9a183b56782a564bdc748dba3d589",
+    "size_bytes": 558592,
+    "license": "CC0-1.0",
+    "creator": "Grab3D"
+  },
+  "derivative": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/roundwatch/round-smartwatch-neutral.glb",
+    "sha256": "216bfc3c6664ca044c1690446aa7d73587e9f1caed865cd5d168aaca2010dd9d",
+    "size_bytes": 558288
+  },
+  "operations": [
+    "Retain original GLB node hierarchy, meshes, transforms, materials, images, textures, and entire BIN chunk byte range.",
+    "Keep smartwatch_body mesh unchanged.",
+    "Keep smartwatch_display_glass primitive 0 unchanged in geometry and material; normalize accessor 6 TEXCOORD_0 V values from the source range [0.3333333134651184,1] to [0,1] for a replaceable screen image. U values are retained. The accessor buffer range is the only BIN content changed.",
+    "Remove smartwatch_display_glass primitives 1 through 4, which are the source dial tick, hands, and decorative dot/ring overlays."
+  ],
+  "limits": [
+    "Creator-declared approximate dimensions and closed-strap pose are provenance claims, not measurements.",
+    "The derivative is a static candidate only; strap contact, exact product variant, wrist fit, and motion are unqualified."
+  ]
+}

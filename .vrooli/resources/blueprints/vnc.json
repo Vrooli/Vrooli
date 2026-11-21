@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "vnc",
+  "display_name": "VNC",
+  "category": "desktop",
+  "summary": "Remote desktop access capability for GUI-driven tools and host-session automation workflows.",
+  "why_it_matters": "VNC remains useful capability knowledge for remotely operating GUI software, but there is no current validated scenario that justifies maintaining it as an active standalone resource.",
+  "when_to_use": [
+    "A future scenario needs remote access to a GUI-only tool.",
+    "Operators want browser or client access to a hosted desktop session.",
+    "The workflow depends on seeing and controlling a desktop rather than only API automation."
+  ],
+  "example_scenarios": [
+    "Remote workstation helpers",
+    "GUI automation support sessions",
+    "Hosted desktop control surfaces"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Remote desktop components exist across platforms, but session management, security, and display-server behavior differ materially by host.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Display-server and session strategy",
+    "Authentication and network access controls",
+    "Clear reason to use VNC instead of a more constrained remote UI"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate one concrete remote-desktop workflow.",
+    "Keep session hosting separate from the applications accessed through it.",
+    "Security and exposure boundaries should be explicit from the start."
+  ],
+  "operational_notes": [
+    "Remote-desktop security matters more than startup convenience.",
+    "Validation should prove login and usable session control.",
+    "Host display and permission differences shape support quality."
+  ],
+  "risks": [
+    "Remote desktop services expand the attack surface quickly.",
+    "A generic wrapper can imply stronger security defaults than exist."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "vnc"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/vnc"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -1,0 +1,83 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"slices"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
+	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/lightingruntime"
+)
+
+type nativeLightingOperatorEntrypoint struct {
+	identity func() error
+	pin      func() error
+	home     func() (string, error)
+	guard    func(string, bool) error
+	quiesce  func(context.Context, string) error
+	source   func(string) (string, error)
+	acquire  func(context.Context, string, string) error
+}
+
+func runNativeLightingOperatorCommand(args []string, stderr io.Writer) (bool, int) {
+	e := nativeLightingOperatorEntrypoint{source: runtimeapp.ResolveNativeOperatorSource, acquire: runtimeapp.AcquireNativeOperatorOpenRGB, identity: nativeOperatorIdentity, pin: buildinfo.PinCompiledRuntimeHome, home: config.HomeDir, guard: guardRootActivationForHome, quiesce: func(ctx context.Context, home string) error {
+		owner, err := lightingruntime.NewNativeScenarioOwner(home, func(context.Context) error { return errors.New("quiesce must not start Light Desk") })
+		if err != nil {
+			return err
+		}
+		return owner.QuiesceLightingReconciler(ctx)
+	}}
+	return e.dispatch(context.Background(), args, stderr)
+}
+
+func (e nativeLightingOperatorEntrypoint) dispatch(ctx context.Context, args []string, stderr io.Writer) (bool, int) {
+	expected := cliinvoke.NativeLightingQuiesce()
+	acquiring := len(args) > 0 && args[0] == cliinvoke.NativeOpenRGBSoftwareAcquire()[0]
+	if acquiring {
+		expected = cliinvoke.NativeOpenRGBSoftwareAcquire()
+	}
+	if len(args) == 0 || args[0] != expected[0] {
+		return false, 0
+	}
+	fail := func(err error) (bool, int) {
+		fmt.Fprintf(stderr, "native operator lighting quiesce: %v\n", err)
+		return true, 1
+	}
+	if !slices.Equal(args, expected) {
+		return fail(errors.New("fixed operator lighting command accepts no arguments"))
+	}
+	if err := ctx.Err(); err != nil {
+		return fail(err)
+	}
+	if err := e.identity(); err != nil {
+		return fail(err)
+	}
+	if err := e.pin(); err != nil {
+		return fail(err)
+	}
+	home, err := e.home()
+	if err != nil {
+		return fail(err)
+	}
+	if err = e.guard(home, false); err != nil {
+		return fail(err)
+	}
+	if acquiring {
+		root, sourceErr := e.source(home)
+		if sourceErr != nil {
+			return fail(sourceErr)
+		}
+		err = e.acquire(ctx, home, root)
+	} else {
+		err = e.quiesce(ctx, home)
+	}
+	if err != nil {
+		return fail(err)
+	}
+	return true, 0
+}

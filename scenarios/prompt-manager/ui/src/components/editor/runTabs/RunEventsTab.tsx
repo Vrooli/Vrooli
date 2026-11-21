@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { copyToClipboard } from '@/lib/clipboard'
 import { Search, Filter, FileOutput } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import { EventsDisplay } from '@/components/shared/EventsDisplay'
 import { Dialog } from '@/components/shared/Dialog'
@@ -63,6 +64,7 @@ function runEventsToXml(events: RunEvent[]): string {
       runId: event.runId,
       sequence: event.sequence,
       eventType: event.eventType,
+      raw: event.raw,
       timestamp: event.timestamp,
       data: event.data,
     }, 1))
@@ -122,6 +124,15 @@ export function RunEventsTab({ runId, live, className }: RunEventsTabProps) {
     URL.revokeObjectURL(url)
     setIsExportDialogOpen(false)
   }, [exportFilename, exportFormat, exportText])
+
+  const filterActions = [
+    { id: 'filter-done', label: 'Done', onSelect: () => setIsFilterDialogOpen(false), primary: true },
+    { id: 'filter-clear', label: 'Clear filters', onSelect: () => setFilterTypes([]) },
+  ] satisfies OverlayActionList
+  const exportActions = [
+    { id: 'export-download', label: 'Download', onSelect: handleDownloadExport, primary: true },
+    { id: 'export-copy', label: 'Copy', onSelect: () => void handleCopyExport() },
+  ] satisfies OverlayActionList
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
@@ -208,21 +219,8 @@ export function RunEventsTab({ runId, live, className }: RunEventsTabProps) {
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={() => setFilterTypes([])}
-              className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            >
-              Clear filters
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsFilterDialogOpen(false)}
-              className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Done
-            </button>
+          <div className="pt-2">
+            <OverlayActionBar actions={filterActions} className="prompt-overlay-actions--secondary-left" />
           </div>
         </div>
       </Dialog>
@@ -258,21 +256,8 @@ export function RunEventsTab({ runId, live, className }: RunEventsTabProps) {
             </p>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => void handleCopyExport()}
-              className="px-3 py-1.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            >
-              Copy
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadExport}
-              className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Download
-            </button>
+          <div className="pt-2">
+            <OverlayActionBar actions={exportActions} className="prompt-overlay-actions--secondary-left" />
           </div>
         </div>
       </Dialog>

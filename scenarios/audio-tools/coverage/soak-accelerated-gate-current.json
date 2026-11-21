@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-soak-1789507781133878415",
+  "lane": "accelerated",
+  "profile": "continuous",
+  "shape": "burst",
+  "simulatedMinutes": 60,
+  "turns": 3,
+  "cell": {
+    "engineId": "virtual-replay",
+    "modelId": "virtual-corpus",
+    "strategy": "passthrough",
+    "policy": "default"
+  },
+  "code": {
+    "capturePackage": "sha256:efae596c2b7113bb06739d2fe9c33de6cfb5b01978166e5d2a5df9a6156a0267",
+    "server": "sha256:1be05a9e9c2d7eadc34c7102403c6a4cab9e254ce4e0123d52a8109e5e7990a7"
+  },
+  "durationMs": 13997,
+  "assertions": [
+    {
+      "name": "interval_accounting_exactly_once",
+      "outcome": "passed",
+      "detail": "3 browser turns observed with monotonic capture coverage; signal_observed=true"
+    },
+    {
+      "name": "capture_signal_observed",
+      "outcome": "passed",
+      "detail": "non-silent PCM observed on 3/3 browser turns"
+    },
+    {
+      "name": "browser_retention_bounded",
+      "outcome": "passed",
+      "detail": "metadata-only browser retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "server_retention_bounded",
+      "outcome": "passed",
+      "detail": "server ledger retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "per_frame_cost_constant",
+      "outcome": "passed",
+      "detail": "captured sample spread max/min=1.000 (19200000/19200000), limit=1.50"
+    },
+    {
+      "name": "zero_duplicate_committed_segments",
+      "outcome": "passed",
+      "detail": "server ledger committed segment ids were unique"
+    },
+    {
+      "name": "zero_silent_terminal_outcomes",
+      "outcome": "passed",
+      "detail": "every observed turn exposed a terminal state or reason"
+    },
+    {
+      "name": "provider_cell_identity",
+      "outcome": "passed",
+      "detail": "provider=\"virtual-replay\" model=\"virtual-corpus\" observed for 3 turns"
+    },
+    {
+      "name": "peak_memory_flat",
+      "outcome": "passed",
+      "detail": "audio-tools server heap delta=0 bytes across turns"
+    },
+    {
+      "name": "wire_rate_within_budget",
+      "outcome": "passed",
+      "detail": "captured wire rate 16000..16000 samples/s; expected 8000..24000"
+    },
+    {
+      "name": "accelerated_duration_target",
+      "outcome": "passed",
+      "detail": "virtual corpus captured 57600000/57600000 samples (60.00/60.00 simulated minutes)"
+    },
+    {
+      "name": "accelerated_wall_budget",
+      "outcome": "passed",
+      "detail": "wall duration 13997ms; required \u003c=60000ms"
+    },
+    {
+      "name": "word_error_rate_stable",
+      "outcome": "failed",
+      "detail": "turn 1: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 2: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 3: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000"
+    },
+    {
+      "name": "punctuation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 2: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 3: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000"
+    },
+    {
+      "name": "capitalisation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 2: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000; turn 3: wer=0.9984 substitutions=0 insertions=0 deletions=3065 punctuation_rate=0.2000 capitalisation_rate=0.0000"
+    }
+  ]
+}
+

@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "One-tap feedback, explicit dislikes that outrank inference, transparent cooldowns, and resettable learned preferences.",
+    "module": "feedback-and-preferences",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "FDB-001",
+      "title": "Feedback is optional and one-tap",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The scenario should support I ate this with optional portion adjustment and undo plus one-tap reasons such as Bored, Too much work, Missing ingredients, Craving something else, Ate out socially, Still hungry, and Other, without requiring a rating, weighing, or an explanation.",
+      "tags": [
+        "feedback",
+        "consumption",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: logging one serving records intake without a rating, and a scheduled meal alone is never treated as eaten (spec section 7.7)."
+        }
+      ]
+    },
+    {
+      "id": "FDB-002",
+      "title": "Explicit dislikes outrank weak inference",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario should separate explicit dislikes and meal-level exclusions from weak inferred preferences, should not treat a missing-ingredient rejection as evidence of dislike, and should apply a transparent configurable cooldown after Less often.",
+      "tags": [
+        "preferences",
+        "inference",
+        "cooldown"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: an explicit dislike beats a contradictory inferred preference, and a meal-level exclusion differs from excluding every ingredient in the meal."
+        }
+      ]
+    },
+    {
+      "id": "FDB-003",
+      "title": "Preferences are inspectable and missing feedback stays unknown",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario should make learned preferences inspectable and resettable, should keep missing feedback as unknown rather than noncompliance, and should not display invented adherence percentages while transparent rules and voluntary feedback come first.",
+      "tags": [
+        "transparency",
+        "unknown",
+        "reset"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: resetting learned preferences restores the baseline, and an absent feedback value is not scored as a failure (spec section 7.7)."
+        }
+      ]
+    }
+  ]
+}

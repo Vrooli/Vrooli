@@ -12,7 +12,7 @@
       "description": "Implement command-line interface for skill, agent, and team operations (CRUD)",
       "id": "REQ-P0-005",
       "prd_ref": "prompt-manager-must-have-cli-for-quick-skill-operations",
-      "status": "draft",
+      "status": "planned",
       "title": "CLI Basic Operations",
       "validation": [
         {

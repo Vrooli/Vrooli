@@ -5,11 +5,13 @@ import {
   heartbeatSession,
   getDesktopSession,
   executeDesktopControl,
+  controlResultString,
   type DesktopSession,
   type DesktopSessionConfig,
   type ConnectionStatus,
   type ControlResult,
 } from "../lib/api/livedesktop";
+import { DesktopSessionState } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
 import { useCapturesStore } from "./capturesStore";
 
 interface LiveDesktopState {
@@ -28,7 +30,10 @@ interface LiveDesktopActions {
   stopSession: () => Promise<void>;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setError: (error: string | null) => void;
-  executeControl: (action: string, params?: Record<string, unknown>) => Promise<ControlResult>;
+  executeControl: (
+    action: string,
+    params?: Record<string, unknown>,
+  ) => Promise<ControlResult>;
   refreshSession: () => Promise<void>;
 }
 
@@ -95,13 +100,13 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     const { activeSession, scenarioName } = get();
     if (activeSession) {
       // Stop session in background
-      stopDesktopSession(activeSession.id).catch(() => {});
+      stopDesktopSession(activeSession.sessionId).catch(() => {});
       clearHeartbeat();
       clearMetricsPolling();
     }
     // Refresh captures summary so CapturesSection picks up new captures
     if (scenarioName) {
-      useCapturesStore.getState().fetchSummary(scenarioName);
+      void useCapturesStore.getState().fetchSummary(scenarioName);
     }
     set({
       isOpen: false,
@@ -118,12 +123,12 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     const { activeSession: oldSession } = get();
     if (oldSession) {
       clearHeartbeat();
-      stopDesktopSession(oldSession.id).catch(() => {});
+      stopDesktopSession(oldSession.sessionId).catch(() => {});
     }
     set({ activeSession: null, connectionStatus: "connecting", error: null });
     try {
       const session = await startDesktopSession(config);
-      if (session.state === "error") {
+      if (session.state === DesktopSessionState.ERROR) {
         set({
           activeSession: null,
           connectionStatus: "error",
@@ -132,10 +137,11 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
         return;
       }
       set({ activeSession: session, connectionStatus: "connecting" });
-      startHeartbeat(session.id);
-      startMetricsPolling(session.id);
+      startHeartbeat(session.sessionId);
+      startMetricsPolling(session.sessionId);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to start desktop session";
+      const msg =
+        err instanceof Error ? err.message : "Failed to start desktop session";
       set({ connectionStatus: "error", error: msg });
     }
   },
@@ -146,7 +152,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     clearHeartbeat();
     clearMetricsPolling();
     try {
-      await stopDesktopSession(activeSession.id);
+      await stopDesktopSession(activeSession.sessionId);
     } catch {
       // Best effort
     }
@@ -157,24 +163,31 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     });
   },
 
-  setConnectionStatus: (status) => set({ connectionStatus: status }),
+  setConnectionStatus: (status) => {
+    set({ connectionStatus: status });
+  },
 
-  setError: (error) => set({ error, connectionStatus: error ? "error" : get().connectionStatus }),
+  setError: (error) => {
+    set({ error, connectionStatus: error ? "error" : get().connectionStatus });
+  },
 
   executeControl: async (action, params) => {
     const { activeSession, scenarioName } = get();
     if (!activeSession) throw new Error("No active session");
-    const result = await executeDesktopControl(activeSession.id, { action, params });
+    const result = await executeDesktopControl(activeSession.sessionId, {
+      action,
+      params,
+    });
     // Refresh session state after control action
     try {
-      const updated = await getDesktopSession(activeSession.id);
+      const updated = await getDesktopSession(activeSession.sessionId);
       set({ activeSession: updated });
     } catch {
       // Best effort refresh
     }
     // Refresh captures summary when a new capture was persisted
-    if (result.data?.capture_id && scenarioName) {
-      useCapturesStore.getState().fetchSummary(scenarioName);
+    if (controlResultString(result, "capture_id") && scenarioName) {
+      void useCapturesStore.getState().fetchSummary(scenarioName);
     }
     return result;
   },
@@ -183,7 +196,7 @@ export const useLiveDesktopStore = create<LiveDesktopStore>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     try {
-      const updated = await getDesktopSession(activeSession.id);
+      const updated = await getDesktopSession(activeSession.sessionId);
       set({ activeSession: updated });
     } catch {
       // Best effort

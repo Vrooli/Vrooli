@@ -1,0 +1,24 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "groups",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "name",
+      "maximumCount": 24,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "dependencies",
+      "stableIdField": "id",
+      "typicalCount": 8
+    }
+  ],
+  "componentId": "react-component-library:IntegrationsOverview",
+  "version": "1.1.3"
+}

@@ -1,9 +1,10 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for AgentEventList - Message rendering, errors, status, mixed events, compaction
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { AgentEventList } from "./AgentEventList";
 import type { AgentEvent } from "../../../lib/api";
 
@@ -78,7 +79,7 @@ describe("AgentEventList - message rendering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     const bubble = screen.getByTestId("message-msg-3");
     expect(bubble).toBeInTheDocument();
@@ -98,7 +99,7 @@ describe("AgentEventList - error rendering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.getByText("Error")).toBeInTheDocument();
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
@@ -117,7 +118,7 @@ describe("AgentEventList - status events", () => {
       }),
     ];
 
-    const { container } = render(<AgentEventList events={events} />);
+    const { container } = renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
     expect(container.querySelector(".overflow-y-auto")).toBeInTheDocument();
@@ -175,7 +176,7 @@ describe("AgentEventList - mixed event ordering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.getByTestId("message-msg-a")).toBeInTheDocument();
     expect(screen.getByTestId("tool-tc-a")).toBeInTheDocument();
@@ -211,7 +212,7 @@ describe("AgentEventList - compaction events", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.getByTestId("message-evt-msg")).toBeInTheDocument();
     expect(screen.getByTestId("compaction-evt-compact")).toBeInTheDocument();

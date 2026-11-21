@@ -1,0 +1,564 @@
+{
+  "$schema": "../scenarios/tidiness-manager/schemas/canonical-seams.schema.json",
+  "schemaVersion": "1.0.0",
+  "seams": [
+    {
+      "id": "owned-file-write",
+      "canonical": "config.WriteOwnedFileAtomic",
+      "why": "Managed files must preserve ownership and use atomic replacement.",
+      "remediation": "Call config.WriteOwnedFileAtomic instead of os.Rename.",
+      "bypass": { "kind": "call", "pattern": "^os\\.Rename$" },
+      "scope": {
+        "include": ["internal/**"],
+        "exclude": ["internal/config/**", "internal/**/*_test.go", "internal/lifecycle/phases.go", "internal/resources/deprecated.go", "internal/resources/legacy_docker_migration.go", "internal/resources/managed_service_acquisition.go"]
+      },
+      "severity": "high",
+      "budget": 51,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "repository-root-resolution",
+      "canonical": "buildinfo.ResolveSourceRoot",
+      "why": "One root resolver prevents environment spellings from selecting different repositories.",
+      "remediation": "Call buildinfo.ResolveSourceRoot instead of reading a root environment variable directly.",
+      "bypass": { "kind": "literal", "pattern": "^VROOLI_(SOURCE_ROOT|ROOT|REPO_ROOT)$" },
+      "scope": { "include": ["internal/**", "cmd/**"], "exclude": ["internal/buildinfo/**", "internal/**/*_test.go", "cmd/**/*_test.go"] },
+      "severity": "high",
+      "budget": 5,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "service-manifest-decoding",
+      "canonical": "scenario.LoadServiceManifest",
+      "why": "A shared typed decoder preserves dependency defaults and forward compatibility.",
+      "remediation": "Call scenario.LoadServiceManifest instead of privately decoding service.json.",
+      "bypass": { "kind": "call", "pattern": "^(decodeServiceManifestDependencies|loadServiceManifestDependencies)$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/scenario/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "command-execution",
+      "canonical": "shell.Command",
+      "why": "The shared command boundary centralizes lookup, cancellation, and test injection.",
+      "remediation": "Use internal/shell instead of os/exec directly.",
+      "bypass": { "kind": "call", "pattern": "^exec\\.(Command|CommandContext)$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/shell/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 49,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "test-identity-setup",
+      "canonical": "testenv",
+      "why": "Identity variables must be established as one coherent fixture so tests resolve the same home as production.",
+      "remediation": "Use internal/testenv instead of setting identity variables independently.",
+      "bypass": { "kind": "literal", "pattern": "^t\\.Setenv:(HOME|USER|SUDO_UID|SUDO_GID|SUDO_USER|XDG_.*)$" },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
+      "severity": "high",
+      "budget": 111,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "test-credential-store-fixtures",
+      "canonical": "testenv.NewCredentialStore",
+      "why": "Credential-store tests need one failure-injectable in-memory implementation so missing-value and backend-failure behavior cannot drift by package.",
+      "remediation": "Use testenv.NewCredentialStore instead of declaring a package-local credential store.",
+      "bypass": { "kind": "declaration", "declKind": "type", "pattern": "(?i)^([a-z0-9]*credential[a-z0-9]*store|memoryStore|backendMemoryStore)$" },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "test-clock-fixtures",
+      "canonical": "testenv.NewClock",
+      "why": "A concurrency-safe shared clock keeps deterministic time advancement identical across package tests.",
+      "remediation": "Use testenv.NewClock instead of declaring a package-local fixed or test clock.",
+      "bypass": { "kind": "declaration", "declKind": "type", "pattern": "(?i)^(fixedClock|[a-z0-9]+TestClock)$" },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "test-json-decode-fixtures",
+      "canonical": "testenv.DecodeJSON",
+      "why": "CLI wire-contract tests need one typed decoder with consistent failure diagnostics.",
+      "remediation": "Use testenv.DecodeJSON instead of declaring a package-local JSON decoder.",
+      "bypass": { "kind": "declaration", "declKind": "func", "pattern": "^(decodeJSON|decode)$" },
+      "scope": { "include": ["internal/cli/**/*_test.go"], "exclude": ["internal/testenv/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "test-sqlite-store-fixtures",
+      "canonical": "testenv.NewSQLiteStore",
+      "why": "Temporary SQLite construction and schema stamping must share cleanup and failure behavior.",
+      "remediation": "Use testenv.NewSQLiteStore and testenv.StampSQLiteUserVersion instead of package-local harness functions.",
+      "bypass": { "kind": "declaration", "declKind": "func", "pattern": "^(newTestStore|stampUserVersion)$" },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/testenv/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "test-safeguard-lookup-fixtures",
+      "canonical": "hostreqkittest.StubLookups",
+      "why": "Safeguard tests must restore shared host lookup seams uniformly after every test.",
+      "remediation": "Use hostreqkittest.StubLookups instead of a safeguard-local snapshot helper.",
+      "bypass": { "kind": "declaration", "declKind": "func", "pattern": "^[A-Za-z0-9]+StubLookups$" },
+      "scope": { "include": ["internal/safeguards/**/*_test.go"], "exclude": ["internal/hostreqkit/hostreqkittest/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "repository-layout-paths",
+      "canonical": "repocontractmeta",
+      "why": "Repository layout names must come from the repository contract so consumers cannot drift independently.",
+      "remediation": "Use the repository contract path constants instead of a bare layout literal.",
+      "bypass": { "kind": "literal", "pattern": "^(\\.vrooli|scenarios|resources|internal|cmd|packages|docs)$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/repocontractmeta/paths.go", "internal/app/hygiene/types.go", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 244,
+      "reserve_reason": "Extending the retrospective guard exposes 130 pre-existing layout-name literals across internal/: 80 resources, 20 internal, 16 packages, 5 .vrooli, 5 docs, 4 cmd, and 3 scenarios. The measured reserve prevents growth while migration to repocontractmeta remains successor work. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "platform-vocabulary",
+      "canonical": "hostreqspec.Platform",
+      "why": "Platform decisions must use one typed vocabulary while preserving Go and wire spellings explicitly at their boundaries.",
+      "remediation": "Use hostreqspec.PlatformLinux, PlatformDarwin, PlatformMacOS, PlatformWindows, or PlatformFromGOOS instead of a bare OS literal.",
+      "bypass": { "kind": "literal", "pattern": "^(linux|darwin|windows)$" },
+      "scope": { "include": ["internal/**/*.go"], "exclude": ["internal/hostreqspec/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 235,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "named-file-modes",
+      "canonical": "tuning.Perm*",
+      "why": "Named file modes communicate permission intent and centralize security-sensitive defaults.",
+      "remediation": "Use the matching internal/tuning permission constant instead of a bare octal literal.",
+      "bypass": { "kind": "literal", "pattern": "^(0[oO][0-7]+|0[0-7]+)$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/tuning/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 396,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "named-duration-values",
+      "canonical": "tuning.Duration",
+      "why": "Purpose-named duration values expose one runtime tuning surface instead of scattering magnitude literals.",
+      "remediation": "Add a purpose-named internal/tuning value and use it instead of an inline duration multiplication.",
+      "bypass": { "kind": "literal", "pattern": "^time\\.(Second|Minute|Hour|Millisecond|Microsecond|Nanosecond):[0-9]+$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/tuning/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 196,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "structured-tabular-output",
+      "canonical": "cliout",
+      "why": "Structured CLI output must use the shared renderer instead of private tab-delimited rows.",
+      "remediation": "Render the row through cliout instead of a multi-tab fmt.Fprintf format literal.",
+      "bypass": { "kind": "literal", "pattern": "^fmt\\.Fprintf:.*\\t.*\\t" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cliout/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 2,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "flagset-call-sites",
+      "canonical": "commandtree.BindCommand",
+      "why": "Command parsing must use the shared binding surface instead of private flag sets.",
+      "remediation": "Migrate the command to commandtree.BindCommand.",
+      "bypass": { "kind": "call", "pattern": "^flag\\.NewFlagSet$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 4,
+      "reserve_reason": "Three live flag sets remain: two legacy command parsers and the commandtree compatibility constructor that owns their shared flag policy. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "inline-shell-heredocs",
+      "canonical": "shelltest.Run",
+      "why": "Shell fixtures must use the governed runner so execution and cleanup are observable.",
+      "remediation": "Move the shell fixture behind shelltest.Run.",
+      "bypass": { "kind": "literal", "pattern": "^#!/bin/(ba)?sh" },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": ["internal/shell/shelltest/**"] },
+      "severity": "medium",
+      "budget": 49,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "context-duration-literals",
+      "canonical": "tuning.Timeout",
+      "why": "Context deadlines need one named policy so operational timing stays reviewable.",
+      "remediation": "Use a named timeout from internal/tuning.",
+      "bypass": { "kind": "shape", "pattern": "^context\\.With(Timeout|Deadline)$", "shapeKind": "context_duration_literal" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/tuning/**", "internal/**/*_test.go"] },
+      "severity": "medium",
+      "budget": 119,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "membership-loop-shapes",
+      "canonical": "slices.Contains",
+      "why": "Exact collection membership wrappers must remain on the standard-library path after helper adoption.",
+      "remediation": "Use slices.Contains, or document the semantic comparator and keep it outside this seam scope.",
+      "bypass": { "kind": "shape", "pattern": "(?i)^(contains|has|is)[A-Za-z0-9_]*$", "shapeKind": "membership_loop" },
+      "scope": {
+        "include": ["internal/resources/**", "internal/dockerhost/**", "internal/hostinventory/**", "internal/setup/**", "internal/packagegov/**", "internal/scenarioruntime/**", "internal/app/credentials/**", "internal/hostreqkit/hostreqkittest/**"],
+        "exclude": ["**/*_test.go"]
+      },
+      "severity": "high",
+      "budget": 8,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "lexical-containment-adapters",
+      "canonical": "fsx.Within",
+      "why": "Equivalent lexical containment checks use the shared filesystem contract so equal paths, descendants, prefix siblings, and volume errors stay consistent.",
+      "remediation": "Use fsx.Within for lexical containment; retain stronger resolved or authorization-specific checks when their policy differs.",
+      "bypass": { "kind": "call", "pattern": "^filepath\\.Rel$" },
+      "scope": {
+        "include": ["internal/setup/filesystem.go", "internal/lifecycle/components.go", "internal/resources/runtime/storage/pathutil.go", "internal/templatevalidation/marker.go"],
+        "exclude": []
+      },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "typed-json-file-operations",
+      "canonical": "fsx.ReadJSON / fsx.MarshalJSON",
+      "why": "Typed JSON file round-trips share one empty-file, trailing-value, formatting, and newline contract.",
+      "remediation": "Use fsx.ReadJSON and fsx.MarshalJSON for equivalent typed file persistence; retain domain codecs for wire or encrypted payloads.",
+      "bypass": { "kind": "call", "pattern": "^json\\.(MarshalIndent|Unmarshal|NewDecoder)$" },
+      "scope": {
+        "include": ["internal/peerrecord/record.go", "internal/templatevalidation/marker.go"],
+        "exclude": []
+      },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "typed-existence-classification",
+      "canonical": "fsx.Exists",
+      "why": "Manifest discovery must distinguish absence from permission and I/O failures instead of collapsing every stat error into a missing file.",
+      "remediation": "Use fsx.Exists when the caller needs an existence predicate with an error channel; retain Lstat/stat metadata checks when metadata or symlink policy is the contract.",
+      "bypass": { "kind": "call", "pattern": "^os\\.Stat$" },
+      "scope": { "include": ["internal/packagegov/load.go"], "exclude": [] },
+      "severity": "high",
+      "budget": 3,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "clock-contract-shapes",
+      "canonical": "clock.Clock",
+      "why": "Clock interfaces must share the one deterministic contract instead of drifting by package.",
+      "remediation": "Use internal/clock.Clock and testenv.NewClock.",
+      "bypass": { "kind": "shape", "pattern": "(?i)^(clock|timesource)$", "shapeKind": "clock_contract" },
+      "scope": { "include": ["internal/**/*.go"], "exclude": ["internal/clock/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "rfc3339-utc-adapters",
+      "canonical": "explicit RFC3339 output adapter",
+      "why": "RFC3339 output is a wire and operator contract; the shape remains visible while non-storage adapters retain their required precision and presentation policy.",
+      "remediation": "Use the canonical adapter when the output contract is equivalent; retain and document a reserve for deliberate wire-format adapters.",
+      "bypass": { "kind": "shape", "pattern": "^UTC\\(\\)\\.Format\\(time\\.RFC3339\\)$", "shapeKind": "utc_formatting" },
+      "scope": { "include": ["internal/**/*.go"], "exclude": ["internal/**/*_test.go"] },
+      "severity": "medium",
+      "budget": 40,
+      "reserve_reason": "The current tree has 32 deliberate RFC3339 presentation and wire-format adapters. storagetime.FormatUTC intentionally emits fixed nanosecond precision for SQLite ordering, so these sites cannot be mechanically replaced without changing contracts. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "service-manifest-decoder-shapes",
+      "canonical": "scenario.LoadServiceManifest",
+      "why": "Service-manifest dependency decoding belongs to the scenario contract owner.",
+      "remediation": "Use scenario.LoadServiceManifest instead of an anonymous nested decoder.",
+      "bypass": { "kind": "shape", "pattern": ".*", "shapeKind": "json_nesting", "outerKey": "dependencies", "innerKey": "resources" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/scenario/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 1,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "private-binder-dialects",
+      "canonical": "rootcli.BindService",
+      "why": "Command-binding dialects must converge on the canonical root binder; lifecycle methods such as bindPorts are outside this semantic pattern.",
+      "remediation": "Use rootcli.BindService for command binding.",
+      "bypass": { "kind": "declaration", "pattern": "^bind(Command|Service|Runtime|Credential|Host|Resource|Scenario|Project)[A-Za-z]*$", "declKind": "func" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "private-json-writers-by-name",
+      "canonical": "cliout.WriteJSON",
+      "why": "Ratchet start: census observed 0 named private JSON writers; command JSON belongs to the shared renderer.",
+      "remediation": "Use cliout.WriteJSON or a named response type.",
+      "bypass": { "kind": "declaration", "pattern": "^write[A-Za-z]*JSON$", "declKind": "func" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cliout/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 4,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "private-json-writers",
+      "canonical": "cliout.WriteJSONValue",
+      "why": "Dynamic protobuf JSON construction belongs at the shared output boundary.",
+      "remediation": "Return a named response value and render it through cliout.WriteJSONValue.",
+      "bypass": { "kind": "shape", "pattern": "^[a-zA-Z]", "shapeKind": "constructs_type", "constructedType": "structpb.Value" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cliout/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "semantic-constant-naming",
+      "canonical": "domain-specific constant names",
+      "why": "A constant name must explain the value's role; generic linter-appeasement names preserve no more meaning than the literal they replace.",
+      "remediation": "Rename the constant with at least one package-domain word that states what its value controls.",
+      "bypass": {
+        "kind": "semantic-naming",
+        "pattern": ".*",
+        "declKind": "const",
+        "genericWords": ["handler", "parameter", "value", "number", "const", "literal", "item", "data", "mnd", "main"],
+        "minDomainWords": 1
+      },
+      "scope": { "include": ["internal/**", "cmd/**", "packages/**"], "exclude": ["**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "value-named-duration-constants",
+      "canonical": "tuning.Duration",
+      "why": "Ratchet start: census observed 0 value-named duration constants.",
+      "remediation": "Use a purpose-named tuning duration.",
+      "bypass": { "kind": "declaration", "pattern": "^Duration[0-9]+(ms|s|m|h|d)$", "declKind": "const" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/tuning/**", "internal/**/*_test.go"] },
+      "severity": "medium",
+      "budget": 0
+    },
+    {
+      "id": "stamped-test-names",
+      "canonical": "focused test names",
+      "why": "Ratchet start: census observed 0 repeated stamped test names.",
+      "remediation": "Give each test a domain-specific name.",
+      "bypass": { "kind": "declaration", "pattern": "^Test[A-Za-z]+$", "declKind": "func", "repeatedAcrossPackages": 3, "excludeSymbols": ["TestConformance", "TestMain", "TestStateFormatPinsItsShape"] },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": [] },
+      "severity": "low",
+      "budget": 0
+    },
+    {
+      "id": "stamped-handler-tests",
+      "canonical": "focused handler tests",
+      "why": "Ratchet start: census observed 0 stamped handler tests.",
+      "remediation": "Name handler tests for the behavior they verify.",
+      "bypass": { "kind": "declaration", "pattern": "^TestNameAndKind$", "declKind": "func" },
+      "scope": { "include": ["internal/**"], "exclude": [] },
+      "severity": "low",
+      "budget": 0
+    },
+    {
+      "id": "private-binder-call-sites",
+      "canonical": "rootcli.BindService",
+      "why": "Command-binding call sites must use the canonical root binder; unrelated object methods such as bindPorts are not command binders.",
+      "remediation": "Bind commands through the canonical root binder.",
+      "bypass": { "kind": "call", "pattern": "^bind(Command|Service|Runtime|Credential|Host|Resource|Scenario|Project)[A-Za-z]*$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "goconst-suppression-breadth",
+      "canonical": "declaration-scoped goconst suppressions",
+      "why": "A file-level goconst directive silently exempts every declaration in the file; its cost must reflect that breadth.",
+      "remediation": "Extract a domain constant, narrow the directive to the fixture declaration, or document why the whole-file exception is irreducible.",
+      "bypass": { "kind": "suppression-breadth", "pattern": "^//nolint:.*\\bgoconst\\b", "unit": "declarations" },
+      "scope": { "include": ["internal/**", "cmd/**"], "exclude": [] },
+      "severity": "high",
+      "budget": 1231,
+      "reserve_reason": "The remaining fixture suppressions are explicitly justified in their directive comments; breadth pricing keeps every covered declaration visible until those fixtures are incrementally narrowed. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "gocyclo-suppression-budget",
+      "canonical": "gocyclo complexity decomposition",
+      "why": "Ratchet start: 67 gocyclo directives were observed; suppressions must remain explicit and reviewable.",
+      "remediation": "Decompose the function or document a reviewed, irreducible exception.",
+      "bypass": { "kind": "suppression-breadth", "pattern": "^//nolint:.*\\bgocyclo\\b", "unit": "declarations" },
+      "scope": { "include": ["internal/**", "cmd/**"], "exclude": ["**/*_test.go"] },
+      "severity": "high",
+      "budget": 61,
+      "reserve_reason": "Sixty-two declaration-scoped non-test suppressions remain individually justified after decomposing three declarative command tables and deleting obsolete suppressed declarations. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "private-sort-reimplementation",
+      "canonical": "slices.Sort",
+      "why": "A call-name ratchet is evadable by replacing the standard-library sort with a slower private nested-swap implementation.",
+      "remediation": "Delete the private helper and call slices.Sort directly.",
+      "bypass": { "kind": "replaced-call", "pattern": ".*", "canonicalCall": "slices.Sort", "shapeKind": "nested_swap_loop" },
+      "scope": { "include": ["internal/**", "cmd/**"], "exclude": ["**/*_test.go"] },
+      "severity": "critical",
+      "budget": 0
+    },
+    {
+      "id": "hand-written-dispatchers",
+      "canonical": "commandtree.ParseArgs",
+      "why": "Ratchet start: census observed 0 hand-written argv dispatchers.",
+      "remediation": "Use the typed command tree parser and binder.",
+      "bypass": { "kind": "shape", "shapeKind": "switch_on_argv", "pattern": "^switch_on_argv$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/**/*_test.go", "internal/cli/rootcli/**"] },
+      "severity": "high",
+      "budget": 9,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "duplicate-runner-interfaces",
+      "canonical": "hostreqkit runner interface",
+      "why": "Ratchet start: census observed 0 duplicate runner interfaces.",
+      "remediation": "Reuse the canonical runner interface.",
+      "bypass": { "kind": "shape", "shapeKind": "interface_method_set", "pattern": "^LookPath$", "minMembers": 2 },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/**/*_test.go"] },
+      "severity": "medium",
+      "budget": 0
+    },
+    {
+      "id": "test-lookpath-fakes",
+      "canonical": "shell.LookPath",
+      "why": "Ratchet start: census observed 0 duplicate LookPath fakes.",
+      "remediation": "Reuse the canonical shell test seam.",
+      "bypass": { "kind": "shape", "shapeKind": "interface_method_set", "pattern": "^[A-Z]", "minMembers": 2 },
+      "scope": { "include": ["internal/**/*_test.go"], "exclude": [] },
+      "severity": "low",
+      "budget": 0
+    },
+    {
+      "id": "untyped-boundary-errors",
+      "canonical": "vroolierr.Ensure",
+      "why": "Ratchet start: census observed 0 untyped boundary errors.",
+      "remediation": "Normalize boundary errors through vroolierr.",
+      "bypass": { "kind": "shape", "shapeKind": "error_boundary", "pattern": "^(Handle|Run|Execute|Serve|Main)" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 10,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "handler-dirs-without-tests",
+      "canonical": "handler test coverage",
+      "why": "Every handler directory must carry executable tests.",
+      "remediation": "Add a *_test.go file beside the handler implementation.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "internal/tools/**/*.go", "requirePresent": "*_test.go" },
+      "scope": { "include": ["internal/tools/**"], "exclude": ["internal/tools/**/testdata/**"] },
+      "severity": "high",
+      "budget": 1,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "handler-dirs-without-conformance-suite",
+      "canonical": "hostreq conformance suite",
+      "why": "Every safeguard handler directory must carry a conformance reference.",
+      "remediation": "Add a hostreq conformance test beside the handler.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "internal/safeguards/**", "requirePresent": "*_test.go" },
+      "scope": { "include": ["internal/safeguards/**"], "exclude": ["internal/safeguards/**/testdata/**", "internal/safeguards/*.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "tidiness-provider-dependency-declared",
+      "canonical": "code-facts required scenario dependency",
+      "why": "The tidiness seam engine must not silently skip when its symbol fact provider is absent.",
+      "remediation": "Declare code-facts as an enabled, required tidiness-manager scenario dependency.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/.vrooli/service.json", "requirePresent": "scenarios/tidiness-manager/.vrooli/service.json#/dependencies/scenarios/code-facts" },
+      "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": [] },
+      "severity": "critical",
+      "budget": 0
+    },
+    {
+      "id": "committed-coverage-artifacts",
+      "canonical": "test-genie managed coverage output",
+      "why": "Generated coverage output must remain ephemeral and must not become grader source.",
+      "remediation": "Remove the committed coverage artifact and let test-genie regenerate it.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "coverage.out", "forbidKind": "file" },
+      "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
+      "severity": "medium",
+      "budget": 0
+    },
+    {
+      "id": "committed-backup-artifacts",
+      "canonical": "test-genie managed test sources",
+      "why": "Backup source files are not part of a scenario's reviewed implementation.",
+      "remediation": "Remove the committed test backup artifact.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "smart_scanner_test.go.backup", "forbidKind": "file" },
+      "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
+      "severity": "medium",
+      "budget": 0
+    },
+    {
+      "id": "committed-test-log-artifacts",
+      "canonical": "test-genie managed logs",
+      "why": "Test logs are run output and must not be committed as scenario source.",
+      "remediation": "Remove the committed test log artifact.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "scenarios/tidiness-manager/**", "requirePresent": "test-output.log", "forbidKind": "file" },
+      "scope": { "include": ["scenarios/tidiness-manager/**"], "exclude": ["scenarios/tidiness-manager/node_modules/**"] },
+      "severity": "medium",
+      "budget": 0
+    },
+    {
+      "id": "committed-executable-artifacts",
+      "canonical": "declared build output directories",
+      "why": "Compiled executables outside declared build output directories are source-tree residue and must remain visible.",
+      "remediation": "Remove the executable artifact or emit it beneath .vrooli/build or .vrooli/bin.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "**", "forbidKind": "executable" },
+      "scope": { "include": ["**"], "exclude": [".vrooli/build/**", ".vrooli/bin/**", ".tmp/**", "data/**", "logs/**", "**/target/**", "**/node_modules/**"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "global-command-binding",
+      "canonical": "rootcli.BindService",
+      "why": "The typed root binding seam keeps command policy and renderer wiring uniform.",
+      "remediation": "Use rootcli.BindService or the matching typed canonical binder.",
+      "bypass": { "kind": "call", "pattern": "^rootcli\\.BindGlobalCommand$" },
+      "scope": { "include": ["internal/**"], "exclude": ["internal/cli/rootcli/**", "internal/**/*_test.go"] },
+      "severity": "high",
+      "budget": 0
+    },
+    {
+      "id": "credential-json-contract-assertions",
+      "canonical": "credential JSON contract assertion",
+      "why": "Every credentials command that emits JSON must have a named contract assertion.",
+      "remediation": "Add the command function name to TestCredentialJSONContracts before adding or changing its JSON output.",
+      "bypass": { "kind": "absence", "pattern": "^$", "requireFor": "internal/app/credentials/*.go", "requirePresent": "__json_contract_assertion__" },
+      "scope": { "include": ["internal/app/credentials/**"], "exclude": [] },
+      "severity": "critical",
+      "budget": 2,
+      "reserve_reason": "Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "app-cli-duplicate-symbols",
+      "canonical": "internal/app/<domain> request and response contracts",
+      "why": "A concrete declaration in both an application domain and its CLI counterpart creates two authorities that can drift independently.",
+      "remediation": "Keep the concrete declaration in internal/app/<domain> and expose a type alias from the CLI package.",
+      "bypass": {
+        "kind": "declaration",
+        "pattern": "^[A-Z][A-Za-z0-9_]*$",
+        "excludeAliases": true,
+        "excludeSymbols": ["Run", "RunBreakGlass", "RunWorkload"],
+        "pairedPathPatterns": ["^internal/app/([^/]+)/", "^internal/cli/([a-z0-9]+)(?:cli|handlers)/"]
+      },
+      "scope": { "include": ["internal/app/**/*.go", "internal/cli/**/*.go"], "exclude": ["**/*_test.go"] },
+      "severity": "high",
+      "budget": 5,
+      "reserve_reason": "Seven successor-domain duplicates remain: hygiene Request; package RunResponse, RefreshRequest, RefreshItem, and RefreshResponse; runtime WriteSupervisorStatusJSON and WriteSupervisorServiceResultJSON. The project, scenario, and resource domains are at zero. Measured 2026-11-19 from a live repository scan; this budget may only decrease."
+    },
+    {
+      "id": "app-imports-cli",
+      "canonical": "application services independent of CLI transport",
+      "why": "Application packages must remain reusable by non-CLI consumers and must not own command parsing or root CLI policy.",
+      "remediation": "Move argument parsing, help rendering, and CLI errors into the matching internal/cli handler package; expose context-aware service methods from internal/app.",
+      "bypass": { "kind": "import", "pattern": "^github\\.com/vrooli/vrooli/internal/cli/" },
+      "scope": { "include": ["internal/app/**"], "exclude": ["internal/app/**/*_test.go"] },
+      "severity": "critical",
+      "budget": 0
+    }
+  ]
+}

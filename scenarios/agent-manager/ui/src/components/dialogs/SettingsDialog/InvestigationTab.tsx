@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Microscope, Settings, Wrench, Zap } from "lucide-react";
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Textarea } from "../../ui/textarea";
@@ -263,7 +263,7 @@ export const InvestigationTab = React.forwardRef<InvestigationTabHandle, Investi
             </CardHeader>
             <CardContent className="pt-0">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="w-full gap-2"
                 disabled={openingProfile}
@@ -362,7 +362,7 @@ export const InvestigationTab = React.forwardRef<InvestigationTabHandle, Investi
             </CardHeader>
             <CardContent className="pt-0">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="w-full gap-2"
                 disabled={openingProfile}
@@ -469,7 +469,7 @@ export const InvestigationTab = React.forwardRef<InvestigationTabHandle, Investi
                     </div>
                   ))}
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={handleAddTagRule}>
+                <Button type="button" variant="secondary" size="sm" onClick={handleAddTagRule}>
                   Add tag rule
                 </Button>
               </CardContent>

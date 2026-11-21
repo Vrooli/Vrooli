@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vrooli.dev/schemas/styling.json",
   "title": "Landing Styling Guide",
   "type": "object",
   "required": ["brand", "palette", "typography", "tone", "components", "usage_notes"],

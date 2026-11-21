@@ -1,0 +1,19 @@
+{
+  "arch": "arm64",
+  "id": "openrgb1.1-darwin-headless-without-orphan-qtcore5compat-v1",
+  "omit": [
+    {
+      "kind": "directory",
+      "path": "Contents/Frameworks/QtCore5Compat.framework",
+      "tree_sha256": "c1f484d77a4b732990e16838c1634aa97d30ab9407e5ccba0afb9a8bbd323695"
+    }
+  ],
+  "os": "darwin",
+  "payload_sha256": "f06aeb3e974576f0b403d0db849e176c048ac0853ec4a3d3f7d13672c479f611",
+  "resource": "openrgb",
+  "schema_version": 1,
+  "serving_tree_sha256": "b777a233d74db1250f2a100571bb3880fa8975cc6eca6ee71fc44efe3f2cdab5",
+  "source_envelope_sha256": "b370d3365eaae8b6a9217e7d1b1ffd5fb6ddffaaff3395fd3cac3673df83191f",
+  "source_tree_sha256": "613ff94ecaf7db3953e1e8262a7d8d013ec72b8c040c8c8844ffde7975585a64",
+  "version": "1.1"
+}

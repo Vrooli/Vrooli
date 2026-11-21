@@ -1,0 +1,318 @@
+{
+  "metadata": {
+    "name": "workspace-create-hero",
+    "description": "Text-to-image showcase through the served Create workspace. It discovers the operation from the live AI catalog, accepts a prompt, and submits Generate. A clean host without weights ends at the model install gate; a host with the model installed must produce a successful variation and render the result grid. The latter is the post-install acceptance path and runs real inference.",
+    "requirement": "IMG-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "workspace-create-hero",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Mode switcher visible"
+        }
+      }
+    },
+    {
+      "id": "switch-to-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.modeOption(mode=\"create\")"
+        },
+        "metadata": {
+          "label": "Switch to Create mode"
+        }
+      }
+    },
+    {
+      "id": "wait-create-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Create panel composes"
+        }
+      }
+    },
+    {
+      "id": "assert-text-to-image-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createAction(name=\"text_to_image\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The Generate (text-to-image) action did not render — AIService.ListAIOperations generation-category discovery or the Create panel regressed."
+        },
+        "metadata": {
+          "label": "Discovery populated the Generate action"
+        }
+      }
+    },
+    {
+      "id": "select-text-to-image-action",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createAction(name=\"text_to_image\")"
+        },
+        "metadata": {
+          "label": "Select text-to-image before entering a prompt"
+        }
+      }
+    },
+    {
+      "id": "fill-prompt",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.prompt",
+          "value": "a serene mountain lake at golden hour",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Describe the image in the prompt field"
+        }
+      }
+    },
+    {
+      "id": "run-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.run"
+        },
+        "metadata": {
+          "label": "Run the generation"
+        }
+      }
+    },
+    {
+      "id": "choose-installed-or-clean-host",
+      "action": {
+        "type": "ACTION_TYPE_CONDITIONAL",
+        "conditional": {
+          "conditionType": "CONDITIONAL_TYPE_ELEMENT",
+          "selector": "@selector/workspace.create.installGate",
+          "timeoutMs": 1000
+        },
+        "metadata": {
+          "label": "Check whether this host needs model installation"
+        }
+      }
+    },
+    {
+      "id": "assert-install-gate-on-clean-host",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.installGate",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A host without generation weights should offer the install gate after model selection."
+        },
+        "metadata": {
+          "label": "Clean host offers model install"
+        }
+      }
+    },
+    {
+      "id": "wait-for-generated-result",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.succeeded",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 180000
+        },
+        "metadata": {
+          "label": "Wait for generated variations"
+        }
+      }
+    },
+    {
+      "id": "assert-generated-variation-grid",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.results",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A completed text-to-image job must render its variation grid."
+        },
+        "metadata": {
+          "label": "Generated variations render"
+        }
+      }
+    },
+    {
+      "id": "assert-first-generated-variation",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createVariation(index=1)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The completed result grid must contain the generated image, not only an empty container."
+        },
+        "metadata": {
+          "label": "Verify the first generated image is present"
+        }
+      }
+    },
+    {
+      "id": "send-generated-variation-to-canvas",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createSend(index=1)"
+        },
+        "metadata": {
+          "label": "Open the generated image on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-generated-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.canvas.image",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A generated variation must load as the current canvas image."
+        },
+        "metadata": {
+          "label": "Verify the generated pixels load in the canvas"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-workspace",
+      "target": "wait-mode-switcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-mode-switcher",
+      "target": "switch-to-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "switch-to-create",
+      "target": "wait-create-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-create-panel",
+      "target": "assert-text-to-image-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-text-to-image-action",
+      "target": "select-text-to-image-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "select-text-to-image-action",
+      "target": "fill-prompt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "fill-prompt",
+      "target": "run-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "run-create",
+      "target": "choose-installed-or-clean-host",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "choose-installed-or-clean-host",
+      "target": "assert-install-gate-on-clean-host",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "true"
+    },
+    {
+      "id": "e9",
+      "source": "choose-installed-or-clean-host",
+      "target": "wait-for-generated-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "false"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-generated-result",
+      "target": "assert-generated-variation-grid",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "assert-generated-variation-grid",
+      "target": "assert-first-generated-variation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-first-generated-variation",
+      "target": "send-generated-variation-to-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "send-generated-variation-to-canvas",
+      "target": "assert-generated-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

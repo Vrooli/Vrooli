@@ -1,0 +1,59 @@
+{
+  "description": "Workflow Health safely executes validation cases through Browser Automation Studio and records evidence without allowing unsafe mutation.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "id": "REQ-P0-005",
+      "title": "Execute Validation Cases Through BAS",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "execution",
+      "criticality": "P0",
+      "description": "When validation requests include execution, workflow-health must invoke Browser Automation Studio by workflow file with project root, execution options, seed parameters, and deterministic output directories, then ingest timeline, screenshot, video, console, network, page-error, metric, and status artifacts.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Execution service tests use a BAS client fake to assert request shape, artifact ingestion, metrics, status mapping, and failure finding generation."
+        },
+        {
+          "type": "test",
+          "phase": "playbooks",
+          "status": "pending",
+          "ref": "",
+          "notes": "A harmless observer BAS case runs through workflow-health and produces inspectable artifact references."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-006",
+      "title": "Fail Closed for Unsafe Mutation",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "safety",
+      "criticality": "P0",
+      "description": "Mutating workflow execution must be refused before any BAS call unless the catalog proves safety metadata, explicit confirmation policy, routed isolation, and seed/reset consistency for the selected assets.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Safety policy tests assert missing metadata, missing routed isolation, or reset conflicts return blocker findings and no BAS execution call."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "pending",
+          "ref": "",
+          "notes": "A routed mutating fixture proves the primary database is not touched when mutation is allowed."
+        }
+      ]
+    }
+  ],
+  "title": "Safe BAS execution"
+}

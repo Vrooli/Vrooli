@@ -1,7 +1,7 @@
 /**
  * Observability Module
  *
- * Unified system health, monitoring, and diagnostics.
+ * Unified system health and monitoring.
  *
  * ## Quick Start
  *
@@ -32,7 +32,6 @@
  * - `GET /observability` - Main observability endpoint
  * - `GET /observability?depth=quick|standard|deep` - Control response depth
  * - `POST /observability/refresh` - Force cache refresh
- * - `POST /observability/diagnostics/run` - Run specific diagnostics
  *
  * @module observability
  */
@@ -54,14 +53,10 @@ export type {
   ConfigTier,
   ModifiedConfigOption,
   ConfigComponent,
-  // Diagnostics types
   DeepDiagnostics,
   // Response types
   ObservabilitySummary,
   ObservabilityResponse,
-  // Run types
-  DiagnosticRunRequest,
-  DiagnosticRunResponse,
   // Dependency injection types
   SessionSummary,
   BrowserStatusSummary,
@@ -84,13 +79,7 @@ export {
 export {
   handleObservability,
   handleObservabilityRefresh,
-  handleDiagnosticsRun,
   handleSessionList,
-  handleCleanupRun,
   handleMetrics,
-  handleConfigUpdate,
-  handleConfigReset,
-  handleConfigRuntime,
-  handlePipelineTest,
   type ObservabilityRouteDependencies,
 } from './route';

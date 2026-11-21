@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Manage workspace authentication and local experience preferences.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Owner authentication and vault custody boundaries are understandable before a sensitive action begins."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Workspace settings are ready."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot change workspace settings."
+    }
+  ],
+  "elements": [
+    {
+      "id": "settings-region",
+      "role": "region",
+      "name": "Workspace settings"
+    },
+    {
+      "id": "connect-browser",
+      "role": "button",
+      "name": "Connect browser"
+    },
+    {
+      "id": "first-owner",
+      "role": "button",
+      "name": "First-owner setup"
+    }
+  ],
+  "claims": [
+    {
+      "id": "auth-boundary",
+      "type": "element-present",
+      "statement": "Owner authentication remains a separate settings action and its token is held only in memory.",
+      "tier": "manual",
+      "elements": [
+        "settings-region",
+        "connect-browser"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "unsupported-claims",
+      "type": "state-covered",
+      "statement": "Unsupported provider and platform claims remain visibly declared rather than implied.",
+      "tier": "manual",
+      "elements": [
+        "settings-region"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "settings-workspace",
+      "purpose": "Manage owner authentication and workspace settings.",
+      "component": {
+        "library": {
+          "component": "app-shell",
+          "version": "2.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "settings-workspace": {
+        "selector": "[data-experience-surface=\"settings-workspace\"]"
+      }
+    },
+    "elements": {
+      "settings-region": {
+        "selector": "[data-experience-surface=\"settings-workspace\"]"
+      },
+      "connect-browser": {
+        "selector": "button.button-quiet"
+      },
+      "first-owner": {
+        "selector": "button.button-quiet"
+      }
+    }
+  }
+}

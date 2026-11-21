@@ -23,6 +23,9 @@ const CollectionDetailsPage = lazy(() =>
 const SearchPage = lazy(() =>
   import("./surfaces/search/SearchPage").then((module) => ({ default: module.SearchPage }))
 );
+const MaintenanceQueuePage = lazy(() =>
+  import("./surfaces/maintenance/MaintenanceQueuePage").then((module) => ({ default: module.MaintenanceQueuePage }))
+);
 
 // Viewer is now integrated into Explorer - redirect old viewer URLs
 function ViewerRedirect({ onNavigate }: { onNavigate: (route: "explorer") => void }) {
@@ -83,6 +86,7 @@ export default function App() {
           />
         )}
         {route === "graph" && <GraphPage onNavigate={navigate} />}
+        {route === "maintenance" && <MaintenanceQueuePage onNavigate={navigate} />}
       </Suspense>
     </div>
   );

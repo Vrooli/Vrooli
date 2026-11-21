@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-now-spec-smoke",
+    "description": "Observer smoke: the Now page renders at phone width against the real research home.",
+    "requirement": "OT-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "now",
+      "surface": "experience-now"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-now",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Now"
+        }
+      }
+    },
+    {
+      "id": "wait-now-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.now",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Now page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-now",
+      "source": "navigate-now",
+      "target": "wait-now-page"
+    }
+  ]
+}

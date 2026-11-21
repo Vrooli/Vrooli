@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.tags;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/tags;tags_v1";
+
+service TagsService {
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  rpc CreateTag(CreateTagRequest) returns (CreateTagResponse);
+}
+
+message Tag {
+  string id = 1;
+  string name = 2;
+  optional string color = 3;
+  optional string description = 4;
+}
+
+message ListTagsRequest {}
+message ListTagsResponse { repeated Tag tags = 1; }
+
+message CreateTagRequest {
+  string name = 1;
+  optional string color = 2;
+  optional string description = 3;
+}
+message CreateTagResponse { Tag tag = 1; }

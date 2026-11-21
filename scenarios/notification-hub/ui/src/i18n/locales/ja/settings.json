@@ -1,0 +1,161 @@
+{
+  "action": {
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "discard": "変更を破棄"
+  },
+  "unsaved": {
+    "title": "変更を破棄しますか？",
+    "body": "まだ保存されていない変更があります。",
+    "leave": "破棄する",
+    "stay": "編集を続ける"
+  },
+  "group": {
+    "reaching": "連絡の取り方",
+    "app": "このアプリ",
+    "advanced": "詳細"
+  },
+  "section": {
+    "reach": "デバイスとチャンネル",
+    "quietHours": "静かな時間帯",
+    "escalation": "エスカレーションの順序",
+    "appearance": "外観と言語",
+    "session": "セッション",
+    "sources": "イベントの送信元"
+  },
+  "summary": {
+    "signInToView": "サインインして表示",
+    "unavailable": "読み込めませんでした",
+    "noDevices": "デバイスはまだありません",
+    "devices": "{{count}} 台のデバイス",
+    "quietOff": "オフ",
+    "quietOne": "{{days}} {{hours}}",
+    "quietMany": "{{count}} 件のスケジュール",
+    "escalationNone": "未設定",
+    "then": "、次に ",
+    "appearance": "{{theme}} · {{language}}",
+    "signedOut": "サインインしていません",
+    "noSources": "まだありません",
+    "sources": "{{count}} 件の送信元"
+  },
+  "days": {
+    "every": "毎日",
+    "weekdays": "平日",
+    "weekends": "週末"
+  },
+  "channel": {
+    "webPush": "プッシュ通知",
+    "browser": "ブラウザー通知",
+    "push": "プッシュ",
+    "email": "メール",
+    "webhook": "Webhook",
+    "macNotification": "Mac の通知",
+    "imessage": "iMessage",
+    "other": "その他（{{channel}}）"
+  },
+  "signedOut": {
+    "title": "サインインしていません",
+    "body": "デバイス、静かな時間帯、エスカレーションを管理するにはサインインしてください。外観と言語はサインインなしで変更できます。",
+    "action": "サインイン"
+  },
+  "sessionEnded": {
+    "title": "セッションが終了しました",
+    "body": "もう一度サインインして続けてください。ここでの変更は保持されています。"
+  },
+  "sessionPage": {
+    "description": "このブラウザーでサインインしているアカウントです。"
+  },
+  "appearance": {
+    "description": "Chimesail の見た目と表示言語を選びます。",
+    "theme": "テーマ",
+    "language": "言語",
+    "browserOnly": "この選択はこのブラウザーにのみ適用されます。"
+  },
+  "quietHours": {
+    "description": "これらの時間帯は、Chimesail が通知を保留します。",
+    "add": "静かな時間帯を追加",
+    "addTitle": "静かな時間帯を追加",
+    "editTitle": "静かな時間帯を編集",
+    "emptyTitle": "静かな時間帯はありません",
+    "emptyDetail": "通知はいつでも届きます。",
+    "days": "曜日",
+    "from": "開始",
+    "until": "終了",
+    "timezone": "タイムゾーン",
+    "timezoneHelp": "時間帯は、どこにいてもこのタイムゾーンに従います。",
+    "critical": "重要な判断依頼は通す",
+    "criticalHint": "この時間帯に届いた重要な判断依頼は、そのまま届きます。",
+    "criticalChip": "重要は通す",
+    "dayTaken": "この曜日は別のスケジュールで使われています。",
+    "takenNote": "{{days}}には別の時間帯が設定済みです。",
+    "overnightNote": "夜をまたぐ時間帯です。選んだ各日に始まり、翌朝 {{end}} に終わります。",
+    "issue": {
+      "noDays": "曜日を 1 つ以上選んでください。",
+      "badTime": "開始と終了の時刻を入力してください。",
+      "sameTime": "開始と終了は異なる時刻にしてください。",
+      "badZone": "そのタイムゾーンは認識できません。"
+    },
+    "saved": "静かな時間帯を保存しました。",
+    "removed": "静かな時間帯を削除しました。",
+    "remove": "削除",
+    "removeTitle": "{{days}}の静かな時間帯を削除しますか？",
+    "removeBody": "その曜日は、通知がいつでも届くようになります。",
+    "removeConfirm": "静かな時間帯を削除",
+    "loadFailed": "静かな時間帯を読み込めませんでした",
+    "loadFailedDetail": "何も変更されていません。",
+    "stale": "静かな時間帯を更新できませんでした。以前に読み込んだ内容を表示しています。",
+    "partialTitle": "一部が保存されませんでした",
+    "partialBody": "{{days}}を確認できませんでした。変更はそのまま残っています。もう一度お試しください。",
+    "partialSaved": "保存済み：{{days}}。",
+    "unconfirmedTitle": "保存を確認できませんでした",
+    "unconfirmedBody": "静かな時間帯を読み戻せませんでした。接続を確認してから、もう一度お試しください。変更はそのまま残っています。"
+  },
+  "escalation": {
+    "description": "重要な判断依頼に回答がない場合、Chimesail はこの順にチャンネルを試します。エスカレーションされるのは重要なものだけで、それ以外は期限が来ると失効します。",
+    "emptyTitle": "エスカレーションのチャンネルはありません",
+    "emptyDetail": "回答のない重要な判断依頼は、ほかのチャンネルを試さずに失効します。",
+    "add": "チャンネルを追加",
+    "addTitle": "チャンネルを追加",
+    "addHint": "上のチャンネルの後に試されます。",
+    "nothingToAdd": "お使いのデバイスが対応するチャンネルは、すべて順序に入っています。",
+    "openDevices": "デバイスとチャンネルを開く",
+    "moveUp": "{{channel}}を上へ移動",
+    "moveDown": "{{channel}}を下へ移動",
+    "remove": "{{channel}}を削除",
+    "notOffered": "現在、このチャンネルに対応するデバイスはありません。",
+    "timing": "各ステップは、次を試す前に 5 分間回答を待ちます。",
+    "save": "順序を保存",
+    "saved": "エスカレーションの順序を保存しました。",
+    "notAppliedTitle": "新しい順序は保存されませんでした",
+    "notAppliedBody": "現在の順序：{{order}}。変更はそのまま残っています。もう一度お試しください。",
+    "unconfirmedTitle": "保存を確認できませんでした",
+    "unconfirmedBody": "順序を読み戻せませんでした。接続を確認してから、もう一度お試しください。変更はそのまま残っています。",
+    "loadFailed": "エスカレーションの順序を読み込めませんでした",
+    "loadFailedDetail": "何も変更されていません。",
+    "emptyConfirmTitle": "空の順序を保存しますか？",
+    "emptyConfirmBody": "見逃した重要な判断依頼は、ほかのチャンネルを試さずに失効します。",
+    "emptyConfirm": "空の順序を保存"
+  },
+  "sources": {
+    "description": "通知を許可するアプリと、通知を受け取る最低限の緊急度を選びます。",
+    "readOnly": "サインインしなくても通知設定を確認できます。変更するにはサインインしてください。",
+    "emptyTitle": "送信元はまだありません",
+    "emptyDetail": "アプリが通知を送り始めると、ここに表示されます。",
+    "loadFailed": "イベントの送信元を読み込めませんでした",
+    "loadFailedDetail": "設定は変更されていません。",
+    "allow": "{{category}}を許可",
+    "minimumUrgency": "最低の緊急度",
+    "minimumUrgencyFor": "{{category}}の最低の緊急度",
+    "everything": "すべての通知",
+    "saveFailed": "{{name}}を保存できませんでした",
+    "saveFailedDetail": "元の状態に戻しました。もう一度お試しください。",
+    "urgency": {
+      "low": "低",
+      "normal": "通常",
+      "high": "高",
+      "critical": "重要"
+    }
+  }
+}

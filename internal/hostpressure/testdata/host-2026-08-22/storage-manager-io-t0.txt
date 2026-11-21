@@ -1,0 +1,8 @@
+2026-08-22T17:13:55Z
+rchar: 257010644
+wchar: 221011
+syscr: 94054
+syscw: 3572
+read_bytes: 13218861056
+write_bytes: 1662976
+cancelled_write_bytes: 0

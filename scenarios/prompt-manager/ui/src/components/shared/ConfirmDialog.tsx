@@ -6,8 +6,9 @@
  * - Confirming discard of unsaved changes
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import { Dialog } from './Dialog'
 
@@ -37,14 +38,29 @@ export function ConfirmDialog({
   variant = 'danger',
   isLoading = false,
 }: ConfirmDialogProps) {
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const confirmActionTestId = useId()
 
   // Auto-focus confirm button when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => confirmButtonRef.current?.focus(), 0)
+      const timer = window.setTimeout(() => {
+        document.querySelector<HTMLButtonElement>(`[data-testid="${confirmActionTestId}"]`)?.focus()
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
-  }, [isOpen])
+  }, [confirmActionTestId, isOpen])
+
+  const actions = [
+    {
+      id: 'confirm',
+      label: isLoading ? 'Processing...' : confirmLabel,
+      onSelect: onConfirm,
+      disabled: isLoading,
+      primary: true,
+      testId: confirmActionTestId,
+    },
+    { id: 'cancel', label: cancelLabel, onSelect: onClose, disabled: isLoading },
+  ] satisfies OverlayActionList
 
   return (
     <Dialog
@@ -87,36 +103,10 @@ export function ConfirmDialog({
       </p>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={isLoading}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-            'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white',
-            'border border-white/10 transition-colors',
-            isLoading && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          {cancelLabel}
-        </button>
-        <button
-          ref={confirmButtonRef}
-          type="button"
-          onClick={onConfirm}
-          disabled={isLoading}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-            variant === 'danger'
-              ? 'bg-red-600 text-white hover:bg-red-500'
-              : 'bg-amber-600 text-white hover:bg-amber-500',
-            isLoading && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          {isLoading ? 'Processing...' : confirmLabel}
-        </button>
-      </div>
+      <OverlayActionBar
+        actions={actions}
+        className={cn('prompt-overlay-actions', 'prompt-overlay-actions--secondary-left', `prompt-overlay-actions--${variant}`)}
+      />
     </Dialog>
   )
 }

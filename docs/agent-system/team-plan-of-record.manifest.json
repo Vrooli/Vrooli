@@ -1,0 +1,145 @@
+{
+  "version": "1.0.0",
+  "title": "Team Plan of Record Contract",
+  "description": "Reusable documentation contract for prompt-manager team plan-of-record folders",
+  "contract": {
+    "kind": "team-plan-of-record",
+    "schema": "team-plan-of-record/v1",
+    "extensionRule": "Durable custom canon must live under the most specific standard folder that fits, or under extensions/<extension-id>/ with a local manifest and graduation rule."
+  },
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "required": true,
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "por-readme",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Start here for agents",
+              "Folder map",
+              "Editing rules",
+              "Cross-references",
+              "Future PoR work"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "required": true,
+      "documents": [
+        {
+          "path": "OPERATING_MODEL.md",
+          "docType": "operating-model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "taxonomies",
+      "path": "taxonomies/",
+      "required": false,
+      "packageType": "taxonomy",
+      "requiredFiles": [
+        "README.md",
+        "taxonomy.json"
+      ],
+      "optionalFolders": [
+        "schemas/"
+      ]
+    },
+    {
+      "id": "methods",
+      "path": "methods/",
+      "required": false,
+      "packageType": "method-registry",
+      "requiredFiles": [
+        "README.md"
+      ]
+    },
+    {
+      "id": "catalogs",
+      "path": "catalogs/",
+      "required": false,
+      "packageType": "catalog-registry",
+      "requiredFiles": [
+        "README.md"
+      ]
+    },
+    {
+      "id": "strategy",
+      "path": "strategy/",
+      "required": false,
+      "packageType": "strategy-package",
+      "requiredFiles": [
+        "README.md"
+      ]
+    },
+    {
+      "id": "evidence",
+      "path": "evidence/",
+      "required": false,
+      "packageType": "evidence-package",
+      "requiredFiles": [
+        "README.md"
+      ]
+    },
+    {
+      "id": "governance",
+      "path": "governance/",
+      "required": true,
+      "documents": [
+        {
+          "path": "editing.md",
+          "docType": "editing-rules",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Authority",
+              "Change Flow",
+              "Direct Edits"
+            ]
+          }
+        },
+        {
+          "path": "adoption-validation.md",
+          "docType": "validation-runbook",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Validation Commands",
+              "Expected Clean State",
+              "Enforcement Scope"
+            ]
+          }
+        },
+        {
+          "path": "changelog.md",
+          "docType": "por-changelog",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Changelog"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "extensions",
+      "path": "extensions/",
+      "required": false,
+      "packageType": "extension",
+      "requiredFiles": [
+        "manifest.json",
+        "README.md"
+      ]
+    }
+  ]
+}

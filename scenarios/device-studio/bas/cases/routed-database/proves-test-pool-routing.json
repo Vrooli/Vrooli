@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "name": "routed-project-journey",
+    "description": "Runs create, list, open, rename, stale-conflict and reopen through the Device Studio CLI while Test Genie has installed routed roots, then confirms the renamed project appears in the live workspace.",
+    "requirement": "REQ-ROUTED-DB-E2E",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "routed-test-db-proof",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-projects",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "device-studio",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the project workspace after the routed CLI journey" }
+      }
+    },
+    {
+      "id": "wait-project-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/projects.list",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the live project list" }
+      }
+    },
+    {
+      "id": "assert-routed-project-visible",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/projects.list",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "E1 routed project renamed" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "The project created and renamed through the routed CLI journey is not visible in the live workspace list. Check that the UI request and project repository use the routed test database."
+        },
+        "metadata": { "label": "Confirm routed project is visible in the live workspace" }
+      }
+    }
+  ]
+}

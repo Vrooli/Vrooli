@@ -1,0 +1,68 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "postgis",
+  "display_name": "PostGIS",
+  "category": "database",
+  "summary": "Spatial SQL and geospatial indexing capability built on PostgreSQL.",
+  "why_it_matters": "PostGIS remains a plausible future option for a scenario with a demonstrated geospatial workload, but no current scenario declares or uses it. The blueprint preserves that option without maintaining an unused Compose and shell implementation.",
+  "when_to_use": [
+    "A scenario requires spatial queries, geometry/geography indexing, or GIS interoperability that PostgreSQL alone cannot provide.",
+    "An owning scenario commits to a defined spatial data model, query contract, migration plan, and integration tests."
+  ],
+  "example_scenarios": [
+    "Location-aware asset tracking",
+    "Geospatial search and routing",
+    "Mapping and GIS data analysis"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The former implementation used Docker Compose. A future owner should reassess that choice against a managed local-service design and state its desktop and platform-support trade-offs explicitly.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "A concrete owning scenario with a declared resource dependency.",
+    "A validated spatial workload and data model.",
+    "An explicit runtime, backup, migration, and platform-support plan."
+  ],
+  "dependencies": [
+    "postgres"
+  ],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Start with the resource maturity and migration playbook before restoring an implementation.",
+    "Implement lifecycle, configuration, diagnostics, and tests through the Go-native resource surface without Bash dependencies.",
+    "Prefer the lightest feasible runtime archetype; do not retain Compose merely because it was used historically.",
+    "Make spatial integrations consumer-owned and validate real GIS query paths rather than only container readiness."
+  ],
+  "operational_notes": [
+    "Define spatial schema migration, backup, extension-version, and data-retention procedures before accepting production data.",
+    "Health checks must verify the required PostGIS extension and representative spatial query path.",
+    "Document host-runtime requirements and clearly gate unsupported platforms before lifecycle operations."
+  ],
+  "risks": [
+    "No active consumer currently justifies the maintenance cost.",
+    "A Docker Compose dependency may be unsuitable for desktop bundles.",
+    "Spatial data and extension upgrades require an explicit compatibility and backup plan."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "postgis"
+  ],
+  "references": [
+    {
+      "kind": "resource",
+      "value": "resources/postgis"
+    },
+    {
+      "kind": "scenario",
+      "value": "scenarios/local-info-scout"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/maturity-migration.md"
+    }
+  ],
+  "last_reviewed": "2026-07-20"
+}

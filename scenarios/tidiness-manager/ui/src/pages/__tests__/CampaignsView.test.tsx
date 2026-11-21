@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
@@ -14,11 +15,14 @@ vi.mock('../../lib/api', () => ({
 
 // Mock clipboard API with proper mock implementation
 const mockWriteText = vi.fn(() => Promise.resolve());
-Object.assign(navigator, {
-  clipboard: {
-    writeText: mockWriteText,
-  },
-});
+function installClipboardMock() {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: mockWriteText },
+    configurable: true,
+    writable: true,
+  });
+}
+installClipboardMock();
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -43,6 +47,13 @@ const createWrapper = () => {
 describe('CampaignsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // userEvent.setup() in earlier tests replaces navigator.clipboard with
+    // its own stub; re-install our mock before each test.
+    installClipboardMock();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Loading state', () => {
@@ -52,7 +63,7 @@ describe('CampaignsView', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       expect(screen.getByRole('status')).toBeInTheDocument();
     });
@@ -64,7 +75,7 @@ describe('CampaignsView', () => {
     });
 
     it('should display empty state when no campaigns exist', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText('No Active Campaigns')).toBeInTheDocument();
@@ -72,7 +83,7 @@ describe('CampaignsView', () => {
     });
 
     it('should display descriptive text about campaigns', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(
@@ -82,7 +93,7 @@ describe('CampaignsView', () => {
     });
 
     it('should show CLI command examples', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         // Check for the code blocks containing CLI commands (multiple instances expected)
@@ -98,7 +109,7 @@ describe('CampaignsView', () => {
     });
 
     it('should display disabled "Create Your First Campaign" button', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         const button = screen.getByTitle(/UI campaign creation coming soon/i);
@@ -107,7 +118,7 @@ describe('CampaignsView', () => {
     });
 
     it('should show workflow instructions for agents', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(
@@ -117,13 +128,13 @@ describe('CampaignsView', () => {
     });
 
     it('should display use cases for campaigns', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         // Check for the "Use Cases:" label and specific use case text
         expect(screen.getByText(/Use Cases:/i)).toBeInTheDocument();
-        expect(screen.getByText(/Systematic refactoring/i)).toBeInTheDocument();
         expect(screen.getByText(/batch issue discovery/i)).toBeInTheDocument();
+        expect(screen.getByText(/pre-release quality gates/i)).toBeInTheDocument();
       });
     });
   });
@@ -133,7 +144,7 @@ describe('CampaignsView', () => {
       const errorMessage = 'Failed to connect to server';
       (api.fetchCampaigns as any).mockRejectedValue(new Error(errorMessage));
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         // Component renders "Failed to load campaigns: {error.message}" as a single text node
@@ -144,7 +155,7 @@ describe('CampaignsView', () => {
     it('should still show page header on error', async () => {
       (api.fetchCampaigns as any).mockRejectedValue(new Error('Network error'));
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText('Campaigns')).toBeInTheDocument();
@@ -206,7 +217,7 @@ describe('CampaignsView', () => {
     });
 
     it('should display all campaigns', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText('test-scenario-1')).toBeInTheDocument();
@@ -216,7 +227,7 @@ describe('CampaignsView', () => {
     });
 
     it('should display campaign status badges', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText('active')).toBeInTheDocument();
@@ -226,7 +237,7 @@ describe('CampaignsView', () => {
     });
 
     it('should show correct badge variants for different statuses', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         const activeBadge = screen.getByText('active');
@@ -252,13 +263,13 @@ describe('CampaignsView', () => {
     });
 
     it('should display page title', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       expect(screen.getByText('Tidiness Campaigns')).toBeInTheDocument();
     });
 
     it('should display page description', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(
@@ -268,7 +279,7 @@ describe('CampaignsView', () => {
     });
 
     it('should show CLI reference in description', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         // Check for the CLI reference in the header description (may appear multiple times)
@@ -281,7 +292,7 @@ describe('CampaignsView', () => {
     });
 
     it('should have "New Campaign" button in header', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       const button = screen.getByRole('button', { name: /New Campaign/i });
       expect(button).toBeInTheDocument();
@@ -313,7 +324,8 @@ describe('CampaignsView', () => {
 
     it('should copy pause command to clipboard', async () => {
       const user = userEvent.setup();
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      installClipboardMock();
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
 
@@ -321,7 +333,7 @@ describe('CampaignsView', () => {
       await user.click(pauseButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns pause test-scenario'
         );
         // Verify both toasts appear: info toast for CLI command + success toast for clipboard copy
@@ -331,11 +343,12 @@ describe('CampaignsView', () => {
 
     it('should copy resume command to clipboard', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       (api.fetchCampaigns as any).mockResolvedValue([
         { ...mockCampaigns[0], status: 'paused' },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
 
@@ -343,7 +356,7 @@ describe('CampaignsView', () => {
       await user.click(resumeButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns resume test-scenario'
         );
         expect(screen.getByText(/CLI command copied to clipboard/i)).toBeInTheDocument();
@@ -352,7 +365,8 @@ describe('CampaignsView', () => {
 
     it('should copy stop command to clipboard', async () => {
       const user = userEvent.setup();
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      installClipboardMock();
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
 
@@ -360,7 +374,7 @@ describe('CampaignsView', () => {
       await user.click(stopButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns stop test-scenario'
         );
         expect(screen.getByText(/CLI command copied to clipboard/i)).toBeInTheDocument();
@@ -369,7 +383,8 @@ describe('CampaignsView', () => {
 
     it('should show toast on successful clipboard copy', async () => {
       const user = userEvent.setup();
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      installClipboardMock();
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
 
@@ -383,11 +398,12 @@ describe('CampaignsView', () => {
 
     it('should show error toast on clipboard failure', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       mockWriteText.mockRejectedValueOnce(
         new Error('Clipboard access denied')
       );
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
 
@@ -402,17 +418,17 @@ describe('CampaignsView', () => {
 
   describe('Polling behavior', () => {
     it('should refetch campaigns every 10 seconds', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       (api.fetchCampaigns as any).mockResolvedValue([]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(api.fetchCampaigns).toHaveBeenCalledTimes(1);
       });
 
       // Fast-forward 10 seconds
-      vi.advanceTimersByTime(10000);
+      await vi.advanceTimersByTimeAsync(10000);
 
       await waitFor(() => {
         expect(api.fetchCampaigns).toHaveBeenCalledTimes(2);
@@ -442,7 +458,7 @@ describe('CampaignsView', () => {
         },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         const badge = screen.getByText('unknown-status');
@@ -469,7 +485,7 @@ describe('CampaignsView', () => {
         },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText('minimal-campaign')).toBeInTheDocument();
@@ -496,7 +512,7 @@ describe('CampaignsView', () => {
         },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText(longName)).toBeInTheDocument();
@@ -522,7 +538,7 @@ describe('CampaignsView', () => {
         },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       // Component should still render without crashing
       await waitFor(() => {
@@ -537,7 +553,7 @@ describe('CampaignsView', () => {
     });
 
     it('should have accessible page title', () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       expect(screen.getByText('Tidiness Campaigns')).toBeInTheDocument();
     });
@@ -561,7 +577,7 @@ describe('CampaignsView', () => {
         },
       ]);
 
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Pause/i })).toBeInTheDocument();
@@ -570,15 +586,16 @@ describe('CampaignsView', () => {
     });
 
     it('should provide tooltips for actions', async () => {
-      render(<CampaignsView />, { wrapper: createWrapper() });
+      renderWithProviders(<CampaignsView />, { wrapper: createWrapper() });
 
       // Check for tooltip on the New Campaign button
       const newCampaignButton = screen.getByTitle(/Create a new automated campaign/i);
       expect(newCampaignButton).toBeInTheDocument();
 
-      // Disabled button should also have the "coming soon" tooltip
-      const disabledButton = screen.getByTitle(/UI campaign creation coming soon/i);
-      expect(disabledButton).toBeInTheDocument();
+      // Disabled button (in empty state) appears after the campaigns query resolves
+      await waitFor(() => {
+        expect(screen.getByTitle(/UI campaign creation coming soon/i)).toBeInTheDocument();
+      });
     });
   });
 });

@@ -12,7 +12,7 @@
       "description": "Implement tagging system for prompts with hierarchical categories",
       "id": "REQ-P1-005",
       "prd_ref": "prompt-manager-should-have-tag-based-categorization",
-      "status": "draft",
+      "status": "planned",
       "title": "Tag Management System",
       "validation": [
         {

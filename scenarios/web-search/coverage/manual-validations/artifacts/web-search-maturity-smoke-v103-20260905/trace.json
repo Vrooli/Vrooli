@@ -1,0 +1,107 @@
+{
+  "execution": {
+    "id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+    "owner": "web-search",
+    "workflow_key": "web-search/research",
+    "definition_digest": "sha256:29c7d87880091937b3493f5e390e016f41319aa16247f899bf6e0036642a4a72",
+    "status": "WORKFLOW_EXECUTION_STATUS_SUCCEEDED",
+    "current_node_id": "end",
+    "terminal_reason": {
+      "code": "completed"
+    },
+    "budget_usage": {
+      "turns": 3,
+      "tokens": 63937,
+      "node_attempts": 1,
+      "children": 1
+    },
+    "edge_traversals": {
+      "research->end": 1
+    },
+    "version": "5",
+    "idempotency_key": "web-search-maturity-smoke-v103-20260905",
+    "created_at": "2026-09-05T05:46:45.836151640Z",
+    "updated_at": "2026-09-05T05:47:32.502160653Z",
+    "ended_at": "2026-09-05T05:47:32.502160653Z",
+    "charge_receipt": {
+      "currency": "USD",
+      "metering_basis": "unmeasured",
+      "note": "agent-manager could not attribute a metered charge to this execution"
+    }
+  },
+  "attempts": [
+    {
+      "id": "161e9812-96d6-4bc0-a4cf-fbb0d86e302d",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "node_id": "research",
+      "ordinal": 1,
+      "strategy": "fresh_run",
+      "status": "completed",
+      "idempotency_key": "workflow/ddba1fb1-8a7a-48d5-a900-c22b10011b8a/node/research/attempt/1",
+      "run_id": "6f55005d-27bb-44a7-9b8e-ae5cd15979c7",
+      "conversation_id": "51c47f2a-e524-4bf1-989c-8e92d28b2e72",
+      "version": "3",
+      "created_at": "2026-09-05T05:46:45.846066822Z",
+      "updated_at": "2026-09-05T05:47:32.499119942Z",
+      "completed_at": "2026-09-05T05:47:32.499119942Z",
+      "profile_identity": "role:code.default",
+      "input_snapshot_digest": "sha256:7b6421d3c8271c59a9bfc014e92aae8ffe19f38de9dc22d5597f30bc283f1c65",
+      "input_snapshot_size_bytes": "276"
+    }
+  ],
+  "journal": [
+    {
+      "id": "5757ffb6-73ab-41de-ac36-6e08f3dfba1d",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "sequence": "1",
+      "kind": "workflow_input",
+      "payload_digest": "sha256:7b6421d3c8271c59a9bfc014e92aae8ffe19f38de9dc22d5597f30bc283f1c65",
+      "payload_size_bytes": "276",
+      "created_at": "2026-09-05T05:46:45.836151640Z"
+    },
+    {
+      "id": "397d50e2-f7b4-412d-b6ce-0f5a1de01f0c",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "sequence": "2",
+      "kind": "node_attempt",
+      "node_id": "research",
+      "attempt_id": "161e9812-96d6-4bc0-a4cf-fbb0d86e302d",
+      "payload_digest": "sha256:d96d797f9102e89dab0452f3c09b7dc5301b2c5b04f661a9a85f803c46f655e2",
+      "payload_size_bytes": "56",
+      "created_at": "2026-09-05T05:46:45.846066822Z"
+    },
+    {
+      "id": "bdd2abc4-6d2b-490b-a9d1-a2856cd23d89",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "sequence": "3",
+      "kind": "run_result",
+      "node_id": "research",
+      "attempt_id": "161e9812-96d6-4bc0-a4cf-fbb0d86e302d",
+      "payload_digest": "sha256:5649a835cac9ecaf52539ba25f3fc0359f86a6c48dfa654c5eeffaeec5efdb8d",
+      "payload_size_bytes": "3825",
+      "created_at": "2026-09-05T05:47:32.499119942Z"
+    },
+    {
+      "id": "3d46c60d-738a-479f-87be-db0d58cbe1ed",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "sequence": "4",
+      "kind": "structured_result",
+      "node_id": "research",
+      "attempt_id": "161e9812-96d6-4bc0-a4cf-fbb0d86e302d",
+      "payload_digest": "sha256:6c863545def90f4a46200a652ee98b906dd905eb565b934845d53ddd432272a8",
+      "payload_size_bytes": "741",
+      "created_at": "2026-09-05T05:47:32.499119942Z"
+    },
+    {
+      "id": "197395c3-b01a-4ff6-9b14-031e007faa30",
+      "execution_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+      "sequence": "5",
+      "kind": "final_handoff",
+      "node_id": "research",
+      "attempt_id": "161e9812-96d6-4bc0-a4cf-fbb0d86e302d",
+      "payload_digest": "sha256:3dc7cd5367c8bc0ae563d12759c26c2db167092aef68871b58d7c5d63f0ad2e5",
+      "payload_size_bytes": "560",
+      "created_at": "2026-09-05T05:47:32.499119942Z"
+    }
+  ]
+}

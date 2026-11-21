@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-stack]"
+        }
+      ]
+    }
+    ,
+    {"id":"empty","name":"Empty stack","args":{"children":""},"expect":[{"kind":"visible","selector":"[data-rcl-stack]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long stack content","args":{"children":"A deliberately long stack label that demonstrates wrapping without clipping the layout primitive"},"expect":[{"kind":"visible","selector":"[data-rcl-stack]"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Stack"
+}

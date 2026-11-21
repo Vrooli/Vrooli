@@ -1,0 +1,26 @@
+{
+  "enabled": false,
+  "backend": "linux-systemd-service-v1",
+  "systemdRun": {
+    "path": "/usr/bin/systemd-run",
+    "sha256": ""
+  },
+  "systemctl": {
+    "path": "/usr/bin/systemctl",
+    "sha256": ""
+  },
+  "rootFS": "/var/lib/vrooli/finite-auth02/image",
+  "workspaceSource": "/var/lib/vrooli/finite-auth02/worktree",
+  "rootFSDigest": "",
+  "nativeUID": 0,
+  "nativeGID": 0,
+  "isolation": null,
+  "bindings": {},
+  "networkAllow": [],
+  "envKeys": [
+    "PATH",
+    "HOME",
+    "VROOLI_AGENT_IDENTITY_TOKEN"
+  ],
+  "nativeBinaries": {}
+}

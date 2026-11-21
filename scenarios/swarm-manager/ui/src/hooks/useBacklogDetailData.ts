@@ -10,12 +10,10 @@
  */
 
 import { useMemo } from "react";
-import {
-  getItemActions,
-  scenariosFromGlobs,
-} from "../lib";
-import type { ItemActions } from "../lib/backlog-queue-utils";
+import { itemActionsFromNextAction, scenariosFromGlobs } from "../lib";
+import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
+import { isAgentActivityBlocking } from "../lib/agent-activity-utils";
 import type {
   ArchiveRequirementRecord,
   ArchiveTargetFormValues,
@@ -25,8 +23,7 @@ import type {
   ModuleFormValues,
   ReviewUpdate,
 } from "../types";
-import type { ReviewRound } from "../services/review-service";
-import { useBacklogStore } from "../stores";
+import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { useBacklogQueries } from "./useBacklogQueries";
 import { useBacklogMutations } from "./useBacklogMutations";
 import type { FileActionType } from "./useBacklogMutations";
@@ -38,7 +35,8 @@ import type { FileActionType } from "./useBacklogMutations";
 export interface UseBacklogDetailDataOptions {
   backlogKind: BacklogKind | null;
   name: string | undefined;
-  agentRunIsActive: boolean;
+  agentRunIsExecuting: boolean;
+  agentRunIsBlocking: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -48,16 +46,16 @@ export interface UseBacklogDetailDataOptions {
 export function useBacklogDetailData({
   backlogKind,
   name,
-  agentRunIsActive,
+  agentRunIsExecuting,
+  agentRunIsBlocking,
 }: UseBacklogDetailDataOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
-  const blockingMap = useBacklogStore((state) => state.blockingMap);
 
   // -----------------------------------------------------------------------
   // Queries
   // -----------------------------------------------------------------------
 
-  const queries = useBacklogQueries({ backlogKind, name, agentRunIsActive });
+  const queries = useBacklogQueries({ backlogKind, name, agentRunIsBlocking });
 
   const {
     item,
@@ -70,14 +68,10 @@ export function useBacklogDetailData({
     filesError,
     refetchFiles,
     executionHistory,
+    nextAction,
     reviewRounds,
     isGatheringEvidence,
-    workshopDir,
-    workshopRoundPaths,
-    workshopRounds,
-    refetchWorkshopRounds,
-    maturitySummaryData,
-    readinessData,
+    isAwaitingManualReview,
     archiveTargets,
   } = queries;
 
@@ -90,9 +84,8 @@ export function useBacklogDetailData({
     statusMutation,
     depStatusMutation,
     acceptanceGlobMutation,
+    descriptionMutation,
     deleteMutation,
-    agentMutation,
-    workshopSaveMutation,
     updateReqsMutation,
     createModuleMutation,
     updateModuleMetaMutation,
@@ -103,56 +96,53 @@ export function useBacklogDetailData({
     archiveMutation,
     unarchiveMutation,
     batchReviewMutation,
-    workshopDeleteRoundMutation,
-    workshopResetMutation,
     fileActionMutation,
     updateError,
     archiveError,
     deleteError,
-    agentErrorMsg,
     invalidateFiles,
     invalidateItem,
-  } = useBacklogMutations({
-    backlogKind,
-    name,
-    refetchFiles: () => void refetchFiles(),
-    refetchWorkshopRounds: () => void refetchWorkshopRounds(),
-  });
+  } = useBacklogMutations({ backlogKind, name });
 
   // -----------------------------------------------------------------------
   // Computed values
   // -----------------------------------------------------------------------
 
+  const activities = useAgentActivitiesStore((s) => s.activities);
+  const activityByKey = useMemo(() => {
+    const map = new Map<string, ResolvedDependencyActivity>();
+    for (const activity of activities) {
+      if (activity.ownerType !== "backlog") continue;
+      if (!isAgentActivityBlocking(activity.status)) continue;
+      const key = `${activity.ownerKind}/${activity.ownerName}`;
+      // Activities are sorted newest-first; keep the first (latest) per key.
+      if (!map.has(key)) {
+        map.set(key, { purpose: activity.purpose, status: activity.status });
+      }
+    }
+    return map;
+  }, [activities]);
+
   const depRelations = useMemo(
-    () => item ? computeDependencyRelations(item, allBacklogItems) : { parents: [], children: [] },
-    [item, allBacklogItems],
+    () =>
+      item
+        ? computeDependencyRelations(item, allBacklogItems, { activityByKey })
+        : { parents: [], children: [] },
+    [item, allBacklogItems, activityByKey],
   );
 
-  const deliverableLabel = backlogKind === "research" ? "Conclusion" : "Plan";
-  const deliverableLabelLower = deliverableLabel.toLowerCase();
-  const workshopActionLabel = workshopRounds.length > 0 ? "Next Round" : "Workshop";
-  const isWorkshopFinalized = workshopRounds.some((r) => r.mode === "finalize")
-    && !(readinessData?.pendingSynthesis ?? false);
-
+  // The server resolves eligibility and ordering. This adapter only preserves
+  // the existing button component's rendering shape during its migration.
   const itemActions: ItemActions | null = useMemo(() => {
     if (!item) return null;
-    const itemKey = `${item.kind}/${item.name}`;
-    return getItemActions({
-      item,
-      blockingInfo: blockingMap[itemKey] ?? null,
-      readinessReady: readinessData ? readinessData.ready : null,
-      pendingSynthesis: readinessData?.pendingSynthesis ?? false,
-      agentRunning: agentRunIsActive,
-      hasPendingDecisions: workshopRounds.some(
-        (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
-      ),
-      hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
+    return itemActionsFromNextAction(item, nextAction, {
+      agentRunning: agentRunIsBlocking,
+      agentExecuting: agentRunIsExecuting,
     });
-  }, [item, blockingMap, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
+  }, [item, nextAction, agentRunIsBlocking, agentRunIsExecuting]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
-  const workshopBlockedDeps = itemActions?.blockingDepKeys ?? [];
 
   const reqModuleMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -179,33 +169,6 @@ export function useBacklogDetailData({
     [item?.acceptanceAllow],
   );
 
-  const getAgentDialogTargetIds = useMemo(() => {
-    return (selectedTargetIds: Set<string>) => {
-      const merged = new Set(selectedTargetIds);
-      for (const t of archiveTargets?.targets ?? []) {
-        if (t.review_status === "flagged") merged.add(t.id);
-      }
-      return merged;
-    };
-  }, [archiveTargets]);
-
-  const getAgentDialogRequirementIds = useMemo(() => {
-    return (selectedRequirementIds: Set<string>) => {
-      const merged = new Set(selectedRequirementIds);
-      if (!archiveTargets) return merged;
-      const walkReqs = (groups: typeof archiveTargets.requirements) => {
-        for (const g of groups) {
-          for (const r of g.requirements) {
-            if (r.review_status === "flagged") merged.add(r.id);
-          }
-          walkReqs(g.children);
-        }
-      };
-      walkReqs(archiveTargets.requirements);
-      return merged;
-    };
-  }, [archiveTargets]);
-
   // -----------------------------------------------------------------------
   // Return
   // -----------------------------------------------------------------------
@@ -225,36 +188,23 @@ export function useBacklogDetailData({
     refetchFiles: () => void refetchFiles(),
 
     executionHistory,
+    nextAction,
 
-    reviewRounds: reviewRounds ?? ([] as ReviewRound[]),
+    reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,
-
-    workshopRounds,
-    refetchWorkshopRounds: () => void refetchWorkshopRounds(),
-
-    maturitySummaryData,
-    readinessData,
+    isAwaitingManualReview,
 
     archiveTargets,
 
     // Computed
     depRelations,
-    workshopDir,
-    workshopRoundPaths,
     itemActions,
     reqModuleMap,
     targetIdSet,
-    agentDialogTargetIds: getAgentDialogTargetIds,
-    agentDialogRequirementIds: getAgentDialogRequirementIds,
     targetScenarios,
 
-    deliverableLabel,
-    deliverableLabelLower,
-    workshopActionLabel,
-    isWorkshopFinalized,
     isLocked,
     isTerminal,
-    workshopBlockedDeps,
 
     // Mutations — stable callbacks
     updateItem: (values: { title: string; description: string; status: BacklogStatus; priority: number; tags: string[] }) =>
@@ -274,6 +224,11 @@ export function useBacklogDetailData({
     isUpdatingGlob: acceptanceGlobMutation.isPending,
     resetGlobMutation: () => acceptanceGlobMutation.reset(),
 
+    updateDescription: (description: string) => descriptionMutation.mutateAsync(description),
+    isUpdatingDescription: descriptionMutation.isPending,
+    updateDescriptionError: descriptionMutation.error instanceof Error ? descriptionMutation.error.message : null,
+    resetDescriptionMutation: () => descriptionMutation.reset(),
+
     deleteItem: () => deleteMutation.mutate(),
     isDeleting: deleteMutation.isPending,
     deleteError,
@@ -282,15 +237,6 @@ export function useBacklogDetailData({
     isArchiving: archiveMutation.isPending || unarchiveMutation.isPending,
     archiveError,
 
-    runAgent: (payload: { mode?: string; prompt: string; contextPaths?: string[]; contextTargetIds?: string[]; contextRequirementIds?: string[]; confirm?: boolean; force?: boolean }) =>
-      agentMutation.mutate(payload),
-    isRunningAgent: agentMutation.isPending,
-    agentError: agentErrorMsg,
-    resetAgentMutation: () => agentMutation.reset(),
-
-    saveWorkshopRound: (roundNumber: number, content: string) =>
-      workshopSaveMutation.mutate({ roundNumber, content }),
-    isSavingWorkshop: workshopSaveMutation.isPending,
 
     updateRequirements: (args: { moduleId: string; requirements: ArchiveRequirementRecord[] }) =>
       updateReqsMutation.mutate(args),
@@ -329,11 +275,6 @@ export function useBacklogDetailData({
     isBatchReviewing: batchReviewMutation.isPending,
     batchReviewError: batchReviewMutation.error instanceof Error ? batchReviewMutation.error.message : null,
 
-    deleteWorkshopRound: (roundNumber: number) => workshopDeleteRoundMutation.mutate({ roundNumber }),
-    isDeletingWorkshopRound: workshopDeleteRoundMutation.isPending,
-    isResettingWorkshop: workshopResetMutation.isPending,
-    resetWorkshopResetMutation: () => workshopResetMutation.reset(),
-
     fileAction: (args: { action: FileActionType; target: BacklogFile; destinationPath?: string }) =>
       fileActionMutation.mutate(args),
     isFileActionPending: fileActionMutation.isPending,
@@ -347,11 +288,10 @@ export function useBacklogDetailData({
       update: updateMutation,
       status: statusMutation,
       acceptanceGlob: acceptanceGlobMutation,
+      description: descriptionMutation,
       delete: deleteMutation,
       archiveMutation,
       unarchiveMutation,
-      agent: agentMutation,
-      workshopSave: workshopSaveMutation,
       updateReqs: updateReqsMutation,
       createModule: createModuleMutation,
       updateModuleMeta: updateModuleMetaMutation,
@@ -360,8 +300,6 @@ export function useBacklogDetailData({
       updateTarget: updateTargetMutation,
       deleteTarget: deleteTargetMutation,
       batchReview: batchReviewMutation,
-      workshopDeleteRound: workshopDeleteRoundMutation,
-      workshopReset: workshopResetMutation,
       fileAction: fileActionMutation,
     },
   } as const;

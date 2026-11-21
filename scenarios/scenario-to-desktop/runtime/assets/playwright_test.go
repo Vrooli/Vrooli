@@ -3,11 +3,12 @@ package assets
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestServiceUsesPlaywright(t *testing.T) {
@@ -70,8 +71,8 @@ func TestPlaywrightDetectionWithEnvVars(t *testing.T) {
 			expect: true,
 		},
 		{
-			name:   "PLAYWRIGHT_CHROMIUM_PATH",
-			svc:    manifest.Service{ID: "svc", Env: map[string]string{"PLAYWRIGHT_CHROMIUM_PATH": "/chrome"}},
+			name:   "BROWSER_EXECUTABLE_PATH",
+			svc:    manifest.Service{ID: "svc", Env: map[string]string{"BROWSER_EXECUTABLE_PATH": "/chrome"}},
 			expect: true,
 		},
 		{
@@ -97,6 +98,33 @@ func TestPlaywrightDetectionWithEnvVars(t *testing.T) {
 }
 
 func TestApplyPlaywrightConventions(t *testing.T) {
+	t.Run("resolves and requires the package-local browser closure", func(t *testing.T) {
+		bundle := t.TempDir()
+		browserDir := filepath.Join(bundle, "resources", "playwright")
+		if err := os.MkdirAll(browserDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		cfg := PlaywrightConfig{
+			BundlePath: bundle,
+			FS:         infra.RealFileSystem{}, EnvReader: infra.RealEnvReader{},
+			Ports:     &testutil.MockPortAllocator{Ports: map[string]map[string]int{"browser-automation-studio-api": {"http": 23200}}},
+			Telemetry: &mockTelemetryRecorder{},
+		}
+		svc := manifest.Service{ID: "browser-automation-studio-api", Env: map[string]string{"PLAYWRIGHT_BROWSERS_PATH": "resources/playwright"}}
+		env := map[string]string{"PLAYWRIGHT_BROWSERS_PATH": "resources/playwright"}
+		if err := ApplyPlaywrightConventions(cfg, svc, env); err != nil {
+			t.Fatalf("ApplyPlaywrightConventions: %v", err)
+		}
+		if env["PLAYWRIGHT_BROWSERS_PATH"] != browserDir {
+			t.Fatalf("PLAYWRIGHT_BROWSERS_PATH = %q, want bundle-local %q", env["PLAYWRIGHT_BROWSERS_PATH"], browserDir)
+		}
+
+		env["PLAYWRIGHT_BROWSERS_PATH"] = "resources/missing-playwright"
+		if err := ApplyPlaywrightConventions(cfg, svc, env); err == nil || !strings.Contains(err.Error(), "browser closure directory missing") {
+			t.Fatalf("missing bundled browser closure error = %v", err)
+		}
+	})
+
 	t.Run("skips non-playwright services", func(t *testing.T) {
 		telem := &mockTelemetryRecorder{}
 		cfg := PlaywrightConfig{
@@ -256,7 +284,7 @@ func TestApplyPlaywrightConventions(t *testing.T) {
 		}
 
 		svc := manifest.Service{ID: "playwright-driver", Env: map[string]string{}}
-		env := map[string]string{"PLAYWRIGHT_CHROMIUM_PATH": "browsers/chromium"}
+		env := map[string]string{"BROWSER_EXECUTABLE_PATH": "browsers/chromium"}
 
 		err := ApplyPlaywrightConventions(cfg, svc, env)
 		if err != nil {
@@ -264,8 +292,8 @@ func TestApplyPlaywrightConventions(t *testing.T) {
 		}
 
 		expectedPath := filepath.Join(bundleDir, "browsers", "chromium")
-		if env["PLAYWRIGHT_CHROMIUM_PATH"] != expectedPath {
-			t.Errorf("PLAYWRIGHT_CHROMIUM_PATH = %q, want %q", env["PLAYWRIGHT_CHROMIUM_PATH"], expectedPath)
+		if env["BROWSER_EXECUTABLE_PATH"] != expectedPath {
+			t.Errorf("BROWSER_EXECUTABLE_PATH = %q, want %q", env["BROWSER_EXECUTABLE_PATH"], expectedPath)
 		}
 	})
 
@@ -285,15 +313,15 @@ func TestApplyPlaywrightConventions(t *testing.T) {
 		}
 
 		svc := manifest.Service{ID: "playwright-driver", Env: map[string]string{}}
-		env := map[string]string{"PLAYWRIGHT_CHROMIUM_PATH": "nonexistent/chromium"}
+		env := map[string]string{"BROWSER_EXECUTABLE_PATH": "nonexistent/chromium"}
 
 		err := ApplyPlaywrightConventions(cfg, svc, env)
 		if err != nil {
 			t.Errorf("ApplyPlaywrightConventions() error = %v", err)
 		}
 
-		if env["PLAYWRIGHT_CHROMIUM_PATH"] != electronPath {
-			t.Errorf("PLAYWRIGHT_CHROMIUM_PATH = %q, want %q (electron fallback)", env["PLAYWRIGHT_CHROMIUM_PATH"], electronPath)
+		if env["BROWSER_EXECUTABLE_PATH"] != electronPath {
+			t.Errorf("BROWSER_EXECUTABLE_PATH = %q, want %q (electron fallback)", env["BROWSER_EXECUTABLE_PATH"], electronPath)
 		}
 	})
 
@@ -312,7 +340,7 @@ func TestApplyPlaywrightConventions(t *testing.T) {
 		}
 
 		svc := manifest.Service{ID: "playwright-driver", Env: map[string]string{}}
-		env := map[string]string{"PLAYWRIGHT_CHROMIUM_PATH": "nonexistent/chromium"}
+		env := map[string]string{"BROWSER_EXECUTABLE_PATH": "nonexistent/chromium"}
 
 		err := ApplyPlaywrightConventions(cfg, svc, env)
 		if err == nil {
@@ -344,7 +372,7 @@ func TestApplyPlaywrightConventionsElectronFallbackEmpty(t *testing.T) {
 		t.Errorf("ApplyPlaywrightConventions() error = %v", err)
 	}
 
-	if env["PLAYWRIGHT_CHROMIUM_PATH"] != electronPath {
-		t.Errorf("PLAYWRIGHT_CHROMIUM_PATH = %q, want %q (electron fallback when empty)", env["PLAYWRIGHT_CHROMIUM_PATH"], electronPath)
+	if env["BROWSER_EXECUTABLE_PATH"] != electronPath {
+		t.Errorf("BROWSER_EXECUTABLE_PATH = %q, want %q (electron fallback when empty)", env["BROWSER_EXECUTABLE_PATH"], electronPath)
 	}
 }

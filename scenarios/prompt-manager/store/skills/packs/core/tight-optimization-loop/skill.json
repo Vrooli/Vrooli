@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-11-14T00:00:00Z",
+  "description": "Run unattended, evidence-bound optimization loops that compare candidates, enforce rights and capacity gates, promote a winner, remove its predecessor, and retain a durable receipt.",
+  "entry": "SKILL.md",
+  "icon": "gauge",
+  "id": "tight-optimization-loop",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "tight-optimization-loop",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "vrooli scenario test"
+    ],
+    "scenarios": [
+      "program-runtime",
+      "model-eval",
+      "test-genie",
+      "storage-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "optimization",
+    "evaluation",
+    "promotion",
+    "capacity"
+  ],
+  "updatedAt": "2026-11-14T00:00:00Z"
+}

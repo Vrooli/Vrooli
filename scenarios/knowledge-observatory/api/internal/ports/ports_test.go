@@ -8,10 +8,3 @@ func TestVectorFilterZeroValue(t *testing.T) {
 		t.Fatalf("expected zero-value slices to be nil")
 	}
 }
-
-func TestJobStatusZeroValue(t *testing.T) {
-	var status JobStatus
-	if status.JobID != "" || status.Status != "" {
-		t.Fatalf("expected zero-value status fields")
-	}
-}

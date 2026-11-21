@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "name": "profile-creation-form",
+    "description": "Open the real profile creation form and verify its required fields before any mutation.",
+    "requirement": "DM-UI-PROFILES",
+    "version": "1",
+    "labels": { "reset": "none", "purpose": "profile-creation" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1440, "viewport_height": 900 },
+  "nodes": [
+    { "id": "open-form", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "deployment-manager", "scenario_path": "/profiles/new", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open profile creation form" } } },
+    { "id": "wait-form", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/profileForm.form", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Profile form is visible" } } },
+    { "id": "assert-name", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/profileForm.nameInput", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Profile name input is missing" }, "metadata": { "label": "Name input is visible" } } }
+  ],
+  "edges": [ { "source": "open-form", "target": "wait-form" }, { "source": "wait-form", "target": "assert-name" } ]
+}

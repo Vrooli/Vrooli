@@ -2,11 +2,16 @@
   "edges": [],
   "metadata": {
     "description": "Executes the slow-execution-demo fixture to validate long-running telemetry paths",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-EXEC-TELEMETRY-AUTOMATION\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Slow Execution Demo",
+    "version": "1"
   },
   "nodes": [
     {

@@ -13,6 +13,7 @@ interface ReplayCursorOverlayProps {
   pointerClassName: string;
   pointerEventProps?: React.HTMLAttributes<HTMLDivElement>;
   clickEffect?: ReactNode;
+  cursorProvenance?: 'observed' | 'edited' | 'derived' | 'missing';
 }
 
 export function ReplayCursorOverlay({
@@ -26,6 +27,7 @@ export function ReplayCursorOverlay({
   pointerClassName,
   pointerEventProps,
   clickEffect,
+  cursorProvenance = 'missing',
 }: ReplayCursorOverlayProps) {
   const overlayWidth = overlayBounds?.width ?? 0;
   const overlayHeight = overlayBounds?.height ?? 0;
@@ -61,7 +63,7 @@ export function ReplayCursorOverlay({
       )}
 
       {pointerStyle && cursorDecor.renderBase && (
-        <div role="presentation" className={pointerClassName} style={pointerStyle} {...pointerEventProps}>
+        <div role="presentation" data-cursor-provenance={cursorProvenance} className={pointerClassName} style={pointerStyle} {...pointerEventProps}>
           {clickEffect}
           {cursorDecor.renderBase}
         </div>

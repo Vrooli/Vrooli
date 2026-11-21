@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "An individual user gets an isolated, identity-scoped workspace whose native tasks, events, and settings survive service and browser restart; a second identity cannot read them (plan REQ-01/REQ-21, INV-01).",
+      "id": "PLAN-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Private persistent workspace",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Civil dates, instants, named timezones, DST transitions, all-day boundaries, and recurrence identity are stored as distinct concepts and never collapsed into one field (plan REQ-05, INV-03; RFC 5545).",
+      "id": "PLAN-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Correct time semantics",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Fixed events, flexible timed sessions, date-assigned effort, and an unscheduled backlog coexist; splitting or moving an allocation conserves demand rather than cloning it (plan REQ-03/D02, INV-07).",
+      "id": "PLAN-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Hybrid planning without double-counting",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Capacity is both a budget and a set of intervals: overlapping busy events subtract their union, reserves count once, unknown estimates are listed separately, and no unqualified 'everything fits' claim is made (plan REQ-09, fixtures F01-F03).",
+      "id": "PLAN-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Truthful interval-aware capacity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A Today view answers 'what can I usefully do now?' with a next-action surface, scoped capacity, and commitment notices — fully usable manually before any automation, provider, or model is configured (plan REQ-01/REQ-23).",
+      "id": "PLAN-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Honest Today experience",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The approved Observatory visual direction ships with coordinated day and night landscapes, Auto/Day/Night controls, truthful time geometry, and WCAG 2.2 AA accessibility as a visual release gate (plan REQ-02/REQ-22/D08, §6).",
+      "id": "PLAN-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Observatory day/night experience",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every mutation flows through one application-command layer behind HTTP/CLI/tools/adapters with actor+workspace from authenticated context, idempotency keys, expected-revision checks, and atomic local writes (plan REQ-21, §20).",
+      "id": "PLAN-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "One authoritative command surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -358,7 +358,7 @@ The template automatically provides:
 - ✅ API proxy middleware
 - ✅ `/health` endpoint
 - ✅ `/config` endpoint
-- ✅ CORS handling
+- ✅ Browser origin policy (same-origin by default, Fetch Metadata + CORS)
 - ✅ SPA fallback routing
 - ✅ Error handling
 - ✅ Request logging (when `verbose: true`)

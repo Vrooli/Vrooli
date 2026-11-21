@@ -1,0 +1,114 @@
+{
+  "original_root": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18",
+  "policy": "Historical evidence only; current decisions and contracts live in PRD and docs. Byte-identical snapshots do not rewrite old links or superseded recommendations.",
+  "files": [
+    {
+      "source_path": "v7/research/README.md",
+      "snapshot": "snapshots/v7__research__README.md.txt",
+      "bytes": 7404,
+      "sha256": "14036b0c2835f72a39bb388bd87637f69e646b7257a8ab9548a00801b30b4db8"
+    },
+    {
+      "source_path": "v7/research/brief.md",
+      "snapshot": "snapshots/v7__research__brief.md.txt",
+      "bytes": 1378,
+      "sha256": "879c3ca3ba2874d6b2a53aa8fc570b728accd0b838de77f20ba277083a59c4ec"
+    },
+    {
+      "source_path": "v7/research/device-contract.md",
+      "snapshot": "snapshots/v7__research__device-contract.md.txt",
+      "bytes": 27285,
+      "sha256": "bd1f09d98079f5ad49e578a09757e1e3716ee1bd44368fde9d79145957a10ac6"
+    },
+    {
+      "source_path": "v7/research/device-domain-input.md",
+      "snapshot": "snapshots/v7__research__device-domain-input.md.txt",
+      "bytes": 52888,
+      "sha256": "0d65d7323005f805201838464b8b791508c6bea8b1821c2313e28fbb2195d464"
+    },
+    {
+      "source_path": "v7/research/integrations.md",
+      "snapshot": "snapshots/v7__research__integrations.md.txt",
+      "bytes": 31757,
+      "sha256": "38bdb1a6b1b2e64c030d0feb4b4d8649e9aaa8b95586c786fd20caf30fe75f22"
+    },
+    {
+      "source_path": "v7/research/product-validation.md",
+      "snapshot": "snapshots/v7__research__product-validation.md.txt",
+      "bytes": 10484,
+      "sha256": "0959b153ff84a80afbeddc038713168c914305d8db221687a9efaaf3fa8802aa"
+    },
+    {
+      "source_path": "v7/research/rendering.md",
+      "snapshot": "snapshots/v7__research__rendering.md.txt",
+      "bytes": 36352,
+      "sha256": "2c2c796c50777309eb65881dee49efa575690f4c095c49298e8b5d0a514b3cbe"
+    },
+    {
+      "source_path": "v7/research/source-inventory.json",
+      "snapshot": "snapshots/v7__research__source-inventory.json.txt",
+      "bytes": 1666,
+      "sha256": "9fcf3d743ea7d76908acb1167afa0d6cebc51ea44ec54033dd86f04354fb5d1f"
+    },
+    {
+      "source_path": "v8/research/README.md",
+      "snapshot": "snapshots/v8__research__README.md.txt",
+      "bytes": 7592,
+      "sha256": "76eccbe10c3511f81ee1969bfc317d9e308968a0e402f9458d121f5c8f767e20"
+    },
+    {
+      "source_path": "v8/research/brief.md",
+      "snapshot": "snapshots/v8__research__brief.md.txt",
+      "bytes": 990,
+      "sha256": "6b067b88c727732c2f1c6bad1d855a5d239e0b04d53195f4532f047aa0f2358f"
+    },
+    {
+      "source_path": "v8/research/catalog-follow-up.md",
+      "snapshot": "snapshots/v8__research__catalog-follow-up.md.txt",
+      "bytes": 7051,
+      "sha256": "9b31cf89d5a5c23fd8baaf9e9896b6910024f7cb278995d5a700eb44d8f87711"
+    },
+    {
+      "source_path": "v8/research/decisions.json",
+      "snapshot": "snapshots/v8__research__decisions.json.txt",
+      "bytes": 7504,
+      "sha256": "8f39af9e19fef842cb0aa5d846ab2da82d6b6a6b6b9513bc55c0835c5f3d6471"
+    },
+    {
+      "source_path": "v8/research/desktop-rendering.md",
+      "snapshot": "snapshots/v8__research__desktop-rendering.md.txt",
+      "bytes": 30750,
+      "sha256": "7a69fe47833ec27bdab4a439bbcaa556679db4bba8ecc56204503362758f7265"
+    },
+    {
+      "source_path": "v8/research/device-domain-input.md",
+      "snapshot": "snapshots/v8__research__device-domain-input.md.txt",
+      "bytes": 53552,
+      "sha256": "574f96acec181316748d392453d18090882eb0be81947f4f96662b9e4968200d"
+    },
+    {
+      "source_path": "v8/research/identity-credits.md",
+      "snapshot": "snapshots/v8__research__identity-credits.md.txt",
+      "bytes": 26780,
+      "sha256": "4049f179b37ae28b24f728d4f17737a0279ba9b2cd969bf6bddc7c6f0771240c"
+    },
+    {
+      "source_path": "v8/research/implementation-approach.md",
+      "snapshot": "snapshots/v8__research__implementation-approach.md.txt",
+      "bytes": 10991,
+      "sha256": "fbf5b935b90739fad264f9c2e53dac199489676e5c0442879648673ae60d9554"
+    },
+    {
+      "source_path": "v8/research/interaction-contract.md",
+      "snapshot": "snapshots/v8__research__interaction-contract.md.txt",
+      "bytes": 8945,
+      "sha256": "34b5fd96e6e7168d4c610edd78267ff972bda505ab54137ade2f75c1cda16852"
+    },
+    {
+      "source_path": "v8/research/monetization.md",
+      "snapshot": "snapshots/v8__research__monetization.md.txt",
+      "bytes": 22159,
+      "sha256": "1bc18272de902c793382afbe95cbac3a408f82d13648dc3b166749dfdc78d125"
+    }
+  ]
+}

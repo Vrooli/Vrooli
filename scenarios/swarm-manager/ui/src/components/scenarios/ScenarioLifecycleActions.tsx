@@ -1,5 +1,6 @@
 import { Loader2, Play, RefreshCw, Square } from "lucide-react";
 import { Button } from "../ui/button";
+import { ActionMenuSheetContent, type ActionMenuItem } from "../ui/action-menu";
 import { selectors } from "../../consts/selectors";
 
 export interface ScenarioLifecycleActionsProps {
@@ -29,55 +30,31 @@ export function ScenarioLifecycleActions({
   };
 
   if (mobile) {
-    const rowButtonClass =
-      "h-10 w-full justify-start rounded-lg border-slate-700/80 bg-slate-900/40 px-3 text-sm text-slate-100 hover:bg-slate-800/70";
+    const items: ActionMenuItem[] = [
+      {
+        label: "Start",
+        icon: <Play />,
+        loading: actionInFlight === "start",
+        onSelect: () => runAction("start"),
+        disabled: actionPending || isRunning,
+      },
+      {
+        label: "Stop",
+        icon: <Square />,
+        loading: actionInFlight === "stop",
+        onSelect: () => runAction("stop"),
+        disabled: actionPending || isStopped,
+      },
+      {
+        label: "Restart",
+        icon: <RefreshCw />,
+        loading: actionInFlight === "restart",
+        onSelect: () => runAction("restart"),
+        disabled: actionPending,
+      },
+    ];
 
-    return (
-      <div className="space-y-2">
-        <Button
-          variant={isRunning ? "outline" : "default"}
-          size="sm"
-          className={rowButtonClass}
-          onClick={() => runAction("start")}
-          disabled={actionPending || isRunning}
-        >
-          {actionInFlight === "start" ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Play className="mr-2 h-4 w-4" />
-          )}
-          Start
-        </Button>
-        <Button
-          variant={isStopped ? "outline" : "default"}
-          size="sm"
-          className={rowButtonClass}
-          onClick={() => runAction("stop")}
-          disabled={actionPending || isStopped}
-        >
-          {actionInFlight === "stop" ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Square className="mr-2 h-4 w-4" />
-          )}
-          Stop
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className={rowButtonClass}
-          onClick={() => runAction("restart")}
-          disabled={actionPending}
-        >
-          {actionInFlight === "restart" ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Restart
-        </Button>
-      </div>
-    );
+    return <ActionMenuSheetContent items={items} />;
   }
 
   return (

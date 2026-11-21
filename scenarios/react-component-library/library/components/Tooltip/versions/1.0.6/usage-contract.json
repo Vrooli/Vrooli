@@ -1,0 +1,13 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Button",
+      "IconButton",
+      "Text"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:Tooltip",
+  "version": "1.0.6-draft.1"
+}

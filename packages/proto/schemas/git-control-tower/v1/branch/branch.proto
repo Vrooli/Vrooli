@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.branch;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/branch;branch_v1";
+
+// =============================================================================
+// BRANCH DOMAIN — typed repository branch operations
+// =============================================================================
+
+// @stability beta
+//
+// BranchService is the only supported typed transport for branch operations.
+// The matching REST routes are migration residue and must not be treated as a
+// second writer contract.
+service BranchService {
+  rpc ListBranches(ListBranchesRequest) returns (ListBranchesResponse);
+  rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse);
+  rpc SwitchBranch(SwitchBranchRequest) returns (SwitchBranchResponse);
+  rpc PublishBranch(PublishBranchRequest) returns (PublishBranchResponse);
+}
+
+message ListBranchesRequest {
+  string repository_id = 1;
+}
+
+message BranchInfo {
+  string name = 1;
+  string upstream = 2;
+  string oid = 3;
+  google.protobuf.Timestamp last_commit_at = 4;
+  int32 ahead = 5;
+  int32 behind = 6;
+  bool is_current = 7;
+  string checked_out_in_worktree = 8;
+}
+
+message BranchWarning {
+  string message = 1;
+  bool requires_confirmation = 2;
+  bool requires_tracking = 3;
+  bool requires_fetch = 4;
+  DirtySummary dirty_summary = 5;
+}
+
+message DirtySummary {
+  int32 staged = 1;
+  int32 unstaged = 2;
+  int32 untracked = 3;
+  int32 conflicts = 4;
+}
+
+message ListBranchesResponse {
+  string current = 1;
+  repeated BranchInfo locals = 2;
+  repeated BranchInfo remotes = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message CreateBranchRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+  string from = 4;
+  bool checkout = 5;
+  bool allow_dirty = 6;
+}
+
+message CreateBranchResponse {
+  bool success = 1;
+  BranchInfo branch = 2;
+  BranchWarning warning = 3;
+  string error = 4;
+  repeated string validation_errors = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+message SwitchBranchRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+  bool allow_dirty = 4;
+  bool track_remote = 5;
+}
+
+message SwitchBranchResponse {
+  bool success = 1;
+  BranchInfo branch = 2;
+  BranchWarning warning = 3;
+  string error = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message PublishBranchRequest {
+  string repository_id = 1;
+  string intent_id = 2;
+  string remote = 3;
+  string branch = 4;
+  bool set_upstream = 5;
+  bool fetch = 6;
+}
+
+message PublishBranchResponse {
+  bool success = 1;
+  string remote = 2;
+  string branch = 3;
+  BranchWarning warning = 4;
+  string error = 5;
+  google.protobuf.Timestamp timestamp = 6;
+}

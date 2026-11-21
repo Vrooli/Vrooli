@@ -3,6 +3,7 @@ package apijson
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -14,7 +15,7 @@ const emptyBodyMessage = "empty response body: test-genie API may have restarted
 func Parse[T any](body []byte, action string) (T, error) {
 	var zero T
 	if len(bytes.TrimSpace(body)) == 0 {
-		return zero, fmt.Errorf(emptyBodyMessage)
+		return zero, errors.New(emptyBodyMessage)
 	}
 
 	var result T

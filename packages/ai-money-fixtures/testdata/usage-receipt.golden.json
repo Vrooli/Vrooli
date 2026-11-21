@@ -1,0 +1,21 @@
+{
+  "operation_id": "op_fixture_001",
+  "request_id": "req_fixture_001",
+  "feature_id": "audio_tools.summary",
+  "route_id": "route_fixture_001",
+  "supplier": "router-fixture",
+  "model": "fixture-small",
+  "permission_version": "rules-fixture-v1",
+  "pricing_version": "pricing-fixture-v1",
+  "terms_reference": "terms-fixture-v1",
+  "input_tokens": 12,
+  "output_tokens": 7,
+  "upstream_cost_micros": 19,
+  "customer_charge_micros": 25,
+  "lot_ids": [
+    "lot_fixture_001"
+  ],
+  "source_kinds": [
+    "stripe"
+  ]
+}

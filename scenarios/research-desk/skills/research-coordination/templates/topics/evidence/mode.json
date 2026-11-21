@@ -1,0 +1,8 @@
+{
+  "approval_flow": "Owners build datasets, pipelines, detectors and analyses at full scale. Publication, external use and any accusation go to the operator.",
+  "boundaries": "- Publishing findings or naming people or organisations outside the project.\n- Private or restricted data.\n- Spending money or accepting paid terms.",
+  "end_state_hint": "Describe the datasets and detectors at full scale and what they can show.",
+  "workstream_hint": "Rows build pipelines and detectors on real data; claims and their confidence live in `knowledge/CLAIMS.md`.",
+  "mode_tools": "",
+  "knowledge_page": "knowledge/CLAIMS.md"
+}

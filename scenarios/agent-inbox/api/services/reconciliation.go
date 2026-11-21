@@ -61,6 +61,13 @@ func (s *ReconciliationService) ReconcileOrphanedToolCalls(ctx context.Context) 
 
 // reconcileToolCall reconciles a single orphaned tool call.
 func (s *ReconciliationService) reconcileToolCall(ctx context.Context, tc domain.ToolCallRecord) error {
+	if tc.Status == domain.StatusApproved {
+		// Approval is persisted before the external tool starts. After restart we
+		// cannot know whether the side effect began or completed, so never replay
+		// this call automatically; expose the uncertain outcome as cancelled.
+		return s.markAsCancelled(ctx, tc, "Server restarted after tool approval; execution outcome is unknown and the tool was not replayed")
+	}
+
 	// If this tool call has an external run ID (agent-manager), try to check its status
 	if tc.ExternalRunID != "" && tc.ScenarioName == "agent-manager" {
 		return s.reconcileAgentManagerToolCall(ctx, tc)

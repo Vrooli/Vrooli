@@ -51,6 +51,9 @@ export type ChromeDecor = {
 };
 
 export type DeviceFrameDecor = {
+  bezelWidth: number;
+  innerRadius: number;
+  frameInset: { x: number; y: number };
   containerClass: string;
   wrapperClass?: string;
   wrapperStyle?: CSSProperties;
@@ -1107,11 +1110,13 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
   switch (theme) {
     case 'slim':
       return {
+        bezelWidth: 6, innerRadius: 14, frameInset: { x: 6, y: 6 },
         containerClass: 'rounded-lg shadow-2xl',
         wrapperClass: 'p-[6px] rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
       };
     case 'notch':
       return {
+        bezelWidth: 12, innerRadius: 24, frameInset: { x: 12, y: 12 },
         containerClass: 'rounded-[1.75rem] shadow-2xl',
         wrapperClass: 'p-3 rounded-[2.25rem] bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
@@ -1125,6 +1130,7 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
       };
     case 'punch':
       return {
+        bezelWidth: 12, innerRadius: 20, frameInset: { x: 12, y: 12 },
         containerClass: 'rounded-2xl shadow-2xl',
         wrapperClass: 'p-3 rounded-[1.75rem] bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
@@ -1137,6 +1143,7 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
       };
     case 'topbar':
       return {
+        bezelWidth: 12, innerRadius: 12, frameInset: { x: 12, y: 12 },
         containerClass: 'rounded-lg shadow-2xl',
         wrapperClass: 'p-3 pt-0 rounded-xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
         overlay: (
@@ -1149,6 +1156,7 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
       };
     case 'monitor':
       return {
+        bezelWidth: 12, innerRadius: 8, frameInset: { x: 12, y: 76 },
         containerClass: 'rounded-lg shadow-2xl',
         wrapperClass: 'relative',
         wrapperStyle: {
@@ -1173,6 +1181,7 @@ export const buildDeviceFrameDecor = (theme: ReplayDeviceFrameTheme): DeviceFram
     case 'minimal':
     default:
       return {
+        bezelWidth: 12, innerRadius: 20, frameInset: { x: 12, y: 12 },
         containerClass: 'rounded-xl shadow-2xl',
         wrapperClass: 'p-3 rounded-2xl bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.5)]',
       };

@@ -1,4 +1,27 @@
+---
+name: "refactor"
+description: "Code quality and structure improvements"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","refactor"]
+  tags: ["skill"]
+  icon: "refreshcw"
+  status: "active"
+  targetDimensions: ["structure","standards","cycles","tidiness"]
+  revision: 44
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Refactor & Structural Improvement
+
+> **Ladder position:** R2–R3 (evolvable architecture / features hardened). Large structural refactors — breaking import cycles, relocating packages, untangling coupling — are the *expected* move at R2; don't shrink them into cosmetic edits. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **code quality, structure, and maintainability** across this scenario’s implementation.
 Do **not** change the intended behavior, regress tests, or weaken safety guarantees; all changes must maintain or improve completeness.
@@ -6,7 +29,7 @@ Do **not** change the intended behavior, regress tests, or weaken safety guarant
 Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by the following principles:
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `prompt-manager skill read knowledge-observatory-tools`
 
 ### **1. Preserve Behavior & Intent**
 
@@ -17,6 +40,7 @@ Required reading:
   * same user-visible workflows and outcomes
   * same API contracts, validation rules, and side effects
 * Do **not** relax tests or assertions to “make refactors pass.” If you must adjust tests, ensure the new expectations are *more accurate* to the PRD, not looser.
+* **Never weaken or delete a `[REQ:]`-tagged test to make a refactor pass** — that test *is* the requirement's definition; loosening it un-defines the requirement. Make the refactored code satisfy the original assertion. (The controller flags this and zeroes the iteration's credit — see `improvement-do-and-dont`.)
 
 ### **2. Improve Code Structure & Readability**
 
@@ -58,31 +82,18 @@ Required reading:
 
 ### **7. Memory Management with Tidiness Manager**
 
-To ensure **systematic coverage without repetition**, use `tidiness-manager` to get intelligent refactor recommendations combining visited-tracker data with code quality metrics.
+Use the current Code Facts-backed reduction ranking to choose a candidate. Inspect its source locations, replacement estimate and calibration provenance. Historical precision is a measured sample, not a guarantee; an uncalibrated detector has no expected-net estimate.
 
-**At the start of each iteration:**
 ```bash
-# Get 5 top-priority files (auto-scans if needed)
-# Priority score combines: staleness + length + complexity + tech debt + missing tests
-tidiness-manager recommend-refactors {{TARGET}} \
-  --limit 5 \
-  --sort-by priority \
-  --min-lines 50
-
-# For scripting (returns just file paths, one per line):
-tidiness-manager recommend-refactors {{TARGET}} \
-  --limit 5 \
-  --format paths
-
-# Alternative sort options for specific improvement targets:
-# --sort-by complexity  # For reducing cyclomatic complexity
-# --sort-by length      # For breaking down long files
-# --sort-by staleness   # For unvisited/stale files (equivalent to visited-tracker)
-# --sort-by duplication # For removing code duplication
+tidiness-manager recommend-refactors {{TARGET}} --limit 5 --min-lines 50
+# For a source-location list:
+tidiness-manager recommend-refactors {{TARGET}} --limit 5 --format paths
 ```
 
+Retain the selected detector ID and source hash with the reduction evidence. Measure production, test, documentation and generated changes separately after caller migration and owner validation. Visit tracking records coverage independently of this ranking.
+
 **Output formats:**
-- `--format detailed` (default): Human-readable with all metrics
+- `--format detailed` (default): Human-readable reduction estimates and calibration
 - `--format paths`: Just file paths, one per line (easy for shell loops)
 - `--format json`: Raw JSON for programmatic processing
 
@@ -97,7 +108,7 @@ tidiness-manager recommend-refactors {{TARGET}} \
 **After analyzing each file:**
 ```bash
 # Record your visit with specific notes about improvements and remaining work
-tidiness-manager visit <file-path> \
+tidiness-manager visit "<file-path>" \
   --scenario {{TARGET}} \
   --note "<summary of refactorings made and what remains>"
 ```
@@ -105,7 +116,7 @@ tidiness-manager visit <file-path> \
 **When a file is irrelevant to refactoring (config, build scripts, generated files, etc.):**
 ```bash
 # Mark it excluded so it doesn't resurface - this is NOT a refactor target
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "Not a refactor target - config/generated/tooling/etc."
 ```
@@ -113,7 +124,7 @@ tidiness-manager exclude <file-path> \
 **When a file is fully refactored:**
 ```bash
 # Mark it excluded so it doesn't resurface in future queries
-tidiness-manager exclude <file-path> \
+tidiness-manager exclude "<file-path>" \
   --scenario {{TARGET}} \
   --reason "All refactoring complete - clean structure, clear naming, no duplication"
 ```

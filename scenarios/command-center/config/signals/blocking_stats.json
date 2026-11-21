@@ -1,0 +1,22 @@
+{
+  "id": "blocking_stats",
+  "label": "Blocked now",
+  "description": "Backlog items currently blocked.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "blocking_stats",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "blocking_stats",
+    "contractVersion": "legacy.v1",
+    "selector": "blocking_stats",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

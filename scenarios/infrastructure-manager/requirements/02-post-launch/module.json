@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "description": "Requirements derived from the P1 operational targets: supervision reconcile, reading history, actuation efficacy, coverage drift, and the operator board.",
+    "last_validated_at": "2026-08-25T06:44:00-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "IFM-P1-001",
+      "title": "Supervision reconcile",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Report the two-direction diff between the autoheal check registry and the derived should-be-supervised set: ghost checks on one side, unsupervised plant on the other. The set is computed at read time from the core-set closure and load-bearing declarations, never held as an enumerated roster, and never falls back to a cached list when the closure source is unavailable.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../vrooli-autoheal/api/internal/handlers/handlers_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Typed reconcile coverage is exercised by autoheal handler tests [REQ:IFM-P1-001]."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P1-002",
+      "title": "Reading history and band recomputation",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Persist readings and trust verdicts but never band verdicts, so in-band status is recomputed against the current deadband at query time and tightening a target re-grades its own history. The retention floor is derived from the longest declared window rather than hardcoded, so a widened target widens retention with it.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/condition/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "History persistence, no-band storage, and retention-floor honesty are exercised by condition tests [REQ:IFM-P1-002]."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P1-003",
+      "title": "Actuation efficacy",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "Re-read a finding's named sensor after its downstream work lands and record whether the reading returned in band. A fix that does not move its sensor re-opens the finding; a sensor that became untrusted or unavailable in the meantime is reported as unmeasurable and routed to the instrument, never recorded as a pass.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/focus/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Efficacy remains explicitly unmeasurable without a completed work join [REQ:IFM-P1-003]."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P1-004",
+      "title": "Coverage drift detection",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Diff every cell against the fleet's live command surface and report cells whose named sensor no longer resolves, plus MISSING cells whose gap a shipped verb could already close. Both are computed against the live surface rather than a checked-in list.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/coverage/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Coverage integrity and missing-cell drift findings are exercised by coverage service tests [REQ:IFM-P1-004]."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P1-005",
+      "title": "Operator board",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "A polished read-only operator panel presenting the cell grid, the ranked error surface, the trust distribution, and per-cell drilldown to the evidence behind each verdict. Instrument-panel dense rather than dashboard-decorative, WCAG 2.1 AA with status never carried by colour alone, and shipped vertical-by-vertical with the domain it presents.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/app/routes.test.tsx",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The operator board route table is covered by UI route tests [REQ:IFM-P1-005]."
+        }
+      ]
+    }
+  ]
+}

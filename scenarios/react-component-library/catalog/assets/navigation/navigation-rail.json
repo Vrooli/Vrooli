@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.navigation-rail",
+    "name": "NavigationRail",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The compact vertical navigation surface with animated selection, icon-first labelling, badges, overflow, and responsive expansion to a full sidebar.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Items are shared navigation links."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "Glyphs resolve through the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "reduced-motion",
+    "tap-target-size"
+  ],
+  "beauty": {
+    "avoid": [
+      "icon-without-accessible-name"
+    ]
+  }
+}

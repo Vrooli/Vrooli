@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
 )
 
 // GetArchiveTargets returns operational targets and requirements parsed from a backlog item's archive.

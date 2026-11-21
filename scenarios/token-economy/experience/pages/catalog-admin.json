@@ -1,0 +1,138 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "catalog-admin",
+    "title": "Rewards Catalog",
+    "routes": [
+      "/catalog"
+    ],
+    "purpose": "Let the minter declare what tokens buy, with the availability and approval posture that make the economy theirs rather than the product's.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Approval posture is chosen deliberately per entry, not inherited from a global default.",
+      "notes": "This is the control that makes a small reward instant and a large one considered."
+    },
+    {
+      "statement": "Availability — a window, a quantity, or unlimited — is explicit."
+    },
+    {
+      "statement": "The catalog is understood as the household's own vocabulary, not a list the product supplied."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Entries declared."
+    },
+    {
+      "id": "loading",
+      "description": "Catalog is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No entries; the page invites the minter to describe what tokens should buy, with examples that are clearly examples."
+    },
+    {
+      "id": "saving",
+      "description": "An entry is being created or updated."
+    },
+    {
+      "id": "success",
+      "description": "Entry saved."
+    },
+    {
+      "id": "validation-error",
+      "description": "Cost, availability or posture rejected."
+    },
+    {
+      "id": "request-error",
+      "description": "Catalog list or save failed."
+    },
+    {
+      "id": "partial",
+      "description": "Entries loaded but per-entry redemption counts failed; entries render with that column marked unavailable."
+    },
+    {
+      "id": "stale",
+      "description": "Showing a cached catalog after a failed refresh, labelled as such so a retired entry is not trusted as live."
+    }
+  ],
+  "elements": [
+    {
+      "id": "catalog-table",
+      "role": "table",
+      "name": "Catalog entries",
+      "description": "Each entry with cost, availability and approval posture."
+    },
+    {
+      "id": "create-entry",
+      "role": "button",
+      "name": "New reward",
+      "description": "Opens entry creation."
+    },
+    {
+      "id": "approval-posture-field",
+      "role": "radiogroup",
+      "name": "Approval",
+      "description": "Settles immediately, or waits for approval."
+    },
+    {
+      "id": "availability-field",
+      "role": "group",
+      "name": "Availability",
+      "description": "Window, quantity, or unlimited."
+    }
+  ],
+  "claims": [
+    {
+      "id": "posture-is-explicit",
+      "type": "affordance-present",
+      "statement": "Approval posture is a required, explicit choice on every entry with no silent default.",
+      "tier": "aspirational",
+      "elements": [
+        "approval-posture-field"
+      ]
+    },
+    {
+      "id": "availability-explicit",
+      "type": "element-present",
+      "statement": "Availability is stated on every entry rather than implied by absence.",
+      "tier": "aspirational",
+      "elements": [
+        "availability-field"
+      ]
+    },
+    {
+      "id": "empty-examples-are-marked",
+      "type": "state-covered",
+      "statement": "Example rewards in the empty state are visibly examples and are not created by accident.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "catalog-table": {
+        "testid": "catalog-table"
+      },
+      "create-entry": {
+        "testid": "catalog-create"
+      },
+      "approval-posture-field": {
+        "testid": "catalog-approval-posture"
+      },
+      "availability-field": {
+        "testid": "catalog-availability"
+      }
+    }
+  }
+}

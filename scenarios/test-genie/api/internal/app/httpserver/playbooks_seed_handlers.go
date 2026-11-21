@@ -1,28 +1,34 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 
 	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/isolation"
+	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/targetruntime"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 )
 
 var applyPlaybooksSeed = phases.ApplyPlaybooksSeed
 
-type seedSession struct {
-	Scenario string
-	Created  time.Time
-	Session  *phases.PlaybooksSeedSession
+// resolveSeedTargetAPI reuses the same process-record/runtime URL resolver as
+// Test Genie suite execution. Seed apply requires a live target API because it
+// installs a routed storage lease on that service; it must not guess a URL or
+// start a separately named shadow target.
+var resolveSeedTargetAPI = func(ctx context.Context, scenarioName, scenarioDir string) (string, error) {
+	urls := targetruntime.New(scenarioName, scenarioDir).LiveSurfaces(ctx)
+	if strings.TrimSpace(urls.API) == "" {
+		return "", fmt.Errorf("scenario %s has no live API URL", scenarioName)
+	}
+	return urls.API, nil
 }
 
 func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request) {
@@ -54,50 +60,25 @@ func (s *Server) handlePlaybooksSeedApply(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	s.seedSessionsMu.Lock()
-	if token, ok := s.seedSessionsByScenario[name]; ok && token != "" {
-		s.seedSessionsMu.Unlock()
-		s.writeJSON(w, http.StatusConflict, map[string]any{
-			"error":         "seed session already active for scenario",
-			"scenario":      name,
-			"cleanup_token": token,
-		})
-		return
-	}
-	s.seedSessionsMu.Unlock()
-
-	scenarioDir := strings.TrimSpace(payload.ScenarioPath)
-	scenariosRoot := strings.TrimSpace(s.scenarios.ScenarioRoot())
-	if scenarioDir == "" {
-		scenarioDir = filepath.Join(scenariosRoot, name)
-	}
-	ws, err := workspace.New(scenariosRoot, name)
+	token, record, err := s.applySeedSession(r.Context(), name, strings.TrimSpace(payload.ScenarioPath), "", payload.Retain || isolation.ShouldRetainFromEnv())
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, err.Error())
+		status := http.StatusInternalServerError
+		if connect.CodeOf(err) == connect.CodeAlreadyExists {
+			status = http.StatusConflict
+		}
+		if connect.CodeOf(err) == connect.CodeInvalidArgument {
+			status = http.StatusBadRequest
+		}
+		if connect.CodeOf(err) == connect.CodeUnavailable {
+			status = http.StatusServiceUnavailable
+		}
+		if connect.CodeOf(err) == connect.CodeResourceExhausted {
+			status = http.StatusTooManyRequests
+		}
+		s.writeError(w, status, err.Error())
 		return
 	}
-	env := ws.Environment()
-	env.ScenarioDir = scenarioDir
-
-	retain := payload.Retain || isolation.ShouldRetainFromEnv()
-
-	session, err := applyPlaybooksSeed(r.Context(), env, nil, retain)
-	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	token := uuid.NewString()
-	session.CleanupRef = token
-
-	s.seedSessionsMu.Lock()
-	s.seedSessions[token] = &seedSession{
-		Scenario: name,
-		Created:  time.Now().UTC(),
-		Session:  session,
-	}
-	s.seedSessionsByScenario[name] = token
-	s.seedSessionsMu.Unlock()
+	session := record.Session
 
 	s.writeJSON(w, http.StatusOK, map[string]any{
 		"status":        "seeded",
@@ -137,24 +118,16 @@ func (s *Server) handlePlaybooksSeedCleanup(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	s.seedSessionsMu.Lock()
-	session, ok := s.seedSessions[token]
-	if ok && session != nil && session.Scenario != name {
-		s.seedSessionsMu.Unlock()
-		s.writeError(w, http.StatusConflict, "cleanup token does not match scenario")
-		return
-	}
-	delete(s.seedSessions, token)
-	delete(s.seedSessionsByScenario, name)
-	s.seedSessionsMu.Unlock()
-
-	if !ok || session == nil || session.Session == nil {
-		s.writeError(w, http.StatusNotFound, "seed session not found")
-		return
-	}
-
-	if err := session.Session.Cleanup(r.Context()); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err.Error())
+	session, err := s.clearSeedSession(r.Context(), name, token)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if connect.CodeOf(err) == connect.CodeNotFound {
+			status = http.StatusNotFound
+		}
+		if connect.CodeOf(err) == connect.CodeFailedPrecondition {
+			status = http.StatusConflict
+		}
+		s.writeError(w, status, err.Error())
 		return
 	}
 
@@ -183,18 +156,14 @@ func (s *Server) handlePlaybooksSeedCleanupForce(w http.ResponseWriter, r *http.
 
 	s.seedSessionsMu.Lock()
 	token := s.seedSessionsByScenario[name]
-	session, ok := s.seedSessions[token]
-	delete(s.seedSessions, token)
-	delete(s.seedSessionsByScenario, name)
 	s.seedSessionsMu.Unlock()
-
-	if !ok || session == nil || session.Session == nil {
-		s.writeError(w, http.StatusNotFound, "seed session not found")
-		return
-	}
-
-	if err := session.Session.Cleanup(r.Context()); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err.Error())
+	session, err := s.clearSeedSession(r.Context(), name, token)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if token == "" || connect.CodeOf(err) == connect.CodeNotFound {
+			status = http.StatusNotFound
+		}
+		s.writeError(w, status, err.Error())
 		return
 	}
 

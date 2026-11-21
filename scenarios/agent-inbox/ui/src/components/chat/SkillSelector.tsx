@@ -11,7 +11,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Search, Plus, ChevronLeft, RefreshCw } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import type { Skill } from "@/lib/types/templates";
 import { SkillEditorModal } from "@/components/settings/SkillEditorModal";
 import { createSkill as apiCreateSkill } from "@/data/skills";
@@ -46,7 +46,7 @@ export function SkillSelector({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skillRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const previewRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const doneButtonRef = useRef<HTMLButtonElement>(null);
+  const doneButtonRef = useRef<HTMLDivElement>(null);
   const [currentModePath, setCurrentModePath] = useState<string[]>([]);
   const [previewSkill, setPreviewSkill] = useState<Skill | null>(null);
   const [previewReadOnly, setPreviewReadOnly] = useState(true);
@@ -94,7 +94,9 @@ export function SkillSelector({
   const skillsByCategory = useMemo(() => {
     const grouped = new Map<string, Skill[]>();
     for (const skill of displaySkills) {
-      const category = skill.modes?.[0] || skill.category || "Other";
+      const skillRecord = skill as unknown as Record<string, unknown>;
+      const legacyCategory = typeof skillRecord.category === "string" ? skillRecord.category : undefined;
+      const category = skill.modes?.[0] || legacyCategory || "Other";
       const categorySkills = grouped.get(category) ?? [];
       if (!grouped.has(category)) grouped.set(category, categorySkills);
       categorySkills.push(skill);
@@ -136,14 +138,17 @@ export function SkillSelector({
         case "Tab":
           if (!e.shiftKey && focusedIndex === -1) { if (displaySkills.length > 0) { e.preventDefault(); setFocusedIndex(0); setFocusedElement("skill"); } }
           else if (e.shiftKey && focusedIndex === 0) { e.preventDefault(); setFocusedIndex(-1); }
-          else if (!e.shiftKey && focusedIndex === maxIndex) { e.preventDefault(); doneButtonRef.current?.focus(); }
+          else if (!e.shiftKey && focusedIndex === maxIndex) { e.preventDefault(); doneButtonRef.current?.querySelector("button")?.focus(); }
           else if (focusedIndex >= 0) { e.preventDefault(); setFocusedIndex((prev) => e.shiftKey ? prev - 1 : prev + 1); }
           break;
         case "Enter": case " ":
           if (focusedIndex >= 0) {
             e.preventDefault();
             const skill = skillsWithIndices.find((s) => s.index === focusedIndex)?.skill;
-            if (skill) { focusedElement === "preview" ? setPreviewSkill(skill) : onToggle(skill.id); }
+            if (skill) {
+              if (focusedElement === "preview") setPreviewSkill(skill);
+              else onToggle(skill.id);
+            }
           }
           break;
         case "Escape": if (focusedElement === "preview") { e.preventDefault(); setFocusedElement("skill"); } break;
@@ -155,8 +160,8 @@ export function SkillSelector({
   useEffect(() => {
     if (!open) return;
     if (focusedIndex === -1) { searchInputRef.current?.focus(); }
-    else if (focusedElement === "preview" && previewRefs.current[focusedIndex]) { previewRefs.current[focusedIndex]?.focus(); }
-    else if (skillRefs.current[focusedIndex]) { skillRefs.current[focusedIndex]?.focus(); skillRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    else if (focusedElement === "preview" && previewRefs.current[focusedIndex]) { previewRefs.current[focusedIndex].focus(); }
+    else if (skillRefs.current[focusedIndex]) { skillRefs.current[focusedIndex].focus(); skillRefs.current[focusedIndex].scrollIntoView({ block: "nearest", behavior: "smooth" }); }
   }, [focusedIndex, focusedElement, open]);
 
   const handleCreateSkill = useCallback(async (skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">) => {
@@ -176,7 +181,7 @@ export function SkillSelector({
           </div>
           <div className="flex items-center gap-1">
             {onSyncSkills && (
-              <button onClick={onSyncSkills} disabled={isSyncing} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Sync skills from prompt-manager">
+              <button onClick={() => { void onSyncSkills(); }} disabled={isSyncing} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50" title="Sync skills from prompt-manager">
                 <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
               </button>
             )}
@@ -221,7 +226,7 @@ export function SkillSelector({
                   <div className="space-y-2">
                     <p>No skills available</p>
                     {onSyncSkills && (
-                      <button onClick={onSyncSkills} disabled={isSyncing} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50">
+                      <button onClick={() => { void onSyncSkills(); }} disabled={isSyncing} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50">
                         <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
                         {isSyncing ? "Syncing..." : "Sync from prompt-manager"}
                       </button>
@@ -264,7 +269,9 @@ export function SkillSelector({
         </DialogBody>
 
         <DialogFooter>
-          <Button ref={doneButtonRef} variant="ghost" onClick={handleClose}>Done</Button>
+          <div ref={doneButtonRef} className="w-full">
+            <OverlayActionBar actions={[{ id: "done", label: "Done", onSelect: handleClose, primary: true }]} />
+          </div>
         </DialogFooter>
       </Dialog>
 
@@ -274,20 +281,22 @@ export function SkillSelector({
         skill={previewSkill || undefined}
         readOnly={previewReadOnly}
         onEdit={() => setPreviewReadOnly(false)}
-        onSave={async (skillData) => {
+        onSave={(skillData) => {
           if (!previewSkill) return;
-          try {
-            const { updateSkill } = await import("@/data/skills");
-            await updateSkill(previewSkill.id, skillData);
-            onSkillCreated?.();
-          } catch (error) { console.error("Failed to update skill:", error); }
+          void (async () => {
+            try {
+              const { updateSkill } = await import("@/data/skills");
+              await updateSkill(previewSkill.id, skillData);
+              onSkillCreated?.();
+            } catch (error) { console.error("Failed to update skill:", error); }
+          })();
         }}
       />
 
       <SkillEditorModal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSave={handleCreateSkill}
+        onSave={(skillData) => { void handleCreateSkill(skillData); }}
       />
     </>
   );

@@ -1,0 +1,176 @@
+{
+  "metadata": {
+    "name": "appearance-arabic-dark-phone",
+    "description": "Choose dark appearance and Arabic, confirm right-to-left layout and that both choices live in this browser only.",
+    "requirement": "NOTIFICA-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-appearance-arabic-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Choose dark appearance and Arabic, confirm right-to-left layout and that both choices live in this browser only.",
+      "requirement": "NOTIFICA-P0-008",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-appearance",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/appearance?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Appearance and language"
+          }
+        }
+      },
+      {
+        "id": "wait-choices",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the theme choices"
+          }
+        }
+      },
+      {
+        "id": "choose-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Choose dark"
+          }
+        }
+      },
+      {
+        "id": "choose-arabic",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.localeOption(code=ar)"
+          },
+          "metadata": {
+            "label": "Choose Arabic"
+          }
+        }
+      },
+      {
+        "id": "assert-rtl",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const html=document.documentElement;if(html.lang!=='ar'||html.dir!=='rtl')throw new Error('expected Arabic RTL, got '+html.lang+'/'+html.dir);if(localStorage.getItem('vrooli.locale')!=='ar')throw new Error('Arabic was not kept in this browser');if(localStorage.getItem('vrooli.theme')!=='dark')throw new Error('theme was not kept in this browser');return {lang:html.lang,dir:html.dir,theme:'dark'};})()"
+          },
+          "metadata": {
+            "label": "Arabic is right-to-left and both choices are stored locally"
+          }
+        }
+      },
+      {
+        "id": "assert-no-overflow",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const w=document.documentElement;if(w.scrollWidth>w.clientWidth+1)throw new Error('page scrolls sideways: '+w.scrollWidth+' > '+w.clientWidth);return true;})()"
+          },
+          "metadata": {
+            "label": "Nothing overflows sideways in right-to-left"
+          }
+        }
+      },
+      {
+        "id": "zero-insets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');return true;})()"
+          },
+          "metadata": {
+            "label": "Zero the safe-area insets so the capture matches a desktop browser"
+          }
+        }
+      },
+      {
+        "id": "capture",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture Arabic dark Appearance on a phone"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-appearance",
+        "target": "wait-choices",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "wait-choices",
+        "target": "choose-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "choose-theme",
+        "target": "choose-arabic",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "choose-arabic",
+        "target": "assert-rtl",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "assert-rtl",
+        "target": "assert-no-overflow",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "assert-no-overflow",
+        "target": "zero-insets",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-06",
+        "source": "zero-insets",
+        "target": "capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

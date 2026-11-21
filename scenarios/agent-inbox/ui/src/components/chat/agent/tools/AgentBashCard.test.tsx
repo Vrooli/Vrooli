@@ -1,3 +1,4 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for AgentBashCard component.
  *
@@ -10,7 +11,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AgentBashCard } from "./AgentBashCard";
 import type { AgentEvent } from "../../../../lib/api";
@@ -41,7 +42,7 @@ describe("AgentBashCard", () => {
       tool_input: JSON.stringify({ command: "ls -la" }),
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     expect(screen.getByText("Bash")).toBeInTheDocument();
   });
 
@@ -54,7 +55,7 @@ describe("AgentBashCard", () => {
       }),
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     expect(screen.getByText("Check working tree status")).toBeInTheDocument();
   });
 
@@ -64,7 +65,7 @@ describe("AgentBashCard", () => {
       tool_input: JSON.stringify({ command: "npm install" }),
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     expect(screen.getByText("npm install")).toBeInTheDocument();
   });
 
@@ -74,7 +75,7 @@ describe("AgentBashCard", () => {
       tool_input: JSON.stringify({}),
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     expect(screen.getByText("(no command)")).toBeInTheDocument();
   });
 
@@ -95,7 +96,7 @@ describe("AgentBashCard", () => {
       tool_success: true,
     });
 
-    render(<AgentBashCard event={event} result={result} />);
+    renderWithProviders(<AgentBashCard event={event} result={result} />);
 
     // Before clicking, the output section should not be visible
     expect(screen.queryByText("Command")).not.toBeInTheDocument();
@@ -123,7 +124,7 @@ describe("AgentBashCard", () => {
       tool_success: true,
     });
 
-    render(<AgentBashCard event={event} result={result} />);
+    renderWithProviders(<AgentBashCard event={event} result={result} />);
     expect(screen.getByText("Success")).toBeInTheDocument();
   });
 
@@ -138,7 +139,7 @@ describe("AgentBashCard", () => {
       tool_success: false,
     });
 
-    render(<AgentBashCard event={event} result={result} />);
+    renderWithProviders(<AgentBashCard event={event} result={result} />);
     expect(screen.getByText("Failed")).toBeInTheDocument();
   });
 
@@ -148,7 +149,7 @@ describe("AgentBashCard", () => {
       tool_input: undefined,
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     expect(screen.getByText("(no command)")).toBeInTheDocument();
     expect(screen.getByText("Bash")).toBeInTheDocument();
   });
@@ -159,7 +160,7 @@ describe("AgentBashCard", () => {
       tool_input: "not valid json {{{",
     });
 
-    render(<AgentBashCard event={event} />);
+    renderWithProviders(<AgentBashCard event={event} />);
     // parseToolInput returns null, so description and command are both undefined
     expect(screen.getByText("(no command)")).toBeInTheDocument();
     expect(screen.getByText("Bash")).toBeInTheDocument();

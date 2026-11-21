@@ -131,7 +131,9 @@ app.use('/api', (req, res) => {
     proxyToApi(req, res, downstreamPath);
 });
 
-app.use(express.static(__dirname));
+const staticRoot = path.join(__dirname, 'dist');
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
+app.use(express.static(staticRoot));
 
 // Health check endpoint with API connectivity validation
 app.get('/health', async (req, res) => {
@@ -188,7 +190,7 @@ app.get('/health', async (req, res) => {
 
 // Serve the main application
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 // Start server

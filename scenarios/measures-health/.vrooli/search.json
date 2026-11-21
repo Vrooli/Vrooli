@@ -1,0 +1,171 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "measures-health.measures",
+      "lifecycle": "production",
+      "provider_group": "measures-health",
+      "bucket": "BUCKET_STATE",
+      "type": "measure",
+      "description": "Analytical measures across every scenario: typed, parameterized questions whose answer is a computed value — \"how many / what is the rate / what is next\" (for example \"how many backlog items did we complete this week\", \"what is on my calendar next week\"). Route analytical/quantitative questions here; the provider matches the measure, resolves its parameters, and returns the computed answer for safe read-only measures.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "measures-health",
+          "path": "/vrooli.measures_health.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "measures-health",
+          "path": "/vrooli.measures_health.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "measure.measure_id",
+        "title_field": "measure.measure_id",
+        "snippet_field": "measure.answer",
+        "score_field": "score",
+        "measure_field": "measure",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "measures-health measures — primary golden corpus",
+        "description": "Reviewed corpus for the central measures provider. It exercises both stable fleet-validation measures through count and coverage phrasings, while preserving a candidate for the unsupported adoption-rate intent rather than pretending that measure exists.",
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "analytical-measures",
+              "description": "Quantitative questions that should route to declared scenario measures.",
+              "tags": [
+                "count",
+                "coverage",
+                "rate"
+              ],
+              "min_reviewed_positive": 2
+            }
+          ]
+        },
+        "cases": [
+          {
+            "id": "failed-measures-count",
+            "query": "how many scenarios failed measures validation this week",
+            "tags": [
+              "strong",
+              "count"
+            ],
+            "expect_ids": [
+              "validation_run.failed"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "measures-coverage",
+            "query": "what is the measures coverage across the fleet",
+            "tags": [
+              "weak-real",
+              "coverage"
+            ],
+            "expect_ids": [
+              "validation_run.coverage"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "failed-measures-weekly-count",
+            "query": "number of failed measure validations this week",
+            "tags": ["strong", "count", "reviewed-live"],
+            "expect_ids": ["validation_run.failed"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.failed."
+          },
+          {
+            "id": "failed-measures-weekly-summary",
+            "query": "weekly failed measures validation count",
+            "tags": ["weak-real", "count", "reviewed-live"],
+            "expect_ids": ["validation_run.failed"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.failed."
+          },
+          {
+            "id": "fleet-validation-coverage",
+            "query": "fleet measure validation coverage",
+            "tags": ["strong", "coverage", "reviewed-live"],
+            "expect_ids": ["validation_run.coverage"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.coverage."
+          },
+          {
+            "id": "scenario-measure-coverage",
+            "query": "which scenarios have measures coverage",
+            "tags": ["hard", "coverage", "reviewed-live"],
+            "expect_ids": ["validation_run.coverage"],
+            "expect_within_top_k": 5,
+            "note": "Live verified on 2026-07-12 against validation_run.coverage."
+          },
+          {
+            "id": "adoption-rate",
+            "query": "measure adoption rate by scenario",
+            "tags": [
+              "hard",
+              "rate"
+            ],
+            "expect_ids": [
+              "measures.validation.coverage"
+            ],
+            "expect_within_top_k": 5,
+            "status": "candidate",
+            "note": "Candidate until a distinct adoption-rate measure id exists; coverage currently answers this family."
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv analytical nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          },
+          {
+            "id": "junk-non-analytical",
+            "query": "florbnax qwop zxcv interface wallpaper",
+            "tags": ["gibberish", "reviewed-live"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3,
+            "note": "Non-analytical junk keeps the live provider's routing floor measurable."
+          }
+        ]
+      }
+    }
+  ]
+}

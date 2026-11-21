@@ -1,0 +1,218 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Music Library هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `template-manager generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "Music Library",
+    "eyebrow": "قالب السيناريو",
+    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+  },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل على الهاتف",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "notes": "الملاحظات",
+      "review": "الاستماع والمراجعة",
+      "releases": "الإصدارات",
+      "settings": "الإعدادات",
+      "taste": "الذوق"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "لوحة التحكم",
+      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
+      "statPlaceholderLabel": "إحصائية"
+    },
+    "notes": {
+      "title": "الملاحظات"
+    },
+    "review": {
+      "title": "مراجعة المرجع",
+      "description": "استمع إلى المسارات المحلية الخاصة، وافحص التحليل ذي الطوابع الزمنية، وسجّل التصحيحات.",
+      "eyebrow": "فهم الموسيقى",
+      "queue": "قائمة التحليل",
+      "queueLabel": "المسارات التي تم تحليلها",
+      "refresh": "تحديث",
+      "loading": "جارٍ تحميل التحليلات…",
+      "empty": "لا توجد مسارات محللة بعد.",
+      "loadError": "تعذر تحميل التحليل.",
+      "saveError": "تعذر حفظ المراجعة.",
+      "reviewCount": "مراجعات",
+      "nextPage": "الصفحة التالية",
+      "firstPage": "الصفحة الأولى",
+      "selectTrack": "اختر مسارًا للمراجعة.",
+      "noDetail": "لم يتم اختيار مسار.",
+      "audioLabel": "الصوت الخاص للمصدر",
+      "privateAudio": "يبقى الصوت الخاص على هذا الجهاز",
+      "job": "مهمة التحليل",
+      "timeline": "إشارات زمنية",
+      "timelineHint": "اختر طابعًا زمنيًا للتشغيل من تلك النقطة.",
+      "cues": "إشارات",
+      "noCues": "لا يحتوي هذا التحليل على مقاطع زمنية بعد.",
+      "playFrom": "التشغيل من",
+      "lowConfidence": "حد صوتي منخفض الثقة",
+      "transcriptHypothesis": "فرضية تفريغ",
+      "sectionCandidate": "مقطع مرشح",
+      "feedback": "مراجعتك السمعية",
+      "feedbackHint": "حكمك هو إشارة الجودة. تُحفظ الملاحظات والتصحيحات مع هذا التحليل.",
+      "verdict": "إلى أي مدى يطابق التحليل ما تسمعه؟",
+      "confirmed": "يعكس ما أسمعه",
+      "corrected": "يحتاج إلى تصحيح",
+      "needs_work": "يحتاج إلى مزيد من العمل",
+      "note": "ماذا تسمع؟",
+      "notePlaceholder": "صف المقطع أو اللازمة أو الانتقال أو الصوت المهم…",
+      "addCorrection": "إضافة تصحيح زمني",
+      "start": "البداية (ثوانٍ)",
+      "end": "النهاية (ثوانٍ)",
+      "label": "ما الذي يحدث هنا",
+      "add": "إضافة إشارة",
+      "removeCorrection": "إزالة هذا التصحيح",
+      "save": "حفظ المراجعة",
+      "saved": "تم حفظ المراجعة."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    },
+    "taste": {
+      "eyebrow": "فهم الموسيقى",
+      "title": "الذوق والتوصيات",
+      "description": "عدّل عناصر التحكم الصريحة بشكل منفصل عن التقديرات المتعلّمة، وقارن مسارات دقيقة من الفهرس، وافحص أدلة التوصية المشتقة من النتيجة.",
+      "profile": "ملف الذوق القابل للتحرير",
+      "revision": "المراجعة {{revision}}",
+      "refresh": "تحديث",
+      "sparse": "الأدلة قليلة: تبقى التقديرات غير مؤكدة حتى تُسجل مقارنات المشغّل.",
+      "controls": "تحكم صريح",
+      "attribute": "السمة",
+      "mode": "الوضع",
+      "value": "القيمة",
+      "boost": "تعزيز",
+      "suppress": "تقليل",
+      "pin": "تثبيت",
+      "ban": "حظر",
+      "saveControl": "حفظ التحكم",
+      "compare": "اكتشاف بالمقارنة الثنائية",
+      "compareHint": "يُعرض كل زوج بترتيب يسار/يمين عشوائي. يفضّل الاختيار عدم اليقين والمقارنات الجديدة. تبقى اختيارات اليسار واليمين والتعادل ولا أحد والتخطي منفصلة.",
+      "nextPair": "اختر المقارنة التالية",
+      "information": "المعلومات المتوقعة: {{value}}",
+      "preferLeft": "أفضل هذا المسار",
+      "preferRight": "أفضل هذا المسار",
+      "tie": "تعادل",
+      "neither": "لا أحد",
+      "skip": "تخطي",
+      "noPair": "لا توجد مقارنة جديدة الآن. أضف مسارات إلى الفهرس أو سجّل أدلة جديدة.",
+      "why": "اختر سبب إعجابي بهذا",
+      "whyHint": "تعتمد الدرجات على وسوم الفهرس المرتبطة ببصمة المسار والأنواع الصريحة، وعلى أوصاف المدة والإيقاع والمقام فقط بعد تأكيد التحليل المحدد. بيانات الفنان تنوّع القائمة فقط؛ وتبقى التحليلات غير المؤكدة أو القديمة مجهولة.",
+      "noCatalog": "لا توجد مسارات في الفهرس بعد.",
+      "seed": "المسار الأساسي",
+      "findRecommendations": "اعثر على توصيات",
+      "noRecommendations": "لا يحتوي الفهرس على بدائل كافية حتى الآن.",
+      "score": "التفضيل المتوقع {{score}} ± {{uncertainty}}",
+      "featureEvidence": "القيمة {{value}} · الثقة {{confidence}}",
+      "exploration": "استكشاف",
+      "mq2Brief": "موجز أغنية MQ2",
+      "loadError": "تعذر تحميل ملف الذوق والفهرس.",
+      "pairError": "تعذر اختيار مقارنة.",
+      "judgmentError": "تعذر حفظ المقارنة.",
+      "controlError": "تعذر حفظ التحكم.",
+      "recommendError": "تعذر إنشاء التوصيات.",
+      "context": "السياق",
+      "randomPair": "مقارنة أساسية عشوائية",
+      "more": "المزيد",
+      "less": "الأقل",
+      "exclude": "استبعاد",
+      "reinforceAttribute": "فضّل المزيد من {{attribute}}",
+      "suppressAttribute": "فضّل الأقل من {{attribute}}",
+      "banAttribute": "استبعد {{attribute}}",
+      "judgmentHistory": "المقارنات المحفوظة",
+      "correct": "تصحيح",
+      "correctionPending": "اختر التفضيل المصحح واحفظه كإصدار جديد.",
+      "corrected": "تم التصحيح"
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "statusLabel": "الحالة:",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "notes": {
+    "title": "الملاحظات",
+    "loading": "جارٍ تحميل الملاحظات…",
+    "empty": "لا توجد ملاحظات بعد.",
+    "create": "إنشاء ملاحظة",
+    "createdAtLabel": "تاريخ الإنشاء:",
+    "attachmentsLabel": "{{count}} مرفقات",
+    "attachmentsLabel_one": "مرفق واحد",
+    "table": {
+      "title": "العنوان",
+      "created": "تاريخ الإنشاء",
+      "attachments": "المرفقات",
+      "actions": "الإجراءات",
+      "search": "البحث في الملاحظات"
+    },
+    "uploadAttachment": "رفع مرفق",
+    "attachmentFileLabel": "ملف المرفق",
+    "uploadSuccess": "تم رفع {{name}}.",
+    "noFileSelected": "اختر ملفًا قبل الرفع.",
+    "measure": {
+      "title": "ملاحظات هذا الأسبوع",
+      "loading": "جارٍ العد…",
+      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "إغلاق التنقل",
+      "mobile-navigation": "التنقل على الهاتف",
+      "open-navigation": "فتح التنقل",
+      "primary-navigation": "التنقل الرئيسي",
+      "skip-to-content": "انتقل إلى المحتوى"
+    }
+  }
+}

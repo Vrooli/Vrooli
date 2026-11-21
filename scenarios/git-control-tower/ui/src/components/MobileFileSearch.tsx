@@ -15,6 +15,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { BottomSheet } from "./ui/bottom-sheet";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { useFileSearch, useContentSearch } from "../lib/hooks";
 import type { FileInfo, ContentSearchMatch, ContentSearchRequest } from "../lib/api";
 import {
@@ -220,31 +221,17 @@ export function MobileFileSearch({
       {/* Sticky header */}
       <div className="sticky top-0 -mx-4 -mt-4 px-4 pt-4 pb-3 bg-slate-950 border-b border-slate-800 z-10">
         {/* Tabs */}
-        <div className="flex mb-3 bg-slate-900 rounded-lg p-1">
-          <button
-            type="button"
-            onClick={() => handleModeSwitch("files")}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              searchMode === "files"
-                ? "bg-slate-800 text-slate-100"
-                : "text-slate-400"
-            }`}
-          >
-            <FileCode className="h-4 w-4" />
-            Files
-          </button>
-          <button
-            type="button"
-            onClick={() => handleModeSwitch("content")}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              searchMode === "content"
-                ? "bg-slate-800 text-slate-100"
-                : "text-slate-400"
-            }`}
-          >
-            <FileText className="h-4 w-4" />
-            Content
-          </button>
+        <div className="mb-3 rounded-lg bg-slate-900 px-2">
+          <Tabs
+            density="compact"
+            items={[
+              { id: "files", label: "Files", icon: <FileCode aria-hidden="true" /> },
+              { id: "content", label: "Content", icon: <FileText aria-hidden="true" /> },
+            ]}
+            active={searchMode}
+            onChange={(next) => handleModeSwitch(next as SearchMode)}
+            ariaLabel="Search mode"
+          />
         </div>
 
         {/* Search Input */}

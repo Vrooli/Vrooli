@@ -43,6 +43,12 @@ type Collector interface {
 	DeleteByRun(ctx context.Context, runID uuid.UUID) error
 }
 
+// RetentionCollector reclaims generated artifacts older than a cutoff in a
+// bounded batch. It intentionally excludes user-upload attachments.
+type RetentionCollector interface {
+	DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error)
+}
+
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------

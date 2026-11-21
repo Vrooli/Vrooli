@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.composition;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/composition;composition_v1";
+
+// PLG-COMPOSE-TREE, PLG-COMPOSE-MCP, PLG-COMPOSE-ATOMIC.
+service CompositionService {
+  // Materializes the Agent Plugins tree for one eligible source.
+  rpc Compose(ComposeRequest) returns (ComposeResponse);
+  // Retrieves a durable package record without embedding artifact bytes.
+  rpc GetPackage(GetPackageRequest) returns (GetPackageResponse);
+}
+message ComposeRequest {
+  string scenario = 1;
+  string source_revision = 2;
+  // Optional target CLI manifest used by tier-2 distributability filtering.
+  string target_cli_manifest = 3;
+  string entitlement_tier = 4;
+}
+message ComposeResponse { Package package = 1; repeated Finding findings = 2; }
+message GetPackageRequest { string package_id = 1; }
+message GetPackageResponse { Package package = 1; }
+message Package { string id = 1; string scenario = 2; string source_revision = 3; string digest = 4; string artifact_root = 5; string state = 6; string mcp_authentication = 7; }
+message Finding { string code = 1; string message = 2; string path = 3; }

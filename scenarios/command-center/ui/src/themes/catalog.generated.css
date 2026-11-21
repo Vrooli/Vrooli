@@ -1,0 +1,73 @@
+/* Generated from config/themes/*.json; do not hand edit. */
+[data-theme="bioluminescent"] {
+  --color-background: #02100d;
+  --color-background-deep: #000604;
+  --color-surface: rgba(8, 30, 25, 0.72);
+  --color-foreground: #e2fbf4;
+  --color-muted-foreground: #7dbfab;
+  --color-primary: #2ee6b3;
+  --color-accent: #a8ffe6;
+  --color-glow: rgba(46, 230, 179, 0.5);
+  --color-border: rgba(46, 230, 179, 0.22);
+  --color-gap: #a9c0ff;
+}
+[data-theme="cosmos"] {
+  --color-background: #06041a;
+  --color-background-deep: #02010b;
+  --color-surface: rgba(22, 16, 54, 0.72);
+  --color-foreground: #ede8ff;
+  --color-muted-foreground: #9a90c8;
+  --color-primary: #a06bff;
+  --color-accent: #d3b8ff;
+  --color-glow: rgba(160, 107, 255, 0.5);
+  --color-border: rgba(160, 107, 255, 0.24);
+  --color-gap: #ffb3e2;
+}
+[data-theme="foundry"] {
+  --color-background: #140803;
+  --color-background-deep: #060200;
+  --color-surface: rgba(44, 20, 8, 0.72);
+  --color-foreground: #fbeadb;
+  --color-muted-foreground: #c69a72;
+  --color-primary: #ff9b3d;
+  --color-accent: #ffd27a;
+  --color-glow: rgba(255, 155, 61, 0.5);
+  --color-border: rgba(255, 155, 61, 0.24);
+  --color-gap: #d6b3ff;
+}
+[data-theme="ground-control"] {
+  --color-background: #04060d;
+  --color-background-deep: #000104;
+  --color-surface: rgba(10, 18, 36, 0.72);
+  --color-foreground: #eaf3ff;
+  --color-muted-foreground: #8aa2c8;
+  --color-primary: #33d6ff;
+  --color-accent: #9be9ff;
+  --color-glow: rgba(51, 214, 255, 0.5);
+  --color-border: rgba(51, 214, 255, 0.22);
+  --color-gap: #b7a6ff;
+}
+[data-theme="signal-tower"] {
+  --color-background: #0a0412;
+  --color-background-deep: #030008;
+  --color-surface: rgba(34, 12, 44, 0.72);
+  --color-foreground: #f9eafd;
+  --color-muted-foreground: #b995cc;
+  --color-primary: #ff44b0;
+  --color-accent: #ff9ad6;
+  --color-glow: rgba(255, 68, 176, 0.5);
+  --color-border: rgba(255, 68, 176, 0.24);
+  --color-gap: #c8b0ff;
+}
+[data-theme="vault"] {
+  --color-background: #0a0d08;
+  --color-background-deep: #030402;
+  --color-surface: rgba(24, 30, 16, 0.72);
+  --color-foreground: #f6ecd2;
+  --color-muted-foreground: #b8a774;
+  --color-primary: #d9b64a;
+  --color-accent: #f3dc8f;
+  --color-glow: rgba(217, 182, 74, 0.45);
+  --color-border: rgba(217, 182, 74, 0.24);
+  --color-gap: #c9b6ff;
+}

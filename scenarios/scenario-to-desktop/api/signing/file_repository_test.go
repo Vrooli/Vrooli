@@ -6,11 +6,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"scenario-to-desktop-api/signing/mocks"
 	"scenario-to-desktop-api/signing/types"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFileRepository_Get_Success(t *testing.T) {

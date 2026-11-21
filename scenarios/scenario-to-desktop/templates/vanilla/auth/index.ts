@@ -12,6 +12,11 @@ export type {
     StoredUser,
     AuthChangeEvent,
     AuthConfig,
+    DesktopLinkOptions,
+    DesktopLinkQuery,
+    DesktopLinkState,
+    DesktopLinkStatus,
+    DesktopDisconnectResult,
     ISafeStorage,
     IAuthHttpClient,
     IShell,
@@ -29,6 +34,7 @@ export type {
 // Implementation
 export {
     createAuthManager,
+    parseConfiguredCredentialStatus,
     createElectronSafeStorage,
     createElectronAuthHttpClient,
     createElectronShell,

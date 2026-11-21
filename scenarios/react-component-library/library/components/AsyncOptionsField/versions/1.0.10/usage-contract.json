@@ -1,0 +1,15 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "initialOptions",
+      "stableIdField": "value",
+      "typicalCount": 4
+    }
+  ],
+  "componentId": "react-component-library:AsyncOptionsField",
+  "version": "1.0.10"
+}

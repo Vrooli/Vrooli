@@ -35,6 +35,7 @@ export function CampaignCard({ campaign, onView, onDelete }: CampaignCardProps) 
       aria-label={`Campaign: ${campaign.name}`}
       tabIndex={0}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onView(campaign.id);

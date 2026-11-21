@@ -5,6 +5,6 @@
   "description": "Factory-owned capability. Kept here only for traceability; runtime template does not validate these.",
   "requirements": [],
   "_metadata": {
-    "notes": "Authoritative implementation lives in scenarios/landing-manager/requirements/01-template-management. This module is excluded from the template index."
+    "notes": "The landing runtime implementation lives in the landing-page template. This module is excluded from the template index."
   }
 }

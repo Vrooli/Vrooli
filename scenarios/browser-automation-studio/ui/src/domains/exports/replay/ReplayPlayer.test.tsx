@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@/test-utils';
 import ReplayPlayer from './ReplayPlayer';
 import type { ReplayFrame } from './types';
 
@@ -78,5 +78,22 @@ describe('ReplayPlayer', () => {
     const presentation = screen.getByTestId('replay-presentation');
     expect(within(presentation).queryByLabelText('Play replay')).toBeNull();
     expect(screen.getByLabelText('Play replay')).toBeInTheDocument();
+  });
+
+  it('does not draw a cursor when pointer telemetry is missing', () => {
+    render(<ReplayPlayer frames={[{ id: 'frame-missing', stepIndex: 0, success: true,
+      screenshot: { artifactId: 'shot', url: 'https://example.com/screenshot.png', width: 1280, height: 720 },
+      cursorProvenance: 'missing' }]} autoPlay={false} loop={false} />);
+
+    expect(document.querySelector('[data-cursor-provenance]')).toBeNull();
+    expect(screen.getByTestId('cursor-telemetry-status')).toHaveTextContent('no observed pointer telemetry');
+  });
+
+  it('warns when cursor telemetry is required for review but missing', () => {
+    render(<ReplayPlayer frames={[{ id: 'frame-missing', stepIndex: 0, success: true,
+      screenshot: { artifactId: 'shot', url: 'https://example.com/screenshot.png', width: 1280, height: 720 },
+      cursorProvenance: 'missing' }]} autoPlay={false} loop={false} cursorRequired />);
+
+    expect(screen.getByTestId('cursor-review-warning')).toHaveTextContent('no observed pointer telemetry');
   });
 });

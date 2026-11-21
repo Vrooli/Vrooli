@@ -1,0 +1,4 @@
+Reproduced with go test -race ./rlimitexec -run ^TestRlimitShimAppliesNprocAndAsBeforeExec$ -count=1
+Both source roots set to isolated workspace.
+==3438762==ERROR: ThreadSanitizer: out of memory: failed to allocate 0x20000 (131072) bytes of TracePart (error code: 12)
+ThreadSanitizer: CHECK failed: sanitizer_common.cpp:61 "((0 && "unable to mmap")) != (0)" (0x0, 0x0) (tid=3438762)

@@ -1,0 +1,47 @@
+{
+ "slug": "car-dashboard",
+ "triangles": 9754,
+ "texture_px": 2048,
+ "triangles_light": null,
+ "texture_px_light": null,
+ "files": {
+  "glb": {
+   "name": "car-dashboard.glb",
+   "bytes": 1719512
+  },
+  "blend": {
+   "name": "car-dashboard.blend",
+   "bytes": 1585277
+  },
+  "fbx": {
+   "name": "car-dashboard.fbx",
+   "bytes": 2589708
+  },
+  "obj": {
+   "name": "car-dashboard-obj.zip",
+   "bytes": 1762537
+  },
+  "usdz": {
+   "name": "car-dashboard.usdz",
+   "bytes": 2411142
+  }
+ },
+ "extras": {
+  "license": "CC0-1.0",
+  "source": "grab3d.com",
+  "dimensions_m": "1.500 x 0.916 x 0.696",
+  "triangles": 9754,
+  "textures": "PBR 2048px: base color, roughness, metallic, normal (baked)",
+  "generator": "Created by grab3d",
+  "created": "2026-10-19",
+  "real_size": "modern car dashboard module, 1.5 m wide, approx. 0.95 m deep incl. steering wheel, 0.6 m high",
+  "notes": "driver side faces -Y (as seen from the seats), left-hand drive; steering wheel (car-dashboard_steering_wheel) is a separate object with its origin in the hub, rotate around its column axis; screens, cluster and ambient strip are emissive with abstract shapes only; no brand, no text",
+  "set": "Cozy Car Interior Kit"
+ },
+ "origin": {
+  "method": "procedural",
+  "detail": "Built procedurally with Blender scripts. The scripts were written with the help of an AI coding assistant. No generative AI model produced the geometry or textures directly.",
+  "ai_content": false,
+  "ai_assisted_code": true
+ }
+}

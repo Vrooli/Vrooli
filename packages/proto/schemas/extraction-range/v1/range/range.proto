@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.extraction_range.v1.range;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/extraction-range/v1/range;range_v1";
+
+service RangeService {
+  rpc ListLevels(ListLevelsRequest) returns (ListLevelsResponse);
+  rpc GetLevel(GetLevelRequest) returns (GetLevelResponse);
+  rpc Submit(SubmitRequest) returns (SubmitResponse);
+  rpc Scoreboard(ScoreboardRequest) returns (ScoreboardResponse);
+}
+
+message LevelSummary {
+  string id = 1;
+  string family = 2;
+  string family_name = 3;
+  int32 difficulty = 4;
+  string title = 5;
+  string task = 6;
+  repeated string tags = 7;
+}
+message ListLevelsRequest { string family = 1; }
+message ListLevelsResponse { repeated LevelSummary levels = 1; }
+message GetLevelRequest { string id = 1; }
+message GetLevelResponse { LevelSummary level = 1; string target_url = 2; }
+message ExtractedRecord {
+  string id = 1;
+  string name = 2;
+  string category = 3;
+  int64 value = 4;
+  bool active = 5;
+}
+message SubmitRequest { string tool = 1; string level_id = 2; repeated ExtractedRecord records = 3; }
+message SubmitResponse {
+  string tool = 1;
+  string level_id = 2;
+  string family = 3;
+  int32 correct = 4;
+  int32 submitted = 5;
+  int32 expected = 6;
+  double precision = 7;
+  double recall = 8;
+  double f1 = 9;
+  bool passed = 10;
+}
+message ScoreboardRequest { string tool = 1; string family = 2; }
+message ScoreboardResponse { repeated SubmitResponse scores = 1; }

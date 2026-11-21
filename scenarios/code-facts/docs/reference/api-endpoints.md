@@ -1,0 +1,35 @@
+# API Endpoints
+
+`CodeFactsService` exposes the target resolver, fact query, proof, and cache diagnostics contract. Target/surface discovery, analyzer brokering, generic fact normalization, cache reuse, catalog-backed file metrics, proto adoption proof, and REST exception endpoint proof are active.
+
+| Operation | Purpose | Primary Requirement |
+|---|---|---|
+| `DescribeCodeFacts` | Resolve a target and return selected fact families. | CF-P0-004 |
+| `Search` | Return bounded lexical hits with evidence and source provenance. | Search Hub code leaves |
+| `ListSurfaces` | Return target context and surface inventory. | CF-P0-002 |
+| `CheckProtoAdoption` | Return proto adoption evidence. | CF-P0-006 |
+| `CheckEndpointProof` | Return endpoint implementation evidence. | CF-P0-007 |
+| `GetCacheStatus` | Inspect cache keys and entries. | CF-P0-008 |
+| `InspectCache` | Inspect matching cache entries with key/hash evidence. | CF-P0-008 |
+| `ClearCache` | Clear cache entries by target/options. | CF-P0-008 |
+
+`DescribeCodeFactsRequest.page_size` enables bounded report pages. The
+response's `next_page_token` is an offset token for the next page and
+`total_facts` describes the unpaged report. A zero page size retains the
+single-response contract.
+
+`DescribeCodeFacts` with `FACT_FAMILY_FILE_METRICS` pages catalog-backed
+lexical metrics: non-empty, code and comment lines; TODO/FIXME/HACK markers;
+TypeScript/JavaScript type-safety patterns; and syntax-only import/function
+fallbacks for JavaScript, Python, and Rust. It bypasses report caching and
+omits files whose content hash no longer matches the active index generation,
+with an explicit warning.
+
+Each file metric also carries `test_classification_version`, `is_test_file`,
+and `has_test_file`. Version `1` classifies common language-specific test
+filenames and companion paths within the requested catalog snapshot. These
+name-based relations do not prove behavioral test coverage.
+
+The only REST exception currently exposed by Code Facts is the operational `/health` probe.
+
+`CheckProtoAdoption` uses normalized generated-proto import facts. `CheckEndpointProof` is static-only: it reads endpoint declarations, asks Code Facts framework adapters to normalize implementation evidence from provider graph facts, then proves route and response/error payload usage only when the selected adapter recognizes helper calls or typed arguments. It returns `unknown`, `missing`, `unsupported`, or `contradicted` rather than treating incomplete static evidence as success.

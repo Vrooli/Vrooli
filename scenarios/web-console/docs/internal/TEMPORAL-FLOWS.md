@@ -2,6 +2,72 @@
 
 > Source of truth: the code. Verify claims below against actual implementation.
 
+## Conversation continuity lifecycle
+
+The continuity domain has an explicit finite state model:
+
+```mermaid
+stateDiagram-v2
+    [*] --> provisioning
+    provisioning --> live: process_started
+    provisioning --> recoverable: process_start_failed_with_history
+    live --> archive_pending: archive_requested
+    live --> exited: process_exited
+    archive_pending --> live: archive_undone
+    archive_pending --> archived: grace_elapsed_and_process_stopped
+    exited --> recoverable: resumable_source_found
+    exited --> archived: archive_requested
+    recoverable --> live: recovery_succeeded
+    recoverable --> archived: dismiss_to_archive
+    archived --> live: reopen_succeeded
+    archived --> delete_pending: permanent_delete_confirmed
+    delete_pending --> deleted: artifacts_pruned_and_receipt_committed
+    delete_pending --> archived: deletion_failed_preserved
+```
+
+The runtime may report `process_exited`, but it cannot choose deletion policy.
+The continuity service then records `resumable_source_found` when durable
+provider evidence is available, moving the record from `exited` to
+`recoverable`; a process-exit observer may report that fact but cannot delete
+or archive the evidence.
+Archive persists its visibility decision before stopping a managed process.
+Retries use the durable lifecycle receipt and must converge on the same result;
+failure at an external cleanup boundary returns to a preserved state. This
+model is executable in `api/internal/continuity` and is covered by its matrix
+and illegal-transition tests.
+
+## Flow Index
+
+| Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
+|---|---|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 transport, L3 intent | `ui/src/domains/tts-playback/flow/flow.json`, `transition.ts`, `store.ts`, `useTtsPlaybackController.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts`, `workspace-tts-replay-bar.test.tsx`, `terminal-pane-tts-stop.test.tsx` | Transport is formalized. Persistent user intent is reducer/hook tested but not yet represented in `flow.json`. |
+| `web-console.voice-capture.ui` | `voice-input` | Medium — user-facing recording lifecycle has async provider startup, cancellation, auto-stop, and transcribing grace windows | L3 | `ui/src/hooks/useVoiceInput.ts`, `ui/src/components/VoiceMicButton.tsx` | `useVoiceInput.test.ts`, `audioCueContract.test.ts`, `voice-mic-button.test.tsx` | Provider startup and cue pairing are covered; full capture flow is not yet declaratively specified. |
+| `web-console.voice-activity-autostop.ui` | `voice-input` | Medium — VAD auto-stop can surprise users and the visual level can drift if UI state is not derived from the same sample as VAD | L3 | `ui/src/hooks/voice/vad.ts`, `ui/src/hooks/voice/activity.ts`, `ui/src/hooks/useVoiceInput.ts` | `vad.test.ts`, `activity.test.ts`, `voice-mic-button.test.tsx` | Not formalized. Future work can promote the activity snapshot to a declarative spec if more VAD UI states are added. |
+| `web-console.grok-tailer.api` | `conversation-ingestion` | Medium — delayed file creation, partial trailing lines, mid-turn restart | L2 (imperative; turn-boundary checkpoint invariant tested) | `api/grok_tailer.go`, `api/backends/grok/updates.go` | `grok_tailer_test.go` (backfill, resume, partial line, dup replay, agent-info), `backends/grok/updates_test.go` (parse + turn accumulation) | Not declaratively specified. States are file-discovery → tail → accumulate-turn → emit-at-boundary; could be promoted to an L3 workflow if tool/thought capture is added. |
+| `web-console.opencode-watcher.api` | `conversation-ingestion` | Medium — SSE reconnect, full-history reconcile idempotency, directory attribution ambiguity | L2 (imperative; reconnect + idempotency + attribution-uniqueness tested) | `api/opencode_watcher.go`, `api/backends/opencode/{client.go,normalize.go}` | `opencode_watcher_test.go` (backfill, idempotent reconcile, directory filter, ambiguity skip, reconnect, restart-claims), `backends/opencode/{normalize_test.go,client_test.go}` | Not declaratively specified. Lifecycle is start-server → subscribe → (event\|tick) → debounced reconcile → reconnect-with-backoff. Attribution is best-effort by directory+time+uniqueness. |
+
+## Unmodeled Candidates
+
+| Candidate | Why It May Be Temporal | Current Risk | Recommended Next Step |
+|---|---|---|---|
+| Session SSE / WebSocket stream | Reconnect, exponential backoff, partial-event buffering | Medium — silent stalls reported | Inventory states (connecting/open/draining/reconnecting/closed) before any rework |
+| Claude-console attach lifecycle | Sessions reattach across reloads; pty buffering | Medium | L1 inventory of attach/replay/swap states |
+| Optimistic message send | UI shows pending, then server confirms | Low | Keep at L1 until a bug surfaces |
+| Voice persistent mode | Already partially inventoried below; segment boundary + speaker verification has implicit ordering | Medium | Promote VAD + speaker-verification gate to a single L2 workflow |
+
+## Declarative & Formal Spec Status
+
+| Flow ID | Spec Type | Generated Artifacts | Drift Check | Status |
+|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `flow.json` (schemaVersion 6) | `flow/generated/{model.qnt,runtime.ts,replay.helper.ts,artifact.json}` | `flow-verifier verify check` + vitest replay of all named traces | adopted |
+| `web-console.playback-intent.ui` | TypeScript helpers + persisted Zustand store | N/A | Vitest helper/controller/component regression tests | adopted, not formalized |
+
+## Audit Notes
+
+- **2026-05-13** — Initial L5 adoption of `web-console.playback-transport.ui`. Quint check passes (TypeOK, IllegalTransitionsPreserveState, PausedSwallowsAutoAdvance, StaleCompletionIsIgnored). Vitest replay green. Wired into `useTtsPlaybackController` to fix user-reported "pause auto-advances to next message" and "pause then play elsewhere" races. Stale-completion guarding via `loadId` carried in event payloads, mirroring the notes template's `attempt-id` pattern.
+- **2026-05-15** — Frontend TTS auto-play policy moved out of `TerminalPane` and into `useTtsPlaybackController`. The controller now owns persisted `playbackIntent` (`continuous`, `paused`, `stopped`), selected target, incoming assistant auto-play decisions, and listened-cursor commits after natural completion. The playback bar has no close/collapse presentation state; when auto-TTS is enabled, visibility derives from a valid active/replay target. `TerminalPane` appends conversation events, sends received/seen acks, and exposes provider controls only. Remaining gap: intent is documented and tested in TypeScript, but not yet in the formal flow model.
+- **2026-05-15** — Mic button presentation was separated from TTS playback presentation. `VoiceMicButton` no longer renders speaker/green playback state; TTS speaking state is interaction-only so starting voice input can stop active playback before recording. `useVoiceInput` now exposes a `voiceActivity` snapshot built from the same audio-analysis sample that drives VAD, and `VoiceMicButton` renders the one-shot silence auto-stop countdown as a circular ring only after the configured visual grace.
+
 ## Async Operation Inventory
 
 ### API (Go)
@@ -10,10 +76,13 @@
 |------|------|---------|------------|---------|------------|
 | **PTY readLoop** | `session.go:146` | `SessionManager.Create()` | PTY file descriptor | Broadcasts to client channels, sets `processExited`, closes `exitCh` | PTY read error (process exit) |
 | **Session auto-cleanup** | `session.go:261` | `SessionManager.Create()` | `<-sess.Done()` (exitCh closed) | Removes session from manager map | Immediate after Done signal |
-| **ExpirationSweeper** | `session_policy.go:157` | `Server` startup via `NewServer` | 30s ticker, session list | Deletes expired sessions, emits events, updates metrics | `Stop()` called in server Cleanup |
+| **ExpirationSweeper** | `session/session_policy.go` | `Server` startup via `NewServer` | 30s ticker, session list, continuity archive handler | Requests the domain-owned archive transition for expired sessions, emits events, updates metrics; standalone package fixtures use the manager fallback | `Stop()` called in server Cleanup |
 | **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel + `ctx.Done()` | Writes stdout/exit to WS conn, calls `FlushPending` after each write | Channel closed (process exit), WS write error, or `ctx.Done()` (input loop exited) |
 | **WebSocket input loop** | `terminal_ws.go` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error → `defer cancel()` signals forwarder |
 | **AI provider chain** | `ai_generate.go:253` | `POST /api/v1/ai/generate` | HTTP request context | Per-provider timeout context, health metrics | All providers tried or first success |
+| **CodexTailer poll/tail** | `codex_tailer.go` | `Server` startup | 2s scan ticker + per-file 500ms tail ticker, session list | Appends conversation events, byte-offset checkpoints | `Stop()` in server Cleanup; per-file watcher exits on file vanish or session gone |
+| **GrokTailer poll/tail** | `grok_tailer.go` | `Server` startup | 2s scan ticker + per-file 500ms tail ticker, session list | Appends user/assistant at `turn_completed`; checkpoints offset only at turn boundaries | `Stop()` in server Cleanup; per-file watcher exits on file vanish or session gone |
+| **OpenCodeWatcher** | `opencode_watcher.go` | `Server` startup | Managed `opencode serve` SSE stream + 15s reconcile ticker | Attributes sessions to panes, reconciles `/session/{id}/message`, persists per-session cursor | `Stop()` in server Cleanup (cancels ctx, kills managed server); reconnects stream with bounded backoff |
 
 ### UI (React/TypeScript)
 
@@ -47,7 +116,7 @@
 | Race | Location | Status | Mitigation |
 |------|----------|--------|------------|
 | Concurrent WS writes | `terminal_ws.go:89` | **Mitigated** | `writeMu sync.Mutex` serializes all WS writes |
-| Client channel coalescing | `session.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at `OfflineBufferMax` with ANSI-boundary-aware trimming |
+| Client channel coalescing | `broadcast.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at the fixed `pendingBufferMax`; on overflow the oldest bytes are truncated and the next snapshot replay restores correct state |
 | Event subscriber drop | `events.go:74` | **By design** | Non-blocking fan-out; full channels skip events |
 | Stale AI response | `AiInput.tsx` | **Mitigated** | Generation ID ref discards stale setState calls |
 | Stale settings load | `SettingsPage.tsx` | **Mitigated** | Cancellation signal prevents setState on unmounted component |
@@ -132,6 +201,14 @@ recording done
 
 ### Two-Tier Transcription Timing
 
+## Desktop pane timing
+
+`closed/revoked` is terminal for the current browser transport. A network
+disconnect may enter `reconnecting`, but input remains disabled until a fresh
+server-authorized lease and WebRTC transport are established. A late frame or
+late input acknowledgement from the previous transport is ignored by session
+id and generation.
+
 In persistent voice mode, transcription operates at two quality tiers:
 
 1. **Tier 1 — Streaming partials** (every ~500ms): Fast, rough transcription of audio deltas for real-time UI feedback. Same mechanism as one-shot mode.
@@ -139,3 +216,134 @@ In persistent voice mode, transcription operates at two quality tiers:
 2. **Tier 2 — Segment finals** (on VAD silence ≥ segmentSilenceMs): High-quality retranscription of the complete speech segment with ffmpeg WAV transcoding. Replaces rough partials with accurate text. Runs in a separate goroutine so it doesn't block Tier 1 partials for the next segment.
 
 **Adaptive silence threshold**: When the command prefix is detected in a partial, segmentSilenceMs is temporarily reduced from its configured value (default 1500ms) to ~700ms so commands resolve faster. The original threshold is restored when the segment final resolves.
+
+## Coding source and backup lifecycle (SM8, target Level3)
+
+This is a composed observation model over existing owners. `chosen` is a launch
+selection, `active` is an existing native session, and `limit` is fresh structured
+evidence. They are not new durable statuses. `switch` and `switch-back` create a
+replacement session with bounded context; they do not mutate or resume a native
+session across providers. The original session and transcript remain available.
+
+| Fact / owner | Values and meaning |
+| --- | --- |
+| Chosen source / `resolveCodingBackup` | Default, explicit provider, explicit model, explicit account, remote, literal command, nonexecuting, nonagent, explicit switch-back |
+| Session / session store and native session registry | Chosen (no source session yet), subscription active, credits active; stopped sessions remain historical metadata and are not an in-place switching target |
+| Limit / `cliutil.CodingLimit.Exhausted` | Fresh explicit provider or usage exhaustion, absent, future, stale, generic rate-limit, reset; only fresh exhaustion authorizes the backup decision |
+| Consent / credential authority | Absent, active, expired, revocation pending. Revoked converges to absent; expiry is derived from time. Owner, harness, account, model and cap remain independent constraints |
+| Decision / `cliutil.CodingBackupDecision` | subscription, different_harness_required, consent_required, restart_required, credits; derived at each call, never a persisted permission |
+| Spend / LPBS parent and child keys | The shared parent cap, current eligibility, expiry and revocation decide admission. A `credits` decision does not guarantee that the door will admit spending |
+| Unattended session / Agent Manager | A failed resumable codec-pipe invocation can create one fresh native replacement after a second current-consent read; the child is revoked on completion |
+
+### Exhaustive fact and event matrices
+
+`TestCodingBackupDecisionCompleteMatrix` crosses five harness classes (Codex,
+OpenCode, Claude, unknown, empty), nine limit classes, eleven consent classes,
+four modes and both restart-confirmation values: **3,960 cases**. Limits include
+the exact five-minute freshness boundary and reset instant. Consent includes
+manual/automatic, absent, expiry instant, exact 24-hour bound, over-bound,
+zero/negative cap, missing account/model and wrong harness. Fixture eligibility
+is declared independently of production `Valid` and `Exhausted` helpers.
+
+| Current observations (first matching row) | Live, unconfirmed | Live, confirmed | New | Unattended | Unknown mode |
+| --- | --- | --- | --- | --- | --- |
+| Not fresh exhaustion | subscription | subscription | subscription | subscription | subscription |
+| Fresh exhaustion, unsupported harness | different_harness_required | different_harness_required | different_harness_required | different_harness_required | different_harness_required |
+| Fresh supported exhaustion, no valid matching consent | consent_required | consent_required | consent_required | consent_required | consent_required |
+| Fresh supported exhaustion, valid manual consent | restart_required | credits | consent_required | consent_required | consent_required |
+| Fresh supported exhaustion, valid automatic consent | restart_required | credits | credits | credits | consent_required |
+
+The remaining matrices exercise production owner functions with every declared
+row/column pair, including refusals and no-ops. Fact-changing events (fresh/stale
+limit, grant/expiry/pending revoke) are fed back through the owner, rather than
+treated as permission to overwrite a live session. These factored matrices do
+not enumerate every simultaneous cross-owner failure or schedule.
+
+`TestCodingBackupChosenSourceLaunchMatrix`: **9 choices × 4 observations = 36**.
+“Keep” means preserve every input field; “credits” means select the consent's
+exact account/model/cap and capture its current grant for issuance revalidation.
+
+| Chosen source | Fresh + automatic | Fresh + manual | Stale + automatic | Revocation pending |
+| --- | --- | --- | --- | --- |
+| Default | credits | Keep | Keep | Keep |
+| Explicit provider | Keep | Keep | Keep | Keep |
+| Explicit model | Keep | Keep | Keep | Keep |
+| Explicit account | Keep | Keep | Keep | Keep |
+| Remote | Keep | Keep | Keep | Keep |
+| Literal command | Keep | Keep | Keep | Keep |
+| Nonexecuting | Keep | Keep | Keep | Keep |
+| Nonagent | Keep | Keep | Keep | Keep |
+| Explicit switch-back | Keep | Keep | Keep | Keep |
+
+`TestCodingBackupSessionLifecycleMatrix`: **3 phases × 8 events = 24**.
+`S`/`C` are distinct subscription/credits replacement requests (HTTP 200);
+`R` is refusal (409), `M` is unavailable or wrong-owner session (404), and `F`
+is a failed create attempt (409). Every pair preserves the original row.
+The injected create seam checks the exact launch selection; the real journey
+below verifies native process creation and paid-environment registration.
+
+| Session phase | Switch-back | Switch, fresh | Switch, stale | No consent | Pending revoke | Expired | Create fails | Wrong owner |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Chosen / no prior session | M | M | M | M | M | M | M | M |
+| Subscription active | S | C | R | R | R | R | F | M |
+| Credits active | S | C | R | R | R | R | F | M |
+
+`TestCodingBackupConsentLifecycleMatrix`: **4 states × 5 events = 20**.
+This uses the real encrypted credential store and production grant loading,
+issuance and revocation, with a synthetic HTTP door for deterministic effects.
+“Closed” means no new issuance; it does not assert that an unreachable door has
+already revoked existing keys. Recovery creates a fresh server against that store.
+
+| Consent observation | Observe | Issue from captured launch | Revoke | Revoke, door unavailable | Recover |
+| --- | --- | --- | --- | --- | --- |
+| Absent (including completed revoke) | Closed | Refused, no HTTP | No-op | No-op | Closed |
+| Active | Open | One child, child-only environment | Absent | Persist pending, closed, return error | Open |
+| Expired | Closed | Refused, no HTTP | No-op (expiry remains authoritative) | No-op | Closed |
+| Revocation pending | Pending, closed | Refused, no HTTP | Absent | Keep pending, closed, return error | Pending, closed |
+
+Existing recovery tests also cover pending-write failure while the door is
+reachable/unreachable, captured-grant revalidation, restart with pending intent,
+and successful retry. A simultaneous durable-write and door outage leaves only
+the running process's local block until retry; it is not a durable revocation
+receipt. No new consent or usage owner is introduced.
+
+Agent Manager's `TestCodingBackupRequiresCurrentConsentAndSwitchesOnce` exercises
+19 owner cases: default/explicit subscription success; explicit other/malformed
+source; successful/missing result; missing structured limit, owner, config or
+run; pending revoke; wrong harness; manual-only consent; wrong owner; expired
+consent; stale limit; nonresumable or interactive invocation; and revocation
+during issuance. Each refusal produces no launch/notification, and every issued
+child is revoked. Production ownership is `tryCodingBackup`, not the test model.
+
+### Retained traces and evidence
+
+The focused 2026-11-03 UTC SM8 run retained evidence in
+`~/.vrooli/evidence/agent-connect/final/sm8/`:
+
+- `decision-matrix.log`: 3,960 pairs and a nine-step actual decision replay from
+  selection through fresh limit, manual approval, restart, automatic approval,
+  expiry, revoke and provider reset.
+- `web-console-owner-matrices.log`: all 80 composition pairs plus existing
+  credential custody, failed revocation, restart recovery and pending-write tests.
+- `unattended-owner.log`: all 19 Agent Manager cases against the real orchestration
+  method, with a mock runner and door; no live provider-availability claim.
+- `real-switch-back.log`: strengthened unchanged-name `TestJ6_SwitchBackWorks`
+  passes through production Web Console, a real native Codex process, real LPBS
+  keys/wallet and a controlled inference upstream. Subscription → synthetic
+  structured limit → consent → paid replacement → inference → explicit
+  switch-back → distinct subscription replacement. The replacement has no paid
+  environment, account or paid-source command; prior session/context survives.
+  The wallet settled charged=400, allocated=400, remaining=9600.
+- `proto-preflight.log`: generated-owner freshness check passed before consumer
+  checks; `source-sha256.txt` records the bounded final source/test identities.
+
+The existing `~/.vrooli/evidence/agent-connect/J6-latest.log` retains the real
+one-tap browser restart, no-consent zero-spend, shared-parent-cap refusal (second
+child cannot reset the budget), and native unattended continuation plus eventbus
+notification. Its older switch-back branch is superseded only by the stronger
+focused trace above. Existing J5/J6 acceptance checks are preserved. Provider-limit
+captures remain **synthetic**; live provider capture is still operator-owned.
+
+This supplies the explicit Level3 owner model and focused replay evidence for
+SM8 review. It is not a consumed runtime spec, a Level4 claim, a scenario-wide
+unit receipt, a fresh whole-J5/J6 board run, or acceptance of the full J17 set.

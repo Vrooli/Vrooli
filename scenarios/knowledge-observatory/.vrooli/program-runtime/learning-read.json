@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.learning-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read comparable knowledge-task outcomes and effort from the existing Memory learning projection.",
+  "inputs": {
+    "from": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "context_key": {
+      "type": "string"
+    }
+  },
+  "assumptions": [
+    "lib.vrooli_memory.compare_outcomes owns cohort collection and validity; the consumer projects the six knowledge-task rows with cohort_limit=1."
+  ],
+  "invariants": [
+    "One bounded envelope on every path",
+    "Missing measurements remain unknown; test attempts do not establish an operator baseline",
+    "Read-only; never exercise write bindings to improve their condition"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read",
+      "via": "lib"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Rows with full cohort identities; multiple cohorts require operation/context selectors and remain unreliable until narrowed.",
+      "reliability": "Shared Memory reliability, scan counters, and cohort truncation; status and resolved inputs are preserved."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "device_selection_required",
+        "identity_mismatch",
+        "invalid_response",
+        "capability_gap",
+        "flow_failed",
+        "scope_unprovisioned",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Typed Memory and binding-condition sensor references"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "unexpected-selector",
+      "inputs": {
+        "other": true
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    },
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "vrooli-memory",
+        "program-runtime"
+      ],
+      "note": "Empty or unexercised samples preserve the shared partial status and unreliable rows."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory-improve",
+  "memory": {
+    "scope": "knowledge-observatory-usage",
+    "reads_in": "collect",
+    "writes_in": "none",
+    "entry_kinds": [
+      "learning-attempt"
+    ]
+  },
+  "verbs": [
+    "lib"
+  ]
+}

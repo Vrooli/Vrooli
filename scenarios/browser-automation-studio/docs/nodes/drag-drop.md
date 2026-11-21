@@ -18,7 +18,7 @@
 ## Runtime Behavior
 
 1. The automation compiler forwards drag/drop params unchanged; validation runs in the workflow validator/UI (selectors required, timing bounds).
-2. Browserless scrolls both elements into view, issues pointer events to simulate press/move/release, and synthesizes HTML5 drag/drop events so React DnD–style handlers fire.
+2. The Playwright driver scrolls both elements into view, issues pointer events to simulate press/move/release, and synthesizes HTML5 drag/drop events so React DnD–style handlers fire.
 3. When offsets are provided, the runtime adjusts the drag path accordingly and records the values in execution artifacts for replay.
 4. Telemetry captures the movement profile (steps, duration, offsets) so Execution Viewer explains how cards moved.
 

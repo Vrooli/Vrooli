@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package vrooli.client_rehearsal.v1.bountycases;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/bountycases;bountycases_v1";
+
+// BountyCaseService resolves one immutable, owner-registered public bounty
+// case for the pinned Program Runtime bounty-replay program. This RPC is
+// intentionally omitted from the general CLI surface because its response
+// contains reference and evaluator roots.
+service BountyCaseService {
+  rpc ResolveBountyReplayCase(ResolveBountyReplayCaseRequest) returns (ResolveBountyReplayCaseResponse);
+  rpc GetFrozenEvaluatorBundle(GetFrozenEvaluatorBundleRequest) returns (GetFrozenEvaluatorBundleResponse);
+}
+
+message ResolveBountyReplayCaseRequest {
+  // Exactly one of case_id or public_url must be supplied.
+  string case_id = 1;
+  string public_url = 2;
+}
+
+message ResolveBountyReplayCaseResponse {
+  BountyReplayCase case = 1;
+}
+
+message BountyReplayCase {
+  uint32 schema_version = 1;
+  uint32 bundle_version = 2;
+  string case_id = 3;
+  string project = 4;
+  string repository = 5;
+  string title = 6;
+  string task = 7;
+  string public_url = 8;
+  uint64 issue_number = 9;
+  string pull_request_url = 10;
+  uint64 pull_request_number = 11;
+  string source_commit = 12;
+  string reference_commit = 13;
+  string source_project_root = 14;
+  string reference_project_root = 15;
+  string frozen_evaluator_digest = 16;
+  string frozen_evaluator_root = 17;
+  string test_genie_project_id = 18;
+  BountyTestGeniePlan test_genie_plan = 19;
+  string bundle_digest = 20;
+  string frozen_evaluator_entrypoint = 21;
+  string frozen_evaluator_bundle_digest = 22;
+  string evaluator_bundle_id = 23;
+}
+
+message BountyTestGeniePlan {
+  string validation_purpose = 1;
+  string required_strength = 2;
+  repeated string phases = 3;
+  BountyReplayEvidencePolicy evidence_policy = 4;
+  BountyReplayDeadlinePolicy deadline_policy = 5;
+}
+
+message BountyReplayEvidencePolicy {
+  bool require_behavioral_before = 1;
+  bool require_source_snapshot = 2;
+  bool allow_authorized_degradation = 3;
+  repeated string required_evidence_kinds = 4;
+}
+
+message BountyReplayDeadlinePolicy {
+  uint64 queue_budget_milliseconds = 1;
+  uint64 execution_budget_milliseconds = 2;
+  uint32 maximum_attempts = 3;
+}
+
+message GetFrozenEvaluatorBundleRequest { string evaluator_bundle_id = 1; }
+message GetFrozenEvaluatorBundleResponse { FrozenEvaluatorBundle evaluator_bundle = 1; }
+message FrozenEvaluatorBundle {
+  string evaluator_bundle_id = 1;
+  string case_id = 2;
+  uint32 bundle_version = 3;
+  string entrypoint = 4;
+  string evaluator_digest = 5;
+  string content_digest = 6;
+  repeated FrozenEvaluatorFile files = 7;
+}
+message FrozenEvaluatorFile {
+  string relative_path = 1;
+  bytes content = 2;
+  string sha256 = 3;
+}

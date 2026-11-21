@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "deployment-manager-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": ["notification-hub:ask-read"]
+    },
+    {
+      "name": "deployment-manager-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "deployment-manager-notification-hub",
+      "resource": "notification-hub",
+      "audience": "scenario-authenticator:notification-hub",
+      "scopes": ["notification-hub:send"]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:SearchFilterResults",
+  "items": {
+    "labelField": "item",
+    "maximumCount": 40,
+    "maximumLabelCharacters": 64,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "stableIdField": "item",
+    "typicalCount": 5
+  },
+  "version": "1.0.6-draft.1"
+}

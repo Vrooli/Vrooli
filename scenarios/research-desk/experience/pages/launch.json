@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "launch",
+    "title": "Launch",
+    "routes": [
+      "/launch"
+    ],
+    "purpose": "Launch in one screen with the desk's defaults: topics, suggested quotes with their source, workstream titles, allowance and models already chosen; each blocking earlier commission with the desk's choice selected and changeable in place; size gates; one Launch button or the manual copy, with no command-line text.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-002",
+      "OT-P0-010"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Prepared packets first (and unknown packets the operator can assert were never started), then the builder: the form kept while the operator looks elsewhere, quotes filled from the newest commission on the chosen topics, the cheaper model pre-selected, and blockers with the recommended choice selected. Three topics with defaults is tick, tick, tick, Launch, Confirm."
+    },
+    {
+      "id": "validation-error",
+      "description": "A size gate fails: the gate names the largest parts to cut and Launch is disabled."
+    },
+    {
+      "id": "manual",
+      "description": "Automatic launch is unavailable: the same screen ends in the two messages to paste and the folder path."
+    },
+    {
+      "id": "submitting",
+      "description": "The confirm dialog names what is superseded or run alongside, the Web Console access in plain words, and where the messages go."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "empty",
+      "description": "The research home has no topics yet: the page says a topic needs a MISSION.md first."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

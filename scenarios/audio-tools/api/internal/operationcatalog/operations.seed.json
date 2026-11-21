@@ -1,0 +1,568 @@
+{
+  "version": 1,
+  "operations": [
+    {
+      "id": "transcode",
+      "summary": "Re-encode audio into another container, sample rate, channel count, or bitrate.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {
+          "name": "input_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "",
+          "advanced": true,
+          "options": [
+            {"value": "", "labelKey": "diagnostics.audioOps.optionAuto"},
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "sample_rate", "type": "int32", "control": "number", "default": "0", "min": 0, "max": 192000, "step": 1, "unit": "Hz", "advanced": true},
+        {"name": "channels", "type": "int32", "control": "number", "default": "0", "min": 0, "max": 8, "step": 1, "advanced": true},
+        {"name": "bitrate", "type": "int32", "control": "number", "default": "0", "min": 0, "max": 512000, "step": 1000, "unit": "bps", "advanced": true}
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "transcode",
+        "service": "AudioProcessingService",
+        "method": "Transcode",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "input-format", "field": "input_format"},
+          {"name": "sample-rate", "field": "sample_rate"},
+          {"name": "channels", "field": "channels"},
+          {"name": "bitrate", "field": "bitrate"}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 10,
+        "labelKey": "diagnostics.audioOps.transcode.label",
+        "descKey": "diagnostics.audioOps.transcode.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "trim",
+      "summary": "Cut a section out of an audio file between two timestamps.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "start_seconds", "type": "double", "control": "number", "required": true, "default": "0", "min": 0, "max": 86400, "step": 0.1, "unit": "s"},
+        {"name": "end_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 86400, "step": 0.1, "unit": "s"}
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "trim",
+        "service": "AudioProcessingService",
+        "method": "Trim",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "start-seconds", "field": "start_seconds", "required": true},
+          {"name": "end-seconds", "field": "end_seconds"}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 20,
+        "labelKey": "diagnostics.audioOps.trim.label",
+        "descKey": "diagnostics.audioOps.trim.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "merge",
+      "summary": "Concatenate several audio files, optionally with a crossfade between them.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "sources", "type": "MergeSource[]"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "sources", "type": "MergeSource[]", "control": "files", "required": true},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "crossfade_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 60, "step": 0.1, "unit": "s"}
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "merge",
+        "service": "AudioProcessingService",
+        "method": "Merge",
+        "flags": [
+          {"name": "input", "field": "sources", "required": true, "repeated": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "crossfade-seconds", "field": "crossfade_seconds"}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 30,
+        "labelKey": "diagnostics.audioOps.merge.label",
+        "descKey": "diagnostics.audioOps.merge.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "split",
+      "summary": "Split an audio file into equal chunks or at explicit boundaries.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "chunks", "type": "SplitChunk[]"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "chunk_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 3600, "step": 0.1, "unit": "s"},
+        {"name": "boundaries_seconds", "type": "string", "control": "text", "advanced": true},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "advanced": true,
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        }
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "split",
+        "service": "AudioProcessingService",
+        "method": "Split",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "chunk-seconds", "field": "chunk_seconds"},
+          {"name": "boundaries-seconds", "field": "boundaries_seconds"},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 40,
+        "labelKey": "diagnostics.audioOps.split.label",
+        "descKey": "diagnostics.audioOps.split.description"
+      },
+      "requires": ["ffmpeg", "ffprobe"],
+      "consent": "none"
+    },
+    {
+      "id": "fade",
+      "summary": "Apply a fade-in and/or fade-out window to an audio file.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "fade_in_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 3600, "step": 0.1, "unit": "s"},
+        {"name": "fade_out_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 3600, "step": 0.1, "unit": "s"},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "advanced": true,
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        }
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "fade",
+        "service": "AudioProcessingService",
+        "method": "Fade",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "fade-in-seconds", "field": "fade_in_seconds"},
+          {"name": "fade-out-seconds", "field": "fade_out_seconds"},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 50,
+        "labelKey": "diagnostics.audioOps.fade.label",
+        "descKey": "diagnostics.audioOps.fade.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "volume",
+      "summary": "Scale an audio file by a gain in decibels.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {"name": "gain_db", "type": "double", "control": "number", "required": true, "default": "0", "min": -60, "max": 24, "step": 0.5, "unit": "dB"},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "advanced": true,
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        }
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "volume",
+        "service": "AudioProcessingService",
+        "method": "Volume",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "gain-db", "field": "gain_db", "required": true},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 60,
+        "labelKey": "diagnostics.audioOps.volume.label",
+        "descKey": "diagnostics.audioOps.volume.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "normalize",
+      "summary": "Normalize loudness with EBU R128, RMS, or peak normalization.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        },
+        {
+          "name": "method",
+          "type": "NormalizationMethod",
+          "control": "select",
+          "default": "ebu_r128",
+          "options": [
+            {"value": "ebu_r128", "labelKey": "diagnostics.audioOps.methodEbuR128"},
+            {"value": "rms", "labelKey": "diagnostics.audioOps.methodRms"},
+            {"value": "peak", "labelKey": "diagnostics.audioOps.methodPeak"}
+          ]
+        },
+        {"name": "target_lufs", "type": "double", "control": "number", "default": "-16", "min": -40, "max": -5, "step": 0.1, "unit": "LUFS", "advanced": true},
+        {
+          "name": "output_format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "advanced": true,
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        }
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "normalize",
+        "service": "AudioProcessingService",
+        "method": "Normalize",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "method", "field": "method", "default": "ebu_r128", "values": ["ebu_r128", "rms", "peak"]},
+          {"name": "target-lufs", "field": "target_lufs", "default": "-16"},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 70,
+        "labelKey": "diagnostics.audioOps.normalize.label",
+        "descKey": "diagnostics.audioOps.normalize.description"
+      },
+      "requires": ["ffmpeg"],
+      "consent": "none"
+    },
+    {
+      "id": "extract_metadata",
+      "summary": "Read duration, sample rate, channels, bitrate, codec, format, and tags.",
+      "family": "transform",
+      "engine": "audio",
+      "mechanism": "compute",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "metadata", "type": "AudioMetadata"}]
+      },
+      "params": [
+        {"name": "audio", "type": "bytes", "control": "file", "required": true},
+        {
+          "name": "format",
+          "type": "AudioFormat",
+          "control": "select",
+          "default": "wav",
+          "options": [
+            {"value": "wav", "labelKey": "diagnostics.formatWav"},
+            {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
+            {"value": "flac", "labelKey": "diagnostics.formatFlac"},
+            {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
+            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+          ]
+        }
+      ],
+      "cli": {
+        "group": "audio",
+        "verb": "extract-metadata",
+        "service": "AudioProcessingService",
+        "method": "ExtractMetadata",
+        "flags": [
+          {"name": "input", "field": "audio", "required": true},
+          {"name": "output", "localOnly": true, "required": true},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+        ]
+      },
+      "presentation": {
+        "panel": "diagnostics",
+        "order": 80,
+        "labelKey": "diagnostics.audioOps.extract_metadata.label",
+        "descKey": "diagnostics.audioOps.extract_metadata.description"
+      },
+      "requires": ["ffprobe"],
+      "consent": "none"
+    },
+    {
+      "id": "transcribe",
+      "summary": "Transcribe a recorded audio file through the STT provider chain.",
+      "family": "stt",
+      "engine": "stt",
+      "mechanism": "infer",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "text", "type": "string"}]
+      },
+      "cli": {"group": "stt", "verb": "transcribe", "service": "STTService", "method": "Transcribe"},
+      "requires": ["provider-chain"],
+      "consent": "policy"
+    },
+    {
+      "id": "transcribe_stream",
+      "summary": "Stream audio chunks and receive partial + final transcript events.",
+      "family": "stt",
+      "engine": "stt",
+      "mechanism": "infer",
+      "transport": "bidi",
+      "ports": {
+        "inputs": [{"name": "audio", "type": "bytes"}],
+        "outputs": [{"name": "text", "type": "string"}]
+      },
+      "cli": {"group": "stt", "verb": "transcribe-stream", "service": "STTService", "method": "TranscribeStream"},
+      "requires": ["provider-chain"],
+      "consent": "policy"
+    },
+    {
+      "id": "synthesize",
+      "summary": "Synthesize speech audio from text through the TTS provider chain.",
+      "family": "tts",
+      "engine": "tts",
+      "mechanism": "infer",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "text", "type": "string"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "cli": {"group": "tts", "verb": "synthesize", "service": "TTSService", "method": "Synthesize"},
+      "requires": ["provider-chain"],
+      "consent": "policy"
+    },
+    {
+      "id": "synthesize_stream",
+      "summary": "Stream synthesized speech frames as they are produced.",
+      "family": "tts",
+      "engine": "tts",
+      "mechanism": "infer",
+      "transport": "server_stream",
+      "ports": {
+        "inputs": [{"name": "text", "type": "string"}],
+        "outputs": [{"name": "audio", "type": "bytes"}]
+      },
+      "cli": {"group": "tts", "verb": "synthesize-stream", "service": "TTSService", "method": "SynthesizeStream"},
+      "requires": ["provider-chain"],
+      "consent": "policy"
+    },
+    {
+      "id": "summarize",
+      "summary": "Summarize long text through the summarize provider chain.",
+      "family": "summarize",
+      "engine": "summarize",
+      "mechanism": "infer",
+      "transport": "unary",
+      "ports": {
+        "inputs": [{"name": "text", "type": "string"}],
+        "outputs": [{"name": "text", "type": "string"}]
+      },
+      "cli": {"group": "summarize", "verb": "text", "service": "SummarizeService", "method": "Summarize"},
+      "requires": ["provider-chain"],
+      "consent": "policy"
+    }
+  ]
+}

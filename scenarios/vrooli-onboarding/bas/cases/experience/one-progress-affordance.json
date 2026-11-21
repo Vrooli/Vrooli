@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "name": "onboarding-one-progress-affordance",
+    "description": "Verify every wizard screen exposes exactly one library-owned progress affordance.",
+    "requirement": "ONB-UX-PROGRESS-ONE",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "experience-onboarding", "evidence_lane": "plan-doD" },
+    "execution_mode": "observer"
+  },
+  "id": "00000000-0000-4000-8000-000000000012",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-one-progress-affordance",
+  "folder_path": "/bas/cases/experience",
+  "description": "Verify the wizard shell reports one progress affordance.",
+  "tags": ["reset:none", "evidence_lane:plan-doD"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 390, "viewport_height": 844 },
+    "nodes": [
+      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "vrooli-onboarding", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
+      { "id": "wait-shell", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.shell", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Wizard shell renders" } } },
+      { "id": "assert-one-progress", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.shell", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-rcl-progress-count", "expected": { "stringValue": "1" }, "timeout_ms": 10000, "failure_message": "Every wizard screen must expose exactly one progress affordance" }, "metadata": { "label": "Exactly one progress affordance" } } }
+    ],
+    "edges": [
+      { "source": "open-welcome", "target": "wait-shell" },
+      { "source": "wait-shell", "target": "assert-one-progress" }
+    ]
+  }
+}

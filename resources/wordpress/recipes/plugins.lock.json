@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "source": "https://api.wordpress.org/plugins/info/1.2/",
+  "observedAt": "2026-11-14",
+  "packages": {
+    "contact-form-7": {
+      "version": "6.2.5",
+      "licenseClass": "free-open-source",
+      "sourceUrl": "https://downloads.wordpress.org/plugin/contact-form-7.6.2.5.zip",
+      "sha256": null,
+      "staging": "blocked-until-scenario-dependency-analyzer-wordpress-support"
+    },
+    "wpforms-lite": {
+      "version": "2.0.4",
+      "licenseClass": "free-open-source",
+      "sourceUrl": "https://downloads.wordpress.org/plugin/wpforms-lite.2.0.4.zip",
+      "sha256": null,
+      "staging": "blocked-until-scenario-dependency-analyzer-wordpress-support"
+    },
+    "forminator": {
+      "version": "1.58.4",
+      "licenseClass": "free-open-source",
+      "sourceUrl": "https://downloads.wordpress.org/plugin/forminator.1.58.4.zip",
+      "sha256": null,
+      "staging": "blocked-until-scenario-dependency-analyzer-wordpress-support"
+    },
+    "woocommerce": {
+      "version": "11.3.0",
+      "licenseClass": "free-open-source",
+      "sourceUrl": "https://downloads.wordpress.org/plugin/woocommerce.11.3.0.zip",
+      "sha256": null,
+      "staging": "blocked-until-scenario-dependency-analyzer-wordpress-support"
+    },
+    "pods": {
+      "version": "3.3.9.2",
+      "licenseClass": "free-open-source",
+      "sourceUrl": "https://downloads.wordpress.org/plugin/pods.3.3.9.2.zip",
+      "sha256": null,
+      "staging": "blocked-until-scenario-dependency-analyzer-wordpress-support"
+    }
+  }
+}

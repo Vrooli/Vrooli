@@ -1,0 +1,2208 @@
+{
+  "metadata": {
+    "name": "p1-reference-scale-six-tab-mobile-sequence",
+    "description": "Bounded repeatability diagnostic on the fixed reference-scale-v1 dataset at 390x844: record three separate Today document-mount samples, then three warm Today→Plan→Goals→Focus→Review→Settings→Today cycles (three actual tab-click transitions per selected route). Preserve useful-data readiness, all-time calibration over 10,000 linked readings, actual-click Event Timing (16 ms threshold), profile-build React subtree commit measures, resource timing, overlapping Long Tasks, service-worker observations and same-origin assertions. The registered setup case runs first under the same routed lease and is excluded from measurement. Diagnostic only; no product latency budget gate.",
+    "requirement": "OT-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "performance-reference-scale-v1",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-today-cold",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Today on the fixed narrow viewport"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-today-cold",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today page root"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-data",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded work data before starting the tab sequence"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Require seeded work data before starting the tab sequence"
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject a page-level error before measuring"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Reject a page-level error before measuring"
+        }
+      }
+    },
+    {
+      "id": "install-route-observers",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Install one in-page click/readiness/resource/long-task observer for the measured sequence"
+        },
+        "evaluate": {
+          "expression": "(() => {\n const cfg=[{\"key\":\"plan\",\"route\":\"plan\",\"selector\":\"[data-testid=\\\"page-plan\\\"]\",\"condition\":\"visible compact Plan block for seeded work\"},{\"key\":\"goals\",\"route\":\"goals\",\"selector\":\"[data-testid=\\\"page-goals\\\"]\",\"condition\":\"visible seeded outcome\"},{\"key\":\"focus\",\"route\":\"focus\",\"selector\":\"[data-testid=\\\"page-focus\\\"]\",\"condition\":\"visible seeded work picker\"},{\"key\":\"review\",\"route\":\"review\",\"selector\":\"[data-testid=\\\"page-review\\\"]\",\"condition\":\"all-time calibration is rendered with all 10,000 linked plan-to-actual readings\"},{\"key\":\"settings\",\"route\":\"settings\",\"selector\":\"[data-testid=\\\"page-settings\\\"]\",\"condition\":\"visible Preferences surface with visible theme control\"},{\"key\":\"today-warm\",\"route\":\"today\",\"selector\":\"[data-testid=\\\"page-today\\\"]\",\"condition\":\"visible Today card with seeded work item on warm revisit\",\"nav_key\":\"dashboard\"}]; const cue={\"today-warm\":(root)=>(root.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')),\"plan\":(root)=>{const card=root.querySelector('article.plan-block[aria-label^=\"P1 Reference work\"]');const compactTitle=card?.querySelector('h2')?.textContent?.trim();return visible(card)&&card.getAttribute('aria-label').includes('P1 Reference work')&&Boolean(compactTitle);},\"goals\":(root)=>(root.innerText.includes('P1 Reference outcome')),\"focus\":(root)=>(root.querySelector('.focus-start-card h2')?.textContent?.includes('P1 Reference work')),\"review\":(root)=>(root.querySelector('.calibration-card small')?.textContent?.includes('10000 linked plan-to-actual readings')),\"settings\":(root)=>visible(root.querySelector('[data-testid=\"page-settings-theme\"]'))};\n const probe={transitions:[],longTasks:[],eventTimings:[],eventTimingSupported:false,observerAvailable:false,startedAt:performance.now(),serviceWorker:{supported:'serviceWorker' in navigator,controller_path:null,registrations:[]}};\n const visible=el=>{if(!el||!el.isConnected)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};\n const check=t=>{const root=document.querySelector(t.selector);if(!visible(root))return 'pending';const alerts=[...root.querySelectorAll('[role=alert]')].filter(visible).map(e=>e.innerText.trim()).filter(Boolean);if(alerts.length){t.error_text=alerts.join(' | ').slice(0,500);t.error_ms=performance.now()-t.click_ms;return 'error';}const busy=[...root.querySelectorAll('[role=status]')].filter(visible).map(e=>e.innerText.trim()).some(x=>/loading|calculating|preparing|checking|reading/i.test(x));if(busy)return 'pending';return cue[t.key](root)?'ready':'pending';};\n const observe=t=>{const state=check(t);if(state==='ready'){t.ready_ms=performance.now()-t.click_ms;t.status='ready';return;}if(state==='error'){t.status='error';return;}if(performance.now()-t.click_ms>30000){t.status='timeout';return;}t.raf=requestAnimationFrame(()=>observe(t));};\n probe.clickListener=event=>{const target=event.target instanceof Element?event.target.closest('a[data-testid]'):null;const testid=target?.getAttribute('data-testid');const item=cfg.find(entry=>testid==='layout-nav-'+(entry.nav_key??entry.key)+'-tab');if(!item)return;const transition={key:item.key,route:item.route,selector:item.selector,ready_condition:item.condition,click_ms:performance.now(),click_event_timestamp_ms:event.timeStamp,click_target_testid:testid,ready_ms:null,status:'pending'};probe.transitions.push(transition);observe(transition);};\n document.addEventListener('click',probe.clickListener,true);\n if('PerformanceObserver' in window&&PerformanceObserver.supportedEntryTypes?.includes('event')){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries()){const target=entry.target instanceof Element?entry.target.closest('[data-testid]'):null;probe.eventTimings.push({name:entry.name,start_ms:entry.startTime,duration_ms:entry.duration,processing_start_ms:entry.processingStart,processing_end_ms:entry.processingEnd,interaction_id:entry.interactionId||null,target_testid:target?.getAttribute('data-testid')??null});if(probe.eventTimings.length>50)probe.eventTimings.shift();}});observer.observe({type:'event',buffered:true,durationThreshold:16});probe.eventObserver=observer;probe.eventTimingSupported=true;}catch{probe.eventTimingSupported=false;}}\n if('PerformanceObserver' in window){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries())probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});});observer.observe({type:'longtask',buffered:true});probe.longObserver=observer;probe.observerAvailable=true;}catch{}}\n if(navigator.serviceWorker){probe.serviceWorker.controller_path=navigator.serviceWorker.controller?new URL(navigator.serviceWorker.controller.scriptURL,location.href).pathname:null;probe.serviceWorkerPromise=navigator.serviceWorker.getRegistrations().then(items=>{probe.serviceWorker.registrations=items.map(item=>{const scope=new URL(item.scope,location.href);const script=item.active?new URL(item.active.scriptURL,location.href):null;return {scope_path:scope.pathname,scope_same_origin:scope.origin===location.origin,active_script_path:script?.pathname??null,active_script_same_origin:script?script.origin===location.origin:null,active_state:item.active?.state??null,waiting_state:item.waiting?.state??null};});}).catch(()=>{probe.serviceWorker.read_error=true;});}\n probe.measure=(key,mode='tab_transition')=>{const t=[...probe.transitions].reverse().find(item=>item.key===key);const end=performance.now();for(const entry of probe.longObserver?.takeRecords()??[])probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});if(mode==='tab_transition'&&(!t||t.status!=='ready'||t.ready_ms==null))throw new Error('tab transition '+key+' did not reach its captured ready state');if(mode==='cold_page_mount'){const today=document.querySelector('[data-testid=\"page-today\"]');if(!visible(today)||!today.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')||[...document.querySelectorAll('[role=alert]')].some(visible))throw new Error('initial Today page did not reach the seeded-data/no-error condition');}const intervalStart=t?.click_ms??(mode==='cold_page_mount'?0:probe.startedAt);const resources=performance.getEntriesByType('resource').filter(entry=>entry.startTime>=intervalStart&&entry.startTime<=end).filter(entry=>{try{const u=new URL(entry.name);return (/^\\/vrooli\\.personal_planner\\.v1\\./.test(u.pathname)||/^\\/api\\/v1\\//.test(u.pathname)||/\\.(js|css)$/.test(u.pathname)||entry.initiatorType==='img'||entry.initiatorType==='image'||/\\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf)$/i.test(u.pathname));}catch{return false;}}).map(entry=>{const u=new URL(entry.name);const path=u.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,':id');return {path,same_origin:u.origin===location.origin,initiator_type:entry.initiatorType,start_after_click_ms:t?Math.round((entry.startTime-t.click_ms)*100)/100:null,duration_ms:entry.duration>0?Math.round(entry.duration*100)/100:null,ttfb_ms:entry.responseStart>0?Math.round((entry.responseStart-entry.startTime)*100)/100:null,transfer_bytes:entry.transferSize>0?entry.transferSize:null,encoded_bytes:entry.encodedBodySize>0?entry.encodedBodySize:null};});const tasks=probe.longTasks.filter(x=>x.start_ms<=end&&x.start_ms+x.duration_ms>=intervalStart);const nav=performance.getEntriesByType('navigation')[0];const paints=Object.fromEntries(performance.getEntriesByType('paint').map(x=>[x.name,Math.round(x.startTime*100)/100]));return {mode,key,route:t?.route??'today',path:location.pathname,status:t?.status??'initial-ready',ready_condition:t?.ready_condition??'initial Today data cue: seeded work title',click_to_data_ready_ms:t?.ready_ms??null,sample_window_ms:Math.round((end-intervalStart)*100)/100,navigation_ms:mode==='cold_page_mount'&&nav?{dom_content_loaded_ms:nav.domContentLoadedEventEnd,load_event_ms:nav.loadEventEnd}:null,paint_ms:mode==='cold_page_mount'?paints:null,route_resource_timing:resources,resource_timing_note:'Zero transfer/response timing is recorded as null; sample window includes BAS wait/assert settling after the in-page click.',long_tasks:tasks,long_task_max_ms:Math.max(0,...tasks.map(x=>x.duration_ms)),service_worker:probe.serviceWorker,observer_available:probe.observerAvailable};};\n window.__plannerRouteProbe=probe;return {viewport:{width:innerWidth,height:innerHeight},initial_route:location.pathname,observer_available:probe.observerAvailable,event_timing_supported:probe.eventTimingSupported,event_timing_duration_threshold_ms:16,service_worker_supported:probe.serviceWorker.supported,sequence:'today cold → plan → goals → focus → review → settings → today warm'};\n})()",
+          "store_result": "planner_mobile_reference_probe_start"
+        }
+      }
+    },
+    {
+      "id": "measure-today-cold",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Record the initial Today page sample separately from tab-click latency"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('dashboard','cold_page_mount')",
+          "store_result": "planner_mobile_today_cold_metrics"
+        }
+      }
+    },
+    {
+      "id": "open-today-cold-cold2",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Today on the fixed narrow viewport (cold2)"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-today-cold-cold2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today page root (cold2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-data-cold2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded work data before starting the tab sequence (cold2)"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Require seeded work data before starting the tab sequence"
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-no-error-cold2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject a page-level error before measuring (cold2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Reject a page-level error before measuring"
+        }
+      }
+    },
+    {
+      "id": "install-route-observers-cold2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Install one in-page click/readiness/resource/long-task observer for the measured sequence (cold2)"
+        },
+        "evaluate": {
+          "expression": "(() => {\n const cfg=[{\"key\":\"plan\",\"route\":\"plan\",\"selector\":\"[data-testid=\\\"page-plan\\\"]\",\"condition\":\"visible compact Plan block for seeded work\"},{\"key\":\"goals\",\"route\":\"goals\",\"selector\":\"[data-testid=\\\"page-goals\\\"]\",\"condition\":\"visible seeded outcome\"},{\"key\":\"focus\",\"route\":\"focus\",\"selector\":\"[data-testid=\\\"page-focus\\\"]\",\"condition\":\"visible seeded work picker\"},{\"key\":\"review\",\"route\":\"review\",\"selector\":\"[data-testid=\\\"page-review\\\"]\",\"condition\":\"all-time calibration is rendered with all 10,000 linked plan-to-actual readings\"},{\"key\":\"settings\",\"route\":\"settings\",\"selector\":\"[data-testid=\\\"page-settings\\\"]\",\"condition\":\"visible Preferences surface with visible theme control\"},{\"key\":\"today-warm\",\"route\":\"today\",\"selector\":\"[data-testid=\\\"page-today\\\"]\",\"condition\":\"visible Today card with seeded work item on warm revisit\",\"nav_key\":\"dashboard\"}]; const cue={\"today-warm\":(root)=>(root.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')),\"plan\":(root)=>{const card=root.querySelector('article.plan-block[aria-label^=\"P1 Reference work\"]');const compactTitle=card?.querySelector('h2')?.textContent?.trim();return visible(card)&&card.getAttribute('aria-label').includes('P1 Reference work')&&Boolean(compactTitle);},\"goals\":(root)=>(root.innerText.includes('P1 Reference outcome')),\"focus\":(root)=>(root.querySelector('.focus-start-card h2')?.textContent?.includes('P1 Reference work')),\"review\":(root)=>(root.querySelector('.calibration-card small')?.textContent?.includes('10000 linked plan-to-actual readings')),\"settings\":(root)=>visible(root.querySelector('[data-testid=\"page-settings-theme\"]'))};\n const probe={transitions:[],longTasks:[],eventTimings:[],eventTimingSupported:false,observerAvailable:false,startedAt:performance.now(),serviceWorker:{supported:'serviceWorker' in navigator,controller_path:null,registrations:[]}};\n const visible=el=>{if(!el||!el.isConnected)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};\n const check=t=>{const root=document.querySelector(t.selector);if(!visible(root))return 'pending';const alerts=[...root.querySelectorAll('[role=alert]')].filter(visible).map(e=>e.innerText.trim()).filter(Boolean);if(alerts.length){t.error_text=alerts.join(' | ').slice(0,500);t.error_ms=performance.now()-t.click_ms;return 'error';}const busy=[...root.querySelectorAll('[role=status]')].filter(visible).map(e=>e.innerText.trim()).some(x=>/loading|calculating|preparing|checking|reading/i.test(x));if(busy)return 'pending';return cue[t.key](root)?'ready':'pending';};\n const observe=t=>{const state=check(t);if(state==='ready'){t.ready_ms=performance.now()-t.click_ms;t.status='ready';return;}if(state==='error'){t.status='error';return;}if(performance.now()-t.click_ms>30000){t.status='timeout';return;}t.raf=requestAnimationFrame(()=>observe(t));};\n probe.clickListener=event=>{const target=event.target instanceof Element?event.target.closest('a[data-testid]'):null;const testid=target?.getAttribute('data-testid');const item=cfg.find(entry=>testid==='layout-nav-'+(entry.nav_key??entry.key)+'-tab');if(!item)return;const transition={key:item.key,route:item.route,selector:item.selector,ready_condition:item.condition,click_ms:performance.now(),click_event_timestamp_ms:event.timeStamp,click_target_testid:testid,ready_ms:null,status:'pending'};probe.transitions.push(transition);observe(transition);};\n document.addEventListener('click',probe.clickListener,true);\n if('PerformanceObserver' in window&&PerformanceObserver.supportedEntryTypes?.includes('event')){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries()){const target=entry.target instanceof Element?entry.target.closest('[data-testid]'):null;probe.eventTimings.push({name:entry.name,start_ms:entry.startTime,duration_ms:entry.duration,processing_start_ms:entry.processingStart,processing_end_ms:entry.processingEnd,interaction_id:entry.interactionId||null,target_testid:target?.getAttribute('data-testid')??null});if(probe.eventTimings.length>50)probe.eventTimings.shift();}});observer.observe({type:'event',buffered:true,durationThreshold:16});probe.eventObserver=observer;probe.eventTimingSupported=true;}catch{probe.eventTimingSupported=false;}}\n if('PerformanceObserver' in window){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries())probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});});observer.observe({type:'longtask',buffered:true});probe.longObserver=observer;probe.observerAvailable=true;}catch{}}\n if(navigator.serviceWorker){probe.serviceWorker.controller_path=navigator.serviceWorker.controller?new URL(navigator.serviceWorker.controller.scriptURL,location.href).pathname:null;probe.serviceWorkerPromise=navigator.serviceWorker.getRegistrations().then(items=>{probe.serviceWorker.registrations=items.map(item=>{const scope=new URL(item.scope,location.href);const script=item.active?new URL(item.active.scriptURL,location.href):null;return {scope_path:scope.pathname,scope_same_origin:scope.origin===location.origin,active_script_path:script?.pathname??null,active_script_same_origin:script?script.origin===location.origin:null,active_state:item.active?.state??null,waiting_state:item.waiting?.state??null};});}).catch(()=>{probe.serviceWorker.read_error=true;});}\n probe.measure=(key,mode='tab_transition')=>{const t=[...probe.transitions].reverse().find(item=>item.key===key);const end=performance.now();for(const entry of probe.longObserver?.takeRecords()??[])probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});if(mode==='tab_transition'&&(!t||t.status!=='ready'||t.ready_ms==null))throw new Error('tab transition '+key+' did not reach its captured ready state');if(mode==='cold_page_mount'){const today=document.querySelector('[data-testid=\"page-today\"]');if(!visible(today)||!today.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')||[...document.querySelectorAll('[role=alert]')].some(visible))throw new Error('initial Today page did not reach the seeded-data/no-error condition');}const intervalStart=t?.click_ms??(mode==='cold_page_mount'?0:probe.startedAt);const resources=performance.getEntriesByType('resource').filter(entry=>entry.startTime>=intervalStart&&entry.startTime<=end).filter(entry=>{try{const u=new URL(entry.name);return (/^\\/vrooli\\.personal_planner\\.v1\\./.test(u.pathname)||/^\\/api\\/v1\\//.test(u.pathname)||/\\.(js|css)$/.test(u.pathname)||entry.initiatorType==='img'||entry.initiatorType==='image'||/\\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf)$/i.test(u.pathname));}catch{return false;}}).map(entry=>{const u=new URL(entry.name);const path=u.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,':id');return {path,same_origin:u.origin===location.origin,initiator_type:entry.initiatorType,start_after_click_ms:t?Math.round((entry.startTime-t.click_ms)*100)/100:null,duration_ms:entry.duration>0?Math.round(entry.duration*100)/100:null,ttfb_ms:entry.responseStart>0?Math.round((entry.responseStart-entry.startTime)*100)/100:null,transfer_bytes:entry.transferSize>0?entry.transferSize:null,encoded_bytes:entry.encodedBodySize>0?entry.encodedBodySize:null};});const tasks=probe.longTasks.filter(x=>x.start_ms<=end&&x.start_ms+x.duration_ms>=intervalStart);const nav=performance.getEntriesByType('navigation')[0];const paints=Object.fromEntries(performance.getEntriesByType('paint').map(x=>[x.name,Math.round(x.startTime*100)/100]));return {mode,key,route:t?.route??'today',path:location.pathname,status:t?.status??'initial-ready',ready_condition:t?.ready_condition??'initial Today data cue: seeded work title',click_to_data_ready_ms:t?.ready_ms??null,sample_window_ms:Math.round((end-intervalStart)*100)/100,navigation_ms:mode==='cold_page_mount'&&nav?{dom_content_loaded_ms:nav.domContentLoadedEventEnd,load_event_ms:nav.loadEventEnd}:null,paint_ms:mode==='cold_page_mount'?paints:null,route_resource_timing:resources,resource_timing_note:'Zero transfer/response timing is recorded as null; sample window includes BAS wait/assert settling after the in-page click.',long_tasks:tasks,long_task_max_ms:Math.max(0,...tasks.map(x=>x.duration_ms)),service_worker:probe.serviceWorker,observer_available:probe.observerAvailable};};\n window.__plannerRouteProbe=probe;return {viewport:{width:innerWidth,height:innerHeight},initial_route:location.pathname,observer_available:probe.observerAvailable,event_timing_supported:probe.eventTimingSupported,event_timing_duration_threshold_ms:16,service_worker_supported:probe.serviceWorker.supported,sequence:'today cold → plan → goals → focus → review → settings → today warm'};\n})()",
+          "store_result": "planner_cold2_planner_mobile_reference_probe_start"
+        }
+      }
+    },
+    {
+      "id": "measure-today-cold-cold2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Record the initial Today page sample separately from tab-click latency (cold2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('dashboard','cold_page_mount')",
+          "store_result": "planner_cold2_planner_mobile_today_cold_metrics"
+        }
+      }
+    },
+    {
+      "id": "open-today-cold-cold3",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Today on the fixed narrow viewport (cold3)"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-today-cold-cold3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today page root (cold3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-data-cold3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded work data before starting the tab sequence (cold3)"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Require seeded work data before starting the tab sequence"
+        }
+      }
+    },
+    {
+      "id": "assert-today-cold-no-error-cold3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject a page-level error before measuring (cold3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Reject a page-level error before measuring"
+        }
+      }
+    },
+    {
+      "id": "install-route-observers-cold3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Install one in-page click/readiness/resource/long-task observer for the measured sequence (cold3)"
+        },
+        "evaluate": {
+          "expression": "(() => {\n const cfg=[{\"key\":\"plan\",\"route\":\"plan\",\"selector\":\"[data-testid=\\\"page-plan\\\"]\",\"condition\":\"visible compact Plan block for seeded work\"},{\"key\":\"goals\",\"route\":\"goals\",\"selector\":\"[data-testid=\\\"page-goals\\\"]\",\"condition\":\"visible seeded outcome\"},{\"key\":\"focus\",\"route\":\"focus\",\"selector\":\"[data-testid=\\\"page-focus\\\"]\",\"condition\":\"visible seeded work picker\"},{\"key\":\"review\",\"route\":\"review\",\"selector\":\"[data-testid=\\\"page-review\\\"]\",\"condition\":\"all-time calibration is rendered with all 10,000 linked plan-to-actual readings\"},{\"key\":\"settings\",\"route\":\"settings\",\"selector\":\"[data-testid=\\\"page-settings\\\"]\",\"condition\":\"visible Preferences surface with visible theme control\"},{\"key\":\"today-warm\",\"route\":\"today\",\"selector\":\"[data-testid=\\\"page-today\\\"]\",\"condition\":\"visible Today card with seeded work item on warm revisit\",\"nav_key\":\"dashboard\"}]; const cue={\"today-warm\":(root)=>(root.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')),\"plan\":(root)=>{const card=root.querySelector('article.plan-block[aria-label^=\"P1 Reference work\"]');const compactTitle=card?.querySelector('h2')?.textContent?.trim();return visible(card)&&card.getAttribute('aria-label').includes('P1 Reference work')&&Boolean(compactTitle);},\"goals\":(root)=>(root.innerText.includes('P1 Reference outcome')),\"focus\":(root)=>(root.querySelector('.focus-start-card h2')?.textContent?.includes('P1 Reference work')),\"review\":(root)=>(root.querySelector('.calibration-card small')?.textContent?.includes('10000 linked plan-to-actual readings')),\"settings\":(root)=>visible(root.querySelector('[data-testid=\"page-settings-theme\"]'))};\n const probe={transitions:[],longTasks:[],eventTimings:[],eventTimingSupported:false,observerAvailable:false,startedAt:performance.now(),serviceWorker:{supported:'serviceWorker' in navigator,controller_path:null,registrations:[]}};\n const visible=el=>{if(!el||!el.isConnected)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};\n const check=t=>{const root=document.querySelector(t.selector);if(!visible(root))return 'pending';const alerts=[...root.querySelectorAll('[role=alert]')].filter(visible).map(e=>e.innerText.trim()).filter(Boolean);if(alerts.length){t.error_text=alerts.join(' | ').slice(0,500);t.error_ms=performance.now()-t.click_ms;return 'error';}const busy=[...root.querySelectorAll('[role=status]')].filter(visible).map(e=>e.innerText.trim()).some(x=>/loading|calculating|preparing|checking|reading/i.test(x));if(busy)return 'pending';return cue[t.key](root)?'ready':'pending';};\n const observe=t=>{const state=check(t);if(state==='ready'){t.ready_ms=performance.now()-t.click_ms;t.status='ready';return;}if(state==='error'){t.status='error';return;}if(performance.now()-t.click_ms>30000){t.status='timeout';return;}t.raf=requestAnimationFrame(()=>observe(t));};\n probe.clickListener=event=>{const target=event.target instanceof Element?event.target.closest('a[data-testid]'):null;const testid=target?.getAttribute('data-testid');const item=cfg.find(entry=>testid==='layout-nav-'+(entry.nav_key??entry.key)+'-tab');if(!item)return;const transition={key:item.key,route:item.route,selector:item.selector,ready_condition:item.condition,click_ms:performance.now(),click_event_timestamp_ms:event.timeStamp,click_target_testid:testid,ready_ms:null,status:'pending'};probe.transitions.push(transition);observe(transition);};\n document.addEventListener('click',probe.clickListener,true);\n if('PerformanceObserver' in window&&PerformanceObserver.supportedEntryTypes?.includes('event')){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries()){const target=entry.target instanceof Element?entry.target.closest('[data-testid]'):null;probe.eventTimings.push({name:entry.name,start_ms:entry.startTime,duration_ms:entry.duration,processing_start_ms:entry.processingStart,processing_end_ms:entry.processingEnd,interaction_id:entry.interactionId||null,target_testid:target?.getAttribute('data-testid')??null});if(probe.eventTimings.length>50)probe.eventTimings.shift();}});observer.observe({type:'event',buffered:true,durationThreshold:16});probe.eventObserver=observer;probe.eventTimingSupported=true;}catch{probe.eventTimingSupported=false;}}\n if('PerformanceObserver' in window){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries())probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});});observer.observe({type:'longtask',buffered:true});probe.longObserver=observer;probe.observerAvailable=true;}catch{}}\n if(navigator.serviceWorker){probe.serviceWorker.controller_path=navigator.serviceWorker.controller?new URL(navigator.serviceWorker.controller.scriptURL,location.href).pathname:null;probe.serviceWorkerPromise=navigator.serviceWorker.getRegistrations().then(items=>{probe.serviceWorker.registrations=items.map(item=>{const scope=new URL(item.scope,location.href);const script=item.active?new URL(item.active.scriptURL,location.href):null;return {scope_path:scope.pathname,scope_same_origin:scope.origin===location.origin,active_script_path:script?.pathname??null,active_script_same_origin:script?script.origin===location.origin:null,active_state:item.active?.state??null,waiting_state:item.waiting?.state??null};});}).catch(()=>{probe.serviceWorker.read_error=true;});}\n probe.measure=(key,mode='tab_transition')=>{const t=[...probe.transitions].reverse().find(item=>item.key===key);const end=performance.now();for(const entry of probe.longObserver?.takeRecords()??[])probe.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});if(mode==='tab_transition'&&(!t||t.status!=='ready'||t.ready_ms==null))throw new Error('tab transition '+key+' did not reach its captured ready state');if(mode==='cold_page_mount'){const today=document.querySelector('[data-testid=\"page-today\"]');if(!visible(today)||!today.querySelector('.next-card h2')?.textContent?.includes('P1 Reference work')||[...document.querySelectorAll('[role=alert]')].some(visible))throw new Error('initial Today page did not reach the seeded-data/no-error condition');}const intervalStart=t?.click_ms??(mode==='cold_page_mount'?0:probe.startedAt);const resources=performance.getEntriesByType('resource').filter(entry=>entry.startTime>=intervalStart&&entry.startTime<=end).filter(entry=>{try{const u=new URL(entry.name);return (/^\\/vrooli\\.personal_planner\\.v1\\./.test(u.pathname)||/^\\/api\\/v1\\//.test(u.pathname)||/\\.(js|css)$/.test(u.pathname)||entry.initiatorType==='img'||entry.initiatorType==='image'||/\\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf)$/i.test(u.pathname));}catch{return false;}}).map(entry=>{const u=new URL(entry.name);const path=u.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,':id');return {path,same_origin:u.origin===location.origin,initiator_type:entry.initiatorType,start_after_click_ms:t?Math.round((entry.startTime-t.click_ms)*100)/100:null,duration_ms:entry.duration>0?Math.round(entry.duration*100)/100:null,ttfb_ms:entry.responseStart>0?Math.round((entry.responseStart-entry.startTime)*100)/100:null,transfer_bytes:entry.transferSize>0?entry.transferSize:null,encoded_bytes:entry.encodedBodySize>0?entry.encodedBodySize:null};});const tasks=probe.longTasks.filter(x=>x.start_ms<=end&&x.start_ms+x.duration_ms>=intervalStart);const nav=performance.getEntriesByType('navigation')[0];const paints=Object.fromEntries(performance.getEntriesByType('paint').map(x=>[x.name,Math.round(x.startTime*100)/100]));return {mode,key,route:t?.route??'today',path:location.pathname,status:t?.status??'initial-ready',ready_condition:t?.ready_condition??'initial Today data cue: seeded work title',click_to_data_ready_ms:t?.ready_ms??null,sample_window_ms:Math.round((end-intervalStart)*100)/100,navigation_ms:mode==='cold_page_mount'&&nav?{dom_content_loaded_ms:nav.domContentLoadedEventEnd,load_event_ms:nav.loadEventEnd}:null,paint_ms:mode==='cold_page_mount'?paints:null,route_resource_timing:resources,resource_timing_note:'Zero transfer/response timing is recorded as null; sample window includes BAS wait/assert settling after the in-page click.',long_tasks:tasks,long_task_max_ms:Math.max(0,...tasks.map(x=>x.duration_ms)),service_worker:probe.serviceWorker,observer_available:probe.observerAvailable};};\n window.__plannerRouteProbe=probe;return {viewport:{width:innerWidth,height:innerHeight},initial_route:location.pathname,observer_available:probe.observerAvailable,event_timing_supported:probe.eventTimingSupported,event_timing_duration_threshold_ms:16,service_worker_supported:probe.serviceWorker.supported,sequence:'today cold → plan → goals → focus → review → settings → today warm'};\n})()",
+          "store_result": "planner_cold3_planner_mobile_reference_probe_start"
+        }
+      }
+    },
+    {
+      "id": "measure-today-cold-cold3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Record the initial Today page sample separately from tab-click latency (cold3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('dashboard','cold_page_mount')",
+          "store_result": "planner_cold3_planner_mobile_today_cold_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-plan",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to plan with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-plan-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-plan",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for plan route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.plan",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-plan-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded accepted work is rendered"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-plan\"] article.plan-block[aria-label^=\"P1 Reference work\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the seeded accepted work block is visibly rendered on the compact Plan surface"
+        }
+      }
+    },
+    {
+      "id": "assert-plan-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on plan"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on plan"
+        }
+      }
+    },
+    {
+      "id": "measure-plan",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read plan page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('plan','tab_transition')",
+          "store_result": "planner_plan_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-goals",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to goals with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-goals-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-goals",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for goals route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.goals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-goals-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded reference outcome is rendered"
+        },
+        "assert": {
+          "selector": "@selector/pages.goals",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference outcome"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded reference outcome is rendered"
+        }
+      }
+    },
+    {
+      "id": "assert-goals-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on goals"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on goals"
+        }
+      }
+    },
+    {
+      "id": "measure-goals",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read goals page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('goals','tab_transition')",
+          "store_result": "planner_goals_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-focus",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to focus with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-focus",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for focus route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-focus-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded work picker is ready"
+        },
+        "assert": {
+          "selector": "@selector/pages.focus",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded work picker is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on focus"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on focus"
+        }
+      }
+    },
+    {
+      "id": "measure-focus",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read focus page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('focus','tab_transition')",
+          "store_result": "planner_focus_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-review",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to review with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-review-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-review",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for review route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.review",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-review-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the review summary is data-ready"
+        },
+        "assert": {
+          "selector": "@selector/pages.review",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "RECORDED ACTIVE TIME"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the review summary is data-ready"
+        }
+      }
+    },
+    {
+      "id": "assert-review-calibration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the all-time calibration has consumed the complete reference population"
+        },
+        "assert": {
+          "selector": ".calibration-card small",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "10000 linked plan-to-actual readings"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 30000,
+          "failure_message": "wait for all 10,000 linked plan-to-actual readings, not just the review summary"
+        }
+      }
+    },
+    {
+      "id": "assert-review-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on review"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on review"
+        }
+      }
+    },
+    {
+      "id": "measure-review",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read review page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('review','tab_transition')",
+          "store_result": "planner_review_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to settings with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-settings",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for settings route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-settings-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "The visible default Preferences section has its theme control"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-settings-theme\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the visible initial Preferences section is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-settings-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on settings"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on settings"
+        }
+      }
+    },
+    {
+      "id": "measure-settings",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read settings page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('settings','tab_transition')",
+          "store_result": "planner_settings_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-today-warm",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to dashboard with the real mobile tab control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-today-warm",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for dashboard route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded Today card is rendered on warm revisit"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded Today card is rendered on warm revisit"
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on dashboard"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on dashboard"
+        }
+      }
+    },
+    {
+      "id": "measure-today-warm",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read dashboard page-clock and sample-window evidence after useful data is ready"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('today-warm','tab_transition')",
+          "store_result": "planner_today-warm_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-plan-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to plan with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-plan-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-plan-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for plan route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.plan",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-plan-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded accepted work is rendered (warm2)"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-plan\"] article.plan-block[aria-label^=\"P1 Reference work\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the seeded accepted work block is visibly rendered on the compact Plan surface"
+        }
+      }
+    },
+    {
+      "id": "assert-plan-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on plan (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on plan"
+        }
+      }
+    },
+    {
+      "id": "measure-plan-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read plan page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('plan','tab_transition')",
+          "store_result": "planner_cycle2_planner_plan_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-goals-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to goals with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-goals-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-goals-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for goals route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.goals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-goals-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded reference outcome is rendered (warm2)"
+        },
+        "assert": {
+          "selector": "@selector/pages.goals",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference outcome"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded reference outcome is rendered"
+        }
+      }
+    },
+    {
+      "id": "assert-goals-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on goals (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on goals"
+        }
+      }
+    },
+    {
+      "id": "measure-goals-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read goals page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('goals','tab_transition')",
+          "store_result": "planner_cycle2_planner_goals_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-focus-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to focus with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for focus route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-focus-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded work picker is ready (warm2)"
+        },
+        "assert": {
+          "selector": "@selector/pages.focus",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded work picker is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on focus (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on focus"
+        }
+      }
+    },
+    {
+      "id": "measure-focus-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read focus page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('focus','tab_transition')",
+          "store_result": "planner_cycle2_planner_focus_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-review-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to review with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-review-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-review-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for review route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.review",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-review-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the review summary is data-ready (warm2)"
+        },
+        "assert": {
+          "selector": "@selector/pages.review",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "RECORDED ACTIVE TIME"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the review summary is data-ready"
+        }
+      }
+    },
+    {
+      "id": "assert-review-calibration-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the all-time calibration has consumed the complete reference population (warm2)"
+        },
+        "assert": {
+          "selector": ".calibration-card small",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "10000 linked plan-to-actual readings"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 30000,
+          "failure_message": "wait for all 10,000 linked plan-to-actual readings, not just the review summary"
+        }
+      }
+    },
+    {
+      "id": "assert-review-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on review (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on review"
+        }
+      }
+    },
+    {
+      "id": "measure-review-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read review page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('review','tab_transition')",
+          "store_result": "planner_cycle2_planner_review_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-settings-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to settings with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-settings-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for settings route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-settings-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "The visible default Preferences section has its theme control (warm2)"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-settings-theme\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the visible initial Preferences section is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-settings-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on settings (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on settings"
+        }
+      }
+    },
+    {
+      "id": "measure-settings-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read settings page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('settings','tab_transition')",
+          "store_result": "planner_cycle2_planner_settings_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-today-warm-warm2",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to dashboard with the real mobile tab control (warm2)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-today-warm-warm2",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for dashboard route surface (warm2)"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-ready-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded Today card is rendered on warm revisit (warm2)"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded Today card is rendered on warm revisit"
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-no-error-warm2",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on dashboard (warm2)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on dashboard"
+        }
+      }
+    },
+    {
+      "id": "measure-today-warm-warm2",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read dashboard page-clock and sample-window evidence after useful data is ready (warm2)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('today-warm','tab_transition')",
+          "store_result": "planner_cycle2_planner_today-warm_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-plan-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to plan with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-plan-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-plan-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for plan route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.plan",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-plan-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded accepted work is rendered (warm3)"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-plan\"] article.plan-block[aria-label^=\"P1 Reference work\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the seeded accepted work block is visibly rendered on the compact Plan surface"
+        }
+      }
+    },
+    {
+      "id": "assert-plan-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on plan (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on plan"
+        }
+      }
+    },
+    {
+      "id": "measure-plan-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read plan page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('plan','tab_transition')",
+          "store_result": "planner_cycle3_planner_plan_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-goals-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to goals with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-goals-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-goals-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for goals route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.goals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-goals-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded reference outcome is rendered (warm3)"
+        },
+        "assert": {
+          "selector": "@selector/pages.goals",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference outcome"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded reference outcome is rendered"
+        }
+      }
+    },
+    {
+      "id": "assert-goals-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on goals (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on goals"
+        }
+      }
+    },
+    {
+      "id": "measure-goals-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read goals page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('goals','tab_transition')",
+          "store_result": "planner_cycle3_planner_goals_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-focus-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to focus with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for focus route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-focus-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded work picker is ready (warm3)"
+        },
+        "assert": {
+          "selector": "@selector/pages.focus",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded work picker is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on focus (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on focus"
+        }
+      }
+    },
+    {
+      "id": "measure-focus-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read focus page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('focus','tab_transition')",
+          "store_result": "planner_cycle3_planner_focus_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-review-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to review with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-review-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-review-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for review route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.review",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-review-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the review summary is data-ready (warm3)"
+        },
+        "assert": {
+          "selector": "@selector/pages.review",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "RECORDED ACTIVE TIME"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the review summary is data-ready"
+        }
+      }
+    },
+    {
+      "id": "assert-review-calibration-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the all-time calibration has consumed the complete reference population (warm3)"
+        },
+        "assert": {
+          "selector": ".calibration-card small",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "10000 linked plan-to-actual readings"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 30000,
+          "failure_message": "wait for all 10,000 linked plan-to-actual readings, not just the review summary"
+        }
+      }
+    },
+    {
+      "id": "assert-review-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on review (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on review"
+        }
+      }
+    },
+    {
+      "id": "measure-review-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read review page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('review','tab_transition')",
+          "store_result": "planner_cycle3_planner_review_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-settings-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to settings with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-settings-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for settings route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-settings-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "The visible default Preferences section has its theme control (warm3)"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-settings-theme\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 20000,
+          "failure_message": "the visible initial Preferences section is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-settings-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on settings (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on settings"
+        }
+      }
+    },
+    {
+      "id": "measure-settings-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read settings page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('settings','tab_transition')",
+          "store_result": "planner_cycle3_planner_settings_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-today-warm-warm3",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Navigate to dashboard with the real mobile tab control (warm3)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-today-warm-warm3",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for dashboard route surface (warm3)"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-ready-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "the seeded Today card is rendered on warm revisit (warm3)"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded Today card is rendered on warm revisit"
+        }
+      }
+    },
+    {
+      "id": "assert-today-warm-no-error-warm3",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "No error state on dashboard (warm3)"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on dashboard"
+        }
+      }
+    },
+    {
+      "id": "measure-today-warm-warm3",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Read dashboard page-clock and sample-window evidence after useful data is ready (warm3)"
+        },
+        "evaluate": {
+          "expression": "window.__plannerRouteProbe.measure('today-warm','tab_transition')",
+          "store_result": "planner_cycle3_planner_today-warm_reference_metrics"
+        }
+      }
+    },
+    {
+      "id": "finalize-sequence",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Finalize the one bounded observer after the warm Today revisit"
+        },
+        "evaluate": {
+          "expression": "(async () => {\n const p=window.__plannerRouteProbe;\n document.removeEventListener('click',p.clickListener,true);\n for(const item of p.transitions) if(item.raf) cancelAnimationFrame(item.raf);\n await new Promise(resolve=>setTimeout(resolve,100));\n let swTimer;\n if(p.serviceWorkerPromise) await Promise.race([p.serviceWorkerPromise,new Promise(resolve=>{swTimer=setTimeout(()=>{p.serviceWorker.read_timed_out=true;resolve();},500);})]);\n if(swTimer) clearTimeout(swTimer);\n for(const entry of p.longObserver?.takeRecords()??[])p.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});\n const eventEntries=p.eventTimings.filter(entry=>entry.name==='click');\n const profilerEntries=performance.getEntriesByType('measure').filter(entry=>entry.name.startsWith('⚛ ')).slice(-100);\n const transitions=p.transitions.map(t=>{\n  const matches=eventEntries.filter(entry=>entry.target_testid===t.click_target_testid).sort((a,b)=>Math.abs(a.start_ms-t.click_event_timestamp_ms)-Math.abs(b.start_ms-t.click_event_timestamp_ms));\n  const event=matches[0];\n  const readyEnd=t.click_ms+(t.ready_ms??0);\n  const commits=profilerEntries.filter(entry=>entry.startTime<=readyEnd&&entry.startTime+entry.duration>=t.click_ms).map(entry=>({name:entry.name,start_after_click_ms:Math.round((entry.startTime-t.click_ms)*100)/100,duration_ms:Math.round(entry.duration*100)/100}));\n  return {key:t.key,route:t.route,status:t.status,ready_condition:t.ready_condition,ready_ms:t.ready_ms,error_ms:t.error_ms,error_text:t.error_text,event_timing:{status:!p.eventTimingSupported?'unavailable_unsupported':event?'observed':'unavailable_no_entry_at_16ms_threshold',threshold_ms:16,entry:event?{start_after_input_timestamp_ms:Math.round((event.start_ms-t.click_event_timestamp_ms)*100)/100,start_after_handler_ms:Math.round((event.start_ms-t.click_ms)*100)/100,handler_minus_input_timestamp_ms:Math.round((t.click_ms-t.click_event_timestamp_ms)*100)/100,duration_ms:event.duration_ms,input_delay_ms:event.processing_start_ms==null?null:Math.max(0,Math.round((event.processing_start_ms-event.start_ms)*100)/100),processing_ms:event.processing_start_ms==null||event.processing_end_ms==null?null:Math.max(0,Math.round((event.processing_end_ms-event.processing_start_ms)*100)/100),interaction_id:event.interaction_id,target_testid:event.target_testid}:null},react_profiler:{status:commits.length?'observed':'unavailable_no_commit_measure_in_window',measure_count:commits.length,observed_subtree_duration_sum_ms:commits.length?Math.round(commits.reduce((sum,item)=>sum+item.duration_ms,0)*100)/100:null,duration_semantics:'sum_of_observed_overlapping_wrapped_subtree_measures_not_whole_route_cpu',commits}};\n });\n p.eventObserver?.disconnect();p.longObserver?.disconnect();\n return {transition_count:p.transitions.length,transitions,observer_available:p.observerAvailable,event_timing_supported:p.eventTimingSupported,event_timing_entry_count:eventEntries.length,event_timing_duration_threshold_ms:16,react_profiler_status:profilerEntries.length?'observed':'unavailable_no_measure_entries',react_profiler_measure_count:profilerEntries.length,react_profiler_expected_build_mode:'profile',react_profiler_observed_subtree_duration_sum_ms:profilerEntries.length?Math.round(profilerEntries.reduce((sum,item)=>sum+item.duration,0)*100)/100:null,react_profiler_duration_semantics:'sum_of_observed_overlapping_wrapped_subtree_measures_not_whole_route_cpu',react_profiler_overhead_guidance:'~5–15% CPU per wrapped subtree per commit; implementation guidance, not a measured correction',service_worker:p.serviceWorker};\n})()",
+          "store_result": "planner_mobile_reference_probe_final"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-open",
+      "source": "open-today-cold",
+      "target": "wait-today-cold"
+    },
+    {
+      "id": "e-wait-data",
+      "source": "wait-today-cold",
+      "target": "assert-today-cold-data"
+    },
+    {
+      "id": "e-data-error",
+      "source": "assert-today-cold-data",
+      "target": "assert-today-cold-no-error"
+    },
+    {
+      "id": "e-noerror-probe",
+      "source": "assert-today-cold-no-error",
+      "target": "install-route-observers"
+    },
+    {
+      "id": "e-probe-cold",
+      "source": "install-route-observers",
+      "target": "measure-today-cold"
+    },
+    {
+      "id": "e-repeat-join-006",
+      "source": "measure-today-cold",
+      "target": "open-today-cold-cold2"
+    },
+    {
+      "id": "e-open-007",
+      "source": "open-today-cold-cold2",
+      "target": "wait-today-cold-cold2"
+    },
+    {
+      "id": "e-wait-data-008",
+      "source": "wait-today-cold-cold2",
+      "target": "assert-today-cold-data-cold2"
+    },
+    {
+      "id": "e-data-error-009",
+      "source": "assert-today-cold-data-cold2",
+      "target": "assert-today-cold-no-error-cold2"
+    },
+    {
+      "id": "e-noerror-probe-010",
+      "source": "assert-today-cold-no-error-cold2",
+      "target": "install-route-observers-cold2"
+    },
+    {
+      "id": "e-probe-cold-011",
+      "source": "install-route-observers-cold2",
+      "target": "measure-today-cold-cold2"
+    },
+    {
+      "id": "e-repeat-join-012",
+      "source": "measure-today-cold-cold2",
+      "target": "open-today-cold-cold3"
+    },
+    {
+      "id": "e-open-013",
+      "source": "open-today-cold-cold3",
+      "target": "wait-today-cold-cold3"
+    },
+    {
+      "id": "e-wait-data-014",
+      "source": "wait-today-cold-cold3",
+      "target": "assert-today-cold-data-cold3"
+    },
+    {
+      "id": "e-data-error-015",
+      "source": "assert-today-cold-data-cold3",
+      "target": "assert-today-cold-no-error-cold3"
+    },
+    {
+      "id": "e-noerror-probe-016",
+      "source": "assert-today-cold-no-error-cold3",
+      "target": "install-route-observers-cold3"
+    },
+    {
+      "id": "e-probe-cold-017",
+      "source": "install-route-observers-cold3",
+      "target": "measure-today-cold-cold3"
+    },
+    {
+      "id": "e-measure-today-cold-click-plan-018",
+      "source": "measure-today-cold-cold3",
+      "target": "click-plan"
+    },
+    {
+      "id": "e-click-plan-wait-plan",
+      "source": "click-plan",
+      "target": "wait-plan"
+    },
+    {
+      "id": "e-wait-plan-assert-plan-ready",
+      "source": "wait-plan",
+      "target": "assert-plan-ready"
+    },
+    {
+      "id": "e-assert-plan-ready-assert-plan-no-error",
+      "source": "assert-plan-ready",
+      "target": "assert-plan-no-error"
+    },
+    {
+      "id": "e-assert-plan-no-error-measure-plan",
+      "source": "assert-plan-no-error",
+      "target": "measure-plan"
+    },
+    {
+      "id": "e-measure-plan-click-goals",
+      "source": "measure-plan",
+      "target": "click-goals"
+    },
+    {
+      "id": "e-click-goals-wait-goals",
+      "source": "click-goals",
+      "target": "wait-goals"
+    },
+    {
+      "id": "e-wait-goals-assert-goals-ready",
+      "source": "wait-goals",
+      "target": "assert-goals-ready"
+    },
+    {
+      "id": "e-assert-goals-ready-assert-goals-no-error",
+      "source": "assert-goals-ready",
+      "target": "assert-goals-no-error"
+    },
+    {
+      "id": "e-assert-goals-no-error-measure-goals",
+      "source": "assert-goals-no-error",
+      "target": "measure-goals"
+    },
+    {
+      "id": "e-measure-goals-click-focus",
+      "source": "measure-goals",
+      "target": "click-focus"
+    },
+    {
+      "id": "e-click-focus-wait-focus",
+      "source": "click-focus",
+      "target": "wait-focus"
+    },
+    {
+      "id": "e-wait-focus-assert-focus-ready",
+      "source": "wait-focus",
+      "target": "assert-focus-ready"
+    },
+    {
+      "id": "e-assert-focus-ready-assert-focus-no-error",
+      "source": "assert-focus-ready",
+      "target": "assert-focus-no-error"
+    },
+    {
+      "id": "e-assert-focus-no-error-measure-focus",
+      "source": "assert-focus-no-error",
+      "target": "measure-focus"
+    },
+    {
+      "id": "e-measure-focus-click-review",
+      "source": "measure-focus",
+      "target": "click-review"
+    },
+    {
+      "id": "e-click-review-wait-review",
+      "source": "click-review",
+      "target": "wait-review"
+    },
+    {
+      "id": "e-wait-review-assert-review-ready",
+      "source": "wait-review",
+      "target": "assert-review-ready"
+    },
+    {
+      "id": "e-assert-review-ready-assert-review-no-error",
+      "source": "assert-review-ready",
+      "target": "assert-review-calibration"
+    },
+    {
+      "id": "e-review-calibration-noerror",
+      "source": "assert-review-calibration",
+      "target": "assert-review-no-error"
+    },
+    {
+      "id": "e-assert-review-no-error-measure-review",
+      "source": "assert-review-no-error",
+      "target": "measure-review"
+    },
+    {
+      "id": "e-measure-review-click-settings",
+      "source": "measure-review",
+      "target": "click-settings"
+    },
+    {
+      "id": "e-click-settings-wait-settings",
+      "source": "click-settings",
+      "target": "wait-settings"
+    },
+    {
+      "id": "e-wait-settings-assert-settings-ready",
+      "source": "wait-settings",
+      "target": "assert-settings-ready"
+    },
+    {
+      "id": "e-assert-settings-ready-assert-settings-no-error",
+      "source": "assert-settings-ready",
+      "target": "assert-settings-no-error"
+    },
+    {
+      "id": "e-assert-settings-no-error-measure-settings",
+      "source": "assert-settings-no-error",
+      "target": "measure-settings"
+    },
+    {
+      "id": "e-measure-settings-click-today-warm",
+      "source": "measure-settings",
+      "target": "click-today-warm"
+    },
+    {
+      "id": "e-click-today-warm-wait-today-warm",
+      "source": "click-today-warm",
+      "target": "wait-today-warm"
+    },
+    {
+      "id": "e-wait-today-warm-assert-today-warm-ready",
+      "source": "wait-today-warm",
+      "target": "assert-today-warm-ready"
+    },
+    {
+      "id": "e-assert-today-warm-ready-assert-today-warm-no-error",
+      "source": "assert-today-warm-ready",
+      "target": "assert-today-warm-no-error"
+    },
+    {
+      "id": "e-assert-today-warm-no-error-measure-today-warm",
+      "source": "assert-today-warm-no-error",
+      "target": "measure-today-warm"
+    },
+    {
+      "id": "e-repeat-join-049",
+      "source": "measure-today-warm",
+      "target": "click-plan-warm2"
+    },
+    {
+      "id": "e-click-plan-wait-plan-050",
+      "source": "click-plan-warm2",
+      "target": "wait-plan-warm2"
+    },
+    {
+      "id": "e-wait-plan-assert-plan-ready-051",
+      "source": "wait-plan-warm2",
+      "target": "assert-plan-ready-warm2"
+    },
+    {
+      "id": "e-assert-plan-ready-assert-plan-no-error-052",
+      "source": "assert-plan-ready-warm2",
+      "target": "assert-plan-no-error-warm2"
+    },
+    {
+      "id": "e-assert-plan-no-error-measure-plan-053",
+      "source": "assert-plan-no-error-warm2",
+      "target": "measure-plan-warm2"
+    },
+    {
+      "id": "e-measure-plan-click-goals-054",
+      "source": "measure-plan-warm2",
+      "target": "click-goals-warm2"
+    },
+    {
+      "id": "e-click-goals-wait-goals-055",
+      "source": "click-goals-warm2",
+      "target": "wait-goals-warm2"
+    },
+    {
+      "id": "e-wait-goals-assert-goals-ready-056",
+      "source": "wait-goals-warm2",
+      "target": "assert-goals-ready-warm2"
+    },
+    {
+      "id": "e-assert-goals-ready-assert-goals-no-error-057",
+      "source": "assert-goals-ready-warm2",
+      "target": "assert-goals-no-error-warm2"
+    },
+    {
+      "id": "e-assert-goals-no-error-measure-goals-058",
+      "source": "assert-goals-no-error-warm2",
+      "target": "measure-goals-warm2"
+    },
+    {
+      "id": "e-measure-goals-click-focus-059",
+      "source": "measure-goals-warm2",
+      "target": "click-focus-warm2"
+    },
+    {
+      "id": "e-click-focus-wait-focus-060",
+      "source": "click-focus-warm2",
+      "target": "wait-focus-warm2"
+    },
+    {
+      "id": "e-wait-focus-assert-focus-ready-061",
+      "source": "wait-focus-warm2",
+      "target": "assert-focus-ready-warm2"
+    },
+    {
+      "id": "e-assert-focus-ready-assert-focus-no-error-062",
+      "source": "assert-focus-ready-warm2",
+      "target": "assert-focus-no-error-warm2"
+    },
+    {
+      "id": "e-assert-focus-no-error-measure-focus-063",
+      "source": "assert-focus-no-error-warm2",
+      "target": "measure-focus-warm2"
+    },
+    {
+      "id": "e-measure-focus-click-review-064",
+      "source": "measure-focus-warm2",
+      "target": "click-review-warm2"
+    },
+    {
+      "id": "e-click-review-wait-review-065",
+      "source": "click-review-warm2",
+      "target": "wait-review-warm2"
+    },
+    {
+      "id": "e-wait-review-assert-review-ready-066",
+      "source": "wait-review-warm2",
+      "target": "assert-review-ready-warm2"
+    },
+    {
+      "id": "e-assert-review-ready-assert-review-no-error-067",
+      "source": "assert-review-ready-warm2",
+      "target": "assert-review-calibration-warm2"
+    },
+    {
+      "id": "e-review-calibration-noerror-068",
+      "source": "assert-review-calibration-warm2",
+      "target": "assert-review-no-error-warm2"
+    },
+    {
+      "id": "e-assert-review-no-error-measure-review-069",
+      "source": "assert-review-no-error-warm2",
+      "target": "measure-review-warm2"
+    },
+    {
+      "id": "e-measure-review-click-settings-070",
+      "source": "measure-review-warm2",
+      "target": "click-settings-warm2"
+    },
+    {
+      "id": "e-click-settings-wait-settings-071",
+      "source": "click-settings-warm2",
+      "target": "wait-settings-warm2"
+    },
+    {
+      "id": "e-wait-settings-assert-settings-ready-072",
+      "source": "wait-settings-warm2",
+      "target": "assert-settings-ready-warm2"
+    },
+    {
+      "id": "e-assert-settings-ready-assert-settings-no-error-073",
+      "source": "assert-settings-ready-warm2",
+      "target": "assert-settings-no-error-warm2"
+    },
+    {
+      "id": "e-assert-settings-no-error-measure-settings-074",
+      "source": "assert-settings-no-error-warm2",
+      "target": "measure-settings-warm2"
+    },
+    {
+      "id": "e-measure-settings-click-today-warm-075",
+      "source": "measure-settings-warm2",
+      "target": "click-today-warm-warm2"
+    },
+    {
+      "id": "e-click-today-warm-wait-today-warm-076",
+      "source": "click-today-warm-warm2",
+      "target": "wait-today-warm-warm2"
+    },
+    {
+      "id": "e-wait-today-warm-assert-today-warm-ready-077",
+      "source": "wait-today-warm-warm2",
+      "target": "assert-today-warm-ready-warm2"
+    },
+    {
+      "id": "e-assert-today-warm-ready-assert-today-warm-no-error-078",
+      "source": "assert-today-warm-ready-warm2",
+      "target": "assert-today-warm-no-error-warm2"
+    },
+    {
+      "id": "e-assert-today-warm-no-error-measure-today-warm-079",
+      "source": "assert-today-warm-no-error-warm2",
+      "target": "measure-today-warm-warm2"
+    },
+    {
+      "id": "e-repeat-join-080",
+      "source": "measure-today-warm-warm2",
+      "target": "click-plan-warm3"
+    },
+    {
+      "id": "e-click-plan-wait-plan-081",
+      "source": "click-plan-warm3",
+      "target": "wait-plan-warm3"
+    },
+    {
+      "id": "e-wait-plan-assert-plan-ready-082",
+      "source": "wait-plan-warm3",
+      "target": "assert-plan-ready-warm3"
+    },
+    {
+      "id": "e-assert-plan-ready-assert-plan-no-error-083",
+      "source": "assert-plan-ready-warm3",
+      "target": "assert-plan-no-error-warm3"
+    },
+    {
+      "id": "e-assert-plan-no-error-measure-plan-084",
+      "source": "assert-plan-no-error-warm3",
+      "target": "measure-plan-warm3"
+    },
+    {
+      "id": "e-measure-plan-click-goals-085",
+      "source": "measure-plan-warm3",
+      "target": "click-goals-warm3"
+    },
+    {
+      "id": "e-click-goals-wait-goals-086",
+      "source": "click-goals-warm3",
+      "target": "wait-goals-warm3"
+    },
+    {
+      "id": "e-wait-goals-assert-goals-ready-087",
+      "source": "wait-goals-warm3",
+      "target": "assert-goals-ready-warm3"
+    },
+    {
+      "id": "e-assert-goals-ready-assert-goals-no-error-088",
+      "source": "assert-goals-ready-warm3",
+      "target": "assert-goals-no-error-warm3"
+    },
+    {
+      "id": "e-assert-goals-no-error-measure-goals-089",
+      "source": "assert-goals-no-error-warm3",
+      "target": "measure-goals-warm3"
+    },
+    {
+      "id": "e-measure-goals-click-focus-090",
+      "source": "measure-goals-warm3",
+      "target": "click-focus-warm3"
+    },
+    {
+      "id": "e-click-focus-wait-focus-091",
+      "source": "click-focus-warm3",
+      "target": "wait-focus-warm3"
+    },
+    {
+      "id": "e-wait-focus-assert-focus-ready-092",
+      "source": "wait-focus-warm3",
+      "target": "assert-focus-ready-warm3"
+    },
+    {
+      "id": "e-assert-focus-ready-assert-focus-no-error-093",
+      "source": "assert-focus-ready-warm3",
+      "target": "assert-focus-no-error-warm3"
+    },
+    {
+      "id": "e-assert-focus-no-error-measure-focus-094",
+      "source": "assert-focus-no-error-warm3",
+      "target": "measure-focus-warm3"
+    },
+    {
+      "id": "e-measure-focus-click-review-095",
+      "source": "measure-focus-warm3",
+      "target": "click-review-warm3"
+    },
+    {
+      "id": "e-click-review-wait-review-096",
+      "source": "click-review-warm3",
+      "target": "wait-review-warm3"
+    },
+    {
+      "id": "e-wait-review-assert-review-ready-097",
+      "source": "wait-review-warm3",
+      "target": "assert-review-ready-warm3"
+    },
+    {
+      "id": "e-assert-review-ready-assert-review-no-error-098",
+      "source": "assert-review-ready-warm3",
+      "target": "assert-review-calibration-warm3"
+    },
+    {
+      "id": "e-review-calibration-noerror-099",
+      "source": "assert-review-calibration-warm3",
+      "target": "assert-review-no-error-warm3"
+    },
+    {
+      "id": "e-assert-review-no-error-measure-review-100",
+      "source": "assert-review-no-error-warm3",
+      "target": "measure-review-warm3"
+    },
+    {
+      "id": "e-measure-review-click-settings-101",
+      "source": "measure-review-warm3",
+      "target": "click-settings-warm3"
+    },
+    {
+      "id": "e-click-settings-wait-settings-102",
+      "source": "click-settings-warm3",
+      "target": "wait-settings-warm3"
+    },
+    {
+      "id": "e-wait-settings-assert-settings-ready-103",
+      "source": "wait-settings-warm3",
+      "target": "assert-settings-ready-warm3"
+    },
+    {
+      "id": "e-assert-settings-ready-assert-settings-no-error-104",
+      "source": "assert-settings-ready-warm3",
+      "target": "assert-settings-no-error-warm3"
+    },
+    {
+      "id": "e-assert-settings-no-error-measure-settings-105",
+      "source": "assert-settings-no-error-warm3",
+      "target": "measure-settings-warm3"
+    },
+    {
+      "id": "e-measure-settings-click-today-warm-106",
+      "source": "measure-settings-warm3",
+      "target": "click-today-warm-warm3"
+    },
+    {
+      "id": "e-click-today-warm-wait-today-warm-107",
+      "source": "click-today-warm-warm3",
+      "target": "wait-today-warm-warm3"
+    },
+    {
+      "id": "e-wait-today-warm-assert-today-warm-ready-108",
+      "source": "wait-today-warm-warm3",
+      "target": "assert-today-warm-ready-warm3"
+    },
+    {
+      "id": "e-assert-today-warm-ready-assert-today-warm-no-error-109",
+      "source": "assert-today-warm-ready-warm3",
+      "target": "assert-today-warm-no-error-warm3"
+    },
+    {
+      "id": "e-assert-today-warm-no-error-measure-today-warm-110",
+      "source": "assert-today-warm-no-error-warm3",
+      "target": "measure-today-warm-warm3"
+    },
+    {
+      "id": "e-finalize-111",
+      "source": "measure-today-warm-warm3",
+      "target": "finalize-sequence"
+    }
+  ]
+}

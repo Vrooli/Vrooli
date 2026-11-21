@@ -2,6 +2,7 @@ package agentmanager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -46,6 +47,29 @@ func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
 	}
 	if client.httpClient == nil {
 		t.Fatalf("expected default http client")
+	}
+}
+
+func TestHTTPClientContinueRunWithIdempotencyKeySendsKey(t *testing.T) {
+	var gotPath, gotRunID, gotMessage, gotKey string
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://agent-manager.local", nil },
+		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+			gotPath = req.URL.Path
+			var body map[string]string
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				return nil, err
+			}
+			gotRunID, gotMessage, gotKey = body["runId"], body["message"], body["idempotencyKey"]
+			return makeResponse(http.StatusOK, `{}`), nil
+		}},
+	)
+
+	if err := client.ContinueRunWithIdempotencyKey(context.Background(), "run-1", "review note", "ask-key"); err != nil {
+		t.Fatalf("ContinueRunWithIdempotencyKey: %v", err)
+	}
+	if gotPath != "/api/v1/runs/run-1/continue" || gotRunID != "run-1" || gotMessage != "review note" || gotKey != "ask-key" {
+		t.Fatalf("continue request = path %q run %q message %q key %q", gotPath, gotRunID, gotMessage, gotKey)
 	}
 }
 
@@ -165,6 +189,62 @@ func TestHTTPClient_GetRun(t *testing.T) {
 			t.Errorf("got run ID %q, want %q", run.Id, "run-1")
 		}
 	})
+}
+
+func TestAgentServiceGetRunMessagesPagesAndPreservesEventIdentity(t *testing.T) {
+	var requests int
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
+			requests++
+			if req.URL.Path != "/api/v1/runs/run-paged/events" {
+				t.Fatalf("path = %q", req.URL.Path)
+			}
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("limit = %q, want 200", req.URL.Query().Get("limit"))
+			}
+			switch requests {
+			case 1:
+				if got := req.URL.Query().Get("after_sequence"); got != "" {
+					t.Fatalf("first after_sequence = %q, want empty", got)
+				}
+				return makeResponse(http.StatusOK, `{
+				  "events": [
+				    {"id":"event-final","runId":"run-paged","sequence":"10","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"assistant","content":"{\"operating_mode_result\":{\"verdict\":\"accepted\"}}"}},
+				    {"id":"event-user","runId":"run-paged","sequence":"11","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","content":"ignored"}}
+				  ],
+				  "hasMore": true
+				}`), nil
+			case 2:
+				if got := req.URL.Query().Get("after_sequence"); got != "11" {
+					t.Fatalf("second after_sequence = %q, want 11", got)
+				}
+				return makeResponse(http.StatusOK, `{
+				  "events": [
+				    {"id":"event-trailing","runId":"run-paged","sequence":"20","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"assistant","content":"trailing subagent noise"}}
+				  ],
+				  "hasMore": false
+				}`), nil
+			default:
+				t.Fatalf("unexpected request %d", requests)
+				return nil, nil
+			}
+		}},
+	)
+	service := &AgentService{client: client, enabled: true}
+	messages, err := service.GetRunMessages(context.Background(), "run-paged")
+	if err != nil {
+		t.Fatalf("GetRunMessages: %v", err)
+	}
+	if requests != 2 {
+		t.Fatalf("requests = %d, want 2", requests)
+	}
+	if len(messages) != 2 {
+		t.Fatalf("messages = %#v, want two assistant messages", messages)
+	}
+	if messages[0].EventID != "event-final" || messages[0].Sequence != 10 || messages[1].EventID != "event-trailing" || messages[1].Sequence != 20 {
+		t.Fatalf("messages = %#v, want stable identities across pages", messages)
+	}
 }
 
 func TestHTTPClient_StopRun(t *testing.T) {

@@ -38,6 +38,9 @@ func NewCollector(delegate autoevents.Sink, repo uxmetrics.Repository) *Collecto
 // Publish implements automation/events.Sink.
 // This is the key integration point - every event flows through here.
 func (c *Collector) Publish(ctx context.Context, event autocontracts.EventEnvelope) error {
+	if err := c.delegate.Publish(ctx, event); err != nil {
+		return err
+	}
 	// Extract UX-relevant data from events
 	switch event.Kind {
 	case autocontracts.EventKindStepCompleted:
@@ -53,8 +56,7 @@ func (c *Collector) Publish(ctx context.Context, event autocontracts.EventEnvelo
 		_ = c.FlushExecution(ctx, event.ExecutionID)
 	}
 
-	// Always delegate to underlying sink
-	return c.delegate.Publish(ctx, event)
+	return nil
 }
 
 // Limits delegates to the underlying sink.
@@ -62,19 +64,25 @@ func (c *Collector) Limits() autocontracts.EventBufferLimits {
 	return c.delegate.Limits()
 }
 
-	// OnStepOutcome implements uxmetrics.Collector for direct calls.
-	func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
-		// Build cursor path from trail
-		if len(outcome.CursorTrail) > 0 {
-			trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
-			for i := range outcome.CursorTrail {
-				p := &outcome.CursorTrail[i]
-				trail[i] = autocontracts.CursorPosition{
-					Point: &autocontracts.Point{X: p.X, Y: p.Y},
-				}
+// CloseExecution retires this execution's buffers and preserves the delegate's lifecycle.
+func (c *Collector) CloseExecution(executionID uuid.UUID) {
+	_ = c.FlushExecution(context.Background(), executionID)
+	c.delegate.CloseExecution(executionID)
+}
+
+// OnStepOutcome implements uxmetrics.Collector for direct calls.
+func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
+	// Build cursor path from trail
+	if len(outcome.CursorTrail) > 0 {
+		trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
+		for i := range outcome.CursorTrail {
+			p := &outcome.CursorTrail[i]
+			trail[i] = autocontracts.CursorPosition{
+				Point: &autocontracts.Point{X: p.X, Y: p.Y},
 			}
-			path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
-			if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
+		}
+		path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
+		if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
 			return err
 		}
 	}

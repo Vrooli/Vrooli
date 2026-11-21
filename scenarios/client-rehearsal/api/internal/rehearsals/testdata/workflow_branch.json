@@ -1,0 +1,14 @@
+{
+  "id": "branch-flow",
+  "name": "Synthetic status router",
+  "nodes": [
+    {"id": "trigger", "name": "Manual", "type": "n8n-nodes-base.manualTrigger", "parameters": {}},
+    {"id": "route", "name": "Status route", "type": "n8n-nodes-base.if", "parameters": {"conditions": {"conditions": [{"leftValue": "={{ $json.status }}", "rightValue": "active", "operator": {"type": "string", "operation": "equals"}}]}}},
+    {"id": "crm", "name": "CRM create", "type": "n8n-nodes-base.httpRequest", "parameters": {"method": "POST", "url": "https://crm.synthetic.invalid/v1/contacts"}},
+    {"id": "sheets", "name": "Sheet append", "type": "n8n-nodes-base.httpRequest", "parameters": {"method": "POST", "url": "https://sheets.synthetic.invalid/v1/rows"}}
+  ],
+  "connections": {
+    "Manual": {"main": [[{"node": "Status route", "type": "main", "index": 0}]]},
+    "Status route": {"main": [[{"node": "CRM create", "type": "main", "index": 0}], [{"node": "Sheet append", "type": "main", "index": 0}]]}
+  }
+}

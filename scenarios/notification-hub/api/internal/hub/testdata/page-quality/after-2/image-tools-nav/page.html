@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Tools phone navigation</title>
+<style>
+  body { color: var(--hub-fg); }
+  h1 { margin-bottom: .35rem; }
+  .lede { color: var(--hub-muted); margin-top: 0; }
+  .choice-grid { display: grid; gap: .8rem; }
+  .choice { padding: .85rem; }
+  .choice img { display: block; width: min(100%, 250px); height: 220px; object-fit: cover; object-position: bottom; margin: .65rem auto; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+  .choice h2 { margin: .2rem 0; font-size: 1.15rem; }
+  .choice p { margin: .4rem 0; }
+  .choice footer { margin-top: .7rem; }
+  .choice button { min-height: 44px; }
+  .recommended { border-color: var(--hub-primary); }
+  @media (min-width: 700px) { .choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .choice img { width: 100%; height: 240px; } }
+</style>
+</head>
+<body>
+  <h1>Choose how phone navigation works</h1>
+  <p class="lede">I recommend four tabs: the editing destinations stay readable and one tap away, while all eight places remain available.</p>
+
+  <h2>What the phone shows</h2>
+  <p>Eight bottom tabs leave each name only two or three letters wide. These captures show the three finished layouts; desktop is unchanged.</p>
+  <div class="hub-callout is-warning"><strong>If you do not answer:</strong> today’s eight-tab bar stays in place.</div>
+  <h2>After you approve</h2>
+  <p>I apply the phone layout you choose and send you a capture. If you keep today’s tabs, I leave them as they are and send a capture of that layout.</p>
+  <div class="choice-grid">
+    <section class="choice">
+      <h2>Four tabs <span class="hub-chip is-success">Recommended</span></h2>
+      <figure class="hub-figure">
+        <img src="four-tabs-light.webp" alt="Image Tools on a phone with Home, Workspace, Library and Activity readable in the bottom bar">
+      </figure>
+      <p>Home, Workspace, Library and Activity stay one tap away. The other four places are in the top-left menu, two taps away. Nothing is removed.</p>
+      <footer><button type="button" data-pick="four">Choose four tabs</button></footer>
+    </section>
+
+    <section class="choice">
+      <h2>Menu only</h2>
+      <figure class="hub-figure">
+        <img src="menu-only-light.webp" alt="Image Tools on a phone without a bottom tab bar, leaving more room for the image">
+      </figure>
+      <p>All eight places move to the menu. Every place takes two taps, with more room for the image.</p>
+      <footer><button type="button" class="is-quiet" data-pick="menu">Choose menu only</button></footer>
+    </section>
+
+    <section class="choice">
+      <h2>Keep today’s tabs</h2>
+      <figure class="hub-figure">
+        <img src="today-light.webp" alt="Image Tools on a phone with eight crowded bottom tabs and cut-off names">
+      </figure>
+      <p>All eight places remain one tap away, but names stay cut off at two or three letters.</p>
+      <footer><button type="button" class="is-quiet" data-pick="keep">Keep as is</button></footer>
+    </section>
+  </div>
+
+  <p class="lede" id="picked" role="status"></p>
+  <script>
+    document.querySelectorAll("[data-pick]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!window.hub || !window.hub.prefill) return;
+        window.hub.prefill("answer", button.getAttribute("data-pick"));
+        document.getElementById("picked").textContent = "Filled in below. Check your choice, then send it.";
+      });
+    });
+  </script>
+</body>
+</html>

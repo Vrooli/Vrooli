@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "history",
+    "title": "History",
+    "routes": [
+      "/history"
+    ],
+    "purpose": "Help the operator find past decisions and inspect how they were resolved.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    {
+      "id": "default"
+    },
+    {
+      "id": "loading",
+      "description": "The first read is in flight; placeholder rows hold the place and are announced as loading."
+    },
+    {
+      "id": "empty",
+      "description": "No decision matches the status and search; the empty notice says how to widen it."
+    },
+    {
+      "id": "partial",
+      "description": "Rows are shown while a refresh or a further page failed; the failure is said above the list and Retry keeps the rows."
+    },
+    {
+      "id": "request-error",
+      "description": "The read failed: the cause is named with a retry, or the sign-in card when the owner session is missing."
+    },
+    {
+      "id": "stale",
+      "description": "Rows from an earlier read stay on screen while a refresh runs, and the footer says how long ago they were updated."
+    },
+    {
+      "id": "filtered",
+      "description": "A sort, urgency or sender filter is in force beside the status filter; each is removable in one tap."
+    }
+  ]
+}

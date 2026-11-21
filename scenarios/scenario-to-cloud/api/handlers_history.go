@@ -2,20 +2,18 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
+	"scenario-to-cloud/vps"
+
+	"github.com/gorilla/mux"
 )
 
 // handleGetHistory returns the deployment history timeline.
@@ -82,11 +80,9 @@ type LogsResponse struct {
 	Sources  []string   `json:"sources"`
 }
 
-// handleGetLogs returns aggregated logs from the VPS.
+// handleGetLogs returns aggregated logs from the target.
 // GET /api/v1/deployments/{id}/logs?source=all&level=all&tail=100&search=
 func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
 	// Parse query parameters
 	source := r.URL.Query().Get("source")
 	if source == "" {
@@ -105,57 +101,17 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	search := r.URL.Query().Get("search")
 
-	// Get deployment
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	if deployment == nil {
-		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
-		return
-	}
-
-	// Parse manifest
-	var m domain.CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
-		return
-	}
-
-	normalized, _ := manifest.ValidateAndNormalize(m)
-	if normalized.Target.VPS == nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "no_vps_target",
-			Message: "Deployment does not have a VPS target",
-		})
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	// Fetch logs from VPS
-	logs, sources, err := fetchAggregatedLogs(ctx, normalized, s.sshRunner, tail, source, level, search)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "logs_failed",
-			Message: "Failed to fetch logs from VPS",
-			Hint:    err.Error(),
-		})
-		return
+	logs, sources := fetchAggregatedLogs(ctx, dc.Manifest, s.proberFor(dc), tail, source, level, search)
+	if logs == nil {
+		logs = []LogEntry{}
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, LogsResponse{
@@ -167,84 +123,66 @@ func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// fetchAggregatedLogs fetches logs from multiple sources on the VPS.
-func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, sshRunner ssh.Runner, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string, error) {
-	cfg := ssh.ConfigFromManifest(manifest)
-	workdir := manifest.Target.VPS.Workdir
+// logSource is one typed log read: the lifecycle owner's logs verbs for
+// scenarios and resources, journalctl for the edge proxy unit.
+type logSource struct {
+	id  string
+	run func(ctx context.Context) (reach.Result, error)
+}
+
+// logSources lists the reads for a source filter. Every identifier is
+// validated as an argv value before it can reach a transport.
+func logSources(manifest domain.CloudManifest, prober vps.Prober, tail int, sourceFilter string) []logSource {
 	scenarioID := manifest.Scenario.ID
-
-	var allLogs []LogEntry
-	sources := []string{}
-
-	// Determine which sources to fetch
-	sourcesToFetch := []struct {
-		id  string
-		cmd string
-	}{}
-
+	var sources []logSource
 	if sourceFilter == "all" || sourceFilter == "scenario" || sourceFilter == scenarioID {
-		sourcesToFetch = append(sourcesToFetch, struct {
-			id  string
-			cmd string
-		}{
-			id:  scenarioID,
-			cmd: shellutil.VrooliCommand(workdir, "vrooli scenario logs "+shellutil.QuoteSingle(scenarioID)+" --tail "+intToStr(tail)),
-		})
+		sources = append(sources, logSource{id: scenarioID, run: func(ctx context.Context) (reach.Result, error) {
+			return prober.Verb(ctx, "scenario logs", scenarioID, "--tail", strconv.Itoa(tail))
+		}})
 	}
-
 	if sourceFilter == "all" || sourceFilter == "caddy" {
 		journalTail := tail
 		if journalTail > 200 {
 			journalTail = 200
 		}
-		sourcesToFetch = append(sourcesToFetch, struct {
-			id  string
-			cmd string
-		}{
-			id:  "caddy",
-			cmd: "journalctl -u caddy --no-pager -n " + intToStr(journalTail) + " 2>/dev/null || echo 'No caddy logs available'",
-		})
+		sources = append(sources, logSource{id: "caddy", run: func(ctx context.Context) (reach.Result, error) {
+			return prober.Observe(ctx, "journalctl", "-u", "caddy", "--no-pager", "-n", strconv.Itoa(journalTail))
+		}})
 	}
-
-	// Add resource logs
-	if sourceFilter == "all" {
-		for _, res := range manifest.Dependencies.Resources {
-			sourcesToFetch = append(sourcesToFetch, struct {
-				id  string
-				cmd string
-			}{
-				id:  res,
-				cmd: shellutil.VrooliCommand(workdir, "vrooli resource logs "+shellutil.QuoteSingle(res)+" --tail "+intToStr(tail/4)+" 2>/dev/null || echo 'No logs for "+res+"'"),
-			})
+	for _, res := range manifest.Dependencies.Resources {
+		res := res
+		resourceTail := tail
+		if sourceFilter == "all" {
+			resourceTail = tail / 4
+		} else if sourceFilter != res {
+			continue
 		}
-	} else {
-		// Check if sourceFilter is a specific resource
-		for _, res := range manifest.Dependencies.Resources {
-			if sourceFilter == res {
-				sourcesToFetch = append(sourcesToFetch, struct {
-					id  string
-					cmd string
-				}{
-					id:  res,
-					cmd: shellutil.VrooliCommand(workdir, "vrooli resource logs "+shellutil.QuoteSingle(res)+" --tail "+intToStr(tail)+" 2>/dev/null || echo 'No logs for "+res+"'"),
-				})
-			}
+		if resourceTail <= 0 {
+			resourceTail = 1
 		}
+		sources = append(sources, logSource{id: res, run: func(ctx context.Context) (reach.Result, error) {
+			return prober.Verb(ctx, "resource logs", res, "--tail", strconv.Itoa(resourceTail))
+		}})
 	}
+	return sources
+}
 
-	// Fetch logs from each source
-	for _, src := range sourcesToFetch {
-		result, err := sshRunner.Run(ctx, cfg, src.cmd, ssh.DefaultRunOptions())
-		if err != nil {
-			continue // Skip failed sources
+// fetchAggregatedLogs fetches logs from every selected source through the
+// prober. A source that fails to answer is skipped and left out of the
+// sources list so the caller can see which producers reported.
+func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, prober vps.Prober, tail int, sourceFilter, levelFilter, search string) ([]LogEntry, []string) {
+	var allLogs []LogEntry
+	sources := []string{}
+
+	for _, src := range logSources(manifest, prober, tail, sourceFilter) {
+		result, err := src.run(ctx)
+		if err != nil || result.ExitCode != 0 {
+			continue
 		}
 
 		sources = append(sources, src.id)
-
-		// Parse the log output
 		entries := parseLogOutput(result.Stdout, src.id)
 
-		// Apply level filter
 		if levelFilter != "all" {
 			filtered := []LogEntry{}
 			for _, entry := range entries {
@@ -255,7 +193,6 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 			entries = filtered
 		}
 
-		// Apply search filter
 		if search != "" {
 			filtered := []LogEntry{}
 			searchLower := strings.ToLower(search)
@@ -270,82 +207,77 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, ssh
 		allLogs = append(allLogs, entries...)
 	}
 
-	// Sort all logs by timestamp
 	sort.Slice(allLogs, func(i, j int) bool {
 		return allLogs[i].Timestamp > allLogs[j].Timestamp
 	})
 
-	// Limit to tail
 	if len(allLogs) > tail {
 		allLogs = allLogs[:tail]
 	}
 
-	return allLogs, sources, nil
+	return allLogs, sources
 }
 
 // parseLogOutput parses log output into structured log entries.
 func parseLogOutput(output, source string) []LogEntry {
 	var entries []LogEntry
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
+	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-
-		entry := LogEntry{
-			Source:  source,
-			Message: line,
-			Level:   "INFO",
-		}
-
-		// Try to parse timestamp from common formats
-		// Format 1: "2025-12-30T12:34:56Z ..."
-		if len(line) > 20 && (line[4] == '-' && line[7] == '-') {
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) == 2 {
-				entry.Timestamp = parts[0]
-				line = parts[1]
-			}
-		}
-
-		// Format 2: journalctl format "Dec 30 12:34:56 hostname ..."
-		if entry.Timestamp == "" && len(line) > 15 {
-			months := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-			for _, m := range months {
-				if strings.HasPrefix(line, m+" ") {
-					parts := strings.Fields(line)
-					if len(parts) >= 4 {
-						// Construct timestamp
-						entry.Timestamp = parts[0] + " " + parts[1] + " " + parts[2]
-						line = strings.Join(parts[3:], " ")
-						break
-					}
-				}
-			}
-		}
-
-		// If still no timestamp, use current time
-		if entry.Timestamp == "" {
-			entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
-		}
-
-		// Detect log level from content
-		lineLower := strings.ToLower(line)
-		if strings.Contains(lineLower, "error") || strings.Contains(lineLower, "err]") || strings.Contains(lineLower, "[err") {
-			entry.Level = "ERROR"
-		} else if strings.Contains(lineLower, "warn") || strings.Contains(lineLower, "warning") {
-			entry.Level = "WARN"
-		} else if strings.Contains(lineLower, "debug") {
-			entry.Level = "DEBUG"
-		}
-
-		entry.Message = line
-		entries = append(entries, entry)
+		entries = append(entries, parseLogLine(line, source))
 	}
-
 	return entries
+}
+
+func parseLogLine(line, source string) LogEntry {
+	line, timestamp := logLineTimestamp(line)
+	entry := LogEntry{Source: source, Message: line, Timestamp: timestamp, Level: logLineLevel(line)}
+	if entry.Timestamp == "" {
+		entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	return entry
+}
+
+func logLineTimestamp(line string) (string, string) {
+	if len(line) > 20 && line[4] == '-' && line[7] == '-' {
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) == 2 {
+			return parts[1], parts[0]
+		}
+	}
+	return journalLineTimestamp(line)
+}
+
+func journalLineTimestamp(line string) (string, string) {
+	if len(line) <= 15 {
+		return line, ""
+	}
+	for _, month := range []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"} {
+		if !strings.HasPrefix(line, month+" ") {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) >= 4 {
+			return strings.Join(parts[3:], " "), parts[0] + " " + parts[1] + " " + parts[2]
+		}
+	}
+	return line, ""
+}
+
+func logLineLevel(line string) string {
+	lineLower := strings.ToLower(line)
+	if strings.Contains(lineLower, "error") || strings.Contains(lineLower, "err]") || strings.Contains(lineLower, "[err") {
+		return "ERROR"
+	}
+	if strings.Contains(lineLower, "warn") || strings.Contains(lineLower, "warning") {
+		return "WARN"
+	}
+	if strings.Contains(lineLower, "debug") {
+		return "DEBUG"
+	}
+	return "INFO"
 }
 
 // handleAddHistoryEvent allows manually adding a history event (for testing/admin).

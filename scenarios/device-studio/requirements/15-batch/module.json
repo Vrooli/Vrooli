@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "module": "batch",
+    "description": "Variant comparison and bounded batches. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-BATCH-COMPARE",
+      "title": "The workspace should compare and batch saved variants.",
+      "description": "When multiple saved shot variants are selected, the workspace should provide side-by-side final-look comparison and bounded batch output while retaining per-variant receipts and budgets.",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "delivery_scope": "roadmap",
+      "status": "not_implemented",
+      "category": "batch",
+      "tags": [
+        "explicit-roadmap",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-BATCH-COMPARE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-BATCH-COMPARE",
+            "planned_automation": "Future batch/variant and receipt-isolation tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

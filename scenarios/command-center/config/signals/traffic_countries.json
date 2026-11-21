@@ -1,0 +1,78 @@
+{
+  "id": "traffic_countries",
+  "label": "Traffic by country",
+  "description": "Ranked country breakdown of measured landing-page visitors.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=country&limit=6&window_days=30",
+    "select": "traffic_countries",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "traffic_countries",
+    "contractVersion": "analytics-traffic.v1",
+    "selector": "traffic_countries",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "trust": "UNAVAILABLE",
+  "empirical": "NONE",
+  "sample": {
+    "value": 840,
+    "series": [
+      840
+    ],
+    "rows": [
+      {
+        "key": "US",
+        "label": "United States",
+        "value": 420,
+        "share": 0.5
+      },
+      {
+        "key": "GB",
+        "label": "United Kingdom",
+        "value": 210,
+        "share": 0.25
+      },
+      {
+        "key": "DE",
+        "label": "Germany",
+        "value": 126,
+        "share": 0.15
+      },
+      {
+        "key": "CA",
+        "label": "Canada",
+        "value": 84,
+        "share": 0.1
+      }
+    ],
+    "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03"
+  }
+}

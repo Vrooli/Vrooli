@@ -12,7 +12,7 @@
       "description": "Implement functionality to export and import prompt collections",
       "id": "REQ-P2-001",
       "prd_ref": "prompt-manager-nice-to-have-exportimport-functionality-complete-fixed-database-column-mismatch-tested-and-working",
-      "status": "draft",
+      "status": "planned",
       "title": "Import/Export System",
       "validation": [
         {

@@ -5,27 +5,27 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 func TestNewStripeRepository(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 	if repo == nil {
 		t.Fatal("NewStripeRepository returned nil")
 	}
-	if repo.db != db {
-		t.Error("Repository db field not set correctly")
+	if got := repo.LookupCustomerID(""); got != "" {
+		t.Errorf("LookupCustomerID(empty) = %q, want empty", got)
 	}
 }
 
 func TestStripeRepository_LookupCustomerID_Extended(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Insert a subscription to look up
 	_, err := db.Exec(`
@@ -80,10 +80,9 @@ func TestStripeRepository_LookupCustomerID_Extended(t *testing.T) {
 
 func TestStripeRepository_GetSubscriptionByUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Insert test subscriptions
 	now := time.Now()
@@ -139,13 +138,12 @@ func TestStripeRepository_GetSubscriptionByUser(t *testing.T) {
 
 func TestStripeRepository_UpsertSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	t.Run("inserts new subscription", func(t *testing.T) {
-		rec := &SubscriptionRecord{
+		rec := &commerce.SubscriptionRecord{
 			SubscriptionID:    "sub_upsert_new",
 			CustomerID:        "cus_upsert_1",
 			CustomerEmail:     "upsert@example.com",
@@ -173,7 +171,7 @@ func TestStripeRepository_UpsertSubscription(t *testing.T) {
 	})
 
 	t.Run("updates existing subscription", func(t *testing.T) {
-		rec := &SubscriptionRecord{
+		rec := &commerce.SubscriptionRecord{
 			SubscriptionID:    "sub_upsert_new",
 			CustomerID:        "cus_upsert_1",
 			CustomerEmail:     "upsert@example.com",
@@ -202,7 +200,7 @@ func TestStripeRepository_UpsertSubscription(t *testing.T) {
 
 	t.Run("handles canceled_at timestamp", func(t *testing.T) {
 		cancelTime := time.Now()
-		rec := &SubscriptionRecord{
+		rec := &commerce.SubscriptionRecord{
 			SubscriptionID: "sub_upsert_canceled",
 			CustomerID:     "cus_upsert_2",
 			CustomerEmail:  "canceled@example.com",
@@ -229,10 +227,9 @@ func TestStripeRepository_UpsertSubscription(t *testing.T) {
 
 func TestStripeRepository_UpdateSubscriptionStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Insert a subscription to update
 	_, err := db.Exec(`
@@ -283,10 +280,9 @@ func TestStripeRepository_UpdateSubscriptionStatus(t *testing.T) {
 
 func TestStripeRepository_GetSubscriptionPlanTier(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Insert subscriptions with different plan tiers
 	_, err := db.Exec(`
@@ -333,13 +329,12 @@ func TestStripeRepository_GetSubscriptionPlanTier(t *testing.T) {
 
 func TestStripeRepository_CheckoutSessionOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	t.Run("UpsertCheckoutSession inserts new session", func(t *testing.T) {
-		rec := &CheckoutSessionRecord{
+		rec := &commerce.CheckoutSessionRecord{
 			SessionID:     "cs_new_session",
 			CustomerEmail: sql.NullString{String: "session@example.com", Valid: true},
 			CustomerID:    sql.NullString{String: "cus_session_1", Valid: true},
@@ -372,7 +367,7 @@ func TestStripeRepository_CheckoutSessionOperations(t *testing.T) {
 	})
 
 	t.Run("UpsertCheckoutSession updates existing session", func(t *testing.T) {
-		rec := &CheckoutSessionRecord{
+		rec := &commerce.CheckoutSessionRecord{
 			SessionID:      "cs_new_session",
 			CustomerEmail:  sql.NullString{String: "session@example.com", Valid: true},
 			SubscriptionID: sql.NullString{String: "sub_from_session", Valid: true},
@@ -423,115 +418,11 @@ func TestStripeRepository_CheckoutSessionOperations(t *testing.T) {
 	})
 }
 
-func TestStripeRepository_CreditOperations(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
-
-	t.Run("AddCreditsWithIdempotency adds credits", func(t *testing.T) {
-		wasProcessed, err := repo.AddCreditsWithIdempotency(
-			"credits@example.com",
-			1000,
-			"test_topup",
-			"evt_credit_1",
-			map[string]interface{}{"source": "test"},
-		)
-		if err != nil {
-			t.Fatalf("failed to add credits: %v", err)
-		}
-		if !wasProcessed {
-			t.Error("expected wasProcessed to be true for new event")
-		}
-
-		// Verify balance
-		balance, err := repo.GetCreditBalance("credits@example.com")
-		if err != nil {
-			t.Fatalf("failed to get balance: %v", err)
-		}
-		if balance != 1000 {
-			t.Errorf("expected balance 1000, got %d", balance)
-		}
-	})
-
-	t.Run("AddCreditsWithIdempotency is idempotent", func(t *testing.T) {
-		// Try to add the same event again
-		wasProcessed, err := repo.AddCreditsWithIdempotency(
-			"credits@example.com",
-			1000,
-			"test_topup",
-			"evt_credit_1", // Same event ID
-			map[string]interface{}{"source": "test"},
-		)
-		if err != nil {
-			t.Fatalf("failed: %v", err)
-		}
-		if wasProcessed {
-			t.Error("expected wasProcessed to be false for duplicate event")
-		}
-
-		// Balance should still be 1000
-		balance, err := repo.GetCreditBalance("credits@example.com")
-		if err != nil {
-			t.Fatalf("failed to get balance: %v", err)
-		}
-		if balance != 1000 {
-			t.Errorf("expected balance 1000 (unchanged), got %d", balance)
-		}
-	})
-
-	t.Run("AddCreditsWithIdempotency accumulates with different events", func(t *testing.T) {
-		wasProcessed, err := repo.AddCreditsWithIdempotency(
-			"credits@example.com",
-			500,
-			"test_topup",
-			"evt_credit_2", // Different event ID
-			nil,
-		)
-		if err != nil {
-			t.Fatalf("failed: %v", err)
-		}
-		if !wasProcessed {
-			t.Error("expected wasProcessed to be true for new event")
-		}
-
-		balance, err := repo.GetCreditBalance("credits@example.com")
-		if err != nil {
-			t.Fatalf("failed to get balance: %v", err)
-		}
-		if balance != 1500 {
-			t.Errorf("expected balance 1500, got %d", balance)
-		}
-	})
-
-	t.Run("GetCreditBalance returns 0 for non-existent user", func(t *testing.T) {
-		balance, err := repo.GetCreditBalance("nonexistent@example.com")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if balance != 0 {
-			t.Errorf("expected 0, got %d", balance)
-		}
-	})
-
-	t.Run("GetCreditBalance normalizes email", func(t *testing.T) {
-		balance, err := repo.GetCreditBalance("CREDITS@EXAMPLE.COM")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if balance != 1500 {
-			t.Errorf("expected 1500 (case-insensitive lookup), got %d", balance)
-		}
-	})
-}
-
 func TestStripeRepository_IntroCouponOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 	ctx := context.Background()
 
 	t.Run("CheckIntroEligibility returns true for new user", func(t *testing.T) {
@@ -573,10 +464,9 @@ func TestStripeRepository_IntroCouponOperations(t *testing.T) {
 
 func TestStripeRepository_UserOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	t.Run("LinkUserToStripeCustomer creates user record", func(t *testing.T) {
 		err := repo.LinkUserToStripeCustomer("linkuser@example.com", "cus_link_123")
@@ -634,10 +524,9 @@ func TestStripeRepository_UserOperations(t *testing.T) {
 
 func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 	ctx := context.Background()
 
 	// Set up test data
@@ -685,10 +574,9 @@ func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 
 func TestStripeRepository_UpsertSubscriptionFromInvoice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	t.Run("inserts new subscription from invoice", func(t *testing.T) {
 		err := repo.UpsertSubscriptionFromInvoice(

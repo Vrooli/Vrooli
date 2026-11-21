@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "expires": "2026-12-15",
+  "entries": [
+    {
+      "path": "library/components/AppNotificationSettings/versions/1.0.6",
+      "reason": "Published immutable release; keep its authored bytes intact for exact-version consumers. The next major replaces its Tailwind classes with a module stylesheet.",
+      "closedBy": "Workbench program: AppNotificationSettings token migration"
+    }
+  ]
+}

@@ -2,15 +2,32 @@ package stats
 
 import (
 	"context"
-	"encoding/json"
-	"log/slog"
+	"errors"
+	"fmt"
 	"sync"
-	"time"
 
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
 )
 
+// indexByteFast returns the index of the first occurrence of c in s,
+// or -1 if absent. Used to parse kind from entity IDs of the form
+// "<kind>/<name>" without dragging in the strings package for one call.
+func indexByteFast(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
 const refreshBatchSize = 5000
+
+// ErrGoalScope wraps failures to resolve goal-scoped stats requests (goal
+// scoping unavailable or the named goal not found).
+var ErrGoalScope = errors.New("stats: goal scope")
 
 // Engine incrementally aggregates events into metrics using a watermark pattern.
 type Engine struct {
@@ -18,14 +35,55 @@ type Engine struct {
 	watermark int64
 	repo      eventlog.Repository
 	state     *aggregateState
+	cfg       Config
+}
+
+// ETAEstimatorFactory builds a fresh estimator for a stats read.
+type ETAEstimatorFactory func() (*eta.Estimator, error)
+
+// BacklogLister loads backlog items for ETA closure construction.
+type BacklogLister interface {
+	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
+}
+
+// GoalScoper resolves a goal name to the item refs ("<kind>/<name>") in its
+// transitive prerequisite closure.
+type GoalScoper interface {
+	ClosureRefs(name string) ([]string, error)
+}
+
+// Config wires optional read models used for ETA. Metrics still degrade to the
+// event-log aggregate when these are absent.
+type Config struct {
+	Backlog BacklogLister
+	Goals   GoalScoper
+	ETA     ETAEstimatorFactory
+}
+
+// Params controls optional stats scoping.
+type Params struct {
+	Goal string
 }
 
 // NewEngine creates a stats engine backed by the given event repository.
-func NewEngine(repo eventlog.Repository) *Engine {
+func NewEngine(repo eventlog.Repository, configs ...Config) *Engine {
+	var cfg Config
+	if len(configs) > 0 {
+		cfg = configs[0]
+	}
 	return &Engine{
 		repo:  repo,
 		state: newAggregateState(),
+		cfg:   cfg,
 	}
+}
+
+// Configure installs optional read-model dependencies after route setup has
+// built them. It is safe to call once during startup.
+func (e *Engine) Configure(cfg Config) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.cfg = cfg
 }
 
 // Rebuild replays all events from scratch. Called once at startup.
@@ -75,268 +133,184 @@ func (e *Engine) Refresh(ctx context.Context) error {
 
 // GetStats returns the current computed metrics. Callers should call Refresh first.
 func (e *Engine) GetStats() StatsResponse {
+	return e.GetStatsContext(context.Background())
+}
+
+// GetStatsContext returns the current metrics and computes optional ETA data
+// with the caller context.
+func (e *Engine) GetStatsContext(ctx context.Context) StatsResponse {
+	resp, _ := e.GetStatsForParams(ctx, Params{})
+	return resp
+}
+
+// GetStatsForParams returns metrics for the requested scope. Empty params use
+// the hot aggregate; goal-scoped requests replay a filtered event aggregate so
+// every section is scoped uniformly.
+func (e *Engine) GetStatsForParams(ctx context.Context, params Params) (StatsResponse, error) {
 	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.state.buildResponse()
-}
-
-// aggregateState holds all running counters and maps needed for metric computation.
-type aggregateState struct {
-	now func() time.Time // seam for testing
-
-	// Event counter.
-	totalEvents int64
-
-	// Backlog tracking.
-	createdEvents    []time.Time     // timestamps of backlog.created events
-	completedEvents  []time.Time     // timestamps of backlog.status_changed to completed
-	currentBacklog   map[string]bool // entity IDs of non-completed/non-archived backlog items
-	completedAllTime int
-
-	// Timing tracking.
-	createdAt    map[string]time.Time // entity_id → created timestamp
-	inProgressAt map[string]time.Time // entity_id → when moved to in_progress
-	queuedAt     map[string]time.Time // entity_id → when queued
-	cycleTimesH  []float64            // completed cycle times in hours
-	leadTimesH   []float64            // completed lead times in hours
-	queueWaitH   []float64            // completed queue wait times in hours
-
-	// Blocking tracking.
-	blockedItems   map[string]time.Time // entity_id → when blocked
-	blockReasons   map[string]int       // reason → count
-	blockDurations []float64            // resolved block durations in hours
-
-	// Initiative tracking.
-	initiativeItems   map[string]map[string]bool // initiative → set of items
-	initiativeInitial map[string]int             // initiative → item count at creation
-	initiativeCreated map[string]bool            // initiatives that exist
-	itemStatus        map[string]string          // entity_id → current status
-
-	// Execution tracking.
-	execTotal     int
-	execCompleted int
-	execFailed    int
-	execDurations []float64       // in minutes
-	execHasFixup  map[string]bool // exec_id → had fixups
-
-	// Workshop tracking.
-	workshopRounds map[string]int // entity_id → max round number
-
-	// Review evidence tracking.
-	reviewRoundsCompleted  int
-	reviewEvidenceCounts   []int
-	reviewEvidenceVerified int
-	reviewRequestsCreated  int
-	reviewDurations        []float64 // in seconds
-}
-
-func newAggregateState() *aggregateState {
-	return &aggregateState{
-		now:               time.Now,
-		currentBacklog:    make(map[string]bool),
-		createdAt:         make(map[string]time.Time),
-		inProgressAt:      make(map[string]time.Time),
-		queuedAt:          make(map[string]time.Time),
-		blockedItems:      make(map[string]time.Time),
-		blockReasons:      make(map[string]int),
-		initiativeItems:   make(map[string]map[string]bool),
-		initiativeInitial: make(map[string]int),
-		initiativeCreated: make(map[string]bool),
-		itemStatus:        make(map[string]string),
-		execHasFixup:      make(map[string]bool),
-		workshopRounds:    make(map[string]int),
+	state := e.state
+	cfg := e.cfg
+	var resp StatsResponse
+	if params.Goal == "" {
+		resp = state.buildResponse()
 	}
+	e.mu.RUnlock()
+
+	var inScope map[string]bool
+	if params.Goal != "" {
+		var err error
+		inScope, err = resolveGoalScope(cfg, params.Goal)
+		if err != nil {
+			return StatsResponse{}, err
+		}
+		if e.repo == nil {
+			return StatsResponse{}, fmt.Errorf("stats: goal scope requires event repository")
+		}
+		events, err := e.repo.All(ctx)
+		if err != nil {
+			return StatsResponse{}, err
+		}
+		scoped := newAggregateState()
+		for _, ev := range filterEventsToScope(events, inScope) {
+			scoped.processEvent(&ev)
+		}
+		resp = scoped.buildResponse()
+	}
+
+	resp.Dashboard.EstimatedRemaining = estimateRemaining(ctx, cfg, inScope)
+	return resp, nil
 }
 
-func (s *aggregateState) processEvent(e *eventlog.Event) {
-	s.totalEvents++
+func resolveGoalScope(cfg Config, goal string) (map[string]bool, error) {
+	if cfg.Goals == nil {
+		return nil, fmt.Errorf("%w: goal scoping unavailable", ErrGoalScope)
+	}
+	refs, err := cfg.Goals.ClosureRefs(goal)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrGoalScope, err)
+	}
+	inScope := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		inScope[ref] = true
+	}
+	return inScope, nil
+}
 
-	switch e.EventType {
-	// --- Backlog ---
-	case eventlog.EventBacklogCreated:
-		s.createdEvents = append(s.createdEvents, e.Timestamp)
-		s.currentBacklog[e.EntityID] = true
-		s.createdAt[e.EntityID] = e.Timestamp
-		s.itemStatus[e.EntityID] = "backlog"
+func estimateRemaining(ctx context.Context, cfg Config, inScope map[string]bool) *eta.Band {
+	if cfg.Backlog == nil || cfg.ETA == nil {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil
+	}
+	items, err := cfg.Backlog.LoadAll(nil)
+	if err != nil {
+		return nil
+	}
+	if inScope != nil {
+		items = filterBacklogItemsToScope(items, inScope)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil
+	}
+	est, err := cfg.ETA()
+	if err != nil || est == nil {
+		return nil
+	}
+	in := eta.BuildClosureInput(items)
+	band, ok := est.EstimateGoal(in)
+	if !ok {
+		return nil
+	}
+	return &band
+}
 
-		var p eventlog.BacklogCreatedPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.itemStatus[e.EntityID] = p.Status
-			if p.Initiative != "" {
-				if s.initiativeItems[p.Initiative] == nil {
-					s.initiativeItems[p.Initiative] = make(map[string]bool)
+func filterBacklogItemsToScope(items []backlog.BacklogItem, inScope map[string]bool) []backlog.BacklogItem {
+	out := make([]backlog.BacklogItem, 0, len(inScope))
+	for _, item := range items {
+		if inScope[string(item.Kind)+"/"+item.Name] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func filterEventsToScope(events []eventlog.Event, inScope map[string]bool) []eventlog.Event {
+	scopedExecutions := make(map[string]bool)
+	scopedInitiatives := make(map[string]bool)
+	scopedRecords := make(map[string]bool)
+
+	for i := range events {
+		e := &events[i]
+		switch e.EventType {
+		case eventlog.EventExecutionCreated:
+			var p eventlog.ExecutionCreatedPayload
+			if unmarshalMeta(e.Metadata, &p) && inScope[p.BacklogKind+"/"+p.BacklogName] {
+				scopedExecutions[e.EntityID] = true
+			}
+		case eventlog.EventInitiativeItemAdded:
+			var p eventlog.InitiativeItemPayload
+			if unmarshalMeta(e.Metadata, &p) && inScope[p.Item] {
+				scopedInitiatives[e.EntityID] = true
+			}
+		case eventlog.EventBacklogCreated:
+			var p eventlog.BacklogCreatedPayload
+			if unmarshalMeta(e.Metadata, &p) && inScope[e.EntityID] && p.Milestone != "" {
+				scopedInitiatives[p.Milestone] = true
+			}
+		case eventlog.EventBacklogInitiativeChanged:
+			var p eventlog.InitiativeChangePayload
+			if unmarshalMeta(e.Metadata, &p) && inScope[e.EntityID] {
+				if p.From != "" {
+					scopedInitiatives[p.From] = true
 				}
-				s.initiativeItems[p.Initiative][e.EntityID] = true
+				if p.To != "" {
+					scopedInitiatives[p.To] = true
+				}
+			}
+		case eventlog.EventRecordCreated:
+			var p eventlog.RecordCreatedPayload
+			if unmarshalMeta(e.Metadata, &p) && inScope[p.BacklogRef] {
+				scopedRecords[e.EntityID] = true
+			}
+		case eventlog.EventOperatingModeBacklogSynced:
+			var p eventlog.OperatingModeBacklogSyncPayload
+			if unmarshalMeta(e.Metadata, &p) {
+				for _, ref := range p.ItemRefs {
+					if inScope[ref] {
+						if p.InitiativeName != "" {
+							scopedInitiatives[p.InitiativeName] = true
+						}
+						if p.ScopeID != "" {
+							scopedInitiatives[p.ScopeID] = true
+						}
+						break
+					}
+				}
 			}
 		}
-
-	case eventlog.EventBacklogStatusChanged:
-		var p eventlog.StatusChangePayload
-		if !unmarshalMeta(e.Metadata, &p) {
-			return
-		}
-		s.itemStatus[e.EntityID] = p.To
-
-		if p.To == "in_progress" {
-			s.inProgressAt[e.EntityID] = e.Timestamp
-		}
-		if p.To == "queued" {
-			s.queuedAt[e.EntityID] = e.Timestamp
-		}
-		if p.To == "in_progress" {
-			if qt, ok := s.queuedAt[e.EntityID]; ok {
-				s.queueWaitH = append(s.queueWaitH, e.Timestamp.Sub(qt).Hours())
-				delete(s.queuedAt, e.EntityID)
-			}
-		}
-		if p.To == "completed" {
-			s.completedEvents = append(s.completedEvents, e.Timestamp)
-			s.completedAllTime++
-			delete(s.currentBacklog, e.EntityID)
-
-			if start, ok := s.inProgressAt[e.EntityID]; ok {
-				s.cycleTimesH = append(s.cycleTimesH, e.Timestamp.Sub(start).Hours())
-				delete(s.inProgressAt, e.EntityID)
-			}
-			if created, ok := s.createdAt[e.EntityID]; ok {
-				s.leadTimesH = append(s.leadTimesH, e.Timestamp.Sub(created).Hours())
-			}
-		}
-
-	case eventlog.EventBacklogArchived:
-		delete(s.currentBacklog, e.EntityID)
-		var p eventlog.ArchivePayload
-		if unmarshalMeta(e.Metadata, &p) && p.PreviousStatus != "" {
-			s.itemStatus[e.EntityID] = p.PreviousStatus
-		} else {
-			// Historical events before the migration may have nil metadata.
-			s.itemStatus[e.EntityID] = "archived"
-		}
-
-	case eventlog.EventBacklogUnarchived:
-		// Restore item to active backlog using whatever status we have recorded.
-		s.currentBacklog[e.EntityID] = true
-
-	case eventlog.EventBacklogDeleted:
-		delete(s.currentBacklog, e.EntityID)
-		delete(s.itemStatus, e.EntityID)
-
-	case eventlog.EventBacklogBlocked:
-		s.blockedItems[e.EntityID] = e.Timestamp
-		var p eventlog.BlockPayload
-		if unmarshalMeta(e.Metadata, &p) && p.Reason != "" {
-			s.blockReasons[p.Reason]++
-		}
-
-	case eventlog.EventBacklogUnblocked:
-		if blockedAt, ok := s.blockedItems[e.EntityID]; ok {
-			s.blockDurations = append(s.blockDurations, e.Timestamp.Sub(blockedAt).Hours())
-			delete(s.blockedItems, e.EntityID)
-		}
-
-	case eventlog.EventBacklogInitiativeChanged:
-		var p eventlog.InitiativeChangePayload
-		if !unmarshalMeta(e.Metadata, &p) {
-			return
-		}
-		if p.From != "" {
-			if items := s.initiativeItems[p.From]; items != nil {
-				delete(items, e.EntityID)
-			}
-		}
-		if p.To != "" {
-			if s.initiativeItems[p.To] == nil {
-				s.initiativeItems[p.To] = make(map[string]bool)
-			}
-			s.initiativeItems[p.To][e.EntityID] = true
-		}
-
-	// --- Initiative ---
-	case eventlog.EventInitiativeCreated:
-		s.initiativeCreated[e.EntityID] = true
-		if s.initiativeItems[e.EntityID] == nil {
-			s.initiativeItems[e.EntityID] = make(map[string]bool)
-		}
-
-	case eventlog.EventInitiativeItemAdded:
-		var p eventlog.InitiativeItemPayload
-		if !unmarshalMeta(e.Metadata, &p) {
-			return
-		}
-		if s.initiativeItems[e.EntityID] == nil {
-			s.initiativeItems[e.EntityID] = make(map[string]bool)
-		}
-		s.initiativeItems[e.EntityID][p.Item] = true
-		// Track initial count: if this is the first time, record it.
-		if _, exists := s.initiativeInitial[e.EntityID]; !exists {
-			s.initiativeInitial[e.EntityID] = 0
-		}
-
-	case eventlog.EventInitiativeItemRemoved:
-		var p eventlog.InitiativeItemPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			if items := s.initiativeItems[e.EntityID]; items != nil {
-				delete(items, p.Item)
-			}
-		}
-
-	// --- Execution ---
-	case eventlog.EventExecutionCreated:
-		s.execTotal++
-		var p eventlog.ExecutionCreatedPayload
-		_ = unmarshalMeta(e.Metadata, &p)
-
-	case eventlog.EventExecutionCompleted:
-		s.execCompleted++
-		var p eventlog.ExecutionCompletedPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.execDurations = append(s.execDurations, p.DurationSeconds/60.0)
-			s.execHasFixup[e.EntityID] = p.HadFixups
-		}
-
-	case eventlog.EventExecutionFailed:
-		s.execFailed++
-		var p eventlog.ExecutionFailedPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.execDurations = append(s.execDurations, p.DurationSeconds/60.0)
-		}
-
-	case eventlog.EventExecutionCanceled:
-		// Cancellations don't count toward success or failure rate.
-
-	// --- Workshop ---
-	case eventlog.EventWorkshopRoundCompleted:
-		var p eventlog.WorkshopRoundPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			if p.RoundNumber > s.workshopRounds[e.EntityID] {
-				s.workshopRounds[e.EntityID] = p.RoundNumber
-			}
-		}
-
-	// --- Review evidence ---
-	case eventlog.EventReviewRoundCompleted:
-		s.reviewRoundsCompleted++
-		var p eventlog.ReviewRoundCompletedPayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.reviewEvidenceCounts = append(s.reviewEvidenceCounts, p.EvidenceCount)
-			s.reviewDurations = append(s.reviewDurations, p.DurationSecs)
-		}
-
-	case eventlog.EventReviewEvidenceVerified:
-		s.reviewEvidenceVerified++
-
-	case eventlog.EventReviewRequestCreated:
-		s.reviewRequestsCreated++
 	}
-}
 
-func unmarshalMeta(data json.RawMessage, v any) bool {
-	if len(data) == 0 {
-		return false
+	out := make([]eventlog.Event, 0, len(events))
+	for _, e := range events {
+		switch e.EntityType {
+		case eventlog.EntityBacklogItem, eventlog.EntityQueue:
+			if inScope[e.EntityID] {
+				out = append(out, e)
+			}
+		case eventlog.EntityExecution:
+			if scopedExecutions[e.EntityID] {
+				out = append(out, e)
+			}
+		case eventlog.EntityInitiative:
+			if scopedInitiatives[e.EntityID] {
+				out = append(out, e)
+			}
+		case eventlog.EntityRecord:
+			if scopedRecords[e.EntityID] {
+				out = append(out, e)
+			}
+		}
 	}
-	if err := json.Unmarshal(data, v); err != nil {
-		slog.Warn("unmarshal metadata failed", "error", err)
-		return false
-	}
-	return true
+	return out
 }

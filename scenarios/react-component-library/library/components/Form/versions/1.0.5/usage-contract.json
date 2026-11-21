@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "FormSection",
+      "FormActions"
+    ],
+    "maximumCount": 10,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:Form",
+  "version": "1.0.5"
+}

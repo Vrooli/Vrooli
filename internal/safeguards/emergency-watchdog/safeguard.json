@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "emergency_watchdog",
+  "storage": {
+    "entries": {
+      "installed-executable": {
+        "rung": "pinned", "kind": "file", "regenerable": true,
+        "path": {"linux": "$USER_HOME/.vrooli/libexec/vrooli-watchdog", "macos": "$USER_HOME/.vrooli/libexec/vrooli-watchdog", "windows": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.exe"},
+        "budget": {"max_bytes": "512MiB"},
+        "rationale": "Native scheduler definitions name this user-owned executable. The owner qualifies a staged image and durably publishes it; arbitrary relocation would break those definitions."
+      },
+      "previous-executable": {
+        "rung": "pinned", "kind": "file", "regenerable": false,
+        "path": {"linux": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.previous", "macos": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.previous", "windows": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.exe.previous"},
+        "budget": {"max_bytes": "512MiB"},
+        "rationale": "One checksum-bound prior executable, replaced only by the serialized update owner before its next publication. It must survive an interrupted or failed publication."
+      },
+      "publication-receipt": {
+        "rung": "pinned", "kind": "file", "regenerable": false, "format": "json",
+        "path": {"linux": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.update.json", "macos": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.update.json", "windows": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.exe.update.json"},
+        "budget": {"max_bytes": "8KiB"},
+        "rationale": "Schema is owned by emergency-watchdog/update.go. The single bounded receipt carries publication/restoration intent and failed-image suppression; native recovery may consume it without source access."
+      },
+      "publication-lock": {
+        "rung": "pinned", "kind": "file", "regenerable": false,
+        "path": {"linux": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.lock", "macos": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.lock", "windows": "$USER_HOME/.vrooli/libexec/vrooli-watchdog.exe.lock"},
+        "budget": {"max_bytes": "1KiB"},
+        "rationale": "Empty cross-process lock inode shared by setup and native recovery; unlinking an active lock would permit competing writers."
+      }
+    },
+    "rationale": "The existing user-scoped native executable namespace holds a bounded current/prior pair and one local-schema receipt. These pinned native artifacts are not scenario storage-class roots. The owner bounds executable reads and prunes only its abandoned regular staging files under the shared lock."
+  },
+  "description": "Install the portable emergency watchdog and its native user scheduler entry so setup owns the last line of defense instead of a hand-placed unit",
+  "handler": "emergency_watchdog",
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "setpoint_path": {
+        "type": "string",
+        "description": "Optional path to the shared reliability setpoint. Pressure and sustain bars are read from this contract by the installed watchdog binary."
+      }
+    }
+  },
+  "notes": "The watchdog's pressure thresholds are declared in infrastructure-manager/setpoint/reliability-setpoint.json; this manifest intentionally carries no private CPU deadband. The portable report-only decision binary reads hostpressure directly. Platform scheduling remains owned by each host's native scheduler.",
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.vrooli/libexec/vrooli-watchdog"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "restore_absent"
+}

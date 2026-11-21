@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2, GitBranch, Shield } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import { useVariantList, useCreateVariant, useDeleteVariant } from '@/hooks/useVariants'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -58,6 +59,11 @@ export function VariantPanel({ skillId, currentContent, className }: VariantPane
       { onSettled: () => setDeleteTarget(null) }
     )
   }
+
+  const createActions = [
+    { id: 'create-variant', label: createMutation.isPending ? 'Creating...' : 'Create', onSelect: handleCreate, disabled: !newName.trim() || createMutation.isPending, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: () => setShowCreateDialog(false), disabled: createMutation.isPending },
+  ] satisfies OverlayActionList
 
   if (isLoading) {
     return (
@@ -200,33 +206,7 @@ export function VariantPanel({ skillId, currentContent, className }: VariantPane
           <p className="text-xs text-slate-500">
             The variant will be pre-filled with the current skill content. You can edit it after creation.
           </p>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowCreateDialog(false)}
-              disabled={createMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-slate-800 text-slate-300 hover:bg-slate-700',
-                'border border-white/10 transition-colors'
-              )}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!newName.trim() || createMutation.isPending}
-              className={cn(
-                'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-                'bg-primary text-primary-foreground hover:bg-primary/90',
-                'transition-colors',
-                (!newName.trim() || createMutation.isPending) && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {createMutation.isPending ? 'Creating...' : 'Create'}
-            </button>
-          </div>
+          <OverlayActionBar actions={createActions} className="prompt-overlay-actions--secondary-left" />
         </div>
       </Dialog>
 

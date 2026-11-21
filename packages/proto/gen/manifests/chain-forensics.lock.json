@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "scenario": "chain-forensics",
+  "input_digest": "sha256:792ebf24e18781b36cede7401f375ec228958d5f6d0d60e3e48bb6ceb9653adc",
+  "input_files": [
+    "schemas/chain-forensics/v1/cases/cases.proto",
+    "schemas/chain-forensics/v1/shared/errors.proto",
+    "schemas/chain-forensics/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/chain-forensics/v1/cases/cases.pb.go": "sha256:02c49c879865d2dcd410bd0c68d34a3485679d0b598d0eaf21de261622cc2dc6",
+    "gen/go/chain-forensics/v1/cases/cases_v1connect/cases.connect.go": "sha256:a782d5dc5eb510652b9f316f46661e7a8147951055fa6eebaf398c581cfa9706",
+    "gen/go/chain-forensics/v1/shared/errors.pb.go": "sha256:e53d00c84266557664d792b799ed66ee9ca77ef9e6bb357430ab4175f3024e1b",
+    "gen/go/chain-forensics/v1/shared/health.pb.go": "sha256:c5a093b82a0b56c0c6f7954a1783c9b5fab4e0a50f7aba6b26ad552312a70246",
+    "gen/python/chain_forensics/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/chain_forensics/v1/cases/cases_pb2.py": "sha256:1221f3cb46e3d3a14797cd931a6926a1855f4f68a1120522e0e703458c0060ce",
+    "gen/python/chain_forensics/v1/cases/cases_pb2.pyi": "sha256:db30e07cb677a63250fd3885a8226840e80574881f32fad9f1ad4446c74d609e",
+    "gen/python/chain_forensics/v1/cases/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/chain_forensics/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/chain_forensics/v1/shared/errors_pb2.py": "sha256:b9954ef54d69909feee87c224925f4ca75a3eaa7db8d4c8b7ffe4f9943c9c3cd",
+    "gen/python/chain_forensics/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/chain_forensics/v1/shared/health_pb2.py": "sha256:3420543a6ac769a5a5787a6580a5f2fd5bed946526e02492e529fd9583dff1ed",
+    "gen/python/chain_forensics/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/chain_forensics/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/chain-forensics/v1/cases/cases_pb.ts": "sha256:1b0fe819504f35fdeb6c13498b39a8c5e3faff5d0033ac7082af8eff3ea73503",
+    "gen/typescript/chain-forensics/v1/shared/errors_pb.ts": "sha256:d99e7577c476ec48c1af138454c1578905226221f8ed6d72155c3d2ae174ad6f",
+    "gen/typescript/chain-forensics/v1/shared/health_pb.ts": "sha256:9ca6d39d354df1f7df24553bedab22144223f77fc4491880009a89562f8809b0",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
+  }
+}

@@ -1,0 +1,36 @@
+You grade two plans for the first unit of work on one research topic. Each plan is what a cold agent
+proposed after reading its commission; a unit is one owner's assignment (topic, workstream, the
+scenarios or APIs it would change, its brief or first-hour plan). You do not know how either plan was
+produced. Judge only against the topic's MISSION.md below. Use no tools; everything you need is here.
+
+For every unit of each plan, decide:
+
+1. scope_level: the size of what the unit lands, one of
+   whole-scenario      a whole scenario, or its full capability, is built, replaced or migrated
+   whole-api           a whole API or contract and all its callers
+   several-scenarios   one change carried across several scenarios
+   module              one package, component or subsystem inside a scenario
+   file                one file, a function, a fix
+   branch              a probe, spike or prototype off to the side of the real code
+   report              a report, review, inventory, plan or decision memo with no shipped change
+   unclear             the unit does not say
+2. lists_affected_scenarios: true when the unit names every scenario or API it would change.
+3. proportionate: 2 when the unit's size matches the workstream's magnitude in the mission (hours and
+   scenarios in the Workstreams table), 1 when it is noticeably smaller or vaguer, 0 when it is a
+   small slice of a large workstream or a different, smaller job.
+4. keeps_operator_intent: 2 when it carries the operator's verbatim intent from the mission into the
+   work, 1 when it paraphrases it weaker, 0 when it drops or contradicts it.
+5. needless_operator_questions: how many questions it asks the operator that an agent could answer
+   from files, tools or the mission itself (0 is best). Real decisions the mission reserves to the
+   operator do not count.
+
+Then give each plan a score: the sum over its units of (2 if scope_level is whole-scenario, whole-api
+or several-scenarios, else 0) + (1 if lists_affected_scenarios) + proportionate + keeps_operator_intent
+- needless_operator_questions, divided by the number of units (0 for a plan with no units). A plan
+with no unit for this topic scores 0. Prefer the plan that would move the mission further in its first
+day; break near ties by fewer needless operator questions.
+
+Reply with one JSON object and nothing else:
+{"A": {"units": [{"name": "<short label>", "scope_level": "...", "lists_affected_scenarios": true,
+"proportionate": 2, "keeps_operator_intent": 2, "needless_operator_questions": 0}], "score": 0.0},
+"B": {"units": [...], "score": 0.0}, "better": "A" | "B" | "tie", "reason": "<two sentences>"}

@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:26:32-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-006",
+      "title": "Cross-Device Real-Time Notifications via WebSocket",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "integration",
+      "description": "Item-arrived notifications and pairing-request approve/reject banners are delivered to relevant trusted devices in real time over the existing authenticated WebSocket channel. No separate notification infrastructure (push notification service, polling endpoint) is required or used. Item-arrived notifications include item metadata sufficient for display (name, type, size, sender device name). Pairing-request banners include candidate device metadata and approve/reject action buttons. Notifications are not persisted server-side beyond the WebSocket delivery attempt.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: notification dispatcher sends item-arrived event to all connected trusted devices except sender over existing WebSocket sessions"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: pairing-request event is sent only to the owner's connected trusted devices, not to the candidate device"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: notification message schema validates required fields (event_type, item_id or request_id, metadata)"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: notification delivery does not create a new WebSocket connection; it reuses the existing presence hub session registry"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device A sends an item; Device B receives a WebSocket message with event_type='item_arrived' and correct item metadata within 1 second"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: candidate device submits pairing request; Device B receives event_type='pairing_request' banner within 1 second"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: Device B approves pairing request via WebSocket action message; candidate is admitted to trust group"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Notification delivery latency is bounded by the same 1-second SLA as item delivery"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: receive an item while watching Device B; confirm notification banner appears without page refresh"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: submit pairing request from a new device; confirm approve/reject banner appears on Device A within 1 second"
+        }
+      ]
+    }
+  ]
+}

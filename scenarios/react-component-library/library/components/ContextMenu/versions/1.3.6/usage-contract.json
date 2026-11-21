@@ -1,0 +1,23 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "button",
+      "menu-trigger"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "items",
+      "stableIdField": "id",
+      "typicalCount": 3
+    }
+  ],
+  "componentId": "react-component-library:ContextMenu",
+  "version": "1.3.6"
+}

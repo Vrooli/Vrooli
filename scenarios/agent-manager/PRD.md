@@ -5,7 +5,7 @@ Purpose: Central orchestration and governance layer for running AI agents agains
 
 Target users:
 - Developers requiring safe multi-agent codebase operations
-- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, ecosystem-manager)
+- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, swarm-manager)
 - CI/CD pipeline operators
 
 Deployment surfaces: API, CLI, Web UI
@@ -15,17 +15,22 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | AgentProfile Management | Create and manage agent profiles with runner configurations and permissions
-- [ ] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
-- [ ] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
-- [ ] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps
-- [ ] OT-P0-005 | Sandbox Integration | Integrate with workspace-sandbox for isolated execution
-- [ ] OT-P0-006 | Runner Adapter Interface | Define and implement runner adapter interface
-- [ ] OT-P0-007 | Runner Execution | Execute agents via adapters with profile configurations
-- [ ] OT-P0-008 | Event Streaming | Implement append-only event stream for run activities
-- [ ] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
-- [ ] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
-- [ ] OT-P0-011 | Health Check API | Provide health monitoring endpoint
+- [x] OT-P0-001 | AgentProfile Management | Create and reconcile portable role-based agent profiles with runner-neutral controls and permission posture
+- [x] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
+- [x] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
+- [x] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps
+- [x] OT-P0-005 | Sandbox Integration | Integrate with workspace-sandbox for isolated execution
+- [x] OT-P0-006 | Runner Adapter Interface | Define and implement runner adapter interface
+- [x] OT-P0-007 | Runner Execution | Execute agents via adapters with profile configurations
+- [x] OT-P0-008 | Event Streaming | Implement append-only event stream for run activities
+- [x] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
+- [x] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
+- [x] OT-P0-011 | Health Check API | Provide health monitoring endpoint
+- [ ] OT-P0-012 | Durable Run Analytics | The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability
+- [ ] OT-P0-013 | Attributable Conversation Recall | The system shall make imported runner conversations discoverable without a known run ID through privacy-aware API, CLI, UI, and Search Hub surfaces while preserving provenance, deletion, and useful lexical operation during semantic-resource degradation
+- [x] OT-P0-014 | Durable Plan-Family Supervision | When a plan family executes, Agent Manager shall durably supervise its cohort with bounded cursors, restart-safe parent parking and wake-up, authorized interventions, deterministic-first evaluation, and immutable governed policy evidence
+- [x] OT-P0-015 | Finite Investigations | Agent Manager shall accept caller-neutral, bounded investigation requests with explicit subject run IDs, persist one idempotent lifecycle, and return evidence-backed diagnosis, coverage, applicability, and diagnosis-only next actions
+- [ ] OT-P0-016 | Usage Intelligence | Agent Manager shall forecast each provider subscription window from provider readings (used percent, reset, burn, projected exhaustion with a band, sustainable rate), attribute window consumption by session, run, profile, workload, model and runner with an explicit unattributed remainder, report capture coverage against the transcripts on disk, rank evidence-backed recommendations with estimated weekly quota savings, and compare quota per successful unit of work before and after a change (absorbs the retired Cost Tracking and Runner Metrics P2 targets; design in docs/concepts/USAGE-INTELLIGENCE.md)
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Scope Locks | Implement path-scoped exclusive locks
@@ -40,13 +45,10 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Multi-phase Runs | Support sequential agent prompts
-- [ ] OT-P2-002 | Cost Tracking | Track token usage and API costs
-- [ ] OT-P2-003 | Runner Metrics | Collect detailed runner performance metrics
 - [ ] OT-P2-004 | Policy Templates | Create pre-built policy configurations
 - [ ] OT-P2-005 | Webhook Notifications | Add external system notifications
 - [ ] OT-P2-006 | Batch Operations | Enable multi-task batch management
 - [ ] OT-P2-007 | UI Dashboard | Build web interface for management
-- [ ] OT-P2-008 | Run Analytics | Implement historical run data analysis
 
 ## 🧱 Tech Direction Snapshot
 Preferred stacks:

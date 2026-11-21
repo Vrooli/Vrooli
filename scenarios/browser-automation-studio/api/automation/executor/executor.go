@@ -14,28 +14,34 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	credentialusev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/credential_use"
 )
 
 // Request wires together the dependencies required to run a compiled plan.
 type Request struct {
-	Plan              contracts.ExecutionPlan
-	EngineName        string
-	EngineFactory     engine.Factory
-	Recorder          executionwriter.ExecutionWriter
-	EventSink         events.Sink
-	HeartbeatInterval time.Duration
-	ReuseMode         engine.SessionReuseMode
-	WorkflowResolver  WorkflowResolver // Required for subflow resolution.
-	PlanCompiler      PlanCompiler     // Optional; defaults to engine-registered compiler.
-	MaxSubflowDepth   int              // Optional; defaults to 5.
-	SubflowStack      []uuid.UUID      // Internal: call stack to avoid recursion.
-	EngineCaps        *contracts.EngineCapabilities
+	Plan                  contracts.ExecutionPlan
+	EngineName            string
+	EngineFactory         engine.Factory
+	Recorder              executionwriter.ExecutionWriter
+	EventSink             events.Sink
+	HeartbeatInterval     time.Duration
+	ReuseMode             engine.SessionReuseMode
+	SessionProfileVersion string
+	WorkflowResolver      WorkflowResolver // Required for subflow resolution.
+	PlanCompiler          PlanCompiler     // Optional; defaults to engine-registered compiler.
+	MaxSubflowDepth       int              // Optional; defaults to 5.
+	SubflowStack          []uuid.UUID      // Internal: call stack to avoid recursion.
+	EngineCaps            *contracts.EngineCapabilities
 
-	// Resume support: when set, execution starts from the step after StartFromStepIndex.
-	// InitialVariables provides state accumulated from previously completed steps.
-	StartFromStepIndex int            // -1 means start from beginning (default).
-	InitialVariables   map[string]any // Variables restored from previous execution (merged into store).
-	ResumedFromID      *uuid.UUID     // ID of the original execution being resumed.
+	// CredentialPolicy switches execution into the authority-bound browser
+	// mode. The policy contains no secret value and causes every action to pass
+	// the credential-use guard before reaching the normal engine.
+	CredentialPolicy *credentialusev1.BrowserSessionPolicy
+
+	// ResumeAfterStep identifies the last completed step. Nil starts a fresh run;
+	// a pointer to zero resumes after step zero.
+	ResumeAfterStep *int
+	ResumedFromID   *uuid.UUID // ID of the original execution being resumed.
 
 	// Namespace-aware variable support (Phase 2).
 	// These fields map to ExecutionParameters proto fields.

@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "local_service_admission",
+  "description": "Admit selected home devices to live scenario UI listeners through setup-installed, scoped host policy",
+  "handler": "local_service_admission",
+  "platforms": ["linux"],
+  "risk": "medium",
+  "risk_class": "restore_absent",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "network-host-config",
+  "capability_role": "control",
+  "storage": {
+    "entries": {
+      "policy": {"rung":"pinned","path":{"linux":"/etc/vrooli/local-service-admission.json","macos":null,"windows":null},"kind":"file","regenerable":true,"class":"config","sensitive":true,"rationale":"Project setup installs root-controlled policy from validated operator choices."},
+      "state": {"rung":"pinned","path":{"linux":"/var/lib/vrooli/local-service-admission","macos":null,"windows":null},"kind":"dir","regenerable":false,"class":"state","sensitive":true,"rationale":"The root broker preserves explicit revocation across restarts."}
+    },
+    "rationale": "Root policy and revocation state belong to the control plane, not consuming scenarios."
+  },
+  "config": {
+    "type":"object","additionalProperties":false,
+    "properties": {
+      "bindings": {
+        "type":"array","default":[],"maxItems":16,
+        "items": {
+          "type":"object","additionalProperties":false,
+          "required":["id","scenario","listener","source_ip","host_ip","interface"],
+          "properties": {
+            "id":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,47}$"},
+            "scenario":{"type":"string","pattern":"^[a-z][a-z0-9-]{0,47}$"},
+            "listener":{"type":"string","enum":["ui"]},
+            "source_ip":{"type":"string","format":"ipv4","description":"Selected device's current private IPv4 address; not authenticated identity."},
+            "host_ip":{"type":"string","format":"ipv4","description":"Host's private address on the selected home interface."},
+            "interface":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,14}$"}
+          }
+        }
+      }
+    }
+  },
+  "deployment":{"profiles":{"desktop":{
+    "linux":{"support":"unsupported","mode":"manual","reason":"Host firewall policy is installed through project setup, never a desktop bundle."},
+    "macos":{"support":"unsupported","mode":"manual","reason":"The UFW adapter is Linux-only."},
+    "windows":{"support":"unsupported","mode":"manual","reason":"The UFW adapter is Linux-only."}
+  }}},
+  "platform_status":{
+    "linux":{"status":"unqualified","evidence":null},
+    "macos":{"status":"not_applicable","evidence":"The current adapter owns Linux UFW policy.","review_by":"2027-10-22"},
+    "windows":{"status":"not_applicable","evidence":"The current adapter owns Linux UFW policy.","review_by":"2027-10-22"}
+  }
+}

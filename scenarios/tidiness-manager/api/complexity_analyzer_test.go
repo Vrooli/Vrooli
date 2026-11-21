@@ -1,176 +1,42 @@
 package main
 
 import (
-	"context"
-	"os"
-	"path/filepath"
+	"strconv"
 	"testing"
-	"time"
+
+	"github.com/vrooli/api-core/factgraph"
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	common "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"tidiness-manager/internal/testutil"
 )
 
-// Test helper: creates a complexity analyzer with standard timeout
-func newTestComplexityAnalyzer(t *testing.T) *ComplexityAnalyzer {
-	t.Helper()
-	return NewComplexityAnalyzer(t.TempDir(), 30*time.Second)
-}
+func TestComplexityProjectsSharedFactsForRequestedFiles(t *testing.T) {
+	node := func(id, path string, complexity, line int) *common.CodeGraphNode {
+		return testutil.GraphNode(id, id, path, map[string]string{
+			"signature": "func()", "cyclomatic_complexity": strconv.Itoa(complexity),
+			"start_line": strconv.Itoa(line), "end_line": strconv.Itoa(line + 20),
+		})
+	}
+	report := testutil.GraphReport("/repo/demo", testutil.GraphUnit{
+		ID: "api", Language: "go", RootPath: "/repo/demo/api",
+		Nodes: []*common.CodeGraphNode{
+			node("simple", "a.go", 1, 1), node("complex", "a.go", 15, 25),
+			node("test", "a_test.go", 3, 1), node("excluded", "outside.go", 99, 1),
+		},
+	})
 
-// Test helper: creates a Go source file with given code
-func createGoFile(t *testing.T, dir, filename, code string) string {
-	t.Helper()
-	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, []byte(code), 0o644); err != nil {
-		t.Fatalf("Failed to create Go file %s: %v", filename, err)
+	result := complexityFromIndex([]string{"api/a.go", "api/a_test.go"}, factgraph.NewIndex(report))
+	if result.Skipped || result.TotalFunctions != 3 || result.MaxComplexity != 15 || result.AverageComplexity != 19.0/3 || result.HighComplexityCount != 1 || result.Tool != "code-facts" {
+		t.Fatalf("shared facts aggregation: %+v", result)
 	}
-	return path
-}
-
-// Test helper: asserts result is skipped with a reason
-func assertSkipped(t *testing.T, result *ComplexityResult, reasonSubstring string) {
-	t.Helper()
-	if !result.Skipped {
-		t.Error("Expected result to be skipped")
-	}
-	if result.SkipReason == "" {
-		t.Error("Expected skip reason to be set")
-	}
-	if reasonSubstring != "" && !contains(result.SkipReason, reasonSubstring) {
-		t.Errorf("Expected skip reason to contain %q, got %q", reasonSubstring, result.SkipReason)
+	if result.FileComplexity["api/a.go"].Avg != 8 || result.HighComplexityFiles[0].Line != 25 {
+		t.Fatal(result)
 	}
 }
 
-func TestComplexityAnalyzer_AnalyzeComplexity_Go_ToolNotInstalled(t *testing.T) {
-	analyzer := newTestComplexityAnalyzer(t)
-
-	// If gocyclo is not installed, should return skipped result
-	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{"dummy.go"})
-	if err != nil {
-		t.Fatalf("AnalyzeComplexity failed: %v", err)
-	}
-
-	// Check if gocyclo is available
-	if !commandExists("gocyclo") {
-		assertSkipped(t, result, "")
-	}
-}
-
-func TestComplexityAnalyzer_AnalyzeComplexity_Go_WithGocyclo(t *testing.T) {
-	// Skip if gocyclo not installed
-	if !commandExists("gocyclo") {
-		t.Skip("gocyclo not installed, skipping test")
-	}
-
-	tmpDir := t.TempDir()
-
-	// Create a simple Go file with low complexity
-	simpleCode := `package main
-
-func simple() {
-	println("hello")
-}
-
-func add(a, b int) int {
-	return a + b
-}
-`
-	createGoFile(t, tmpDir, "simple.go", simpleCode)
-
-	// Create a complex Go file with high cyclomatic complexity
-	complexCode := `package main
-
-func complex(n int) int {
-	result := 0
-	if n > 0 {
-		if n > 10 {
-			if n > 20 {
-				result = 1
-			} else if n > 15 {
-				result = 2
-			} else {
-				result = 3
-			}
-		} else if n > 5 {
-			if n == 7 {
-				result = 4
-			} else {
-				result = 5
-			}
-		} else {
-			result = 6
-		}
-	} else if n < 0 {
-		if n < -10 {
-			result = 7
-		} else {
-			result = 8
-		}
-	}
-	return result
-}
-`
-	createGoFile(t, tmpDir, "complex.go", complexCode)
-
-	analyzer := NewComplexityAnalyzer(tmpDir, 30*time.Second)
-	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{"simple.go", "complex.go"})
-	if err != nil {
-		t.Fatalf("AnalyzeComplexity failed: %v", err)
-	}
-
-	// Should not be skipped
-	if result.Skipped {
-		t.Errorf("Expected analysis to run, got skipped: %s", result.SkipReason)
-	}
-
-	// Should have detected functions
-	if result.TotalFunctions < 2 {
-		t.Errorf("Expected at least 2 functions, got %d", result.TotalFunctions)
-	}
-
-	// Should have reasonably high complexity function (at least 8)
-	if result.MaxComplexity < 8 {
-		t.Errorf("Expected max complexity >= 8 for complex function, got %d", result.MaxComplexity)
-	}
-
-	// Average complexity should be reasonable
-	if result.AverageComplexity < 1.0 {
-		t.Errorf("Expected average complexity > 1, got %f", result.AverageComplexity)
-	}
-
-	// Tool should be gocyclo
-	if result.Tool != "gocyclo" {
-		t.Errorf("Expected tool 'gocyclo', got '%s'", result.Tool)
-	}
-}
-
-func TestComplexityAnalyzer_AnalyzeComplexity_TypeScript_NotImplemented(t *testing.T) {
-	analyzer := newTestComplexityAnalyzer(t)
-	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageTypeScript, []string{"test.ts"})
-	if err != nil {
-		t.Fatalf("AnalyzeComplexity failed: %v", err)
-	}
-
-	// TypeScript complexity should be skipped for now
-	assertSkipped(t, result, "")
-}
-
-func TestComplexityAnalyzer_EmptyFileList(t *testing.T) {
-	analyzer := newTestComplexityAnalyzer(t)
-	result, err := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{})
-	if err != nil {
-		t.Fatalf("AnalyzeComplexity failed: %v", err)
-	}
-
-	// Should skip if no files to analyze
-	assertSkipped(t, result, "")
-}
-
-func TestCommandExists(t *testing.T) {
-	// Test with a command that should exist
-	if !commandExists("go") {
-		t.Error("Expected 'go' command to exist")
-	}
-
-	// Test with a command that shouldn't exist
-	if commandExists("nonexistent-command-12345") {
-		t.Error("Expected 'nonexistent-command-12345' to not exist")
+func TestComplexityMissingGraphIsSkipped(t *testing.T) {
+	result := complexityFromIndex([]string{"a.go"}, factgraph.NewIndex(&facts.CodeFactsReport{}))
+	if !result.Skipped || result.SkipReason != "Code Facts returned no Go graph evidence" {
+		t.Fatalf("missing graph evidence was reported as metrics: %+v", result)
 	}
 }

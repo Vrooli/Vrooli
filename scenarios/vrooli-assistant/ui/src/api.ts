@@ -58,8 +58,8 @@ function resolveProxyAwareBaseUrl(): string {
   return origin;
 }
 
-const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
-  ? (import.meta.env.VITE_API_BASE_URL as string)
+const API_BASE_URL = (typeof window !== 'undefined' && window.__VROOLI_CONFIG__?.apiUrl)
+  ? window.__VROOLI_CONFIG__.apiUrl
   : resolveProxyAwareBaseUrl();
 
 async function handleResponse<T>(response: Response): Promise<T> {

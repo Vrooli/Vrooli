@@ -1,0 +1,367 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "composition-ports",
+    "description": "The `expects` vocabulary: what an asset needs from its host rather than from a named dependency. A port satisfied by the template's `provides` block is not copied into an adoption closure, which is what keeps deep layering affordable under copy-adoption."
+  },
+  "capabilities": [
+    {
+      "id": "design-tokens",
+      "title": "Design tokens",
+      "facets": [
+        "port"
+      ],
+      "description": "The semantic and component token layers an asset styles against, exposed as runtime custom properties so a theme change does not re-render the tree.",
+      "port": {
+        "contract": "Supplies the active kit's primitive ramps, semantic tokens, and component tokens as runtime custom properties, and switches them coherently on theme or density change.",
+        "satisfiedBy": [
+          "template-provides"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "The foundational port. Template-seeded per the foundations decision, so no adoption ever copies tokens; an asset requiring a newer token version than the target provides is a blocking finding rather than a silent copy."
+    },
+    {
+      "id": "ui-provider",
+      "title": "UI composition root",
+      "facets": [
+        "port"
+      ],
+      "description": "The single boundary that composes theme, locale, direction, motion policy, density, portal host, interaction modality, and global managers.",
+      "port": {
+        "contract": "Mounts once at the application root and supplies theme, locale, direction, motion policy, density, portal host, and interaction modality to every descendant through one stable boundary.",
+        "satisfiedBy": [
+          "template-provides"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "Its absence is the single highest-value adoption-scanner finding: a scenario missing the provider will have components that appear to work and silently lose theming, direction, and motion policy."
+    },
+    {
+      "id": "router-adapter",
+      "title": "Router adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam through which links, navigation blocking, route state, scroll restoration, and transition direction reach the consuming scenario's router.",
+      "port": {
+        "contract": "Supplies current route state, performs navigation, registers navigation blockers for unsaved work, and reports history direction so transitions and scroll restoration can be correct.",
+        "satisfiedBy": [
+          "template-provides",
+          "scenario-local"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "Required by every page template. Expressing route behavior as a port rather than an import is what keeps templates valid for the native targets, where there is no react-router at all."
+    },
+    {
+      "id": "data-source",
+      "title": "Typed data source",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam through which a template or collection receives its data, its loading and error conditions, and its refresh and pagination operations \u2014 without the library ever fetching domain data itself.",
+      "port": {
+        "contract": "Supplies typed records plus their loading, empty, partial, error, stale, and offline conditions, and accepts refresh, pagination, and cancellation requests bound to an AbortSignal.",
+        "typeParameters": [
+          "T"
+        ],
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The port that makes page templates independently validatable: a fixture can satisfy it, so a template's loading, empty, partial, and error states can be captured in the catalog with no scenario adopting it. Parameterized because an untyped data source cannot be checked against a fixture's shape."
+    },
+    {
+      "id": "validation-adapter",
+      "title": "Validation adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam that normalizes schema validation, server-returned field errors, and async validation into one issue format the form runtime understands.",
+      "port": {
+        "contract": "Validates a value against a supplied schema and normalizes results, including server-returned errors, into one issue format carrying field path, message, and severity.",
+        "typeParameters": [
+          "T"
+        ],
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "i18n-adapter",
+      "title": "Localization adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam supplying translated strings, pluralization, number and date formatting, writing direction, and locale switching.",
+      "port": {
+        "contract": "Resolves message keys with interpolation and pluralization, formats numbers and dates for the active locale, and reports writing direction so layout and gestures can adapt.",
+        "satisfiedBy": [
+          "template-provides"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "Direction reporting is the part components actually depend on \u2014 without it the RTL half of the locale axis cannot be satisfied even once the axis is wired."
+    },
+    {
+      "id": "icon-registry",
+      "title": "Icon registry",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam resolving icon names to renderable geometry with normalized optical sizing, stroke policy, direction awareness, and accessibility metadata.",
+      "port": {
+        "contract": "Resolves an icon name to renderable geometry with normalized optical size and stroke weight, flips directional icons for RTL, and carries whether an icon is decorative or meaningful.",
+        "satisfiedBy": [
+          "template-provides"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "A registry rather than direct imports is what makes icon-weight-consistency checkable at all, and it is the seam that keeps a broad icon-package import out of the bundle."
+    },
+    {
+      "id": "layer-manager",
+      "title": "Layer manager",
+      "facets": [
+        "port"
+      ],
+      "description": "The single coordinator for portals, stacking order, modal isolation, nested overlays, inert background content, and scroll locking.",
+      "port": {
+        "contract": "Assigns stacking order from the declared layer ramp, marks background content inert while a modal layer is open, reference-counts scroll locks, and orders dismissal so escape closes only the topmost eligible surface.",
+        "satisfiedBy": [
+          "template-provides",
+          "asset"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "Every overlay capability depends on it. Two independent layer managers in one application is the defect that produces dialogs behind backdrops, and it is detectable by the adoption scanner."
+    },
+    {
+      "id": "live-announcer",
+      "title": "Live announcer",
+      "facets": [
+        "port"
+      ],
+      "description": "The single announcement service used by forms, drag operations, navigation, loading states, and async results.",
+      "port": {
+        "contract": "Queues, deduplicates, and times polite and assertive announcements through one live region, so competing regions never talk over each other.",
+        "satisfiedBy": [
+          "template-provides",
+          "asset"
+        ],
+        "minimumVersion": "1.0.0"
+      },
+      "tierCeiling": "machine",
+      "rationale": "Required by status-announced. Multiple live regions is worse than none \u2014 screen readers interleave them unpredictably \u2014 so this must be a single host-provided service rather than a per-component concern."
+    },
+    {
+      "id": "storage-adapter",
+      "title": "Preference storage adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam persisting UI preferences, panel sizes, drafts, and layout state, with versioning and cross-tab coordination.",
+      "port": {
+        "contract": "Reads and writes versioned preference values through a pluggable backend, migrates stored values on version change, and synchronizes across tabs without clobbering concurrent writes.",
+        "satisfiedBy": [
+          "template-provides",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "telemetry-adapter",
+      "title": "Telemetry adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam receiving normalized UI outcome events, and a no-op when telemetry is disabled.",
+      "port": {
+        "contract": "Receives normalized UI outcome events carrying no user-supplied values, and behaves as a no-op when telemetry is unavailable or disabled.",
+        "satisfiedBy": [
+          "template-provides",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Explicitly value-free: the contract is that components report that a validation failed, never what was typed."
+    },
+    {
+      "id": "upload-adapter",
+      "title": "Upload adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting file fields and upload flows to a concrete transfer implementation.",
+      "port": {
+        "contract": "Accepts files with progress reporting, cancellation, and retry, and reports terminal success or failure per file rather than per batch.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "permissions-adapter",
+      "title": "Permissions adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam through which feature and authorization gates resolve, so components never learn about domain roles.",
+      "port": {
+        "contract": "Answers whether a named capability is permitted, unavailable, or undetermined for the current actor, without exposing role or policy detail to the requesting component.",
+        "satisfiedBy": [
+          "template-provides",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Keeps permission-explained satisfiable without any component knowing what a role is \u2014 the gate asks about a capability, not about who the user is."
+    },
+    {
+      "id": "positioning-adapter",
+      "title": "Positioning adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam through which anchored surfaces compute placement, collision handling, flipping, shifting, and arrow position, without exposing the positioning engine's types across component APIs.",
+      "port": {
+        "contract": "Positions a floating element relative to an anchor with collision detection, axis flipping, shifting, and arrow placement, and reports the resolved side so components can orient their transition origin.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "virtualization-adapter",
+      "title": "Virtualization adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting large lists, grids, calendars, logs, and option collections to a windowing implementation through stable measurement and focus interfaces.",
+      "port": {
+        "contract": "Windows a large collection with dynamic item measurement and overscan, and preserves keyboard focus and scroll anchoring across window changes so virtualization is never observable as lost focus.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "date-time-adapter",
+      "title": "Date and time adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam supplying date parsing, formatting, arithmetic, calendar systems, and timezone resolution to every temporal field and surface.",
+      "port": {
+        "contract": "Parses and formats dates and times for the active locale and calendar system, performs timezone-aware arithmetic, and reports week start and era conventions.",
+        "satisfiedBy": [
+          "template-provides",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "editor-adapter",
+      "title": "Editor adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting rich text, Markdown, code, and JSON fields to lazily loaded editor implementations behind one value and validation contract.",
+      "port": {
+        "contract": "Mounts a lazily loaded editor for a declared content kind and exchanges value, selection, and validation state through one contract regardless of the underlying implementation.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "charts-adapter",
+      "title": "Charts adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting the chart framework to one or more rendering engines while keeping theme, data contracts, interaction, and accessibility consistent.",
+      "port": {
+        "contract": "Renders a declared chart specification through a pluggable engine, resolving scales and marks from theme tokens and exposing an accessible textual equivalent of the plotted data.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "drag-drop-adapter",
+      "title": "Drag and drop adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting sortable and drag interactions to an implementation while preserving the library's selection, announcement, and drop contracts.",
+      "port": {
+        "contract": "Tracks an active drag with collision resolution against registered drop targets, and emits the position announcements that keyboard-accessible dragging depends on.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "motion-adapter",
+      "title": "Motion adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting motion primitives to the selected animation implementation while preserving the kit's declared transition classes and reduced-motion policy.",
+      "port": {
+        "contract": "Executes a declared transition class against an element and reports its measured duration, so motion tokens remain the source of truth regardless of the animation engine underneath.",
+        "satisfiedBy": [
+          "template-provides",
+          "asset"
+        ]
+      },
+      "tierCeiling": "machine"
+    },
+    {
+      "id": "platform-feedback",
+      "title": "Platform feedback adapter",
+      "facets": [
+        "port"
+      ],
+      "description": "The seam connecting optional haptic, sound, clipboard, share, and native-shell behaviors to whatever the running platform actually offers.",
+      "port": {
+        "contract": "Reports which platform feedback channels are available and performs those that are, degrading silently to no-ops rather than failing when a channel is unsupported.",
+        "satisfiedBy": [
+          "asset",
+          "scenario-local"
+        ]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Kept optional by construction: a component that hard-depends on haptics is broken on every device without them, so availability reporting is part of the contract rather than an afterthought."
+    }
+  ]
+}

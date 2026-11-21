@@ -56,7 +56,7 @@ export {
 // Public types
 // ---------------------------------------------------------------------------
 
-export interface SpatialNavBridgeOptions extends GamepadInputOptions, SpatialNavOptions {
+export interface SpatialNavBridgeOptions extends Omit<GamepadInputOptions, 'onAction'>, SpatialNavOptions {
   /**
    * Start gamepad polling immediately after initialisation.
    * Default `true`.
@@ -97,6 +97,21 @@ export interface SpatialNavController {
    * Pop the current modal scope, restoring the previous one (or root).
    */
   popScope(): void;
+  /** Register a modal scope and remove that exact scope on cleanup. */
+  registerScope(element: HTMLElement): () => void;
+  /** Innermost focused handler runs first. Return true to consume the action. */
+  registerActionHandler(element: HTMLElement, handler: GamepadActionHandler): () => void;
+}
+
+export type GamepadActionHandler = (action: GamepadAction) => boolean | void;
+
+// Application ownership is per document, not per component or focus group.
+let applicationController: SpatialNavController | undefined;
+let applicationOptions: SpatialNavBridgeOptions | undefined;
+
+/** Read the application controller without starting another polling loop. */
+export function getSpatialNav(): SpatialNavController | undefined {
+  return applicationController;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +142,18 @@ const ACTION_TO_DIRECTION: Partial<Record<GamepadAction, Direction>> = {
  * ```
  */
 export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavController {
+  if (applicationController) {
+    // Repeated default initialization is safe. Configuration belongs to the
+    // first owner; reject competing configuration instead of ignoring it.
+    for (const key of Object.keys(options ?? {}) as (keyof SpatialNavBridgeOptions)[]) {
+      if (options![key] !== applicationOptions?.[key]) {
+        throw new Error(`Spatial navigation is already initialized with different ${key}`);
+      }
+    }
+    return applicationController;
+  }
   const hostRelay = options?.hostRelay ?? true;
+  const handlers: { element: HTMLElement; handler: GamepadActionHandler }[] = [];
 
   const spatialNav = new SpatialNavManager({
     focusableSelector: options?.focusableSelector,
@@ -138,6 +164,23 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
   });
 
   const handleAction = (action: GamepadAction): void => {
+    const scope = spatialNav.activeScope;
+    // A modal opened by pointer input may not have transferred native focus
+    // yet. Its own handler must still receive Back; page handlers cannot.
+    const focused = scope && !scope.contains(document.activeElement)
+      ? scope : document.activeElement;
+    const eligible = handlers.filter(({ element }) =>
+      element.isConnected && focused && element.contains(focused) &&
+      (!scope || scope.contains(element)),
+    ).reverse().sort((a, b) => {
+      if (a.element === b.element) return 0;
+      if (a.element.contains(b.element)) return 1;
+      if (b.element.contains(a.element)) return -1;
+      return 0;
+    });
+    for (const entry of eligible) {
+      if (handlers.includes(entry) && entry.handler(action) === true) return;
+    }
     // B/back always navigates back — this is the only guaranteed escape on
     // console browsers where the virtual cursor may not be available.
     if (action === 'back') {
@@ -210,10 +253,18 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
     gamepadInput.start();
   }
 
-  return {
+  let disposed = false;
+  const controller: SpatialNavController = {
     dispose() {
+      if (disposed) return;
+      disposed = true;
+      handlers.length = 0;
       gamepadInput.dispose();
       spatialNav.dispose();
+      if (applicationController === controller) {
+        applicationController = undefined;
+        applicationOptions = undefined;
+      }
     },
     registerGroup(element, mode, groupOptions) {
       return spatialNav.registerGroup(element, mode, groupOptions);
@@ -233,5 +284,21 @@ export function initSpatialNav(options?: SpatialNavBridgeOptions): SpatialNavCon
     popScope() {
       spatialNav.popScope();
     },
+    registerScope(element) {
+      if (disposed) throw new Error('Spatial navigation has been disposed');
+      return spatialNav.pushScope(element);
+    },
+    registerActionHandler(element, handler) {
+      if (disposed) throw new Error('Spatial navigation has been disposed');
+      const entry = { element, handler };
+      handlers.push(entry);
+      return () => {
+        const index = handlers.indexOf(entry);
+        if (index >= 0) handlers.splice(index, 1);
+      };
+    },
   };
+  applicationOptions = { ...options };
+  applicationController = controller;
+  return controller;
 }

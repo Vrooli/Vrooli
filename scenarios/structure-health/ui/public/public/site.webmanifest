@@ -1,0 +1,24 @@
+{
+  "background_color": "#0f172a",
+  "description": "Profile-aware validator of a scenario's skeleton and lifecycle wiring, reconciling code-facts ground truth against declared service.json intent.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Structure Health",
+  "scope": "../",
+  "short_name": "structure-health",
+  "start_url": "../",
+  "theme_color": "#0f172a"
+}

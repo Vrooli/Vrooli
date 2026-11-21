@@ -1,0 +1,31 @@
+{
+  "loop_kind": "queue",
+  "intake": [
+    {
+      "prefix": "validation-inbox/*",
+      "taxonomy": "monetization-validation",
+      "classifier_skill": "signal-classifier"
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "taxonomy": "monetization-validation",
+      "classifier_skill": "signal-classifier",
+      "source_team": "marketing-crew"
+    }
+  ],
+  "required_read": [],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "destination_kind": "knowledge",
+      "schema": "benchmark-record"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator",
+    "vision-walk",
+    "signal-inbox"
+  ]
+}

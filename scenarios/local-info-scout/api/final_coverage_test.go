@@ -68,7 +68,7 @@ func TestSearchHandlerWithFilters(t *testing.T) {
 		Body:   req,
 	})
 
-	places := assertPlacesResponse(t, w, 200)
+	places := assertSearchResponse(t, w, 200)
 	t.Logf("Found %d accessible places", len(places))
 }
 
@@ -135,31 +135,6 @@ func TestCalculateRelevanceScoreEdgeCases(t *testing.T) {
 	scoredPlace2 := calculateRelevanceScore(place2, req2)
 	if scoredPlace2.Name != place2.Name {
 		t.Error("Scored place should maintain name")
-	}
-}
-
-// TestEnableCORSAllMethods tests CORS for all HTTP methods
-func TestEnableCORSAllMethods(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
-
-	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			w := makeHTTPRequest(enableCORS(healthHandler), HTTPTestRequest{
-				Method: method,
-				Path:   "/health",
-			})
-
-			assertHeaderPresent(t, w, "Access-Control-Allow-Origin")
-
-			if method == "OPTIONS" {
-				if w.Code != 200 {
-					t.Errorf("OPTIONS should return 200, got %d", w.Code)
-				}
-			}
-		})
 	}
 }
 

@@ -55,24 +55,18 @@ type RestoredTabInfo struct {
 	IsActive bool   `json:"is_active"`
 }
 
-// ViewportDimensions represents width and height of a viewport.
-type ViewportDimensions struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-// ViewportSource describes what determined the actual viewport dimensions.
-type ViewportSource string
+// ViewportSource preserves the handler name while sharing the driver's source contract.
+type ViewportSource = driver.ViewportSource
 
 const (
-	// ViewportSourceRequested means the UI-requested dimensions were used
-	ViewportSourceRequested ViewportSource = "requested"
-	// ViewportSourceFingerprint means browser profile fingerprint override was applied
-	ViewportSourceFingerprint ViewportSource = "fingerprint"
-	// ViewportSourceFingerprintPartial means fingerprint set one dimension, requested used for other
-	ViewportSourceFingerprintPartial ViewportSource = "fingerprint_partial"
-	// ViewportSourceDefault means fallback defaults were used
-	ViewportSourceDefault ViewportSource = "default"
+	// ViewportSourceRequested is the driver source when the requested size is used.
+	ViewportSourceRequested = driver.ViewportSourceRequested
+	// ViewportSourceFingerprint is the driver source when a profile override is used.
+	ViewportSourceFingerprint = driver.ViewportSourceFingerprint
+	// ViewportSourceFingerprintPartial is the driver source when only one profile dimension applies.
+	ViewportSourceFingerprintPartial = driver.ViewportSourceFingerprintPartial
+	// ViewportSourceDefault is the driver source when browser defaults are used.
+	ViewportSourceDefault = driver.ViewportSourceDefault
 )
 
 // ActualViewportWithSource contains viewport dimensions with source attribution.
@@ -106,42 +100,17 @@ type StartRecordingRequest struct {
 	FrameFPS *int `json:"frame_fps,omitempty"`
 }
 
-// StartRecordingResponse is the response after starting recording.
-type StartRecordingResponse struct {
-	RecordingID string `json:"recording_id"`
-	SessionID   string `json:"session_id"`
-	StartedAt   string `json:"started_at"`
-}
-
-// StopRecordingResponse is the response after stopping recording.
-type StopRecordingResponse struct {
-	RecordingID string `json:"recording_id"`
-	SessionID   string `json:"session_id"`
-	ActionCount int    `json:"action_count"`
-	StoppedAt   string `json:"stopped_at"`
-}
-
-// RecordingStatusResponse is the response for recording status.
-type RecordingStatusResponse struct {
-	SessionID   string `json:"session_id"`
-	IsRecording bool   `json:"is_recording"`
-	RecordingID string `json:"recording_id,omitempty"`
-	ActionCount int    `json:"action_count"`
-	FrameCount  int    `json:"frame_count,omitempty"`
-	StartedAt   string `json:"started_at,omitempty"`
-}
-
 // =============================================================================
 // Recorded Actions Types
 // =============================================================================
 
 // GetActionsResponse is the response for getting recorded actions.
 type GetActionsResponse struct {
-	SessionID   string                       `json:"session_id"`
-	IsRecording bool                         `json:"is_recording,omitempty"`
+	SessionID   string                  `json:"session_id"`
+	IsRecording bool                    `json:"is_recording,omitempty"`
 	Actions     []driver.RecordedAction `json:"actions"`
-	Count       int                          `json:"count"`
-	Entries     []json.RawMessage            `json:"entries,omitempty"`
+	Count       int                     `json:"count"`
+	Entries     []json.RawMessage       `json:"entries,omitempty"`
 }
 
 // GenerateWorkflowRequest is the request body for generating a workflow from recording.
@@ -173,11 +142,11 @@ type GenerateWorkflowResponse struct {
 
 // ReplayPreviewRequest is the request body for testing recorded actions.
 type ReplayPreviewRequest struct {
-	SessionID     string                       `json:"session_id"`
+	SessionID     string                  `json:"session_id"`
 	Actions       []driver.RecordedAction `json:"actions"`
-	Limit         *int                         `json:"limit,omitempty"`
-	StopOnFailure *bool                        `json:"stop_on_failure,omitempty"`
-	ActionTimeout *int                         `json:"action_timeout,omitempty"`
+	Limit         *int                    `json:"limit,omitempty"`
+	StopOnFailure *bool                   `json:"stop_on_failure,omitempty"`
+	ActionTimeout *int                    `json:"action_timeout,omitempty"`
 }
 
 // ActionReplayError contains error details for a failed action.
@@ -216,6 +185,7 @@ type ReplayPreviewResponse struct {
 
 // NavigateRecordingRequest is the request body for navigating the recording session.
 type NavigateRecordingRequest struct {
+	PageID    string `json:"page_id,omitempty"`
 	URL       string `json:"url"`
 	WaitUntil string `json:"wait_until,omitempty"`
 	TimeoutMs int    `json:"timeout_ms,omitempty"`
@@ -231,51 +201,6 @@ type NavigateRecordingResponse struct {
 	CanGoForward bool   `json:"can_go_forward"`
 	StatusCode   int    `json:"status_code,omitempty"`
 	Screenshot   string `json:"screenshot,omitempty"`
-}
-
-// ReloadRecordingRequest is the request body for reloading the current page.
-type ReloadRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// ReloadRecordingResponse is the response from reloading the page.
-type ReloadRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoBackRecordingRequest is the request body for navigating back in history.
-type GoBackRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoBackRecordingResponse is the response from navigating back.
-type GoBackRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
-}
-
-// GoForwardRecordingRequest is the request body for navigating forward in history.
-type GoForwardRecordingRequest struct {
-	WaitUntil string `json:"wait_until,omitempty"`
-	TimeoutMs int    `json:"timeout_ms,omitempty"`
-}
-
-// GoForwardRecordingResponse is the response from navigating forward.
-type GoForwardRecordingResponse struct {
-	SessionID    string `json:"session_id"`
-	URL          string `json:"url"`
-	Title        string `json:"title"`
-	CanGoBack    bool   `json:"can_go_back"`
-	CanGoForward bool   `json:"can_go_forward"`
 }
 
 // NavigationStateResponse is the response for getting current navigation state.
@@ -297,24 +222,11 @@ type RecordingScreenshotResponse struct {
 // Frame Streaming Types
 // =============================================================================
 
-// RecordingFrameResponse is the response for lightweight frame previews.
-// Uses WebP format for ~25-30% better compression than JPEG at same quality.
-type RecordingFrameResponse struct {
-	SessionID   string `json:"session_id"`
-	Mime        string `json:"mime"` // "image/webp" or "image/jpeg"
-	Image       string `json:"image"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"`         // MD5 hash of raw frame buffer for reliable ETag
-	PageTitle   string `json:"page_title,omitempty"` // Current page title (document.title)
-	PageURL     string `json:"page_url,omitempty"`   // Current page URL
-}
-
 // RecordingViewportRequest updates viewport dimensions.
 type RecordingViewportRequest struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	PageID string `json:"page_id,omitempty"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
 }
 
 // UpdateStreamSettingsRequest is the request body for updating stream settings mid-session.
@@ -331,15 +243,15 @@ type UpdateStreamSettingsRequest struct {
 
 // UpdateStreamSettingsResponse is the response after updating stream settings.
 type UpdateStreamSettingsResponse struct {
-	SessionID    string `json:"session_id"`
-	Quality      int    `json:"quality"`
-	FPS          int    `json:"fps"`
-	CurrentFPS   int    `json:"current_fps"`
-	Scale        string `json:"scale"`
-	IsStreaming  bool   `json:"is_streaming"`
-	Updated      bool   `json:"updated"`
-	ScaleWarning string `json:"scale_warning,omitempty"`
-	PerfMode     bool   `json:"perf_mode"`
+	SessionID    string  `json:"session_id"`
+	Quality      int     `json:"quality"`
+	FPS          int     `json:"fps"`
+	CurrentFPS   float64 `json:"current_fps"`
+	Scale        string  `json:"scale"`
+	IsStreaming  bool    `json:"is_streaming"`
+	Updated      bool    `json:"updated"`
+	ScaleWarning string  `json:"scale_warning,omitempty"`
+	PerfMode     bool    `json:"perf_mode"`
 }
 
 // =============================================================================

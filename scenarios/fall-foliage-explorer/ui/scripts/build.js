@@ -4,7 +4,11 @@ const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
 const srcDir = path.join(rootDir, 'src');
-const distDir = path.join(rootDir, 'dist');
+const outDirIndex = process.argv.indexOf('--outDir');
+const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : '';
+const distDir = requestedOutDir && !requestedOutDir.startsWith('-')
+  ? path.resolve(requestedOutDir)
+  : path.join(rootDir, 'dist');
 
 async function ensureSourceExists() {
   try {

@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
 )
 
 // Server represents the Text Tools API server
@@ -52,8 +53,8 @@ func (s *Server) setupRouter() *mux.Router {
 	router := mux.NewRouter()
 
 	// Health check endpoint - using api-core/health for standardized responses
-	router.HandleFunc("/health", health.Handler()).Methods("GET")
-	
+	router.HandleFunc("/health", s.HealthHandler).Methods("GET")
+
 	// Resource status endpoint
 	router.HandleFunc("/resources", s.ResourcesHandler).Methods("GET")
 
@@ -78,6 +79,26 @@ func (s *Server) setupRouter() *mux.Router {
 	router.PathPrefix("/docs").Handler(http.StripPrefix("/docs", http.FileServer(http.Dir("./docs"))))
 
 	return router
+}
+
+// HealthHandler exposes the stable scenario health contract without making
+// optional development resources a prerequisite for startup.
+func (s *Server) HealthHandler(w http.ResponseWriter, _ *http.Request) {
+	databaseState := "not_configured"
+	if s.db != nil {
+		databaseState = "connected"
+	}
+	response := HealthResponse{
+		Status: "healthy", Timestamp: time.Now().Unix(), Database: databaseState,
+		Resources: map[string]interface{}{}, Version: "1.0.0",
+	}
+	if s.resourceManager != nil {
+		for name, resource := range s.resourceManager.GetResourceStatus() {
+			response.Resources[name] = resource
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Router returns the HTTP handler for use with server.Run

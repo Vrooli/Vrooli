@@ -1,6 +1,24 @@
 package bundle
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestWithoutUIComponent(t *testing.T) {
+	data := []byte(`{"components":{"api":{"role":"api"},"ui":{"role":"ui"}},"deployment":{"listeners":[{"id":"api","port":"api"},{"id":"ui","port":"ui"}]}}`)
+	filtered, err := withoutUIComponent(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(filtered)
+	if strings.Contains(text, `"ui"`) {
+		t.Fatalf("dependency UI remained in filtered service manifest: %s", text)
+	}
+	if !strings.Contains(text, `"api"`) {
+		t.Fatalf("API component/listener was removed: %s", text)
+	}
+}
 
 func TestIsExcluded(t *testing.T) {
 	t.Parallel()

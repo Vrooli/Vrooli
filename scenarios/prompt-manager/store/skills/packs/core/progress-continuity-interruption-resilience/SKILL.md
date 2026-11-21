@@ -1,3 +1,23 @@
+---
+name: "progress-continuity-interruption-resilience"
+description: "Ensure work can resume after interruptions"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","reliability"]
+  tags: ["skill"]
+  icon: "playcircle"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Progress Continuity & Interruption Resilience
 
 Prioritize **making work safely stoppable and resumable** for both users and agents.
@@ -128,7 +148,7 @@ Update the **Checkpoint Flows** section of `docs/internal/TEMPORAL-FLOWS.md` to 
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 Include:
 * Progress-based journeys and their natural checkpoints

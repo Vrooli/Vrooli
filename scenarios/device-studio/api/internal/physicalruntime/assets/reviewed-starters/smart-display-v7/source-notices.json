@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "qualification_package_sha256": "7139e503c471e724789f61733712ff3f016ed33e841605f197574b338c3e1bd2",
+  "certificate_sha256": "910e5132d6b5c233593670a7e81da673eba6dc400116d5e4fcbd69e787b99760",
+  "review_scope": {
+    "scope": "visual_setup",
+    "result": "passed",
+    "dimension_states": [
+      "source_geometry_envelope"
+    ],
+    "display_ids": [
+      "main_display"
+    ],
+    "motion_ids": [
+      "static"
+    ],
+    "support_ids": [
+      "generic-smart-display-candidate-v7-support"
+    ],
+    "native_job_id": "e83ef49d-62ee-46aa-b65c-cb6d470e2782",
+    "native_output_sha256": "44b75097389ae53ecd1bf87b47e93fee43b9fb74cd33c381966e767d3e1c73fb"
+  },
+  "source_artifacts": [
+    {
+      "bundle_id": "device-studio-generic-smart-display-concept-v7",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "20e7ab01c01f083b068bf4e9d671519304cf459e8f1993230c31e3afbd10f579",
+      "bundle_review_sha256": "937e072592ee8c969f53426b179fe5f8d5c32e924e68c4b53825ea688defa01f",
+      "artifact_id": "vrooli-generic-smart-display-concept-v7",
+      "role": "geometry_glb",
+      "path": "assets/smart-display-v7/generic-smart-display-v7.glb",
+      "size_bytes": 346044,
+      "sha256": "e540c0dea92fe9217d2ac3833f3e89f0b77346e4ad22744d2e758b74566d4dd5",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored generic model; v7 derived from v6 by removing the coplanar front cap."
+    },
+    {
+      "bundle_id": "device-studio-laptop-derive16-candidate-v1",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "87fd5a766cfbdb584f25f0fa9bf62310b3effcc2fbebd8fe4d5d7be4cfb40adc",
+      "bundle_review_sha256": "57ecfca916ce9959668014c11bf61f16d2530b682f17b7ee9ec87c837e295188",
+      "artifact_id": "laptop-study-room-no-cup-glb",
+      "role": "geometry_glb",
+      "path": "assets/laptop-study-environment/laptop-study-environment-no-cup.glb",
+      "size_bytes": 420960,
+      "sha256": "68a8ad34f5af76f681e9aab7337ce80514221bda333c6713b58f624556660f56",
+      "license": "AGPL-3.0-only",
+      "attribution": "Vrooli-authored room/table scene derivative; cup nodes omitted; no Jack Baeten laptop mesh."
+    },
+    {
+      "bundle_id": "device-studio-starter-phone-study-environment",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "765863a779b4da2f0daa0e751e01406f591e3d16c2b0cebf71879eea9c13f96b",
+      "bundle_review_sha256": "1a5fdfd583ca5014ac1d69f6805378f078cbf098ee11e462d814f8c0e0eef6c9",
+      "artifact_id": "travertine-color",
+      "role": "texture_image",
+      "path": "assets/phone-table/textures/travertine-color.jpg",
+      "size_bytes": 16152869,
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "license": "CC0-1.0",
+      "attribution": "ambientCG Travertine001 Color."
+    },
+    {
+      "bundle_id": "device-studio-starter-phone-study-environment",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "765863a779b4da2f0daa0e751e01406f591e3d16c2b0cebf71879eea9c13f96b",
+      "bundle_review_sha256": "1a5fdfd583ca5014ac1d69f6805378f078cbf098ee11e462d814f8c0e0eef6c9",
+      "artifact_id": "travertine-height",
+      "role": "texture_image",
+      "path": "assets/phone-table/textures/travertine-height.jpg",
+      "size_bytes": 355941,
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "license": "CC0-1.0",
+      "attribution": "ambientCG Travertine001 Displacement/Height; used as subtle bump only."
+    },
+    {
+      "bundle_id": "device-studio-starter-phone-study-environment",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "765863a779b4da2f0daa0e751e01406f591e3d16c2b0cebf71879eea9c13f96b",
+      "bundle_review_sha256": "1a5fdfd583ca5014ac1d69f6805378f078cbf098ee11e462d814f8c0e0eef6c9",
+      "artifact_id": "travertine-normal-gl",
+      "role": "texture_image",
+      "path": "assets/phone-table/textures/travertine-normal-gl.jpg",
+      "size_bytes": 5152752,
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "license": "CC0-1.0",
+      "attribution": "ambientCG Travertine001 NormalGL."
+    },
+    {
+      "bundle_id": "device-studio-starter-phone-study-environment",
+      "bundle_revision": 1,
+      "bundle_manifest_sha256": "765863a779b4da2f0daa0e751e01406f591e3d16c2b0cebf71879eea9c13f96b",
+      "bundle_review_sha256": "1a5fdfd583ca5014ac1d69f6805378f078cbf098ee11e462d814f8c0e0eef6c9",
+      "artifact_id": "travertine-roughness",
+      "role": "texture_image",
+      "path": "assets/phone-table/textures/travertine-roughness.jpg",
+      "size_bytes": 5302649,
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "license": "CC0-1.0",
+      "attribution": "ambientCG Travertine001 Roughness."
+    }
+  ],
+  "library_review_permissions_preserved": {
+    "bundle_allowed_uses": [
+      "edit",
+      "render"
+    ],
+    "artifact_allowed_uses": [
+      "edit",
+      "render"
+    ],
+    "note": "This local reviewed-starter install does not widen the original Library source review permissions."
+  },
+  "excluded_from_payload": [
+    "Jack Baeten MacBook creator model (CC BY 4.0); not referenced by the accepted smart-display scene closure.",
+    "The phone-study scene GLBs in the same ambientCG source bundle; the accepted scene references only the four listed texture maps."
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-soak-1789547720901983992",
+  "lane": "realtime",
+  "profile": "realistic",
+  "shape": "realistic",
+  "turns": 30,
+  "cell": {
+    "engineId": "kyutai",
+    "modelId": "kyutai/stt-1b-en_fr",
+    "strategy": "passthrough",
+    "policy": "default"
+  },
+  "code": {
+    "capturePackage": "sha256:919311149be956d0be5e8d4df3e3f993835f76a36b8b885e28938cdf8ac6bb00",
+    "server": "sha256:59df5d61fbb0718479eac9ce2e7536f87ea29a087cc1e1868d2b666d35fa35d2"
+  },
+  "durationMs": 94653,
+  "assertions": [
+    {
+      "name": "interval_accounting_exactly_once",
+      "outcome": "passed",
+      "detail": "30 browser turns observed with monotonic capture coverage; signal_observed=true"
+    },
+    {
+      "name": "capture_signal_observed",
+      "outcome": "passed",
+      "detail": "non-silent PCM observed on 30/30 browser turns"
+    },
+    {
+      "name": "browser_retention_bounded",
+      "outcome": "passed",
+      "detail": "metadata-only browser retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "server_retention_bounded",
+      "outcome": "passed",
+      "detail": "server ledger retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "per_frame_cost_constant",
+      "outcome": "passed",
+      "detail": "captured sample spread max/min=1.126 (38356/34056), limit=1.50"
+    },
+    {
+      "name": "zero_duplicate_committed_segments",
+      "outcome": "passed",
+      "detail": "server ledger committed segment ids were unique"
+    },
+    {
+      "name": "zero_silent_terminal_outcomes",
+      "outcome": "passed",
+      "detail": "every observed turn exposed a terminal state or reason"
+    },
+    {
+      "name": "provider_cell_identity",
+      "outcome": "passed",
+      "detail": "provider=\"kyutai\" model=\"kyutai/stt-1b-en_fr\" observed for 30 turns"
+    },
+    {
+      "name": "peak_memory_flat",
+      "outcome": "passed",
+      "detail": "audio-tools server heap delta=0 bytes across turns"
+    },
+    {
+      "name": "wire_rate_within_budget",
+      "outcome": "passed",
+      "detail": "captured wire rate 17028..19178 samples/s; expected 8000..24000"
+    },
+    {
+      "name": "first_partial_latency_stable",
+      "outcome": "failed",
+      "detail": "first_partial_latency_stable exceeded approved speech-to-visible-partial p95: p95=1290.00ms target\u003c=1000ms across 30 realtime turns; first=1068.00ms last=1074.00ms"
+    },
+    {
+      "name": "committed_text_lag_stable",
+      "outcome": "not_measured",
+      "detail": "no realtime observations were available"
+    },
+    {
+      "name": "continuous_interim_text_visible",
+      "outcome": "passed",
+      "detail": "interim text remained visible at 30/30 realtime feed checkpoints across 30 turn(s)"
+    },
+    {
+      "name": "word_error_rate_stable",
+      "outcome": "not_measured",
+      "detail": "reference_text was not supplied; the driver will not invent a transcript reference"
+    },
+    {
+      "name": "punctuation_rate_recorded",
+      "outcome": "not_measured",
+      "detail": "reference_text was not supplied"
+    },
+    {
+      "name": "capitalisation_rate_recorded",
+      "outcome": "not_measured",
+      "detail": "reference_text was not supplied"
+    }
+  ]
+}
+

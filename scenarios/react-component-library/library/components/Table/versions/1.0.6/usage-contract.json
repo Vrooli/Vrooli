@@ -1,0 +1,30 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "TableHead",
+      "TableBody",
+      "TableCaption",
+      "TableRow",
+      "TableCell",
+      "thead",
+      "tbody",
+      "caption",
+      "tr",
+      "th",
+      "td"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:Table",
+  "items": {
+    "labelField": "row[primaryColumn]",
+    "maximumCount": 100,
+    "maximumLabelCharacters": 64,
+    "primaryAction": "not-applicable",
+    "property": "rows",
+    "stableIdField": "row.id",
+    "typicalCount": 8
+  },
+  "version": "1.0.6"
+}

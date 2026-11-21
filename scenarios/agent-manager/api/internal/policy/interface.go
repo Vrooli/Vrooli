@@ -15,6 +15,7 @@ import (
 	"context"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -82,20 +83,16 @@ type Decision struct {
 	// DenialPolicy is the policy that caused denial (if any).
 	DenialPolicy *domain.Policy
 
-	// RequiresSandbox indicates sandbox mode must be used.
-	RequiresSandbox bool
-
-	// RequiresApproval indicates the run results need approval.
-	RequiresApproval bool
+	// RequiredSandboxMode is the minimum sandbox mode the run must use.
+	// SandboxModeUnspecified means the policy has no requirement; the
+	// resolved SandboxConfig.Mode wins. Higher modes are stricter:
+	// Off < Tracking < Protected. The orchestrator rejects the run with
+	// ErrCodePolicySandbox when the resolved cfg.SandboxConfig.Mode is
+	// below this minimum.
+	RequiredSandboxMode domain.SandboxMode
 
 	// EffectiveTimeout is the maximum execution time allowed.
 	EffectiveTimeout int64 // milliseconds
-
-	// EffectiveMaxFiles is the maximum files that can be changed.
-	EffectiveMaxFiles int
-
-	// EffectiveMaxSize is the maximum total size of changes.
-	EffectiveMaxSize int64 // bytes
 
 	// AppliedPolicies lists policies that contributed to this decision.
 	AppliedPolicies []AppliedPolicy

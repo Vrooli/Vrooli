@@ -1,0 +1,54 @@
+{
+  "loop_kind": "sweep",
+  "population": [
+    "team",
+    "agent"
+  ],
+  "required_read": [
+    {
+      "prefix": "team-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "agent-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "framework-health-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "team-visited/<team-id>"
+    },
+    {
+      "prefix": "agent-visited/<agent-id>"
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "team-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "agent-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "framework-health-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "team-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "agent-visited/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator"
+  ]
+}

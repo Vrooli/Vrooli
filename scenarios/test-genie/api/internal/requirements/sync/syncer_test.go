@@ -1104,6 +1104,7 @@ func TestSyncer_Integration(t *testing.T) {
 
 	opts := DefaultOptions()
 	opts.ScenarioRoot = scenarioDir
+	opts.ArtifactRoot = filepath.Join(tmpDir, "artifacts", "scenario")
 	opts.TestCommands = []string{"go test ./..."}
 
 	result, err := syncer.Sync(context.Background(), index, evidence, opts)
@@ -1112,7 +1113,7 @@ func TestSyncer_Integration(t *testing.T) {
 	}
 
 	// Verify metadata was written (this always happens when ScenarioRoot is set)
-	metadataPath := filepath.Join(scenarioDir, "coverage", "sync", "latest.json")
+	metadataPath := filepath.Join(opts.ArtifactRoot, "coverage", "sync", "latest.json")
 	metadataData, err := os.ReadFile(metadataPath)
 	if err != nil {
 		t.Fatalf("read metadata: %v", err)

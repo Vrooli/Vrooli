@@ -16,6 +16,126 @@ The resolution algorithm must work correctly in **all contexts** without hardcod
 
 ## The Resolution Algorithm
 
+## Local host services through a trusted UI origin
+
+Scenario UIs can opt into `localPortProxy` on `createScenarioServer` or
+`startScenarioServer`. The default route is `/_local/<port>/...`; Web Console
+uses it to turn terminal links such as `http://localhost:22705/jobs` into
+same-origin links that continue through the existing tunnel route.
+
+The proxy accepts canonical decimal ports from 1 through 65535 and dials only
+the fixed loopback address `127.0.0.1` or `::1`, selected from the original
+link's loopback host. It does not accept an arbitrary hostname, IP address,
+scheme, or redirect-selected destination. The UI, API, and WebSocket listener ports are
+excluded automatically; other exclusions can be set by the host scenario.
+HTTP request and response bodies are streamed through a bounded keep-alive
+agent, and WebSocket upgrades use the same loopback-only port check. Supported
+HTTP methods are GET, HEAD, POST, PUT, PATCH, DELETE, and OPTIONS. This is an
+HTTP(S)-browser-to-HTTP-loopback proxy; it does not forward arbitrary TCP or
+HTTPS upstream services.
+
+### Trust and isolation boundary
+
+This capability exposes every non-excluded loopback HTTP service to clients
+that reach the UI from the host's loopback interface. The proxy rejects direct
+LAN and remote connections even if they forge Fetch Metadata; Cloudflare's
+local tunnel connector reaches the UI over loopback. Hosts must also keep the
+public tunnel behind the same trusted access boundary as the UI (for Web
+Console, the tunnel's existing Access policy). It is not an authentication
+system or a substitute for that policy.
+
+Proxied HTML receives a restrictive CSP `sandbox` policy without
+`allow-same-origin`, so code served by a temporary local process cannot inherit
+the UI's origin privileges. The first HTML navigation is redirected to a
+signed, per-port capability path. The capability expires after 12 hours, is
+invalidated when the UI server restarts, and is scoped to one loopback address
+family and port. The proxy
+adds a streaming `<base>` tag and bootstrap that maps loopback HTTP,
+root-relative fetch/XHR, and WebSocket URLs back through that path. It rewrites
+root-relative HTML attributes, CSS URLs, and same-port redirects. Compressed
+HTML and CSS are decoded and rewritten while streaming. Unsupported encodings
+fail rather than returning a page without the routing bootstrap.
+
+The sandbox has an opaque browser origin. `Origin: null` alone grants no
+access: every destination request requires the signed capability. The only
+tokenless route is a same-origin HTML navigation identified by Fetch Metadata,
+which returns a no-store redirect containing a newly issued token without
+contacting the local service.
+Credentialed CORS for the opaque origin is enabled only on a valid capability
+path. The proxy runs before the scenario origin policy, which would refuse its
+opaque-origin requests, so the two policies stay independent
+([SECURITY.md](../../SECURITY.md)). Cross-site requests without a capability
+or from a foreign origin are rejected. Origin checks include the forwarded
+external scheme when the ingress supplies `X-Forwarded-Proto`. The upstream
+receives no browser `Origin`, `Referer` or `Sec-Fetch-*` headers: they describe
+the proxy page, and the proxy has already applied its own policy, so a target
+scenario's origin policy sees a non-browser caller.
+Proxied cookies are renamed and scoped to that port's proxy path;
+operator `Authorization` and forwarded headers are not sent upstream. The
+bootstrap supports common fetch, XHR, and WebSocket APIs, but not every browser
+API; WebAuthn, service workers, root-relative URLs assembled in unusual ways,
+and application-specific CSP rules may require extra support.
+
+### Request lifecycle and performance
+
+HTTP requests use this explicit lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Validate
+    Validate --> Rejected: invalid peer, method, port, path, origin, or token
+    Validate --> Bootstrap: same-origin HTML navigation without token
+    Bootstrap --> [*]: no-store redirect; no upstream request
+    Validate --> Connecting: valid capability
+    Connecting --> Failed: timeout or connect error
+    Connecting --> Streaming: upstream connected
+    Streaming --> Complete: response ended
+    Streaming --> Failed: upstream stream error
+    Streaming --> Cancelled: client abort or disconnect
+    Complete --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+    Rejected --> [*]
+```
+
+WebSocket upgrades have a separate bounded slot lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Validate
+    Validate --> Rejected: invalid peer, port, path, origin, or token
+    Validate --> Connecting: valid capability and available slot
+    Validate --> Rejected: capacity reached
+    Connecting --> Relaying: upstream connected
+    Connecting --> Closed: client/upstream error or timeout
+    Relaying --> Closed: either socket closes
+    Rejected --> [*]
+    Closed --> [*]: release slot once
+```
+
+Timeout, upstream failure, client abort, and response disconnect each terminate
+the HTTP upstream request. WebSocket capacity is released on close/error with
+an idempotent guard. There is no discovery call, scenario metadata lookup, HTML
+cache, or full-body buffering. Ordinary responses stream directly. HTML
+responses hold only the initial head (up to 64 KiB) so the proxy can insert a
+base tag, then continue streaming. The first HTML bytes therefore wait for the
+head or that bound; large assets and non-HTML responses retain streaming and
+compression. The shared HTTP agent caps pooled sockets at 128 total, and the
+proxy caps active WebSocket upgrades at 128. HTML and CSS request identity
+encoding where possible and support gzip, deflate, and Brotli responses.
+
+The performance profile is one additional loopback HTTP hop for ordinary
+responses, which stream without body buffering. HTML/CSS add decompression and
+URL-rewrite work; HTML also delays its first bytes until the head is available.
+These are architectural expectations, not measured throughput or latency
+figures; the package does not yet have a proxy benchmark or an end-to-end tunnel
+SLA.
+
+The operation is intentionally opt-in because arbitrary-port reachability has
+a broader trust scope than scenario metadata-based proxying. Hosts should
+exclude their own listener ports to prevent recursion and should not expose the
+route on an unauthenticated public UI.
+
 ### Priority Order
 
 When `resolveApiBase()` is called, it checks sources in this priority order:

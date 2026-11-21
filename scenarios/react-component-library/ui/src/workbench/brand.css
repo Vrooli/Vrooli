@@ -1,0 +1,40 @@
+/* Shell identity is data from Brand Manager; this file only lays it out. */
+.wb-brand-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.wb-brand-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-brand-mark img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.wb-brand-mark.is-fallback {
+  border: 1px solid var(--wb-line-2);
+  background: var(--wb-panel-3);
+  color: var(--wb-ink-2);
+  box-shadow: none;
+}
+.wb-brand-mono {
+  font: 600 9px/1 var(--wb-mono);
+  letter-spacing: 0.06em;
+}
+.wb-brand small.wb-brand-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.wb-brand-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--wb-line-3);
+}
+.wb-brand-dot.is-assigned {
+  background: var(--wb-green);
+}

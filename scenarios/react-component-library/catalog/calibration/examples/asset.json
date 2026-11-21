@@ -1,0 +1,1 @@
+{"kind":"catalog-asset","asset":{"id":"calibration-examples","name":"Calibration Examples","kind":"component","domain":"controls","targets":["react-vite"],"target":{"maturity":"implemented"}}}

@@ -3,6 +3,7 @@ import { ArrowUpRight, ChevronDown, ChevronUp, ExternalLink, Loader2, MessageSqu
 import { Button } from "../ui/button";
 import { IdentityBadge } from "../ui/identity-badge";
 import { cn, formatRelativeTime, canFollowUpExecution, canRunPostRunChecks, resolvePostRunExecution } from "../../lib";
+import { buildAgentRunUrl } from "../../services/external-links";
 import {
   BACKLOG_KIND_LABELS,
   EXECUTION_STATUS_COLORS,
@@ -233,7 +234,7 @@ export function ExecutionCard({
       <div className="flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
         {item.runId && agentManagerUiUrl ? (
           <a
-            href={`${agentManagerUiUrl}/runs/${item.runId}`}
+            href={buildAgentRunUrl(agentManagerUiUrl, item.runId) ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(event) => event.stopPropagation()}

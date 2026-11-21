@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — resource blueprint output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of `vrooli resource blueprint list|info|search|validate
+// --json`. Marshaled with protojson (UseProtoNames=true, EmitUnpopulated=true).
+// All messages are prefixed `Resource*` to stay globally unique within the
+// shared cliv1 package.
+// =============================================================================
+
+// ResourceBlueprint is one resource blueprint record (resources.Blueprint).
+message ResourceBlueprint {
+  // JSON schema reference URI; empty if unset (backs the "$schema" field).
+  string schema = 1;
+
+  // Blueprint slug (lowercase kebab-case).
+  string name = 2;
+
+  // Human-readable display name.
+  string display_name = 3;
+
+  // Category label.
+  string category = 4;
+
+  // One-line summary.
+  string summary = 5;
+
+  // Rationale for why the blueprint matters.
+  string why_it_matters = 6;
+
+  // Situations where the blueprint applies; at least one entry.
+  repeated string when_to_use = 7;
+
+  // Example scenarios that use the blueprint; empty if none.
+  repeated string example_scenarios = 8;
+
+  // Integration kind (e.g. "docker-service", "external-cli").
+  string integration_kind = 9;
+
+  // Cross-platform support metadata.
+  ResourceBlueprintPlatformSupport platform_support = 10;
+
+  // Prerequisites; empty if none.
+  repeated string prerequisites = 11;
+
+  // Dependency slugs; empty if none.
+  repeated string dependencies = 12;
+
+  // Recommended scaffold template.
+  string suggested_template = 13;
+
+  // Implementation guidance notes; at least one entry.
+  repeated string implementation_notes = 14;
+
+  // Operational guidance notes; at least one entry.
+  repeated string operational_notes = 15;
+
+  // Known risks; at least one entry.
+  repeated string risks = 16;
+
+  // Lifecycle status (e.g. "candidate", "validated", "prioritized").
+  string status = 17;
+
+  // Resources this blueprint replaces; empty if none.
+  repeated string replacement_for = 18;
+
+  // Supporting references; at least one entry.
+  repeated ResourceBlueprintReference references = 19;
+
+  // Last review date (YYYY-MM-DD).
+  string last_reviewed = 20;
+}
+
+// ResourceBlueprintPlatformSupport captures cross-platform support metadata.
+message ResourceBlueprintPlatformSupport {
+  // Portability tier (e.g. "full", "partial", "platform-specific").
+  string portability_tier = 1;
+
+  // Free-form portability notes.
+  string notes = 2;
+
+  // Linux support level (e.g. "supported", "partial", "unsupported", "unknown").
+  string linux = 3;
+
+  // macOS support level.
+  string macos = 4;
+
+  // Windows support level.
+  string windows = 5;
+}
+
+// ResourceBlueprintReference is one supporting reference for a blueprint.
+message ResourceBlueprintReference {
+  // Reference kind (e.g. "doc", "resource", "scenario", "registry", "website", "note").
+  string kind = 1;
+
+  // Reference value (URL, path, or slug).
+  string value = 2;
+}
+
+// ResourceBlueprintSummary is the condensed blueprint record used in the
+// validation report (resources.BlueprintSummary).
+message ResourceBlueprintSummary {
+  // Blueprint slug.
+  string name = 1;
+
+  // Human-readable display name.
+  string display_name = 2;
+
+  // Category label.
+  string category = 3;
+
+  // Lifecycle status.
+  string status = 4;
+
+  // Integration kind.
+  string integration_kind = 5;
+
+  // Recommended scaffold template.
+  string suggested_template = 6;
+
+  // Last review date (YYYY-MM-DD).
+  string last_reviewed = 7;
+
+  // One-line summary.
+  string summary = 8;
+}
+
+// ResourceBlueprintListResponse is `resource blueprint list --json`
+// (WriteSuccessJSON key "blueprints").
+message ResourceBlueprintListResponse {
+  // True when the listing completed; standard CLI success envelope.
+  bool success = 1;
+
+  // All blueprints, ordered by name.
+  repeated ResourceBlueprint blueprints = 2;
+}
+
+// ResourceBlueprintInfoResponse is `resource blueprint info --json`
+// (WriteSuccessJSON key "blueprint").
+message ResourceBlueprintInfoResponse {
+  // True when the blueprint was resolved; standard CLI success envelope.
+  bool success = 1;
+
+  // The requested blueprint record.
+  ResourceBlueprint blueprint = 2;
+}
+
+// ResourceBlueprintSearchResponse is `resource blueprint search --json`
+// (WriteSuccessFields: success + query + blueprints).
+message ResourceBlueprintSearchResponse {
+  // True when the search completed; standard CLI success envelope.
+  bool success = 1;
+
+  // Original search query string.
+  string query = 2;
+
+  // Matching blueprints, ordered by name.
+  repeated ResourceBlueprint blueprints = 3;
+}
+
+// ResourceBlueprintValidationReport is `resource blueprint validate --json`
+// (WriteSuccessJSON key "report").
+message ResourceBlueprintValidationReport {
+  // True when validation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The validation report payload.
+  ResourceBlueprintValidationReportBody report = 2;
+}
+
+// ResourceBlueprintValidationReportBody is the report payload
+// (resources.BlueprintValidationReport).
+message ResourceBlueprintValidationReportBody {
+  // Condensed summaries of every validated blueprint.
+  repeated ResourceBlueprintSummary blueprints = 1;
+
+  // Number of blueprints validated.
+  int32 count = 2;
+}

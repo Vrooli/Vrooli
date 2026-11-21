@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "nav.root": {
+      "testId": "nav-tabs",
+      "selector": "[data-testid=\"nav-tabs\"]"
+    },
+    "nav.tabSearch": {
+      "testId": "nav-tab-search",
+      "selector": "[data-testid=\"nav-tab-search\"]"
+    },
+    "nav.tabValidate": {
+      "testId": "nav-tab-validate",
+      "selector": "[data-testid=\"nav-tab-validate\"]"
+    },
+    "nav.tabStatus": {
+      "testId": "nav-tab-status",
+      "selector": "[data-testid=\"nav-tab-status\"]"
+    },
+    "search.card": {
+      "testId": "search-card",
+      "selector": "[data-testid=\"search-card\"]"
+    },
+    "search.input": {
+      "testId": "search-input",
+      "selector": "[data-testid=\"search-input\"]"
+    },
+    "search.submit": {
+      "testId": "search-submit",
+      "selector": "[data-testid=\"search-submit\"]"
+    },
+    "search.modeAi": {
+      "testId": "search-mode-ai",
+      "selector": "[data-testid=\"search-mode-ai\"]"
+    },
+    "search.modeText": {
+      "testId": "search-mode-text",
+      "selector": "[data-testid=\"search-mode-text\"]"
+    },
+    "search.loading": {
+      "testId": "search-loading",
+      "selector": "[data-testid=\"search-loading\"]"
+    },
+    "search.error": {
+      "testId": "search-error",
+      "selector": "[data-testid=\"search-error\"]"
+    },
+    "search.empty": {
+      "testId": "search-empty",
+      "selector": "[data-testid=\"search-empty\"]"
+    },
+    "search.modeUsed": {
+      "testId": "search-mode-used",
+      "selector": "[data-testid=\"search-mode-used\"]"
+    },
+    "search.reranker": {
+      "testId": "search-reranker",
+      "selector": "[data-testid=\"search-reranker\"]"
+    },
+    "search.results": {
+      "testId": "search-results",
+      "selector": "[data-testid=\"search-results\"]"
+    },
+    "search.result": {
+      "testId": "search-result",
+      "selector": "[data-testid=\"search-result\"]"
+    },
+    "search.weakMatch": {
+      "testId": "search-weak-match",
+      "selector": "[data-testid=\"search-weak-match\"]"
+    },
+    "validate.card": {
+      "testId": "validate-card",
+      "selector": "[data-testid=\"validate-card\"]"
+    },
+    "validate.input": {
+      "testId": "validate-input",
+      "selector": "[data-testid=\"validate-input\"]"
+    },
+    "validate.submit": {
+      "testId": "validate-submit",
+      "selector": "[data-testid=\"validate-submit\"]"
+    },
+    "validate.loading": {
+      "testId": "validate-loading",
+      "selector": "[data-testid=\"validate-loading\"]"
+    },
+    "validate.error": {
+      "testId": "validate-error",
+      "selector": "[data-testid=\"validate-error\"]"
+    },
+    "validate.passed": {
+      "testId": "validate-passed",
+      "selector": "[data-testid=\"validate-passed\"]"
+    },
+    "validate.failed": {
+      "testId": "validate-failed",
+      "selector": "[data-testid=\"validate-failed\"]"
+    },
+    "validate.summary": {
+      "testId": "validate-summary",
+      "selector": "[data-testid=\"validate-summary\"]"
+    },
+    "validate.findings": {
+      "testId": "validate-findings",
+      "selector": "[data-testid=\"validate-findings\"]"
+    },
+    "validate.finding": {
+      "testId": "validate-finding",
+      "selector": "[data-testid=\"validate-finding\"]"
+    },
+    "validate.empty": {
+      "testId": "validate-empty",
+      "selector": "[data-testid=\"validate-empty\"]"
+    },
+    "status.card": {
+      "testId": "status-card",
+      "selector": "[data-testid=\"status-card\"]"
+    },
+    "status.loading": {
+      "testId": "status-loading",
+      "selector": "[data-testid=\"status-loading\"]"
+    },
+    "status.error": {
+      "testId": "status-error",
+      "selector": "[data-testid=\"status-error\"]"
+    },
+    "status.available": {
+      "testId": "status-available",
+      "selector": "[data-testid=\"status-available\"]"
+    },
+    "status.ollama": {
+      "testId": "status-ollama",
+      "selector": "[data-testid=\"status-ollama\"]"
+    },
+    "status.qdrant": {
+      "testId": "status-qdrant",
+      "selector": "[data-testid=\"status-qdrant\"]"
+    },
+    "status.indexed": {
+      "testId": "status-indexed",
+      "selector": "[data-testid=\"status-indexed\"]"
+    },
+    "status.lastReconcile": {
+      "testId": "status-last-reconcile",
+      "selector": "[data-testid=\"status-last-reconcile\"]"
+    },
+    "status.reindex": {
+      "testId": "status-reindex",
+      "selector": "[data-testid=\"status-reindex\"]"
+    },
+    "status.reindexed": {
+      "testId": "status-reindexed",
+      "selector": "[data-testid=\"status-reindexed\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "4e652cd185bfa2ff7292e320078b526ffda36e5ed25de66d24a0badf323836e2",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

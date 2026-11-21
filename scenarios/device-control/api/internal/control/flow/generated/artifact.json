@@ -1,0 +1,533 @@
+{
+  "schemaVersion": 6,
+  "flowId": "device_control.session.lifecycle",
+  "source": {
+    "contractPath": "api/internal/control/flow/flow.json",
+    "contractSha256": "859a9d511900a3d98d709821347c8e9ce1bde24d929ecba06e1add74f854bbb5",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/control/flow/generated/model.qnt",
+    "modelSha256": "c7989c5b664401a5032bbecfdad3e6d0ecb9091d2398686c48b747dcc9e993e2",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/control/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "20260810",
+      "--max-samples",
+      "6",
+      "--n-traces",
+      "6",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/control/flow/generated/model.qnt",
+      "--seed",
+      "20260810"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/control/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/control/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "ExclusiveLease",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "idle",
+    "held",
+    "released",
+    "killed",
+    "expired"
+  ],
+  "events": [
+    "acquire",
+    "release",
+    "kill",
+    "expire"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "acquire",
+      "to": "held",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "release",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "kill",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "expire",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "held",
+      "event": "acquire",
+      "to": "held",
+      "wantError": true
+    },
+    {
+      "from": "held",
+      "event": "release",
+      "to": "released",
+      "wantError": false
+    },
+    {
+      "from": "held",
+      "event": "kill",
+      "to": "killed",
+      "wantError": false
+    },
+    {
+      "from": "held",
+      "event": "expire",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "released",
+      "event": "acquire",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "release",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "kill",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "released",
+      "event": "expire",
+      "to": "released",
+      "wantError": true
+    },
+    {
+      "from": "killed",
+      "event": "acquire",
+      "to": "killed",
+      "wantError": true
+    },
+    {
+      "from": "killed",
+      "event": "release",
+      "to": "killed",
+      "wantError": true
+    },
+    {
+      "from": "killed",
+      "event": "kill",
+      "to": "killed",
+      "wantError": true
+    },
+    {
+      "from": "killed",
+      "event": "expire",
+      "to": "killed",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "acquire",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "release",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "kill",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "expire",
+      "to": "expired",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "operator_release",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "operator_kill",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "kill",
+          "want": "killed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "lease_expiry",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "release",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "kill",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        },
+        {
+          "event": "acquire",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "released",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "kill",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "kill",
+          "want": "killed",
+          "wantError": false
+        },
+        {
+          "event": "release",
+          "want": "killed",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "killed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "acquire",
+          "want": "held",
+          "wantError": false
+        },
+        {
+          "event": "kill",
+          "want": "killed",
+          "wantError": false
+        },
+        {
+          "event": "kill",
+          "want": "killed",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "killed",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "killed",
+          "wantError": true
+        },
+        {
+          "event": "acquire",
+          "want": "killed",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "ExclusiveLease",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "held",
+        "released",
+        "killed",
+        "expired"
+      ],
+      "coveredEvents": [
+        "acquire",
+        "release",
+        "kill",
+        "expire"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "held",
+        "released",
+        "killed",
+        "expired"
+      ],
+      "coveredEvents": [
+        "acquire",
+        "release",
+        "kill",
+        "expire"
+      ],
+      "coveredPairs": [
+        "idle/acquire",
+        "idle/release",
+        "idle/kill",
+        "idle/expire",
+        "held/acquire",
+        "held/release",
+        "held/kill",
+        "held/expire",
+        "released/acquire",
+        "released/release",
+        "killed/acquire",
+        "killed/release",
+        "killed/kill",
+        "killed/expire",
+        "expired/acquire",
+        "expired/kill"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

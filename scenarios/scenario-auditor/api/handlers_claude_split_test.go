@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestClampAgentCount(t *testing.T) {
 	tests := []struct {
@@ -73,6 +76,19 @@ func TestSplitStandardsTargets(t *testing.T) {
 
 	if len(splits) > 3 {
 		t.Fatalf("expected at most 3 groups, got %d", len(splits))
+	}
+}
+
+func TestResolveScenarioPathUsesRepoContract(t *testing.T) {
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
+
+	got, err := resolveScenarioPath("demo")
+	if err != nil {
+		t.Fatalf("resolveScenarioPath: %v", err)
+	}
+	if got != filepath.Join(h.Root, "scenarios", "demo") {
+		t.Fatalf("resolveScenarioPath = %q", got)
 	}
 }
 

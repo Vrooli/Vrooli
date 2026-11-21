@@ -1,10 +1,14 @@
 import { Apple } from "lucide-react";
-import type { DiscoveredCertificate, MacOSSigningConfig } from "../../lib/api";
+import type {
+  DiscoveredCertificate,
+  MacOSSigningConfig,
+} from "../../domain/signing";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import { SigningFormWrapper } from "./SigningFormWrapper";
 import { DiscoveredCertSelector } from "./DiscoveredCertSelector";
+import { selectors } from "../../consts/selectors";
 
 interface MacOSSigningFormProps {
   config?: MacOSSigningConfig;
@@ -13,7 +17,12 @@ interface MacOSSigningFormProps {
   onApplyDiscovered?: (cert: DiscoveredCertificate) => void;
 }
 
-export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscovered }: MacOSSigningFormProps) {
+export function MacOSSigningForm({
+  config,
+  onChange,
+  discovered,
+  onApplyDiscovered,
+}: MacOSSigningFormProps) {
   const handleChange = (updates: Partial<MacOSSigningConfig>) => {
     onChange({
       identity: "",
@@ -21,7 +30,7 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
       hardened_runtime: true,
       notarize: false,
       ...config,
-      ...updates
+      ...updates,
     });
   };
 
@@ -31,7 +40,7 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
         identity: "",
         team_id: "",
         hardened_runtime: true,
-        notarize: false
+        notarize: false,
       });
     } else {
       onChange(undefined);
@@ -47,6 +56,7 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
       isConfigured={!!config}
       onToggle={handleEnable}
       disabledMessage="Enable macOS signing to configure Developer ID and notarization."
+      testId={selectors.signing.macosForm}
     >
       {discovered && discovered.length > 0 && onApplyDiscovered && (
         <DiscoveredCertSelector
@@ -59,11 +69,15 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
 
       {/* Signing Identity */}
       <div>
-        <Label htmlFor="macos-identity" className="text-xs">Signing Identity</Label>
+        <Label htmlFor="macos-identity" className="text-xs">
+          Signing Identity
+        </Label>
         <Input
           id="macos-identity"
           value={config?.identity ?? ""}
-          onChange={(e) => handleChange({ identity: e.target.value })}
+          onChange={(e) => {
+            handleChange({ identity: e.target.value });
+          }}
           placeholder="Developer ID Application: Company Name (TEAMID)"
           className="mt-1 text-sm"
         />
@@ -74,11 +88,15 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
 
       {/* Team ID */}
       <div>
-        <Label htmlFor="macos-team-id" className="text-xs">Team ID</Label>
+        <Label htmlFor="macos-team-id" className="text-xs">
+          Team ID
+        </Label>
         <Input
           id="macos-team-id"
           value={config?.team_id ?? ""}
-          onChange={(e) => handleChange({ team_id: e.target.value })}
+          onChange={(e) => {
+            handleChange({ team_id: e.target.value });
+          }}
           placeholder="TEAMID1234"
           className="mt-1 text-sm font-mono"
         />
@@ -92,7 +110,9 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
         <Checkbox
           id="macos-hardened"
           checked={config?.hardened_runtime ?? true}
-          onChange={(e) => handleChange({ hardened_runtime: e.target.checked })}
+          onChange={(e) => {
+            handleChange({ hardened_runtime: e.target.checked });
+          }}
         />
         <Label htmlFor="macos-hardened" className="text-xs">
           Enable Hardened Runtime (required for notarization)
@@ -101,11 +121,15 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
 
       {/* Entitlements */}
       <div>
-        <Label htmlFor="macos-entitlements" className="text-xs">Entitlements File (Optional)</Label>
+        <Label htmlFor="macos-entitlements" className="text-xs">
+          Entitlements File (Optional)
+        </Label>
         <Input
           id="macos-entitlements"
           value={config?.entitlements_file || ""}
-          onChange={(e) => handleChange({ entitlements_file: e.target.value })}
+          onChange={(e) => {
+            handleChange({ entitlements_file: e.target.value });
+          }}
           placeholder="/path/to/entitlements.plist"
           className="mt-1 text-sm"
         />
@@ -117,7 +141,9 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
           <Checkbox
             id="macos-notarize"
             checked={config?.notarize ?? false}
-            onChange={(e) => handleChange({ notarize: e.target.checked })}
+            onChange={(e) => {
+              handleChange({ notarize: e.target.checked });
+            }}
           />
           <Label htmlFor="macos-notarize" className="text-sm font-medium">
             Enable Notarization
@@ -137,31 +163,43 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
               </p>
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="macos-api-key-id" className="text-xs">API Key ID</Label>
+                  <Label htmlFor="macos-api-key-id" className="text-xs">
+                    API Key ID
+                  </Label>
                   <Input
                     id="macos-api-key-id"
                     value={config.apple_api_key_id || ""}
-                    onChange={(e) => handleChange({ apple_api_key_id: e.target.value })}
+                    onChange={(e) => {
+                      handleChange({ apple_api_key_id: e.target.value });
+                    }}
                     placeholder="ABC123DEF4"
                     className="mt-1 text-sm font-mono"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="macos-api-issuer" className="text-xs">API Issuer ID</Label>
+                  <Label htmlFor="macos-api-issuer" className="text-xs">
+                    API Issuer ID
+                  </Label>
                   <Input
                     id="macos-api-issuer"
                     value={config.apple_api_issuer_id || ""}
-                    onChange={(e) => handleChange({ apple_api_issuer_id: e.target.value })}
+                    onChange={(e) => {
+                      handleChange({ apple_api_issuer_id: e.target.value });
+                    }}
                     placeholder="12345678-1234-1234-1234-123456789012"
                     className="mt-1 text-sm font-mono"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="macos-api-key-file" className="text-xs">API Key File Path</Label>
+                  <Label htmlFor="macos-api-key-file" className="text-xs">
+                    API Key File Path
+                  </Label>
                   <Input
                     id="macos-api-key-file"
                     value={config.apple_api_key_file || ""}
-                    onChange={(e) => handleChange({ apple_api_key_file: e.target.value })}
+                    onChange={(e) => {
+                      handleChange({ apple_api_key_file: e.target.value });
+                    }}
                     placeholder="/path/to/AuthKey_ABC123DEF4.p8"
                     className="mt-1 text-sm"
                   />
@@ -176,21 +214,29 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
               </p>
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="macos-apple-id-env" className="text-xs">Apple ID Environment Variable</Label>
+                  <Label htmlFor="macos-apple-id-env" className="text-xs">
+                    Apple ID Environment Variable
+                  </Label>
                   <Input
                     id="macos-apple-id-env"
                     value={config.apple_id_env || ""}
-                    onChange={(e) => handleChange({ apple_id_env: e.target.value })}
+                    onChange={(e) => {
+                      handleChange({ apple_id_env: e.target.value });
+                    }}
                     placeholder="APPLE_ID"
                     className="mt-1 text-sm"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="macos-apple-password-env" className="text-xs">App Password Environment Variable</Label>
+                  <Label htmlFor="macos-apple-password-env" className="text-xs">
+                    App Password Environment Variable
+                  </Label>
                   <Input
                     id="macos-apple-password-env"
                     value={config.apple_id_password_env || ""}
-                    onChange={(e) => handleChange({ apple_id_password_env: e.target.value })}
+                    onChange={(e) => {
+                      handleChange({ apple_id_password_env: e.target.value });
+                    }}
                     placeholder="APPLE_APP_SPECIFIC_PASSWORD"
                     className="mt-1 text-sm"
                   />
@@ -206,7 +252,9 @@ export function MacOSSigningForm({ config, onChange, discovered, onApplyDiscover
         <Checkbox
           id="macos-gatekeeper"
           checked={config?.gatekeeper_assess ?? true}
-          onChange={(e) => handleChange({ gatekeeper_assess: e.target.checked })}
+          onChange={(e) => {
+            handleChange({ gatekeeper_assess: e.target.checked });
+          }}
         />
         <Label htmlFor="macos-gatekeeper" className="text-xs">
           Run Gatekeeper assessment after signing

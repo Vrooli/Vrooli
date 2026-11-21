@@ -9,8 +9,16 @@ import (
 	"time"
 )
 
+func (o *DefaultOrchestrator) transitionStatus(status *Status, pipelineID string, next PipelineStatus) bool {
+	if err := status.TransitionStatus(next); err != nil {
+		o.logger.Error("invalid pipeline status transition", "pipeline_id", pipelineID, "next", next, "error", err)
+		return false
+	}
+	return true
+}
+
 // runPipelineAsync executes the pipeline stages sequentially.
-func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
+func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *PipelineConfig) {
 	defer o.cancelManager.Clear(pipelineID)
 
 	success := false
@@ -28,7 +36,9 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 
 	// Update status to running and transition to initializing state
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusRunning
+		if !o.transitionStatus(s, pipelineID, StatusRunning) {
+			return
+		}
 		s.TransitionTo(PipelineStateInitializing, "Pipeline starting execution")
 		s.UpdateProgress()
 	})
@@ -56,10 +66,11 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	resumeFromStage := config.GetResumeFromStage()
 	reachedResumeStage := resumeFromStage == "" // If not resuming, consider it reached
 
-	// Filter stages if specific stages were requested
-	stagesToRun := o.stages
+	// Filter stages if specific stages were requested. A release-bound deploy
+	// run is a publication of an already qualified candidate; it must not
+	// expand into a source rebuild through deploy's normal stage dependencies.
+	stagesToRun := o.stagesForConfig(config)
 	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToRun = o.filterStages(requestedStages)
 		o.logger.Info("Filtered stages for execution",
 			"pipeline_id", pipelineID,
 			"requested", requestedStages,
@@ -105,7 +116,9 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	// Mark pipeline as completed
 	finalArtifacts := collectArtifacts(input)
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
+		if !o.transitionStatus(s, pipelineID, StatusCompleted) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.FinalArtifacts = finalArtifacts
@@ -127,7 +140,7 @@ const (
 )
 
 // executeStage runs a single pipeline stage and returns the outcome.
-func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, input *StageInput, config *Config, pipelineID string) stageOutcome {
+func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, input *StageInput, config *PipelineConfig, pipelineID string) stageOutcome {
 	stageName := stage.Name()
 
 	o.store.Update(pipelineID, func(s *Status) {
@@ -175,7 +188,9 @@ func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, inp
 
 	if result.Status == StatusFailed && config.GetStopOnFailure() {
 		o.store.Update(pipelineID, func(s *Status) {
-			s.Status = StatusFailed
+			if !o.transitionStatus(s, pipelineID, StatusFailed) {
+				return
+			}
 			s.CompletedAt = o.timeProvider.Now()
 			s.Error = fmt.Sprintf("stage %s failed: %s", stageName, result.Error)
 			s.TransitionTo(PipelineStateFailed, fmt.Sprintf("Stage %s failed", stageName))
@@ -190,7 +205,9 @@ func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, inp
 
 	if result.Status == StatusCancelled {
 		o.store.Update(pipelineID, func(s *Status) {
-			s.Status = StatusCancelled
+			if !o.transitionStatus(s, pipelineID, StatusCancelled) {
+				return
+			}
 			s.CompletedAt = o.timeProvider.Now()
 			s.Error = "pipeline cancelled"
 			s.TransitionTo(PipelineStateCancelled, fmt.Sprintf("Stage %s cancelled", stageName))
@@ -224,7 +241,9 @@ func (o *DefaultOrchestrator) markStageSkipped(pipelineID, stageName, reason str
 // markPipelineCancelled records the pipeline as cancelled via context.
 func (o *DefaultOrchestrator) markPipelineCancelled(pipelineID string) {
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCancelled
+		if !o.transitionStatus(s, pipelineID, StatusCancelled) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.Error = "pipeline cancelled"
 		s.TransitionTo(PipelineStateCancelled, "Pipeline cancelled by context")
@@ -234,7 +253,7 @@ func (o *DefaultOrchestrator) markPipelineCancelled(pipelineID string) {
 }
 
 // restoreResumeInput copies saved input from a parent pipeline when resuming.
-func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *Config, pipelineID string) {
+func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *PipelineConfig, pipelineID string) {
 	if config.ParentPipelineID == "" {
 		return
 	}
@@ -247,6 +266,7 @@ func (o *DefaultOrchestrator) restoreResumeInput(input *StageInput, config *Conf
 	input.GenerationResult = parentStatus.ResumedInput.GenerationResult
 	input.BuildResult = parentStatus.ResumedInput.BuildResult
 	input.SmokeTestResult = parentStatus.ResumedInput.SmokeTestResult
+	input.ValidationMatrixResult = parentStatus.ResumedInput.ValidationMatrixResult
 	input.DeployResult = parentStatus.ResumedInput.DeployResult
 	input.ScenarioMetadata = parentStatus.ResumedInput.ScenarioMetadata
 	input.DesktopPath = parentStatus.ResumedInput.DesktopPath
@@ -258,7 +278,9 @@ func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input
 	finalArtifacts := collectArtifacts(input)
 
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
+		if !o.transitionStatus(s, pipelineID, StatusCompleted) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.StoppedAfterStage = stageName
@@ -335,12 +357,32 @@ func collectArtifacts(input *StageInput) map[string]string {
 	return GetReadyArtifacts(input.BuildResult.PlatformResults)
 }
 
-// filterStages returns only the stages that match the requested stage names.
-// The returned stages preserve the original pipeline order, not the order of the requested list.
+// filterStages returns requested stages plus their transitive dependencies. A
+// caller cannot ask for bundle alone and bypass mandatory deployment admission.
+// The returned stages preserve pipeline order, not request order.
 func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
+	byName := make(map[string]Stage, len(o.stages))
+	for _, stage := range o.stages {
+		byName[stage.Name()] = stage
+	}
 	requestedSet := make(map[string]bool, len(requested))
 	for _, name := range requested {
 		requestedSet[name] = true
+	}
+	for changed := true; changed; {
+		changed = false
+		for name := range requestedSet {
+			stage := byName[name]
+			if stage == nil {
+				continue
+			}
+			for _, dependency := range stage.Dependencies() {
+				if !requestedSet[dependency] {
+					requestedSet[dependency] = true
+					changed = true
+				}
+			}
+		}
 	}
 
 	filtered := make([]Stage, 0, len(requested))
@@ -350,4 +392,19 @@ func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
 		}
 	}
 	return filtered
+}
+
+func (o *DefaultOrchestrator) stagesForConfig(config *PipelineConfig) []Stage {
+	if config != nil && config.ArtifactManifestDigest != "" && config.DeployConfig != nil && config.DeployConfig.ReleaseID != "" && len(config.GetStages()) == 1 && config.GetStages()[0] == StageDeploy {
+		for _, stage := range o.stages {
+			if stage.Name() == StageDeploy {
+				return []Stage{stage}
+			}
+		}
+		return nil
+	}
+	if requested := config.GetStages(); len(requested) > 0 {
+		return o.filterStages(requested)
+	}
+	return o.stages
 }

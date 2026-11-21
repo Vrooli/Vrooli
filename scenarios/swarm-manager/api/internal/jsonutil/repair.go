@@ -9,7 +9,7 @@ import "encoding/json"
 // Returns nil if no repair is possible.
 func RepairTruncatedJSON(data []byte) []byte {
 	// Find the opening bracket of the first array value in the JSON.
-	var arrayStart int = -1
+	arrayStart := -1
 	for i := 0; i < len(data); i++ {
 		if data[i] == '[' {
 			arrayStart = i

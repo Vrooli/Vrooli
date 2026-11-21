@@ -1,6 +1,45 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "api_storage": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned API storage observed in the canonical API storage directory.",
+        "subpath": "api/storage",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "scenario-auditor",
     "displayName": "Scenario Auditor",
@@ -45,7 +84,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36224,
+      "port": 21224,
       "description": "Auditing dashboard UI port"
     }
   },
@@ -78,109 +117,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Scenario Auditor",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-auditor-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-auditor"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-auditor-api .",
-          "description": "Build API server binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\u2705 Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Scenario Auditor services in development mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-auditor-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/scenario-auditor-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\u2705 Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-auditor",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-auditor --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop Scenario Auditor services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-auditor-api\" || true; sleep 1; pkill -9 -f \"scenario-auditor-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"vite.*scenario-auditor\" || true; sleep 1; pkill -9 -f \"vite.*scenario-auditor\" 2>/dev/null || true",
-          "description": "Stop Vite dev server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -190,40 +126,111 @@
         "enabled": true,
         "required": true,
         "description": "Stores rule definitions, scan results, user preferences, and audit history",
-        "schema": "scenario_auditor"
+        "schema": "scenario_auditor",
+        "startup_policy": "must_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": true,
-        "description": "AI agent spawning for automated fix generation and rule creation"
+        "description": "AI agent spawning for automated fix generation and rule creation",
+        "startup_policy": "must_start"
       },
       "opencode": {
         "type": "opencode",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "description": "Auto-detected via analyzer (resource_cli)",
+        "startup_policy": "must_start"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "description": "Role-based model selection for dispatched fix agents via `resource-openrouter policy resolve`",
+        "model_roles": [
+          "agent.tools"
+        ],
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "model_roles": [
+          "chat.default",
+          "embedding.default"
+        ],
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-auditor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
       }
     },
-    "scenarios": {
-      "app-issue-tracker": {
-        "required": true,
-        "version": "2.0.0-file-based",
-        "versionRange": ">=2.0.0-file-based",
-        "description": "Auto-detected dependency via scenario_port_cli"
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

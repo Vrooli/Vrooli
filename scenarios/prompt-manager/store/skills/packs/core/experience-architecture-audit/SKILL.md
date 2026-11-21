@@ -1,3 +1,23 @@
+---
+name: "experience-architecture-audit"
+description: "Audit the overall user and developer experience architecture"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","ux","audits"]
+  tags: ["skill"]
+  icon: "layout"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Experience Architecture Audit
 
 Prioritize understanding and improving the **experience architecture** of this scenario:
@@ -15,7 +35,7 @@ Do **not** break functionality, regress tests, or introduce new product directio
 
 ### **1. Clarify Scenario Purpose & User Intent**
 
-* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read it first to understand what personas, flows, and friction points have been identified.
+* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read it as a legacy input; otherwise use the scenario's existing `ARCHITECTURE.md`, `PROBLEMS.md`, and UI flow spec to understand prior findings.
 
 * Review the scenario's **PRD, operational targets, and UI** to answer:
   * What problem does this scenario solve?
@@ -51,6 +71,9 @@ For each persona + job:
   * Navigation depth (how many steps/clicks)
   * Places where the user must **remember** something (which item, which project, which filter, etc.)
   * Places where the user must **hunt** for the next action or is forced to “drill down” repeatedly
+  * Components whose expected affordances are missing or hidden, such as tables
+    without sort/filter/search, long lists without search, forms without
+    validation states, or destructive actions without confirmation and feedback
 
 Capture these current flows in a succinct, structured way (e.g. “Current: Dashboard → … → …”) in your internal reasoning and summary note.
 
@@ -81,10 +104,15 @@ For each persona + job, compare **Current vs. Ideal**:
   * Hidden or non-obvious entry points
   * Forced detours through organizational layers that don’t match user mental models
   * Missing “resume” or “shortcut” affordances
+  * Missing component affordances users reasonably expect for the task: sort,
+    filter, search, validation, confirmation, retry, progress, stale/refresh,
+    and post-action feedback
 * Categorize friction where useful:
   * **Mechanical** (too many clicks/scrolls/inputs)
   * **Cognitive** (user must remember too much or guess)
   * **Discoverability** (important capabilities are buried or invisible)
+  * **Affordance** (the component is present but cannot support the expected
+    operation)
 
 Focus on **concrete, observable gaps** rather than vague “this feels clunky” opinions.
 
@@ -157,11 +185,14 @@ Avoid superficial UI tweaks or purely aesthetic changes. Prioritize improvements
 
 ### **10. Documentation**
 
-Update `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:
+Record durable findings in the scenario's existing `ARCHITECTURE.md` or
+`PROBLEMS.md`; do not create a standalone `EXPERIENCE-AUDIT.md` solely for
+this pass. If a legacy audit exists, correct only claims that affect the
+canonical documents:
 
 * The code is the source of truth. Verify existing claims against actual code before extending.
 * Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+* Create the `path:docs/internal/` directory if needed.
 
 Include:
 * Personas and their primary jobs

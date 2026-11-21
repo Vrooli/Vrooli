@@ -37,8 +37,6 @@ interface UseRecordingSessionReturn {
   sessionError: string | null;
   /** Actual viewport from Playwright with source attribution (may differ from requested due to profile settings) */
   actualViewport: ActualViewport | null;
-  /** Initial URL from tab restoration (if tabs were restored during session creation) */
-  initialRestoredUrl: string | null;
   ensureSession: (
     viewport?: ViewportDimensions | null,
     profileId?: string | null,
@@ -64,7 +62,6 @@ export function useRecordingSession({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [actualViewport, setActualViewport] = useState<ActualViewport | null>(null);
-  const [initialRestoredUrl, setInitialRestoredUrl] = useState<string | null>(null);
 
   // Retry state for exponential backoff
   const [retryState, setRetryState] = useState<RetryState>(createInitialRetryState);
@@ -83,24 +80,56 @@ export function useRecordingSession({
   // We use a ref because React state updates are async and multiple calls
   // to ensureSession could race past the sessionId check before state updates.
   const pendingSessionPromiseRef = useRef<Promise<string | null> | null>(null);
+  const creationOwnerRef = useRef<object | null>(null);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryAttemptsRef = useRef(0);
 
   // AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false);
+  const ownerRef = useRef({ initialSessionId, profileId: initialSessionProfileId, generation: 0 });
+  if (ownerRef.current.initialSessionId !== initialSessionId || ownerRef.current.profileId !== initialSessionProfileId) {
+    ownerRef.current = { initialSessionId, profileId: initialSessionProfileId, generation: ownerRef.current.generation + 1 };
+  }
+  const controllerGenerationRef = useRef(-1);
+  const validationGenerationRef = useRef(0);
 
   // Clean up on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      ownerRef.current = { ...ownerRef.current, generation: ownerRef.current.generation + 1 };
+      validationGenerationRef.current += 1;
       if (cooldownTimerRef.current) {
         clearTimeout(cooldownTimerRef.current);
       }
       abortControllerRef.current?.abort();
+      if (creationOwnerRef.current) storeSetIsCreating(false, creationOwnerRef.current);
+      creationOwnerRef.current = null;
     };
-  }, []);
+  }, [storeSetIsCreating]);
 
   // Validate URL-based session ID on mount/change
   useEffect(() => {
+    const generation = ownerRef.current.generation;
+    const validationGeneration = ++validationGenerationRef.current;
+    const isCurrent = () => mountedRef.current && ownerRef.current.generation === generation;
+    if (controllerGenerationRef.current !== generation) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      controllerGenerationRef.current = generation;
+      pendingSessionPromiseRef.current = null;
+      if (creationOwnerRef.current) storeSetIsCreating(false, creationOwnerRef.current);
+      creationOwnerRef.current = null;
+      setIsCreatingSession(false);
+      retryAttemptsRef.current = 0;
+      setRetryState(createInitialRetryState());
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    }
     // If the URL session matches what's already validated in the store, skip validation.
     // This prevents unnecessary WebSocket subscription flapping when the URL updates
     // after session creation (e.g., redirect from /record to /record/<session_id>).
@@ -109,8 +138,13 @@ export function useRecordingSession({
         sessionId: initialSessionId,
       });
       // Still sync local state
+      // A created session's own URL redirect retains its profile/viewport.
+      // A different validated session must not inherit that presentation.
+      const isCreatedSessionRedirect = initialSessionId === sessionId;
       setSessionId(initialSessionId);
-      setSessionProfileId(initialSessionProfileId ?? null);
+      setSessionProfileId(current => initialSessionProfileId ?? (isCreatedSessionRedirect ? current : null));
+      if (!isCreatedSessionRedirect) setActualViewport(null);
+      setSessionError(null);
       return;
     }
 
@@ -124,24 +158,11 @@ export function useRecordingSession({
       return;
     }
 
-    // Abort any pending requests when session changes
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
     // Reset local state
     setSessionId(initialSessionId ?? null);
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
     setActualViewport(null);
-    setInitialRestoredUrl(null);
-    pendingSessionPromiseRef.current = null;
-    // Reset retry state when session ID changes externally
-    retryAttemptsRef.current = 0;
-    setRetryState(createInitialRetryState());
-    if (cooldownTimerRef.current) {
-      clearTimeout(cooldownTimerRef.current);
-      cooldownTimerRef.current = null;
-    }
 
     // If switching to a different session (or no session), clear the store first
     if (storeSessionId && storeSessionId !== initialSessionId) {
@@ -155,7 +176,8 @@ export function useRecordingSession({
     // If we have an initial session ID from URL, validate it exists on server
     if (initialSessionId) {
       logger.debug('[useRecordingSession] Validating URL session:', { sessionId: initialSessionId });
-      storeValidateSession(initialSessionId).then((isValid) => {
+      storeValidateSession(initialSessionId, { profileId: initialSessionProfileId, signal: abortControllerRef.current?.signal }).then((isValid) => {
+        if (!isCurrent() || validationGenerationRef.current !== validationGeneration) return;
         if (!isValid) {
           logger.info('[useRecordingSession] URL session invalid, will create new one', {
             sessionId: initialSessionId,
@@ -164,22 +186,21 @@ export function useRecordingSession({
           setSessionId(null);
         } else {
           logger.debug('[useRecordingSession] URL session validated:', { sessionId: initialSessionId });
-          // Session is valid - sync to store
-          storeSetSession({
-            sessionId: initialSessionId,
-            profileId: initialSessionProfileId,
-          });
+          // Validation commits its identity/profile at the store owner. A
+          // second hook commit could revive a retired validation attempt.
         }
       });
     }
-  }, [initialSessionId, initialSessionProfileId, storeSessionId, storeIsValidated, storeClearSession, storeValidateSession, storeSetSession]);
+  }, [initialSessionId, initialSessionProfileId, storeSessionId, storeIsValidated, storeClearSession, storeValidateSession, storeSetIsCreating]);
 
+  const ownerGeneration = ownerRef.current.generation;
   const ensureSession = useCallback(async (
     viewport?: ViewportDimensions | null,
     profileId?: string | null,
     streamSettings?: StreamSettings | null,
     restoreTabs?: boolean
   ): Promise<string | null> => {
+    if (!mountedRef.current || ownerRef.current.generation !== ownerGeneration) return null;
     if (sessionId) {
       return sessionId;
     }
@@ -201,8 +222,13 @@ export function useRecordingSession({
 
     setIsCreatingSession(true);
     setSessionError(null);
-    storeSetIsCreating(true);
+    const creationOwner = {};
+    creationOwnerRef.current = creationOwner;
+    storeSetIsCreating(true, creationOwner);
     storeSetError(null);
+    const generation = ownerRef.current.generation;
+    const controller = abortControllerRef.current;
+    const isCurrent = () => mountedRef.current && ownerRef.current.generation === generation && !controller?.signal.aborted;
 
     const createSession = async (): Promise<string | null> => {
       try {
@@ -216,14 +242,16 @@ export function useRecordingSession({
             streamScale: streamSettings?.scale,
             restoreTabs,
           },
-          { signal: abortControllerRef.current?.signal }
+          { signal: controller?.signal }
         );
+
+        if (!isCurrent()) return null;
 
         if (!result.success) {
           throw new Error(result.error);
         }
 
-        const { session_id: newSessionId, session_profile_id, actual_viewport, initial_url } = result.data;
+        const { session_id: newSessionId, session_profile_id, actual_viewport } = result.data;
 
         // Success - reset retry state
         retryAttemptsRef.current = 0;
@@ -237,16 +265,12 @@ export function useRecordingSession({
         if (actual_viewport) {
           setActualViewport(actual_viewport);
         }
-        if (initial_url) {
-          setInitialRestoredUrl(initial_url);
-        }
 
         // Sync session to store
         storeSetSession({
           sessionId: newSessionId,
           profileId: session_profile_id ?? null,
           actualViewport: actual_viewport ?? null,
-          initialRestoredUrl: initial_url ?? null,
         });
 
         if (onSessionReady) {
@@ -254,6 +278,7 @@ export function useRecordingSession({
         }
         return newSessionId;
       } catch (err) {
+        if (!isCurrent()) return null;
         // Handle abort
         if (err instanceof Error && err.name === 'AbortError') {
           return null;
@@ -286,6 +311,7 @@ export function useRecordingSession({
 
           // Clear cooldown after delay
           cooldownTimerRef.current = setTimeout(() => {
+            if (!isCurrent()) return;
             setRetryState((prev) => ({
               ...prev,
               inCooldown: false,
@@ -297,16 +323,21 @@ export function useRecordingSession({
 
         return null;
       } finally {
-        setIsCreatingSession(false);
-        storeSetIsCreating(false);
-        pendingSessionPromiseRef.current = null;
+        if (isCurrent()) {
+          setIsCreatingSession(false);
+          storeSetIsCreating(false, creationOwner);
+          if (creationOwnerRef.current === creationOwner) {
+            creationOwnerRef.current = null;
+            pendingSessionPromiseRef.current = null;
+          }
+        }
       }
     };
 
     // Store the promise so concurrent calls can wait on the same request
     pendingSessionPromiseRef.current = createSession();
     return pendingSessionPromiseRef.current;
-  }, [sessionId, sessionProfileId, onSessionReady, retryState.inCooldown, retryState.maxRetriesExceeded, storeSetIsCreating, storeSetError, storeSetSession, storeSetRetryState]);
+  }, [ownerGeneration, sessionId, sessionProfileId, onSessionReady, retryState.inCooldown, retryState.maxRetriesExceeded, storeSetIsCreating, storeSetError, storeSetSession, storeSetRetryState]);
 
   // Manual retry function - resets retry state and allows another attempt
   const retrySession = useCallback(() => {
@@ -332,7 +363,6 @@ export function useRecordingSession({
     isCreatingSession,
     sessionError,
     actualViewport,
-    initialRestoredUrl,
     ensureSession,
     setSessionProfileId,
     resetSessionError,

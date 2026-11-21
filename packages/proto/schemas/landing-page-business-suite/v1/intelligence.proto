@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// INTELLIGENCE DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Credit-accounted AI gateway access. Unary operations are served through
+// Connect; the provider-driven SSE stream remains a documented HTTP transport
+// until the domain's stream writer is replaced by a transport-neutral stream.
+
+message AIMessage {
+  string role = 1;
+  string content = 2;
+}
+
+message AIMetadata {
+  string app_bundle_key = 1;
+  string operation = 2;
+}
+
+message ChatRequest {
+  string model = 1;
+  repeated AIMessage messages = 2;
+  int32 max_tokens = 3;
+  AIMetadata metadata = 4;
+}
+
+message ChatResponse {
+  string id = 1;
+  string model = 2;
+  string content = 3;
+  int32 prompt_tokens = 4;
+  int32 completion_tokens = 5;
+  int32 total_tokens = 6;
+  int64 credits_charged = 7;
+  string finish_reason = 8;
+}
+
+message ListModelsRequest {}
+
+message ListModelsResponse {
+  repeated string models = 1;
+}
+
+message GetUsageRequest {}
+
+message GetUsageResponse {
+  string user_identity = 1;
+  string tier = 2;
+  string billing_period = 3;
+  string reset_date = 4;
+  int64 ai_credits_used = 5;
+  int64 ai_credits_limit = 6;
+  int64 ai_credits_remaining = 7;
+  double display_used = 8;
+  double display_limit = 9;
+  double display_remaining = 10;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string provider = 2;
+}
+
+service IntelligenceService {
+  rpc Chat(ChatRequest) returns (ChatResponse);
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc GetUsage(GetUsageRequest) returns (GetUsageResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}

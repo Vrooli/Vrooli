@@ -1,14 +1,57 @@
 package overview
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/dependencies/dependenciesv1connect"
+	fitnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/fitness/fitnessv1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type fakeDependenciesClient struct{ request *structpb.Value }
+
+func (f *fakeDependenciesClient) Analyze(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	f.request = request.Msg
+	value, err := structpb.NewValue(map[string]interface{}{"scenario": "demo"})
+	return connect.NewResponse(value), err
+}
+
+type fakeFitnessClient struct{ request *structpb.Value }
+
+func (f *fakeFitnessClient) Score(_ context.Context, request *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error) {
+	f.request = request.Msg
+	value, err := structpb.NewValue(map[string]interface{}{"score": float64(42)})
+	return connect.NewResponse(value), err
+}
+
+var _ dependenciesconnect.DependenciesServiceClient = (*fakeDependenciesClient)(nil)
+var _ fitnessconnect.FitnessServiceClient = (*fakeFitnessClient)(nil)
+
+func TestTypedOverviewCommandsUseGeneratedClients(t *testing.T) {
+	dependencies := &fakeDependenciesClient{}
+	fitness := &fakeFitnessClient{}
+	cmd := NewWithConnectClients(nil, dependencies, fitness)
+	if err := cmd.Analyze([]string{"demo", "--format", "json"}); err != nil {
+		t.Fatalf("typed dependency analysis failed: %v", err)
+	}
+	if got := dependencies.request.AsInterface().(map[string]interface{})["scenario"]; got != "demo" {
+		t.Fatalf("unexpected dependency request: %#v", dependencies.request.AsInterface())
+	}
+	if err := cmd.Fitness([]string{"demo", "--tier", "2", "--format", "json"}); err != nil {
+		t.Fatalf("typed fitness failed: %v", err)
+	}
+	request := fitness.request.AsInterface().(map[string]interface{})
+	if request["scenario"] != "demo" {
+		t.Fatalf("unexpected fitness request: %#v", request)
+	}
+}
 
 func TestAnalyzeRequiresScenario(t *testing.T) {
 	cmd := New(dummyAPIClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})))

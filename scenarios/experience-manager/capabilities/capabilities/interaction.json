@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "interaction",
+    "description": "Whether a surface can actually be operated — by pointer, keyboard, and touch — including focus movement, dismissal, and acknowledgement of activation."
+  },
+  "capabilities": [
+    {
+      "id": "keyboard-operable",
+      "title": "Fully operable by keyboard",
+      "facets": ["promises"],
+      "description": "Every action the surface offers can be reached and performed with the keyboard alone, with no pointer-only path to any capability.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["keyboard-reachable"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The evaluator exists and checks a real reachability property on the captured node rather than mere presence, so this is one of the few interaction capabilities provable today."
+    },
+    {
+      "id": "focus-order",
+      "title": "Focus moves in a sensible order",
+      "facets": ["promises"],
+      "description": "Sequential keyboard navigation visits elements in an order that matches their perceived reading order rather than their DOM accident.",
+      "proves": {
+        "axes": { "locale": ["en", "ar"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["focus-order", "reading-order"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "page", "page-template", "pattern", "navigation"],
+      "rationale": "Direction-aware: in RTL locales the expected horizontal order reverses, which the reading-order claim type already documents but has never been exercised because the locale axis is unwired. `focus-order` has no evaluator yet."
+    },
+    {
+      "id": "focus-containment",
+      "title": "Modal surfaces contain focus",
+      "facets": ["promises"],
+      "description": "While a modal surface is open, keyboard focus cannot escape to the inert content behind it, including through nested overlays.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["focus-contained"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "The library already ships useFocusTrap and FocusTrapPanel, so the behavior exists in code with nothing asserting it holds. Nested scopes are the case that breaks in practice."
+    },
+    {
+      "id": "focus-restoration",
+      "title": "Focus returns where it came from",
+      "facets": ["promises"],
+      "description": "When a transient surface closes, focus returns to the control that opened it, or to a deterministic fallback when that control no longer exists.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["focus-restored"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "Requires capturing before and after a close interaction rather than a single settled snapshot — the reconciler's one-shot capture model is the blocker, not the evidence channel."
+    },
+    {
+      "id": "layered-dismissal",
+      "title": "Escape dismisses one layer at a time",
+      "facets": ["promises"],
+      "description": "The escape key closes the topmost eligible surface only, leaving surfaces beneath it open, and never dismisses a surface with unsaved work without warning.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["layered-dismissal"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern"],
+      "rationale": "useEscapeKey exists in the library and its docstring already describes layering. Nothing verifies the layering under nesting, which is the only case where it matters."
+    },
+    {
+      "id": "pointer-independence",
+      "title": "Nothing essential is hover-only",
+      "facets": ["promises"],
+      "description": "Every affordance remains discoverable and operable when hover is unavailable, so no action is hidden behind a pointer capability the device lacks.",
+      "proves": {
+        "axes": { "pointer": ["coarse-no-hover"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["element-present", "affordance-present"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "DESIGN.md forbids hover-only affordances in every kit's Do-not list. The pointer axis needs engine work — the user-agent half exists, but the pointer and hover media features CSS actually keys off do not."
+    },
+    {
+      "id": "gesture-alternative",
+      "title": "Every gesture has a non-gesture path",
+      "facets": ["promises"],
+      "description": "Swipe, drag, long-press, and pinch interactions each have an equivalent reachable through visible controls or the keyboard.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["affordance-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template", "navigation"],
+      "rationale": "Becomes load-bearing as soon as the manipulation assets (Draggable, Sortable, SwipeAction, Dismissible) exist. Checking the alternative exists is structural; checking the gesture itself works needs BAS ACTION_TYPE_GESTURE driven by the reconciler."
+    },
+    {
+      "id": "activation-acknowledged",
+      "title": "Activation is acknowledged immediately",
+      "facets": ["promises"],
+      "description": "A control that starts asynchronous work shows a busy state on the same interaction, prevents duplicate submission where duplication would be harmful, and returns to a usable state when the work ends.",
+      "proves": {
+        "axes": { "interaction-state": ["pressed"] },
+        "evidence": ["ax-tree", "timing"],
+        "claimTypes": ["state-distinct", "state-covered"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "DESIGN.md states this as a requirement for every async control. The `pressed` value on the interaction-state axis has no press-and-hold action in BAS today, so this is blocked on the axis rather than on evidence."
+    },
+    {
+      "id": "destructive-confirmation",
+      "title": "Destructive actions are separated and confirmed",
+      "facets": ["promises"],
+      "description": "An irreversible action is visually distinct from routine actions, is not adjacent to the action a user performs most often, and requires an explicit second step or offers undo.",
+      "proves": {
+        "evidence": ["ax-tree", "layout-box", "computed-style"],
+        "claimTypes": ["element-present", "spacing", "state-contrast"]
+      },
+      "tierCeiling": "manual",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "Partly structural — separation and contrast are measurable — but whether a confirmation is proportionate to the consequence is a judgment, so the ceiling is manual."
+    }
+  ]
+}

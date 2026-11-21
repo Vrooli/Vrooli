@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.authorization;
+
+import "google/protobuf/timestamp.proto";
+import "treasury/v1/settlement/settlement.proto";
+import "treasury/v1/shared/approval.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization;authorization_v1";
+
+enum AuthorizationVerdict {
+  AUTHORIZATION_VERDICT_UNSPECIFIED = 0;
+  AUTHORIZATION_VERDICT_REFUSED = 1;
+  AUTHORIZATION_VERDICT_PENDING = 2;
+  AUTHORIZATION_VERDICT_APPROVED = 3;
+  AUTHORIZATION_VERDICT_RELEASED = 4;
+  AUTHORIZATION_VERDICT_SETTLED = 5;
+}
+
+message AuthorizationRecord {
+  string id = 1;
+  string mandate_id = 2;
+  string requesting_agent = 3;
+  int64 amount_minor = 4;
+  string currency = 5;
+  string counterparty = 6;
+  AuthorizationVerdict verdict = 7;
+  string violated_constraint = 8;
+  string remediation = 9;
+  int64 hold_minor = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp expires_at = 12;
+  string idempotency_key = 13;
+  string budget_id = 14;
+  string book_id = 15;
+  string settlement_id = 16;
+  string instrument_id = 17;
+  string settlement_idempotency_key = 18;
+}
+
+message ProposeChargeRequest {
+  string id = 1;
+  string idempotency_key = 2;
+  string mandate_id = 3;
+  int64 amount_minor = 4;
+  string currency = 5;
+  string counterparty = 6;
+  string settlement_id = 7;
+  string instrument_id = 8;
+  string settlement_idempotency_key = 9;
+}
+
+message ProposeChargeResponse {
+  AuthorizationRecord authorization = 1;
+}
+
+message GetAuthorizationRequest {
+  string id = 1;
+}
+
+message GetAuthorizationResponse {
+  AuthorizationRecord authorization = 1;
+}
+
+message GetBudgetHeadroomRequest {
+  string budget_id = 1;
+}
+
+message GetBudgetHeadroomResponse {
+  AgentBudgetHeadroom headroom = 1;
+}
+
+message AgentBudgetHeadroom {
+  string budget_id = 1;
+  string book_id = 2;
+  string currency = 3;
+  int64 total_cap_minor = 4;
+  int64 total_used_minor = 5;
+  int64 total_remaining_minor = 6;
+  int64 periodic_cap_minor = 7;
+  int64 period_used_minor = 8;
+  int64 period_remaining_minor = 9;
+  int64 per_transaction_cap_minor = 10;
+  int64 available_minor = 11;
+  google.protobuf.Timestamp period_started_at = 12;
+  google.protobuf.Timestamp computed_at = 13;
+  bool funding_required = 14;
+  int64 funding_credited_minor = 15;
+  int64 funding_remaining_minor = 16;
+  string funding_atomic_amount = 17;
+  string funding_asset_id = 18;
+}
+
+message AgentListMandatesRequest {}
+message AgentMandate {
+  string id = 1;
+  string book_id = 2;
+  string budget_id = 3;
+  int64 cap_minor = 4;
+  string currency = 5;
+  repeated string allowed_counterparties = 6;
+  repeated string denied_counterparties = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  string status = 9;
+  repeated string required_evidence = 10;
+  int64 recurrence_seconds = 11;
+  google.protobuf.Timestamp next_charge_at = 12;
+}
+message AgentListMandatesResponse { repeated AgentMandate mandates = 1; }
+
+message ReportOutcomeRequest {
+  string authorization_id = 1;
+  // Deprecated caller-asserted fields. Treasury rejects them; outcome and
+  // external references are accepted only from the registered rail adapter.
+  string outcome = 2 [deprecated = true];
+  string rail_reference = 3 [deprecated = true];
+  string settlement_id = 4;
+  string instrument_id = 5;
+  string idempotency_key = 6;
+}
+
+message ReportOutcomeResponse {
+  AuthorizationRecord authorization = 1;
+  vrooli.treasury.v1.settlement.Charge settlement = 2;
+}
+
+message ReportManualOutcomeRequest {
+  string authorization_id = 1;
+  string settlement_id = 2;
+  string instrument_id = 3;
+  string idempotency_key = 4;
+  vrooli.treasury.v1.settlement.ManualAttestation attestation = 5;
+}
+
+message ReportManualOutcomeResponse {
+  AuthorizationRecord authorization = 1;
+  vrooli.treasury.v1.settlement.Charge settlement = 2;
+}
+
+message ResolveUnknownSettlementRequest {
+  string settlement_id = 1;
+  bool confirm_prior_process_stopped = 2;
+}
+
+message ResolveUnknownSettlementResponse {
+  AuthorizationRecord authorization = 1;
+  vrooli.treasury.v1.settlement.Charge settlement = 2;
+}
+
+message ResolveApprovalRequest {
+  string approval_id = 1;
+  vrooli.treasury.v1.shared.ApprovalStatus resolution = 2;
+}
+
+message ResolveApprovalResponse {
+  vrooli.treasury.v1.shared.ApprovalRequest approval = 1;
+}
+
+message ListApprovalsRequest {
+  vrooli.treasury.v1.shared.ApprovalStatus status = 1;
+  string book_id = 2;
+}
+
+message ListApprovalsResponse {
+  repeated vrooli.treasury.v1.shared.ApprovalRequest approvals = 1;
+}
+
+// AgentSpend intentionally contains no policy-mutating RPC. Decision D-004
+// relies on the structural absence of those methods, not a runtime permission.
+service AgentSpend {
+  rpc ProposeCharge(ProposeChargeRequest) returns (ProposeChargeResponse);
+  rpc GetAuthorization(GetAuthorizationRequest) returns (GetAuthorizationResponse);
+  rpc GetBudgetHeadroom(GetBudgetHeadroomRequest) returns (GetBudgetHeadroomResponse);
+  rpc ListMandates(AgentListMandatesRequest) returns (AgentListMandatesResponse);
+  rpc ReportOutcome(ReportOutcomeRequest) returns (ReportOutcomeResponse);
+}
+
+// TreasuryAdmin is the operator-realm surface. Its methods are introduced with
+// their domain implementations so the descriptor never gets ahead of behavior.
+service TreasuryAdmin {
+  rpc ListApprovals(ListApprovalsRequest) returns (ListApprovalsResponse);
+  rpc ResolveApproval(ResolveApprovalRequest) returns (ResolveApprovalResponse);
+  rpc ReportManualOutcome(ReportManualOutcomeRequest) returns (ReportManualOutcomeResponse);
+  rpc ResolveUnknownSettlement(ResolveUnknownSettlementRequest) returns (ResolveUnknownSettlementResponse);
+}

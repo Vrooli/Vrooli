@@ -1,0 +1,22 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.research-attention-delivery",
+  "version": "1",
+  "helpers": {"program": "2"},
+  "purpose": "Reconcile one explicitly selected enrolled effort's retained decisions with Notification Hub asks and delivery receipts.",
+  "inputs": {"effort_ref": {"type": "string", "required": true, "description": "Exact enrolled Agent Manager effort identity."}, "decision_page_token": {"type": "string", "default": "", "description": "Opaque continuation for the same effort."}, "include_board": {"type": "boolean", "default": false, "description": "Also inspect the slower owner board's needs-operator projection."}},
+  "assumptions": ["One decision page and the optional effort board are not a complete research attention inventory.", "A published event is not proof of an ask or delivery."],
+  "invariants": ["Read only; never send, answer, or change a decision.", "Join only exact source, event type, and requester identity.", "Missing, truncated, unavailable, and unlinked evidence remains unknown; no absence claim covers the attention view.", "At most 16 decisions and one bounded ask search page per decision."],
+  "bindings": [
+    {"id": "agent-manager/effort/decisions-page", "effect": "read"},
+    {"id": "agent-manager/effort/board", "effect": "read", "optional": true},
+    {"id": "notification-hub/conversations/list", "effect": "read"},
+    {"id": "notification-hub/notifications/get", "effect": "read"}
+  ],
+  "verbs": [],
+  "outputs": {"status": {"enum": ["ok", "partial", "failed", "unavailable"]}, "phase": {"enum": ["validate", "collect", "report"]}, "signals": {"coverage": "selected_page_only, partial, or unknown", "items": "Bounded retained decisions and owner-observed delivery evidence", "next_page_token": "Opaque owner continuation; follow until empty", "board_coverage": "selected_effort, partial, not_requested or unknown", "attention_view_coverage": "Always unknown; the human index is not an authoritative machine inventory"}, "errors": {"classes": ["invalid_input", "owner_unavailable"]}, "evidence": "Owner bindings read."},
+  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 32, "output_bytes": 65536},
+  "fixtures": [{"id": "blank-effort", "inputs": {"effort_ref": " "}, "expect": {"status": ["failed"]}, "requires": []}],
+  "rung": "S3",
+  "owner_skill": "research-coordination"
+}

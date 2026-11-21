@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, HelpCircle, Loader2, Plus, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { cn } from "../lib/utils";
@@ -13,6 +13,7 @@ import {
 interface ScopePathsManagerProps {
   /** The project root path - where the agent can look at code */
   projectRoot: string;
+  projectRootTestId?: string;
   /** Callback when project root changes */
   onProjectRootChange: (value: string) => void;
   /** Array of scope paths - where the agent can make changes */
@@ -77,6 +78,7 @@ function ValidationIndicator({ validation }: { validation: PathValidation }) {
  */
 export function ScopePathsManager({
   projectRoot,
+  projectRootTestId,
   onProjectRootChange,
   scopePaths,
   onScopePathsChange,
@@ -141,6 +143,7 @@ export function ScopePathsManager({
           </div>
           <Input
             id="projectRoot"
+              data-testid={projectRootTestId}
             value={projectRoot}
             onChange={(e) => onProjectRootChange(e.target.value)}
             placeholder={defaultProjectRoot || "/path/to/project"}

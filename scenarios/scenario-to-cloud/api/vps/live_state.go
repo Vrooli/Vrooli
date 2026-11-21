@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,8 +12,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
@@ -23,16 +23,17 @@ type LiveStateRequest struct {
 	DeploymentID string `json:"-"` // Set from URL path
 }
 
-// sshCommand represents a command to execute via SSH with its result destination.
-type sshCommand struct {
-	id      string
-	command string
+// probe is one typed read issued through reach: a vrooli verb or a host
+// observation program. There is no shell string anywhere in a probe.
+type probe struct {
+	id  string
+	cmd reach.Command
 }
 
-// sshCommandResult holds the result of an SSH command.
-type sshCommandResult struct {
+// probeResult holds the answer to one probe.
+type probeResult struct {
 	id         string
-	result     ssh.Result
+	result     reach.Result
 	err        error
 	durationMs int64
 }
@@ -53,16 +54,73 @@ type ProcessInfo struct {
 	Command       string
 }
 
-// RunLiveStateInspection executes SSH commands to gather live state from a VPS.
+func observe(id, program string, args ...string) probe {
+	cmd, err := reach.NewObservation(program, args...)
+	if err != nil {
+		// Probe definitions are static and must be reviewed with the owner
+		// mapping. Keep an invalid definition visible to the caller rather than
+		// silently falling back to a host program.
+		return probe{id: id, cmd: reach.Command{Verb: "cloud-target host observe", Args: []string{"--kind", "invalid"}, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+	}
+	cmd.Timeout = DefaultProbeTimeout
+	return probe{id: id, cmd: cmd}
+}
+
+func verb(id, verb string, args ...string) probe {
+	return probe{id: id, cmd: reach.Command{Verb: verb, Args: args, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+}
+
+// cpuSampleInterval separates the two /proc/stat samples usage is derived
+// from. Tests shorten it.
+var cpuSampleInterval = time.Second
+
+// LiveStateProbes lists every read the inspection issues for a manifest;
+// exported so the architecture tests can prove none of them carries shell
+// syntax and every program is an observation program.
+func LiveStateProbes(manifest domain.CloudManifest, user string) []reach.Command {
+	probes := inspectionProbes(manifest, user, systemmetrics.CollectorForOS("linux"))
+	out := make([]reach.Command, 0, len(probes)+2)
+	out = append(out, observe("os_release", "cat", "/etc/os-release").cmd)
+	for _, p := range probes {
+		out = append(out, p.cmd)
+	}
+	return out
+}
+
+func inspectionProbes(manifest domain.CloudManifest, user string, collector systemmetrics.Collector) []probe {
+	workdir := manifest.Target.VPS.Workdir
+	targetScenario := manifest.Scenario.ID
+	probes := []probe{
+		observe("ps", "ps", "aux", "--no-headers"),
+		observe("ss", "ss", "-tlnp"),
+		observe("ssh_ping", "uname", "-s"),
+		verb("scenario_status", "scenario status", targetScenario, "--json"),
+		verb("resource_status", "resource status", "--json"),
+		observe("caddy_config", "cat", "/etc/caddy/Caddyfile"),
+		observe("caddy_running", "pgrep", "-x", "caddy"),
+		observe("ssh_key_check", "cat", path.Join(HomeDir(user), ".ssh", "authorized_keys")),
+		observe("dir_check", "stat", append([]string{"-c", "%n", "--"}, expectedDirectories(workdir, manifest)...)...),
+	}
+	for _, spec := range collector.SystemCommands() {
+		if spec.ID == systemmetrics.CPUUsageProbeID {
+			continue
+		}
+		probes = append(probes, observe(spec.ID, spec.Program, spec.Args...))
+	}
+	return probes
+}
+
+// RunLiveStateInspection gathers the live state of one target through the
+// prober: typed vrooli verbs for what the control plane reports and bounded
+// observation programs for host facts. Nothing here is effectful.
 // DOC: docs/reference/api-endpoints.md#get-deployment-live-state
 func RunLiveStateInspection(
 	ctx context.Context,
 	manifest domain.CloudManifest,
 	identity sshidentity.DeploymentSSHIdentity,
-	sshRunner ssh.Runner,
+	prober Prober,
 ) domain.LiveStateResult {
 	start := time.Now()
-	cfg := sshidentity.EffectiveSSHConfig(manifest, identity)
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
@@ -73,76 +131,19 @@ func RunLiveStateInspection(
 		}
 	}
 
-	// Build directory check command for expected processes
-	dirCheckCmd := buildDirCheckCommand(workdir, manifest)
-
 	// Determine the best system metrics collector based on OS identity.
 	collector := systemmetrics.CollectorForOS("linux")
-	if osReleaseRes, err := sshRunner.Run(ctx, cfg, "cat /etc/os-release 2>/dev/null || true", ssh.DefaultRunOptions()); err == nil {
+	if osReleaseRes, err := prober.Observe(ctx, "cat", "/etc/os-release"); err == nil {
 		if osID, _ := systemmetrics.ParseOSRelease(osReleaseRes.Stdout); osID != "" {
 			collector = systemmetrics.CollectorForOS(osID)
 		}
 	}
 
-	// Define all commands to execute
-	commands := []sshCommand{
-		{id: "ps", command: "ps aux --no-headers"},
-		{id: "ss", command: "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null"},
-		{id: "ssh_ping", command: "echo ok"},
-		{id: "scenario_status", command: shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json 2>/dev/null", shellutil.QuoteSingle(targetScenario)))},
-		{id: "resource_status", command: shellutil.VrooliCommand(workdir, "vrooli resource status --json 2>/dev/null")},
-		{id: "caddy_config", command: "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"},
-		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
-		// SSH health: check if our public key is in authorized_keys
-		{id: "ssh_key_check", command: "cat ~/.ssh/authorized_keys 2>/dev/null || echo ''"},
-		// Check directory existence for expected processes
-		{id: "dir_check", command: dirCheckCmd},
-	}
-	var cpuUsageCommand *sshCommand
-	for _, spec := range collector.SystemCommands() {
-		// Run CPU usage sampling separately after concurrent inspection commands to
-		// avoid self-inflating usage on small VPS instances.
-		if spec.ID == "cpuusage" {
-			cmd := cpuUsageCommandForLiveState(spec.Command)
-			cpuUsageCommand = &sshCommand{id: spec.ID, command: cmd}
-			continue
-		}
-		commands = append(commands, sshCommand{id: spec.ID, command: spec.Command})
-	}
-
-	// Execute commands in parallel
-	results := make(map[string]sshCommandResult)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-
-	for _, cmd := range commands {
-		wg.Add(1)
-		go func(c sshCommand) {
-			defer wg.Done()
-			cmdStart := time.Now()
-			res, err := sshRunner.Run(ctx, cfg, c.command, ssh.DefaultRunOptions())
-			mu.Lock()
-			results[c.id] = sshCommandResult{
-				id:         c.id,
-				result:     res,
-				err:        err,
-				durationMs: time.Since(cmdStart).Milliseconds(),
-			}
-			mu.Unlock()
-		}(cmd)
-	}
-
-	wg.Wait()
-	if cpuUsageCommand != nil {
-		cmdStart := time.Now()
-		res, err := sshRunner.Run(ctx, cfg, cpuUsageCommand.command, ssh.DefaultRunOptions())
-		results[cpuUsageCommand.id] = sshCommandResult{
-			id:         cpuUsageCommand.id,
-			result:     res,
-			err:        err,
-			durationMs: time.Since(cmdStart).Milliseconds(),
-		}
-	}
+	probes := inspectionProbes(manifest, prober.Target.Locator.User, collector)
+	results := runProbes(ctx, prober, probes)
+	// CPU usage sampling runs after the concurrent probes so the probes
+	// themselves do not inflate the reading on small hosts.
+	results[systemmetrics.CPUUsageProbeID] = sampleCPUUsage(ctx, prober, collector)
 
 	// Check for context cancellation
 	if ctx.Err() != nil {
@@ -189,13 +190,12 @@ func RunLiveStateInspection(
 	liveState.Processes = &processState
 
 	// Build expected processes list from manifest
-	dirCheckOutput := results["dir_check"].result.Stdout
-	liveState.Expected = buildExpectedProcesses(manifest, processState, dirCheckOutput)
+	liveState.Expected = buildExpectedProcesses(manifest, processState, parseExistingDirectories(results["dir_check"].result.Stdout, workdir, manifest))
 
 	// Parse Caddy state
 	caddyState := parseCaddyState(
 		results["caddy_config"].result.Stdout,
-		results["caddy_running"].result.Stdout,
+		results["caddy_running"],
 		manifest.Edge.Domain,
 	)
 	liveState.Caddy = &caddyState
@@ -206,14 +206,59 @@ func RunLiveStateInspection(
 	return liveState
 }
 
-func cpuUsageCommandForLiveState(base string) string {
-	if strings.TrimSpace(base) == "" {
-		return base
+// runProbes issues every probe concurrently and collects the answers.
+func runProbes(ctx context.Context, prober Prober, probes []probe) map[string]probeResult {
+	results := make(map[string]probeResult, len(probes)+1)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, p := range probes {
+		wg.Add(1)
+		go func(p probe) {
+			defer wg.Done()
+			cmdStart := time.Now()
+			res, err := prober.Reach.Exec(ctx, prober.Target, p.cmd)
+			mu.Lock()
+			results[p.id] = probeResult{id: p.id, result: res, err: err, durationMs: time.Since(cmdStart).Milliseconds()}
+			mu.Unlock()
+		}(p)
 	}
-	if strings.Contains(base, "/proc/stat") {
-		return "for i in 1 2 3 4; do cat /proc/stat | head -1; if [ \"$i\" -lt 4 ]; then sleep 1; fi; done"
+	wg.Wait()
+	return results
+}
+
+// sampleCPUUsage reads /proc/stat twice, one interval apart, and joins the
+// samples so the collector derives usage from the delta.
+func sampleCPUUsage(ctx context.Context, prober Prober, collector systemmetrics.Collector) probeResult {
+	var spec *systemmetrics.CommandSpec
+	for _, candidate := range collector.SystemCommands() {
+		if candidate.ID == systemmetrics.CPUUsageProbeID {
+			c := candidate
+			spec = &c
+			break
+		}
 	}
-	return base
+	if spec == nil {
+		return probeResult{id: systemmetrics.CPUUsageProbeID}
+	}
+	cmdStart := time.Now()
+	var samples []string
+	var lastErr error
+	for i := 0; i < 2; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return probeResult{id: spec.ID, err: ctx.Err(), durationMs: time.Since(cmdStart).Milliseconds()}
+			case <-time.After(cpuSampleInterval):
+			}
+		}
+		res, err := prober.Observe(ctx, spec.Program, spec.Args...)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		samples = append(samples, strings.TrimSpace(res.Stdout))
+	}
+	return probeResult{id: spec.ID, result: reach.Result{Stdout: strings.Join(samples, "\n")}, err: lastErr, durationMs: time.Since(cmdStart).Milliseconds()}
 }
 
 // buildProcessState constructs domain.ProcessState from raw data.
@@ -230,174 +275,226 @@ func buildProcessState(
 		Resources:  []domain.ResourceProcess{},
 		Unexpected: []domain.UnexpectedProcess{},
 	}
-
-	// Parse vrooli scenario status output
-	var scenarioStatus map[string]interface{}
-	if scenarioStatusJSON != "" {
-		_ = json.Unmarshal([]byte(scenarioStatusJSON), &scenarioStatus)
-	}
 	scenarioStatusRaw := validRawJSON(scenarioStatusJSON)
-
-	// Parse vrooli resource status output
-	var resourceStatus map[string]interface{}
-	if resourceStatusJSON != "" {
-		_ = json.Unmarshal([]byte(resourceStatusJSON), &resourceStatus)
-	}
 	resourceStatusRaw := validRawJSON(resourceStatusJSON)
-
-	// Build a map of PID to process for quick lookup
-	pidToProcess := make(map[int]ProcessInfo)
-	for _, p := range processes {
-		pidToProcess[p.PID] = p
-	}
-
-	// Build a map of port to process name
-	portToProcess := make(map[int]string)
-	for _, port := range ports {
-		portToProcess[port.Port] = port.Process
-	}
-
-	// Known system processes to exclude
-	systemProcesses := map[string]bool{
-		"sshd": true, "systemd": true, "init": true, "agetty": true,
-		"cron": true, "rsyslogd": true, "dbus-daemon": true,
-		"NetworkManager": true, "polkitd": true, "udevd": true,
-	}
-
-	// Known resource processes
-	knownResources := map[string]string{
-		"postgres":     "postgres",
-		"redis-server": "redis",
-		"redis":        "redis",
-		"qdrant":       "qdrant",
-		"ollama":       "ollama",
-		"browserless":  "browserless",
-		"minio":        "minio",
-	}
-
-	// Track which PIDs we've classified
 	classifiedPIDs := make(map[int]bool)
-
-	// Find the main scenario process
-	for _, p := range processes {
-		if containsSubstring(p.Command, targetScenario) || containsSubstring(p.Command, "scenario-") {
-			scenarioProc := domain.ScenarioProcess{
-				ID:            targetScenario,
-				Status:        "running",
-				PID:           p.PID,
-				UptimeSeconds: 0, // Would need more info to calculate
-				Resources: domain.ProcessResources{
-					CPUPercent:    p.CPUPercent,
-					MemoryMB:      int(p.MemoryMB),
-					MemoryPercent: p.MemoryPercent,
-				},
-				VrooliStatus: scenarioStatusRaw,
-			}
-
-			// Find ports for this scenario
-			for port, procName := range portToProcess {
-				if containsSubstring(procName, "scenario") || containsSubstring(procName, targetScenario) {
-					scenarioProc.Ports = append(scenarioProc.Ports, domain.ProcessPort{
-						Port:   port,
-						Status: "listening",
-					})
-				}
-			}
-
-			state.Scenarios = append(state.Scenarios, scenarioProc)
-			classifiedPIDs[p.PID] = true
-			break
-		}
-	}
-
-	// Find resource processes
+	portToProcess := portProcessNames(ports)
 	resourceIndexByID := make(map[string]int)
-	for _, p := range processes {
-		if classifiedPIDs[p.PID] {
-			continue
-		}
-
-		for procPattern, resourceName := range knownResources {
-			if containsSubstring(p.Command, procPattern) {
-				if _, expected := expectedResources[resourceName]; expected {
-					resourceProc := domain.ResourceProcess{
-						ID:            resourceName,
-						Status:        "running",
-						PID:           p.PID,
-						UptimeSeconds: 0,
-						VrooliStatus:  resourceStatusRaw,
-					}
-
-					// Find port for this resource
-					for port, procName := range portToProcess {
-						if containsSubstring(procName, procPattern) {
-							resourceProc.Port = port
-							break
-						}
-					}
-
-					if idx, exists := resourceIndexByID[resourceName]; exists {
-						existing := state.Resources[idx]
-						// Prefer the earliest (typically parent) PID as the canonical row.
-						if existing.PID <= 0 || (resourceProc.PID > 0 && resourceProc.PID < existing.PID) {
-							resourceProc.Port = chooseResourcePort(existing.Port, resourceProc.Port)
-							state.Resources[idx] = resourceProc
-						}
-					} else {
-						resourceIndexByID[resourceName] = len(state.Resources)
-						state.Resources = append(state.Resources, resourceProc)
-					}
-					classifiedPIDs[p.PID] = true
-					break
-				}
-			}
-		}
-	}
-
-	// Find unexpected processes (non-system, non-classified)
-	for _, p := range processes {
-		if classifiedPIDs[p.PID] {
-			continue
-		}
-
-		// Skip system processes
-		isSystem := false
-		for sysProc := range systemProcesses {
-			if containsSubstring(p.Command, sysProc) {
-				isSystem = true
-				break
-			}
-		}
-		if isSystem {
-			continue
-		}
-
-		// Skip caddy (it's the edge proxy)
-		if containsSubstring(p.Command, "caddy") {
-			continue
-		}
-
-		// Check if this process has a bound port
-		var boundPort int
-		for port, procName := range portToProcess {
-			if p.PID > 0 && containsSubstring(procName, fmt.Sprintf("pid=%d", p.PID)) {
-				boundPort = port
-				break
-			}
-		}
-
-		// Only report if it has a bound port (more relevant for debugging)
-		if boundPort > 0 {
-			state.Unexpected = append(state.Unexpected, domain.UnexpectedProcess{
-				PID:     p.PID,
-				Command: p.Command,
-				Port:    boundPort,
-				User:    p.User,
-			})
-		}
-	}
-
+	appendScenarioProcess(&state, processes, portToProcess, targetScenario, scenarioStatusRaw, classifiedPIDs)
+	appendResourceProcesses(&state, processes, portToProcess, expectedResources, resourceStatusRaw, classifiedPIDs, resourceIndexByID)
+	appendTypedResourceStatuses(&state, typedResourceStatuses(resourceStatusJSON), resourceStatusRaw, expectedResources, resourceIndexByID)
+	appendUnexpectedProcesses(&state, processes, portToProcess, classifiedPIDs)
 	return state
+}
+
+func portProcessNames(ports []domain.PortBinding) map[int]string {
+	result := make(map[int]string, len(ports))
+	for _, port := range ports {
+		result[port.Port] = port.Process
+	}
+	return result
+}
+
+func appendScenarioProcess(state *domain.ProcessState, processes []ProcessInfo, portToProcess map[int]string, targetScenario string, status json.RawMessage, classified map[int]bool) {
+	for _, p := range processes {
+		if !containsSubstring(p.Command, targetScenario) && !containsSubstring(p.Command, "scenario-") {
+			continue
+		}
+		scenarioProc := domain.ScenarioProcess{
+			ID: targetScenario, Status: "running", PID: p.PID, UptimeSeconds: 0,
+			Resources:    domain.ProcessResources{CPUPercent: p.CPUPercent, MemoryMB: int(p.MemoryMB), MemoryPercent: p.MemoryPercent},
+			VrooliStatus: status,
+		}
+		for port, procName := range portToProcess {
+			if containsSubstring(procName, "scenario") || containsSubstring(procName, targetScenario) {
+				scenarioProc.Ports = append(scenarioProc.Ports, domain.ProcessPort{Port: port, Status: "listening"})
+			}
+		}
+		state.Scenarios = append(state.Scenarios, scenarioProc)
+		classified[p.PID] = true
+		break
+	}
+}
+
+func appendResourceProcesses(state *domain.ProcessState, processes []ProcessInfo, portToProcess map[int]string, expected map[string]bool, status json.RawMessage, classified map[int]bool, indexes map[string]int) {
+	for _, p := range processes {
+		if classified[p.PID] {
+			continue
+		}
+		resourceProc, ok := resourceProcessFor(p, portToProcess, expected, status)
+		if !ok {
+			continue
+		}
+		if idx, exists := indexes[resourceProc.ID]; exists {
+			existing := state.Resources[idx]
+			if existing.PID <= 0 || (resourceProc.PID > 0 && resourceProc.PID < existing.PID) {
+				resourceProc.Port = chooseResourcePort(existing.Port, resourceProc.Port)
+				state.Resources[idx] = resourceProc
+			}
+		} else {
+			indexes[resourceProc.ID] = len(state.Resources)
+			state.Resources = append(state.Resources, resourceProc)
+		}
+		classified[p.PID] = true
+	}
+}
+
+func resourceProcessFor(p ProcessInfo, portToProcess map[int]string, expected map[string]bool, status json.RawMessage) (domain.ResourceProcess, bool) {
+	for pattern, resourceName := range knownResourceProcesses {
+		if !containsSubstring(p.Command, pattern) || !expected[resourceName] {
+			continue
+		}
+		resourceProc := domain.ResourceProcess{ID: resourceName, Status: "running", PID: p.PID, UptimeSeconds: 0, VrooliStatus: status}
+		for port, procName := range portToProcess {
+			if containsSubstring(procName, pattern) {
+				resourceProc.Port = port
+				break
+			}
+		}
+		return resourceProc, true
+	}
+	return domain.ResourceProcess{}, false
+}
+
+var knownResourceProcesses = map[string]string{
+	"postgres": "postgres", "redis-server": "redis", "redis": "redis",
+	"qdrant": "qdrant", "ollama": "ollama", "minio": "minio",
+}
+
+func appendTypedResourceStatuses(state *domain.ProcessState, statuses []typedResourceStatus, raw json.RawMessage, expected map[string]bool, indexes map[string]int) {
+	// Control-plane resource state covers supervisors and containers whose process
+	// names do not identify the resource. PID zero keeps this weaker evidence clear.
+	for _, status := range statuses {
+		if !expected[status.ID] {
+			continue
+		}
+		if _, exists := indexes[status.ID]; exists {
+			continue
+		}
+		indexes[status.ID] = len(state.Resources)
+		state.Resources = append(state.Resources, domain.ResourceProcess{ID: status.ID, Status: status.State, VrooliStatus: raw})
+	}
+}
+
+var systemProcessNames = map[string]bool{
+	"sshd": true, "systemd": true, "init": true, "agetty": true,
+	"cron": true, "rsyslogd": true, "dbus-daemon": true,
+	"NetworkManager": true, "polkitd": true, "udevd": true,
+}
+
+func appendUnexpectedProcesses(state *domain.ProcessState, processes []ProcessInfo, portToProcess map[int]string, classified map[int]bool) {
+	for _, p := range processes {
+		if classified[p.PID] || isIgnoredProcess(p.Command) {
+			continue
+		}
+		if port := boundProcessPort(portToProcess, p.PID); port > 0 {
+			state.Unexpected = append(state.Unexpected, domain.UnexpectedProcess{PID: p.PID, Command: p.Command, Port: port, User: p.User})
+		}
+	}
+}
+
+func isIgnoredProcess(command string) bool {
+	for name := range systemProcessNames {
+		if containsSubstring(command, name) {
+			return true
+		}
+	}
+	return containsSubstring(command, "caddy")
+}
+
+func boundProcessPort(portToProcess map[int]string, pid int) int {
+	if pid <= 0 {
+		return 0
+	}
+	needle := fmt.Sprintf("pid=%d", pid)
+	for port, procName := range portToProcess {
+		if containsSubstring(procName, needle) {
+			return port
+		}
+	}
+	return 0
+}
+
+type typedResourceStatus struct {
+	ID    string
+	State string
+}
+
+type typedResourcesEnvelope struct {
+	Resources []typedResourceEnvelopeItem `json:"resources"`
+}
+
+type typedResourceEnvelopeItem struct {
+	Resource struct {
+		Name string `json:"name"`
+		ID   string `json:"id"`
+	} `json:"resource"`
+	Name    string `json:"name"`
+	ID      string `json:"id"`
+	Running bool   `json:"running"`
+	Status  string `json:"status"`
+}
+
+// typedResourceStatuses accepts both the fleet envelope emitted by the CLI
+// and the older map-shaped status payload. Keeping this adapter at the edge
+// lets the health model depend on explicit lifecycle fields rather than on
+// driver-specific process names.
+func typedResourceStatuses(raw string) []typedResourceStatus {
+	var envelope typedResourcesEnvelope
+	if err := json.Unmarshal([]byte(raw), &envelope); err == nil && envelope.Resources != nil {
+		return typedEnvelopeResourceStatuses(envelope.Resources)
+	}
+	return legacyResourceStatuses(raw)
+}
+
+func typedEnvelopeResourceStatuses(items []typedResourceEnvelopeItem) []typedResourceStatus {
+	result := make([]typedResourceStatus, 0, len(items))
+	for _, item := range items {
+		id := envelopeResourceID(item)
+		state := envelopeResourceState(item)
+		if id != "" && state != "" {
+			result = append(result, typedResourceStatus{ID: id, State: state})
+		}
+	}
+	return result
+}
+
+func envelopeResourceID(item typedResourceEnvelopeItem) string {
+	for _, id := range []string{item.Name, item.ID, item.Resource.Name, item.Resource.ID} {
+		if id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func envelopeResourceState(item typedResourceEnvelopeItem) string {
+	state := strings.ToLower(strings.TrimSpace(item.Status))
+	if item.Running || state == "running" || state == "healthy" || state == "ready" {
+		return "running"
+	}
+	return state
+}
+
+func legacyResourceStatuses(raw string) []typedResourceStatus {
+	var byID map[string]struct {
+		Running bool   `json:"running"`
+		Status  string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(raw), &byID); err != nil {
+		return nil
+	}
+	result := make([]typedResourceStatus, 0, len(byID))
+	for id, item := range byID {
+		state := strings.ToLower(strings.TrimSpace(item.Status))
+		if item.Running {
+			state = "running"
+		}
+		if state != "" {
+			result = append(result, typedResourceStatus{ID: id, State: state})
+		}
+	}
+	return result
 }
 
 // categorizePortsWithManifest adds manifest-aware categorization to ports.
@@ -483,142 +580,102 @@ func validRawJSON(s string) json.RawMessage {
 	return json.RawMessage(trimmed)
 }
 
-// buildDirCheckCommand creates a shell command to check if directories exist for expected processes.
-// Output format: "type:id:exists" or "type:id:missing" per line
-func buildDirCheckCommand(workdir string, manifest domain.CloudManifest) string {
-	var checks []string
-
-	// Check target scenario directory
-	scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)
-	checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-		shellutil.QuoteSingle(scenarioDir), manifest.Scenario.ID, manifest.Scenario.ID))
-
-	// Check dependent scenarios
+// expectedDirectories lists the scenario and resource directories the
+// manifest expects under the workdir, in a stable order. The stat probe
+// reports which of them exist; a missing one is simply absent from stdout.
+func expectedDirectories(workdir string, manifest domain.CloudManifest) []string {
+	dirs := []string{fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)}
 	for _, scenarioID := range manifest.Dependencies.Scenarios {
 		if scenarioID == manifest.Scenario.ID {
-			continue // Already checked
+			continue
 		}
-		scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID)
-		checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-			shellutil.QuoteSingle(scenarioDir), scenarioID, scenarioID))
+		dirs = append(dirs, fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID))
 	}
-
-	// Check resource directories
 	for _, resourceID := range manifest.Dependencies.Resources {
-		resourceDir := fmt.Sprintf("%s/resources/%s", workdir, resourceID)
-		checks = append(checks, fmt.Sprintf("test -d %s && echo 'resource:%s:exists' || echo 'resource:%s:missing'",
-			shellutil.QuoteSingle(resourceDir), resourceID, resourceID))
+		dirs = append(dirs, fmt.Sprintf("%s/resources/%s", workdir, resourceID))
 	}
+	return dirs
+}
 
-	if len(checks) == 0 {
-		return "echo 'no_expected_processes'"
+// parseExistingDirectories maps the stat probe output (one existing path
+// per line) back to "type:id" keys.
+func parseExistingDirectories(output, workdir string, manifest domain.CloudManifest) map[string]bool {
+	existing := make(map[string]bool)
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		existing[line] = true
 	}
-
-	return strings.Join(checks, "; ")
+	keys := make(map[string]bool)
+	mark := func(kind, id, dir string) {
+		if existing[dir] {
+			keys[kind+":"+id] = true
+		}
+	}
+	mark("scenario", manifest.Scenario.ID, fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID))
+	for _, scenarioID := range manifest.Dependencies.Scenarios {
+		mark("scenario", scenarioID, fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID))
+	}
+	for _, resourceID := range manifest.Dependencies.Resources {
+		mark("resource", resourceID, fmt.Sprintf("%s/resources/%s", workdir, resourceID))
+	}
+	return keys
 }
 
 // buildExpectedProcesses constructs the expected processes list by comparing manifest with running state.
-func buildExpectedProcesses(manifest domain.CloudManifest, processState domain.ProcessState, dirCheckOutput string) []domain.ExpectedProcess {
-	expected := []domain.ExpectedProcess{}
-
-	// Parse directory check output
-	dirExists := make(map[string]bool)
-	for _, line := range strings.Split(dirCheckOutput, "\n") {
-		line = strings.TrimSpace(line)
-		parts := strings.Split(line, ":")
-		if len(parts) == 3 {
-			key := parts[0] + ":" + parts[1] // "scenario:id" or "resource:id"
-			dirExists[key] = parts[2] == "exists"
-		}
-	}
-
-	// Build map of running processes for quick lookup
-	runningScenarios := make(map[string]bool)
-	for _, s := range processState.Scenarios {
-		if s.Status == "running" {
-			runningScenarios[s.ID] = true
-		}
-	}
-
-	runningResources := make(map[string]bool)
-	for _, r := range processState.Resources {
-		if r.Status == "running" {
-			runningResources[r.ID] = true
-		}
-	}
-
-	// Check target scenario
-	targetKey := "scenario:" + manifest.Scenario.ID
-	targetDirExists := dirExists[targetKey]
-	targetRunning := runningScenarios[manifest.Scenario.ID]
-
-	var targetState string
-	if targetRunning {
-		targetState = "running"
-	} else if targetDirExists {
-		targetState = "stopped"
-	} else {
-		targetState = "needs_setup"
-	}
-
-	expected = append(expected, domain.ExpectedProcess{
-		ID:              manifest.Scenario.ID,
-		Type:            "scenario",
-		State:           targetState,
-		DirectoryExists: targetDirExists,
-	})
-
-	// Check dependent scenarios
+func buildExpectedProcesses(manifest domain.CloudManifest, processState domain.ProcessState, dirExists map[string]bool) []domain.ExpectedProcess {
+	runningScenarios := runningScenarioIDs(processState.Scenarios)
+	runningResources := runningResourceIDs(processState.Resources)
+	expected := []domain.ExpectedProcess{expectedProcess("scenario", manifest.Scenario.ID, runningScenarios[manifest.Scenario.ID], dirExists)}
 	for _, scenarioID := range manifest.Dependencies.Scenarios {
 		if scenarioID == manifest.Scenario.ID {
-			continue // Already added
+			continue
 		}
-
-		key := "scenario:" + scenarioID
-		scenarioDirExists := dirExists[key]
-		scenarioRunning := runningScenarios[scenarioID]
-
-		var state string
-		if scenarioRunning {
-			state = "running"
-		} else if scenarioDirExists {
-			state = "stopped"
-		} else {
-			state = "needs_setup"
-		}
-
-		expected = append(expected, domain.ExpectedProcess{
-			ID:              scenarioID,
-			Type:            "scenario",
-			State:           state,
-			DirectoryExists: scenarioDirExists,
-		})
+		expected = append(expected, expectedProcess("scenario", scenarioID, runningScenarios[scenarioID], dirExists))
 	}
-
-	// Check resources
 	for _, resourceID := range manifest.Dependencies.Resources {
-		key := "resource:" + resourceID
-		resourceDirExists := dirExists[key]
-		resourceRunning := runningResources[resourceID]
-
-		var state string
-		if resourceRunning {
-			state = "running"
-		} else if resourceDirExists {
-			state = "stopped"
-		} else {
-			state = "needs_setup"
-		}
-
-		expected = append(expected, domain.ExpectedProcess{
-			ID:              resourceID,
-			Type:            "resource",
-			State:           state,
-			DirectoryExists: resourceDirExists,
-		})
+		expected = append(expected, expectedProcess("resource", resourceID, runningResources[resourceID], dirExists))
 	}
-
 	return expected
+}
+
+func runningScenarioIDs(scenarios []domain.ScenarioProcess) map[string]bool {
+	running := make(map[string]bool, len(scenarios))
+	for _, scenario := range scenarios {
+		if scenario.Status == "running" {
+			running[scenario.ID] = true
+		}
+	}
+	return running
+}
+
+func runningResourceIDs(resources []domain.ResourceProcess) map[string]bool {
+	running := make(map[string]bool, len(resources))
+	for _, resource := range resources {
+		if resource.Status == "running" {
+			running[resource.ID] = true
+		}
+	}
+	return running
+}
+
+func expectedProcess(kind, id string, running bool, directories map[string]bool) domain.ExpectedProcess {
+	key := kind + ":" + id
+	directoryExists := directories[key]
+	state := expectedProcessState(running, directoryExists)
+	return domain.ExpectedProcess{ID: id, Type: kind, State: state, DirectoryExists: directoryExists}
+}
+
+func expectedProcessState(running, directoryExists bool) string {
+	if running {
+		return "running"
+	}
+	if directoryExists {
+		return "stopped"
+	}
+	return "needs_setup"
 }
 
 // parsePSOutput parses the output of `ps aux --no-headers`.
@@ -676,71 +733,75 @@ func ParseSSOutput(output string) []domain.PortBinding {
 
 // parseSystemState parses command output into domain.SystemState.
 func parseSystemState(
-	results map[string]sshCommandResult,
+	results map[string]probeResult,
 	identity sshidentity.DeploymentSSHIdentity,
 	pubKeyContent string,
 	collector systemmetrics.Collector,
 ) domain.SystemState {
+	identity = normalizedSSHIdentity(identity)
+	state := collector.ParseSystemState(systemMetricResults(results))
+	state.SSH = sshHealthFromResults(results, identity)
+	verifyExplicitSSHKey(results, identity, pubKeyContent, &state.SSH)
+	return state
+}
+
+func normalizedSSHIdentity(identity sshidentity.DeploymentSSHIdentity) sshidentity.DeploymentSSHIdentity {
 	if identity.AuthMode == "" {
 		identity.AuthMode = sshidentity.AuthModeUnknown
 	}
 	if identity.VerificationState == "" {
 		identity.VerificationState = sshidentity.VerificationUnknown
 	}
+	return identity
+}
 
-	metricResults := make(map[string]systemmetrics.CommandResult, len(results))
-	for id, res := range results {
-		metricResults[id] = systemmetrics.CommandResult{
-			Stdout:   res.result.Stdout,
-			Stderr:   res.result.Stderr,
-			ExitCode: res.result.ExitCode,
-		}
+func systemMetricResults(results map[string]probeResult) map[string]systemmetrics.CommandResult {
+	converted := make(map[string]systemmetrics.CommandResult, len(results))
+	for id, result := range results {
+		converted[id] = systemmetrics.CommandResult{Stdout: result.result.Stdout, Stderr: result.result.Stderr, ExitCode: result.result.ExitCode}
 	}
+	return converted
+}
 
-	state := collector.ParseSystemState(metricResults)
-
-	connected := false
-	latencyMs := int64(0)
-	if pingResult, ok := results["ssh_ping"]; ok {
-		connected = pingResult.err == nil && pingResult.result.ExitCode == 0
-		latencyMs = pingResult.durationMs
+func sshHealthFromResults(results map[string]probeResult, identity sshidentity.DeploymentSSHIdentity) domain.SSHHealth {
+	var connected bool
+	var latencyMs int64
+	if ping, ok := results["ssh_ping"]; ok {
+		connected = ping.err == nil && ping.result.ExitCode == 0
+		latencyMs = ping.durationMs
 	}
-	state.SSH = domain.SSHHealth{
-		Connected:            connected,
-		LatencyMs:            latencyMs,
-		KeyPath:              identity.KeyPath,
-		AuthMode:             string(identity.AuthMode),
-		VerificationState:    string(identity.VerificationState),
-		PublicKeyFingerprint: identity.PublicKeyFingerprint,
-		LastVerifiedAt:       identity.LastVerifiedAt,
-	}
-
-	// For explicit key auth, verify whether the configured key exists in authorized_keys.
+	verification := identity.VerificationState
 	if identity.AuthMode == sshidentity.AuthModeExplicitKey {
-		state.SSH.VerificationState = string(sshidentity.VerificationUnknown)
+		verification = sshidentity.VerificationUnknown
 	}
-	if identity.AuthMode == sshidentity.AuthModeExplicitKey && pubKeyContent != "" {
-		if sshKeyResult, ok := results["ssh_key_check"]; ok && sshKeyResult.err == nil {
-			authorizedKeys := sshKeyResult.result.Stdout
-			pubKeyParts := strings.Fields(pubKeyContent)
-			if len(pubKeyParts) >= 2 {
-				keyToMatch := pubKeyParts[0] + " " + pubKeyParts[1]
-				if strings.Contains(authorizedKeys, keyToMatch) {
-					state.SSH.VerificationState = string(sshidentity.VerificationAuthorized)
-				} else {
-					state.SSH.VerificationState = string(sshidentity.VerificationUnauthorized)
-				}
-			}
-		}
-	}
+	return domain.SSHHealth{Connected: connected, LatencyMs: latencyMs, KeyPath: identity.KeyPath, AuthMode: string(identity.AuthMode),
+		VerificationState: string(verification), PublicKeyFingerprint: identity.PublicKeyFingerprint, LastVerifiedAt: identity.LastVerifiedAt}
+}
 
-	return state
+func verifyExplicitSSHKey(results map[string]probeResult, identity sshidentity.DeploymentSSHIdentity, pubKeyContent string, health *domain.SSHHealth) {
+	if identity.AuthMode != sshidentity.AuthModeExplicitKey || pubKeyContent == "" {
+		return
+	}
+	keyResult, ok := results["ssh_key_check"]
+	if !ok || keyResult.err != nil {
+		return
+	}
+	parts := strings.Fields(pubKeyContent)
+	if len(parts) < 2 {
+		return
+	}
+	key := parts[0] + " " + parts[1]
+	if strings.Contains(keyResult.result.Stdout, key) {
+		health.VerificationState = string(sshidentity.VerificationAuthorized)
+		return
+	}
+	health.VerificationState = string(sshidentity.VerificationUnauthorized)
 }
 
 // parseCaddyState parses Caddy configuration and status.
-func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) domain.CaddyState {
+func parseCaddyState(caddyfileContent string, running probeResult, expectedDomain string) domain.CaddyState {
 	state := domain.CaddyState{
-		Running: strings.TrimSpace(runningStatus) == "running",
+		Running: running.err == nil && running.result.ExitCode == 0 && strings.TrimSpace(running.result.Stdout) != "",
 		Domain:  expectedDomain,
 		Routes:  []domain.CaddyRoute{},
 	}
@@ -752,18 +813,6 @@ func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) dom
 	}
 
 	return state
-}
-
-// parseCPUUsageFromTop is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseCPUUsageFromProcStat directly.
-func parseCPUUsageFromTop(output string) float64 {
-	return systemmetrics.ParseCPUUsageFromProcStat(output)
-}
-
-// parseHumanSize is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseHumanSizeToGB directly.
-func parseHumanSize(s string) int {
-	return systemmetrics.ParseHumanSizeToGB(s)
 }
 
 // parseCaddyRoutes extracts routes from a Caddyfile.

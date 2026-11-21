@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "tesseract",
+  "description": "Local optical character recognition for Image Tools",
+  "storage": {
+    "entries": {},
+    "rationale": "The control-plane host-tool owner retains versioned user-local package payloads and receipts under its managed opt directory, with a managed bin launcher; Image Tools owns model language data and request outputs."
+  },
+  "commands": [
+    "tesseract"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "tesseract-ocr",
+  "packages": {
+    "brew": "tesseract",
+    "winget": "UB-Mannheim.TesseractOCR",
+    "dnf": "tesseract",
+    "pacman": "tesseract",
+    "apk": "tesseract-ocr"
+  },
+  "installHint": "Install through scenario-dependency-analyzer deps install system/tesseract --scenario tesseract --surface host-tool --apply. English language data is required.",
+  "bundling": "host-required",
+  "capability": "media-processing",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "userLocalAPT": {
+    "amd64": {
+      "packages": [
+        "tesseract-ocr",
+        "libtesseract5",
+        "liblept5",
+        "tesseract-ocr-eng",
+        "tesseract-ocr-osd"
+      ],
+      "executable": "usr/bin/tesseract",
+      "libraryDir": "usr/lib/x86_64-linux-gnu",
+      "runtimeEnv": {
+        "TESSDATA_PREFIX": "usr/share/tesseract-ocr/5/tessdata"
+      }
+    }
+  }
+}

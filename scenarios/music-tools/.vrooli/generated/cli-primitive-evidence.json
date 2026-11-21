@@ -1,0 +1,212 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "music-tools",
+  "generator": "v1.0.0",
+  "manifest_hash": "a04078210dc259dbe577ac0b013fe29e41d87a5351e03a02df1aa9c2bc6246f3",
+  "commands": [
+    {
+      "path": "analysis result",
+      "group": "analysis",
+      "command": "result",
+      "binding": "."
+    },
+    {
+      "path": "analysis stem",
+      "group": "analysis",
+      "command": "stem",
+      "binding": "."
+    },
+    {
+      "path": "analyze run",
+      "group": "analyze",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "compose run",
+      "group": "compose",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "delivery arrange",
+      "group": "delivery",
+      "command": "arrange",
+      "binding": "."
+    },
+    {
+      "path": "jobs cancel",
+      "group": "jobs",
+      "command": "cancel",
+      "binding": "."
+    },
+    {
+      "path": "jobs get",
+      "group": "jobs",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "jobs list",
+      "group": "jobs",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "jobs wait",
+      "group": "jobs",
+      "command": "wait",
+      "binding": "."
+    },
+    {
+      "path": "models get",
+      "group": "models",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "models list",
+      "group": "models",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "pool configure",
+      "group": "pool",
+      "command": "configure",
+      "binding": "."
+    },
+    {
+      "path": "pool draw",
+      "group": "pool",
+      "command": "draw",
+      "binding": "."
+    },
+    {
+      "path": "pool status",
+      "group": "pool",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "separate run",
+      "group": "separate",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "sources audio",
+      "group": "sources",
+      "command": "audio",
+      "binding": "."
+    },
+    {
+      "path": "sources get",
+      "group": "sources",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "sources import",
+      "group": "sources",
+      "command": "import",
+      "binding": "."
+    },
+    {
+      "path": "styles compile",
+      "group": "styles",
+      "command": "compile",
+      "binding": "."
+    },
+    {
+      "path": "styles create",
+      "group": "styles",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "styles default-get",
+      "group": "styles",
+      "command": "default-get",
+      "binding": "."
+    },
+    {
+      "path": "styles default-set",
+      "group": "styles",
+      "command": "default-set",
+      "binding": "."
+    },
+    {
+      "path": "styles delete",
+      "group": "styles",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "styles export",
+      "group": "styles",
+      "command": "export",
+      "binding": "."
+    },
+    {
+      "path": "styles import",
+      "group": "styles",
+      "command": "import",
+      "binding": "."
+    },
+    {
+      "path": "styles list",
+      "group": "styles",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "takes audio",
+      "group": "takes",
+      "command": "audio"
+    },
+    {
+      "path": "takes consume",
+      "group": "takes",
+      "command": "consume",
+      "binding": "."
+    },
+    {
+      "path": "takes discard",
+      "group": "takes",
+      "command": "discard",
+      "binding": "."
+    },
+    {
+      "path": "takes get",
+      "group": "takes",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "takes list",
+      "group": "takes",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "takes receipt",
+      "group": "takes",
+      "command": "receipt"
+    },
+    {
+      "path": "takes release",
+      "group": "takes",
+      "command": "release",
+      "binding": "."
+    },
+    {
+      "path": "takes reserve",
+      "group": "takes",
+      "command": "reserve",
+      "binding": "."
+    }
+  ]
+}

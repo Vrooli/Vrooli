@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "inspect-template-standing",
+    "title": "Inspect template standing",
+    "purpose": "Operators review template registry, validation, drift, debt, measures, and monitor status before choosing the next remediation action.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-003"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "intent": "Compare current template standing and identify the highest-priority remediation signal.",
+      "via": "dashboard summary panels"
+    }
+  ]
+}

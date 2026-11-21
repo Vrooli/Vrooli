@@ -1,0 +1,11 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "any-content-composition"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:Pressable",
+  "version": "1.0.5"
+}

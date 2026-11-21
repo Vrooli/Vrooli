@@ -1,0 +1,30 @@
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+
+exports.default = async function buildV8Snapshot() {
+  const electronVersion = require('electron/package.json').version;
+  const snapshotPackage = require('electron-mksnapshot/package.json');
+  const snapshotVersion = snapshotPackage.version;
+  const declaredElectron = require('../package.json').devDependencies.electron;
+  const declaredSnapshot = require('../package.json').devDependencies['electron-mksnapshot'];
+  if (declaredElectron !== electronVersion || declaredSnapshot !== snapshotVersion || electronVersion !== snapshotVersion) {
+    throw new Error(`Electron/mksnapshot versions must match exactly (installed ${electronVersion}/${snapshotVersion}, declared ${declaredElectron}/${declaredSnapshot})`);
+  }
+
+  const outputDir = path.resolve('snapshot-output');
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+  const cli = path.join(path.dirname(require.resolve('electron-mksnapshot/package.json')), 'mksnapshot.js');
+  const result = spawnSync(process.execPath, [cli, path.resolve('scripts/v8-startup-snapshot.js'), '--output_dir', outputDir], {
+    cwd: process.cwd(),
+    env: { ...process.env, ELECTRON_CUSTOM_VERSION: electronVersion },
+    stdio: 'inherit',
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`electron-mksnapshot failed with exit code ${result.status}`);
+
+  const generated = path.join(outputDir, 'v8_context_snapshot.bin');
+  if (!fs.existsSync(generated)) throw new Error(`electron-mksnapshot did not produce ${generated}`);
+  fs.copyFileSync(generated, path.join(outputDir, 'browser_v8_context_snapshot.bin'));
+};

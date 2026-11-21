@@ -1,0 +1,1 @@
+{"gate":"specifier-shape","assetId":"calibration.specifier-shape","kind":"component","runner":"static","requiredFailureCode":"catalog.specifier_exact_pin","catalogAsset":"asset.json","source":"broken.tsx","description":"Uses an exact intra-library version selector instead of the required major-line selector."}

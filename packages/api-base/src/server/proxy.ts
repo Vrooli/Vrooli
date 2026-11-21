@@ -9,9 +9,21 @@ import * as http from 'node:http'
 import * as net from 'node:net'
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { HOP_BY_HOP_HEADERS, DEFAULT_PROXY_TIMEOUT, LOOPBACK_HOST } from '../shared/constants.js'
-import type { ProxyOptions } from '../shared/types.js'
+import type { ProxyOptions, WebSocketProxyOptions } from '../shared/types.js'
 import { parsePort } from '../shared/utils.js'
 import { resolveProxyAgent } from './agent.js'
+import { BROWSER_CONTEXT_HEADERS, isCorsResponseHeader, refuseUpgrade, SAME_ORIGIN_POLICY } from './origin-policy.js'
+
+function mergeVary(res: Response, upstream: string | string[]): void {
+  const current = res.getHeader('Vary')
+  const split = (value: unknown) => (Array.isArray(value) ? value.join(',') : String(value ?? ''))
+    .split(',').map((item) => item.trim()).filter(Boolean)
+  const merged: string[] = []
+  for (const item of [...split(current), ...split(upstream)]) {
+    if (!merged.some((existing) => existing.toLowerCase() === item.toLowerCase())) merged.push(item)
+  }
+  if (merged.length > 0) res.setHeader('Vary', merged.includes('*') ? '*' : merged.join(', '))
+}
 
 /**
  * Proxy a request to the API server
@@ -52,6 +64,7 @@ export async function proxyToApi(
     verbose = false,
     keepAlive = true,
     agent,
+    crossOriginRelay = false,
   } = options
 
   // Parse port
@@ -70,10 +83,12 @@ export async function proxyToApi(
   // Build headers
   const proxyHeaders: http.OutgoingHttpHeaders = {}
 
-  // Copy request headers, filtering hop-by-hop headers
+  // Copy request headers, filtering hop-by-hop headers. A relay to another
+  // origin also drops the browser context: its own origin policy admitted the
+  // request, and the upstream would otherwise judge the relay's origin.
   for (const [key, value] of Object.entries(req.headers)) {
     const lowerKey = key.toLowerCase()
-    if (HOP_BY_HOP_HEADERS.has(lowerKey)) {
+    if (HOP_BY_HOP_HEADERS.has(lowerKey) || (crossOriginRelay && BROWSER_CONTEXT_HEADERS.has(lowerKey))) {
       continue
     }
     proxyHeaders[key] = value
@@ -84,6 +99,14 @@ export async function proxyToApi(
 
   // Add any additional headers
   Object.assign(proxyHeaders, additionalHeaders)
+
+  // Retain the routed browser authority before Host becomes the loopback
+  // upstream. Derive it here, rather than trusting a caller's forwarding hint.
+  if (req.headers.host) {
+    proxyHeaders['x-forwarded-host'] = req.headers.host
+  } else {
+    delete proxyHeaders['x-forwarded-host']
+  }
 
   // Ensure accept header
   if (!proxyHeaders.accept) {
@@ -113,15 +136,23 @@ export async function proxyToApi(
         // Diagnostic marker for request path visibility in clients/logs.
         res.setHeader('X-Vrooli-Proxy-Hop', 'ui-proxy')
 
-        // Copy response headers, filtering hop-by-hop headers
+        // Copy response headers, filtering hop-by-hop headers. CORS headers
+        // belong to the browser-facing server's origin policy, which has
+        // already written them; an upstream's own CORS answer (often `*`)
+        // must not widen it. Vary is merged so the policy's Origin survives.
         for (const [key, value] of Object.entries(proxyRes.headers)) {
           const lowerKey = key.toLowerCase()
-          if (HOP_BY_HOP_HEADERS.has(lowerKey)) {
+          if (HOP_BY_HOP_HEADERS.has(lowerKey) || isCorsResponseHeader(lowerKey)) {
             continue
           }
-          if (value !== undefined && value !== null) {
-            res.setHeader(key, value)
+          if (value === undefined || value === null) {
+            continue
           }
+          if (lowerKey === 'vary') {
+            mergeVary(res, value)
+            continue
+          }
+          res.setHeader(key, value)
         }
 
         // Stream response body
@@ -253,14 +284,27 @@ export function proxyWebSocketUpgrade(
   req: http.IncomingMessage,
   clientSocket: any,
   head: Buffer,
-  options: ProxyOptions
+  options: WebSocketProxyOptions
 ): void {
   const {
     apiPort,
     apiHost = LOOPBACK_HOST,
     headers: additionalHeaders = {},
     verbose = false,
+    crossOriginRelay = false,
+    originPolicy = SAME_ORIGIN_POLICY,
   } = options
+
+  // Browsers do not apply CORS to WebSockets: any page can open one and read
+  // every frame. Refuse cross-origin handshakes before contacting upstream.
+  const decision = originPolicy.evaluateUpgrade(req)
+  if (decision.verdict === 'refused') {
+    if (verbose) {
+      console.warn(`[ws-proxy] Refused upgrade ${req.url}: ${decision.reason}`)
+    }
+    refuseUpgrade(clientSocket, decision.reason ?? 'Cross-origin WebSocket handshake refused')
+    return
+  }
 
   const port = parsePort(apiPort)
   if (!port) {
@@ -306,7 +350,7 @@ export function proxyWebSocketUpgrade(
     // For WebSocket upgrades, we must preserve ALL headers including WebSocket-specific ones
     const headers: Record<string, string | string[]> = {}
     for (const [key, value] of Object.entries(req.headers)) {
-      if (value !== undefined) {
+      if (value !== undefined && !(crossOriginRelay && BROWSER_CONTEXT_HEADERS.has(key.toLowerCase()))) {
         headers[key] = value as string | string[]
       }
     }
@@ -328,7 +372,15 @@ export function proxyWebSocketUpgrade(
     Object.assign(headers, additionalHeaders)
 
     // Override critical headers for proxying
-    headers.host = `${apiHost}:${portNumber}`
+    // Preserve the browser-facing authority before replacing Host. Consumers
+    // validate WebSocket Origin against this value behind the local gateway;
+    // derive it from the routed request, never a client-supplied forwarding hint.
+    if (req.headers.host) {
+      headers['x-forwarded-host'] = req.headers.host
+    } else {
+      delete headers['x-forwarded-host']
+    }
+    headers.host = `${net.isIPv6(apiHost) ? `[${apiHost}]` : apiHost}:${portNumber}`
     if (!headers.connection) {
       headers.connection = 'Upgrade'
     }

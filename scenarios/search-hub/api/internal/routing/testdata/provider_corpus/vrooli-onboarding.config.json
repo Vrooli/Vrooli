@@ -1,0 +1,11 @@
+{
+ "provider_id": "vrooli-onboarding.config",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "vrooli-onboarding",
+  "bucket": "BUCKET_STATE",
+  "type": "config",
+  "description": "Configuration and operator state searchable by capability — 'what config/integration options exist for X?'. No semantic search exists yet; today this means reading docs/configuration/ (the canonical, prose-only source).",
+  "intended_home": "vrooli-onboarding",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

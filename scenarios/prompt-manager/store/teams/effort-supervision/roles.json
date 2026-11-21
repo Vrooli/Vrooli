@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "effort-supervision",
+  "roles": [
+    {
+      "id": "effort-supervisor",
+      "name": "Effort Supervisor",
+      "description": "Sol supervisor above delivery orchestrators: infrastructure repair, sampled epoch audits, daily trend and weighted cost."
+    }
+  ]
+}

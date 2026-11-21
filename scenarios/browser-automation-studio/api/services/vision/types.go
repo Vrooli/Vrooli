@@ -1,31 +1,53 @@
 package vision
 
 // NavigationRequest contains all parameters needed to start an AI navigation.
+type NavigationPostcondition struct {
+	Selector string `json:"selector"`
+	Mode     string `json:"mode"`
+	Expected string `json:"expected"`
+}
+type NavigationExtraction struct {
+	Name      string `json:"name"`
+	Selector  string `json:"selector"`
+	Attribute string `json:"attribute"`
+	Limit     int    `json:"limit"`
+}
 type NavigationRequest struct {
+	EffectPolicy   string                    `json:"effect_policy,omitempty"`
+	Postconditions []NavigationPostcondition `json:"postconditions,omitempty"`
+	Extraction     []NavigationExtraction    `json:"extraction,omitempty"`
 	// SessionID is the browser session to navigate.
 	SessionID string `json:"session_id"`
 
 	// Prompt is the natural language instruction for the AI.
 	Prompt string `json:"prompt"`
 
-	// Model is the vision model to use (e.g., "gpt-4o", "claude-sonnet-4").
+	// Model is the provider-neutral AI Gateway route profile (local_first or
+	// remote_only). It is retained as a wire field for UI compatibility.
 	Model string `json:"model"`
 
 	// MaxSteps limits the number of navigation steps.
 	MaxSteps int `json:"max_steps,omitempty"`
 
-	// APIKey is an optional BYOK key for the AI provider.
-	APIKey string `json:"api_key,omitempty"`
-
 	// NavigatorType optionally specifies which navigator to use.
 	// If not specified, the registry will auto-select.
 	NavigatorType NavigatorType `json:"navigator_type,omitempty"`
 
-	// UserID is the user identity for credit tracking.
-	UserID string `json:"-"`
-
 	// CallbackURL is the URL for step event callbacks.
 	CallbackURL string `json:"-"`
+
+	// RootOperationID is the caller's stable idempotency root for this
+	// navigation. The sidecar derives a distinct stable Gateway ID per step.
+	RootOperationID string `json:"-"`
+	// AccessToken is the verified shared session token, carried only over the
+	// owned local sidecar route and never persisted in navigation state.
+	AccessToken string `json:"-"`
+	// AISource is the selected shared billing source: local, own-key, or
+	// vrooli-credits. Gateway remains authoritative for authorization and usage.
+	AISource string `json:"-"`
+	// PrivacyConsentGrant is an opaque Gateway-signed source-scoped receipt.
+	// It is carried in process memory only and never persisted or logged.
+	PrivacyConsentGrant string `json:"-"`
 }
 
 // NavigationStep represents a single step in the navigation process.
@@ -55,31 +77,27 @@ type TokenUsage struct {
 
 // NavigationResult represents the outcome of a completed navigation.
 type NavigationResult struct {
-	NavigationID    string           `json:"navigationId"`
-	Status          NavigationStatus `json:"status"`
-	TotalSteps      int              `json:"totalSteps"`
-	TotalTokens     int              `json:"totalTokens"`
-	TotalDurationMs int64            `json:"totalDurationMs"`
-	FinalURL        string           `json:"finalUrl"`
-	Error           string           `json:"error,omitempty"`
-	Summary         string           `json:"summary,omitempty"`
+	VerifiedSuccess   bool                   `json:"verifiedSuccess"`
+	ExtractedData     map[string]interface{} `json:"extractedData,omitempty"`
+	VerificationError string                 `json:"verificationError,omitempty"`
+	NavigationID      string                 `json:"navigationId"`
+	Status            NavigationStatus       `json:"status"`
+	TotalSteps        int                    `json:"totalSteps"`
+	TotalTokens       int                    `json:"totalTokens"`
+	TotalDurationMs   int64                  `json:"totalDurationMs"`
+	FinalURL          string                 `json:"finalUrl"`
+	Error             string                 `json:"error,omitempty"`
+	Summary           string                 `json:"summary,omitempty"`
 }
 
 // NavigatorInfo provides information about a navigator for the list endpoint.
 type NavigatorInfo struct {
-	Type              NavigatorType    `json:"type"`
-	Available         bool             `json:"available"`
-	Description       string           `json:"description"`
-	CreditPolicy      CreditPolicyInfo `json:"credit_policy"`
-	AllowedSources    []ClientSource   `json:"allowed_sources"`
-	UnavailableReason string           `json:"unavailable_reason,omitempty"`
-}
-
-// CreditPolicyInfo is the JSON-serializable form of CreditPolicy.
-type CreditPolicyInfo struct {
-	RequiresCredits  bool              `json:"requires_credits"`
-	CreditsPerStep   int               `json:"credits_per_step"`
-	BypassConditions []BypassCondition `json:"bypass_conditions"`
+	Type              NavigatorType  `json:"type"`
+	Available         bool           `json:"available"`
+	Description       string         `json:"description"`
+	CreditPolicy      CreditPolicy   `json:"credit_policy"`
+	AllowedSources    []ClientSource `json:"allowed_sources"`
+	UnavailableReason string         `json:"unavailable_reason,omitempty"`
 }
 
 // NavigatorsResponse is the response for GET /api/v1/ai-navigate/navigators.

@@ -1,9 +1,30 @@
+---
+name: "conversation-friction-analysis"
+description: "Analyze a goal-oriented conversation to identify friction points, attribute root causes, and recommend high-leverage fixes across skills, tooling, docs, and process policy."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta"]
+  tags: ["conversation","retrospective","friction","skills","cli","process-improvement"]
+  icon: "lightbulb"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-09T00:00:00Z"
+  updatedAt: "2026-02-09T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Conversation Friction Analysis
 
 Analyze a goal-oriented conversation to identify friction points, attribute root causes, and propose high-leverage fixes across skills, CLI/tooling, docs, and process policy.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 
 Optional reading:
 - `prompt-manager skill read skill-validation`
@@ -33,7 +54,7 @@ This skill turns one conversation into system-level improvements.
 - Finding friction events and evidence
 - Root-cause attribution (skill/tool/docs/process/intent)
 - Recommending fixes with priority and ownership
-- Suggesting promotion from prose workarounds to CLI/tool improvements
+- Suggesting promotion from prose workarounds to CLI/tool improvements and Action contracts when one command can own execution
 
 **Out of scope:**
 - Implementing all recommendations automatically
@@ -94,6 +115,7 @@ For each event capture:
 Classify each friction event into one primary layer:
 - `Skill design`: ambiguity, missing guardrails, scattered long-tail details
 - `CLI/tool output`: weak next actions, poor defaults, selector/ID confusion
+- `Action discovery`: deterministic operation has a CLI surface but no discoverable Action, or agents miss an existing Action
 - `Tool capability`: missing command for repeated manual pattern
 - `Docs/discovery`: source of truth hard to find, stale references
 - `Process/policy`: no clear escalation path, conflicting governance rules
@@ -116,12 +138,13 @@ Priority score:
 Prefer fixes that:
 - remove repeated manual interpretation
 - improve default CLI human output contracts
+- expose stable one-command operations through Actions
 - reduce policy ambiguity across skills
 
 #### Step E: Map Fixes to Owners and Artifacts
 
 Every recommendation must specify:
-- owner layer (`skill`, `cli/tool`, `docs`, `policy`)
+- owner layer (`skill`, `path:cli/tool`, `docs`, `policy`)
 - target artifact (file/command/module)
 - expected behavior change
 - verification method
@@ -136,11 +159,12 @@ Ensure recommendations are:
 
 #### Step G: Retirement Mapping (Required for CLI-Operational Friction)
 
-Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+Apply the canonical lifecycle from `docs/agent-system/PROMOTION_LADDER.md`.
 
 For each systemic friction pattern tied to skill prose workarounds, classify:
 - `Keep` (durable policy/safety/ownership rule)
 - `Collapse` (replace detailed prose with CLI output contract guidance)
+- `Collapse to Action` (replace detailed command prose with an Action reference)
 - `Delete` (fully superseded by durable CLI/tooling behavior)
 
 When using `Collapse` or `Delete`, specify:
@@ -152,14 +176,16 @@ When using `Collapse` or `Delete`, specify:
 
 ### 5. Convergence Patterns
 
-Use this decision flow for each friction event:
+Use this work flow for each friction event:
 
 ```mermaid
 flowchart TD
   A[Friction event detected] --> B{Output was unclear?}
   B -->|Yes| C[CLI output contract improvement]
   B -->|No| D{Repeated manual steps?}
-  D -->|Yes| E[Tool capability improvement]
+  D -->|Yes| E{One controlled CLI command owns it?}
+  E -->|Yes| K[Action candidate or Action improvement]
+  E -->|No| L[Tool capability improvement]
   D -->|No| F{Guidance contradictory or scattered?}
   F -->|Yes| G[Skill/policy clarification]
   F -->|No| H{Source hard to discover?}
@@ -169,7 +195,7 @@ flowchart TD
 
 Escalation rule:
 - If the same pattern appears 2+ times in a conversation, treat it as systemic and recommend a durable fix (tooling or policy), not just local wording edits.
-- If repeated friction is currently handled via prose workarounds, recommend a CLI/tooling conversion path first and keep prose updates minimal/interim.
+- If repeated friction is currently handled via prose workarounds, recommend a CLI/tooling conversion path first; when one command owns execution, recommend an Action and keep prose updates minimal/interim.
 
 ---
 
@@ -198,7 +224,7 @@ Rule:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 Produce this report:
 
@@ -229,7 +255,7 @@ Produce this report:
 ## Promotion Candidates
 | Source Workaround | Promote To | Expected Benefit |
 |---|---|---|
-| ... | CLI output contract / new command / policy update | ... |
+| ... | Action / CLI output contract / new command / policy update | ... |
 
 ## Retirement Candidates
 | Skill Section / Workaround | Decision (Keep/Collapse/Delete) | Trigger Contract | Risk |

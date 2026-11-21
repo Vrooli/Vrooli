@@ -2,13 +2,38 @@
 
 _Last reviewed: 2026-01-30_
 
+_Lifecycle ownership rechecked: 2026-09-29_
+
 ## Overview
 
 The AI navigation feature (also called "autopilot") enables users to control browser sessions using natural language prompts. A vision-language model observes the browser state via annotated screenshots and decides what actions to take to accomplish the user's goal.
 
+## AI Gateway provider boundary
+
+The Playwright vision client sends the inner multimodal decision request to
+AI Gateway's `InferenceService.Run` contract. BAS supplies the intent role
+(`extract.structured`), a provider-neutral route profile, the ordered
+conversation turns, and inline screenshot attachments. AI Gateway and the
+resource providers own credentials, concrete model selection, retries,
+provider request shape, and reported token usage.
+
+The UI exposes only two route profiles: `local_first` (local multimodal
+preference with reviewed hosted fallback) and `remote_only` (hosted through
+AI Gateway). BAS retains the browser-specific observe/decide/act loop, element
+numbering, action parsing, loop detection, and human-intervention behavior.
+Each prior user frame remains attached to its original turn, and credit
+accounting consumes usage returned by AI Gateway rather than a BAS price table.
+
+Playwright-backed navigation is the sole production engine. The API owns
+navigation identity, authorization, lifecycle tracking and action recording;
+playwright-driver owns the observe/decide/act loop and calls AI Gateway for
+provider-neutral model inference. Text analysis also uses the shared OpenRouter
+model service boundary.
+
 ## Navigator Abstraction
 
-The AI navigation system uses a pluggable navigator architecture that allows multiple navigation backends with different capabilities, credit policies, and client source restrictions.
+The API registry exposes the canonical Playwright navigator for discovery and
+request validation. Production wiring registers exactly one navigator.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -16,13 +41,11 @@ The AI navigation system uses a pluggable navigator architecture that allows mul
 │                              │                                              │
 │                    NavigatorRegistry.SelectNavigator()                      │
 │                              │                                              │
-│           ┌──────────────────┼──────────────────┐                           │
-│           ▼                                     ▼                           │
-│  PlaywrightVisionNavigator          ClaudeCodeVisionNavigator               │
-│  (UI, CLI, API)                     (CLI only, future)                      │
-│           │                                     │                           │
-│           ▼                                     ▼                           │
-│  playwright-driver                  claude CLI --chrome                     │
+│                              ▼                                              │
+│                    PlaywrightVisionNavigator                               │
+│                              │                                              │
+│                              ▼                                              │
+│                       playwright-driver                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +70,6 @@ type VisionNavigator interface {
 | Navigator | Status | Description | Allowed Sources |
 |-----------|--------|-------------|-----------------|
 | `playwright` | Available | Vision navigation via playwright-driver | UI, CLI, API |
-| `claude_code` | Stub (future) | Navigation via Claude Code CLI with Chrome | CLI only |
 
 ## Visual Architecture Diagram
 
@@ -72,17 +94,17 @@ type VisionNavigator interface {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌────────────────────────────┐      ┌────────────────────────────────────┐ │
-│  │  VisionNavigationHandler   │      │        Credit Service              │ │
-│  │  - Selects navigator       │◀────▶│  - Policy-based checking           │ │
-│  │  - Validates entitlements  │      │  - Per-step charging               │ │
+│  │  VisionNavigationHandler   │      │             AI Gateway              │ │
+│  │  - Selects navigator       │─────▶│  - Signed-session source check      │ │
+│  │  - Validates feature lease │      │  - Privacy policy and usage meter   │ │
 │  │  - Broadcasts WebSocket    │      └────────────────────────────────────┘ │
 │  └─────────────┬──────────────┘                                             │
 │                │                                                            │
 │    ┌───────────┴───────────┐                                                │
 │    ▼                       ▼                                                │
 │  NavigatorRegistry    CreditPolicy                                          │
-│  - SelectNavigator()  - ShouldChargeCredits()                               │
-│  - ListNavigators()   - BypassConditions                                    │
+│  - SelectNavigator()  - Meter display only                                 │
+│  - ListNavigators()   - No local authorization or billing                  │
 │                                                                             │
 │                │  Forward to driver         Callback from driver            │
 │                ▼                                    ▲                       │
@@ -133,34 +155,26 @@ type VisionNavigator interface {
 
 ## Credit Policies
 
-Each navigator declares its own credit policy, which the handler checks before execution.
+The navigator response exposes only display hints. The signed-session middleware
+checks the BAS AI feature for Vrooli-funded requests; AI Gateway validates the
+account source, privacy consent, and usage reservation for each model call. BAS
+does not precheck balances or charge from callback events.
 
 ### CreditPolicy Structure
 
 ```go
 type CreditPolicy struct {
     RequiresCredits  bool
-    OperationType    credits.OperationType
     PerStepCharging  bool
     CreditsPerStep   int
-    BypassConditions []BypassCondition
 }
 ```
 
 ### Navigator Credit Policies
 
-| Navigator | RequiresCredits | CreditsPerStep | Bypass Conditions |
-|-----------|-----------------|----------------|-------------------|
-| Playwright | Yes | 2 | `byok`, `resource_openrouter` |
-| ClaudeCode | No | 0 | `local_execution` |
-
-### Bypass Conditions
-
-| Condition | Description |
-|-----------|-------------|
-| `byok` | User provided their own API key (Bring Your Own Key) |
-| `resource_openrouter` | Using resource openrouter (server-provided key) |
-| `local_execution` | Running locally without external API calls |
+| Navigator | RequiresCredits | Fixed credits per step |
+|-----------|-----------------|------------------------|
+| Playwright | Account-source dependent | None; Gateway determines usage |
 
 ## Client Source Restriction
 
@@ -179,7 +193,6 @@ The system tracks client sources via the `X-Client-Source` header to restrict ce
 | Navigator | Allowed Sources |
 |-----------|-----------------|
 | Playwright | All (UI, CLI, API) |
-| ClaudeCode | CLI only |
 
 ## Data Flow Sequence
 
@@ -201,9 +214,9 @@ User types prompt
        │                                                   │
        ▼                                                   │
 ┌──────────────────┐                                       │
-│ 3. Checks credit │                                       │
-│    policy and    │                                       │
-│    entitlements  │                                       │
+│ 3. Checks signed │                                       │
+│    session and   │                                       │
+│    AI feature    │                                       │
 └──────────────────┘                                       │
        │                                                   │
        ▼                                                   │
@@ -243,9 +256,9 @@ User types prompt
        │
        ▼
 ┌──────────────────┐
-│ 6. Charges       │
-│    credits per   │
-│    policy        │
+│ 6. Records usage │
+│    through AI    │
+│    Gateway       │
 └──────────────────┘
        │
        ▼
@@ -263,10 +276,9 @@ User types prompt
 |-------|------|---------|
 | **API** | `api/services/vision/navigator.go` | VisionNavigator interface, NavigationHandle |
 | **API** | `api/services/vision/types.go` | NavigationRequest, NavigationStep, NavigationResult |
-| **API** | `api/services/vision/policy.go` | CreditPolicy, ClientSourcePolicy, BypassCondition |
+| **API** | `api/services/vision/policy.go` | CreditPolicy display hint, ClientSourcePolicy |
 | **API** | `api/services/vision/registry.go` | NavigatorRegistry (discovery + selection) |
 | **API** | `api/services/vision/playwright_navigator.go` | Playwright implementation |
-| **API** | `api/services/vision/claudecode_navigator.go` | Claude Code stub (future) |
 
 ### UI Layer
 
@@ -274,7 +286,9 @@ User types prompt
 |------|---------|
 | [CODE: ui/src/domains/recording/sidebar/AutoTab.tsx] | Chat interface for AI navigation |
 | [CODE: ui/src/domains/recording/ai-conversation/useAIConversation.ts] | Message history management |
-| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Navigation state & API calls |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Start/abort/resume requests and navigation projection |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationRuntime.ts] | Identity, cancellation, lifecycle reset and shared command/event refs |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationEvents.ts] | Incremental WebSocket event admission |
 | [CODE: ui/src/domains/recording/ai-navigation/types.ts] | TypeScript type definitions |
 | [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOverlay.tsx] | Human intervention UI |
 
@@ -327,6 +341,48 @@ User types prompt
 | `max_steps_reached` | Hit configured step limit |
 | `loop_detected` | Agent stuck in repetitive actions |
 | `aborted` | User cancelled the navigation |
+
+## Current lifecycle ownership and recovery contract
+
+The browser callback is admitted and normalized once by
+`api/services/vision/playwright_navigator.go`. Under the session owner it
+rejects terminal or duplicate steps, creates one redacted event projection,
+then reuses that projection for bounded history, recording callbacks and
+WebSocket fan-out. Consumers must not independently redact or reinterpret the
+same callback envelope.
+
+The UI has deliberately separate observation responsibilities:
+
+- `navigationEvents.ts` parses the wire envelope and recovery snapshot.
+- `useAINavigationEvents.ts` admits low-latency WebSocket events and fences
+  stale generations.
+- `useAINavigationRuntime.ts` owns the identity refs, cancellation controllers,
+  reset lifecycle and one shared command/event ref contract, including the
+  generation predicate and current-command state updater. It is the only owner
+  that creates those refs; consumers receive the same fenced object.
+- `useAINavigation.ts` sends start/abort/resume requests through the API and
+  projects their server-assigned navigation identity.
+- `useAINavigation.ts` composes the runtime, event path and server-owned status
+  wait used after transport loss. WebSocket and
+  recovery projections remain separate transport owners, but share the same
+  navigation identity and generation fences.
+- `useAIConversation.ts` owns conversation-message projection.
+- `utils/actionDisplay.ts` is the presentation redaction boundary for action
+  details; it is not a substitute for API-side redaction.
+
+WebSocket delivery is the low-latency path. A status-wait failure is an
+`observation_unavailable` transport state, not proof that navigation failed:
+the navigation identity remains available for stop/recovery and a successor
+cannot start until the server operation settles. A valid current-session live
+step is authoritative transport recovery and returns the projection to
+`navigating`, clearing only the stale observer error. Abort, replacement and
+unmount cancel the outstanding status wait. Managed shutdown gives HTTP drain
+and owner cleanup separate budgets; cleanup remains mandatory after a drain
+deadline and active requests are force-closed so browser and sidecar owners
+cannot survive the process boundary.
+
+This boundary is source- and focused-test verified only until a fresh managed
+build and qualification receipt bind it to runtime behavior.
 
 ## API Endpoints
 
@@ -436,7 +492,7 @@ The UI shows [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOver
 ## Architectural Decisions
 
 1. **Navigator Abstraction**: Pluggable navigator pattern enables different backends with distinct policies
-2. **Policy-Based Credit Gating**: Each navigator declares its own credit policy, handler enforces uniformly
+2. **Gateway-Owned Metering**: BAS checks the signed feature lease; AI Gateway owns per-inference usage and billing
 3. **Client Source Restriction**: `X-Client-Source` header enables CLI-only features
 4. **Async Background Processing**: Navigation runs in background (202 Accepted), events pushed via WebSocket
 5. **Callback-based Progress**: Driver POSTs to callback URL, backend broadcasts via WebSocket
@@ -448,6 +504,6 @@ The UI shows [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOver
 
 - [DOC: docs/architecture/driver-interface.md] - Driver interface and navigator architecture
 - [DOC: docs/architecture/recording.md] - Manual recording architecture (contrast with AI navigation)
-- [DOC: docs/plans/vision-agent-implementation-plan.md] - Original implementation plan
+- [DOC: docs/plans/README.md#historical-source-files] - Original implementation plan
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
 - [DOC: docs/research/ai-browser-automation-research.md] - Research on AI browser automation approaches

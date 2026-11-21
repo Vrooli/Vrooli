@@ -213,7 +213,7 @@ export function Dashboard({ onStartNew, onResume }: DashboardProps) {
                   <div className="w-3 h-3 rounded-full bg-red-500" />
                   <div>
                     <span className="text-sm text-red-400">API Offline</span>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       Start the scenario with: vrooli scenario start scenario-to-cloud
                     </p>
                   </div>
@@ -224,7 +224,7 @@ export function Dashboard({ onStartNew, onResume }: DashboardProps) {
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   <div>
                     <span className="text-sm text-emerald-400">API Online</span>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5">
                       {health.service} - {new Date(health.timestamp).toLocaleTimeString()}
                     </p>
                   </div>
@@ -278,7 +278,7 @@ export function Dashboard({ onStartNew, onResume }: DashboardProps) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-200">{item.title}</p>
-                  <p className="text-xs text-slate-500">{item.desc}</p>
+                  <p className="text-xs text-slate-400">{item.desc}</p>
                 </div>
               </div>
             ))}

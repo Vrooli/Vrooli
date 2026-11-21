@@ -164,94 +164,6 @@ func TestIsNativeWorkflowFormat(t *testing.T) {
 	})
 }
 
-// TestIsV1WorkflowFormat verifies detection of V1 vs V2 workflow formats.
-// V1: node.type + node.data pattern (legacy)
-// V2: node.action with typed action definitions (current)
-func TestIsV1WorkflowFormat(t *testing.T) {
-	t.Run("V1 format with type and data", func(t *testing.T) {
-		content := []byte(`{
-			"nodes": [
-				{"id": "1", "type": "click", "data": {"selector": "button"}}
-			]
-		}`)
-
-		assert.True(t, IsV1WorkflowFormat(content), "type+data pattern should be V1")
-	})
-
-	t.Run("V1 format with only type", func(t *testing.T) {
-		content := []byte(`{
-			"nodes": [
-				{"id": "1", "type": "click"}
-			]
-		}`)
-
-		assert.True(t, IsV1WorkflowFormat(content), "type without data should still be V1")
-	})
-
-	t.Run("V2 format with action", func(t *testing.T) {
-		content := []byte(`{
-			"nodes": [
-				{"id": "1", "action": {"type": "ACTION_TYPE_CLICK", "click": {"selector": "button"}}}
-			]
-		}`)
-
-		assert.False(t, IsV1WorkflowFormat(content), "node with action should be V2")
-	})
-
-	t.Run("mixed format with action is V2", func(t *testing.T) {
-		// If a node has both type/data AND action, it's V2
-		content := []byte(`{
-			"nodes": [
-				{"id": "1", "type": "click", "data": {}, "action": {"type": "ACTION_TYPE_CLICK"}}
-			]
-		}`)
-
-		assert.False(t, IsV1WorkflowFormat(content), "node with action should be V2 even if it has type/data")
-	})
-
-	t.Run("empty nodes array is V2 (default)", func(t *testing.T) {
-		content := []byte(`{"nodes": []}`)
-
-		assert.False(t, IsV1WorkflowFormat(content), "empty workflow should default to V2")
-	})
-
-	t.Run("nodes in flow_definition", func(t *testing.T) {
-		content := []byte(`{
-			"flow_definition": {
-				"nodes": [
-					{"id": "1", "type": "click", "data": {}}
-				]
-			}
-		}`)
-
-		assert.True(t, IsV1WorkflowFormat(content), "should detect V1 in flow_definition")
-	})
-
-	t.Run("nodes in definition_v2", func(t *testing.T) {
-		content := []byte(`{
-			"definition_v2": {
-				"nodes": [
-					{"id": "1", "action": {"type": "ACTION_TYPE_NAVIGATE"}}
-				]
-			}
-		}`)
-
-		assert.False(t, IsV1WorkflowFormat(content), "should detect V2 in definition_v2")
-	})
-
-	t.Run("invalid JSON returns false", func(t *testing.T) {
-		content := []byte(`{not valid`)
-
-		assert.False(t, IsV1WorkflowFormat(content))
-	})
-
-	t.Run("non-workflow JSON returns false", func(t *testing.T) {
-		content := []byte(`{"name": "package"}`)
-
-		assert.False(t, IsV1WorkflowFormat(content))
-	})
-}
-
 // TestHasNodesArray verifies the helper function for nodes array detection.
 func TestHasNodesArray(t *testing.T) {
 	t.Run("map with nodes array returns true", func(t *testing.T) {
@@ -367,7 +279,6 @@ func TestWorkflowContentDetection_RealWorldExamples(t *testing.T) {
 
 		require.True(t, isWorkflowContent(content), "should detect React Flow workflow")
 		assert.True(t, isNativeWorkflowFormat(content), "should detect native format")
-		assert.True(t, IsV1WorkflowFormat(content), "React Flow with type+data is V1")
 	})
 
 	t.Run("V2 proto-based workflow format", func(t *testing.T) {
@@ -388,7 +299,6 @@ func TestWorkflowContentDetection_RealWorldExamples(t *testing.T) {
 
 		require.True(t, isWorkflowContent(content), "should detect V2 workflow")
 		assert.True(t, isNativeWorkflowFormat(content), "should detect native format")
-		assert.False(t, IsV1WorkflowFormat(content), "should detect V2 format")
 	})
 
 	t.Run("external Playwright Codegen export", func(t *testing.T) {
@@ -483,7 +393,7 @@ func TestConvertExternalWorkflowReusesExistingID(t *testing.T) {
 	existingID := uuid.New()
 	content := []byte(`{
 		"metadata": { "name": "test-workflow" },
-		"nodes": [{"id": "1", "type": "click"}],
+		"nodes": [{"id": "1", "action": {"type": "ACTION_TYPE_CLICK", "click": {"selector": "#button"}}}],
 		"edges": []
 	}`)
 
@@ -507,7 +417,7 @@ func TestConvertExternalWorkflowGeneratesNewIDWhenNoneProvided(t *testing.T) {
 
 	content := []byte(`{
 		"metadata": { "name": "test-workflow" },
-		"nodes": [{"id": "1", "type": "click"}],
+		"nodes": [{"id": "1", "action": {"type": "ACTION_TYPE_CLICK", "click": {"selector": "#button"}}}],
 		"edges": []
 	}`)
 
@@ -645,7 +555,7 @@ func TestSyncDeduplicationIntegration(t *testing.T) {
 	// Now simulate an external workflow file with the same name/folder
 	externalContent := []byte(`{
 		"metadata": { "name": "open-demo-project" },
-		"nodes": [{"id": "1", "type": "navigate", "data": {"url": "https://example.com"}}],
+		"nodes": [{"id": "1", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"url": "https://example.com"}}}],
 		"edges": []
 	}`)
 

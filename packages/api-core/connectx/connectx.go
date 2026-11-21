@@ -1,0 +1,78 @@
+// Package connectx provides small integration helpers for mounting Connect-RPC
+// handlers into Vrooli's existing HTTP routers.
+package connectx
+
+import (
+	"net/http"
+	"strings"
+
+	"connectrpc.com/connect"
+	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/mux"
+)
+
+// WrapError keeps the Connect envelope consistent while leaving domain code
+// responsible for mapping its typed errors to canonical status codes.
+func WrapError(err error, codeFor func(error) connect.Code) error {
+	if err == nil {
+		return nil
+	}
+	if codeFor == nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewError(codeFor(err), err)
+}
+
+// ServiceMount is one Connect service handler returned by generated code.
+//
+// Generated New<Service>Handler functions return both a path and an
+// http.Handler. RegisterServices mounts that pair on the scenario router.
+// Existing logging, recovery, auth, and CORS middleware continue to compose
+// normally because Connect handlers are standard http.Handler values.
+type ServiceMount struct {
+	Path    string
+	Handler http.Handler
+}
+
+// RegisterServices mounts Connect handlers onto router.
+func RegisterServices(router *mux.Router, mounts ...ServiceMount) {
+	if router == nil {
+		return
+	}
+	for _, mount := range mounts {
+		path := normalizePath(mount.Path)
+		if path == "" || mount.Handler == nil {
+			continue
+		}
+		router.PathPrefix(path).Handler(mount.Handler)
+	}
+}
+
+// RegisterChi mounts Connect handlers onto a chi router. Mirrors
+// RegisterServices for scenarios whose HTTP API is built on chi rather
+// than gorilla/mux. chi.Mount preserves the full request URL.Path for
+// the inner handler, which is what Connect requires — the procedure
+// name is derived from URL.Path.
+func RegisterChi(router chi.Router, mounts ...ServiceMount) {
+	if router == nil {
+		return
+	}
+	for _, mount := range mounts {
+		path := normalizePath(mount.Path)
+		if path == "" || mount.Handler == nil {
+			continue
+		}
+		router.Mount(path, mount.Handler)
+	}
+}
+
+func normalizePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return strings.TrimRight(path, "/") + "/"
+}

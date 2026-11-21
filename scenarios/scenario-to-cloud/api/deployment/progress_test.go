@@ -1,6 +1,12 @@
 package deployment
 
 import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -175,7 +181,7 @@ func TestSetupSteps(t *testing.T) {
 	}
 
 	// Check expected setup step IDs
-	expectedIDs := []string{"mkdir", "bootstrap", "upload", "extract", "setup", "autoheal", "verify_setup"}
+	expectedIDs := []string{"host.prepare", "edge.firewall.allow", "data.inventory", "release.deliver", "release.verify", "release.stage", "data.backup", "release.activate", "config.apply"}
 	for i, expected := range expectedIDs {
 		if i >= len(SetupSteps) {
 			t.Errorf("Missing expected step: %s", expected)
@@ -199,5 +205,101 @@ func TestDeploySteps(t *testing.T) {
 		if step.Weight <= 0 {
 			t.Errorf("DeployStep %s has non-positive weight: %f", step.ID, step.Weight)
 		}
+	}
+}
+
+func TestDefaultPortsFetcherUsesContractResolvedServicePath(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContractFixture(t, root)
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+
+	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
+		"service": map[string]interface{}{"name": "demo"},
+		"ports": map[string]interface{}{
+			"api": map[string]interface{}{"port": 8080},
+			"ui":  map[string]interface{}{"port": 3000},
+		},
+	})
+
+	got, err := (&DefaultPortsFetcher{}).FetchPorts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("FetchPorts: %v", err)
+	}
+	want := map[string]int{"api": 8080, "ui": 3000}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FetchPorts = %#v, want %#v", got, want)
+	}
+}
+
+func writeRepoContractFixture(t *testing.T, root string) {
+	t.Helper()
+
+	for _, dir := range []string{".vrooli", "scenarios", "resources", "templates", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	// Copy the live repo's .vrooli/repo-contract.json verbatim rather than
+	// hand-typing a literal. This keeps the single source of truth authoritative
+	// and prevents the fixture from drifting when the contract schema gains a
+	// required field (e.g. runtime_home).
+	contract := liveRepoContract(t)
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contract, 0o644); err != nil {
+		t.Fatalf("write repo-contract.json: %v", err)
+	}
+}
+
+// liveRepoContract reads the repository's authoritative
+// .vrooli/repo-contract.json by walking up from this source file until the
+// contract is found, returning the raw bytes for verbatim copy into a fixture.
+func liveRepoContract(t *testing.T) []byte {
+	t.Helper()
+	if cwd, err := os.Getwd(); err == nil {
+		if data, ok := findRepoContract(cwd); ok {
+			return data
+		}
+	}
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate live repo contract")
+	}
+	if data, ok := findRepoContract(filepath.Dir(filename)); ok {
+		return data
+	}
+	t.Fatal("could not locate .vrooli/repo-contract.json above test package")
+	return nil
+}
+
+func findRepoContract(start string) ([]byte, bool) {
+	dir := start
+	for {
+		candidate := filepath.Join(dir, ".vrooli", "repo-contract.json")
+		if data, err := os.ReadFile(candidate); err == nil {
+			return data, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return nil, false
+		}
+		dir = parent
+	}
+}
+
+func writeJSONFile(t *testing.T, path string, payload map[string]interface{}) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", path, err)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

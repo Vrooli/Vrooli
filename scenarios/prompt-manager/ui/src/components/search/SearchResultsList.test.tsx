@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { SearchResultsList } from './SearchResultsList'
-import type { DiscoverResult, AISearchResult } from '@/lib/schemas'
+import type { DiscoverResult, AISearchResult, AIActionSearchResult } from '@/lib/schemas'
 
 function makeDiscoverResult(overrides: Partial<DiscoverResult> = {}): DiscoverResult {
   return {
@@ -41,6 +41,21 @@ function makeSkillResult(overrides: Partial<AISearchResult> = {}): AISearchResul
   }
 }
 
+function makeActionResult(overrides: Partial<AIActionSearchResult> = {}): AIActionSearchResult {
+  return {
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
+    description: 'Review team work',
+    status: 'active',
+    owner: 'scenario:prompt-manager',
+    command: 'swarm-manager backlog list --json',
+    tags: ['team'],
+    score: 0.9,
+    scorePercent: 90,
+    ...overrides,
+  }
+}
+
 const noopToggle = vi.fn()
 const noopNavigate = vi.fn()
 
@@ -69,6 +84,40 @@ describe('SearchResultsList', () => {
       expect(screen.getByText('#1')).toBeDefined()
       expect(screen.getByText('#2')).toBeDefined()
       expect(screen.getByText('#3')).toBeDefined()
+    })
+
+    it('renders Action discover results with operational metadata', () => {
+      const results = [
+        makeDiscoverResult({
+          id: 'team.swarm.work.list',
+          name: 'List Team Work',
+          type: 'action',
+          status: 'active',
+          owner: 'scenario:prompt-manager',
+          contentChars: 0,
+        }),
+      ]
+      const onNavigate = vi.fn()
+
+      render(
+        <SearchResultsList
+          entityType="skills"
+          discoverMode={true}
+          discoverResults={results}
+          isSelectMode={false}
+          selectedIds={new Set()}
+          onToggleSelection={noopToggle}
+          onNavigate={onNavigate}
+        />
+      )
+
+      expect(screen.getByText('Action')).toBeDefined()
+      expect(screen.getByLabelText('Action result')).toBeDefined()
+      expect(screen.getByText('active')).toBeDefined()
+      expect(screen.getByText('scenario:prompt-manager')).toBeDefined()
+
+      fireEvent.click(screen.getByText('List Team Work'))
+      expect(onNavigate).toHaveBeenCalledWith('team.swarm.work.list', 'action')
     })
 
     it('does not render rank numbers in non-discover skill mode', () => {
@@ -219,11 +268,62 @@ describe('SearchResultsList', () => {
         />
       )
 
-      const buttons = container.querySelectorAll('button')
-      // First button (In Budget) should not have opacity-50
-      expect(buttons[0]?.className).not.toContain('opacity-50')
-      // Second button (Over Budget) should have opacity-50
-      expect(buttons[1]?.className).toContain('opacity-50')
+      const rows = container.querySelectorAll('li > div')
+      expect(rows[0]?.className).not.toContain('opacity-50')
+      expect(rows[1]?.className).toContain('opacity-50')
+    })
+
+    it('keeps selection and navigation as separate controls in select mode', () => {
+      const results = [makeDiscoverResult({ id: 'a', name: 'Selectable Skill' })]
+      const onToggle = vi.fn()
+      const onNavigate = vi.fn()
+
+      render(
+        <SearchResultsList
+          entityType="skills"
+          discoverMode={true}
+          discoverResults={results}
+          isSelectMode={true}
+          selectedIds={new Set()}
+          onToggleSelection={onToggle}
+          onNavigate={onNavigate}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Selectable Skill/ }))
+      expect(onToggle).toHaveBeenCalledWith('a', 1500)
+      expect(onNavigate).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to entity' }))
+      expect(onNavigate).toHaveBeenCalledWith('a', undefined)
+    })
+  })
+
+  describe('Action results', () => {
+    it('renders direct Action AI results and supports selection', () => {
+      const onToggle = vi.fn()
+      const onNavigate = vi.fn()
+
+      render(
+        <SearchResultsList
+          entityType="actions"
+          actionResults={[makeActionResult()]}
+          isSelectMode={true}
+          selectedIds={new Set()}
+          onToggleSelection={onToggle}
+          onNavigate={onNavigate}
+        />
+      )
+
+      expect(screen.getByText('List Team Work')).toBeDefined()
+      expect(screen.getByText('scenario:prompt-manager')).toBeDefined()
+      expect(screen.getByText('swarm-manager backlog list --json')).toBeDefined()
+
+      fireEvent.click(screen.getByRole('button', { name: /List Team Work/ }))
+      expect(onToggle).toHaveBeenCalledWith('team.swarm.work.list')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to entity' }))
+      expect(onNavigate).toHaveBeenCalledWith('team.swarm.work.list')
     })
   })
 })

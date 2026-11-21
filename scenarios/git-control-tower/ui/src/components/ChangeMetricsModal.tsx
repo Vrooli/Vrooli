@@ -1,3 +1,4 @@
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { memo, useMemo, useEffect, useCallback, useState } from "react";
 import { X, BarChart3, Plus, Minus, ArrowRight, Loader2, Info } from "lucide-react";
 import { useIsMobile } from "../hooks";
@@ -579,35 +580,20 @@ export const ChangeMetricsModal = memo(function ChangeMetricsModal({
   // Mobile: full-screen overlay
   if (isMobile) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Change metrics"
+      <FullPageDrawer
+        open={isOpen}
+        onClose={onClose}
+        title={title ?? (mode === "file" ? "File Metrics" : "Change Metrics")}
+        ariaLabel="Change metrics"
+        closeLabel="Close"
+        dismissAffordance="close"
+        contentClassName="px-4 py-6 space-y-6"
       >
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-slate-400" />
-            <h2 className="text-base font-semibold text-slate-100">
-              {title ?? (mode === "file" ? "File Metrics" : "Change Metrics")}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          {filePath && mode === "file" && (
-            <p className="text-xs text-slate-500 truncate mb-4">{filePath}</p>
-          )}
-          {content}
-        </div>
-      </div>
+        {filePath && mode === "file" && (
+          <p className="text-xs text-slate-500 truncate mb-4">{filePath}</p>
+        )}
+        {content}
+      </FullPageDrawer>
     );
   }
 

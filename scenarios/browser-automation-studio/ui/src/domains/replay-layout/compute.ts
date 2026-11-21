@@ -52,18 +52,20 @@ export const computeReplayLayout = (input: ReplayLayoutInput): ReplayLayoutModel
     height: Math.max(1, Math.round(canvas.height * scale)),
   };
 
-  const availableHeight = Math.max(1, display.height - chromeHeaderHeight);
+  const frameInset = normalizeInset(input.frameInset);
+  const availableWidth = Math.max(1, display.width - 2 * frameInset.x);
+  const availableHeight = Math.max(1, display.height - chromeHeaderHeight - 2 * frameInset.y);
   const aspect = viewport.width > 0 ? viewport.height / viewport.width : 0.5625;
   const rawBrowserScale = typeof input.browserScale === 'number' ? input.browserScale : 1;
   const targetViewportWidth = display.width * Math.max(0, Math.min(1, rawBrowserScale));
   const maxViewportWidthByHeight = aspect > 0
     ? availableHeight / aspect
     : display.width;
-  const viewportWidth = Math.max(1, Math.min(targetViewportWidth, maxViewportWidthByHeight));
+  const viewportWidth = Math.max(1, Math.min(targetViewportWidth, maxViewportWidthByHeight, availableWidth));
   const viewportHeight = Math.max(1, viewportWidth * aspect);
   const viewportRect = {
     x: Math.max(0, (display.width - viewportWidth) / 2),
-    y: chromeHeaderHeight + Math.max(0, (availableHeight - viewportHeight) / 2),
+    y: chromeHeaderHeight + frameInset.y + Math.max(0, (availableHeight - viewportHeight) / 2),
     width: viewportWidth,
     height: viewportHeight,
   };

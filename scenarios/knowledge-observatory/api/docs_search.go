@@ -56,24 +56,23 @@ type TextSearchMatch struct {
 }
 
 // UnifiedSearchRequest combines multiple search modes.
+// Note: the records-era semantic filter fields (semantic_collection,
+// semantic_namespaces, semantic_visibility, semantic_tags) were removed in the
+// Phase-7 cutover; the hybrid engine does not use them.
 type UnifiedSearchRequest struct {
-	Query              string   `json:"query"`
-	Pattern            string   `json:"pattern,omitempty"`
-	Scope              string   `json:"scope,omitempty"`
-	Scenario           string   `json:"scenario,omitempty"`
-	BasePath           string   `json:"base_path,omitempty"`
-	Limit              int      `json:"limit,omitempty"`
-	IncludeContent     bool     `json:"include_content,omitempty"`
-	FileTypes          []string `json:"file_types,omitempty"`
-	CaseSensitive      bool     `json:"case_sensitive,omitempty"`
-	ContextLines       int      `json:"context_lines,omitempty"`
-	UseSemantic        *bool    `json:"use_semantic,omitempty"`
-	SemanticCollection string   `json:"semantic_collection,omitempty"`
-	SemanticNamespaces []string `json:"semantic_namespaces,omitempty"`
-	SemanticVisibility []string `json:"semantic_visibility,omitempty"`
-	SemanticTags       []string `json:"semantic_tags,omitempty"`
-	SemanticLimit      int      `json:"semantic_limit,omitempty"`
-	SemanticThreshold  float64  `json:"semantic_threshold,omitempty"`
+	Query             string   `json:"query"`
+	Pattern           string   `json:"pattern,omitempty"`
+	Scope             string   `json:"scope,omitempty"`
+	Scenario          string   `json:"scenario,omitempty"`
+	BasePath          string   `json:"base_path,omitempty"`
+	Limit             int      `json:"limit,omitempty"`
+	IncludeContent    bool     `json:"include_content,omitempty"`
+	FileTypes         []string `json:"file_types,omitempty"`
+	CaseSensitive     bool     `json:"case_sensitive,omitempty"`
+	ContextLines      int      `json:"context_lines,omitempty"`
+	UseSemantic       *bool    `json:"use_semantic,omitempty"`
+	SemanticLimit     int      `json:"semantic_limit,omitempty"`
+	SemanticThreshold float64  `json:"semantic_threshold,omitempty"`
 }
 
 // UnifiedSearchResult represents a normalized match.
@@ -198,23 +197,19 @@ func (s *Server) handleDocsSearchUnified(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	resp, err := s.docSearchService.SearchUnified(r.Context(), docsearch.UnifiedSearchRequest{
-		Query:              req.Query,
-		Pattern:            req.Pattern,
-		Scope:              req.Scope,
-		Scenario:           req.Scenario,
-		BasePath:           req.BasePath,
-		Limit:              req.Limit,
-		IncludeContent:     req.IncludeContent,
-		FileTypes:          req.FileTypes,
-		CaseSensitive:      req.CaseSensitive,
-		ContextLines:       req.ContextLines,
-		UseSemantic:        req.UseSemantic,
-		SemanticCollection: req.SemanticCollection,
-		SemanticNamespaces: req.SemanticNamespaces,
-		SemanticVisibility: req.SemanticVisibility,
-		SemanticTags:       req.SemanticTags,
-		SemanticLimit:      req.SemanticLimit,
-		SemanticThreshold:  req.SemanticThreshold,
+		Query:             req.Query,
+		Pattern:           req.Pattern,
+		Scope:             req.Scope,
+		Scenario:          req.Scenario,
+		BasePath:          req.BasePath,
+		Limit:             req.Limit,
+		IncludeContent:    req.IncludeContent,
+		FileTypes:         req.FileTypes,
+		CaseSensitive:     req.CaseSensitive,
+		ContextLines:      req.ContextLines,
+		UseSemantic:       req.UseSemantic,
+		SemanticLimit:     req.SemanticLimit,
+		SemanticThreshold: req.SemanticThreshold,
 	})
 	if err != nil {
 		respondDocSearchError(w, err)

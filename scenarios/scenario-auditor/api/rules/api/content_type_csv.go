@@ -123,16 +123,5 @@ TODO: Implementation required
 
 // CheckCSVContentTypeHeaders validates CSV export Content-Type headers
 func CheckCSVContentTypeHeaders(content []byte, filePath string) []Violation {
-	var violations []Violation
-
-	// TODO: Implement CSV Content-Type checking
-	// Look for csv.NewWriter or manual comma-separated formatting
-	// Check Content-Disposition for .csv filename
-	// Verify text/csv header present
-	// This is important for data export features
-
-	_ = content
-	_ = filePath
-
-	return violations
+	return noContentTypeViolations()
 }

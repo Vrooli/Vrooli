@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Will run out notification</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1d4ed8}a:hover{color:#1e3a8a}
+</style>
+</helmet>
+<div style="width: 420px; height: 240px; box-sizing: border-box; background: #e2e8f0; font-family: Inter, system-ui, sans-serif; color: #0f172a; padding: 20px; display: flex; align-items: center;">
+  <article style="width: 100%; background: #fff; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 12px rgba(9,18,22,.12);">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b;">
+      <span style="width: 20px; height: 20px; border-radius: 5px; background: #0f172a; display: inline-flex; align-items: center; justify-content: center;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.4" aria-hidden="true"><circle cx="8" cy="9" r="2"></circle><circle cx="16" cy="15" r="2"></circle><path d="M10 10l4 4"></path></svg></span>
+      Mizar · Usage · now
+    </div>
+    <div style="font-size: 15px; font-weight: 700;">Codex weekly limit will run out Oct 30–31</div>
+    <div style="font-size: 14px; line-height: 20px; color: #334155;">33% used, 4–5 days before the Nov 4 reset. The top fix saves an estimated 10–16 points a week.</div>
+    <div style="display: flex; gap: 8px;">
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 6px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none;">Open Usage</a>
+      <button type="button" style="height: 36px; padding: 0 14px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 13px; font-family: inherit;">Mute this window</button>
+    </div>
+  </article>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":420,"height":240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

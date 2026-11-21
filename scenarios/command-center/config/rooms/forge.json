@@ -1,0 +1,50 @@
+{
+  "id": "forge",
+  "title": "The Forge",
+  "category": "forge",
+  "theme": "foundry",
+  "composition": "flow-current",
+  "metricIds": [
+    "throughput_stats",
+    "timing_stats",
+    "scope_stats",
+    "blocking_stats",
+    "agent_stats",
+    "dashboard_stats",
+    "review_stats",
+    "goal_progress",
+    "release_ladder",
+    "deployment_readiness"
+  ],
+  "beats": [
+    {
+      "hero": "throughput_stats",
+      "dwellSeconds": 10
+    },
+    {
+      "hero": "timing_stats",
+      "dwellSeconds": 10
+    },
+    {
+      "hero": "review_stats",
+      "dwellSeconds": 10
+    },
+    {
+      "hero": "goal_progress",
+      "dwellSeconds": 16
+    },
+    {
+      "hero": "release_ladder",
+      "composition": "funnel-cascade",
+      "dwellSeconds": 14
+    },
+    {
+      "hero": "deployment_readiness",
+      "dwellSeconds": 10
+    }
+  ],
+  "bind": {
+    "throughput": "throughput_stats",
+    "blocking": "blocking_stats"
+  }
+}

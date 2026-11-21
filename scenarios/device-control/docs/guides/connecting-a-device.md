@@ -1,0 +1,356 @@
+# Connecting a device
+
+Device Control is designed so the owner can follow this guide without opening
+source code. Run the commands through the installed CLI after starting the
+scenario with `vrooli scenario start device-control`.
+
+Once a device is listed, inspect live state with
+`device-control device state <device-id> --json`. The report is sourced from
+the phone at request time; an unavailable field names the exact probe command.
+Screenshot-dependent flow steps refuse a locked or sleeping surface rather
+than recording a black frame. Lease-owned orientation and radio changes are
+restored when the session is released or killed.
+
+## Android over USB
+
+Run `device-control device connect --kind android`. The report identifies each
+rung, its owner, and the next action. The scenario owns the probe and report;
+the owner supplies the phone and trust decision.
+
+For a live setup session, use `device-control device connect --kind android
+--watch`. The command re-probes without restarting the scenario, records rung
+status changes in the `transitions` output field, and returns as soon as every
+rung is available or after the bounded 30-second window. Change the window
+with `--watch-seconds`; an expired watch still returns the latest named
+diagnosis.
+
+1. Ensure the `android-sdk` resource is running so `adb` and platform-tools
+   are on PATH. If it is missing, run `vrooli resource install android-sdk`.
+   The resource must either make `adb version` succeed or return a non-zero
+   diagnostic; a successful no-op is not a valid installation result.
+2. On the phone, enable Developer Options and USB debugging.
+3. Connect a data-capable USB cable and select **File Transfer** when Android
+   asks for the USB mode. If an old ADB server is genuinely stale, run
+   `adb kill-server` once before reconnecting; do not run it for every probe.
+   Restarting ADB can make Android show the RSA authorization prompt again.
+   A charge-only cable is diagnosed as no usable device; it is not reported as
+   an unknown phone.
+4. Accept the RSA authorization prompt only for the intended phone and confirm
+   `adb devices` reports it as `device`, not `unauthorized`. Declining the
+   prompt leaves the named `unauthorized` rung active. Normal device-control
+   probes and flow runs do not bypass or suppress this Android trust boundary.
+5. Run `device-control device connect --kind android` again. The probe is live:
+   it distinguishes missing `adb`, no USB device, `unauthorized`, `offline`,
+   and insufficient udev permissions. Run `device-control device list --json`
+   to see the stable id, serial, model, OS version, host node, transport, and
+   per-capability result. No code change or scenario restart is needed.
+
+If the report says **insufficient permissions**, install the supplied udev rule
+from [`51-android.rules`](51-android.rules) into the system udev rules directory,
+reload udev, add your user to `plugdev`, and replug the phone:
+
+```sh
+sudo install -m 0644 51-android.rules /etc/udev/rules.d/51-android.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo usermod -aG plugdev "$USER"
+```
+
+Log out and back in after changing group membership. The onboarding probe
+distinguishes this host-permission failure from an unauthorized RSA prompt.
+
+The onboarding report separates the physical `usb-bus` rung from the
+`usb-debugging` rung. `usb-bus` unavailable means the host cannot see an
+Android USB vendor on the bus; check the cable, USB mode, and host permissions.
+When the bus is available but `usb-debugging` is unavailable, the phone is
+present and the next action names the RSA, offline, or udev issue.
+
+If an old retained identity is no longer yours, remove it deliberately with
+`device-control device forget <device-id>`. Normal disconnects never remove a
+row, so reconnecting the same serial restores the same stable id.
+
+### Reading the `usb-bus` rung correctly
+
+A locked phone still enumerates. It appears on the USB bus and reports
+`unauthorized` to `adb` — present, but not yet trusted. So a locked screen never
+causes an absent device, and unlocking the phone never repairs one.
+
+Use this table to turn the two rungs into one physical action:
+
+| `usb-bus` | `usb-debugging` | Meaning | Do this |
+| --- | --- | --- | --- |
+| unavailable | unavailable | No USB data link at all | Reseat or replace the cable; select **File Transfer** USB mode; try a direct port instead of a hub |
+| available | unavailable | Phone is present, not yet trusted | Accept the RSA prompt, or apply the udev rule when the reason names permissions |
+| available | available | Ready | Run `device-control device list --json` |
+
+The first row is the one operators most often misread. A charge-only cable, a
+damaged cable, or a cable that does not seat its data pins produces a phone that
+charges normally and is invisible to both `lsusb` and `adb`. No Android setting
+can produce that state, so do not change phone settings to chase it.
+
+Confirm a repaired cable is stable before you rely on it. The onboarding
+probe takes a bounded presence sample and reports `flap_count` on the
+`usb-bus` rung. A non-zero count means the link was intermittent during the
+sample; replace the cable before capturing evidence you intend to keep.
+
+### Transport support today
+
+USB is the onboarding and release-evidence transport. After a trusted USB
+onboarding, Android devices may be promoted to wireless ADB with
+`device-control device promote --transport wireless`. Promotion keeps the same
+device id and verifies the recorded serial after connecting. The legacy TCP
+mode used by promotion can need re-enabling after reboot; reconnect USB and
+promote again when necessary. Android's newer paired Wireless debugging mode
+is separate and its pairing normally persists until revoked. An unselected transport resolves to the device's current
+governed transport: a USB device uses USB, and a device whose current transport
+is a verified wireless/network endpoint (a promoted phone or a network-onboarded
+TV) uses that endpoint-bound strategy rather than the ambient ADB server. Select
+a transport explicitly with `device-control flow run --transport wireless` (or
+`usb`) when you need to override the default. An ambient endpoint is never used
+to satisfy a device that has a registered governed transport.
+Promotion may also cause Android to re-ask for trust when ADB is re-established;
+that is an OS authorization event, not a hardcoded device address or an
+unattended approval.
+
+### Recovering a promoted wireless device
+
+Wireless debugging can be disabled, the phone can change its TLS ADB endpoint,
+or the saved endpoint can become stale after a reboot. The stable device id is
+retained, so recover the selected device through the governed reconnect command:
+
+```sh
+device-control device reconnect "<device-id>" --json
+device-control device state "<device-id>" --json
+```
+
+Reconnect first rechecks the persisted endpoint, then uses Android mDNS TLS
+discovery when available. It verifies the original hardware serial before
+persisting any rotated endpoint. A successful response reports
+`health_reason: wireless ADB endpoint reconnected and identity verified`; it
+does not accept a different phone merely because that endpoint answers.
+The command does not enable wireless debugging or bypass Android trust. If it
+reports an unavailable wireless transport, enable Wireless debugging and
+authorize this host on the phone, then retry. Use
+`device-control flow run --transport wireless` explicitly for subsequent
+wireless flows.
+When all state-bearing transports fail, a state read also attempts this
+identity-verified reconnect once and repeats only the observation. It never
+replays an input or other device action.
+An implicit-transport flow preflight and agent planning can also attempt that
+reconnect before any device action. Flow validation uses the same preflight,
+so it may restore an existing wireless connection; explicit flow transport
+choices are not changed.
+
+`device-control device state <id> --json` reports `wireless_debugging` when
+Android exposes it. `native_supported` reports Android-version and device-class eligibility
+(Android 11+ phones or Android 13+ TVs and watches according to the
+[Android ADB guide](https://developer.android.com/tools/adb)),
+and `native_enabled` reports the paired Wireless debugging setting;
+`legacy_tcp_enabled` and
+`legacy_tcp_port` describe the separate older ADB-over-TCP mode. Missing
+fields are unknown. An enabled setting does not prove that the computer is
+paired, the network is trusted, or a wireless connection is reachable.
+
+For a supported Android device connected and authorized over USB, use the
+ready-to-run [enable flow](../../fixtures/native-wireless-debugging-enable.json)
+or [disable flow](../../fixtures/native-wireless-debugging-disable.json) with
+`device-control flow run --file <definition> --device <id>`. Each flow checks
+the resulting setting, and a passing run can be saved as a device-scoped flow
+revision. Device Control verifies the setting after changing it;
+the OS may require network authorization, vendor support can differ, and
+pairing remains a separate step.
+Older Android devices do not expose this native mode; for them the existing
+`device promote <id> --transport wireless` command uses legacy ADB over TCP
+and verifies the same hardware serial before saving the endpoint. Promotion
+can be repeated through a known serial-bound USB profile to recover a stale
+wireless connection.
+
+For an Android flow without an explicit transport, Device Control first
+preflights the selected wireless transport. If it cannot satisfy the flow and
+the same device has a known serial-bound USB profile, it preflights USB before
+sending any action. An explicit wireless selection is never changed, and an
+action is never replayed on another transport after execution begins. Other
+device operations may still require an explicit reconnect or transport choice;
+this flow fallback cannot enable debugging or make an unreachable network
+endpoint reachable.
+
+For an owner-built APK retained by `scenario-to-android`, use an
+`install-artifact` flow step with the exact immutable ref and expected package:
+
+```json
+{
+  "steps": [
+    {
+      "id": "install-portal",
+      "kind": "install-artifact",
+      "required_capabilities": ["app-lifecycle"],
+      "arguments": {
+        "artifact_ref": "android-debug:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "package": "com.example.portal",
+        "version_name": "1.2.3"
+      }
+    }
+  ]
+}
+```
+
+Run it with `device-control flow run --file <definition> --device <id>
+--confirmed`. The confirmation applies to that run and is not saved in the
+flow. The step downloads and checks the APK through the artifact producer,
+installs only the staged bytes under the Device Control lease, then verifies
+package presence and exact version name. Inspect the structured chapter and
+audit details. A raw-path `install` step remains for local developer workflows
+and does not count as verified-artifact evidence. Live TV/phone installation
+and signing continuity still require device-specific proof.
+The agent planner also selects the known serial-bound USB profile before
+planning when its preferred wireless adapter is unavailable; it records the
+chosen transport for subsequent observations and actions.
+
+## Android TV over network ADB
+
+Android TV and TV boxes are Android targets. Use this path when the goal is to
+install, inspect, or launch an Android package on the TV; Android TV Remote and
+Google Cast remain the right transports for directional navigation, receiver
+state, media, and other screenless operations.
+
+The governed onboarding sequence is:
+
+1. Enable Developer options and USB debugging, or Wireless debugging, on the
+   TV. The owner must accept the RSA or pairing prompt on the TV. Device
+   Control cannot enable debugging or approve trust remotely.
+2. Onboard the TV's network address as a first-class governed device. When the
+   TV is already known through Cast, name it with `--attach-to` so the ADB endpoint
+   becomes another transport of that same TV instead of a second identity:
+
+   ```sh
+   device-control device onboard-network --endpoint 192.168.1.158:5555 --attach-to google-cast:<id> --json
+   ```
+
+   If both identities already exist (for example from an earlier onboarding),
+   `device-control device relations` lists the same-host candidate and
+   `device-control device relation-confirm <candidate-id>` folds them together. The
+   confirmation asserts the ADB hardware serial, keeps the non-ADB identity canonical,
+   refuses when the two report different models unless `--force`, and survives restart.
+   After either path, `device screenshot`, `record` and `open` work on the TV's own id.
+
+   This supports both classic authorized TCP ADB (`host:5555`) and Wireless
+   Debugging/TLS endpoints. It runs `adb connect`, confirms the endpoint is an
+   authorized device (not `unauthorized`/`offline`), reads `ro.serialno` over the
+   verified endpoint, and derives the durable device id from the hardware serial
+   — the network address is never treated as the identity. A responding endpoint
+   is not enough: an unauthorized or non-answering endpoint fails with a typed,
+   owner-actionable reason.
+3. The onboarding report returns the verified serial, model, Android version,
+   endpoint, and an independent live capability probe. Package inventory,
+   lifecycle, input, semantic tree, screenshot, and recording are independent
+   results; a TV may support some and not others, and a screenshot failure does
+   not mask the others.
+4. Acquire a lease before installing or launching an app. Supply a verified
+   artifact reference, require confirmation for installation or other mutations,
+   verify package state after installation (`device app --operation
+   package-state` returns a verified `installed` flag and `version`), and launch
+   by explicit package identity.
+
+Network ADB endpoints reconnect during inventory: an absent endpoint (the TV slept,
+or the adb server restarted) is retried once, then not again for 60 seconds. If the TV
+reports `unauthorized`, accept the "Allow USB debugging" prompt on its screen and choose
+Always allow; `capability_gap` results name this step.
+
+Validated live on 2026-09-17 against a SmartTV 4K at `192.168.1.158:5555`
+(serial `AE70A4D38B`): onboarding exposed every ADB capability, `device state`
+returned full state, `package-state` reported the installed SmartTube build and
+correctly reported a bogus package absent, and `app-launch`/`app-stop` completed
+under lease with persisted audit receipts. A raw manual `adb install -r` remains
+owner-diagnostic only; it is not product evidence and must not be used by flows
+or agents.
+
+Do not place raw serials or arbitrary ADB commands in flows. The serial and
+endpoint belong to the governed device profile; the flow names the stable
+device id and package/artifact identity.
+
+## Google TV / Android TV Remote
+
+The Android TV Remote adapter browses DNS-SD directly and controls directional
+keys, text, playback, and relative volume changes without Home Assistant or
+Docker. The remote protocol does not expose a screen or view hierarchy, so
+those capabilities are reported unavailable rather than synthesized.
+
+### Owner procedure
+
+1. Put the control host and television on the same non-guest LAN segment.
+2. Run `device-control device discover --json` and select the returned
+   television identity that has an `android-tv-remote` transport.
+3. Wake the television and leave it ready to display an owner pairing prompt.
+4. Run `device-control device pair <id> --pin-stdin`. The command starts the
+   Android TV Remote handshake; then type the six-character hexadecimal code shown on the
+   television. The pairing code is never retained in
+   device state, audit data, shell history, or process list.
+5. Run `device-control device discover --json` again and confirm the
+   Remote transport is paired; the Cast transport needs no pairing. Then run
+   `device-control device list --json` to materialize both transport profiles
+   in the durable inventory.
+6. If the Remote and Cast observations have different device ids, confirm
+   they are the same television and merge them with the owner-asserted Cast
+   claim: `device-control device merge <remote-id> <cast-id>
+   --claim cast-id=<cast-id-without-prefix>`. Never merge them by address,
+   hostname, or friendly name.
+7. Acquire a lease with `device-control session acquire --device <id>
+   --actor owner`.
+8. Press one key with
+   `device-control device actuate <id> --lease <token> --key DPAD_DOWN`.
+9. Read receiver state with `device-control device state <id> --json`.
+10. Watch externally caused changes with
+   `device-control device watch <id>` or through
+   `GET /api/v1/devices/<id>/events`.
+
+### Google Cast
+
+Google Cast is discovered on `_googlecast._tcp` and requires no pairing on a
+trusted local network. It supplies receiver status, application/media state,
+absolute volume, mute, and application launch. Directional navigation remains
+an Android TV Remote operation.
+
+### Troubleshooting
+
+| Failure | Meaning | Next action |
+|---|---|---|
+| No instances returned | multicast is blocked or the service is not advertised | confirm the LAN segment and host multicast firewall |
+| Instance returned but unreachable | the endpoint stopped answering | wake the television and retry discovery |
+| Pairing refused | the code expired or is not six hexadecimal characters | reopen the TV prompt and pair with the new code |
+| Certificate rejected after a factory reset | the TV discarded the controller certificate | forget the retained identity and pair again |
+| Device on a different subnet | mDNS is link-local | move it to the same segment or configure a static endpoint |
+
+Pairing is an owner action on the television. The `device pair` command sends
+the six-character hexadecimal pairing code directly to the Android TV Remote exchange and retains only
+the resulting certificate through the credential authority. Pairing material
+is never returned in a device declaration or written to an audit record.
+
+## Home Assistant attach-only entities
+
+Home Assistant is not a Vrooli-managed resource. To attach to an operator-run
+instance, configure `HOME_ASSISTANT_URL` and `HOME_ASSISTANT_TOKEN` (the
+`*_BASE_URL` and `*_ACCESS_TOKEN` aliases are also accepted), then run
+`device-control device list --json`. The adapter reads `/api/states`, gives each
+entity a stable `home-assistant:<entity_id>` identity, and reports typed
+capabilities by domain. Sensors are read-only; cameras are the only entities
+that expose frame observation; media players expose playback and volume.
+
+The adapter never starts, stops, installs, or repairs Home Assistant. If the
+endpoint or token is unavailable, the strategy remains visible with an honest
+unavailable reason and a next action.
+
+## iOS Simulator
+
+The simulator path is owned by a macOS bridge host. Install Xcode and the
+requested iOS Simulator runtime, boot a simulator, then run
+`device-control strategy verify ios-simctl`. Missing Xcode components are
+reported as `unavailable` with the exact install action.
+
+## Physical iPhone
+
+For semantic XCUITest control, enroll in the Apple Developer Program, configure
+WebDriverAgent signing, attach the iPhone to a trusted macOS node, and accept
+the trust prompt. For the floor-only mirroring path, pair iPhone Mirroring and
+grant both Accessibility and Screen Recording permissions on that macOS node.
+The conformance report remains honest until those probes succeed; mirroring
+evidence is advisory OCR and cannot be promoted to release evidence.

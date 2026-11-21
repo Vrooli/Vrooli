@@ -46,40 +46,42 @@ export function useProjectRootValidation(projectRoot: string): PathValidation {
 
     setValidation({ status: "validating" });
 
-    const timer = setTimeout(async () => {
-      const trimmed = projectRoot.trim();
+    const timer = setTimeout(() => {
+      void (async () => {
+        const trimmed = projectRoot.trim();
 
-      if (!trimmed.startsWith("/")) {
-        setValidation({
-          status: "invalid",
-          message: "Path must be absolute (start with /)",
-        });
-        return;
-      }
-
-      const normalized = trimmed.replace(/\/+$/, "") || "/";
-      if (DANGEROUS_PATHS.includes(normalized)) {
-        setValidation({
-          status: "invalid",
-          message: "Cannot use system directories as project root",
-        });
-        return;
-      }
-
-      try {
-        const result = await validatePath(trimmed);
-        if (!result.valid) {
+        if (!trimmed.startsWith("/")) {
           setValidation({
             status: "invalid",
-            message: result.error || "Invalid path",
+            message: "Path must be absolute (start with /)",
           });
           return;
         }
-        setValidation({ status: "valid", message: "Path is valid" });
-      } catch {
-        // API unavailable — accept format-only validation
-        setValidation({ status: "valid", message: "Path format is valid" });
-      }
+
+        const normalized = trimmed.replace(/\/+$/, "") || "/";
+        if (DANGEROUS_PATHS.includes(normalized)) {
+          setValidation({
+            status: "invalid",
+            message: "Cannot use system directories as project root",
+          });
+          return;
+        }
+
+        try {
+          const result = await validatePath(trimmed);
+          if (!result.valid) {
+            setValidation({
+              status: "invalid",
+              message: result.error || "Invalid path",
+            });
+            return;
+          }
+          setValidation({ status: "valid", message: "Path is valid" });
+        } catch {
+          // API unavailable — accept format-only validation
+          setValidation({ status: "valid", message: "Path format is valid" });
+        }
+      })();
     }, 300);
 
     return () => clearTimeout(timer);
@@ -112,63 +114,65 @@ export function useScopePathValidation(
 
     setValidation({ status: "validating" });
 
-    const timer = setTimeout(async () => {
-      const trimmed = scopePath.trim();
+    const timer = setTimeout(() => {
+      void (async () => {
+        const trimmed = scopePath.trim();
 
-      // Relative paths (like ".") are always format-valid — server resolves them
-      if (!trimmed.startsWith("/")) {
-        setValidation({ status: "valid", message: "Relative path" });
-        return;
-      }
+        // Relative paths (like ".") are always format-valid — server resolves them
+        if (!trimmed.startsWith("/")) {
+          setValidation({ status: "valid", message: "Relative path" });
+          return;
+        }
 
-      // Absolute path checks
-      const normalized = trimmed.replace(/\/+$/, "") || "/";
-      if (DANGEROUS_PATHS.includes(normalized)) {
-        setValidation({
-          status: "invalid",
-          message: "Cannot use system directories as scope paths",
-        });
-        return;
-      }
-
-      // Check within project root (client-side)
-      const effectiveRoot = projectRoot.trim() || defaultProjectRoot;
-      if (effectiveRoot) {
-        const normalizedRoot = effectiveRoot.replace(/\/+$/, "");
-        if (
-          normalized !== normalizedRoot &&
-          !normalized.startsWith(normalizedRoot + "/")
-        ) {
+        // Absolute path checks
+        const normalized = trimmed.replace(/\/+$/, "") || "/";
+        if (DANGEROUS_PATHS.includes(normalized)) {
           setValidation({
-            status: "outside",
-            message: `Must be within ${effectiveRoot}`,
+            status: "invalid",
+            message: "Cannot use system directories as scope paths",
           });
           return;
         }
-      }
 
-      // Server-side validation
-      try {
-        const result = await validatePath(trimmed, effectiveRoot);
-        if (!result.valid) {
-          if (result.withinProjectRoot === false) {
+        // Check within project root (client-side)
+        const effectiveRoot = projectRoot.trim() || defaultProjectRoot;
+        if (effectiveRoot) {
+          const normalizedRoot = effectiveRoot.replace(/\/+$/, "");
+          if (
+            normalized !== normalizedRoot &&
+            !normalized.startsWith(normalizedRoot + "/")
+          ) {
             setValidation({
               status: "outside",
-              message: result.error || `Must be within ${effectiveRoot}`,
+              message: `Must be within ${effectiveRoot}`,
             });
-          } else {
-            setValidation({
-              status: "invalid",
-              message: result.error || "Invalid path",
-            });
+            return;
           }
-          return;
         }
-        setValidation({ status: "valid", message: "Path is valid" });
-      } catch {
-        // API unavailable — accept format-only validation
-        setValidation({ status: "valid", message: "Path format is valid" });
-      }
+
+        // Server-side validation
+        try {
+          const result = await validatePath(trimmed, effectiveRoot);
+          if (!result.valid) {
+            if (result.withinProjectRoot === false) {
+              setValidation({
+                status: "outside",
+                message: result.error || `Must be within ${effectiveRoot}`,
+              });
+            } else {
+              setValidation({
+                status: "invalid",
+                message: result.error || "Invalid path",
+              });
+            }
+            return;
+          }
+          setValidation({ status: "valid", message: "Path is valid" });
+        } catch {
+          // API unavailable — accept format-only validation
+          setValidation({ status: "valid", message: "Path format is valid" });
+        }
+      })();
     }, 300);
 
     return () => clearTimeout(timer);

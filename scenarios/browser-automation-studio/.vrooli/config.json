@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "sidecar_health_poll_interval_ms": 5000,
+    "sidecar_health_timeout_ms": 2000,
+    "sidecar_health_failure_threshold": 3,
+    "sidecar_health_debounce_ms": 1000,
+    "sidecar_enabled": true,
+    "sidecar_max_restarts": 5,
+    "sidecar_restart_window_ms": 300000,
+    "sidecar_initial_backoff_ms": 1000,
+    "sidecar_max_backoff_ms": 30000,
+    "sidecar_backoff_multiplier": 2.0,
+    "sidecar_startup_timeout_ms": 10000,
+    "sidecar_graceful_stop_ms": 5000,
+    "sidecar_checkpoint_enabled": true,
+    "sidecar_checkpoint_interval_ms": 2000,
+    "sidecar_checkpoint_retention_ms": 3600000
+  }
+}

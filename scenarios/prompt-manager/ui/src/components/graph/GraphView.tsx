@@ -11,14 +11,12 @@
  * Query panel and settings/help controls are rendered externally via ViewOverlay.
  */
 
-import { useCallback, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react'
+import { Profiler, useCallback, useMemo, useEffect, useState, useRef, lazy, Suspense } from 'react'
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   MarkerType,
   useReactFlow,
   ReactFlowProvider,
@@ -29,10 +27,10 @@ import {
 } from '@xyflow/react'
 import dagre from '@dagrejs/dagre'
 import { Network, Braces } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useGraphStore, selectFilteredNodes, selectEffectiveHealthScores, type GraphLayoutMode } from '@/stores/graphStore'
 import { useShallow } from 'zustand/react/shallow'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { GraphFlowNode, type GraphNodeData } from './GraphNode'
@@ -40,6 +38,8 @@ import { GraphNodePopover } from './GraphNodePopover'
 import { collectNeighborhood } from './graphNeighborhood'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
+import { onProfilerRender } from '@/lib/profiler'
+import { agentDetailPath, skillDetailPath, teamDetailPath } from '@/app/routes/route-paths'
 import type { GraphNode as GraphNodeType, GraphEdge as GraphEdgeType, HealthScore } from '@/lib/schemas'
 
 const GraphJsonView = lazy(() => import('./GraphJsonView').then((m) => ({ default: m.GraphJsonView })))
@@ -210,6 +210,7 @@ interface SelectedNodeState {
 }
 
 function GraphViewInner({ className }: GraphViewInnerProps) {
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const resolvedTheme = useResolvedTheme()
   const { fitView, setViewport, getViewport, flowToScreenPosition } = useReactFlow()
@@ -219,32 +220,45 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const hasInitializedViewport = useRef(false)
 
   // Store data
-  const graph = useGraphStore((s) => s.graph)
-  const loading = useGraphStore((s) => s.loading)
-  const error = useGraphStore((s) => s.error)
-  const fetchGraph = useGraphStore((s) => s.fetchGraph)
-  const highlightedNodeIds = useGraphStore((s) => s.highlightedNodeIds)
-  const highlightSource = useGraphStore((s) => s.highlightSource)
-  const focusNodes = useGraphStore((s) => s.focusNodes)
-  const clearHighlights = useGraphStore((s) => s.clearHighlights)
-  const queryDisplayMode = useGraphStore((s) => s.queryDisplayMode)
-  const filters = useGraphStore((s) => s.filters)
-  const layoutDirection = useGraphStore((s) => s.layoutDirection)
-  const layoutMode = useGraphStore((s) => s.layoutMode)
-  const fitViewRequested = useGraphStore((s) => s.fitViewRequested)
-  const savedViewport = useGraphStore((s) => s.viewport)
-  const setSavedViewport = useGraphStore((s) => s.setViewport)
+  const {
+    graph,
+    loading,
+    error,
+    fetchGraph,
+    highlightedNodeIds,
+    highlightSource,
+    focusNodes,
+    clearHighlights,
+    queryDisplayMode,
+    filters,
+    layoutDirection,
+    layoutMode,
+    fitViewRequested,
+    savedViewport,
+    setSavedViewport,
+  } = useGraphStore(useShallow((s) => ({
+    graph: s.graph,
+    loading: s.loading,
+    error: s.error,
+    fetchGraph: s.fetchGraph,
+    highlightedNodeIds: s.highlightedNodeIds,
+    highlightSource: s.highlightSource,
+    focusNodes: s.focusNodes,
+    clearHighlights: s.clearHighlights,
+    queryDisplayMode: s.queryDisplayMode,
+    filters: s.filters,
+    layoutDirection: s.layoutDirection,
+    layoutMode: s.layoutMode,
+    fitViewRequested: s.fitViewRequested,
+    savedViewport: s.viewport,
+    setSavedViewport: s.setViewport,
+  })))
 
   // useShallow prevents infinite re-render: selectFilteredNodes returns a new
   // array reference on every call (.filter()), but useShallow compares elements
   // by identity so the result is stable when the underlying data hasn't changed.
   const filteredNodes = useGraphStore(useShallow(selectFilteredNodes))
   const effectiveHealthScores = useGraphStore(useShallow(selectEffectiveHealthScores))
-
-  // Selection store for navigation
-  const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
-  const setSelectedAgentId = useSelectionStore((s) => s.setSelectedAgentId)
-  const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
 
   // Fetch on mount
   useEffect(() => {
@@ -400,11 +414,11 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   // Build node ID set for filtering edges
   const renderedNodeIds = useMemo(() => new Set(nodesAfterQueryMode.map((n) => n.id)), [nodesAfterQueryMode])
 
-  // Build health score map from graph data
-  const healthMap = useMemo(() => {
-    const map = new Map<string, number>()
+  // Build health score map for nodes and popovers.
+  const healthScoreMap = useMemo(() => {
+    const map = new Map<string, HealthScore>()
     for (const hs of effectiveHealthScores) {
-      map.set(hs.nodeId, hs.score)
+      map.set(hs.nodeId, hs)
     }
     return map
   }, [effectiveHealthScores])
@@ -424,12 +438,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
         data: {
           label: node.label,
           nodeType: node.type,
-          healthScore: healthMap.get(node.id) ?? null,
+          healthScore: healthScoreMap.get(node.id)?.score ?? null,
           queryState,
         },
       }
     })
-  }, [nodesAfterQueryMode, querySelectedNodeIds, hasQuerySelection, dimNonSelected, healthMap])
+  }, [nodesAfterQueryMode, querySelectedNodeIds, hasQuerySelection, dimNonSelected, healthScoreMap])
 
   // Build flow edges (only between visible nodes)
   const useLightweightEdges = edgesAfterQueryMode.length > HEAVY_EDGE_COUNT_THRESHOLD
@@ -474,18 +488,9 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
     [flowNodes, flowEdges, layoutDirection, layoutMode],
   )
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(layoutedNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(layoutedEdges)
+  const nodes = layoutedNodes
+  const edges = layoutedEdges
   const showMiniMap = nodes.length <= MINIMAP_NODE_THRESHOLD
-
-  // Update when layout/data changes
-  useEffect(() => {
-    setNodes(layoutedNodes)
-  }, [layoutedNodes, setNodes])
-
-  useEffect(() => {
-    setEdges(layoutedEdges)
-  }, [layoutedEdges, setEdges])
 
   const autoFitSignature = useMemo(() => {
     const highlighted = Array.from(highlightedNodeIds).sort().join('|')
@@ -550,15 +555,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const onMoveEnd = useCallback<OnMove>((_event, viewport) => {
     setSavedViewport(viewport)
   }, [setSavedViewport])
-
-  // Build health score map for popover
-  const healthScoreMap = useMemo(() => {
-    const map = new Map<string, HealthScore>()
-    for (const hs of effectiveHealthScores) {
-      map.set(hs.nodeId, hs)
-    }
-    return map
-  }, [effectiveHealthScores])
 
   // Build adjacency map for edge lookup
   const adjacentEdgesMap = useMemo(() => {
@@ -643,12 +639,12 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
   const navigateToEditor = useCallback(() => {
     if (!selectedNode) return
     const { node: n } = selectedNode
-    if (n.type === 'skill') setSelectedSkillId(n.id)
-    else if (n.type === 'agent') setSelectedAgentId(n.id)
-    else if (n.type === 'team') setSelectedTeamId(n.id)
+    if (n.type === 'skill') navigate(skillDetailPath(n.id))
+    else if (n.type === 'agent') navigate(agentDetailPath(n.id))
+    else if (n.type === 'team') navigate(teamDetailPath(n.id))
     selectedNodeRef.current = null
     setSelectedNode(null)
-  }, [selectedNode, setSelectedSkillId, setSelectedAgentId, setSelectedTeamId])
+  }, [navigate, selectedNode])
 
   // Ensure selected node remains tracked while panning/zooming.
   const onMove = useCallback<OnMove>(() => {
@@ -747,8 +743,6 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             onMove={onMove}
@@ -764,13 +758,9 @@ function GraphViewInner({ className }: GraphViewInnerProps) {
             className="bg-background"
           >
             <Background color="hsl(var(--border))" gap={20} />
-            <Controls
-              className="!bg-card !border-border !rounded-lg overflow-hidden"
-              showInteractive={false}
-            />
+            <Controls showInteractive={false} />
             {showMiniMap && (
               <MiniMap
-                className="!bg-card !border-border !rounded-lg"
                 nodeColor={(node) => {
                   const data = node.data as unknown as GraphNodeData
                   switch (data.nodeType) {
@@ -824,8 +814,10 @@ interface GraphViewProps {
 
 export function GraphView({ className }: GraphViewProps) {
   return (
-    <ReactFlowProvider>
-      <GraphViewInner className={className} />
-    </ReactFlowProvider>
+    <Profiler id="GraphView" onRender={onProfilerRender}>
+      <ReactFlowProvider>
+        <GraphViewInner className={className} />
+      </ReactFlowProvider>
+    </Profiler>
   )
 }

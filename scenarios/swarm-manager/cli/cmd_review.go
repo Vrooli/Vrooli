@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 )
 
 func (a *App) cmdReviewList(args []string) error {
-	fs := flag.NewFlagSet("review-list", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review list", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -18,10 +23,10 @@ func (a *App) cmdReviewList(args []string) error {
 		return err
 	}
 	if *kind == "" || *name == "" {
-		return fmt.Errorf("usage: review-list --kind KIND --name NAME [--json]")
+		return fmt.Errorf("usage: review list --kind KIND --name NAME [--json]")
 	}
 
-	body, err := a.getV1(fmt.Sprintf("/backlog/%s/%s/review", *kind, *name), nil)
+	body, err := a.core.Get(fmt.Sprintf("/backlog/%s/%s/review", *kind, *name), nil)
 	if err != nil {
 		return err
 	}
@@ -84,27 +89,29 @@ func (a *App) cmdReviewList(args []string) error {
 }
 
 func (a *App) cmdReviewVerify(args []string) error {
-	fs := flag.NewFlagSet("review-verify", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review verify", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	round := fs.Int("round", 0, "Round number (required)")
 	evidenceID := fs.String("evidence-id", "", "Evidence item ID (required)")
 	unverify := fs.Bool("unverify", false, "Remove verification (default: verify)")
+	actor := fs.String("actor", "", "Operator identity for the verification record (required)")
+	reason := fs.String("reason", "", "Why the evidence is verified or revoked (required)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if *kind == "" || *name == "" || *round == 0 || *evidenceID == "" {
-		return fmt.Errorf("usage: review-verify --kind KIND --name NAME --round N --evidence-id ID [--unverify]")
+	if *kind == "" || *name == "" || *round == 0 || *evidenceID == "" || strings.TrimSpace(*actor) == "" || strings.TrimSpace(*reason) == "" {
+		return fmt.Errorf("usage: review verify --kind KIND --name NAME --round N --evidence-id ID --actor ACTOR --reason REASON [--unverify]")
 	}
 
 	verified := !*unverify
-	payload := map[string]any{"verified": verified}
-	path := fmt.Sprintf("/backlog/%s/%s/review/%d/verify/%s", *kind, *name, *round, *evidenceID)
-	body, err := a.requestV1("POST", path, nil, payload)
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	_, err := apiconnect.NewBacklogServiceClient(h, base).VerifyAttemptEvidence(context.Background(), connect.NewRequest(&apipb.VerifyAttemptEvidenceRequest{
+		SubjectKind: "backlog-item", SubjectRef: strings.TrimSpace(*kind) + "/" + strings.TrimSpace(*name), RoundNum: uint32(*round), EvidenceId: strings.TrimSpace(*evidenceID), Verified: verified, Actor: strings.TrimSpace(*actor), Reason: strings.TrimSpace(*reason),
+	}))
 	if err != nil {
 		return err
 	}
-	_ = body
 	if verified {
 		fmt.Printf("Verified evidence %s in round %d\n", *evidenceID, *round)
 	} else {
@@ -114,7 +121,7 @@ func (a *App) cmdReviewVerify(args []string) error {
 }
 
 func (a *App) cmdReviewRequest(args []string) error {
-	fs := flag.NewFlagSet("review-request", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review request", flag.ContinueOnError)
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
 	round := fs.Int("round", 0, "Round number (required)")
@@ -125,7 +132,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 		return err
 	}
 	if *kind == "" || *name == "" || *round == 0 || *message == "" {
-		return fmt.Errorf("usage: review-request --kind KIND --name NAME --round N --message MSG [--evidence-id ID] [--json]")
+		return fmt.Errorf("usage: review request --kind KIND --name NAME --round N --message MSG [--evidence-id ID] [--json]")
 	}
 
 	payload := map[string]any{
@@ -136,7 +143,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/review/%d/request", *kind, *name, *round)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -156,7 +163,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 }
 
 func (a *App) cmdReviewTrigger(args []string) error {
-	fs := flag.NewFlagSet("review-trigger", flag.ContinueOnError)
+	fs := flag.NewFlagSet("review trigger", flag.ContinueOnError)
 	execID := fs.String("id", "", "Execution ID (required)")
 	kind := fs.String("kind", "", "Backlog kind (required)")
 	name := fs.String("name", "", "Backlog name (required)")
@@ -164,7 +171,7 @@ func (a *App) cmdReviewTrigger(args []string) error {
 		return err
 	}
 	if *execID == "" || *kind == "" || *name == "" {
-		return fmt.Errorf("usage: review-trigger --id EXECUTION_ID --kind KIND --name NAME")
+		return fmt.Errorf("usage: review trigger --id EXECUTION_ID --kind KIND --name NAME")
 	}
 
 	payload := map[string]any{
@@ -172,7 +179,7 @@ func (a *App) cmdReviewTrigger(args []string) error {
 		"backlog_name": *name,
 	}
 	path := fmt.Sprintf("/execution/%s/trigger-review-agent", *execID)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}

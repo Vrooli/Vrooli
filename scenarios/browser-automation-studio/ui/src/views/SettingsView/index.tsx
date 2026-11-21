@@ -13,7 +13,7 @@ import { selectors } from '@constants/selectors';
 const SettingsViewContent = lazy(() => import('./SettingsView'));
 
 /** Valid settings tab IDs - must match SettingsTab type in SettingsView.tsx */
-const VALID_TABS = ['display', 'replay', 'branding', 'workflow', 'apikeys', 'data', 'sessions', 'subscription', 'schedules', 'diagnostics'] as const;
+const VALID_TABS = ['display', 'replay', 'branding', 'workflow', 'apikeys', 'data', 'sessions', 'subscription', 'schedules'] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
 function isValidTab(tab: string | null): tab is SettingsTab {
@@ -50,7 +50,7 @@ export default function SettingsView() {
     <div data-testid={selectors.app.shell.ready}>
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="default" size={24} message="Loading settings..." />
           </div>
         }

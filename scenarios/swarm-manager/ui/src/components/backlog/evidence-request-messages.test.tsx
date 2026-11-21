@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { EvidenceRequestMessages } from "./evidence-request-messages";
 import type { RequestMessage } from "../../services/review-service";
 
@@ -19,7 +20,7 @@ function makeMessage(overrides: Partial<RequestMessage> = {}): RequestMessage {
 
 describe("EvidenceRequestMessages", () => {
   it("renders user messages right-aligned", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages
         messages={[makeMessage({ role: "user", content: "User msg" })]}
         isWaitingForAgent={false}
@@ -31,7 +32,7 @@ describe("EvidenceRequestMessages", () => {
   });
 
   it("renders assistant messages left-aligned with violet styling", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages
         messages={[makeMessage({ role: "assistant", content: "Agent reply" })]}
         isWaitingForAgent={false}
@@ -46,7 +47,7 @@ describe("EvidenceRequestMessages", () => {
   });
 
   it("shows thinking spinner when waiting for agent", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages messages={[]} isWaitingForAgent={true} />,
     );
 
@@ -54,7 +55,7 @@ describe("EvidenceRequestMessages", () => {
   });
 
   it("does not show spinner when not waiting", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages messages={[]} isWaitingForAgent={false} />,
     );
 
@@ -62,7 +63,7 @@ describe("EvidenceRequestMessages", () => {
   });
 
   it("renders added evidence badge for assistant messages", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages
         messages={[
           makeMessage({
@@ -79,7 +80,7 @@ describe("EvidenceRequestMessages", () => {
   });
 
   it("renders singular badge text for one evidence item", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidenceRequestMessages
         messages={[
           makeMessage({

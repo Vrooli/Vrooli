@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "file",
+    "title": "File",
+    "routes": [
+      "/files/*",
+      "/files/topics/:topic/:file"
+    ],
+    "purpose": "Read any research-home file on a phone: Markdown rendered, images inline, plain text as is, and HTML opened in its own tab.",
+    "prd_refs": [
+      "OT-P0-011"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The file rendered by type with its path copyable."
+    },
+    {
+      "id": "request-error",
+      "description": "The file cannot be read; the path and the reason are shown."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "empty",
+      "description": "The file is empty: the page says so and shows its path."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

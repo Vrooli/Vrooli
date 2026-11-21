@@ -1,0 +1,123 @@
+{
+  "title": "Nooch selected final delivery handoff",
+  "created_utc": "2026-10-03T05:09:15Z",
+  "commission_state": "awaiting final explicit owner visual/contract/team approval",
+  "scenario": "scenarios/nutrition-planner",
+  "decision_range": "Decisions!A8:P26 = ND-007\u2013025",
+  "question_range": "Questions!A1:K17 = NQ-001\u2013016",
+  "dossier_document_id": "1G29Pv03_sJYvznHuZJ8nNtZhqT6RhFQEr3ay-hLg0lo",
+  "dossier_revision": "ANLCKQlctux-1fgrXEySbxBn3sMEfXsIRXevbU-TtMSwakgDCxhjf0vbxjeozjQo1k6sf9qwZlNXkv8tYm05VyxJVqPqDrgDFJgO1TqBzg",
+  "source_precedence": [
+    "Exact final owner-approved contract and this manifest",
+    "Exact scoped selections ND-007\u2013025 with retained owner/delegation evidence",
+    "Retained original v2 R01\u2013R30 and Appendix A/B",
+    "Selected exact visual references for presentation, with behavior and truthful runtime data prevailing"
+  ],
+  "explicit_owner_decisions": [
+    "ND-007",
+    "ND-008",
+    "ND-009",
+    "ND-011",
+    "ND-012",
+    "ND-013",
+    "ND-014",
+    "ND-015",
+    "ND-016",
+    "ND-024"
+  ],
+  "clarified_delegated_decision": [
+    "ND-010"
+  ],
+  "routine_delegation": "ND-017 / Sentinel_229bd64653b88191b40ce7bff60ef80b",
+  "assistant_selected_under_delegation": [
+    "ND-018",
+    "ND-019",
+    "ND-020",
+    "ND-021",
+    "ND-022",
+    "ND-023",
+    "ND-025"
+  ],
+  "launch_generation": "Manual only, starts Off, cost/variant review and deliberate activation of each reviewed result; no automatic trigger/activation",
+  "proposed_visual_target": "30 exact registered NDL-003 candidate0.3 families in core-visual-inventory.json; retained accepted Today Sunroom v02; NF-010 registered cooking direction with first-phone-viewport timer access repair; external r3 excluded",
+  "today_v02": {
+    "drive_id": "19XDd-rW6fNsnfLdUl5NZ3wNAJXrWiN60",
+    "sha256": "940dbaeb230db286aa992024c4de02dbb674d510589e3739336acc6b39434e87"
+  },
+  "core_pdf": {
+    "drive_id": "1h7CIc1cu6BLo_TfrR_2ex1LFhcXWMARt",
+    "sha256": "f6919c10f91cfb052215d21069ef16e271c5b7e1be4ccb759a2630439a5a752b"
+  },
+  "raw_v2": {
+    "drive_id": "19VrhL6P_N50woaRzMn8SB-MAvB3e7hsA",
+    "bytes": 326944,
+    "sha256": "2321eb06a56a0fcdd6bb916915c3820f71863e170384d3dcb47a560fe988a107"
+  },
+  "preserve_repair_build": "See exact selected contract; native preserved engines require qualification, old partial UI and placeholder scoring/persistence are not the target",
+  "native_profiles": {
+    "orchestrator": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+    "worker": "4c19aef1-36a2-4cc5-8961-42648692883b",
+    "supervisor": "6b6f9242-8d83-4f74-a5ab-1c578ae8372b"
+  },
+  "native_policy": "Established native permissions, budgets, safeguards and validation; no dot-specific copied restrictions; no Plan Manager",
+  "source_application_lag": [
+    "ND-015/016 actual dossier edits verified; final receipt-only cells Decisions M16:N17,P16:P17; Deliverables D5,K5,O5:P5; Workflows D5:E5 remain held after cancellation, not reapplied",
+    "ND-017\u2013025 rows verified; detailed dossier prose integration pending at snapshot. Exact selected contract explicitly supplies operative amendments if owner approves. Original narrative and visual unreviewed flags are preserved until scoped reconciliation."
+  ],
+  "files": [
+    {
+      "path": "/workspace/shared/nooch-readiness/nooch-selected-delivery-contract-2026-10-03.md",
+      "relative_path": "nooch-selected-delivery-contract-2026-10-03.md",
+      "bytes": 12813,
+      "sha256": "b013666f214be36181251bbb7a1bad34943f12a27eda0ec2f60d7eee0aea6891"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/selected-dossier-native-snapshot.json",
+      "relative_path": "selected-dossier-native-snapshot.json",
+      "bytes": 1356643,
+      "sha256": "be5dd405fcd7c57609e0bfd239f5f51cda5738c93a14796371f6e40ff3134255"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/selected-dossier-readable.txt",
+      "relative_path": "selected-dossier-readable.txt",
+      "bytes": 165552,
+      "sha256": "db082e41ead86ede6c156999eb4899f8105edead877f32fe068dfb71838e5388"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/selected-decisions-ND007-025.json",
+      "relative_path": "selected-decisions-ND007-025.json",
+      "bytes": 25093,
+      "sha256": "440c696282c203055fe1f21c272c6668eab090b9dddc9aa3f348aced2e585189"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/selected-questions-NQ001-016.json",
+      "relative_path": "selected-questions-NQ001-016.json",
+      "bytes": 13801,
+      "sha256": "70178e739f064c68f85820b8dae94a58fd50e2ce86566a48e9050d7116145d83"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/core-visual-inventory.json",
+      "relative_path": "core-visual-inventory.json",
+      "bytes": 63249,
+      "sha256": "10f14a95dd65b68a462289c502884c3b6f1ba31b752bba5407ab81e4955781cb"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/cloud-v2-exact.md",
+      "relative_path": "cloud-v2-exact.md",
+      "bytes": 326944,
+      "sha256": "2321eb06a56a0fcdd6bb916915c3820f71863e170384d3dcb47a560fe988a107"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/visual-review/visual-source-map.txt",
+      "relative_path": "visual-review/visual-source-map.txt",
+      "bytes": 3798,
+      "sha256": "16d508a8d792667f3f4cfcd02595fac3e685e09522736e7682c5f5858b9ab592"
+    },
+    {
+      "path": "/workspace/shared/nooch-readiness/visual-review/output/pdf/Nooch-Core30-Visual-Review.pdf",
+      "relative_path": "visual-review/output/pdf/Nooch-Core30-Visual-Review.pdf",
+      "bytes": 15867917,
+      "sha256": "23d24227f21a327b8e7fa43e1ca19413f74b3de5cc61d548adb2b90d379a56d2"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "deployment-manager",
+  "name": "deployment-manager",
+  "enabled": true,
+  "transport": "http-json",
+  "baseUrlEnv": "DEPLOYMENT_MANAGER_BASE_URL",
+  "paths": [
+    "/api/v1/readiness/state"
+  ]
+}

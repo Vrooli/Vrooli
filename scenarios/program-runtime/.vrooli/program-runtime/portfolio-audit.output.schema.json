@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["program", "version", "status", "phase", "signals", "errors", "evidence"],
+  "properties": {
+    "program": {"const": "program-runtime.portfolio-audit"},
+    "version": {"type": "string"},
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"type": "object"},
+    "errors": {"type": "array"},
+    "evidence": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

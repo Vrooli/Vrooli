@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/measures;measures_v1";
+
+// MeasuresService exposes search-hub's read-only analytical measures over
+// persisted federated-query telemetry. The same compute path backs these typed
+// RPCs and the packages/measures-go registry mounted at /measures.
+service MeasuresService {
+  rpc FederatedLatency(FederatedLatencyRequest) returns (FederatedLatencyResponse);
+  rpc DegradedQueryRate(DegradedQueryRateRequest) returns (DegradedQueryRateResponse);
+  rpc ProviderDegradationRate(ProviderDegradationRateRequest) returns (ProviderDegradationRateResponse);
+}
+
+message FederatedLatencyRequest {
+  // Time window for latency percentile aggregation.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message FederatedLatencyResponse {
+  int64 p95_ms = 1;
+  int64 p50_ms = 2;
+}
+
+message DegradedQueryRateRequest {
+  // Time window for degraded-query rate aggregation.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+message DegradedQueryRateResponse {
+  double rate = 1;
+  int64 degraded_queries = 2;
+  int64 total_queries = 3;
+}
+
+message ProviderDegradationRateRequest {
+  // Time window for provider-leg degradation aggregation.
+  vrooli.measures.v1.TimeWindow window = 1;
+  // Optional provider id. When empty, the rate is computed across all routed
+  // provider legs in the window.
+  string provider_id = 2;
+}
+
+message ProviderDegradationRateResponse {
+  double rate = 1;
+  int64 degraded_count = 2;
+  int64 times_routed = 3;
+}

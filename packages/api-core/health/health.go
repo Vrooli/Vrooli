@@ -53,6 +53,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -77,8 +78,12 @@ const (
 	Critical
 )
 
+// processStart is captured once when the health package is initialized. Health
+// uptime describes service age, so it must not be reset when a handler builder
+// is constructed inside a request.
+var processStart = time.Now()
+
 // Response is the standardized health check response matching the Vrooli schema.
-// This structure is validated by the CLI's health-validator.sh.
 type Response struct {
 	// Status is the overall health: healthy, degraded, or unhealthy.
 	Status string `json:"status"`
@@ -96,6 +101,15 @@ type Response struct {
 	// Version is the service version (optional).
 	Version string `json:"version,omitempty"`
 
+	// BuildIdentity identifies the authored build currently serving this
+	// response. The control plane uses it to reject a healthy HTTP responder
+	// that belongs to an older source revision.
+	BuildIdentity string `json:"build_identity,omitempty"`
+
+	RuntimeReleaseID          string `json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationID string `json:"runtime_release_operation_id,omitempty"`
+	StartOperationID          string `json:"start_operation_id,omitempty"`
+
 	// UptimeSeconds is the service uptime in seconds (optional).
 	UptimeSeconds float64 `json:"uptime_seconds,omitempty"`
 
@@ -104,6 +118,18 @@ type Response struct {
 
 	// Metrics contains runtime metrics (goroutines, heap, uptime).
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
+
+	// Functional describes whether the service's primary purpose is currently
+	// served. It is independent from process and dependency liveness so a
+	// healthy HTTP server cannot hide a service-wide refusal of real work.
+	Functional *FunctionalStatus `json:"functional,omitempty"`
+}
+
+// FunctionalStatus is an optional purpose-level health dimension. A nil value
+// preserves the legacy response shape and semantics.
+type FunctionalStatus struct {
+	Healthy bool   `json:"healthy"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // DependencyStatus represents the health of a single dependency.
@@ -161,11 +187,17 @@ type Checker interface {
 
 // Builder constructs a health handler with configuration and checks.
 type Builder struct {
-	service   string
-	version   string
-	checks    []checkerEntry
-	timeout   time.Duration
-	startTime time.Time
+	service                   string
+	version                   string
+	buildIdentity             string
+	runtimeReleaseID          string
+	runtimeReleaseOperationID string
+	startOperationID          string
+	checks                    []checkerEntry
+	metrics                   []metricEntry
+	functional                func(context.Context) FunctionalStatus
+	timeout                   time.Duration
+	startTime                 time.Time
 
 	// For testing
 	nowFunc func() time.Time
@@ -174,6 +206,11 @@ type Builder struct {
 type checkerEntry struct {
 	checker     Checker
 	criticality Criticality
+}
+
+type metricEntry struct {
+	name  string
+	value func(time.Time) any
 }
 
 // Handler creates an http.HandlerFunc for the /health endpoint.
@@ -193,7 +230,8 @@ func Handler(checks ...Checker) http.HandlerFunc {
 	return b.Handler()
 }
 
-// New creates a new health check builder.
+// New creates a new health check builder. Uptime is measured from the process
+// start captured by this package, never from handler-construction time.
 // If no service name is provided, it's auto-detected from directory structure or SCENARIO_NAME env.
 //
 // Usage:
@@ -206,16 +244,47 @@ func New(service ...string) *Builder {
 		svc = service[0]
 	}
 	return &Builder{
-		service:   svc,
-		timeout:   5 * time.Second,
-		startTime: time.Now(),
-		nowFunc:   time.Now,
+		service:                   svc,
+		buildIdentity:             os.Getenv(buildIdentityEnv),
+		runtimeReleaseID:          os.Getenv(runtimeReleaseIDEnv),
+		runtimeReleaseOperationID: os.Getenv(runtimeReleaseOperationIDEnv),
+		startOperationID:          os.Getenv(startOperationIDEnv),
+		timeout:                   5 * time.Second,
+		startTime:                 processStart,
+		nowFunc:                   time.Now,
 	}
 }
 
 // Version sets the service version string.
 func (b *Builder) Version(v string) *Builder {
 	b.version = v
+	return b
+}
+
+// buildIdentityEnv carries the hash of the authored scenario source that the
+// lifecycle asked this process to serve. The lifecycle injects it at start and
+// compares it against the served value, which is how a process still running
+// code older than the working tree is detected. Defaulting it here rather than
+// per scenario is deliberate: the value has exactly one source, and a handler
+// that silently omits it turns that check into a no-op without saying so.
+const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+const runtimeReleaseIDEnv = "VROOLI_RUNTIME_RELEASE_ID"
+const runtimeReleaseOperationIDEnv = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+const startOperationIDEnv = "VROOLI_START_OPERATION_ID"
+
+// BuildIdentity overrides the source/build identity reported by the health
+// handler. It defaults to the lifecycle-injected environment value, so calling
+// this is only necessary when a service resolves its identity some other way.
+func (b *Builder) BuildIdentity(identity string) *Builder {
+	b.buildIdentity = identity
+	return b
+}
+
+// RuntimeRelease overrides immutable runtime provenance reported by /health.
+func (b *Builder) RuntimeRelease(id, selectionOperationID, startOperationID string) *Builder {
+	b.runtimeReleaseID = id
+	b.runtimeReleaseOperationID = selectionOperationID
+	b.startOperationID = startOperationID
 	return b
 }
 
@@ -234,6 +303,27 @@ func (b *Builder) Check(c Checker, criticality Criticality) *Builder {
 		checker:     c,
 		criticality: criticality,
 	})
+	return b
+}
+
+// Metric adds a deterministic, handler-owned metric to the health response.
+// The callback receives the response timestamp so derived freshness signals
+// share one clock reading with the health envelope. This is useful for
+// providers whose corpus is materialized live rather than by a background
+// vector reconciler.
+func (b *Builder) Metric(name string, value func(time.Time) any) *Builder {
+	if name == "" || value == nil {
+		return b
+	}
+	b.metrics = append(b.metrics, metricEntry{name: name, value: value})
+	return b
+}
+
+// Functional adds an optional purpose-level health assertion. A false result
+// makes the response degraded while retaining readiness for diagnosis. The
+// callback is only evaluated when the health endpoint is requested.
+func (b *Builder) Functional(check func(context.Context) FunctionalStatus) *Builder {
+	b.functional = check
 	return b
 }
 
@@ -256,7 +346,7 @@ func (b *Builder) Handler() http.HandlerFunc {
 		if resp.Status == StatusUnhealthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -265,17 +355,31 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 	now := b.nowFunc()
 
 	resp := Response{
-		Status:        StatusHealthy,
-		Service:       b.resolveService(),
-		Timestamp:     now.UTC().Format(time.RFC3339),
-		Readiness:     true,
-		Version:       b.version,
-		UptimeSeconds: now.Sub(b.startTime).Seconds(),
-		Metrics:       b.collectMetrics(now),
+		Status:                    StatusHealthy,
+		Service:                   b.resolveService(),
+		Timestamp:                 now.UTC().Format(time.RFC3339),
+		Readiness:                 true,
+		Version:                   b.version,
+		BuildIdentity:             b.buildIdentity,
+		RuntimeReleaseID:          b.runtimeReleaseID,
+		RuntimeReleaseOperationID: b.runtimeReleaseOperationID,
+		StartOperationID:          b.startOperationID,
+		UptimeSeconds:             now.Sub(b.startTime).Seconds(),
+		Metrics:                   b.collectMetrics(now),
+	}
+	for _, metric := range b.metrics {
+		resp.Metrics[metric.name] = metric.value(now)
 	}
 
 	if len(b.checks) > 0 {
 		resp.Dependencies = b.runChecks(ctx, &resp)
+	}
+	if b.functional != nil {
+		functional := b.functional(ctx)
+		resp.Functional = &functional
+		if !functional.Healthy && resp.Status == StatusHealthy {
+			resp.Status = StatusDegraded
+		}
 	}
 
 	return resp
@@ -422,17 +526,10 @@ func (c *dbChecker) Check(ctx context.Context) CheckResult {
 		}
 	}
 
-	// Query the current database name for visibility
-	var dbName string
-	if row := c.db.QueryRowContext(ctx, "SELECT current_database()"); row != nil {
-		_ = row.Scan(&dbName) // Ignore error - database name is optional info
-	}
-
 	return CheckResult{
 		Name:      c.name,
 		Connected: true,
 		Latency:   latency,
-		Database:  dbName,
 	}
 }
 

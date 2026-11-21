@@ -1,152 +1,17 @@
-import { useMemo } from "react";
-import { ContinueSection } from "./ContinueSection";
-import { HeaderSection } from "./HeaderSection";
-import { GuidedFlows } from "./GuidedFlows";
-import { StatsSection } from "./StatsSection";
-import { useHealth } from "../../hooks/useHealth";
-import { useRequests } from "../../hooks/useRequests";
+import { Button } from "../../components/ui/button";
 import { useExecutions } from "../../hooks/useExecutions";
 import { useScenarios } from "../../hooks/useScenarios";
 import { useUIStore } from "../../stores/uiStore";
 import { formatRelative } from "../../lib/formatters";
 
 export function DashboardPage() {
-  const { setActiveTab, applyFocusScenario, setExecutionForm, navigateToScenarioDetail } = useUIStore();
-
-  const { queueMetrics, heroExecution } = useHealth();
-  const { actionableRequest, queuePendingCount } = useRequests();
-  const { executions, lastFailedExecution } = useExecutions();
+  const { setActiveTab, navigateToScenarioDetail } = useUIStore();
+  const { lastFailedExecution, executions } = useExecutions();
   const { scenarioDirectoryEntries, catalogStats } = useScenarios();
-
-  // Get most recent scenario for "continue" feature
-  const recentScenario = scenarioDirectoryEntries[0]?.scenarioName;
-  const hasHistory = scenarioDirectoryEntries.length > 0 || executions.length > 0;
-
-  // Navigation handlers
-  const handleResumeDebugging = () => {
-    if (lastFailedExecution) {
-      applyFocusScenario(lastFailedExecution.scenarioName);
-      setExecutionForm({
-        scenarioName: lastFailedExecution.scenarioName,
-        preset: lastFailedExecution.preset ?? "quick"
-      });
-      navigateToScenarioDetail(lastFailedExecution.scenarioName);
-    } else {
-      setActiveTab("runs");
-    }
-  };
-
-  const handleRunQueuedTests = () => {
-    if (actionableRequest) {
-      applyFocusScenario(actionableRequest.scenarioName);
-    }
-    setActiveTab("runs");
-  };
-
-  const handleContinueScenario = () => {
-    if (recentScenario) {
-      applyFocusScenario(recentScenario);
-    }
-    setActiveTab("runs");
-  };
-
-  const handleGetStarted = () => {
-    setActiveTab("runs");
-  };
-
-  const handleViewQueue = () => setActiveTab("runs");
-  const handleViewHistory = () => setActiveTab("runs");
-  const handleViewScenarios = () => setActiveTab("runs");
-
-  const handleRerunExecution = () => {
-    if (heroExecution) {
-      applyFocusScenario(heroExecution.scenarioName);
-      setExecutionForm({
-        scenarioName: heroExecution.scenarioName,
-        preset: heroExecution.preset ?? "quick"
-      });
-    }
-    setActiveTab("runs");
-  };
-
-  // Build guided flow items
-  const guidedFlows = useMemo(() => [
-    {
-      key: "browse",
-      step: "Step 1",
-      title: "Browse scenarios",
-      description: "View all tracked scenarios and their test status.",
-      stat: `${scenarioDirectoryEntries.length} tracked`,
-      statLabel: scenarioDirectoryEntries.length > 0 ? "Scenarios" : "Start tracking",
-      action: "View scenarios",
-      onClick: () => setActiveTab("runs")
-    },
-    {
-      key: "queue",
-      step: "Step 2",
-      title: "Request tests",
-      description: "Generate new tests for your scenarios.",
-      stat: `${queuePendingCount} pending`,
-      statLabel: "In queue",
-      action: "Request tests",
-      onClick: () => setActiveTab("generate")
-    },
-    {
-      key: "run",
-      step: "Step 3",
-      title: "Run tests",
-      description: "Execute test suites with configurable presets.",
-      stat: heroExecution
-        ? heroExecution.success ? "Passed" : "Failed"
-        : "No runs",
-      statLabel: heroExecution
-        ? formatRelative(heroExecution.completedAt)
-        : "Run your first test",
-      action: "Run tests",
-      onClick: () => setActiveTab("runs")
-    },
-    {
-      key: "docs",
-      step: "Learn",
-      title: "Read docs",
-      description: "Learn about test phases and best practices.",
-      stat: "Available",
-      statLabel: "Documentation",
-      action: "Open docs",
-      onClick: () => setActiveTab("docs")
-    }
-  ], [scenarioDirectoryEntries.length, queuePendingCount, heroExecution, setActiveTab]);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <ContinueSection
-        lastFailedExecution={lastFailedExecution}
-        actionableRequest={actionableRequest}
-        recentScenario={recentScenario}
-        hasHistory={hasHistory}
-        onResumeDebugging={handleResumeDebugging}
-        onRunQueuedTests={handleRunQueuedTests}
-        onContinueScenario={handleContinueScenario}
-        onGetStarted={handleGetStarted}
-      />
-
-      <HeaderSection />
-
-      <GuidedFlows items={guidedFlows} />
-
-      <StatsSection
-        queueMetrics={queueMetrics}
-        catalogStats={catalogStats}
-        heroExecution={heroExecution}
-        actionableRequest={actionableRequest}
-        lastFailedExecution={lastFailedExecution}
-        onViewQueue={handleViewQueue}
-        onViewHistory={handleViewHistory}
-        onViewScenarios={handleViewScenarios}
-        onRerunExecution={handleRerunExecution}
-      />
-    </div>
-  );
+  const focus = lastFailedExecution ?? executions[0];
+  return <div className="space-y-6">
+    <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-8"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Test Genie</p><h1 className="mt-3 text-3xl font-semibold">Execution evidence, then remediation</h1><p className="mt-4 max-w-3xl text-base text-slate-300">Run descriptor-backed checks, inspect the structured findings, and launch one evidence-bound remediation job only when the run supports it.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setActiveTab("runs")}>Browse scenarios</Button>{focus && <Button variant="outline" onClick={() => navigateToScenarioDetail(focus.scenarioName)}>Inspect latest findings</Button>}</div></section>
+    <section className="grid gap-4 md:grid-cols-3"><article className="rounded-2xl border border-white/10 bg-black/20 p-5"><p className="text-xs uppercase tracking-wide text-slate-400">Scenarios</p><p className="mt-2 text-3xl font-semibold">{catalogStats.tracked}</p><p className="text-sm text-slate-400">{catalogStats.failing} with a failed latest run</p></article><article className="rounded-2xl border border-white/10 bg-black/20 p-5"><p className="text-xs uppercase tracking-wide text-slate-400">Latest execution</p><p className="mt-2 text-lg font-semibold">{focus?.scenarioName ?? "No execution yet"}</p><p className="text-sm text-slate-400">{focus ? `${focus.success ? "Passed" : "Findings available"} ${formatRelative(focus.completedAt)}` : "Run a scenario to establish evidence."}</p></article><article className="rounded-2xl border border-white/10 bg-black/20 p-5"><p className="text-xs uppercase tracking-wide text-slate-400">Workflow</p><p className="mt-2 text-lg font-semibold">Findings-first</p><p className="text-sm text-slate-400">Agent completion is provisional until a server-owned rerun compares stable finding IDs.</p></article></section>
+    {scenarioDirectoryEntries.length === 0 && <p className="text-sm text-slate-400">No scenarios are available yet.</p>}
+  </div>;
 }
-
-export { ContinueSection, HeaderSection, GuidedFlows, StatsSection };

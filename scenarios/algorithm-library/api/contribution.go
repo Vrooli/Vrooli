@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	schema "algorithm-library-api/internal/algorithm"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // Contribution represents a user-submitted algorithm or implementation
@@ -331,26 +334,7 @@ func reviewContributionHandler(w http.ResponseWriter, r *http.Request) {
 // Helper functions
 
 func createContributionsTable() {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS contributions (
-			id VARCHAR(36) PRIMARY KEY,
-			type VARCHAR(20) NOT NULL,
-			algorithm_id VARCHAR(36),
-			contributor_name VARCHAR(100) NOT NULL,
-			contributor_email VARCHAR(100),
-			status VARCHAR(20) NOT NULL DEFAULT 'pending',
-			submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			reviewed_at TIMESTAMP,
-			review_notes TEXT,
-			content JSONB NOT NULL,
-			CONSTRAINT fk_algorithm 
-				FOREIGN KEY(algorithm_id) 
-				REFERENCES algorithms(id) 
-				ON DELETE CASCADE
-		)
-	`)
-
-	if err != nil {
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
 		log.Printf("Failed to create contributions table: %v", err)
 	}
 }

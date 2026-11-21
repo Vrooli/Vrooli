@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Stats",
+  "route": "/stats",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "overview",
+      "name": "Overview",
+      "role": "anatomy",
+      "route": "/stats"
+    },
+    {
+      "id": "quality",
+      "name": "Quality",
+      "role": "anatomy",
+      "route": "/stats?view=quality"
+    },
+    {
+      "id": "activity",
+      "name": "Activity",
+      "role": "anatomy",
+      "route": "/stats?view=activity"
+    },
+    {
+      "id": "services",
+      "name": "Services",
+      "role": "anatomy",
+      "route": "/stats?view=services"
+    }
+  ]
+}

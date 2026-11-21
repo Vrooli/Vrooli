@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Tabs",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='navigation.tabs']" }]
+    },
+    {
+      "id": "overflowing",
+      "name": "Overflowing",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Overflowing" } },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='navigation.tabs.Links']" }]
+    },
+    {
+      "id": "with-icons-and-badges",
+      "name": "With icons and badges",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WithIconsAndBadges" } },
+      "expect": [{ "kind": "visible", "selector": "[data-rcl-tab-icon]" }]
+    },
+    {
+      "id": "controlled-with-panels",
+      "name": "Controlled with panels",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "ControlledWithPanels" } },
+      "expect": [{ "kind": "visible", "selector": "[data-rcl-tab-panel]" }]
+    },
+    {
+      "id": "custom-item-test-ids",
+      "name": "Custom item test ids",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "CustomItemTestIds" } },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='settings-tab-sessions']" }]
+    },
+    {
+      "id": "compact",
+      "name": "Compact",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Compact" } },
+      "expect": [{ "kind": "visible", "selector": "[data-rcl-tabs-density='compact']" }]
+    },
+    {
+      "id": "segmented",
+      "name": "Segmented",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Segmented" } },
+      "expect": [{ "kind": "visible", "selector": "[data-rcl-tabs-variant='segmented']" }]
+    }
+  ]
+}

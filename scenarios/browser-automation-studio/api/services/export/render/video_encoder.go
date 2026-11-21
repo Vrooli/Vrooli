@@ -83,11 +83,13 @@ func (e *FFmpegEncoder) assembleVideo(ctx context.Context, pattern string, fps i
 
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-framerate", strconv.Itoa(fps),
 		"-start_number", "0",
 		"-i", pattern,
 		"-vf", vf,
 		"-c:v", "libx264",
+		"-threads", "2",
 		"-profile:v", "high",
 		"-level", "4.1",
 		"-crf", "21",
@@ -290,6 +292,7 @@ func (e *FFmpegEncoder) ConvertToGIF(ctx context.Context, inputPath, outputPath 
 	}
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-i", inputPath,
 		"-vf", fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos", fps, targetWidth),
 		outputPath,
@@ -317,9 +320,11 @@ func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath 
 		"format=yuv420p"
 	args := []string{
 		"-y",
+		"-threads", "2", "-filter_threads", "2",
 		"-i", inputPath,
 		"-vf", vf,
 		"-c:v", "libx264",
+		"-threads", "2",
 		"-profile:v", "high",
 		"-level", "4.1",
 		"-crf", "21",
@@ -337,88 +342,3 @@ func (e *FFmpegEncoder) ConvertToMP4(ctx context.Context, inputPath, outputPath 
 
 // Compile-time interface enforcement
 var _ VideoEncoder = (*FFmpegEncoder)(nil)
-
-// MockVideoEncoder is a test double for VideoEncoder.
-type MockVideoEncoder struct {
-	AssembleVideoErr error
-	ConvertGIFErr    error
-	ConvertMP4Err    error
-
-	AssembleCalls          []AssembleCall
-	AssembleWatermarkCalls []AssembleWatermarkCall
-	ConvertCalls           []ConvertCall
-	ConvertMP4Calls        []ConvertMP4Call
-}
-
-// AssembleCall records arguments to AssembleVideoFromSequence.
-type AssembleCall struct {
-	Pattern    string
-	FPS        int
-	OutputPath string
-}
-
-// AssembleWatermarkCall records arguments to AssembleVideoWithWatermark.
-type AssembleWatermarkCall struct {
-	Pattern       string
-	FPS           int
-	OutputPath    string
-	WatermarkText string
-}
-
-// ConvertCall records arguments to ConvertToGIF.
-type ConvertCall struct {
-	InputPath   string
-	OutputPath  string
-	TargetWidth int
-	FPS         int
-}
-
-// ConvertMP4Call records arguments to ConvertToMP4.
-type ConvertMP4Call struct {
-	InputPath  string
-	OutputPath string
-}
-
-// AssembleVideoFromSequence records the call and returns the configured error.
-func (m *MockVideoEncoder) AssembleVideoFromSequence(_ context.Context, pattern string, fps int, outputPath string) error {
-	m.AssembleCalls = append(m.AssembleCalls, AssembleCall{
-		Pattern:    pattern,
-		FPS:        fps,
-		OutputPath: outputPath,
-	})
-	return m.AssembleVideoErr
-}
-
-// AssembleVideoWithWatermark records the call and returns the configured error.
-func (m *MockVideoEncoder) AssembleVideoWithWatermark(_ context.Context, pattern string, fps int, outputPath string, watermarkText string) error {
-	m.AssembleWatermarkCalls = append(m.AssembleWatermarkCalls, AssembleWatermarkCall{
-		Pattern:       pattern,
-		FPS:           fps,
-		OutputPath:    outputPath,
-		WatermarkText: watermarkText,
-	})
-	return m.AssembleVideoErr
-}
-
-// ConvertToGIF records the call and returns the configured error.
-func (m *MockVideoEncoder) ConvertToGIF(_ context.Context, inputPath, outputPath string, targetWidth int, fps int) error {
-	m.ConvertCalls = append(m.ConvertCalls, ConvertCall{
-		InputPath:   inputPath,
-		OutputPath:  outputPath,
-		TargetWidth: targetWidth,
-		FPS:         fps,
-	})
-	return m.ConvertGIFErr
-}
-
-// ConvertToMP4 records the call and returns the configured error.
-func (m *MockVideoEncoder) ConvertToMP4(_ context.Context, inputPath, outputPath string) error {
-	m.ConvertMP4Calls = append(m.ConvertMP4Calls, ConvertMP4Call{
-		InputPath:  inputPath,
-		OutputPath: outputPath,
-	})
-	return m.ConvertMP4Err
-}
-
-// Compile-time interface enforcement
-var _ VideoEncoder = (*MockVideoEncoder)(nil)

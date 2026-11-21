@@ -1,0 +1,19 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "reliability-resilience",
+  "name": "Reliability \u0026 resilience",
+  "description": "Reliability and resilience: graceful degradation under failure, idempotency and replay safety, interruption and progress continuity, evolution-axis resilience, and temporal ordering.",
+  "parentTopicId": "development",
+  "skills": [
+    "failure-topography-and-graceful-degradation",
+    "idempotency-replay-safety-hardening",
+    "progress-continuity-interruption-resilience",
+    "change-axis-and-evolution-resilience-audit",
+    "temporal-flow-audit"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:20Z",
+  "updatedAt": "2026-06-04T17:35:20Z"
+}

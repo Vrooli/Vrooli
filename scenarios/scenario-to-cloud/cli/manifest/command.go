@@ -88,7 +88,6 @@ func runInit(client *Client, args []string) error {
 	domain := fs.String("domain", "", "Edge domain")
 	user := fs.String("user", "", "SSH user")
 	port := fs.Int("port", 0, "SSH port")
-	keyPath := fs.String("key-path", "", "SSH private key path")
 	workdir := fs.String("workdir", "", "Remote Vrooli workdir")
 	caddyEmail := fs.String("caddy-email", "", "ACME contact email")
 	outPath := fs.String("out", "", "Write manifest JSON to this path")
@@ -106,7 +105,6 @@ func runInit(client *Client, args []string) error {
 		Domain:     strings.TrimSpace(*domain),
 		User:       strings.TrimSpace(*user),
 		Port:       *port,
-		KeyPath:    strings.TrimSpace(*keyPath),
 		Workdir:    strings.TrimSpace(*workdir),
 		CaddyEmail: strings.TrimSpace(*caddyEmail),
 	}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>What should be backed up?</title>
+<style>
+  body { font-family: var(--hub-font); }
+  h1 { font-size: 1.6rem; line-height: 1.15; }
+  .lead { font-size: 1.05rem; }
+  .metric { font-size: 1.6rem; font-weight: 750; line-height: 1.1; }
+  .small { color: var(--hub-muted); font-size: .9rem; }
+  .group { padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); margin: .75rem 0; }
+  .group h3 { margin: 0 0 .35rem; }
+  .size { font-weight: 700; white-space: nowrap; }
+  .choices { display: grid; gap: .75rem; margin-top: 1rem; }
+  .choice { padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+  .choice h3 { margin-top: 0; }
+  .choice p { margin-bottom: .5rem; }
+  .choice button { min-height: 44px; width: 100%; margin-top: .5rem; }
+  .featured { border: 2px solid var(--hub-primary); }
+  .tag { font-size: .78rem; font-weight: 700; color: var(--hub-success); }
+  @media (min-width: 700px) { .choices { grid-template-columns: repeat(3, 1fr); } }
+</style>
+</head>
+<body>
+  <p class="small">Data Backup Manager · decision</p>
+  <h1>Back up all 45 secret-holding places, or choose a narrower rule?</h1>
+  <p class="lead"><strong>I recommend backing up all 45 now and automatically adding new secret-holding places, with a weekly list you can use to exclude items.</strong> Losing the only copy could erase private history, keys, or secrets; the encrypted backup adds 3.1 GiB.</p>
+  <p>Tap <strong>Choose this</strong>, then send. This is the third time the list has come back in three days because no standing rule exists.</p>
+
+  <h2>The inventory at a glance</h2>
+  <div class="hub-tradeoffs">
+    <section class="group">
+      <h3>AI tools and local services</h3>
+      <p class="metric">12 places</p>
+      <p class="size">2.9 GiB</p>
+      <p>Sign-ins, conversations, coding history and memory. Includes Claude Code (2.1 GiB), Grok, Antigravity and Codex, plus Vault secrets and local service configuration.</p>
+    </section>
+    <section class="group">
+      <h3>Vrooli apps' keys and records</h3>
+      <p class="metric">10 places</p>
+      <p class="size">222.5 MiB</p>
+      <p>Saved patches and file bodies, approval history, browser session profiles, notification attachments and keys, Web Console identity keys, and Test Genie seed records.</p>
+    </section>
+    <section class="group">
+      <h3>Host settings from setup</h3>
+      <p class="metric">23 files</p>
+      <p class="size">10.9 KiB</p>
+      <p>Sudo, kernel, AppArmor, systemd, journald, logrotate, GRUB and DNS settings. Setup can recreate them; a copy records how they were set.</p>
+    </section>
+  </div>
+  <p class="hub-callout is-warning"><strong>Trade-off:</strong> Restoring may require one sign-in again if a saved token is out of date; the data returns intact. Without a backup, a disk failure can permanently erase anything that exists nowhere else.</p>
+
+  <h2>Choose what happens next</h2>
+  <div class="choices">
+    <section class="choice featured">
+      <p class="tag">RECOMMENDED</p>
+      <h3>All now + automatically going forward</h3>
+      <p>Add all 45 today (3.1 GiB), then add future secret-holding places automatically. You get a weekly list and can exclude any item.</p>
+      <button type="button" onclick="if(window.hub&amp;&amp;window.hub.prefill)window.hub.prefill('answer','standing')">Choose this</button>
+    </section>
+    <section class="choice">
+      <h3>Selected groups only</h3>
+      <p>Add only the groups you select in the question below. New secret-holding places still wait for your answer, so this question may return.</p>
+      <button type="button" onclick="if(window.hub&amp;&amp;window.hub.prefill)window.hub.prefill('answer','groups')">Choose this</button>
+    </section>
+    <section class="choice">
+      <h3>Not now</h3>
+      <p>Add nothing. Anything that exists nowhere else remains at risk if its disk is lost; new secret-holding places will keep waiting for your answer.</p>
+      <button type="button" onclick="if(window.hub&amp;&amp;window.hub.prefill)window.hub.prefill('answer','not-now')">Choose this</button>
+    </section>
+  </div>
+
+  <h2>After you choose</h2>
+  <p>Choosing the recommended option registers all 45 and makes future secret-holding places automatic, with a weekly note. If you choose groups only, the separate multi-select lets you pick groups. No answer within seven days means nothing is added.</p>
+  <p class="small">The inventory totals 3.1 GiB across 45 places: 12 AI and local-service items, 10 Vrooli app items, and 23 small host-setting files.</p>
+</body>
+</html>

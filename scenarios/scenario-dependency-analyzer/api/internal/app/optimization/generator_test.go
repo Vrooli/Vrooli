@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestGenerateRecommendations tests the main recommendation generation function.
 func TestGenerateRecommendations(t *testing.T) {
 	t.Run("NilAnalysis", func(t *testing.T) {
-		recs := GenerateRecommendations("test", nil, nil)
+		recs := GenerateRecommendations("test", nil)
 		if recs != nil {
 			t.Errorf("expected nil for nil analysis, got %v", recs)
 		}
@@ -18,7 +18,7 @@ func TestGenerateRecommendations(t *testing.T) {
 
 	t.Run("EmptyAnalysis", func(t *testing.T) {
 		analysis := &types.DependencyAnalysisResponse{}
-		recs := GenerateRecommendations("test", analysis, nil)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) != 0 {
 			t.Errorf("expected 0 recommendations for empty analysis, got %d", len(recs))
 		}
@@ -33,7 +33,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				},
 			},
 		}
-		recs := GenerateRecommendations("test", analysis, nil)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) != 2 {
 			t.Fatalf("expected 2 recommendations, got %d", len(recs))
 		}
@@ -60,7 +60,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				Extra: []types.DependencyDrift{{Name: "legacy-service"}},
 			},
 		}
-		recs := GenerateRecommendations("test", analysis, nil)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) != 1 {
 			t.Fatalf("expected 1 recommendation, got %d", len(recs))
 		}
@@ -93,7 +93,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				},
 			},
 		}
-		recs := GenerateRecommendations("test", analysis, nil)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) == 0 {
 			t.Fatal("expected at least 1 recommendation for blocker")
 		}
@@ -113,37 +113,6 @@ func TestGenerateRecommendations(t *testing.T) {
 		}
 	})
 
-	t.Run("SecretStrategies", func(t *testing.T) {
-		cfg := &types.ServiceConfig{
-			Deployment: &types.ServiceDeployment{
-				Tiers: map[string]types.DeploymentTier{
-					"desktop": {
-						Secrets: []types.DeploymentTierSecret{
-							{SecretID: "api-key", StrategyRef: ""},
-							{SecretID: "db-password", StrategyRef: "secrets-manager://auto"},
-						},
-					},
-				},
-			},
-		}
-		analysis := &types.DependencyAnalysisResponse{}
-		recs := GenerateRecommendations("test", analysis, cfg)
-
-		found := false
-		for _, rec := range recs {
-			if rec.RecommendedState["action"] == "annotate_secret_strategy" {
-				found = true
-				if rec.RecommendedState["secret_id"] != "api-key" {
-					t.Errorf("expected api-key secret, got %v", rec.RecommendedState["secret_id"])
-				}
-				break
-			}
-		}
-		if !found {
-			t.Error("expected annotate_secret_strategy recommendation")
-		}
-	})
-
 	t.Run("PrioritySorting", func(t *testing.T) {
 		// Create analysis that produces multiple recommendation types
 		fitness := 0.3
@@ -156,24 +125,16 @@ func TestGenerateRecommendations(t *testing.T) {
 					"desktop": {BlockingDependencies: []string{"postgres"}},
 				},
 				Dependencies: []types.DeploymentDependencyNode{
-					{Name: "postgres", Type: "resource", Alternatives: []string{"sqlite"},
+					{
+						Name: "postgres", Type: "resource", Alternatives: []string{"sqlite"},
 						TierSupport: map[string]types.TierSupportSummary{
 							"desktop": {Supported: boolPtr(false), FitnessScore: &fitness},
-						}},
-				},
-			},
-		}
-		cfg := &types.ServiceConfig{
-			Deployment: &types.ServiceDeployment{
-				Tiers: map[string]types.DeploymentTier{
-					"desktop": {
-						Secrets: []types.DeploymentTierSecret{{SecretID: "api-key"}},
+						},
 					},
 				},
 			},
 		}
-
-		recs := GenerateRecommendations("test", analysis, cfg)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) < 2 {
 			t.Fatalf("expected at least 2 recommendations, got %d", len(recs))
 		}
@@ -200,7 +161,7 @@ func TestGenerateRecommendations(t *testing.T) {
 				},
 			},
 		}
-		recs := GenerateRecommendations("test", analysis, nil)
+		recs := GenerateRecommendations("test", analysis)
 		if len(recs) != 1 {
 			t.Errorf("expected 1 recommendation (empty names filtered), got %d", len(recs))
 		}
@@ -218,12 +179,18 @@ func TestBuildSummary(t *testing.T) {
 
 	t.Run("WithRecommendations", func(t *testing.T) {
 		recs := []types.OptimizationRecommendation{
-			{RecommendationType: "dependency_reduction", Priority: "medium",
-				RecommendedState: map[string]interface{}{"action": "remove_resource"}},
-			{RecommendationType: "dependency_reduction", Priority: "high",
-				RecommendedState: map[string]interface{}{"action": "remove_resource"}},
-			{RecommendationType: "resource_swap", Priority: "critical",
-				RecommendedState: map[string]interface{}{"action": "swap_dependency"}},
+			{
+				RecommendationType: "dependency_reduction", Priority: "medium",
+				RecommendedState: map[string]interface{}{"action": "remove_resource"},
+			},
+			{
+				RecommendationType: "dependency_reduction", Priority: "high",
+				RecommendedState: map[string]interface{}{"action": "remove_resource"},
+			},
+			{
+				RecommendationType: "resource_swap", Priority: "critical",
+				RecommendedState: map[string]interface{}{"action": "swap_dependency"},
+			},
 		}
 
 		summary := BuildSummary(recs)
@@ -443,106 +410,6 @@ func TestBuildTierBlockerRecommendations(t *testing.T) {
 	})
 }
 
-// TestBuildSecretStrategyRecommendations tests secret strategy recommendation generation.
-func TestBuildSecretStrategyRecommendations(t *testing.T) {
-	timestamp := time.Now()
-
-	t.Run("NilConfig", func(t *testing.T) {
-		recs := buildSecretStrategyRecommendations("test", nil, timestamp)
-		if recs != nil {
-			t.Errorf("expected nil for nil config, got %v", recs)
-		}
-	})
-
-	t.Run("NilDeployment", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
-		recs := buildSecretStrategyRecommendations("test", cfg, timestamp)
-		if recs != nil {
-			t.Errorf("expected nil for nil deployment, got %v", recs)
-		}
-	})
-
-	t.Run("NoTiers", func(t *testing.T) {
-		cfg := &types.ServiceConfig{Deployment: &types.ServiceDeployment{}}
-		recs := buildSecretStrategyRecommendations("test", cfg, timestamp)
-		if recs != nil {
-			t.Errorf("expected nil for no tiers, got %v", recs)
-		}
-	})
-
-	t.Run("SecretWithStrategy", func(t *testing.T) {
-		cfg := &types.ServiceConfig{
-			Deployment: &types.ServiceDeployment{
-				Tiers: map[string]types.DeploymentTier{
-					"desktop": {
-						Secrets: []types.DeploymentTierSecret{
-							{SecretID: "api-key", StrategyRef: "secrets-manager://playbook/auto-rotate"},
-						},
-					},
-				},
-			},
-		}
-		recs := buildSecretStrategyRecommendations("test", cfg, timestamp)
-		if len(recs) != 0 {
-			t.Errorf("expected 0 recommendations for secret with strategy, got %d", len(recs))
-		}
-	})
-
-	t.Run("SecretWithoutStrategy", func(t *testing.T) {
-		cfg := &types.ServiceConfig{
-			Deployment: &types.ServiceDeployment{
-				Tiers: map[string]types.DeploymentTier{
-					"desktop": {
-						Secrets: []types.DeploymentTierSecret{
-							{SecretID: "api-key", StrategyRef: ""},
-							{SecretID: "db-password", Classification: "infrastructure"},
-						},
-					},
-				},
-			},
-		}
-		recs := buildSecretStrategyRecommendations("my-app", cfg, timestamp)
-		if len(recs) != 2 {
-			t.Fatalf("expected 2 recommendations, got %d", len(recs))
-		}
-
-		for _, rec := range recs {
-			if rec.RecommendationType != "performance_improvement" {
-				t.Errorf("expected performance_improvement, got %s", rec.RecommendationType)
-			}
-			if rec.Priority != "high" {
-				t.Errorf("expected high priority, got %s", rec.Priority)
-			}
-			if rec.RecommendedState["action"] != "annotate_secret_strategy" {
-				t.Errorf("expected annotate_secret_strategy action, got %v", rec.RecommendedState["action"])
-			}
-		}
-	})
-
-	t.Run("MultipleTiersMultipleSecrets", func(t *testing.T) {
-		cfg := &types.ServiceConfig{
-			Deployment: &types.ServiceDeployment{
-				Tiers: map[string]types.DeploymentTier{
-					"desktop": {
-						Secrets: []types.DeploymentTierSecret{
-							{SecretID: "desktop-key"},
-						},
-					},
-					"server": {
-						Secrets: []types.DeploymentTierSecret{
-							{SecretID: "server-key"},
-						},
-					},
-				},
-			},
-		}
-		recs := buildSecretStrategyRecommendations("multi-tier", cfg, timestamp)
-		if len(recs) != 2 {
-			t.Errorf("expected 2 recommendations (one per tier secret), got %d", len(recs))
-		}
-	})
-}
-
 // TestBuildDependencyNodeIndex tests the node index builder.
 func TestBuildDependencyNodeIndex(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
@@ -632,3 +499,23 @@ func TestBuildDependencyNodeIndex(t *testing.T) {
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+func TestSelectRecommendationsPreservesExactMutationScope(t *testing.T) {
+	recommendations := []types.OptimizationRecommendation{
+		{ID: "selected", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_scenario_dependency", "scenario_name": "go-code-graph"}},
+		{ID: "needed", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_scenario_dependency", "scenario_name": "code-facts"}},
+		{ID: "resource", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_resource", "resource_name": "go-code-graph"}},
+		{ID: "swap", RecommendationType: "resource_swap", RecommendedState: map[string]interface{}{"action": "swap_dependency"}},
+	}
+	selected := SelectRecommendations(recommendations, types.OptimizationRequest{OnlyScenarios: []string{"go-code-graph"}})
+	if len(selected) != 1 || selected[0].ID != "selected" {
+		t.Fatalf("selection escaped: %+v", selected)
+	}
+	swaps := SelectRecommendations(recommendations, types.OptimizationRequest{Type: "resource_swap"})
+	if len(swaps) != 1 || swaps[0].ID != "swap" {
+		t.Fatalf("type selector ignored: %+v", swaps)
+	}
+	if got := SelectRecommendations(recommendations, types.OptimizationRequest{Type: "resource_swap", OnlyScenarios: []string{"go-code-graph"}}); len(got) != 0 {
+		t.Fatalf("selectors must intersect: %+v", got)
+	}
+}

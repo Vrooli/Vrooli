@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "scenario-explorer",
+    "title": "Scenario Explorer",
+    "routes": ["/scenarios/:scenario"],
+    "purpose": "Let an author see one scenario's entire declared experience — pages by state, depth, and coverage gaps — and judge what is missing.",
+    "prd_refs": ["OT-P0-001", "OT-P0-005"]
+  },
+  "priorities": [
+    { "statement": "The pages-by-state grid with depth badges is the first thing read." },
+    { "statement": "Coverage gaps (unspecced routes, missing required states) are explicit, not inferable." },
+    { "statement": "Every claim shows its enforcement tier honestly wherever it appears." }
+  ],
+  "states": [
+    { "id": "default", "description": "Scenario has a spec; grid, gaps, and claims render.", "setup": { "route": "/scenarios/experience-manager" } },
+    { "id": "loading" },
+    { "id": "empty", "description": "Scenario has no experience/ folder; the explorer routes the author to the Studio instead of dead-ending." },
+    { "id": "partial", "description": "Some spec files are unreadable/invalid; readable pages render, broken ones are named with their parse error." },
+    { "id": "request-error" }
+  ],
+  "regions": [{"id":"scenario-spec","purpose":"Render the selected scenario's loading, ready, empty, partial, or failed specification surface.","component":{"library":{"component":"experience-surface","version":"1.0.3"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    { "id": "depth-grid", "role": "table", "name": "Pages by state", "description": "Rows = pages, columns = states, cells = claim coverage; L0–L4 badge per row." },
+    { "id": "gap-panel", "role": "region", "name": "Coverage gaps", "description": "Routes without specs and declared-state gaps vs the DESIGN.md state contract." },
+    { "id": "claim-list", "role": "list", "name": "Claims", "description": "All claims of the selected page with tier and latest verdict." },
+    { "id": "tier-label", "role": "note", "description": "Textual tier tag (machine / manual / aspirational) on every claim row." },
+    { "id": "evidence-link", "role": "link", "description": "Per-claim link to the Evidence view." },
+    { "id": "studio-action", "role": "button", "name": "Open in Studio" }
+  ],
+  "claims": [
+    {
+      "id": "grid-perceivable",
+      "type": "element-present",
+      "statement": "The pages-by-state grid is exposed as a real table with its accessible name.",
+      "tier": "machine",
+      "elements": ["depth-grid"],
+      "states": ["default", "partial"]
+    },
+    {
+      "id": "gaps-above-fold",
+      "type": "visible-without-scroll",
+      "statement": "Coverage gaps are visible without scrolling on desktop — missing intent is never below the fold.",
+      "tier": "machine",
+      "elements": ["gap-panel"],
+      "states": ["default", "partial"],
+      "viewports": ["desktop", "wide"]
+    },
+    {
+      "id": "tier-always-in-text",
+      "type": "element-present",
+      "statement": "Every claim row carries a textual tier label — tier is never conveyed by color alone.",
+      "tier": "manual",
+      "elements": ["tier-label"],
+      "states": ["default", "partial"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-claim text node as default-state evidence; keep manual until the row-level tier traversal is mechanically checked."
+    },
+    {
+      "id": "claim-leads-to-evidence",
+      "type": "keyboard-reachable",
+      "statement": "Each claim's evidence link is keyboard reachable from the claim list.",
+      "tier": "manual",
+      "elements": ["evidence-link"],
+      "states": ["default"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-claim link as default-state evidence; keep manual until the evidence-link traversal is mechanically checked."
+    },
+    {
+      "id": "studio-handoff",
+      "type": "keyboard-reachable",
+      "statement": "Open-in-Studio is keyboard reachable, so exploring flows directly into authoring.",
+      "tier": "machine",
+      "elements": ["studio-action"],
+      "states": ["default", "empty"]
+    },
+    {
+      "id": "empty-routes-to-studio",
+      "type": "state-covered",
+      "statement": "The no-spec state renders dedicated guidance that routes the author to the Studio.",
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
+    },
+    {
+      "id": "partial-names-broken-files",
+      "type": "custom",
+      "statement": "When some spec files are invalid, the explorer names each broken file with its parse error instead of hiding or failing the whole scenario.",
+      "tier": "manual",
+      "states": ["partial"],
+      "rationale": "Requires seeded broken fixtures to check mechanically; promotion candidate."
+    }
+  ],
+  "bindings": {
+    "regions": {"scenario-spec":{"selector":"[data-experience-surface=\"scenario-spec\"]"}},
+    "elements": {
+      "depth-grid": { "testid": "explorer-depth-grid" },
+      "gap-panel": { "testid": "explorer-gap-panel" },
+      "claim-list": { "testid": "explorer-claim-list" },
+      "tier-label": { "testid": "explorer-tier-label" },
+      "evidence-link": { "testid": "explorer-evidence-link" },
+      "studio-action": { "testid": "explorer-open-studio" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "gaps-band", "grid": { "x": 0, "y": 0, "w": 12, "h": 2 }, "elements": ["gap-panel", "studio-action"] },
+      { "id": "grid-main", "grid": { "x": 0, "y": 2, "w": 7, "h": 8 }, "elements": ["depth-grid"] },
+      { "id": "claims-rail", "grid": { "x": 7, "y": 2, "w": 5, "h": 8 }, "elements": ["claim-list", "tier-label", "evidence-link"] }
+    ]
+  }
+}

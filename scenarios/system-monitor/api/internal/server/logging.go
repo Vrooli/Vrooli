@@ -2,7 +2,8 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,7 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/config"
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/logx"
 )
 
 type rotatingFileWriter struct {
@@ -72,11 +75,7 @@ func (rw *rotatingFileWriter) Write(p []byte) (int, error) {
 }
 
 func (rw *rotatingFileWriter) openFile() error {
-	if err := os.MkdirAll(filepath.Dir(rw.path), 0o755); err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(rw.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o664)
+	file, err := storage.OpenAppendFile(rw.path, 0o664)
 	if err != nil {
 		return err
 	}
@@ -100,7 +99,7 @@ func (rw *rotatingFileWriter) rotate() error {
 	timestamp := time.Now().Format("20060102-150405")
 	rotatedPath := fmt.Sprintf("%s.%s", rw.path, timestamp)
 
-	if err := os.Rename(rw.path, rotatedPath); err != nil && !os.IsNotExist(err) {
+	if err := storage.RenameFile(rw.path, rotatedPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
@@ -131,7 +130,7 @@ func (rw *rotatingFileWriter) cleanup() {
 		}
 
 		if rw.maxAgeDays > 0 && time.Since(info.ModTime()) > cutoff {
-			if removeErr := os.Remove(match); removeErr != nil {
+			if removeErr := storage.RemoveFile(match); removeErr != nil {
 				fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", removeErr)
 			}
 			continue
@@ -151,7 +150,7 @@ func (rw *rotatingFileWriter) cleanup() {
 
 	if rw.maxBackups == 0 {
 		for _, path := range backups {
-			if err := os.Remove(path); err != nil {
+			if err := storage.RemoveFile(path); err != nil {
 				fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", err)
 			}
 		}
@@ -159,32 +158,58 @@ func (rw *rotatingFileWriter) cleanup() {
 	}
 
 	for i := rw.maxBackups; i < len(backups); i++ {
-		if err := os.Remove(backups[i]); err != nil {
+		if err := storage.RemoveFile(backups[i]); err != nil {
 			fmt.Fprintf(os.Stderr, "log rotation remove error: %v\n", err)
 		}
 	}
 }
 
-func setupLogging(cfg *config.Config) {
-	if cfg.Logging.Output == "stdout" && os.Getenv("VROOLI_LIFECYCLE_MANAGED") == "true" {
-		cfg.Logging.Output = "file"
-		if cfg.Logging.FilePath == "" || cfg.Logging.FilePath == "/var/log/system-monitor.log" {
-			cfg.Logging.FilePath = filepath.Join(os.Getenv("HOME"), ".vrooli", "logs", "scenarios", cfg.Server.ServiceName, "api.log")
+func setupLogging(cfg *config.Config) *slog.Logger {
+	output := io.Writer(os.Stdout)
+	if cfg.Logging.FilePath == "" || cfg.Logging.FilePath == "/var/log/system-monitor.log" {
+		if resolved, err := resolveScenarioLogPath(cfg.Server.ServiceName); err == nil {
+			cfg.Logging.FilePath = resolved
+		} else {
+			logx.Default().Warn("failed to resolve scenario log path; using stdout", "error", err)
+			cfg.Logging.Output = "stdout"
 		}
+	}
+
+	if cfg.Logging.Output == "stdout" && cfg.Server.ManagedLifecycle {
+		cfg.Logging.Output = "file"
 	}
 
 	if cfg.Logging.Output == "file" {
 		writer, err := newRotatingFileWriter(cfg.Logging.FilePath, cfg.Logging.MaxSize, cfg.Logging.MaxBackups, cfg.Logging.MaxAge)
 		if err != nil {
-			log.Printf("Failed to configure log rotation, using stdout: %v", err)
+			logx.Default().Warn("failed to configure log rotation; using stdout", "error", err)
 		} else {
-			log.SetOutput(writer)
+			output = writer
 		}
 	}
 
+	var handler slog.Handler
 	if cfg.Logging.Format == "json" {
-		log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
+		handler = slog.NewJSONHandler(output, nil)
 	} else {
-		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+		handler = slog.NewTextHandler(output, nil)
 	}
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+	return logger
+}
+
+func resolveScenarioLogPath(serviceName string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: "system-monitor"},
+		storage.ClassLogs,
+		filepath.Join(serviceName, "api.log"),
+	)
 }

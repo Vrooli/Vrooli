@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "vrooli-generic-smart-display-concept-v4",
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display-v4/generic-smart-display-v4.glb",
+    "sha256": "7bf1f3b0c835f5817c592b12693d5b3d1deb6d289e06e727270ce245ebd75333",
+    "size_bytes": 219864
+  },
+  "authorship": {
+    "creator": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "use_scope": "Internal local candidate review; explicit opt-in Library candidate only.",
+    "identity": "Generic authored smart-display concept; no Google identity, product CAD, or endorsement."
+  },
+  "derivation": {
+    "parent_asset_id": "vrooli-generic-smart-display-concept-v3",
+    "parent_path": "scenarios/device-studio/api/internal/physicalruntime/assets/smart-display-v3/generic-smart-display-v3.glb",
+    "parent_sha256": "9890e82e4ded55f098fb2eb99548bb3d0331c1a599193ee2041c9773a338cf50",
+    "parent_bytes_preserved": true,
+    "repair": "The Display rear shell was authored with per-triangle flat normals. V4 replaces only that shell's NORMAL accessor with area-weighted normals averaged across coincident shell vertices, then adjusts its graphite polymer to metallic 0.04 and roughness 0.56. No shell positions, indices, UVs, node transforms, screen geometry, or other mesh/material records changed.",
+    "generator": "scenarios/device-studio/assets/sources/generic-smart-display-v4-20261021/derive_smart_display_v4.py",
+    "runtime": "Python standard library; deterministic and offline"
+  },
+  "design_envelope_mm": [
+    177.4,
+    120.4,
+    69.5
+  ],
+  "geometry": {
+    "source_bounds_mm": [
+      177.4,
+      120.4,
+      69.5
+    ],
+    "axes": {
+      "up": "Y",
+      "front": "+Z"
+    },
+    "display_shell_mesh_index": 4,
+    "display_shell_node": "Display rear shell",
+    "display_shell_normal_accessor": 17,
+    "display_shell_normalized_vertex_groups": 194,
+    "screen_node": "MainDisplayActivePlane",
+    "screen_mesh_index": 6,
+    "screen_primitive_index": 0,
+    "screen_material_index": 2,
+    "screen_position_bounds_m": [
+      [
+        -0.0765,
+        0.02445,
+        0.0149565
+      ],
+      [
+        0.0765,
+        0.11385,
+        0.0243435
+      ]
+    ],
+    "screen_uv": {
+      "attribute": "TEXCOORD_0",
+      "min": [
+        0,
+        0
+      ],
+      "max": [
+        1,
+        1
+      ],
+      "v_orientation": "0 at top; 1 at bottom"
+    },
+    "screen_active_area_estimate_mm": [
+      153,
+      89.4
+    ],
+    "screen_active_area_basis": "7-inch class diagonal and 1024:600 aspect ratio; estimated, not measured"
+  },
+  "comparison_reference": {
+    "device": "Google Nest Hub (2nd gen)",
+    "published_envelope_mm": [
+      177.4,
+      120.4,
+      69.5
+    ],
+    "use": "Comparison context only; not product CAD or manufacturer identity."
+  },
+  "qualification_limits": [
+    "V4 is an asset-only repair; its native Device Studio appearance has not yet been reviewed.",
+    "The authored envelope and active screen area are not measurements of a Google product or physical unit.",
+    "The tabletop support pose is candidate geometry, not stability proof or product qualification."
+  ]
+}

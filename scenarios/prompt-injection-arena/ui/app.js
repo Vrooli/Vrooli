@@ -861,7 +861,7 @@ class PromptInjectionArena {
     
     clearTestForm() {
         document.getElementById('system-prompt').value = '';
-        document.getElementById('model-select').value = 'llama3.2';
+        document.getElementById('model-select').value = 'chat.small';
         document.getElementById('temperature-slider').value = '0.7';
         document.getElementById('temperature-value').textContent = '0.7';
         document.getElementById('max-tokens').value = '1000';

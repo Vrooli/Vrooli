@@ -1,0 +1,224 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "document-manager",
+    "displayName": "Document Manager",
+    "description": "Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-05T23:47:17Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "document-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "document-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "doc-parse": {
+        "required": true,
+        "description": "Local content, table, geometry, and PDF classification handler for intake and derivation.",
+        "startup_policy": "must_start"
+      },
+      "doc-ocr": {
+        "required": false,
+        "description": "Portable tier-2 OCR handler for scanned PDFs and raster images.",
+        "startup_policy": "try_start"
+      },
+      "unstructured-io": {
+        "required": false,
+        "description": "Measured Docker fallback for breadth, typed elements, and OCR when available.",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "ai-gateway": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Gateway-only inference seam for later enrichment and permitted remote tiers.",
+        "degraded_behavior": "Intake and local parsing remain available; enrichment and permitted remote tiers are unavailable until ai-gateway starts.",
+        "supervision_precedence": "required"
+      },
+      "storage-manager": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Governed storage and routed file-store contract for raw bytes.",
+        "degraded_behavior": "The scenario keeps its local routed storage seam; external storage-manager-backed operations are unavailable until storage-manager starts.",
+        "supervision_precedence": "required"
+      },
+      "search-hub": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Retrieval registration and query seam used by later domains.",
+        "degraded_behavior": "Intake and local parsing remain available; retrieval registration and federated search are unavailable until search-hub starts.",
+        "supervision_precedence": "required"
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+      "raw_documents": {
+        "rung": "owned",
+        "subpath": "documents",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Original content-addressed document bytes; never pruned or regenerated."
+      },
+      "derivations": {
+        "rung": "owned",
+        "subpath": "derivations",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Derived readings are reproducible from the durable raw bytes."
+        },
+        "rationale": "Versioned parser output may be rebuilt after retention."
+      },
+      "retrieval_index": {
+        "rung": "owned",
+        "subpath": "retrieval_index",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
+        },
+        "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."
+      },
+      "custody": {
+        "rung": "owned",
+        "subpath": "custody",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Append-only processing evidence; no prune budget by design."
+      },
+      "deployment": {
+        "rung": "owned",
+        "subpath": "deployment",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Lifecycle deployment reports are durable operational evidence retained with the scenario data root."
+      }
+    },
+    "rationale": "Raw bytes and custody evidence are durable; derivations are reproducible cache artifacts."
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

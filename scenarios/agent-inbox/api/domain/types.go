@@ -3,6 +3,8 @@
 package domain
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 )
 
@@ -10,26 +12,24 @@ import (
 // A chat contains a sequence of messages between users and AI assistants,
 // and can be organized with labels, starred, or archived.
 type Chat struct {
-	ID                    string    `json:"id"`
-	Name                  string    `json:"name"`
-	Preview               string    `json:"preview"`
-	Model                 string    `json:"model"`
-	ViewMode              string    `json:"view_mode"` // "bubble" (default)
-	IsRead                bool      `json:"is_read"`
-	IsArchived            bool      `json:"is_archived"`
-	IsStarred             bool      `json:"is_starred"`
-	LabelIDs              []string  `json:"label_ids"`
-	SystemPrompt          string    `json:"system_prompt"`
-	ToolsEnabled          bool      `json:"tools_enabled"`
-	WebSearchEnabled      bool      `json:"web_search_enabled"`                 // Default web search setting for new messages
-	ActiveLeafMessageID   string    `json:"active_leaf_message_id,omitempty"`   // Current branch leaf for message tree
-	ActiveTemplateID      string    `json:"active_template_id,omitempty"`       // Currently active template (tools remain enabled until used)
-	ActiveTemplateToolIDs []string  `json:"active_template_tool_ids,omitempty"` // Tool IDs suggested by active template
-	ChatMode              string    `json:"chat_mode"`                          // "llm" (default) or "agent"
-	AgentRunID            string    `json:"agent_run_id,omitempty"`             // Run ID when in agent mode
-	AgentTaskID           string    `json:"agent_task_id,omitempty"`            // Task ID when in agent mode
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	ID                  string    `json:"id"`
+	Name                string    `json:"name"`
+	Preview             string    `json:"preview"`
+	Model               string    `json:"model"`
+	ViewMode            string    `json:"view_mode"` // "bubble" (default)
+	IsRead              bool      `json:"is_read"`
+	IsArchived          bool      `json:"is_archived"`
+	IsStarred           bool      `json:"is_starred"`
+	LabelIDs            []string  `json:"label_ids"`
+	SystemPrompt        string    `json:"system_prompt"`
+	WebSearchEnabled    bool      `json:"web_search_enabled"`               // Default web search setting for new messages
+	ActiveLeafMessageID string    `json:"active_leaf_message_id,omitempty"` // Current branch leaf for message tree
+	ActiveTemplateID    string    `json:"active_template_id,omitempty"`     // Currently active template
+	ChatMode            string    `json:"chat_mode"`                        // "llm" (default) or "agent"
+	AgentRunID          string    `json:"agent_run_id,omitempty"`           // Run ID when in agent mode
+	AgentTaskID         string    `json:"agent_task_id,omitempty"`          // Task ID when in agent mode
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat.
@@ -74,18 +74,18 @@ type ToolCall struct {
 // This tracks the lifecycle of a tool call from start to completion,
 // including the result or any errors.
 type ToolCallRecord struct {
-	ID            string    `json:"id"`
-	MessageID     string    `json:"message_id"`
-	ChatID        string    `json:"chat_id"`
-	ToolName      string    `json:"tool_name"`
-	Arguments     string    `json:"arguments"`       // JSON string
-	Result        string    `json:"result"`          // JSON string or text output
-	Status        string    `json:"status"`          // "pending", "running", "completed", "failed"
-	ScenarioName  string    `json:"scenario_name"`   // e.g., "agent-manager", "app-issue-tracker"
-	ExternalRunID string    `json:"external_run_id"` // ID in the external scenario
-	StartedAt     time.Time `json:"started_at"`
-	CompletedAt   time.Time `json:"completed_at,omitempty"`
-	ErrorMessage  string    `json:"error_message,omitempty"`
+	ID            string         `json:"id"`
+	MessageID     string         `json:"message_id"`
+	ChatID        string         `json:"chat_id"`
+	ToolName      string         `json:"tool_name"`
+	Arguments     string         `json:"arguments"` // JSON string
+	Result        string         `json:"result"`    // JSON string or text output
+	Status        ToolCallStatus `json:"status"`
+	ScenarioName  string         `json:"scenario_name"`   // e.g., "agent-manager", "app-issue-tracker"
+	ExternalRunID string         `json:"external_run_id"` // ID in the external scenario
+	StartedAt     time.Time      `json:"started_at"`
+	CompletedAt   time.Time      `json:"completed_at,omitempty"`
+	ErrorMessage  string         `json:"error_message,omitempty"`
 }
 
 // Label represents a colored label for organizing chats.
@@ -160,6 +160,96 @@ const (
 	StatusFailed          = "failed"
 	StatusCancelled       = "cancelled"
 )
+
+// ToolCallStatus is the persisted lifecycle of one tool call, including its
+// approval decision, execution and restart reconciliation.
+type ToolCallStatus string
+
+// Valid reports whether this is one of the statuses persisted by Agent Inbox.
+func (status ToolCallStatus) Valid() bool {
+	switch status {
+	case StatusPending, StatusPendingApproval, StatusApproved, StatusRejected,
+		StatusRunning, StatusCompleted, StatusFailed, StatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Scan implements sql.Scanner so persisted values are validated during reads.
+func (status *ToolCallStatus) Scan(src any) error {
+	var raw string
+	switch value := src.(type) {
+	case string:
+		raw = value
+	case []byte:
+		raw = string(value)
+	case nil:
+		return fmt.Errorf("tool call status is NULL")
+	default:
+		return fmt.Errorf("cannot scan tool call status from %T", src)
+	}
+	next := ToolCallStatus(raw)
+	if !next.Valid() {
+		return fmt.Errorf("unknown persisted tool call status %q", raw)
+	}
+	*status = next
+	return nil
+}
+
+// Value implements driver.Valuer for SQLite persistence.
+func (status ToolCallStatus) Value() (driver.Value, error) {
+	if !status.Valid() {
+		return nil, fmt.Errorf("cannot persist invalid tool call status %q", status)
+	}
+	return string(status), nil
+}
+
+// CanTransitionTo owns legal updates to a persisted tool call status. Direct
+// completed/failed inserts remain supported for synchronous tool execution;
+// this graph governs subsequent persisted updates.
+func (status ToolCallStatus) CanTransitionTo(next ToolCallStatus) bool {
+	if !status.Valid() || !next.Valid() {
+		return false
+	}
+	if status == next {
+		return true
+	}
+	switch status {
+	case StatusPending:
+		return next == StatusPendingApproval || next == StatusApproved || next == StatusRunning || next == StatusCompleted || next == StatusFailed || next == StatusCancelled
+	case StatusPendingApproval:
+		return next == StatusApproved || next == StatusRejected || next == StatusCancelled
+	case StatusApproved:
+		return next == StatusRunning || next == StatusCompleted || next == StatusFailed || next == StatusCancelled
+	case StatusRunning:
+		return next == StatusCompleted || next == StatusFailed || next == StatusCancelled
+	default:
+		return false
+	}
+}
+
+// TransitionTo validates and applies a status update in memory.
+func (record *ToolCallRecord) TransitionTo(next ToolCallStatus) error {
+	if record == nil {
+		return ErrInvalidToolCallTransition{From: "<nil>", To: next}
+	}
+	if !record.Status.CanTransitionTo(next) {
+		return ErrInvalidToolCallTransition{From: record.Status, To: next}
+	}
+	record.Status = next
+	return nil
+}
+
+// ErrInvalidToolCallTransition indicates a rejected lifecycle edge.
+type ErrInvalidToolCallTransition struct {
+	From ToolCallStatus
+	To   ToolCallStatus
+}
+
+func (e ErrInvalidToolCallTransition) Error() string {
+	return fmt.Sprintf("invalid tool call status transition %q -> %q", e.From, e.To)
+}
 
 // Chat mode constants
 const (

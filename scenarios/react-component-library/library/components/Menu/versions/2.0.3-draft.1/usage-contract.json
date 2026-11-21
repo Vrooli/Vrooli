@@ -1,0 +1,18 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "MenuTrigger",
+      "MenuContent",
+      "MenuItem",
+      "MenuCheckboxItem",
+      "MenuRadioItem",
+      "MenuSubmenu",
+      "MenuLabel",
+      "MenuSeparator"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:Menu",
+  "version": "2.0.2"
+}

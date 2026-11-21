@@ -1,0 +1,24 @@
+{
+  "background_color": "#0f172a",
+  "description": "Durable event ingress, query, subscriptions, and delivery health for the Vrooli fleet.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "icon.svg",
+      "type": "image/svg+xml"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "icon.svg",
+      "type": "image/svg+xml"
+    }
+  ],
+  "name": "Vrooli Events",
+  "scope": "../",
+  "short_name": "Events",
+  "start_url": "../",
+  "theme_color": "#0f172a"
+}

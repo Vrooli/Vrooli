@@ -8,9 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Badge } from "./ui/badge";
 import { CodeBlock } from "./markdown/components/CodeBlock";
+import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import type { ContextAttachmentData } from "../types";
 
 interface ContextAttachmentModalProps {
@@ -25,19 +27,12 @@ export function ContextAttachmentModal({
   onOpenChange,
 }: ContextAttachmentModalProps) {
   const [viewMode, setViewMode] = useState<"formatted" | "json">("formatted");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const { status: copyStatus, copyText } = useClipboardFeedback();
 
   if (!attachment) return null;
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(attachment, null, 2));
-      setCopyStatus("copied");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    } catch {
-      setCopyStatus("error");
-      setTimeout(() => setCopyStatus("idle"), 2000);
-    }
+  const handleCopy = () => {
+    void copyText(JSON.stringify(attachment, null, 2));
   };
 
   const getTypeIcon = () => {
@@ -71,14 +66,14 @@ export function ContextAttachmentModal({
 
         <div className="flex gap-1 px-6 pt-4">
           <Button
-            variant={viewMode === "formatted" ? "default" : "outline"}
+            variant={viewMode === "formatted" ? "primary" : "secondary"}
             size="sm"
             onClick={() => setViewMode("formatted")}
           >
             Formatted
           </Button>
           <Button
-            variant={viewMode === "json" ? "default" : "outline"}
+            variant={viewMode === "json" ? "primary" : "secondary"}
             size="sm"
             onClick={() => setViewMode("json")}
           >
@@ -164,27 +159,10 @@ export function ContextAttachmentModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
-            {copyStatus === "copied" ? (
-              <>
-                <Check className="h-4 w-4 text-success" />
-                Copied
-              </>
-            ) : copyStatus === "error" ? (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy failed
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy JSON
-              </>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true },
+            { id: "copy", label: copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Copy failed" : "Copy JSON", onSelect: handleCopy },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

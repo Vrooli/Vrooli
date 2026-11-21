@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.fleet;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/fleet;fleet_v1";
+
+// =============================================================================
+// PERFORMANCE FLEET SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// FleetService answers deterministic, structured offender queries about
+// scenario performance across the whole fleet: scenarios with no perf budget,
+// slowest builds, recent regressions, and capture-tier distribution. These are
+// exact/structured queries (not semantic), so performance-health is NOT a
+// search-hub data provider; the CLI verbs are discoverable through cli-health's
+// command index instead.
+// =============================================================================
+
+service FleetService {
+  // ScanFleet rolls up per-scenario performance state and fleet-wide offender
+  // lists and distributions.
+  rpc ScanFleet(ScanFleetRequest) returns (ScanFleetResponse);
+}
+
+message ScanFleetRequest {
+  // Restrict the scan to these scenario slugs; empty means every discovered
+  // scenario.
+  repeated string scenarios = 1;
+}
+
+message ScanFleetResponse {
+  // One rollup per scanned scenario, sorted alphabetically by scenario.
+  repeated FleetScenarioEntry entries = 1;
+  // Capture-tier distribution across the fleet.
+  repeated TierDistribution tier_distribution = 2;
+  // Total scenarios scanned.
+  int32 scenario_count = 3;
+  // Scenarios with no declared performance budget.
+  int32 no_budget_count = 4;
+  // Scenarios with a recent performance regression.
+  int32 regressed_count = 5;
+  // Scenarios that could not be graded, with a short reason each.
+  repeated FleetScanError errors = 6;
+}
+
+// FleetScenarioEntry is one scenario's performance rollup.
+message FleetScenarioEntry {
+  string scenario = 1;
+  // Highest reachable capture tier (none / 0 / 1).
+  string tier = 2;
+  // True when the scenario declares a performance budget.
+  bool has_budget = 3;
+  // Latest go-build time in milliseconds (0 = unknown).
+  int64 go_build_ms = 4;
+  // Latest UI-build time in milliseconds (0 = unknown).
+  int64 ui_build_ms = 5;
+  // True when the scenario regressed vs. its budget/trend in the latest sample.
+  bool regressed = 6;
+  string degraded_reason = 7;
+}
+
+// TierDistribution counts scenarios per reachable capture tier.
+message TierDistribution {
+  string tier = 1;
+  int32 scenario_count = 2;
+}
+
+// FleetScanError records a scenario enumerated but not gradable.
+message FleetScanError {
+  string scenario = 1;
+  string reason = 2;
+}

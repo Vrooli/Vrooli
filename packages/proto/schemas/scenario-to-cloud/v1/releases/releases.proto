@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.releases;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/releases;releasesv1";
+
+// =============================================================================
+// RELEASES — one immutable release artifact set per release digest
+// =============================================================================
+//
+// @stability beta
+//
+// A release binds the deterministic mini-Vrooli bundle, the native
+// control-plane binary for the target platform, the dependency closure digest
+// and the nonsecret configuration digest to one release_digest. The digest is
+// sha256 over the canonical JSON (sorted keys, compact) of
+// {bundle_sha256, closure_digest, configuration_digest, native_cli{goarch,
+// goos, sha256}}; the rule is implemented once in packages/cloudrelease and
+// used by both the cloud builder and the target-side verifier
+// (`vrooli cloud-target release verify`).
+//
+// A release manifest carries references and digests only. No credential
+// value is ever present; inputs.json lists credential descriptors by address.
+//
+// USAGE CONTEXTS:
+//   - api/releasesvc: Connect handler beside REST
+//     POST /api/v1/releases/build, GET /api/v1/releases/{digest},
+//     POST /api/v1/releases/{digest}/verify.
+//   - cli: `release build|get|verify`.
+//   - internal/cloudtarget consumes ReleaseManifest as release-manifest.json.
+//
+// =============================================================================
+
+service ReleasesService {
+  // BuildRelease produces (or returns the identical existing) release for a
+  // manifest, closure digest and target platform.
+  rpc BuildRelease(BuildReleaseRequest) returns (BuildReleaseResponse);
+  // GetRelease reads one stored release by digest.
+  rpc GetRelease(GetReleaseRequest) returns (GetReleaseResponse);
+  // VerifyRelease runs every cloud-side trust check without writing.
+  rpc VerifyRelease(VerifyReleaseRequest) returns (VerifyReleaseResponse);
+}
+
+// NativeCLI binds a release to one control-plane binary build.
+message NativeCLI {
+  // Lowercase sha256 hex of the binary.
+  string sha256 = 1;
+  string goos = 2;
+  string goarch = 3;
+}
+
+// Provenance names the builder and the policy the release was produced under.
+message Provenance {
+  string builder = 1;
+  // "development-local-unsigned" or "production-signed".
+  string policy = 2;
+}
+
+// Limits are the archive budgets a target enforces before extraction.
+message Limits {
+  int64 max_entries = 1;
+  int64 max_expanded_bytes = 2;
+  int64 max_entry_bytes = 3;
+}
+
+// ReleaseManifest is release-manifest.json.
+message ReleaseManifest {
+  // @default 1
+  int32 schema_version = 1;
+  string release_digest = 2;
+  string bundle_sha256 = 3;
+  NativeCLI native_cli = 4;
+  string closure_digest = 5;
+  string configuration_digest = 6;
+  Provenance provenance = 7;
+  Limits limits = 8;
+}
+
+// ReleaseInputs is inputs.json: every material build input, references only.
+message ReleaseInputs {
+  int32 schema_version = 1;
+  string release_digest = 2;
+  string built_at = 3;
+  ReleaseBuilder builder = 4;
+  ReleaseSource source = 5;
+  ReleaseBundle bundle = 6;
+  ReleaseDependencies dependencies = 7;
+  ReleaseNativeCLIBuild native_cli = 8;
+  repeated ReleaseResourceArtifact resource_artifacts = 9;
+  ReleaseToolchain toolchain = 10;
+  ReleaseConfiguration configuration = 11;
+  repeated ReleaseCredentialRef credentials = 12;
+  ReleaseProvenance provenance = 13;
+  ReleaseReproducibility reproducibility = 14;
+  repeated string limitations = 15;
+}
+
+message ReleaseBuilder {
+  string identity = 1;
+  string node = 2;
+  string user = 3;
+}
+
+message ReleaseSource {
+  string commit = 1;
+  bool dirty = 2;
+  int32 dirty_paths = 3;
+  // Always "working-tree"; no isolated snapshot is claimed.
+  string snapshot = 4;
+  string content_manifest_sha256 = 5;
+  int32 file_count = 6;
+  repeated string include_roots = 7;
+  repeated string excludes = 8;
+}
+
+message ReleaseBundle {
+  string file_name = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+}
+
+message ReleaseDependencies {
+  string closure_digest = 1;
+  string analyzer_tool = 2;
+  string analyzer_fingerprint = 3;
+  string analyzer_generated_at = 4;
+  repeated string scenarios = 5;
+  repeated string resources = 6;
+}
+
+message ReleaseNativeCLIBuild {
+  string file_name = 1;
+  string sha256 = 2;
+  string goos = 3;
+  string goarch = 4;
+  int64 size_bytes = 5;
+  string package = 6;
+  string module_dir = 7;
+  string go_version = 8;
+  repeated string args = 9;
+  repeated string env = 10;
+}
+
+message ReleaseResourceArtifact {
+  string component = 1;
+  string platform = 2;
+  string name = 3;
+  string digest = 4;
+  string mode = 5;
+  string eligibility = 6;
+  repeated string license_refs = 7;
+}
+
+message ReleaseToolchain {
+  string go_version = 1;
+  string host_goos = 2;
+  string host_goarch = 3;
+  repeated string go_flags = 4;
+}
+
+message ReleaseConfiguration {
+  string digest = 1;
+  string schema = 2;
+  string rule = 3;
+}
+
+// ReleaseCredentialRef is a descriptor reference; it never carries a value.
+message ReleaseCredentialRef {
+  string id = 1;
+  string class = 2;
+  bool required = 3;
+  string logical_id = 4;
+  string field = 5;
+  string target_type = 6;
+  string target_name = 7;
+}
+
+message ReleaseProvenance {
+  string policy = 1;
+  string trust_mode = 2;
+  string signer_key_id = 3;
+  string signature_file = 4;
+}
+
+message ReleaseReproducibility {
+  // "deterministic" for the bundle.
+  string bundle = 1;
+  // "reproducible", "not_reproducible" or "unverified".
+  string native_cli = 2;
+  string reason = 3;
+}
+
+// Release is one stored release.
+message Release {
+  string release_digest = 1;
+  string dir = 2;
+  bool complete = 3;
+  ReleaseManifest manifest = 4;
+  ReleaseInputs inputs = 5;
+}
+
+message BuildReleaseRequest {
+  // Cloud manifest as JSON. Secrets it carries are never emitted.
+  google.protobuf.Struct manifest = 1;
+  // Overrides manifest.dependencies.closure_digest when set.
+  string closure_digest = 2;
+  string goos = 3;
+  string goarch = 4;
+  // "development-local" or "production"; empty resolves from configuration.
+  string trust_mode = 5;
+  // Build the native binary twice and record whether the bytes match.
+  bool verify_reproducible = 6;
+}
+
+message BuildReleaseResponse {
+  // @default "1"
+  string schema_version = 1;
+  Release release = 2;
+}
+
+message GetReleaseRequest {
+  string release_digest = 1;
+}
+
+message GetReleaseResponse {
+  string schema_version = 1;
+  Release release = 2;
+}
+
+message VerifyReleaseRequest {
+  string release_digest = 1;
+  // "development-local" or "production"; empty resolves from configuration.
+  string trust_mode = 2;
+  // Optional target platform the release must serve.
+  string goos = 3;
+  string goarch = 4;
+}
+
+// VerifyCheck is one verification step's verdict.
+message VerifyCheck {
+  string id = 1;
+  // "passed" or "failed".
+  string status = 2;
+  string code = 3;
+}
+
+message VerifyReleaseResponse {
+  string schema_version = 1;
+  string release_digest = 2;
+  bool verified = 3;
+  repeated VerifyCheck checks = 4;
+  string policy = 5;
+  string trust_mode = 6;
+  string signer_key_id = 7;
+}

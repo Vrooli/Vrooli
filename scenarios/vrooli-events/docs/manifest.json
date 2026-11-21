@@ -1,160 +1,66 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Vrooli Events Documentation",
-  "description": "Central nervous system for inter-scenario communication — event bus, policy engine, analytics, and compliance",
+  "description": "Documentation contract for durable event ingress, subscriptions, policy, and delivery health.",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable scenario document here and keep task procedures in guides, concepts in concepts, stable lookup material in reference, and developer memory in internal."
+  },
   "sections": [
     {
       "id": "getting-started",
       "title": "Getting Started",
-      "icon": "rocket",
       "documents": [
-        {
-          "path": "QUICKSTART.md",
-          "title": "Quick Start",
-          "description": "Get vrooli-events running and emit your first event in under 5 minutes",
-          "audience": ["users", "developers"]
-        }
+        {"path":"QUICKSTART.md","docType":"quickstart","title":"Quick Start","maturity":"active","requiredBy":["implemented"],"completion":"required"}
       ]
     },
     {
       "id": "concepts",
       "title": "Concepts",
-      "icon": "lightbulb",
       "documents": [
-        {
-          "path": "concepts/ARCHITECTURE.md",
-          "title": "Architecture",
-          "description": "System design: event store, SSE pub/sub, policy engine, discovery integration, dual-end caching"
-        },
-        {
-          "path": "concepts/GLOSSARY.md",
-          "title": "Glossary",
-          "description": "Key terms: event envelope, structured event ID, policy rule, circuit breaker, persistent subscription"
-        }
+        {"path":"concepts/ARCHITECTURE.md","docType":"architecture-concept","title":"Architecture","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"concepts/GLOSSARY.md","docType":"events-glossary","title":"Glossary","maturity":"active","requiredBy":["implemented"],"completion":"required"}
       ]
     },
     {
       "id": "guides",
       "title": "Guides",
-      "icon": "book-open",
       "documents": [
-        {
-          "path": "guides/integrating-a-scenario.md",
-          "title": "Integrating a Scenario",
-          "description": "How to add event emission and policy enforcement to your scenario"
-        },
-        {
-          "path": "guides/creating-subscriptions.md",
-          "title": "Creating Subscriptions",
-          "description": "Set up persistent subscriptions to react to events from other scenarios"
-        },
-        {
-          "path": "guides/managing-policies.md",
-          "title": "Managing Policies",
-          "description": "Configure access control, rate limits, and circuit breakers"
-        }
+        {"path":"guides/integrating-a-scenario.md","docType":"integration-guide","title":"Integrating a Scenario","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"guides/creating-subscriptions.md","docType":"subscriptions-guide","title":"Creating Subscriptions","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"guides/managing-policies.md","docType":"policy-guide","title":"Managing Policies","maturity":"active","requiredBy":["implemented"],"completion":"required"}
       ]
     },
     {
       "id": "reference",
       "title": "Reference",
-      "icon": "book",
       "documents": [
-        {
-          "path": "reference/api-endpoints.md",
-          "title": "API Reference",
-          "description": "Complete REST API documentation for events, policies, subscriptions, and settings"
-        },
-        {
-          "path": "reference/cli-commands.md",
-          "title": "CLI Reference",
-          "description": "All CLI commands with flags, examples, and output formats"
-        },
-        {
-          "path": "reference/event-id-format.md",
-          "title": "Event ID Format",
-          "description": "Structured event ID specification and glob pattern matching rules"
-        },
-        {
-          "path": "reference/configuration.md",
-          "title": "Configuration",
-          "description": "Environment variables, retention settings, and policy defaults"
-        }
+        {"path":"reference/api-endpoints.md","docType":"api-reference","title":"API Reference","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/cli-commands.md","docType":"cli-reference","title":"CLI Reference","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/event-id-format.md","docType":"event-id-reference","title":"Event ID Format","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/configuration.md","docType":"configuration-reference","title":"Configuration","maturity":"active","requiredBy":["implemented"],"completion":"required"}
       ]
     },
     {
       "id": "internal",
       "title": "Internal",
-      "icon": "lock",
       "visibility": "developers-only",
       "documents": [
-        {
-          "path": "internal/SEAMS.md",
-          "title": "Seams & Boundaries",
-          "description": "Integration points, responsibility zones, testability boundaries",
-          "internal": true
-        },
-        {
-          "path": "internal/PROBLEMS.md",
-          "title": "Known Issues",
-          "description": "Open issues, tech debt, deferred decisions",
-          "internal": true
-        },
-        {
-          "path": "internal/PROGRESS.md",
-          "title": "Progress Log",
-          "description": "Development history and milestone tracking",
-          "internal": true
-        },
-        {
-          "path": "internal/INVARIANTS.md",
-          "title": "System Invariants",
-          "description": "Critical contracts: event ID format, WAL mode, buffer sizes, immutability",
-          "internal": true
-        },
-        {
-          "path": "internal/TEMPORAL-FLOWS.md",
-          "title": "Temporal Flows",
-          "description": "Async patterns: SSE delivery, pruning, heartbeat, race conditions",
-          "internal": true
-        },
-        {
-          "path": "internal/COHERENCE-NOTES.md",
-          "title": "React Coherence",
-          "description": "State management, styling patterns, component coherence audit",
-          "internal": true
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "title": "Experience Audit",
-          "description": "Persona mapping, friction analysis, navigation integrity",
-          "internal": true
-        },
-        {
-          "path": "internal/ASSUMPTIONS.md",
-          "title": "Assumptions",
-          "description": "Unvalidated beliefs: subscriber scale, pruning speed, EventSource limits",
-          "internal": true
-        },
-        {
-          "path": "internal/ERROR-SEMANTICS.md",
-          "title": "Error Semantics",
-          "description": "Error codes, HTTP status mapping, SSE error recovery",
-          "internal": true
-        },
-        {
-          "path": "internal/SECURITY-POSTURE.md",
-          "title": "Security Posture",
-          "description": "Threat model, input validation, auth gaps, resource protection",
-          "internal": true
-        },
-        {
-          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
-          "title": "Unit Test Architecture",
-          "description": "Test file organization, mock patterns, testability status, priority improvements",
-          "internal": true
-        }
+        {"path":"internal/SEAMS.md","docType":"seams-record","title":"Seams & Boundaries","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/PROBLEMS.md","docType":"problems-record","title":"Known Issues","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/PROGRESS.md","docType":"progress-record","title":"Progress Log","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/INVARIANTS.md","docType":"invariants-record","title":"System Invariants","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/TEMPORAL-FLOWS.md","docType":"temporal-flows-record","title":"Temporal Flows","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/COHERENCE-NOTES.md","docType":"coherence-notes-record","title":"React Coherence","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/EXPERIENCE-AUDIT.md","docType":"experience-audit-record","title":"Experience Audit","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/ASSUMPTIONS.md","docType":"assumptions-record","title":"Assumptions","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/ERROR-SEMANTICS.md","docType":"error-semantics-record","title":"Error Semantics","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/SECURITY-POSTURE.md","docType":"security-posture-record","title":"Security Posture","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/UNIT_TEST_ARCHITECTURE.md","docType":"unit-test-architecture-record","title":"Unit Test Architecture","maturity":"active","requiredBy":["implemented"],"completion":"required"}
       ]
     }
   ],

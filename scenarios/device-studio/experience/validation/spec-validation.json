@@ -1,0 +1,266 @@
+{
+  "scenario":  "device-studio",
+  "status":  "PASSED",
+  "target_path":  "/home/matthalloran8/Vrooli/scenarios/device-studio",
+  "report":  {},
+  "assessment":  {
+    "scenario":  "device-studio",
+    "provider":  "experience-manager",
+    "phase":  "experience",
+    "version":  "1.0.0",
+    "local":  {
+      "current_level":  "L3",
+      "levels":  [
+        {
+          "id":  "L0",
+          "name":  "Contract unavailable",
+          "description":  "experience/ is absent or unreadable.",
+          "status_label":  "Unavailable",
+          "capability_summary":  "Experience intent cannot be evaluated.",
+          "next_unlock":  "Add an experience/index.json contract."
+        },
+        {
+          "id":  "L1",
+          "name":  "Contract parseable",
+          "description":  "The contract parses, but schema or index parity findings remain.",
+          "status_label":  "Foundation",
+          "capability_summary":  "Experience intent exists but is not structurally trustworthy.",
+          "next_unlock":  "Resolve schema and index parity findings."
+        },
+        {
+          "id":  "L2",
+          "name":  "References linked",
+          "description":  "Documents parse and cross-file references, PRD refs, bindings, and tier semantics are clean.",
+          "status_label":  "Ready",
+          "capability_summary":  "The experience contract is internally linked.",
+          "next_unlock":  "Ground active pages in structure evidence."
+        },
+        {
+          "id":  "L3",
+          "name":  "Contract clean",
+          "description":  "Parser-era experience findings are clean.",
+          "status_label":  "Complete",
+          "capability_summary":  "Experience intent is a trustworthy machine-checkable contract."
+        }
+      ],
+      "clean":  true
+    },
+    "findings_by_clean_requirement":  {
+      "advisory":  0,
+      "required":  0,
+      "uncheckable":  0
+    },
+    "capabilities":  [
+      {
+        "id":  "spec_contract",
+        "label":  "Spec Contract",
+        "description":  "Experience index, page, journey, route, reference, binding, and tier rules are parseable and internally consistent.",
+        "current_level":  "L3",
+        "levels":  [
+          {
+            "id":  "L0",
+            "name":  "Contract unavailable",
+            "description":  "experience/ is absent or unreadable.",
+            "status_label":  "Unavailable",
+            "capability_summary":  "Experience intent cannot be evaluated.",
+            "next_unlock":  "Add an experience/index.json contract."
+          },
+          {
+            "id":  "L1",
+            "name":  "Contract parseable",
+            "description":  "The contract parses, but schema or index parity findings remain.",
+            "status_label":  "Foundation",
+            "capability_summary":  "Experience intent exists but is not structurally trustworthy.",
+            "next_unlock":  "Resolve schema and index parity findings."
+          },
+          {
+            "id":  "L2",
+            "name":  "References linked",
+            "description":  "Documents parse and cross-file references, PRD refs, bindings, and tier semantics are clean.",
+            "status_label":  "Ready",
+            "capability_summary":  "The experience contract is internally linked.",
+            "next_unlock":  "Ground active pages in structure evidence."
+          },
+          {
+            "id":  "L3",
+            "name":  "Contract clean",
+            "description":  "Parser-era experience findings are clean.",
+            "status_label":  "Complete",
+            "capability_summary":  "Experience intent is a trustworthy machine-checkable contract."
+          }
+        ],
+        "current_summary":  "Experience intent is a trustworthy machine-checkable contract.",
+        "clean":  true,
+        "priority_rank":  1,
+        "priority_reason":  "lowest current level"
+      },
+      {
+        "id":  "structure_reconciliation",
+        "label":  "Structure Reconciliation",
+        "description":  "Machine-tier claims are reconciled against captured accessibility structure with honest skip semantics.",
+        "current_level":  "L3",
+        "levels":  [
+          {
+            "id":  "L0",
+            "name":  "Capture unavailable",
+            "description":  "No usable BAS accessibility capture is available.",
+            "status_label":  "Unavailable",
+            "capability_summary":  "Machine-tier experience claims cannot be checked against UI structure.",
+            "next_unlock":  "Capture the target page accessibility tree."
+          },
+          {
+            "id":  "L1",
+            "name":  "Bindings joinable",
+            "description":  "Bindings can be compared with captured structure, but unresolved bindings or uncheckable claims remain.",
+            "status_label":  "Foundation",
+            "capability_summary":  "The spec can start grounding in the live UI.",
+            "next_unlock":  "Resolve binding and checker coverage gaps."
+          },
+          {
+            "id":  "L2",
+            "name":  "Claims checked",
+            "description":  "Tier 0-1 machine claims are evaluated against captured structure.",
+            "status_label":  "Ready",
+            "capability_summary":  "Active machine-tier claims have deterministic evidence.",
+            "next_unlock":  "Resolve failed or unproven claims."
+          },
+          {
+            "id":  "L3",
+            "name":  "Structure clean",
+            "description":  "Structure reconciliation findings are clean for active pages.",
+            "status_label":  "Complete",
+            "capability_summary":  "The built UI structure satisfies the machine-tier experience spec."
+          }
+        ],
+        "current_summary":  "The built UI structure satisfies the machine-tier experience spec.",
+        "clean":  true,
+        "priority_rank":  2,
+        "priority_reason":  "lowest current level"
+      },
+      {
+        "id":  "manual_evidence",
+        "label":  "Manual Evidence",
+        "description":  "Manual-tier claims carry explicit attestations with freshness semantics.",
+        "current_level":  "L2",
+        "levels":  [
+          {
+            "id":  "L0",
+            "name":  "No attestation evidence",
+            "description":  "Manual-tier claims have no usable attestation evidence.",
+            "status_label":  "Unavailable",
+            "capability_summary":  "Manual experience claims are unproven.",
+            "next_unlock":  "Record an attestation with author, rationale, and expiry."
+          },
+          {
+            "id":  "L1",
+            "name":  "Attestations present",
+            "description":  "Manual attestations exist but expired or stale evidence remains.",
+            "status_label":  "Foundation",
+            "capability_summary":  "Manual claims have reviewable evidence with freshness debt.",
+            "next_unlock":  "Refresh expired attestations."
+          },
+          {
+            "id":  "L2",
+            "name":  "Attestations fresh",
+            "description":  "Manual-tier attestation findings are clean.",
+            "status_label":  "Complete",
+            "capability_summary":  "Manual experience claims are honestly current."
+          }
+        ],
+        "current_summary":  "Manual experience claims are honestly current.",
+        "clean":  true,
+        "priority_rank":  3,
+        "priority_reason":  "lowest current level"
+      },
+      {
+        "id":  "perception_advisory",
+        "label":  "Perception Advisory",
+        "description":  "Deferred perception-tier checks remain advisory until calibrated.",
+        "current_level":  "L1",
+        "levels":  [
+          {
+            "id":  "L0",
+            "name":  "Perception unevaluated",
+            "description":  "Perception-tier checks are not part of v1 gating.",
+            "status_label":  "Deferred",
+            "capability_summary":  "Visual saliency and glance judgment are visible only as future seams.",
+            "next_unlock":  "Calibrate deterministic perception checks in the P2 tier."
+          },
+          {
+            "id":  "L1",
+            "name":  "Advisory perception visible",
+            "description":  "Perception findings are reported as non-gating advisory evidence.",
+            "status_label":  "Advisory",
+            "capability_summary":  "Experience-manager can show perception debt without failing suites."
+          }
+        ],
+        "current_summary":  "Experience-manager can show perception debt without failing suites.",
+        "clean":  true,
+        "priority_rank":  4,
+        "priority_reason":  "lowest current level"
+      }
+    ],
+    "highest_priority_capability":  {
+      "capability_id":  "spec_contract",
+      "capability_label":  "Spec Contract",
+      "current_level":  "L3",
+      "reason":  "lowest current level"
+    },
+    "presentation":  {
+      "contract_version":  "v1",
+      "provider":  "experience-manager",
+      "phase":  "experience",
+      "current_level":  "L3",
+      "current_level_label":  "Complete",
+      "ceiling_level":  "L3",
+      "clean":  true,
+      "next_action_reason":  "lowest current level",
+      "focus_capability_id":  "spec_contract",
+      "focus_capability_label":  "Spec Contract",
+      "north_star":  "Experience intent is a trustworthy machine-checkable contract.",
+      "at_maximum":  true,
+      "capabilities":  [
+        {
+          "id":  "spec_contract",
+          "label":  "Spec Contract",
+          "current_level":  "L3",
+          "current_level_label":  "Complete",
+          "current_summary":  "Experience intent is a trustworthy machine-checkable contract.",
+          "clean":  true,
+          "priority_rank":  1,
+          "priority_reason":  "lowest current level"
+        },
+        {
+          "id":  "structure_reconciliation",
+          "label":  "Structure Reconciliation",
+          "current_level":  "L3",
+          "current_level_label":  "Complete",
+          "current_summary":  "The built UI structure satisfies the machine-tier experience spec.",
+          "clean":  true,
+          "priority_rank":  2,
+          "priority_reason":  "lowest current level"
+        },
+        {
+          "id":  "manual_evidence",
+          "label":  "Manual Evidence",
+          "current_level":  "L2",
+          "current_level_label":  "Complete",
+          "current_summary":  "Manual experience claims are honestly current.",
+          "clean":  true,
+          "priority_rank":  3,
+          "priority_reason":  "lowest current level"
+        },
+        {
+          "id":  "perception_advisory",
+          "label":  "Perception Advisory",
+          "current_level":  "L1",
+          "current_level_label":  "Advisory",
+          "current_summary":  "Experience-manager can show perception debt without failing suites.",
+          "clean":  true,
+          "priority_rank":  4,
+          "priority_reason":  "lowest current level"
+        }
+      ]
+    }
+  }
+}

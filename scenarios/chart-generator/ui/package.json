@@ -5,21 +5,22 @@
   "description": "React + Vite interface for the Professional Chart Generator scenario using shadcn/ui components.",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "start": "vrooli lifecycle protect -- node server.js"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.0.5",
+    "@radix-ui/react-slot": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.1.4",
-    "@radix-ui/react-slot": "^1.0.3",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "d3": "^7.9.0",
-    "express": "^4.19.2",
+    "express": "^4.22.3",
     "lucide-react": "^0.441.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -33,11 +34,11 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.35",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.4",
-    "vite": "^5.4.10"
+    "vite": "^5.4.21"
   },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

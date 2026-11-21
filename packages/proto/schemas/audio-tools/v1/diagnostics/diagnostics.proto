@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.diagnostics;
+
+import "audio-tools/v1/common/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics;diagnostics_v1";
+
+// =============================================================================
+// DIAGNOSTICS DOMAIN — operator-facing one-click suite that exercises
+//                     STT, TTS, Summarize and Transcode end-to-end against
+//                     bundled server-side fixtures.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain diagnostics
+// @stability stable
+//
+// The suite drives existing chain seams (sttchain / ttschain /
+// summarizechain) and the audio Transcoder; it does NOT bypass the
+// chain to call provider SDKs directly. Per-step isolation: each step
+// runs under its own 30s deadline so one missing local resource yields
+// PARTIAL with provider_unavailable rather than a generic FAIL.
+//
+// Fixtures (short PCM WAV + canned text) are embedded in the API
+// binary and exposed via ListFixtures so operators can confirm what
+// payload the suite is running against.
+// =============================================================================
+
+service DiagnosticsService {
+  // RunSuite exercises the requested capabilities and returns one
+  // SuiteStepResult per capability plus the aggregate SuiteOverall.
+  // An empty `capabilities` list runs every capability.
+  rpc RunSuite(RunSuiteRequest) returns (RunSuiteResponse);
+
+  // GetLastRun returns the most recent RunSuite result, or an empty
+  // response (`run.run_id == ""`) when the API has never executed the
+  // suite since startup.
+  rpc GetLastRun(GetLastRunRequest) returns (GetLastRunResponse);
+
+  // ListFixtures returns the bundled fixtures the suite drives the
+  // capabilities against.
+  rpc ListFixtures(ListFixturesRequest) returns (ListFixturesResponse);
+}
+
+// Capability identifies one suite step. The string values match the
+// CLI's --capability flag and the UI tile keys.
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_STT = 1;
+  CAPABILITY_TTS = 2;
+  CAPABILITY_SUMMARIZE = 3;
+  CAPABILITY_TRANSCODE = 4;
+}
+
+message RunSuiteRequest {
+  // When empty, the suite runs all known capabilities. When non-empty,
+  // unknown values return INVALID_ARGUMENT.
+  repeated Capability capabilities = 1;
+}
+
+message RunSuiteResponse {
+  RunSuiteResult run = 1;
+}
+
+message GetLastRunRequest {}
+
+message GetLastRunResponse {
+  // run.run_id == "" indicates the suite has never been executed since
+  // the API started.
+  RunSuiteResult run = 1;
+}
+
+message ListFixturesRequest {}
+
+message ListFixturesResponse {
+  repeated Fixture fixtures = 1;
+}
+
+message Fixture {
+  // Stable identifier, e.g. "smoke.wav" or "smoke_text.txt".
+  string id = 1;
+  Capability capability = 2;
+  string description = 3;
+  int64 size_bytes = 4;
+  // MIME type, e.g. "audio/wav" or "text/plain".
+  string content_type = 5;
+}
+
+// RunSuiteResult is the per-run envelope persisted in the in-memory
+// LastRunStore ring and returned by RunSuite + GetLastRun.
+message RunSuiteResult {
+  string run_id = 1;
+  int64 started_at_unix_ms = 2;
+  int64 finished_at_unix_ms = 3;
+  repeated SuiteStepResult steps = 4;
+  SuiteOverall overall = 5;
+}
+
+message SuiteOverall {
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    // No suite run has executed yet.
+    STATUS_NEVER = 1;
+    // Every step succeeded.
+    STATUS_PASS = 2;
+    // At least one step succeeded and at least one failed.
+    STATUS_PARTIAL = 3;
+    // Every step failed or reported unavailable.
+    STATUS_FAIL = 4;
+  }
+  Status status = 1;
+  int32 pass_count = 2;
+  int32 fail_count = 3;
+  int32 total_count = 4;
+}
+
+message SuiteStepResult {
+  Capability capability = 1;
+  bool ok = 2;
+  // Stable machine code, e.g. "provider_unavailable", "deadline_exceeded",
+  // "internal". Empty when ok=true.
+  string error_code = 3;
+  // Human-readable failure message; empty when ok=true.
+  string error_message = 4;
+  int64 started_at_unix_ms = 5;
+  int64 finished_at_unix_ms = 6;
+  // Provider trace fields. Populated when the step produced a routing
+  // decision (even on failure paths that ran a tier and bubbled an error).
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 7;
+  string provider_id = 8;
+  string model_id = 9;
+  double latency_ms = 10;
+  // Per-capability extras the UI may surface but the contract does not
+  // promise (e.g. transcript text, summary token counts, output bytes).
+  // Always populated as opaque strings so adding new keys does not break
+  // wire shape.
+  map<string, string> details = 11;
+}

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.uxmetrics;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxmetrics;uxmetrics";
+
+// =============================================================================
+// UX METRICS DOMAIN — friction analysis for completed workflow executions.
+// =============================================================================
+//
+// @stability beta
+//
+// UXMetricsService exposes computed UX-friction analytics for executions and
+// workflow-level aggregates. Payloads are intentionally free-form
+// (google.protobuf.Struct) because the analytic schema evolves quickly and
+// the UI tolerates unknown keys.
+//
+// Entitlement: All methods require entitlement.TierPro or higher.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/uxmetrics/connect_handler.go
+//   - UI:   ui/src/api/uxmetrics.ts (UX metrics panel + workflow aggregate)
+//   - CLI:  bas uxmetrics get-execution | compute-execution | get-step | get-workflow-aggregate
+// =============================================================================
+
+service UXMetricsService {
+  // GetExecutionMetrics returns previously-computed UX metrics for an
+  // execution. Returns NotFound if metrics have not been computed yet.
+  rpc GetExecutionMetrics(GetExecutionMetricsRequest) returns (GetExecutionMetricsResponse);
+
+  // GetStepMetrics returns real-time metrics for a single step within an
+  // execution.
+  rpc GetStepMetrics(GetStepMetricsRequest) returns (GetStepMetricsResponse);
+
+  // ComputeExecutionMetrics triggers (and persists) full metric computation
+  // for a completed execution and returns the resulting metrics payload.
+  rpc ComputeExecutionMetrics(ComputeExecutionMetricsRequest) returns (ComputeExecutionMetricsResponse);
+
+  // GetWorkflowAggregate returns rolled-up friction stats across recent
+  // executions of a workflow.
+  rpc GetWorkflowAggregate(GetWorkflowAggregateRequest) returns (GetWorkflowAggregateResponse);
+}
+
+message GetExecutionMetricsRequest {
+  // Required. Execution UUID.
+  string execution_id = 1;
+}
+
+message GetExecutionMetricsResponse {
+  // Computed execution metrics payload. Keys mirror the JSON shape consumed
+  // by ui/src/stores/uxMetricsStore.ts (snake_case).
+  google.protobuf.Struct metrics = 1;
+}
+
+message GetStepMetricsRequest {
+  // Required. Execution UUID.
+  string execution_id = 1;
+  // Required. Zero-based step index within the execution.
+  int32 step_index = 2;
+}
+
+message GetStepMetricsResponse {
+  // Per-step metrics payload.
+  google.protobuf.Struct metrics = 1;
+}
+
+message ComputeExecutionMetricsRequest {
+  // Required. Execution UUID.
+  string execution_id = 1;
+}
+
+message ComputeExecutionMetricsResponse {
+  // Freshly-computed execution metrics payload.
+  google.protobuf.Struct metrics = 1;
+}
+
+message GetWorkflowAggregateRequest {
+  // Required. Workflow UUID.
+  string workflow_id = 1;
+  // Optional. Number of recent executions to include in the aggregate.
+  // Server clamps to 1..100; defaults to 10 when zero/unspecified.
+  int32 limit = 2;
+}
+
+message GetWorkflowAggregateResponse {
+  // Aggregate metrics payload.
+  google.protobuf.Struct aggregate = 1;
+}

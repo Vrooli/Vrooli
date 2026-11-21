@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-soak-1789561589866129819",
+  "lane": "realtime",
+  "profile": "realistic",
+  "shape": "realistic",
+  "turns": 30,
+  "cell": {
+    "engineId": "whisper-local",
+    "modelId": "whisper-medium",
+    "strategy": "vad",
+    "policy": "default"
+  },
+  "code": {
+    "capturePackage": "sha256:919311149be956d0be5e8d4df3e3f993835f76a36b8b885e28938cdf8ac6bb00",
+    "server": "sha256:40ee4559e220ae3d52eabcc162bcd41b2f1d218ca906fbddbc1a618449133167"
+  },
+  "durationMs": 150264,
+  "assertions": [
+    {
+      "name": "interval_accounting_exactly_once",
+      "outcome": "passed",
+      "detail": "30 browser turns observed with monotonic capture coverage; signal_observed=true"
+    },
+    {
+      "name": "capture_signal_observed",
+      "outcome": "passed",
+      "detail": "non-silent PCM observed on 30/30 browser turns"
+    },
+    {
+      "name": "browser_retention_bounded",
+      "outcome": "passed",
+      "detail": "metadata-only browser retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "server_retention_bounded",
+      "outcome": "passed",
+      "detail": "server ledger retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "per_frame_cost_constant",
+      "outcome": "passed",
+      "detail": "captured sample spread max/min=1.010 (66220/65532), limit=1.50"
+    },
+    {
+      "name": "zero_duplicate_committed_segments",
+      "outcome": "passed",
+      "detail": "server ledger committed segment ids were unique"
+    },
+    {
+      "name": "zero_silent_terminal_outcomes",
+      "outcome": "passed",
+      "detail": "every observed turn exposed a terminal state or reason"
+    },
+    {
+      "name": "provider_cell_identity",
+      "outcome": "passed",
+      "detail": "provider=\"whisper-local\" model=\"whisper-medium\" observed for 30 turns"
+    },
+    {
+      "name": "peak_memory_flat",
+      "outcome": "passed",
+      "detail": "audio-tools server heap delta=611704 bytes across turns"
+    },
+    {
+      "name": "wire_rate_within_budget",
+      "outcome": "passed",
+      "detail": "captured wire rate 16383..16555 samples/s; expected 8000..24000"
+    },
+    {
+      "name": "first_partial_latency_stable",
+      "outcome": "failed",
+      "detail": "first_partial_latency_stable exceeded approved speech-to-visible-partial p95: p95=1635.00ms target\u003c=1000ms across 30 realtime turns; first=831.00ms last=665.00ms; first milestones capture_start=1789561590343 first_capture=1789561590365 first_signal=1789561590716 first_sent=1789561590462 first_partial=1789561591547"
+    },
+    {
+      "name": "committed_text_lag_stable",
+      "outcome": "not_measured",
+      "detail": "no realtime observations were available"
+    },
+    {
+      "name": "continuous_interim_text_visible",
+      "outcome": "passed",
+      "detail": "interim text remained visible at 30/30 realtime feed checkpoints across 30 turn(s)"
+    },
+    {
+      "name": "word_error_rate_stable",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 2: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 4: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 5: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 6: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 7: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 8: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 9: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 10: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 11: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 12: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 13: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 14: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 15: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 16: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 17: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 18: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 19: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 20: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 21: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 22: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 23: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 24: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 25: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 26: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 27: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 28: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 29: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 30: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    },
+    {
+      "name": "punctuation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 2: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 4: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 5: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 6: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 7: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 8: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 9: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 10: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 11: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 12: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 13: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 14: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 15: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 16: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 17: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 18: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 19: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 20: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 21: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 22: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 23: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 24: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 25: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 26: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 27: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 28: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 29: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 30: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    },
+    {
+      "name": "capitalisation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 2: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 4: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 5: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 6: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 7: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 8: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 9: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 10: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 11: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 12: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 13: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 14: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 15: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 16: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 17: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 18: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 19: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 20: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 21: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 22: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 23: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 24: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 25: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 26: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 27: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 28: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 29: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000; turn 30: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    }
+  ]
+}
+

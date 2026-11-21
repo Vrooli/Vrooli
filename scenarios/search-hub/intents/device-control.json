@@ -1,0 +1,23 @@
+{
+  "scenario": "device-control",
+  "description": "Natural requests to see or drive a TV or Android phone. The operator's complaint was that none of these found the device-control skill, so the agent said it could not do them. Pass = a device-control skill is in the top 5 of a `--type library,skill,command` query.",
+  "expect_types": ["skill"],
+  "cases": [
+    {"id": "tv-home-screenshot", "query": "show me a screenshot of the home page of my TV", "tags": ["tv", "screenshot", "operator-verbatim"]},
+    {"id": "tv-screenshot", "query": "take a screenshot of my TV", "tags": ["tv", "screenshot"]},
+    {"id": "tv-screen-now", "query": "what is on my TV screen right now", "tags": ["tv", "state-read"]},
+    {"id": "phone-screenshot", "query": "screenshot my phone", "tags": ["phone", "screenshot"]},
+    {"id": "tv-open-netflix", "query": "open Netflix on my TV", "tags": ["tv", "open-app"]},
+    {"id": "tv-open-youtube", "query": "open YouTube on the living room TV", "tags": ["tv", "open-app"]},
+    {"id": "tv-power-on", "query": "turn on my TV", "tags": ["tv", "wake"]},
+    {"id": "tv-press-home", "query": "press home on the TV", "tags": ["tv", "wake"]},
+    {"id": "phone-test-app", "query": "test my app on my android phone", "tags": ["phone", "app-testing"]},
+    {"id": "phone-install-apk-screenshot", "query": "install the apk on my phone and screenshot it", "tags": ["phone", "app-testing", "screenshot"]},
+    {"id": "android-record-screen", "query": "record my android screen", "tags": ["phone", "record"]},
+    {"id": "tv-current-app", "query": "what app is running on my TV", "tags": ["tv", "state-read"]},
+    {"id": "phone-open-app", "query": "open the settings app on my android phone", "tags": ["phone", "open-app"]},
+    {"id": "tv-multi-step", "query": "open the YouTube app on my TV, search for a video and tell me what is playing", "tags": ["tv", "multi-step"]},
+    {"id": "google-tv-screenshot", "query": "capture the Google TV screen", "tags": ["tv", "screenshot"]},
+    {"id": "phone-flow-test", "query": "walk through the sign-in flow of my app on the android phone and capture each screen", "tags": ["phone", "app-testing", "multi-step"]}
+  ]
+}

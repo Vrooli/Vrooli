@@ -1,0 +1,59 @@
+{
+  "_metadata": {
+    "description": "Requirements for the typed Storage Manager headroom projection.",
+    "last_validated_at": "2026-09-02T19:03:37-04:00",
+    "module": "disk-recovery",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "IFM-P0-101",
+      "title": "Typed storage headroom reader",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "Infrastructure Manager MUST read the typed Storage Manager feed and expose H1 through H6 with an explicit trust verdict for each reading.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/sources/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The storage source adapter and trust mapping are covered."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P0-102",
+      "title": "Unavailable storage stays unavailable",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "When the Storage Manager feed is unavailable or stale, the instrument MUST report unavailable and MUST NOT fabricate a healthy zero reading.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/sources/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Unavailable and stale source behavior is covered."
+        }
+      ]
+    },
+    {
+      "id": "IFM-P0-103",
+      "title": "Growth trust reflects census attribution",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "Infrastructure Manager MUST mark H2 untrusted when the latest census is stale or unattributed bytes exceed ten percent of measured bytes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/sources/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The storage reader test covers materially unattributed census bytes."
+        }
+      ]
+    }
+  ]
+}

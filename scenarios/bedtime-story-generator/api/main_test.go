@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -29,23 +30,39 @@ func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("Success", func(t *testing.T) {
-		w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
-			Method: "GET",
-			Path:   "/health",
+	cases := []struct {
+		name       string
+		pingErr    error
+		wantCode   int
+		wantStatus string
+	}{
+		{name: "database reachable", wantCode: http.StatusOK, wantStatus: "healthy"},
+		{name: "database unreachable", pingErr: errors.New("connection refused"), wantCode: http.StatusServiceUnavailable, wantStatus: "unhealthy"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+			require.NoError(t, err)
+			defer mockDB.Close()
+			mock.ExpectPing().WillReturnError(tc.pingErr)
+
+			w, httpReq, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/health"})
+			require.NoError(t, err)
+			newHealthHandler(mockDB)(w, httpReq)
+
+			assert.Equal(t, tc.wantCode, w.Code)
+			var response struct {
+				Status       string `json:"status"`
+				Dependencies map[string]struct {
+					Connected bool `json:"connected"`
+				} `json:"dependencies"`
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+			assert.Equal(t, tc.wantStatus, response.Status)
+			assert.Equal(t, tc.pingErr == nil, response.Dependencies["database"].Connected)
+			assert.NoError(t, mock.ExpectationsWereMet())
 		})
-		require.NoError(t, err)
-
-		healthHandler(w, httpReq)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		response := assertJSONResponse(t, w, http.StatusOK, map[string]interface{}{
-			"service": "bedtime-story-generator",
-			"status":  "healthy",
-		})
-		assert.NotNil(t, response)
-	})
+	}
 }
 
 // TestGetThemesHandler tests the get themes endpoint
@@ -683,9 +700,9 @@ func TestParseStoryResponse(t *testing.T) {
 // TestGenerateStoryRequest tests story generation request validation
 func TestGenerateStoryRequest(t *testing.T) {
 	tests := []struct {
-		name     string
-		request  GenerateStoryRequest
-		valid    bool
+		name    string
+		request GenerateStoryRequest
+		valid   bool
 	}{
 		{
 			name: "ValidRequest",

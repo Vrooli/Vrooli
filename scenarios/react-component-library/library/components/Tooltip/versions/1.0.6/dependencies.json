@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Tooltip",
+  "version": "1.0.6",
+  "resolvedAt": "2026-11-13T21:34:03Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Presence",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 2
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+{
+  "_metadata": {
+    "module": "distribution",
+    "description": "Distribution owns the governance handshake and the channel adapters. Publication is gate-bound, confirmed rather than assumed, and reversible.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-DIST-VERDICT",
+      "title": "When a rehearsal completes, the ramp shall report a TargetVerdict to deployment-manager that carries evidence references and no artifact bytes.",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "distribution.governance",
+      "description": "The governance plane stores references and verdicts; recordings, artifacts, and SBOMs stay with the producer. This keeps deployment-manager tier-agnostic and prevents it from acquiring artifact-format knowledge that belongs to a ramp.",
+      "tags": [
+        "deployment-manager",
+        "adr-005",
+        "evidence-reference"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/verdict_test.go; api: api/handlers/distribution/module_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-GATE",
+      "title": "If deployment-manager has not returned a passing release decision for the same source commit and target, then the ramp shall refuse to publish.",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "distribution.governance",
+      "description": "Ramps ask for a gate decision and publish only when the gate allows it. Binding the decision to the exact commit is what stops an approval for one build from authorizing a later, unreviewed one.",
+      "tags": [
+        "release-gate",
+        "deployment-manager",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/gate_test.go; cli: cli/domains/distribution/register_test.go; e2e: bas/cases/06-distribution/publish-blocked-without-gate.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-AGENTPLUGINS",
+      "title": "The ramp shall publish a gated package as a signed OCI artifact with its signature, provenance attestation, and SBOM attached as referrers.",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "distribution.oci",
+      "description": "The OCI referrer model is what lets a consumer fetch the artifact and its trust attestations from one coordinate. It is the distribution shape the publishing pipeline was designed around and the one registries can verify without bespoke integration.",
+      "tags": [
+        "oci",
+        "referrers",
+        "agent-plugins"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/oci_test.go; ui: ui/src/features/distribution/__tests__/PublishSummary.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-CONFIRM",
+      "title": "The ramp shall record a channel as published only after that channel confirms the artifact is retrievable at the published digest.",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "distribution.confirmation",
+      "description": "A successful upload call is not a successful publication. Recording published state from a request rather than a confirmed retrieval is how a channel silently drops an artifact while the console reports success.",
+      "tags": [
+        "confirmation",
+        "honesty",
+        "publication-state"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/confirm_test.go; ui: ui/src/features/distribution/__tests__/ChannelState.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-REVOKE",
+      "title": "When an operator revokes a published version, the ramp shall attempt withdrawal in every channel that received it and record each channel's outcome.",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "distribution.revocation",
+      "description": "The kill switch is a stated obligation of the security baseline and must be runnable quickly under incident conditions. Fan-out is derived from recorded publication history rather than operator memory.",
+      "tags": [
+        "revocation",
+        "kill-switch",
+        "incident-response"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/revoke_test.go; cli: cli/domains/distribution/register_test.go; e2e: bas/cases/06-distribution/revoke-fans-out.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-REVOKE-PARTIAL",
+      "title": "If a channel cannot complete a withdrawal, then the ramp shall mark the revocation incomplete and name the channel that still carries the artifact.",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "distribution.revocation",
+      "description": "Some registries cannot hard-delete a published version. Reporting partial revocation truthfully is what lets an operator escalate to that registry's process instead of believing the artifact is gone.",
+      "tags": [
+        "revocation",
+        "partial-failure",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/revoke_test.go; ui: ui/src/features/distribution/__tests__/RevocationState.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-CLAUDECODE",
+      "title": "The ramp should emit a Claude Code marketplace descriptor from the same composed package without re-authoring any skill content.",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "distribution.adapters",
+      "description": "Claude Code uses its own plugin manifest at a different path with a different schema and no relationship to the Agent Plugins root manifest. Treating both as adapters over one composed package is what keeps a second format from doubling the authoring cost.",
+      "tags": [
+        "claude-code",
+        "adapter",
+        "portability"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/claudecode_test.go; ui: ui/src/features/distribution/__tests__/AdapterMatrix.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-ATTRIBUTION",
+      "title": "The ramp should record installs, registry referrers, and scanner verdicts per plugin and per channel.",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "distribution.telemetry",
+      "description": "Aggregate channel numbers cannot answer whether a specific capability has standalone value. Per-plugin resolution is the stated activation prerequisite for the skill-registries channel and the only way a pilot can be judged rather than argued.",
+      "tags": [
+        "telemetry",
+        "attribution",
+        "offer-desk"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/telemetry_test.go; ui: ui/src/features/distribution/__tests__/AttributionTable.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-SUBMIT",
+      "title": "The ramp may submit a signed package to a curated registry and track that submission's review state.",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "distribution.registry",
+      "description": "Curated submission is a manual, relationship-bearing process today and is not worth automating before one package has been accepted by hand.",
+      "tags": [
+        "registry",
+        "submission",
+        "roadmap"
+      ],
+      "delivery_scope": "roadmap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/submission_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DIST-ADAPTERS",
+      "title": "The ramp may add a distribution adapter for an agent packaging standard that reaches a stable release after Agent Plugins 1.0.",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "distribution.adapters",
+      "description": "The packaging landscape is young and contested. The distributor seam exists so a new format is an adapter rather than a re-architecture; adding one before it is stable would be churn.",
+      "tags": [
+        "adapter",
+        "standards",
+        "roadmap"
+      ],
+      "delivery_scope": "roadmap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/distribution/adapter_registry_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

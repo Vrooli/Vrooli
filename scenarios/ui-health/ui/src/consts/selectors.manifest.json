@@ -1,0 +1,695 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.brand": {
+      "testId": "app-brand",
+      "selector": "[data-testid=\"app-brand\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.pill": {
+      "testId": "health-pill",
+      "selector": "[data-testid=\"health-pill\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "theme.toggle": {
+      "testId": "theme-toggle",
+      "selector": "[data-testid=\"theme-toggle\"]"
+    },
+    "inspector.panel": {
+      "testId": "inspector-panel",
+      "selector": "[data-testid=\"inspector-panel\"]"
+    },
+    "inspector.title": {
+      "testId": "inspector-title",
+      "selector": "[data-testid=\"inspector-title\"]"
+    },
+    "inspector.close": {
+      "testId": "inspector-close",
+      "selector": "[data-testid=\"inspector-close\"]"
+    },
+    "inspector.backdrop": {
+      "testId": "inspector-backdrop",
+      "selector": "[data-testid=\"inspector-backdrop\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.validation": {
+      "testId": "page-validation",
+      "selector": "[data-testid=\"page-validation\"]"
+    },
+    "pages.validationDetail": {
+      "testId": "page-validation-detail",
+      "selector": "[data-testid=\"page-validation-detail\"]"
+    },
+    "pages.captures": {
+      "testId": "page-captures",
+      "selector": "[data-testid=\"page-captures\"]"
+    },
+    "pages.search": {
+      "testId": "page-search",
+      "selector": "[data-testid=\"page-search\"]"
+    },
+    "pages.inventory": {
+      "testId": "page-inventory",
+      "selector": "[data-testid=\"page-inventory\"]"
+    },
+    "pages.surfaceDetail": {
+      "testId": "page-surface-detail",
+      "selector": "[data-testid=\"page-surface-detail\"]"
+    },
+    "pages.reindex": {
+      "testId": "page-reindex",
+      "selector": "[data-testid=\"page-reindex\"]"
+    },
+    "pages.reindexJob": {
+      "testId": "page-reindex-job",
+      "selector": "[data-testid=\"page-reindex-job\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.notFound": {
+      "testId": "page-not-found",
+      "selector": "[data-testid=\"page-not-found\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    },
+    "dashboard.stats.scenariosValidated": {
+      "testId": "dashboard-stat-scenarios-validated",
+      "selector": "[data-testid=\"dashboard-stat-scenarios-validated\"]"
+    },
+    "dashboard.stats.surfacesIndexed": {
+      "testId": "dashboard-stat-surfaces-indexed",
+      "selector": "[data-testid=\"dashboard-stat-surfaces-indexed\"]"
+    },
+    "dashboard.stats.openIssues": {
+      "testId": "dashboard-stat-open-issues",
+      "selector": "[data-testid=\"dashboard-stat-open-issues\"]"
+    },
+    "dashboard.activity.list": {
+      "testId": "dashboard-activity-list",
+      "selector": "[data-testid=\"dashboard-activity-list\"]"
+    },
+    "dashboard.activity.empty": {
+      "testId": "dashboard-activity-empty",
+      "selector": "[data-testid=\"dashboard-activity-empty\"]"
+    },
+    "dashboard.quickActions.search": {
+      "testId": "dashboard-quick-action-search",
+      "selector": "[data-testid=\"dashboard-quick-action-search\"]"
+    },
+    "dashboard.quickActions.validate": {
+      "testId": "dashboard-quick-action-validate",
+      "selector": "[data-testid=\"dashboard-quick-action-validate\"]"
+    },
+    "dashboard.quickActions.reindex": {
+      "testId": "dashboard-quick-action-reindex",
+      "selector": "[data-testid=\"dashboard-quick-action-reindex\"]"
+    },
+    "dashboard.quickActions.inventory": {
+      "testId": "dashboard-quick-action-inventory",
+      "selector": "[data-testid=\"dashboard-quick-action-inventory\"]"
+    },
+    "dashboard.apiStatus.card": {
+      "testId": "dashboard-api-status",
+      "selector": "[data-testid=\"dashboard-api-status\"]"
+    },
+    "dashboard.apiStatus.dependency": {
+      "testId": "dashboard-api-dependency",
+      "selector": "[data-testid=\"dashboard-api-dependency\"]"
+    },
+    "validation.form": {
+      "testId": "validation-form",
+      "selector": "[data-testid=\"validation-form\"]"
+    },
+    "validation.scenarioInput": {
+      "testId": "validation-scenario-input",
+      "selector": "[data-testid=\"validation-scenario-input\"]"
+    },
+    "validation.submit": {
+      "testId": "validation-submit",
+      "selector": "[data-testid=\"validation-submit\"]"
+    },
+    "validation.recentList": {
+      "testId": "validation-recent-list",
+      "selector": "[data-testid=\"validation-recent-list\"]"
+    },
+    "validation.emptyRecent": {
+      "testId": "validation-recent-empty",
+      "selector": "[data-testid=\"validation-recent-empty\"]"
+    },
+    "validation.detail.statusBadge": {
+      "testId": "validation-detail-status",
+      "selector": "[data-testid=\"validation-detail-status\"]"
+    },
+    "validation.detail.summary": {
+      "testId": "validation-detail-summary",
+      "selector": "[data-testid=\"validation-detail-summary\"]"
+    },
+    "validation.detail.revalidate": {
+      "testId": "validation-detail-revalidate",
+      "selector": "[data-testid=\"validation-detail-revalidate\"]"
+    },
+    "validation.detail.findings": {
+      "testId": "validation-detail-findings",
+      "selector": "[data-testid=\"validation-detail-findings\"]"
+    },
+    "validation.detail.empty": {
+      "testId": "validation-detail-empty",
+      "selector": "[data-testid=\"validation-detail-empty\"]"
+    },
+    "validation.detail.error": {
+      "testId": "validation-detail-error",
+      "selector": "[data-testid=\"validation-detail-error\"]"
+    },
+    "validation.detail.loading": {
+      "testId": "validation-detail-loading",
+      "selector": "[data-testid=\"validation-detail-loading\"]"
+    },
+    "captures.gallery": {
+      "testId": "captures-gallery",
+      "selector": "[data-testid=\"captures-gallery\"]"
+    },
+    "captures.scenarioSelect": {
+      "testId": "captures-scenario-select",
+      "selector": "[data-testid=\"captures-scenario-select\"]"
+    },
+    "captures.overlayList": {
+      "testId": "captures-overlay-list",
+      "selector": "[data-testid=\"captures-overlay-list\"]"
+    },
+    "captures.empty": {
+      "testId": "captures-empty",
+      "selector": "[data-testid=\"captures-empty\"]"
+    },
+    "search.input": {
+      "testId": "search-input",
+      "selector": "[data-testid=\"search-input\"]"
+    },
+    "search.filters": {
+      "testId": "search-filters",
+      "selector": "[data-testid=\"search-filters\"]"
+    },
+    "search.loading": {
+      "testId": "search-loading",
+      "selector": "[data-testid=\"search-loading\"]"
+    },
+    "search.error": {
+      "testId": "search-error",
+      "selector": "[data-testid=\"search-error\"]"
+    },
+    "search.empty": {
+      "testId": "search-empty",
+      "selector": "[data-testid=\"search-empty\"]"
+    },
+    "search.shortQuery": {
+      "testId": "search-short-query",
+      "selector": "[data-testid=\"search-short-query\"]"
+    },
+    "search.noResults": {
+      "testId": "search-no-results",
+      "selector": "[data-testid=\"search-no-results\"]"
+    },
+    "search.noResultsForFilter": {
+      "testId": "search-no-results-filter",
+      "selector": "[data-testid=\"search-no-results-filter\"]"
+    },
+    "search.resultsList": {
+      "testId": "search-results-list",
+      "selector": "[data-testid=\"search-results-list\"]"
+    },
+    "search.resultsSummary": {
+      "testId": "search-results-summary",
+      "selector": "[data-testid=\"search-results-summary\"]"
+    },
+    "inventory.form": {
+      "testId": "inventory-form",
+      "selector": "[data-testid=\"inventory-form\"]"
+    },
+    "inventory.scenarioInput": {
+      "testId": "inventory-scenario-input",
+      "selector": "[data-testid=\"inventory-scenario-input\"]"
+    },
+    "inventory.submit": {
+      "testId": "inventory-submit",
+      "selector": "[data-testid=\"inventory-submit\"]"
+    },
+    "inventory.filters": {
+      "testId": "inventory-filters",
+      "selector": "[data-testid=\"inventory-filters\"]"
+    },
+    "inventory.loading": {
+      "testId": "inventory-loading",
+      "selector": "[data-testid=\"inventory-loading\"]"
+    },
+    "inventory.error": {
+      "testId": "inventory-error",
+      "selector": "[data-testid=\"inventory-error\"]"
+    },
+    "inventory.empty": {
+      "testId": "inventory-empty",
+      "selector": "[data-testid=\"inventory-empty\"]"
+    },
+    "inventory.noSurfaces": {
+      "testId": "inventory-no-surfaces",
+      "selector": "[data-testid=\"inventory-no-surfaces\"]"
+    },
+    "inventory.noResultsForFilter": {
+      "testId": "inventory-no-results-filter",
+      "selector": "[data-testid=\"inventory-no-results-filter\"]"
+    },
+    "inventory.surfacesTable": {
+      "testId": "inventory-surfaces-table",
+      "selector": "[data-testid=\"inventory-surfaces-table\"]"
+    },
+    "inventory.summary": {
+      "testId": "inventory-summary",
+      "selector": "[data-testid=\"inventory-summary\"]"
+    },
+    "inventory.detail.back": {
+      "testId": "inventory-detail-back",
+      "selector": "[data-testid=\"inventory-detail-back\"]"
+    },
+    "inventory.detail.meta": {
+      "testId": "inventory-detail-meta",
+      "selector": "[data-testid=\"inventory-detail-meta\"]"
+    },
+    "inventory.detail.provenance": {
+      "testId": "inventory-detail-provenance",
+      "selector": "[data-testid=\"inventory-detail-provenance\"]"
+    },
+    "inventory.detail.widgets": {
+      "testId": "inventory-detail-widgets",
+      "selector": "[data-testid=\"inventory-detail-widgets\"]"
+    },
+    "inventory.detail.empty": {
+      "testId": "inventory-detail-empty",
+      "selector": "[data-testid=\"inventory-detail-empty\"]"
+    },
+    "inventory.detail.error": {
+      "testId": "inventory-detail-error",
+      "selector": "[data-testid=\"inventory-detail-error\"]"
+    },
+    "inventory.detail.loading": {
+      "testId": "inventory-detail-loading",
+      "selector": "[data-testid=\"inventory-detail-loading\"]"
+    },
+    "inventory.detail.notFound": {
+      "testId": "inventory-detail-not-found",
+      "selector": "[data-testid=\"inventory-detail-not-found\"]"
+    },
+    "reindex.form": {
+      "testId": "reindex-form",
+      "selector": "[data-testid=\"reindex-form\"]"
+    },
+    "reindex.scenarioInput": {
+      "testId": "reindex-scenario-input",
+      "selector": "[data-testid=\"reindex-scenario-input\"]"
+    },
+    "reindex.dryRunInput": {
+      "testId": "reindex-dry-run-input",
+      "selector": "[data-testid=\"reindex-dry-run-input\"]"
+    },
+    "reindex.submit": {
+      "testId": "reindex-submit",
+      "selector": "[data-testid=\"reindex-submit\"]"
+    },
+    "reindex.confirmModal": {
+      "testId": "reindex-confirm-modal",
+      "selector": "[data-testid=\"reindex-confirm-modal\"]"
+    },
+    "reindex.confirmAccept": {
+      "testId": "reindex-confirm-accept",
+      "selector": "[data-testid=\"reindex-confirm-accept\"]"
+    },
+    "reindex.confirmCancel": {
+      "testId": "reindex-confirm-cancel",
+      "selector": "[data-testid=\"reindex-confirm-cancel\"]"
+    },
+    "reindex.error": {
+      "testId": "reindex-error",
+      "selector": "[data-testid=\"reindex-error\"]"
+    },
+    "reindex.jobsList": {
+      "testId": "reindex-jobs-list",
+      "selector": "[data-testid=\"reindex-jobs-list\"]"
+    },
+    "reindex.emptyJobs": {
+      "testId": "reindex-jobs-empty",
+      "selector": "[data-testid=\"reindex-jobs-empty\"]"
+    },
+    "reindex.clearTerminal": {
+      "testId": "reindex-clear-terminal",
+      "selector": "[data-testid=\"reindex-clear-terminal\"]"
+    },
+    "reindex.detail.back": {
+      "testId": "reindex-detail-back",
+      "selector": "[data-testid=\"reindex-detail-back\"]"
+    },
+    "reindex.detail.meta": {
+      "testId": "reindex-detail-meta",
+      "selector": "[data-testid=\"reindex-detail-meta\"]"
+    },
+    "reindex.detail.progress": {
+      "testId": "reindex-detail-progress",
+      "selector": "[data-testid=\"reindex-detail-progress\"]"
+    },
+    "reindex.detail.error": {
+      "testId": "reindex-detail-error",
+      "selector": "[data-testid=\"reindex-detail-error\"]"
+    },
+    "reindex.detail.cancel": {
+      "testId": "reindex-detail-cancel",
+      "selector": "[data-testid=\"reindex-detail-cancel\"]"
+    },
+    "reindex.detail.notFound": {
+      "testId": "reindex-detail-not-found",
+      "selector": "[data-testid=\"reindex-detail-not-found\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "Library shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "validation",
+            "captures",
+            "search",
+            "inventory",
+            "reindex",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "validation.recentRow": {
+      "description": "Recent validation runs row by scenario name",
+      "selectorPattern": "[data-testid=\"validation-recent-row-${scenario}\"]",
+      "testIdPattern": "validation-recent-row-${scenario}",
+      "params": [
+        {
+          "name": "scenario",
+          "type": "string"
+        }
+      ]
+    },
+    "validation.severityFilter": {
+      "description": "Filter chip on validation detail by severity",
+      "selectorPattern": "[data-testid=\"validation-detail-filter-${severity}\"]",
+      "testIdPattern": "validation-detail-filter-${severity}",
+      "params": [
+        {
+          "name": "severity",
+          "type": "enum",
+          "values": [
+            "all",
+            "error",
+            "warning",
+            "info"
+          ]
+        }
+      ]
+    },
+    "validation.findingRow": {
+      "description": "Validation finding row by zero-based index",
+      "selectorPattern": "[data-testid=\"validation-detail-finding-${index}\"]",
+      "testIdPattern": "validation-detail-finding-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "captures.captureCard": {
+      "description": "Capture gallery card by capture id",
+      "selectorPattern": "[data-testid=\"captures-card-${captureId}\"]",
+      "testIdPattern": "captures-card-${captureId}",
+      "params": [
+        {
+          "name": "captureId",
+          "type": "string"
+        }
+      ]
+    },
+    "captures.overlay": {
+      "description": "Capture gallery violation overlay by zero-based index",
+      "selectorPattern": "[data-testid=\"captures-overlay-${index}\"]",
+      "testIdPattern": "captures-overlay-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "search.kindFilter": {
+      "description": "Search surface-kind filter chip",
+      "selectorPattern": "[data-testid=\"search-kind-filter-${kind}\"]",
+      "testIdPattern": "search-kind-filter-${kind}",
+      "params": [
+        {
+          "name": "kind",
+          "type": "enum",
+          "values": [
+            "all",
+            "component",
+            "page",
+            "feature",
+            "hook",
+            "layout",
+            "other"
+          ]
+        }
+      ]
+    },
+    "search.resultRow": {
+      "description": "Search result row by zero-based index",
+      "selectorPattern": "[data-testid=\"search-result-row-${index}\"]",
+      "testIdPattern": "search-result-row-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "search.resultScore": {
+      "description": "Search result score by zero-based index",
+      "selectorPattern": "[data-testid=\"search-result-score-${index}\"]",
+      "testIdPattern": "search-result-score-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "search.resultProvenance": {
+      "description": "Search result provenance badge by zero-based index",
+      "selectorPattern": "[data-testid=\"search-result-provenance-${index}\"]",
+      "testIdPattern": "search-result-provenance-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "search.resultOpen": {
+      "description": "Search result open-in-inventory link by zero-based index",
+      "selectorPattern": "[data-testid=\"search-result-open-${index}\"]",
+      "testIdPattern": "search-result-open-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "dashboard.activityRow": {
+      "description": "Dashboard activity feed row by zero-based index",
+      "selectorPattern": "[data-testid=\"dashboard-activity-row-${index}\"]",
+      "testIdPattern": "dashboard-activity-row-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "inventory.kindFilter": {
+      "description": "Inventory surface-kind filter chip",
+      "selectorPattern": "[data-testid=\"inventory-kind-filter-${kind}\"]",
+      "testIdPattern": "inventory-kind-filter-${kind}",
+      "params": [
+        {
+          "name": "kind",
+          "type": "enum",
+          "values": [
+            "all",
+            "component",
+            "page",
+            "feature",
+            "hook",
+            "layout",
+            "other"
+          ]
+        }
+      ]
+    },
+    "inventory.surfaceRow": {
+      "description": "Inventory surfaces table row by zero-based index",
+      "selectorPattern": "[data-testid=\"inventory-surface-row-${index}\"]",
+      "testIdPattern": "inventory-surface-row-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "inventory.surfaceOpen": {
+      "description": "Inventory surfaces table open-detail link by zero-based index",
+      "selectorPattern": "[data-testid=\"inventory-surface-open-${index}\"]",
+      "testIdPattern": "inventory-surface-open-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "reindex.jobRow": {
+      "description": "Reindex jobs list row by zero-based index",
+      "selectorPattern": "[data-testid=\"reindex-job-row-${index}\"]",
+      "testIdPattern": "reindex-job-row-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "reindex.jobOpen": {
+      "description": "Reindex job detail link by zero-based index",
+      "selectorPattern": "[data-testid=\"reindex-job-open-${index}\"]",
+      "testIdPattern": "reindex-job-open-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "reindex.jobState": {
+      "description": "Reindex job state badge by zero-based index",
+      "selectorPattern": "[data-testid=\"reindex-job-state-${index}\"]",
+      "testIdPattern": "reindex-job-state-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "ffd55c7cb63eba0339f0b3c31a22c30d84ea7e080536b751fcd86e8d1ba6a63b",
+    "ui/src/consts/selectors.ts": "9e76ef668dbc6809ea418c50d6c8e5b0ef8baf186c10107cd306a702bb7074aa",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

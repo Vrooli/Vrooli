@@ -329,37 +329,6 @@ export interface CollectionMaintenanceResponse {
   took_ms: number;
 }
 
-export interface DocumentDeleteResponse {
-  collection: string;
-  namespace: string;
-  document_id: string;
-  external_id?: string;
-  dry_run: boolean;
-  candidate_delete_count: number;
-  deleted_count: number;
-  took_ms: number;
-}
-
-export interface DocumentDeleteRequest {
-  namespace: string;
-  collection?: string;
-  document_id?: string;
-  external_id?: string;
-  dry_run?: boolean;
-}
-
-export interface IngestHealthResponse {
-  runner_interval_ms: number;
-  pending_jobs: number;
-  running_jobs: number;
-  failed_jobs: number;
-  successful_jobs: number;
-  failures_last_24h: number;
-  oldest_pending_age_ms?: number;
-  status: string;
-  timestamp: string;
-}
-
 export interface CollectionInventoryItem {
   name: string;
   total_points?: number;
@@ -459,39 +428,6 @@ export async function runCollectionMaintenance(
   return (await res.json()) as CollectionMaintenanceResponse;
 }
 
-export async function runDocumentDelete(request: DocumentDeleteRequest): Promise<DocumentDeleteResponse> {
-  const url = buildApiUrl("/api/v1/knowledge/documents/delete", {
-    baseUrl: API_BASE,
-  });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const errorPayload = (await res.json().catch(() => null)) as unknown;
-    const errorMessage =
-      isRecord(errorPayload) && typeof errorPayload.error === "string"
-        ? errorPayload.error
-        : `Document delete failed: ${res.status}`;
-    throw new Error(errorMessage);
-  }
-  return (await res.json()) as DocumentDeleteResponse;
-}
-
-export async function fetchIngestHealth(): Promise<IngestHealthResponse> {
-  const url = buildApiUrl("/api/v1/ingest/health", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw new Error(`Ingest health fetch failed: ${res.status}`);
-  }
-  return (await res.json()) as IngestHealthResponse;
-}
-
 export async function fetchCollectionInventory(): Promise<CollectionInventoryResponse> {
   const url = buildApiUrl("/api/v1/knowledge/collections", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -558,4 +494,78 @@ export async function runCollectionDelete(collection: string): Promise<Collectio
     throw new Error(errorMessage);
   }
   return (await res.json()) as CollectionDeleteResponse;
+}
+
+export interface MaintenanceCandidate {
+  path: string;
+  artifact_class: string;
+  sha256: string;
+  bytes: number;
+  owner_hint?: string;
+  action: string;
+  portability_signals: string[];
+  reference_status: string;
+  evidence_standing: string;
+  inspect_handle: string;
+  proposal_handle: string;
+  excerpt?: string;
+}
+
+export interface MaintenanceInventoryResponse {
+  status: string;
+  revision: string;
+  candidates: MaintenanceCandidate[];
+  truncated: boolean;
+  warnings: string[];
+}
+
+export interface MaintenanceProposal {
+  source: string;
+  source_sha256: string;
+  action: string;
+  decision: string;
+  confidence: number;
+  uncertainty: string[];
+  citations: string[];
+  preservation: string[];
+  authorization_required: string;
+  prompt_injection_signal: boolean;
+}
+
+export interface MaintenanceProposalResponse {
+  status: string;
+  proposals: MaintenanceProposal[];
+  warnings: string[];
+}
+
+export interface MaintenanceRouteResponse {
+  status: string;
+  owner: string;
+  operation: string;
+  request_id: string;
+  receipt: string;
+  reason?: string;
+}
+
+async function postMaintenance<T>(path: string, body: unknown): Promise<T> {
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+  const payload = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) {
+    const message = isRecord(payload) && typeof payload.error === "string" ? payload.error : `Maintenance request failed: ${res.status}`;
+    throw new Error(message);
+  }
+  return payload as T;
+}
+
+export function fetchMaintenanceInventory(request: { roots?: string[]; includes?: string[]; excludes?: string[]; max_files?: number; max_bytes?: number; revision?: string } = {}) {
+  return postMaintenance<MaintenanceInventoryResponse>("/api/v1/knowledge/maintenance/inventory", request);
+}
+
+export function proposeMaintenanceDispositions(candidates: MaintenanceCandidate[], reader_task = "") {
+  return postMaintenance<MaintenanceProposalResponse>("/api/v1/knowledge/maintenance/proposals", { candidates, reader_task });
+}
+
+export function routeMaintenanceDisposition(request: { proposal: MaintenanceProposal; expected_source_sha256: string; idempotency_key: string; dry_run: boolean; authorization?: string }) {
+  return postMaintenance<MaintenanceRouteResponse>("/api/v1/knowledge/maintenance/route", request);
 }

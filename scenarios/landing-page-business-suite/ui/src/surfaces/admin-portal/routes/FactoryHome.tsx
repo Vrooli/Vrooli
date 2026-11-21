@@ -6,7 +6,7 @@ export default function FactoryHome() {
       <div className="space-y-12">
         <header className="space-y-4">
           <p className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
-            Landing Manager · Factory
+            Landing Page Template
           </p>
           <h1 className="text-4xl font-bold">Generate landing-page scenarios, not a landing page.</h1>
           <p className="text-slate-300 max-w-3xl">
@@ -30,7 +30,7 @@ export default function FactoryHome() {
             <div className="text-xl font-semibold">CLI-first flow</div>
             <p className="text-sm text-slate-300">Use the CLI to generate a new landing scenario and customize it with agents.</p>
             <code className="block rounded-lg bg-slate-900 px-3 py-2 text-xs text-slate-200 border border-white/10">
-              landing-manager generate saas-landing-page --name "vrooli-pro" --slug "vrooli-pro"
+              template-manager lifecycle generate landing-page-business-suite --id "vrooli-pro" --display-name "Vrooli Pro" --description "Productivity bundle for developers"
             </code>
           </div>
 

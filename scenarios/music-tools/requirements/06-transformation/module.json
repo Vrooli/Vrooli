@@ -1,0 +1,92 @@
+{
+  "_metadata": {
+    "description": "Iterative editing over existing audio: separation, cover, repaint, accompaniment.",
+    "last_validated_at": "2026-11-16T05:27:00Z",
+    "module": "transformation",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P1-003",
+      "title": "Stem separation independent of the generator",
+      "status": "implemented",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Stem separation is served by a dedicated separator that does not require the composition model to be resident, because the generation variant that fits constrained VRAM may not expose separation at all.",
+      "tags": [
+        "transformation",
+        "stems"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "The independent Music Tools analysis/separation job path exists. A live owner-backed separation receipt and consumer verification remain unproven."
+        }
+      ]
+    },
+    {
+      "id": "MUS-P1-004",
+      "title": "Section repaint and cover preserve identity",
+      "status": "not_implemented",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Repaint regenerates a bounded time range while leaving the remainder byte-identical, and cover restyles a track while preserving its structure \u2014 so a near-miss can be edited rather than rerolled.",
+      "tags": [
+        "transformation",
+        "editing"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "No section repaint or structure-preserving cover operation is exposed by Music Tools. Do not mark implemented until an owner job emits exact input/output hashes, bounded edit ranges, and an immutable operation receipt."
+        }
+      ]
+    },
+    {
+      "id": "MUS-P1-005",
+      "title": "Remix and sample jobs emit immutable lineage receipts",
+      "status": "implemented",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "A successful remix or sample-based arrangement is a durable Music Tools job whose owner-issued receipt binds every source SHA-256 and excerpt range to the derived output SHA-256, operation kind, tool/model revision, license lane, and non-widening rights scope. Consumers verify receipts by job identity instead of trusting draft metadata or a generic result reference.",
+      "tags": [
+        "transformation",
+        "remix",
+        "sample",
+        "lineage",
+        "rights"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/transformation/receipt_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Durable-job receipt validation round-trips owner evidence and rejects failed jobs, identity/hash/range mismatches and invalid rights scope."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/transformation/worker_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Request, managed-source boundary, excerpt duration parsing and deterministic remix/sample filter contracts are covered. The worker is registered before persisted-job recovery."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Pending an authorized bounded run: listener must hear actual derived files and match their audio hashes and lineage receipt to the originating release packet."
+        }
+      ]
+    }
+  ]
+}

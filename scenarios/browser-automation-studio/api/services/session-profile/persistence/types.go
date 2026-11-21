@@ -26,12 +26,14 @@ type SessionProfile struct {
 
 // BrowserProfile contains anti-detection and fingerprint settings for browser automation.
 type BrowserProfile struct {
-	Preset        string                 `json:"preset,omitempty"`         // stealth, balanced, fast, none
-	Fingerprint   *FingerprintSettings   `json:"fingerprint,omitempty"`    // Browser identity settings
-	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`       // Human-like behavior settings
-	AntiDetection *AntiDetectionSettings `json:"anti_detection,omitempty"` // Bot detection bypass settings
-	Proxy         *ProxySettings         `json:"proxy,omitempty"`          // Proxy configuration
-	ExtraHeaders  map[string]string      `json:"extra_headers,omitempty"`  // Custom HTTP headers sent with every request
+	Preset           string                 `json:"preset,omitempty"`            // stealth, balanced, fast, none
+	Fingerprint      *FingerprintSettings   `json:"fingerprint,omitempty"`       // Browser identity settings
+	Behavior         *BehaviorSettings      `json:"behavior,omitempty"`          // Human-like behavior settings
+	AntiDetection    *AntiDetectionSettings `json:"anti_detection,omitempty"`    // Bot detection bypass settings
+	Proxy            *ProxySettings         `json:"proxy,omitempty"`             // Proxy configuration
+	ExtraHeaders     map[string]string      `json:"extra_headers,omitempty"`     // Custom HTTP headers sent with every request
+	MotionPreference string                 `json:"motion_preference,omitempty"` // no-preference, reduce
+	InteractionState string                 `json:"interaction_state,omitempty"` // rest, hover, focus-visible, pressed, disabled
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -163,10 +165,11 @@ const MaxRestoredTabs = 20
 
 // TabState captures a single tab's state for restoration when resuming a session.
 type TabState struct {
-	URL      string `json:"url"`                 // URL to navigate to
-	Title    string `json:"title,omitempty"`     // Tab title (for display before load)
-	IsActive bool   `json:"is_active,omitempty"` // Whether this was the active tab
-	Order    int    `json:"order"`               // Creation order for consistent tab ordering
+	URL         string `json:"url"`                    // URL to navigate to
+	Title       string `json:"title,omitempty"`        // Tab title (for display before load)
+	IsActive    bool   `json:"is_active,omitempty"`    // Whether this was the active tab
+	Order       int    `json:"order"`                  // Creation order for consistent tab ordering
+	OpenerOrder *int   `json:"opener_order,omitempty"` // Saved order of the tab that opened this popup
 }
 
 // SessionEndState bundles all data to persist when a session ends.

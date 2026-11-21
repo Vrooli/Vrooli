@@ -3,6 +3,7 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -76,6 +77,15 @@ func (m *MockStore) Update(id string, fn func(status *smoketest.Status)) bool {
 	}
 	fn(status)
 	return true
+}
+
+// TransitionState validates and persists one lifecycle edge.
+func (m *MockStore) TransitionState(id string, next smoketest.State, message string) error {
+	status, ok := m.Statuses[id]
+	if !ok {
+		return fmt.Errorf("unknown smoke test id %q", id)
+	}
+	return status.TransitionState(next, time.Now().UTC(), message)
 }
 
 // MockCancelManager implements smoketest.CancelManager for testing.

@@ -12,13 +12,22 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	execStd "os/exec"
 	"path/filepath"
-	"strings"
-	"time"
 
+	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/diff"
+	"workspace-sandbox/internal/driver/changedetect"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
+
+// Compile-time assertion that CopyDriver satisfies the composite Driver
+// interface (MountDriver + ChangeTracker). It intentionally does NOT
+// implement MountVerifier — callers use VerifyIfSupported.
+var _ Driver = (*CopyDriver)(nil)
 
 // CopyDriver implements the Driver interface using file copies.
 // This is a cross-platform fallback driver that works on any OS.
@@ -31,7 +40,7 @@ import (
 //  3. On diff, compares workspace against original to detect changes
 //  4. On approval, copies changed files back to the canonical repo
 //
-// # Trade-offs vs OverlayfsDriver
+// # Trade-offs vs OverlayDriver
 //
 // Pros:
 //   - Works on any OS (macOS, Windows, Linux without overlayfs)
@@ -49,20 +58,49 @@ import (
 //   - Small to medium scope directories
 //   - When overlayfs is unavailable
 type CopyDriver struct {
-	config Config
+	config  Config
+	clock   schedule.Clock
+	starter process.Starter
 }
 
-// NewCopyDriver creates a new copy-based fallback driver.
-func NewCopyDriver(cfg Config) *CopyDriver {
+// NewCopyDriver creates a new copy-based fallback driver. deps.Clock is
+// the time source for FileChange.DetectedAt timestamps. CopyDriver does
+// not actually mount or spawn helper binaries, but the constructor still
+// takes Deps for symmetry with the overlay drivers — every driver
+// factory now has the same shape so SelectDriver / NewDriverFor can
+// pass through a single Deps value.
+func NewCopyDriver(cfg Config, deps Deps) *CopyDriver {
+	deps.Validate("driver.NewCopyDriver")
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultConfig().BaseDir
 	}
-	return &CopyDriver{config: cfg}
+	return &CopyDriver{config: cfg, clock: deps.Clock, starter: deps.Starter}
 }
 
-// Type returns the driver type.
-func (d *CopyDriver) Type() DriverType {
-	return DriverTypeCopy
+// ID returns the canonical driver ID.
+func (d *CopyDriver) ID() DriverID {
+	return DriverCopy
+}
+
+// RequiredContainment returns ContainmentNone: the copy driver has no real
+// mount, so commands run directly in the workspace dir without a
+// containment backend.
+func (d *CopyDriver) RequiredContainment() ContainmentLevel {
+	return ContainmentNone
+}
+
+// Capabilities reports the copy driver's contract: no home overlay
+// support (it can't mount), no CoW (it copies), no namespace isolation.
+//
+// DOC: home-overlay seam — copy driver explicitly opts out.
+func (d *CopyDriver) Capabilities() DriverCapabilities {
+	return DriverCapabilities{
+		HomeOverlay:        false,
+		CoW:                false,
+		NamespaceIsolation: ContainmentNone,
+		Tracking:           true,
+		Protected:          false,
+	}
 }
 
 // BaseDir returns the configured base directory for sandboxes.
@@ -122,6 +160,8 @@ func (d *CopyDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPaths, 
 		return nil, fmt.Errorf("failed to copy scope to workspace: %w", err)
 	}
 
+	// Copy driver does not provide a home overlay — record it explicitly.
+	s.HomeOverlayState = types.HomeOverlayUnsupported
 	return paths, nil
 }
 
@@ -136,134 +176,11 @@ func (d *CopyDriver) GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*
 	if s.UpperDir == "" {
 		return nil, fmt.Errorf("sandbox workspace directory not set")
 	}
-
-	originalDir := s.LowerDir
-	workspaceDir := s.UpperDir
-
-	var changes []*types.FileChange
-
-	// Track files we've seen in workspace
-	workspaceFiles := make(map[string]bool)
-
-	// Walk workspace to find added and modified files
-	err := filepath.Walk(workspaceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory
-		if path == workspaceDir {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(workspaceDir, path)
-		if err != nil {
-			return err
-		}
-
-		if isOverlayMarker(relPath) {
-			return nil
-		}
-
-		// Skip hidden files and directories that might be metadata
-		if strings.HasPrefix(relPath, ".") {
-			return nil
-		}
-
-		workspaceFiles[relPath] = true
-
-		// Check if file exists in original
-		originalPath := filepath.Join(originalDir, relPath)
-		originalInfo, originalErr := os.Stat(originalPath)
-
-		var changeType types.ChangeType
-
-		if os.IsNotExist(originalErr) {
-			// File doesn't exist in original - it's added
-			changeType = types.ChangeTypeAdded
-		} else if originalErr != nil {
-			// Error accessing original - treat as modified
-			changeType = types.ChangeTypeModified
-		} else if info.IsDir() && originalInfo.IsDir() {
-			// Both are directories - skip
-			return nil
-		} else if filesAreDifferent(originalPath, path, originalInfo, info) {
-			// Files are different - modified
-			changeType = types.ChangeTypeModified
-		} else {
-			// Files are the same - no change
-			return nil
-		}
-
-		change := &types.FileChange{
-			ID:             StableFileID(s.ID, relPath),
-			SandboxID:      s.ID,
-			FilePath:       relPath,
-			ChangeType:     changeType,
-			FileSize:       info.Size(),
-			FileMode:       int(info.Mode()),
-			DetectedAt:     time.Now(),
-			ApprovalStatus: types.ApprovalPending,
-		}
-
-		changes = append(changes, change)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk workspace directory: %w", err)
-	}
-
-	// Walk original to find deleted files
-	err = filepath.Walk(originalDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == originalDir {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(originalDir, path)
-		if err != nil {
-			return err
-		}
-
-		if isOverlayMarker(relPath) {
-			return nil
-		}
-
-		// Skip hidden files
-		if strings.HasPrefix(relPath, ".") {
-			return nil
-		}
-
-		// If we already saw this in workspace, it's not deleted
-		if workspaceFiles[relPath] {
-			return nil
-		}
-
-		// File exists in original but not in workspace - deleted
-		if !info.IsDir() {
-			change := &types.FileChange{
-				ID:             StableFileID(s.ID, relPath),
-				SandboxID:      s.ID,
-				FilePath:       relPath,
-				ChangeType:     types.ChangeTypeDeleted,
-				FileSize:       info.Size(),
-				FileMode:       int(info.Mode()),
-				DetectedAt:     time.Now(),
-				ApprovalStatus: types.ApprovalPending,
-			}
-			changes = append(changes, change)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk original directory: %w", err)
-	}
-
-	return changes, nil
+	return changedetect.Walk(ctx,
+		changedetect.WalkOpts{Lower: s.LowerDir, Upper: s.UpperDir, SandboxID: s.ID, IgnoreMatcher: diff.NewGitIgnoreMatcher(s.ProjectRoot, diff.NewExecCommandRunner(d.starter))},
+		&changedetect.CopyStrategy{FileIDFn: StableFileID},
+		d.clock.Now(),
+	)
 }
 
 // RemoveFromUpper removes a file from the workspace directory.
@@ -284,139 +201,33 @@ func (d *CopyDriver) Cleanup(ctx context.Context, s *types.Sandbox) error {
 	return nil
 }
 
-// IsMounted always returns true for copy driver since there's no actual mount.
-func (d *CopyDriver) IsMounted(ctx context.Context, s *types.Sandbox) (bool, error) {
-	// Check if the workspace directory exists
-	if s.MergedDir == "" {
-		return false, nil
-	}
-	_, err := os.Stat(s.MergedDir)
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
+// ListSandboxDirs walks BaseDir and returns the IDs of every UUID-named
+// subdirectory. See the Driver interface docstring for orphan-reconciliation
+// rationale.
+func (d *CopyDriver) ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error) {
+	return listSandboxDirsInBase(d.config.BaseDir)
 }
 
-// VerifyMountIntegrity checks that the workspace directories are intact.
-func (d *CopyDriver) VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error {
-	if s.MergedDir == "" {
-		return fmt.Errorf("workspace directory path is empty")
-	}
-
-	info, err := os.Stat(s.MergedDir)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("workspace directory does not exist: %s", s.MergedDir)
-	}
-	if err != nil {
-		return fmt.Errorf("cannot stat workspace directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("workspace path is not a directory: %s", s.MergedDir)
-	}
-
-	// Check original dir exists too
-	if s.LowerDir != "" {
-		info, err = os.Stat(s.LowerDir)
+// CleanupOrphan releases a sandbox by ID alone. CopyDriver has no mounts
+// to release, so this is purely directory removal. Idempotent: missing
+// dirs are a no-op.
+func (d *CopyDriver) CleanupOrphan(ctx context.Context, id uuid.UUID) error {
+	sandboxDir := filepath.Join(d.config.BaseDir, id.String())
+	if _, err := os.Stat(sandboxDir); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("original directory does not exist: %s", s.LowerDir)
+			return nil
 		}
-		if err != nil {
-			return fmt.Errorf("cannot stat original directory: %w", err)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("original path is not a directory: %s", s.LowerDir)
-		}
+		return fmt.Errorf("stat orphan sandbox dir %q: %w", sandboxDir, err)
 	}
-
+	if err := os.RemoveAll(sandboxDir); err != nil {
+		return fmt.Errorf("remove orphan sandbox dir %q: %w", sandboxDir, err)
+	}
 	return nil
 }
 
-// --- Process Execution Methods (OT-P0-003) ---
-
-// Exec executes a command in the sandbox workspace.
-//
-// Unlike OverlayfsDriver, the CopyDriver doesn't use bubblewrap for isolation.
-// It simply runs the command in the workspace directory.
-//
-// Note: This provides no additional isolation - the process has full access
-// to the filesystem. For production use with untrusted code, use OverlayfsDriver
-// on Linux.
-func (d *CopyDriver) Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error) {
-	if s.MergedDir == "" {
-		return nil, fmt.Errorf("sandbox workspace directory not set")
-	}
-
-	// For copy driver, we just run the command directly in the workspace
-	// No bwrap isolation available
-	execCmd := execStd.CommandContext(ctx, cmd, args...)
-	execCmd.Dir = s.MergedDir
-
-	// Set environment
-	env := os.Environ()
-	for k, v := range cfg.Env {
-		env = append(env, k+"="+v)
-	}
-	execCmd.Env = env
-
-	stdout, err := execCmd.Output()
-	exitCode := 0
-	var stderr []byte
-
-	if err != nil {
-		if exitErr, ok := err.(*execStd.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-			stderr = exitErr.Stderr
-		} else {
-			return nil, fmt.Errorf("failed to execute command: %w", err)
-		}
-	}
-
-	return &ExecResult{
-		ExitCode: exitCode,
-		Stdout:   stdout,
-		Stderr:   stderr,
-		PID:      0, // Not tracked for simple exec
-	}, nil
-}
-
-// StartProcess starts a background process in the sandbox workspace.
-//
-// Unlike OverlayfsDriver, this doesn't use bubblewrap for isolation.
-// The process runs directly in the workspace directory.
-//
-// If cfg.LogWriter is provided, stdout and stderr are redirected to it.
-// The caller is responsible for closing the LogWriter when the process exits.
-func (d *CopyDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
-	if s.MergedDir == "" {
-		return 0, fmt.Errorf("sandbox workspace directory not set")
-	}
-
-	// For copy driver, we just start the command directly
-	execCmd := execStd.Command(cmd, args...)
-	execCmd.Dir = s.MergedDir
-
-	// Set environment
-	env := os.Environ()
-	for k, v := range cfg.Env {
-		env = append(env, k+"="+v)
-	}
-	execCmd.Env = env
-
-	// Redirect output to log writer if provided
-	if cfg.LogWriter != nil {
-		execCmd.Stdout = cfg.LogWriter
-		execCmd.Stderr = cfg.LogWriter
-	}
-
-	if err := execCmd.Start(); err != nil {
-		return 0, fmt.Errorf("failed to start process: %w", err)
-	}
-
-	return execCmd.Process.Pid, nil
-}
+// CopyDriver intentionally does not implement MountVerifier: there is no
+// real mount to verify. Callers should use VerifyIfSupported, which
+// short-circuits to nil for drivers without a mount.
 
 // --- Helper Functions ---
 
@@ -463,39 +274,4 @@ func copyFile(src, dst string, mode fs.FileMode) error {
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
-}
-
-// filesAreDifferent checks if two files have different content.
-func filesAreDifferent(path1, path2 string, info1, info2 fs.FileInfo) bool {
-	// Different sizes means different content
-	if info1.Size() != info2.Size() {
-		return true
-	}
-
-	// Different modes means different
-	if info1.Mode() != info2.Mode() {
-		return true
-	}
-
-	// For small files, compare content directly
-	if info1.Size() < 64*1024 { // 64KB threshold
-		content1, err1 := os.ReadFile(path1)
-		content2, err2 := os.ReadFile(path2)
-		if err1 != nil || err2 != nil {
-			return true
-		}
-		return string(content1) != string(content2)
-	}
-
-	// For larger files, modification time is a reasonable heuristic
-	// (though not perfect - content could differ even with same mtime)
-	return info1.ModTime() != info2.ModTime()
-}
-
-func isOverlayMarker(relPath string) bool {
-	baseName := filepath.Base(relPath)
-	if baseName == ".wh..opq" {
-		return true
-	}
-	return strings.HasPrefix(baseName, ".wh.")
 }

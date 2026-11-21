@@ -1,0 +1,153 @@
+{
+  "metadata": {
+    "name": "search-provenance-journey",
+    "description": "Search for a concrete behavior, select ranked evidence, and prove that source provenance and bounded relationships are available.",
+    "requirement": "CF-P0-021",
+    "version": 1,
+    "execution_mode": "mutating",
+    "labels": { "reset": "none", "requirements_json": "[\"CF-P0-015\",\"CF-P0-021\"]", "requires_confirmation": "true", "routed_isolation": "true" }
+  },
+  "id": "9a426fc2-104b-4a1d-82d4-8e9e7a0fecf8",
+  "project_id": "10d4c288-8990-4bde-96df-87368dbd0b9a",
+  "name": "search-provenance-journey",
+  "folder_path": "/flows",
+  "description": "Search for a concrete behavior, select ranked evidence, and prove that source provenance and bounded relationships are available.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"CF-P0-015\",\"CF-P0-021\"]",
+    "requires_confirmation:true",
+    "routed_isolation:true"
+  ],
+  "version": 1,
+  "created_at": "2026-08-21T02:27:04.241287740Z",
+  "updated_at": "2026-08-21T02:27:04.241287740Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "navigate-facts",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "code-facts",
+            "scenario_path": "/facts"
+          },
+          "metadata": {
+            "label": "Open the evidence workspace"
+          }
+        }
+      },
+      {
+        "id": "wait-search",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/facts.searchButton",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for bounded search"
+          }
+        }
+      },
+      {
+        "id": "run-search",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/facts.searchButton"
+          },
+          "metadata": {
+            "label": "Search for provider demotion"
+          }
+        }
+      },
+      {
+        "id": "wait-result",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/facts.resultCard",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Wait for ranked evidence"
+          }
+        }
+      },
+      {
+        "id": "select-result",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/facts.resultCard"
+          },
+          "metadata": {
+            "label": "Inspect the highest ranked evidence"
+          }
+        }
+      },
+      {
+        "id": "assert-provenance",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/facts.provenancePanel",
+            "mode": "ASSERTION_MODE_VISIBLE",
+            "failure_message": "Selected evidence must expose provenance and relationships",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Provenance panel is visible"
+          }
+        }
+      },
+      {
+        "id": "capture-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture ranked evidence with provenance"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "navigate-facts",
+        "target": "wait-search"
+      },
+      {
+        "source": "wait-search",
+        "target": "run-search"
+      },
+      {
+        "source": "run-search",
+        "target": "wait-result"
+      },
+      {
+        "source": "wait-result",
+        "target": "select-result"
+      },
+      {
+        "source": "select-result",
+        "target": "assert-provenance"
+      },
+      {
+        "source": "assert-provenance",
+        "target": "capture-evidence"
+      }
+    ]
+  }
+}

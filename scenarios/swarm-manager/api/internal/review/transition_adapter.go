@@ -1,0 +1,383 @@
+package review
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"swarm-manager/internal/stringsx"
+	"swarm-manager/internal/transitionrunner"
+
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+// RegisterTransitionAdapter contributes the review-owned snapshots and ledger
+// projections. It deliberately contains no workflow start or collection code.
+func (s *Service) RegisterTransitionAdapter(registrar transitionrunner.Registrar) {
+	registrar.RegisterInput("work.review", s.buildReviewInput)
+	registrar.RegisterInput("review.evidence_request", s.buildEvidenceRequestInput)
+	registrar.RegisterApply("apply_review_outcome", s.applyReviewOutcome)
+	registrar.RegisterApply("apply_review_evidence_request", s.applyEvidenceRequestOutcome)
+}
+
+func reviewSubject(kind, name string, round int) string {
+	return kind + "/" + name + "/" + strconv.Itoa(round)
+}
+
+func reviewThreadSubject(kind, name string, round int, thread string) string {
+	return reviewSubject(kind, name, round) + "/" + thread
+}
+
+func parseReviewSubject(subject string, thread bool) (string, string, int, string, error) {
+	parts := strings.Split(strings.TrimSpace(subject), "/")
+	want := 3
+	if thread {
+		want = 4
+	}
+	if len(parts) != want || parts[0] == "" || parts[1] == "" || (thread && parts[3] == "") {
+		return "", "", 0, "", fmt.Errorf("invalid review subject reference %q", subject)
+	}
+	round, err := strconv.Atoi(parts[2])
+	if err != nil || round < 1 {
+		return "", "", 0, "", fmt.Errorf("invalid review round in subject reference %q", subject)
+	}
+	threadID := ""
+	if thread {
+		threadID = parts[3]
+	}
+	return parts[0], parts[1], round, threadID, nil
+}
+
+// buildReviewInput reprojects one review round from its persisted request
+// snapshot. The snapshot is stored rather than recomputed because it carries
+// GCT results and baseline diffs captured at start; re-gathering them would
+// produce a different version on every rebuild and reject every apply.
+func (s *Service) buildReviewInput(_ context.Context, subject string) (transitionrunner.Snapshot, error) {
+	kind, name, roundNum, _, err := parseReviewSubject(subject, false)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	round, err := readRound(s.resolveItemDir(kind, name), roundNum)
+	if err != nil || round == nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("load review round: %w", err)
+	}
+	if len(round.AgentWorkflowSnapshot) == 0 {
+		return transitionrunner.Snapshot{}, fmt.Errorf("review round %d has no persisted request snapshot", roundNum)
+	}
+	return reviewRoundSnapshot(kind, name, round.AgentWorkflowSnapshot)
+}
+
+// reviewRoundSnapshot is the single projection used by both the start and the
+// apply-time rebuild, so the two can never drift.
+func reviewRoundSnapshot(kind, name string, raw json.RawMessage) (transitionrunner.Snapshot, error) {
+	var snapshot map[string]any
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("decode independent review snapshot: %w", err)
+	}
+	executionID, _ := snapshot["executionId"].(string)
+	version := snapshotVersion(raw)
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": kind, "name": name, "executionId": executionID, "version": version}, "snapshot": snapshot})
+	if err != nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("build independent review input: %w", err)
+	}
+	return transitionrunner.SnapshotFromSubject(input, snapshot, map[string]any{"kind": kind, "name": name})
+}
+
+// buildEvidenceRequestInput reprojects one evidence request. Every field it
+// needs already lives on the persisted thread, so no extra state is stored.
+func (s *Service) buildEvidenceRequestInput(_ context.Context, subject string) (transitionrunner.Snapshot, error) {
+	kind, name, roundNum, threadID, err := parseReviewSubject(subject, true)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	round, err := readRound(s.resolveItemDir(kind, name), roundNum)
+	if err != nil || round == nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("load review round: %w", err)
+	}
+	for _, thread := range round.RequestThreads {
+		if thread.ID != threadID {
+			continue
+		}
+		request := ""
+		if len(thread.Messages) > 0 {
+			request = thread.Messages[0].Content
+		}
+		return evidenceRequestSnapshot(kind, name, ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), roundNum, threadID, request, thread.EvidenceID)
+	}
+	return transitionrunner.Snapshot{}, fmt.Errorf("review thread %q not found", threadID)
+}
+
+// evidenceRequestSnapshot is shared by the start path and the apply-time
+// rebuild so both derive the same version from the same durable thread fields.
+func evidenceRequestSnapshot(kind, name, executionID string, roundNum int, threadID, request, evidenceID string) (transitionrunner.Snapshot, error) {
+	snapshot := map[string]any{"round": roundNum, "thread": threadID, "request": request, "evidenceId": evidenceID}
+	raw, err := json.Marshal(snapshot)
+	if err != nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("encode evidence request snapshot: %w", err)
+	}
+	digest := sha256.Sum256(append([]byte(threadID+"\x00"), raw...))
+	version := "sha256:" + hex.EncodeToString(digest[:])
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": kind, "name": name, "executionId": executionID + "/" + threadID, "version": version}, "snapshot": snapshot})
+	if err != nil {
+		return transitionrunner.Snapshot{}, fmt.Errorf("build evidence request input: %w", err)
+	}
+	return transitionrunner.SnapshotFromSubject(input, snapshot, map[string]any{"kind": kind, "name": name, "thread": threadID})
+}
+
+func (s *Service) startReviewTransition(ctx context.Context, params startReviewParams) error {
+	roundNum, err := nextRoundNumber(params.ItemDir)
+	if err != nil {
+		return fmt.Errorf("determine next round: %w", err)
+	}
+	priorEvidence, err := settledEvidenceForExecution(params.ItemDir, params.ExecutionID)
+	if err != nil {
+		return fmt.Errorf("load prior execution evidence: %w", err)
+	}
+	params.MachineEvidence = mergeEvidenceByID(params.MachineEvidence, priorEvidence)
+	encoded, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("encode independent review snapshot: %w", err)
+	}
+	// Persist the request snapshot with the round before starting. The runner's
+	// registered builder reads it back to construct the input, so the round has
+	// to be on disk first.
+	round := Round{RoundNum: roundNum, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: append([]EvidenceItem(nil), params.MachineEvidence...), AgentWorkflowSnapshot: encoded}
+	if err := saveRound(params.ItemDir, round); err != nil {
+		return fmt.Errorf("save review round: %w", err)
+	}
+	started, err := s.transitionRunner.StartWith(ctx, "work.review", reviewSubject(params.BacklogKind, params.BacklogName, roundNum), transitionrunner.PreparedInput{FirstRunNodeID: "review", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: params.BacklogKind, OwnerName: params.BacklogName, OwnerTitle: params.ItemTitle, Purpose: "review"}})
+	if err != nil {
+		return fmt.Errorf("start independent review transition: %w", err)
+	}
+	if len(started.Attempts) > 0 {
+		round.RunID = started.Attempts[0].RunID
+	}
+	if err := saveRound(params.ItemDir, round); err != nil {
+		return fmt.Errorf("save review round run association: %w", err)
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
+	}
+	return nil
+}
+
+func settledEvidenceForExecution(itemDir, executionID string) ([]EvidenceItem, error) {
+	rounds, err := readRounds(itemDir)
+	if err != nil {
+		return nil, err
+	}
+	var evidence []EvidenceItem
+	for _, round := range rounds {
+		if ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot) != strings.TrimSpace(executionID) {
+			continue
+		}
+		requested := make(map[string]struct{})
+		for _, thread := range round.RequestThreads {
+			if thread.Status != "fulfilled" {
+				continue
+			}
+			for _, message := range thread.Messages {
+				for _, evidenceID := range message.AddedEvidenceIDs {
+					requested[evidenceID] = struct{}{}
+				}
+			}
+		}
+		for _, item := range round.Evidence {
+			if _, wasRequested := requested[item.ID]; wasRequested && item.Settlement == "settled" {
+				evidence = append(evidence, item)
+			}
+		}
+	}
+	return evidence, nil
+}
+
+func mergeEvidenceByID(base, additional []EvidenceItem) []EvidenceItem {
+	merged := append([]EvidenceItem(nil), base...)
+	seen := make(map[string]struct{}, len(merged))
+	for _, item := range merged {
+		seen[item.ID] = struct{}{}
+	}
+	for _, item := range additional {
+		if _, exists := seen[item.ID]; exists {
+			continue
+		}
+		merged = append(merged, item)
+		seen[item.ID] = struct{}{}
+	}
+	return merged
+}
+
+// ExecutionIDFromSnapshot projects the transition execution identity from the
+// persisted immutable review input. Round deliberately owns no lifecycle ID.
+func ExecutionIDFromSnapshot(raw json.RawMessage) string {
+	var snapshot struct {
+		ExecutionID string `json:"executionId"`
+	}
+	if json.Unmarshal(raw, &snapshot) != nil {
+		return ""
+	}
+	return strings.TrimSpace(snapshot.ExecutionID)
+}
+
+func snapshotVersion(raw []byte) string { // stable snapshot version keeps runner idempotency exact.
+	// The existing workflow path uses SHA-256; preserve its observable version format.
+	digest := sha256.Sum256(raw)
+	return fmt.Sprintf("sha256:%x", digest)
+}
+
+func (s *Service) applyReviewOutcome(ctx context.Context, subject string, outcome transitionrunner.Outcome) error {
+	kind, name, roundNum, _, err := parseReviewSubject(subject, false)
+	if err != nil {
+		return err
+	}
+	itemDir := s.resolveItemDir(kind, name)
+	round, err := readRound(itemDir, roundNum)
+	if err != nil || round == nil {
+		return fmt.Errorf("load review round: %w", err)
+	}
+	FinalizeRoundFromResult(round, outcome.Result, outcome.Name)
+	criteria, err := criteriaFromReviewSnapshot(round.AgentWorkflowSnapshot)
+	if err != nil {
+		return err
+	}
+	if err := validateRoundEvidence(round.Evidence, criteria); err != nil {
+		return err
+	}
+	if err := validateCriterionVerdicts(round.CriterionVerdicts, criteria, round.Evidence); err != nil {
+		return err
+	}
+	if err := saveRound(itemDir, *round); err != nil {
+		return err
+	}
+	if s.evidenceRecorder != nil {
+		if err := s.evidenceRecorder(ctx, kind, name, *round); err != nil {
+			return fmt.Errorf("record review evidence: %w", err)
+		}
+	}
+	if s.onRoundTerminal != nil {
+		s.onRoundTerminal(ctx, kind, name, *round)
+	}
+	s.notifyRoundTerminal(ctx, kind, name, *round)
+	return nil
+}
+
+func criteriaFromReviewSnapshot(raw json.RawMessage) (map[string]struct{}, error) {
+	var snapshot struct {
+		AcceptanceCriteria []struct {
+			ID string `json:"id"`
+		} `json:"acceptanceCriteria"`
+	}
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, fmt.Errorf("decode review criteria: %w", err)
+	}
+	criteria := make(map[string]struct{}, len(snapshot.AcceptanceCriteria))
+	for _, criterion := range snapshot.AcceptanceCriteria {
+		if id := strings.TrimSpace(criterion.ID); id != "" {
+			criteria[id] = struct{}{}
+		}
+	}
+	return criteria, nil
+}
+
+func validateRoundEvidence(evidence []EvidenceItem, criteria map[string]struct{}) error {
+	for _, item := range evidence {
+		if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(string(item.Type)) == "" || strings.TrimSpace(item.Title) == "" || strings.TrimSpace(item.Producer) == "" || strings.TrimSpace(item.Trust) == "" {
+			return fmt.Errorf("review evidence must include id, type, title, producer, and trust")
+		}
+		switch item.Settlement {
+		case "settled", "refuted":
+		case "unavailable":
+			if strings.TrimSpace(item.UnavailableReason) == "" || strings.TrimSpace(item.AttemptedProducer) == "" {
+				return fmt.Errorf("unavailable review evidence must include unavailable_reason and attempted_producer")
+			}
+		default:
+			return fmt.Errorf("review evidence has invalid settlement %q", item.Settlement)
+		}
+		if criterionID := strings.TrimSpace(item.CriterionID); criterionID != "" {
+			if _, ok := criteria[criterionID]; !ok {
+				return fmt.Errorf("review evidence references unknown criterion %q", criterionID)
+			}
+		}
+	}
+	return nil
+}
+
+func validateCriterionVerdicts(verdicts []CriterionVerdict, criteria map[string]struct{}, evidence []EvidenceItem) error {
+	if len(criteria) == 0 && len(verdicts) == 0 {
+		return nil
+	}
+	if len(verdicts) != len(criteria) {
+		return fmt.Errorf("review result must include one criterion verdict for every acceptance criterion")
+	}
+	evidenceIDs := make(map[string]struct{}, len(evidence))
+	for _, item := range evidence {
+		evidenceIDs[item.ID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(verdicts))
+	for _, verdict := range verdicts {
+		if _, ok := criteria[strings.TrimSpace(verdict.CriterionID)]; !ok {
+			return fmt.Errorf("review verdict references unknown criterion %q", verdict.CriterionID)
+		}
+		switch verdict.Settlement {
+		case "settled", "refuted", "unavailable":
+		default:
+			return fmt.Errorf("review criterion verdict has invalid settlement %q", verdict.Settlement)
+		}
+		if len(verdict.EvidenceIDs) == 0 {
+			return fmt.Errorf("review criterion verdict %q must reference evidence", verdict.CriterionID)
+		}
+		for _, evidenceID := range verdict.EvidenceIDs {
+			if _, ok := evidenceIDs[evidenceID]; !ok {
+				return fmt.Errorf("review criterion verdict %q references unknown evidence %q", verdict.CriterionID, evidenceID)
+			}
+		}
+		seen[verdict.CriterionID] = struct{}{}
+	}
+	if len(seen) != len(criteria) {
+		return fmt.Errorf("review result must include unique verdicts for every acceptance criterion")
+	}
+	return nil
+}
+
+func (s *Service) applyEvidenceRequestOutcome(_ context.Context, subject string, outcome transitionrunner.Outcome) error {
+	kind, name, roundNum, threadID, err := parseReviewSubject(subject, true)
+	if err != nil {
+		return err
+	}
+	itemDir := s.resolveItemDir(kind, name)
+	round, err := readRound(itemDir, roundNum)
+	if err != nil || round == nil {
+		return fmt.Errorf("load review round: %w", err)
+	}
+	for i := range round.RequestThreads {
+		thread := &round.RequestThreads[i]
+		if thread.ID == threadID {
+			var result struct {
+				Summary  string         `json:"summary"`
+				Evidence []EvidenceItem `json:"evidence"`
+			}
+			_ = json.Unmarshal(outcome.Result, &result)
+			if strings.TrimSpace(result.Summary) == "" {
+				result.Summary = stringsx.FirstNonEmpty(outcome.TerminalCode, "Evidence request did not complete.")
+			}
+			round.Evidence = append(round.Evidence, result.Evidence...)
+			ids := make([]string, 0, len(result.Evidence))
+			for _, evidence := range result.Evidence {
+				if evidence.ID != "" {
+					ids = append(ids, evidence.ID)
+				}
+			}
+			thread.Messages = append(thread.Messages, RequestMessage{Role: "assistant", Content: result.Summary, Timestamp: s.now().Format(time.RFC3339), AddedEvidenceIDs: ids})
+			if outcome.Name == "fulfilled" {
+				thread.Status = "fulfilled"
+			}
+			return saveRound(itemDir, *round)
+		}
+	}
+	return fmt.Errorf("review thread %q not found", threadID)
+}

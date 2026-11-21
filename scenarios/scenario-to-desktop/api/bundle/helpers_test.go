@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestCollectPlatforms(t *testing.T) {

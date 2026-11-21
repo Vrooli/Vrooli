@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "surfaces-and-integrations",
+    "description": "Requirements for CLI, UI, Test Genie integration, and self-audit workflows.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "QH-SURF-001",
+      "title": "Expose thin CLI commands over the API",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "The CLI declares audit, contracts list, explain, and fix-config commands and keeps parsing/formatting separate from quality policy logic.",
+      "tags": ["cli", "api", "discoverability"],
+      "validation": [
+        {
+          "type": "cli",
+          "status": "planned",
+          "notes": "Run quality-health command help, JSON output tests, and cli-health discoverability checks once commands are implemented."
+        }
+      ]
+    },
+    {
+      "id": "QH-SURF-002",
+      "title": "Provide operator audit UI",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI renders the API audit model with scenario overview, surface breakdown, findings workbench, contract details, and autofix preview states.",
+      "tags": ["ui", "accessibility", "findings"],
+      "validation": [
+        {
+          "type": "ui",
+          "status": "planned",
+          "notes": "Vitest/RTL and smoke/BAS coverage for loading, empty, error, degraded, and populated audit states."
+        }
+      ]
+    },
+    {
+      "id": "QH-SURF-003",
+      "title": "Power the Test Genie quality phase",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Test Genie delegates the `quality` phase to Quality Health and stops running duplicate native lint/type or Tidiness Manager type-safety producers.",
+      "tags": ["test-genie", "quality-phase", "maturity"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Run `test-genie execute quality-health --phases quality --json` and Test Genie scenario tests after the cutover phase."
+        }
+      ]
+    },
+    {
+      "id": "QH-SURF-004",
+      "title": "Audit Quality Health itself",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "scenario-test",
+      "criticality": "P1",
+      "description": "Quality Health can audit its own generated React/Vite, Go API, Go CLI, Makefile, and testing metadata surfaces and produce truthful findings.",
+      "tags": ["self-audit", "quality-loop", "test-genie"],
+      "validation": [
+        {
+          "type": "scenario-test",
+          "status": "planned",
+          "notes": "Run `quality-health audit quality-health --json` and `vrooli scenario test quality-health` after API/CLI implementation."
+        }
+      ]
+    }
+  ]
+}

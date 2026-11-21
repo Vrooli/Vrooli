@@ -4,6 +4,56 @@ This document tracks known issues, open questions, and ideas deferred for future
 
 ## Open Issues
 
+### Workspace alias shadowing — repaired and adopted (2026-09-27)
+
+The bwrap builder mounted private `/tmp` after workspace aliases. With
+`MirrorProjectRoot=true`, this hid project or merged aliases below `/tmp`.
+Masks could also hide the project alias; root `/` was incorrectly excluded
+from the ancestor comparison. Failing regressions reproduced both cases.
+Private `/tmp` now precedes workspace binds, and masks preserve every alias.
+Full driver/exec and driver tests pass with `-trimpath`. The opt-in
+`TestLiveWorkspaceAliasesUnderTemporaryDirectory` also passes against actual
+bubblewrap (`go test ./internal/driver/exec -run '^TestLiveWorkspaceAliasesUnderTemporaryDirectory$' -count=1 -args -live-bwrap-aliases`).
+
+Adoption initially waited for the 45 active sandbox records to be distinguished
+from running processes. The provider reported complete, empty process inventory
+and the host had no bwrap child. Normal lifecycle restart then adopted API build
+`sha256:886d0cf2db08ce0a2822aaffb147b80eac2fe6826e10ccd34999bacaac437491`.
+The retained Agent Manager sandbox remained active. Post-restart disposable
+live-API checks proved workspace/merged aliases, overlay writes, read-only
+lower-layer denial, network denial and no running child afterward. Both probe
+sandboxes were deleted without promotion. Optional project-root mirroring was
+tested by the real-bwrap integration test, not enabled on the live service.
+
+Unit receipt `20260927-031429-f85404c2` remains failed. Its API failures came
+from four compiler-source-path-dependent fixtures and request-duration logging
+using the system clock instead of its injected clock. After repair, the full
+API suite passes with `-count=1 -trimpath -covermode=atomic`, including Darwin
+and Windows cross-builds. Separate test-policy/architecture findings remain;
+the green API run does not replace the failed owner receipt. The cross-scenario
+integration checkpoint retains the evidence index.
+
+### Behavior config seam — deferred follow-ups (2026-05-21)
+
+- **Wire-level override.** Today the rejection-message template comes
+  from the API-side scenario config (`<scenarioDir>/.vrooli/config.json`
+  `behavior.protected.gitDenyMessageTemplate`). The per-sandbox
+  `types.ProtectedConfig` (sent by agent-manager) does not carry a
+  template override. Add a `GitDenyMessageTemplate` wire field once a
+  real use case for per-sandbox messaging appears.
+- **Operator override plumbing.** The behavior loader supports custom
+  templates via `.vrooli/config.json`, but the runtime
+  `VROOLI_*_CONFIG_OVERRIDE_<key>=<json>` env-var override pattern
+  hinted at in the plan (§6) is intentionally deferred — only add the
+  loader path until an operator asks.
+- **Per-mode allowlist.** Today the `behavior.protected.gitAllowlist`
+  applies whenever the sandbox carries a non-empty
+  `ProtectedConfig.GitAllowlist`. If protected mode grows tiers ("read-
+  only", "minimal-write", "full"), the config schema would gain a
+  per-mode block. Defer until a second mode lands.
+
+
+
 ### Linux-Only Implementation
 - **Issue**: Primary driver (overlayfs + bwrap) only works on Linux
 - **Impact**: macOS and Windows users cannot use the sandbox
@@ -44,7 +94,7 @@ This document tracks known issues, open questions, and ideas deferred for future
 ### Single-Server Design
 - Current design assumes all sandboxes on one server
 - Distributed scenarios would need additional coordination
-- Metadata in PostgreSQL supports future distributed index
+- Metadata in SQLite supports future distributed index
 
 ### Git Operations Blocked by Convention
 - safe-git wrapper provides guidance, not enforcement
@@ -157,3 +207,26 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 
 *Last updated: 2025-12-17 by Claude Opus 4.5 (Security Fixes + Test Infrastructure Investigation)*
 *Next review: After test-genie path resolution issues are resolved*
+
+## Resolved Incidents
+
+### R-001: SSE exit-event race (2026-04-28)
+**Symptom**: Fast-failing processes (e.g. bwrap chdir failures, exit in ~10ms) closed the SSE log stream before `spawnExitReaper` called `RecordExit`. `StreamProcessLogs`'s best-effort `GetExitInfo` lookup returned nil, so no `event: exit` frame was ever sent. Agent-manager's SandboxLauncher treated the missing frame as a clean success.
+**Fix**: `process.Tracker.WaitForExit` blocks on a per-process `exitCh` channel that `RecordExit` closes; `StreamProcessLogs` awaits it with a 5s bounded timeout before emitting `event: exit` (or `event: error` if the timeout fires). See `scenarios/workspace-sandbox/docs/SEAMS.md` (Process Tracker seam).
+
+## Work ladder
+
+- Rung: W3 localized implementation defect.
+- Evidence: `api/internal/config/retention_store.go` promises that a failed retention policy write leaves the accepted runtime configuration intact. `FileRetentionStore.Set` published the candidate to its cache before `persistLocked` returned. A focused regression showed a failed write left the reconciler-visible `Get` value at the rejected policy.
+- Repair: persist the candidate under the store lock, then publish it to cache only after a successful write. The focused failed-write, acceptance, atomic-write and concurrent-read checks pass.
+- Measured: 2026-11-05. Workspace Sandbox Test Genie `unit` run `20261105-063010-e322333a` failed on unrelated `UNIT_POLICY_PROJECTION_DRIFT` in the unchanged UI workspace; Scenario QA bug `knw-1793860309257191953` owns that issue. The config repair and proof are retained in debt research run `cohort-six-topic-recommission-20261105-retention-lifecycle-03`.
+
+- Rung: W3 localized partial-update defect.
+- Evidence: `api/internal/handlers/config_retention.go` read, merged, then wrote a whole policy through separate store calls. The deterministic two-request HTTP regression returned two successful PUTs while the final value lost the requested size update.
+- Repair: the handler passes optional fields to the store; file and memory stores merge under their write lock, validate, and publish only after persistence succeeds. Focused HTTP and file-reload checks pass.
+- Measured: 2026-11-05. Workspace Sandbox Test Genie `unit` run `20261105-065746-c9cc0b68` failed on the same unrelated UI `UNIT_POLICY_PROJECTION_DRIFT` finding. Proof is retained in debt research run `cohort-six-topic-recommission-20261105-retention-partial-update-04`.
+
+- Rung: W3 localized CLI/API route and query defect.
+- Evidence: `cli/domains/process/register.go::runRun` posted to `/sandboxes/{id}/start-process`, but the API handler and `docs/EXECUTION_MODES.md` specify `POST /sandboxes/{id}/processes`; F3 retained a 404 for the old route. The API also requires `stream=stdout|stderr` for process log reads while CLI pull/follow requests omitted it; a live read returned 400.
+- Repair: background start now uses `/processes`. Process logs default to stdout, accept `--stream=stderr`, and forward the selected stream for pull and follow requests. Fake-API regressions cover both seams and isolate agent-session API routing.
+- Measured: 2026-11-09. Focused CLI regressions and `GOWORK=off go test -count=1 ./...` pass in `scenarios/workspace-sandbox/cli`. The installed CLI background-process smoke starts a short task-owned process, reads stdout/stderr with exit code 0, sees zero running processes, and stops/preserves the sandbox; receipt is in the Freelance delivery-kit run's `evidence/f3-cli-background-process-smoke-20261109.json`. Full concurrent n8n isolation remains open.

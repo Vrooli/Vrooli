@@ -2,6 +2,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -148,11 +149,11 @@ func TestStateErrorWithID(t *testing.T) {
 
 func TestIsTerminalState(t *testing.T) {
 	// Task terminal states
-	for _, s := range []TaskStatus{TaskStatusApproved, TaskStatusRejected, TaskStatusFailed, TaskStatusCancelled} {
+	for _, s := range []TaskStatus{TaskStatusApproved, TaskStatusRejected, TaskStatusCancelled} {
 		assert.True(t, isTerminalState("Task", string(s)), "Task %s should be terminal", s)
 	}
 	// Task non-terminal states
-	for _, s := range []TaskStatus{TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview} {
+	for _, s := range []TaskStatus{TaskStatusQueued, TaskStatusRunning, TaskStatusNeedsReview, TaskStatusFailed} {
 		assert.False(t, isTerminalState("Task", string(s)), "Task %s should not be terminal", s)
 	}
 	// Run terminal states
@@ -554,6 +555,15 @@ func TestAsDomainError_DomainError(t *testing.T) {
 	original := NewValidationError("field", "bad")
 	de := AsDomainError(original)
 	assert.Equal(t, original, de)
+}
+
+func TestAsDomainError_WrappedDomainError(t *testing.T) {
+	original := NewNotFoundError("Run", uuid.New())
+	wrapped := fmt.Errorf("continue run: %w", original)
+	de := AsDomainError(wrapped)
+	require.NotNil(t, de)
+	assert.Equal(t, ErrCodeNotFoundRun, de.Code())
+	assert.ErrorIs(t, wrapped, original)
 }
 
 func TestAsDomainError_PlainError(t *testing.T) {

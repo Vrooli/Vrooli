@@ -1,0 +1,83 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.network",
+  "name": "Capture Network Requests",
+  "description": "Load a page and record every HTTP request it issues — URL, method, status, timing, payload size. Use this when investigating slow page loads, missing API calls, CORS errors, unexpected third-party traffic, or proving which backend endpoints a UI actually hits.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "network",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
+    },
+    "out": {
+      "type": "path",
+      "required": true,
+      "description": "Directory the network capture JSON is written into."
+    }
+  },
+  "outputs": {
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id."
+    },
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors; network artifact is a JSON file of request records."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Capture network traffic from app-monitor home page.",
+      "input": {
+        "url": "scenario=app-monitor,path=/",
+        "out": "/tmp/bas-network"
+      }
+    }
+  ],
+  "tags": [
+    "network",
+    "requests",
+    "api",
+    "http",
+    "browser",
+    "performance",
+    "har",
+    "diagnostics"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The scenario shall report OpenRGB availability and expose stable enrolled controllers and zones with truthful per-zone capabilities.",
+      "id": "LIGHTING-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Backend and enrolled hardware control",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When an operator selects Off or static color and brightness, the scenario shall persist the desired policy and apply only operations supported by the enrolled zone.",
+      "id": "LIGHTING-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Durable manual Off and static control",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When the scenario, backend, or device returns, the scenario shall reconcile the persisted desired policy without frame-rate device scans.",
+      "id": "LIGHTING-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Headless desired-state reconciliation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When configured, the scenario shall derive load, work, health, and combined policies from real system-monitor and active-agent sources with freshness fallback, priority, hysteresis, cap, expiry, and static fallback.",
+      "id": "LIGHTING-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Real-input lighting policies",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The UI shall provide accessible, truthful hardware enrollment, policy, preset, and recovery journeys on desktop and mobile.",
+      "id": "LIGHTING-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Operable desktop and mobile experience",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

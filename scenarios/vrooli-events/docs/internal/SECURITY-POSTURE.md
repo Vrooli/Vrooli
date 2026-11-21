@@ -1,7 +1,7 @@
 # Security Posture
 
 ## Last Updated
-2026-04-05
+2026-11-14
 
 ## Threat Model
 
@@ -33,6 +33,7 @@ vrooli-events operates in a **trusted internal network** within the Vrooli ecosy
 | Control | Status | Notes |
 |---------|--------|-------|
 | API authentication | Not implemented | No auth on any endpoint. Relies on network-level isolation. |
+| Publisher source proof | Observation only (2026-11-14) | An event's `source.scenario` is taken from the envelope. A publisher can prove it with its `<source>-event-publisher` principal; every accepted event is classified and counted (`GET /api/v1/publisher-authentication`), and nothing is refused. A publisher that started before the operator ran `service-principals sync --apply` starts presenting its identity within a minute of it, with no restart. Enforcement is staged: per high-consequence family, then everywhere, on the operator's decision. |
 | SSE authentication | Not implemented | `EventSource` API doesn't support custom headers. |
 | Policy enforcement | Not implemented | Policy engine is a P1 feature (OT-P1-004 through OT-P1-009). |
 
@@ -45,6 +46,6 @@ vrooli-events operates in a **trusted internal network** within the Vrooli ecosy
 
 ## Known Gaps
 
-1. **No authentication**: Any process that can reach the API can ingest, query, and subscribe. Acceptable for internal use; would need auth for any external exposure.
+1. **No authentication**: Any process that can reach the API can ingest, query, and subscribe. Acceptable for internal use; would need auth for any external exposure. This includes publishing an event with any `source.scenario`, which is not acceptable once consumers act on events: decision requests and withdrawals, and Notification Hub's `notification_hub.ask.resolved.v1` answers, come from a source nothing has verified. Publishers now present a service principal for that source and the bus counts the result; requiring it is the next step (see the Notification Hub PROBLEMS.md entry of 2026-11-14).
 2. **No rate limiting on ingestion**: A runaway producer could flood the store. Policy engine (P1) will address this.
 3. **No TLS**: All communication is plaintext HTTP. Acceptable on localhost; would need TLS for cross-host deployment.

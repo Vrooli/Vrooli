@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.diff-viewer",
+    "name": "DiffViewer",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The semantic comparison surface for text or structured change, with split and unified modes, syntax highlighting, hunk navigation, comments, selection, and large-file handling.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.code",
+        "reason": "Monospace rendering, overflow, and whitespace preservation are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status",
+    "forced-colors-legibility"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "beauty": {
+    "avoid": [
+      "color-without-semantic-purpose"
+    ]
+  },
+  "rationale": "Added and removed lines must be distinguishable without colour, which most diff viewers fail. That single constraint is why this is a catalog asset rather than a wrapper around a diff library."
+}

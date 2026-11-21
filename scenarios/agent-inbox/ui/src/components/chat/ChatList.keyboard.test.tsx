@@ -1,8 +1,9 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for ChatList - Rename edge cases, keyboard navigation, and search
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ChatList } from "./ChatList";
@@ -47,7 +48,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: false,
     label_ids: [],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -63,7 +63,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: true,
     label_ids: ["label-1"],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -97,7 +96,7 @@ describe("ChatList - rename edge cases", () => {
 
   it("does not call onRenameChat if name unchanged", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
     await user.dblClick(chatName);
@@ -109,7 +108,7 @@ describe("ChatList - rename edge cases", () => {
 
   it("does not call onRenameChat if name is empty", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
     await user.dblClick(chatName);
@@ -123,7 +122,7 @@ describe("ChatList - rename edge cases", () => {
 
   it("trims whitespace from new name", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
     await user.dblClick(chatName);
@@ -137,7 +136,7 @@ describe("ChatList - rename edge cases", () => {
 
   it("does not trigger onSelectChat when clicking inside edit input", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
     await user.dblClick(chatName);
@@ -152,7 +151,7 @@ describe("ChatList - rename edge cases", () => {
 
   it("disables double-click when onRenameChat is not provided", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} onRenameChat={undefined} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} onRenameChat={undefined} />, { wrapper: createWrapper() });
 
     const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
     await user.dblClick(chatName);
@@ -178,7 +177,7 @@ describe("ChatList - keyboard navigation focus [KEY-001, KEY-002]", () => {
   });
 
   it("shows focus ring when focusedIndex matches item", () => {
-    render(<ChatList {...defaultProps} focusedIndex={0} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} focusedIndex={0} />, { wrapper: createWrapper() });
 
     const chatItem = screen.getByTestId("chat-item-chat-1");
     expect(chatItem).toHaveAttribute("data-focused", "true");
@@ -186,7 +185,7 @@ describe("ChatList - keyboard navigation focus [KEY-001, KEY-002]", () => {
   });
 
   it("does not show focus ring when focusedIndex is -1", () => {
-    render(<ChatList {...defaultProps} focusedIndex={-1} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} focusedIndex={-1} />, { wrapper: createWrapper() });
 
     const chatItem = screen.getByTestId("chat-item-chat-1");
     expect(chatItem).toHaveAttribute("data-focused", "false");
@@ -194,7 +193,7 @@ describe("ChatList - keyboard navigation focus [KEY-001, KEY-002]", () => {
   });
 
   it("shows focus ring only on the correct item", () => {
-    render(<ChatList {...defaultProps} focusedIndex={1} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} focusedIndex={1} />, { wrapper: createWrapper() });
 
     const chatItem1 = screen.getByTestId("chat-item-chat-1");
     const chatItem2 = screen.getByTestId("chat-item-chat-2");
@@ -204,7 +203,7 @@ describe("ChatList - keyboard navigation focus [KEY-001, KEY-002]", () => {
   });
 
   it("defaults focusedIndex to -1 when not provided", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const chatItem1 = screen.getByTestId("chat-item-chat-1");
     const chatItem2 = screen.getByTestId("chat-item-chat-2");
@@ -231,7 +230,7 @@ describe("ChatList - search functionality", () => {
   });
 
   it("renders search input", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const searchInput = screen.getByTestId("chat-search-input");
     expect(searchInput).toBeInTheDocument();
@@ -239,7 +238,7 @@ describe("ChatList - search functionality", () => {
   });
 
   it("displays chats when no search query", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     expect(screen.getByText("Test Chat 1")).toBeInTheDocument();
     expect(screen.getByText("Test Chat 2")).toBeInTheDocument();
@@ -247,7 +246,7 @@ describe("ChatList - search functionality", () => {
 
   it("clears search when clicking X button", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     const searchInput = screen.getByTestId("chat-search-input");
     await user.type(searchInput, "test");

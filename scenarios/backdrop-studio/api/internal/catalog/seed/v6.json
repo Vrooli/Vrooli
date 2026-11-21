@@ -1,0 +1,212 @@
+{
+  "version": 6,
+  "note": "Repairs from the first human review of the Tier-2 contact sheets. Seven styles were rendering legally and passing the perceptual gate while being images no designer would ship; this version fixes each at its cause. One style failed the gate outright at the smallest surface and is corrected here rather than exempted.",
+  "retune_reasons": [
+    "ascii-field failed the perceptual gate at email.header (600x240): subject_survival 0.560 against a 0.600 floor. The cause was the source, not the treatment — the `field` generator was twenty-two alpha-blended gaussians with no surfaces anywhere in the picture, so there was no composition for the glyph mosaic to preserve. The generator is now a metaball field with real implicit surfaces. The style's cell is also enlarged: at a 240px short edge a 0.02 cell resolved to a single 7px glyph advance, which is the coarsest quantum this treatment has and the least forgiving.",
+    "technical-field was a white smudge on grey mist for the same reason and is repaired by the same generator change. Its duotone now normalises so the new field's full range reaches the ink ramp.",
+    "tidal-caustic and ukiyo-tide both put a fine screen over a high-frequency caustic field, which is the classic beat: the screen samples the caustics at close to their own period and returns noise. Both now render a calmer water surface (lower `chop`, shallower `depth`) and screen it more coarsely. The fix is to the relationship between source and screen, not to either alone.",
+    "iron-attractor stippled an attractor whose filaments are one to two pixels wide, so the dots landed on nothing and the image read as dirt on paper. The stipple is finer and the attractor is denser and framed tighter, so there is a mass for the dots to describe.",
+    "long-exposure-flow smeared far enough to average the flow field's warm and cool filaments into grey. The smear is roughly halved and the tonal curve is closer to neutral, so the colour survives the blur that is the point of the style.",
+    "vaporwave-drift was silver-lilac in a lineage that promises magenta and cyan. Its aberration is stronger and its scrim lighter, so the channel separation reads as colour rather than as a soft edge.",
+    "guided-botanical rendered a flat green rectangle. Its scaffold was the abstract field under an `edge` conditioner, and a Canny edge map of a soft blob field is nearly empty — so ControlNet was handed almost no structure and produced almost none. It now conditions on `depth`, which is what a soft mass field can actually express, and the scaffold moves to `terrain` so there is foreground relief to bind to. Compare `guided-interior-riso`, which conditions on `edge` over the arcade scaffold and renders correctly: edge conditioning is not the problem, edge conditioning over an edgeless scaffold is.",
+    "device-stage-mesh shared the aurora palette with aurora-mesh and read as the same picture at a glance despite differing parameters. It moves to the solar ramp, which also suits a store listing better than a near-black one."
+  ],
+  "styles": [
+    {
+      "id": "ascii-field",
+      "name": "ASCII Field",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "demoscene",
+      "strategy": "procedural-treated",
+      "treatments": ["ascii_mosaic"],
+      "placements": ["full_bleed", "split_panel"],
+      "inks": {
+        "$brand.primary": "#0d1b12",
+        "$brand.background": "#d8f2c8"
+      },
+      "treatment_params": {
+        "ascii_mosaic": "{\"block_size_rel\": 0.035, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "field", "conditioner": "", "params_json": "{\"palette\": 1, \"balls\": 7, \"fuse\": 2.6, \"rim\": 0.5}" }
+    },
+    {
+      "id": "technical-field",
+      "name": "Technical Field",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "technical_minimalism",
+      "strategy": "procedural-treated",
+      "treatments": ["duotone", "grain"],
+      "placements": ["full_bleed", "split_panel", "corner_bleed"],
+      "inks": {
+        "$brand.primary": "#101820",
+        "$brand.background": "#e8eef2"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 5, \"amount\": 0.045, \"contrast_multiplier\": 1.04}"
+      },
+      "regions": [
+        { "x": 0.06, "y": 0.26, "width": 0.4, "height": 0.4, "kind": "overlay", "text_color": "#101820" }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "field", "conditioner": "", "params_json": "{\"palette\": 1, \"balls\": 9, \"fuse\": 2.4, \"turbulence\": 0.6}" }
+    },
+    {
+      "id": "tidal-caustic",
+      "name": "Tidal Caustic",
+      "version": 2,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "wabi_sabi",
+      "strategy": "procedural-treated",
+      "treatments": ["halftone"],
+      "placements": ["full_bleed", "split_panel"],
+      "inks": {
+        "$brand.primary": "#12304f",
+        "$brand.background": "#f2ece0"
+      },
+      "treatment_params": {
+        "halftone": "{\"lpi\": 42, \"angle\": 15, \"dot\": \"circle\", \"normalize\": true, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "caustics", "conditioner": "", "params_json": "{\"chop\": 0.45, \"depth\": 2.1}" }
+    },
+    {
+      "id": "ukiyo-tide",
+      "name": "Ukiyo Tide",
+      "version": 2,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "ukiyo_e",
+      "strategy": "procedural-treated",
+      "treatments": ["posterize", "halftone"],
+      "placements": ["full_bleed", "framed_inset"],
+      "inks": {
+        "$brand.primary": "#1b3a5c",
+        "$brand.background": "#f6efdd"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 5, \"normalize\": true}",
+        "halftone": "{\"lpi\": 34, \"angle\": 45, \"dot\": \"circle\", \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "caustics", "conditioner": "", "params_json": "{\"chop\": 0.35, \"depth\": 2.6, \"focal_y\": 0.62}" }
+    },
+    {
+      "id": "iron-attractor",
+      "name": "Iron Attractor",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": ["stipple"],
+      "placements": ["framed_inset", "split_panel"],
+      "inks": {
+        "$brand.primary": "#14161c",
+        "$brand.background": "#f4f1e8"
+      },
+      "treatment_params": {
+        "stipple": "{\"spacing_rel\": 0.008, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true, \"seed\": 11}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "attractor", "conditioner": "", "params_json": "{\"palette\": 1, \"zoom\": 2.1, \"density\": 2.2, \"variation\": 0.6}" }
+    },
+    {
+      "id": "long-exposure-flow",
+      "name": "Long Exposure Flow",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "art_deco",
+      "strategy": "procedural-treated",
+      "treatments": ["motion_blur", "curve"],
+      "placements": ["full_bleed", "split_panel"],
+      "treatment_params": {
+        "motion_blur": "{\"distance_rel\": 0.016, \"angle\": 18}",
+        "curve": "{\"exponent\": 0.96}"
+      },
+      "regions": [
+        { "x": 0.06, "y": 0.28, "width": 0.4, "height": 0.38, "kind": "overlay", "text_color": "#ffffff" }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "flow", "conditioner": "", "params_json": "{\"turbulence\": 0.55, \"density\": 1.6, \"focal_x\": 0.62, \"focal_y\": 0.42}" }
+    },
+    {
+      "id": "vaporwave-drift",
+      "name": "Vaporwave Drift",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "vaporwave",
+      "strategy": "procedural-treated",
+      "treatments": ["aberration", "bloom", "scrim"],
+      "placements": ["full_bleed"],
+      "inks": {
+        "$brand.primary": "#2a0f4a"
+      },
+      "treatment_params": {
+        "aberration": "{\"distance_rel\": 0.028}",
+        "bloom": "{\"radius_rel\": 0.0306, \"threshold\": 0.5}",
+        "scrim": "{\"color\": \"$brand.primary\", \"opacity\": 0.24, \"direction\": \"bottom\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "flow", "conditioner": "", "params_json": "{\"turbulence\": 1.4, \"density\": 1.3}" }
+    },
+    {
+      "id": "device-stage-mesh",
+      "name": "Device Stage Mesh",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "mid_century_modern",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": ["device_center", "caption_above_device"],
+      "treatment_params": {},
+      "regions": [
+        { "x": 0.2, "y": 0.16, "width": 0.6, "height": 0.68, "kind": "occlusion", "text_color": "#ffffff" }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "mesh", "conditioner": "", "params_json": "{\"palette\": 2, \"focal_x\": 0.5, \"focal_y\": 0.12, \"smear\": 0.34, \"angle\": 90, \"spread\": 0.04, \"blades\": 0.34, \"blade_scale\": 0.2}" }
+    },
+    {
+      "id": "guided-botanical",
+      "name": "Guided Botanical",
+      "version": 2,
+      "role": "ambient",
+      "subject": "botanical",
+      "lineage": "art_nouveau",
+      "strategy": "guided",
+      "treatments": ["duotone", "grain"],
+      "placements": ["full_bleed", "split_panel"],
+      "inks": {
+        "$brand.primary": "#14351f",
+        "$brand.background": "#f2ead6"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"amount\": 0.07, \"contrast_multiplier\": 1.05, \"seed\": 3}"
+      },
+      "regions": [
+        { "x": 0.06, "y": 0.24, "width": 0.4, "height": 0.42, "kind": "overlay", "text_color": "#f2ead6" }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": { "preset": "terrain", "conditioner": "depth", "params_json": "{\"focal_x\": 0.68}" },
+      "generation": {
+        "prompt_template": "dense botanical forms pressed flat against the picture plane, hard-edged overlapping leaves and stems filling the right two thirds, art nouveau linework, generous empty ground at left, no text, no people",
+        "negative": "text, watermark, signature, photorealistic skin, lens flare, flat colour blocks, empty frame"
+      }
+    }
+  ]
+}

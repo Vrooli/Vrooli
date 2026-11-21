@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.componenttests;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests;componenttests_v1";
+
+// ComponentTestsService owns durable, version-pinned catalog test reports.
+// Contracts are declarative and are evaluated only by approved RCL harnesses.
+service ComponentTestsService {
+  rpc RunComponentTest(RunComponentTestRequest) returns (RunComponentTestResponse);
+  rpc RerunComponentTest(RerunComponentTestRequest) returns (RerunComponentTestResponse);
+  rpc GetComponentTestReport(GetComponentTestReportRequest) returns (GetComponentTestReportResponse);
+  rpc ListComponentTestReports(ListComponentTestReportsRequest) returns (ListComponentTestReportsResponse);
+  rpc SweepComponentTests(SweepComponentTestsRequest) returns (SweepComponentTestsResponse);
+}
+
+message RunComponentTestRequest {
+  string component_id = 1;
+  string version = 2; // Required: no implicit latest-version substitution.
+  bool include_closure = 3;
+}
+
+message ComponentTestResult {
+  string stage = 1;
+  string asset_library_id = 2;
+  string version = 3;
+  string subject = 4;
+  string verdict = 5;
+  string message = 6;
+  string remediation = 7;
+	repeated ComponentTestEvidence evidence = 8;
+	string rule_source = 9;
+	string rule_declared_in = 10;
+}
+message ComponentTestEvidence {
+  string kind = 1;
+  string json = 2;
+}
+message ComponentTestArtifact {
+  string kind = 1;
+  string label = 2;
+  string asset_library_id = 3;
+  string version = 4;
+  string reference = 5;
+  string story_id = 6;
+}
+
+message ComponentTestReport {
+  string id = 1;
+  string root_library_id = 2;
+  string root_version = 3;
+  bool include_closure = 4;
+	google.protobuf.Timestamp created_at = 5;
+	string verdict = 6;
+	repeated ComponentTestResult results = 7;
+	repeated ComponentTestArtifact artifacts = 8;
+	string source_revision = 9;
+}
+
+message RunComponentTestResponse {
+	ComponentTestReport report = 1;
+	bool reused = 2;
+	string source_revision = 3;
+}
+message RerunComponentTestRequest {
+  string report_id = 1;
+}
+message RerunComponentTestResponse {
+  ComponentTestReport report = 1;
+}
+message GetComponentTestReportRequest {
+  string id = 1;
+}
+message GetComponentTestReportResponse {
+  ComponentTestReport report = 1;
+}
+message ListComponentTestReportsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+  string version = 3;
+}
+message ListComponentTestReportsResponse {
+  repeated ComponentTestReport reports = 1;
+}
+
+message SweepComponentTestsRequest {
+  // Skip versions with a durable non-blocked report; blocked and untested
+  // versions are retried so a BAS outage cannot be mistaken for coverage.
+  bool resume = 1;
+  bool include_closure = 2;
+  // Optional component UUID. Supplying it keeps a large corpus sweep within
+  // one request deadline; callers can run one durable batch per component.
+  string component_id = 3;
+}
+
+message SweepComponentTestsResponse {
+  int32 planned = 1;
+  int32 started = 2;
+  int32 skipped = 3;
+  int32 passed = 4;
+  int32 failed = 5;
+  int32 blocked = 6;
+  bool complete = 7;
+  repeated string errors = 8;
+  repeated ComponentTestReport reports = 9;
+}

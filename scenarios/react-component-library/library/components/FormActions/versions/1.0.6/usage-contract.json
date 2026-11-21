@@ -1,0 +1,13 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Button",
+      "CommandButton",
+      "IconButton"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 2
+  },
+  "componentId": "react-component-library:FormActions",
+  "version": "1.0.6"
+}

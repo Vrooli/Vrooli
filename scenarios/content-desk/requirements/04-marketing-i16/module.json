@@ -1,0 +1,493 @@
+{
+  "_metadata": {
+    "schema_version": "1.0.0",
+    "module": "I16-Marketing-accepted-outcomes",
+    "priority": "P0",
+    "description": "Source-reconciliation draft only; accepted semantic basis, independent corrected-package receiving verification pending. New obligations have no earned implementation/validation status."
+  },
+  "requirements": [
+    {
+      "id": "CONTENTD-P0-016",
+      "title": "Integrated Marketing workspace and durable Content home",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall provide purpose-specific Today, Plan, Create, Review and Learn modes plus a persistent Content collection and authorized search; preserve exact native object/revision links, selected scope, return filters and browser navigation; distinguish new, active, quiet, no-match and unavailable states; and explain, rank and persist dismissal of bounded next-action suggestions without inventing work.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A3, A8, A9, D1, D2, D3. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [1, 2, 10, 11]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-017",
+      "title": "Project scope and campaign-free admission",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall admit a draft into one stable owning project/subject reference or explicit Unassigned independently of an optional native campaign, keep private working title distinct from public headline/opening, support the proportionate one-off route without fabricated campaigns or spoofed post types, and preserve native identities through additive project creation, filtering and migration.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A3, A8. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [1, 2, 3, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-018",
+      "title": "Content relationships and guarded reassignment",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall preserve exact pinned source/derivation relationships and independent variant revisions; permit at most one native campaign and one primary same-project family per draft; treat saved collections as non-owning projections that consume no artifact slots; and preview detach/archive/move effects on membership, access, evidence and active releases without hidden cascade or identity loss.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A7, A8, D3. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [2, 8, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-019",
+      "title": "External article intake and resumable partial admission",
+      "status": "planned",
+      "prd_ref": "OT-P0-019",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall preview and admit existing text, structured article content, links, media placements and independently useful variants without regeneration, recording source artifact/revision, external producer and import intent; preserve originals and named derivatives; return exact per-item admission receipts or unresolved outcomes; reopen admitted work after restart; and reconcile or resume only unresolved items without title-based merge, duplicate body import or loss of rejected fields.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A8, D2. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [3, 4, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-020",
+      "title": "Pending media and released package linkage",
+      "status": "planned",
+      "prd_ref": "OT-P0-020",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall preserve draft-media candidates with original-byte manifest, source position, intended role/order/caption/alt text, rights and Asset Studio candidate version/state; show pending, missing and rejected media without treating them as released; and convert exact Asset Studio review/release receipts to released references while retaining lineage and enforcing distinct asset-review authority.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A7, A9. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [3, 4, 5, 8]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-021",
+      "title": "Adopted method and producer provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-021",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall resolve and record the applicable adopted method/source/adapter revisions and local exceptions by assignment and type/channel, retain native strategic/post-type/paired-skill authority and the scoped Drive founder-article guide, expose unknown historical method pins, and support scoped change review/adoption/rollback without editing independently authoritative instruction copies or invalidating unrelated accepted work.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A2, A9. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [4, 5, 12, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-022",
+      "title": "Immutable packages and scoped editorial decisions",
+      "status": "planned",
+      "prd_ref": "OT-P0-022",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall materialize revision-bound or content-addressed editorial review packages covering exact body/structure, media versions/order/crop, links, accessibility text, author, method/source basis and decision scope; distinguish destination-unbound wording acceptance, craft assessment, native human-only ApproveDraft and separately bounded release authority; preserve request-changes anchors and restore-as-new-revision history; and invalidate only affected decisions when consequential package fields change.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A7, D2. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [2, 4, 8, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-023",
+      "title": "Revision-bound evidence anchors and dependency impact",
+      "status": "planned",
+      "prd_ref": "OT-P0-023",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall bind claim support to the exact body revision, declared offset convention, quoted span/digest and contextual locator including ordered thread item identity; mark ambiguous or changed anchors stale; retain evidence strength and verified-claim gates; and show permission/source/offer changes and affected claims, variants, plans, packages and releases without mass rewrite or leakage through secondary surfaces.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A7, A8, A9. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [4, 8, 10, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-024",
+      "title": "Guarded operations, fingerprints and reconciliation",
+      "status": "planned",
+      "prd_ref": "OT-P0-024",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "Every mutating Content Desk command shall validate actor/scope and expected revision and persist its stable operation key with a canonical exact-request fingerprint; same-key same-request replay returns the admitted receipt, changed payload conflicts, and authorization-checked lookup remains available throughout recovery. Composite work shall retain stable child keys and individual receipts, reconcile uncertain effects before retry, and preserve admitted state on denial or partial failure.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A5, A7, A8, D4. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [2, 3, 6, 8, 10]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-025",
+      "title": "Explainable strategy and content-mix proposals",
+      "status": "planned",
+      "prd_ref": "OT-P0-025",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall support distinct ongoing Vrooli and app campaign briefs, compose versioned AI-assisted candidate channel/type/angle/date plans from accepted canon and pinned factual/offer/account/work inputs, expose reasons, constraints and omissions plus a meaningful lower-effort alternative, enforce slots separately from distinct remaining human effort, and record owner acceptance/defer/rejection without implicit publication or strategic-canon adoption.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A4, A5, D4, D7. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [1, 4, 6, 9, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-026",
+      "title": "Source work identity and Personal Planner allocation",
+      "status": "planned",
+      "prd_ref": "OT-P0-026",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall own stable Marketing preparation work IDs with occurrence/source revision, dependencies, remaining effort and completion meaning; project each source key once through Personal Planner registration/projection contracts; request accepted allocations through native preview/apply; retain native Planner IDs, stale-revision conflicts and tombstones; count shared work once; and expose provisional/unreserved and partial admission without inventing calendar authority.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A4, A5, D4. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [2, 6, 10, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-027",
+      "title": "Unified publication intentions and three time layers",
+      "status": "planned",
+      "prd_ref": "OT-P0-027",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall persist one intention per exact variant/destination, separately project desired publication, Personal Planner human allocations and Channel Manager admissions/actual receipts, support date-only civil dates, dayparts and instant/window with original IANA zone and DST ambiguity handling, and preview stale basis, capacity conflict and reschedule impact without turning a drag, copy or plan acceptance into external schedule or publication.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A4, A5, A7, D4. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [6, 8, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-028",
+      "title": "Capability-aware exact release and outcome recovery",
+      "status": "planned",
+      "prd_ref": "OT-P0-028",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall prepare manual handoff, supported provider schedule and qualified connected release from immutable exact publication packages and action-scoped account evidence; bind actor/destination/allowed timing atomically or through explicit recoverable admissions; preserve local queue, provider scheduled/held, owner-reported, verified, partial, unknown and cancel-requested distinctions; and expose ordered-item and route-specific reconciliation/control limits without duplicate dispatch, immediate-release substitution or unsupported provider promises.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A5, A6, A7, D2, D7. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [6, 7, 8, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-029",
+      "title": "Genuine contributors and exact consent lifecycle",
+      "status": "planned",
+      "prd_ref": "OT-P0-029",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall support bounded voluntary contributor briefs and included/excluded packet previews, manual external handoff or authorized scoped invitation with authenticated response evidence, actual attribution/affiliation and contributor-controlled final wording, versioned permitted use/account/window consent, decline/withdrawal/revocation and independently reported outcomes; latest consent changes shall block local dispatch and invoke truthful provider cancellation/correction responsibility without fabricated testimony, shared credentials, automatic contact or engagement manipulation.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A6, A7, A8. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [7, 8, 10, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-030",
+      "title": "Privacy, authenticated scope and recovery policy",
+      "status": "planned",
+      "prd_ref": "OT-P0-030",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall enforce server-side authenticated read/command scope and permitted cross-project references; disclose and restrict selected provider context, contributor packets and exports; apply revocation to search snippets, notifications, thumbnails and cached excerpts; and implement a disclosed permitted local recovery branch with shared-device/project exclusions, explicit clearing, retention/backup limits and account-switch/session-expiry isolation without sending old-account drafts under a new identity.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A8, A9, D6. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [10, 12, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-031",
+      "title": "Recoverable editing and truthful asynchronous state",
+      "status": "planned",
+      "prd_ref": "OT-P0-031",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall retain common base, server revision and permitted local branch during concurrent edits, failed/malformed/unknown saves, offline work, session expiry and scope changes; distinguish device save, confirmed server save, queued sync and unknown result; preserve typing/selection/scroll and copy/export fallback; link recoverable operation records from affected objects; and provide exact next actions without relying on transient toasts or optimistic success.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A8, A9, D5. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [5, 10, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-032",
+      "title": "Readable export and verified archive restore",
+      "status": "planned",
+      "prd_ref": "OT-P0-032",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall preview and export permitted text/structure, selected revisions, source/media/rights/alt/method/provenance relationships, review scopes, receipts and observations as readable content and a versioned credential-free machine archive; warn on omitted dependencies; dry-run explicit namespace/mapping and new/existing/conflicting/unsupported restore; recover partial imports without unrelated overwrite; and separately prove round-trip fidelity, archive/restore and truthful deletion/recovery/external-copy limits.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A8, A9. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [10, 12, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-033",
+      "title": "Optional authoring capability and bounded accounting",
+      "status": "planned",
+      "prd_ref": "OT-P0-033",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall qualify an optional agent/Prose authoring route against the same brief, permitted evidence, adopted method and output-quality contract as economical external authoring; disclose actual runner/model/provider/locality, selected span/context and budget/accounting source; retain candidate provenance and all-attempt/partial/failed usage; enforce supported ceilings across concurrency or show their absence, truthful cancellation and stale-result comparison; and keep manual/intake/export/planning useful without generation.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A2, A9. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [4, 5, 9, 12, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-034",
+      "title": "Observations, corrections and bounded learning",
+      "status": "planned",
+      "prd_ref": "OT-P0-034",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall join manual reported and imported verified observations to native release/item, exact package/account, definition/version, collection source, observation time, interval, unit/denominator and limitations; deduplicate identical events and retain correction/supersession/conflict lineage; preserve incomplete values as unknown; and support evidence-linked questions, experiments and accepted next proposals without competing metrics storage, fabricated causality or implicit strategy/method/recurrence adoption.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A4, A7, A9, D7. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [9, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-035",
+      "title": "Selected visual, responsive and accessibility fidelity",
+      "status": "planned",
+      "prd_ref": "OT-P0-035",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall implement close fidelity to all 47 selected Marketing 0.3 states with task-specific composition and documented truthful-data/accessibility adaptations; use provenance-aware actual-preview/context-art/typographic/no-art fallback, no mandatory image generation, and dark/reduced-data/motion forms; and demonstrate keyboard/focus/screen-reader, actual phone browser, 320 CSS-pixel reflow, intermediate/wide layouts, 200 percent text resize, 400 percent zoom, 44 by 44 touch targets and rendered 4.5:1 ordinary-text/3:1 large-text-essential-control contrast.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A9, D1, D5, D6. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [1, 2, 5, 10, 11, 13]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-036",
+      "title": "Compatible migration, reversible rollout and operations handoff",
+      "status": "planned",
+      "prd_ref": "OT-P0-036",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall inventory and classify existing data/fixtures/settings before additive or versioned migration, preserve stable IDs and historical scope/receipts/unknowns with controlled explicit backfill, prove supported backup restoration separately from user archive restore, retain saved routes or redirects, validate rollback after post-cutover writes, associate exact running build and acceptance evidence, and hand over monitoring/recovery/ownership without promoting a partial increment or unqualified provider route to whole-effort completion.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "workflow",
+          "status": "planned",
+          "notes": "Unexecuted acceptance obligation: A1, A8, A10. Exact authoritative prose: package/documents/dossier-accepted-basis/document-text.md chapters [13, 15]; implementation proposal package/documents/commission-accepted-basis/document-text.md tab t.klyx182mtect. Implementers replace this bounded intent with real test/evidence refs; source reconciliation is not runtime proof."
+        }
+      ]
+    },
+    {
+      "id": "CONTENTD-P0-037",
+      "title": "Native structured content formats and independent variants",
+      "status": "planned",
+      "prd_ref": "OT-P0-037",
+      "category": "marketing",
+      "criticality": "P0",
+      "description": "The system shall provide native post, ordered thread, long-form article, image/carousel and source-linked video planning/script/handoff composition with format-specific constraints, media order, caption/alt/link/accessibility data, exact item identities and independently editable variant snapshots; preserve incompatible or rejected imported fields explicitly rather than flatten them, and never claim universal video rendering or activation of unsupported post types.",
+      "tags": [
+        "marketing",
+        "i16",
+        "accepted-scope"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Accepted dossier chapter 5 and native-contract acceptance; implement and verify all formats, exact ordered-item IDs, independent variants and rejected-field preservation. No implementation evidence yet."
+        }
+      ]
+    }
+  ]
+}

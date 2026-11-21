@@ -64,6 +64,32 @@ describe('NavigationHandler', () => {
   });
 
   describe('execute', () => {
+    it('applies the declared interaction state after navigation', async () => {
+      const target = {
+        isVisible: jest.fn().mockResolvedValue(true),
+        boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 100, height: 40 }),
+        waitFor: jest.fn().mockResolvedValue(undefined),
+        hover: jest.fn().mockResolvedValue(undefined),
+        evaluate: jest.fn().mockResolvedValue(true),
+      };
+      const candidates = {
+        count: jest.fn().mockResolvedValue(1),
+        nth: jest.fn().mockReturnValue(target),
+        first: jest.fn().mockReturnValue(target),
+      };
+      mockPage.locator = jest.fn().mockReturnValue(candidates) as typeof mockPage.locator;
+      context.interactionState = 'hover';
+
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
+
+      const result = await handler.execute(instruction, context);
+
+      expect(result.success).toBe(true);
+      expect(mockPage.goto).toHaveBeenCalled();
+      expect(target.hover).toHaveBeenCalled();
+      expect(target.evaluate).toHaveBeenCalled();
+    });
+
     it('should navigate to URL from params', async () => {
       const instruction = createTypedInstruction('navigate', { url: 'https://example.com' }, { nodeId: 'node-1' });
 
@@ -104,7 +130,8 @@ describe('NavigationHandler', () => {
       // Note: URL is normalized (trailing slash added by URL.href)
       const { url, options } = getGotoCall(mockPage);
       expect(url).toBe('https://example.com/');
-      expect(options).toEqual(expect.objectContaining({ waitUntil: 'load' }));
+      expect(options).toEqual(expect.objectContaining({ waitUntil: 'domcontentloaded' }));
+      expect(mockPage.waitForLoadState).toHaveBeenCalledWith('load', expect.objectContaining({ timeout: expect.any(Number) }));
     });
 
     it('should support domcontentloaded waitUntil', async () => {
@@ -116,6 +143,18 @@ describe('NavigationHandler', () => {
       const { url, options } = getGotoCall(mockPage);
       expect(url).toBe('https://example.com/');
       expect(options).toEqual(expect.objectContaining({ waitUntil: 'domcontentloaded' }));
+    });
+
+    it('waits for a selector only after navigation completes', async () => {
+      const sequence: string[] = [];
+      mockPage.goto.mockImplementation(() => { sequence.push('goto'); return Promise.resolve(null); });
+      mockPage.waitForSelector.mockImplementation(() => { sequence.push('selector'); return Promise.resolve(null); });
+      const instruction = createTypedInstruction('navigate', { url: 'https://example.com', waitForSelector: '[data-testid=ready]' }, { nodeId: 'node-1' });
+
+      await handler.execute(instruction, context);
+
+      expect(sequence).toEqual(['goto', 'selector']);
+      expect(mockPage.waitForSelector).toHaveBeenCalledWith('[data-testid=ready]', expect.objectContaining({ state: 'visible' }));
     });
 
     it('should handle navigation errors', async () => {

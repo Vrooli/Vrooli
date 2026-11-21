@@ -1,0 +1,52 @@
+# Device Studio interaction and acceptance proposal
+
+2026-10-19. Proposed implementation contract derived from the accepted decisions; no UI, compiler or renderer is implemented by this document. Decisions in decisions.json supersede v7's pending questions. The writing-standards skill governs requirements and acceptance text.
+
+## Product interaction
+
+The primary path is Create shot → choose device and scene → assign recording → choose presentation and motion → preview → render/export. Each step retains a persistent preview and a readable reason for unavailable combinations. Advanced controls expose camera, lighting, support/placement, display calibration and keyframes. Numeric controls and keyboard alternatives accompany drag handles. Responsive review remains usable without requiring precise mobile 3D manipulation. Native mesh/shader editing remains an external import/export workflow.
+
+A shot pins device revision, physical state/attachments, scene revision, support/mount, presentation profile, actual capture references/time ranges, source/display clocks, camera and device tracks, lighting, output/color profile, render strategy and qualification scope. Scene/device/motion/presentation libraries are independently reusable. Editing creates a new draft; render jobs refer to immutable compiled revisions. A scene placement slot states support geometry and permitted attachments/clearances, not merely a list of device names. Unsupported combinations explain the violated constraint and offer valid alternatives.
+
+Photographic composition is available for fixed hardware/viewpoint with changing screen content and bounded crop moves. It cannot fulfill genuine parallax, phone rotation or a closing laptop. Full 3D handles those motions. The preview marks its rendering mode and final-look approximation. A screen-entry move explicitly aligns framing to the active app surface and hands off to the genuine capture; it does not end on the bezel or physical cutout. Test both portrait/landscape crops and final readability.
+
+## AI and agent disclosure
+
+When an action invokes a model, the UI MUST identify it as AI before initiation. When an action starts or delegates to an agent, the UI MUST identify it as an agent action before initiation. An AI action and an agent action are separate properties: a single image call need not spawn an agent; an agent may perform many local tool operations.
+
+Examples of action labels and summaries:
+
+| Action | Pre-action explanation |
+|---|---|
+| Render locally | No AI; named render engine, estimated duration and local compute requirements |
+| Generate scene with AI | Selected local/BYOK/Vrooli source; image count, estimate or unknown cost, budget ceiling and outgoing media |
+| Create device with an agent | Agent searches/imports/models/compares; allowed tools, maximum iterations/time/spend, child-agent allowance and external data policy |
+| Refine with an agent | Candidate revision and requested changes; same scope/budget/data disclosure; existing released asset remains pinned |
+| Reuse approved asset | Loads a stored revision; no implied generation, critique call or hidden agent |
+
+Labels must be visible text, not only a sparkle icon or tooltip. Before starting, show the source that will pay (local compute, user's provider account, or Vrooli credits), known estimate and maximum authorized spend, expected data leaving the machine and stop behavior. Unknown provider cost is not displayed as zero. Do not assign a token-to-credit conversion in Device Studio; consume the authoritative quote/rate version. The configured budget must bound all nested work, including retries and child agents, not reset for each step. Before paid dispatch, the system MUST establish an enforceable upper bound from operation limits or an authoritative provider/service cap and reserve that bound within the remaining total budget. If it cannot establish that bound, it MUST decline dispatch and explain the missing limit; a displayed budget is not enforcement. An unknown actual charge can remain pending after a bounded admitted operation, with its hold preserved until reconciliation. This rule also applies to BYOK services and agent-created child work.
+
+For a disclosed autonomous creation job, the user authorizes the bounded workflow once. Activity then shows each model call, spawned agent, tool stage, elapsed time, estimates/settled charges and retained outputs. Do not add a modal for every already-authorized iteration. If execution would change funding source, send newly sensitive data, exceed the configured ceiling, or invoke an undisclosed agent path, stop at that boundary and request an explicit revised choice. Regular camera/pose adjustment, timeline scrubbing and deterministic render MUST NOT silently invoke AI or launch an agent. Optional AI denoisers/upscalers also require an accurate label and execution description; local inference does not imply cloud upload.
+
+Cancellation stops owned local processes and future child submissions and attempts supported remote cancellation. The UI states if already-started external work may still incur costs. Preserve usable partial output and accounting reconciliation state. A failed or cancelled job does not silently fall back to paid compute.
+
+## Privacy and account behavior
+
+Local project work opens without a Vrooli credits account in personal-local mode. Connect account is an optional action to enable Vrooli-funded services. BYOK credentials stay in their shared secure-storage owner, never in projects/exported recipes/browser storage. Per-project external-app-media opt-in is independent of account linking and credit authorization. Default external references contain blank/redacted screens. The policy covers agent vision/critique and all child tools, not only image generation. Redaction evidence must be tied to the actual bytes uploaded.
+
+Sign-out removes the cloud relationship according to the shared account owner contract; it does not delete local projects. Offline operation can replay local assets and render with available local engines. Remote services show unavailable status rather than reclassifying the identity mode or charging an alternate source. Project archive/export excludes tokens, provider secrets, machine-private absolute paths and internal account identifiers where unnecessary.
+
+## Release acceptance examples
+
+1. Given a stored shot and approved local assets, when an offline personal-local user opens and renders it, then no website sign-in or cloud AI request occurs and the output includes its reproducibility receipt.
+2. Given a photographic plate, when a user selects a true phone spin or laptop hinge motion, then the editor requires a qualified 3D device/scene and does not substitute a crop zoom.
+3. Given real phone app footage, when the display is composed, then only the app viewport receives the video; status/home areas follow the selected profile, the status background surrounds the physical island, and the cutout remains opaque.
+4. Given a browser presentation, when the app recording is mapped, then desktop/browser chrome is independently customizable and the app's content is not stretched into the OS regions.
+5. Given a creation job with a declared total budget, when it uses an AI model or spawns a child agent, then activity records that event within the original budget and data scope; undisclosed scope expansion waits for a revised choice.
+6. Given external app-media sharing disabled, when generation or critique is requested, then outgoing inputs contain only permitted references/redacted bytes; no hidden child path uploads the original capture.
+7. Given retry, cancellation, timeout, or restart, when a credit-backed job is reconciled, then it has one authoritative funding lifecycle and cannot double-charge the same logical paid operation. Unknown usage remains unresolved, not free.
+8. Given a laptop close shot, when every frame is evaluated, then the lid and screen share the qualified pivot, base contact is preserved, the closed envelope is valid, and no geometry intersection is hidden by the hero framing.
+9. Given a wall-support scene, when a device is placed, then the device, mount and scene attachment interfaces are compatible; a free-standing display is not declared wall-compatible by appearance alone.
+10. Given a render created on one supported platform, when its project archive is imported on another, then relative assets and units/clocks resolve without the original checkout or home paths; differences in renderer look remain within the declared qualification or are reported.
+
+Correctness checks do not grant aesthetic acceptance. A released device/scene recipe also needs calibrated reference comparisons and human craft review at the promised final viewing size. The rejected v5 scene appearance remains a negative example; v6 photographic composition supplies an accepted direction, not a proof of 3D scene finish.

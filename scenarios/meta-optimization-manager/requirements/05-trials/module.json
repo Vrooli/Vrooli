@@ -1,0 +1,102 @@
+{
+  "_metadata": {
+    "description": "OT-P1-001 — empirical local-model readiness trials.",
+    "last_validated_at": "2026-09-02T19:08:01-04:00",
+    "module": "trials",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-TRIALS-001",
+      "title": "trials run executes a local-model SWE task suite via agent-manager's sandboxed runner, evaluates the diff against a fixture oracle, and records success/tokens/time history",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "trials",
+      "description": "`trials run` reconciles MoM's declared role-only profile, then dispatches SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through Agent Manager's sandboxed primitive (task create → run create --run-mode sandboxed → poll run get → run diff). Agent Manager owns runtime/resource selection; MoM evaluates the produced diff against the fixture oracle (deterministic-first, agent-judge fallback; negatives pass on correct abstention) and appends success-rate + tokens + wall-time + fixture-rev to a historical time-series.",
+      "tags": [
+        "trials",
+        "agent-manager",
+        "evaluator",
+        "fixtures",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials."
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "E2E: sandboxed dispatch with a stub agent-manager run; target bas/cases/trials."
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Live local-model e2e trial (expensive; operator-invoked); runbook in docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "MOM-TRIALS-002",
+      "title": "tracks % of Guide tasks with a live empirical gate",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "trials",
+      "description": "Each Guide-space task category maps to zero or more empirical gates; the trials domain computes and reports gate coverage over the Guide space as a recursive readiness metric.",
+      "tags": [
+        "trials",
+        "guide",
+        "coverage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI: trials coverage output; target cli/domains/trials."
+        }
+      ]
+    },
+    {
+      "id": "MOM-TRIALS-003",
+      "title": "list the task suite and inspect a run with its sandbox diff",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "trials",
+      "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show \u003crun-id\u003e` returns one run with its verdict, tokens, wall-time, and the agent-manager sandbox diff reference that attributes changed files to that run.",
+      "tags": [
+        "trials",
+        "suite",
+        "inspection",
+        "agent-manager"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI: trials list/show; target cli/domains/trials."
+        }
+      ]
+    }
+  ]
+}

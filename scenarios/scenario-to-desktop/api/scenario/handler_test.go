@@ -497,7 +497,7 @@ func TestScanDistArtifacts(t *testing.T) {
 	})
 }
 
-func TestDesktopStatusHandler(t *testing.T) {
+func TestListDesktopStatus(t *testing.T) {
 	tmpDir := t.TempDir()
 	scenariosDir := filepath.Join(tmpDir, "scenarios")
 	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
@@ -525,18 +525,9 @@ func TestDesktopStatusHandler(t *testing.T) {
 	store := &mockRecordStore{}
 	h := NewHandler(tmpDir, store, slog.Default())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/desktop-status", nil)
-	rr := httptest.NewRecorder()
-
-	h.DesktopStatusHandler(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-
-	var resp ListResponse
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	resp, err := h.ListDesktopStatus()
+	if err != nil {
+		t.Fatalf("ListDesktopStatus() error = %v", err)
 	}
 
 	if resp.Stats == nil {

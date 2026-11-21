@@ -1,0 +1,107 @@
+{
+  "_metadata": {
+    "description": "First-class, safe, version-pinned component and hook test contracts.",
+    "last_validated_at": "2026-08-25T02:11:45-04:00",
+    "module": "component-test-runner",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CTR-001",
+      "title": "Catalog assets declare only safe, version-pinned test behavior",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "A component or hook story contract is a versioned JSON declaration with an allowlisted node grammar, actions, assertions, and composition references; it never invokes arbitrary source, paths, commands, or setup code. Story lint rejects raw HTML tag names encoded as `$text`.",
+      "tags": [
+        "component-test",
+        "security",
+        "catalog"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/components/story_contract_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "CTR-002",
+      "title": "A component test resolves a deterministic manifest closure",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The runner requires an explicit root version and produces independent five-stage results for every eligible version-pinned asset in the selected manifest closure. Draft or source-less historical rows are excluded from the runnable evidence population.",
+      "tags": [
+        "component-test",
+        "closure",
+        "runner"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/componenttests/runner_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "CTR-003",
+      "title": "Catalog users can run, inspect, and rerun durable test evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The Connect API, CLI, and catalog Test tab expose a version-pinned report, report history, rerun identity, remediation, and deep-linked report selection.",
+      "tags": [
+        "component-test",
+        "cli",
+        "catalog",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/componenttests/module_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/components/ComponentTestPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "CTR-004",
+      "title": "Rendered catalog stories prove their declared safe expectations",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The preview browser sweep evaluates indexed component and hook story role, text, and attribute expectations in the rendered iframe, captures light/dark evidence and story sheets, and treats a visible preview sheet as the readiness boundary for fixed-positioned surfaces.",
+      "tags": [
+        "component-test",
+        "browser",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/componenttests/bas_executor.go",
+          "phase": "browser",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

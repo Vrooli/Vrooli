@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.optimization;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/optimization;optimization";
+
+// These fixed operations expose only the staged LM6 desktop-startup owner
+// transaction. JSON fields carry the versioned desktopoptimize domain types.
+message MeasureRequest {
+  string operation_id = 1;
+  string request_json = 2;
+}
+
+message PromoteRequest {
+  string operation_id = 1;
+  string request_json = 2;
+}
+
+message CleanupRequest {
+  string operation_id = 1;
+  string request_json = 2;
+}
+
+message StageReceipt {
+  string receipt_json = 1;
+}
+
+service DesktopOptimizationService {
+  rpc Measure(MeasureRequest) returns (StageReceipt);
+  rpc Promote(PromoteRequest) returns (StageReceipt);
+  rpc Cleanup(CleanupRequest) returns (StageReceipt);
+}

@@ -1,18 +1,22 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+
+	schema "notes-api/internal/notes"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -121,9 +125,11 @@ type Template struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-var db *sql.DB
-var defaultUserID string
-var logger *Logger
+var (
+	db            *sql.DB
+	defaultUserID string
+	logger        *Logger
+)
 
 func getDefaultUserID() string {
 	if defaultUserID == "" {
@@ -217,9 +223,7 @@ func main() {
 	router.HandleFunc("/api/templates", getTemplatesHandler).Methods("GET")
 	router.HandleFunc("/api/templates", createTemplateHandler).Methods("POST")
 
-	// Search endpoints
-	router.HandleFunc("/api/search", searchHandler).Methods("POST")
-	router.HandleFunc("/api/search/semantic", semanticSearchHandler).Methods("POST")
+	registerSearchRoutes(router)
 
 	// Setup CORS
 	c := cors.New(cors.Options{
@@ -245,6 +249,18 @@ func main() {
 		"health":    1,
 	})
 
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		logger.Fatal("Database schema initialization failed", "error", err.Error())
+	}
+	if generations, err := (schema.FleetCatalog{DB: db}).CensusAllGenerations(context.Background()); err != nil {
+		logger.Warn("Notes vector-generation catalog census failed closed", "reason", err.Error())
+	} else {
+		logger.Info("Notes vector-generation catalog census complete", "generations", len(generations))
+	}
+	if err := initializeSemanticServing(context.Background(), db, notesSemanticServingFactory); err != nil {
+		logger.Warn("Semantic serving is disabled until its admitted owner and active generation are available", "reason", err.Error())
+	}
+
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		logger.Fatal("Server failed to start", "port", port, "error", err.Error())
 	}
@@ -255,6 +271,47 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// notesSemanticMutationOperationID binds a shared-store idempotency key to
+// the durable trigger event created in the same Notes transaction. If a
+// vector write succeeds but its response is lost, retrying that source event
+// reuses the same operation ID and request digest.
+func resetNotesMutationSequence(ctx context.Context, tx *sql.Tx) error {
+	var value string
+	err := tx.QueryRowContext(ctx, `SELECT set_config('notes.fleet.sequence', '0', TRUE)`).Scan(&value)
+	if err != nil {
+		return fmt.Errorf("reset transaction-local Notes source sequence: %w", err)
+	}
+	return nil
+}
+
+func notesSemanticMutationOperationID(ctx context.Context, tx *sql.Tx, operation string, allowMissing bool) (string, int64, error) {
+	eventType := "upsert"
+	if operation == "delete" {
+		eventType = "delete"
+	} else if operation != "upsert" {
+		return "", 0, fmt.Errorf("unsupported Notes semantic source operation %q", operation)
+	}
+	var sequence int64
+	err := tx.QueryRowContext(ctx, `SELECT NULLIF(current_setting('notes.fleet.sequence', TRUE), '')::BIGINT`).Scan(&sequence)
+	if err != nil {
+		return "", 0, fmt.Errorf("read transaction-local Notes %s event sequence: %w", eventType, err)
+	}
+	if sequence <= 0 {
+		if allowMissing {
+			return "", 0, nil
+		}
+		return "", 0, fmt.Errorf("Notes %s mutation has no matching durable feed event", eventType)
+	}
+	return notesSemanticOperationID(eventType, sequence), sequence, nil
+}
+
+func notesSemanticOperationID(eventType string, sequence int64) string {
+	if sequence <= 0 || (eventType != "upsert" && eventType != "delete") {
+		return ""
+	}
+	return fmt.Sprintf("notes-fleet:%s:%d", eventType, sequence)
 }
 
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
@@ -326,10 +383,29 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at, last_accessed`
 
-	err := db.QueryRow(query, note.UserID, note.Title, note.Content,
+	tx, err := db.BeginTx(r.Context(), nil)
+	if err != nil {
+		http.Error(w, "Could not begin Notes transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	if err := resetNotesMutationSequence(r.Context(), tx); err != nil {
+		http.Error(w, "Could not initialize durable Notes source sequence", http.StatusInternalServerError)
+		return
+	}
+	err = tx.QueryRowContext(r.Context(), query, note.UserID, note.Title, note.Content,
 		note.ContentType, note.FolderID).Scan(&note.ID, &note.CreatedAt, &note.UpdatedAt, &note.LastAccessed)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	operationID, sourceSequence, err := notesSemanticMutationOperationID(r.Context(), tx, "upsert", false)
+	if err != nil {
+		http.Error(w, "Could not identify durable Notes change for semantic indexing", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Could not commit Notes mutation", http.StatusInternalServerError)
 		return
 	}
 
@@ -337,8 +413,17 @@ func createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	note.WordCount = len(note.Content) / 5          // Rough estimate
 	note.ReadingTime = (note.WordCount + 199) / 200 // Assuming 200 words per minute
 
-	// Index in Qdrant for semantic search
-	go indexNoteInQdrant(note)
+	// The Notes trigger records this mutation in its durable fleet feed. If the
+	// current owner is injected, apply it through the generation-bound serving
+	// adapter as an idempotent fast path; never write a guessed collection.
+	if semanticServing != nil && operationID != "" {
+		result, err := indexNoteInSemanticOwner(r.Context(), note, operationID, sourceSequence)
+		if err != nil {
+			logger.Warn("Could not update active semantic generation; durable Notes feed retains the mutation", "note_id", note.ID, "error", err.Error())
+		} else {
+			logger.Info("Updated active semantic generation", "generation", result.Generation, "admission", result.Admission, "note_id", note.ID)
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -363,7 +448,6 @@ func getNoteHandler(w http.ResponseWriter, r *http.Request) {
 		&note.IsPinned, &note.IsArchived, &note.IsFavorite,
 		&note.WordCount, &note.ReadingTime,
 		&note.CreatedAt, &note.UpdatedAt, &note.LastAccessed, &note.FolderID)
-
 	if err != nil {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return
@@ -393,9 +477,18 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 		RETURNING user_id, updated_at`
 
-	err := db.QueryRow(query, id, note.Title, note.Content, note.FolderID,
+	tx, err := db.BeginTx(r.Context(), nil)
+	if err != nil {
+		http.Error(w, "Could not begin Notes transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	if err := resetNotesMutationSequence(r.Context(), tx); err != nil {
+		http.Error(w, "Could not initialize durable Notes source sequence", http.StatusInternalServerError)
+		return
+	}
+	err = tx.QueryRowContext(r.Context(), query, id, note.Title, note.Content, note.FolderID,
 		note.IsPinned, note.IsFavorite).Scan(&note.UserID, &note.UpdatedAt)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -403,9 +496,26 @@ func updateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	note.ID = id
 	note.UserID = normalizeUserID(note.UserID)
+	operationID, sourceSequence, err := notesSemanticMutationOperationID(r.Context(), tx, "upsert", true)
+	if err != nil {
+		http.Error(w, "Could not identify durable Notes change for semantic indexing", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Could not commit Notes mutation", http.StatusInternalServerError)
+		return
+	}
 
-	// Re-index in Qdrant with updated content
-	go indexNoteInQdrant(note)
+	// The Notes trigger records this mutation in its durable fleet feed. The
+	// owner call is an idempotent fast path and is bound to the active recipe.
+	if semanticServing != nil && operationID != "" {
+		result, err := indexNoteInSemanticOwner(r.Context(), note, operationID, sourceSequence)
+		if err != nil {
+			logger.Warn("Could not update active semantic generation; durable Notes feed retains the mutation", "note_id", note.ID, "error", err.Error())
+		} else {
+			logger.Info("Updated active semantic generation", "generation", result.Generation, "admission", result.Admission, "note_id", note.ID)
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(note)
@@ -415,14 +525,53 @@ func deleteNoteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	_, err := db.Exec("DELETE FROM notes WHERE id = $1", id)
+	tx, err := db.BeginTx(r.Context(), nil)
 	if err != nil {
+		http.Error(w, "Could not begin Notes transaction", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	if err := resetNotesMutationSequence(r.Context(), tx); err != nil {
+		http.Error(w, "Could not initialize durable Notes source sequence", http.StatusInternalServerError)
+		return
+	}
+	var returnedTenantID sql.NullString
+	err = tx.QueryRowContext(r.Context(), "DELETE FROM notes WHERE id = $1 RETURNING user_id", id).Scan(&returnedTenantID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "Note not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	tenantID := ""
+	if returnedTenantID.Valid {
+		tenantID = normalizeUserID(returnedTenantID.String)
+	}
+	operationID, sourceSequence, err := notesSemanticMutationOperationID(r.Context(), tx, "delete", false)
+	if err != nil {
+		http.Error(w, "Could not identify durable Notes change for semantic deletion", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Could not commit Notes mutation", http.StatusInternalServerError)
+		return
+	}
 
-	// Remove from Qdrant as well
-	go deleteNoteFromQdrant(id)
+	// The Notes trigger emits the tenant-scoped tombstone transactionally. The
+	// active owner call is idempotent; the stable source ID prevents cross-tenant
+	// deletion even when note IDs overlap.
+	if semanticServing != nil && operationID != "" && tenantID != "" {
+		result, err := deleteNoteFromSemanticOwner(r.Context(), tenantID, id, operationID, sourceSequence)
+		if err != nil {
+			logger.Warn("Could not delete from active semantic generation; durable Notes feed retains the tombstone", "note_id", id, "error", err.Error())
+		} else {
+			logger.Info("Removed source from active semantic generation", "generation", result.Generation, "admission", result.Admission, "note_id", id)
+		}
+	} else if semanticServing != nil && operationID != "" {
+		logger.Warn("Tenant scope is unknown; durable Notes tombstone was retained without a vector delete", "note_id", id, "operation_id", operationID)
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -483,7 +632,6 @@ func createFolderHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := db.QueryRow(query, folder.UserID, folder.ParentID, folder.Name,
 		folder.Icon, folder.Color, folder.Position).Scan(&folder.ID, &folder.CreatedAt, &folder.UpdatedAt)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -512,7 +660,6 @@ func updateFolderHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := db.QueryRow(query, id, folder.Name, folder.Icon, folder.Color,
 		folder.Position).Scan(&folder.UpdatedAt)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -592,7 +739,6 @@ func createTagHandler(w http.ResponseWriter, r *http.Request) {
 		RETURNING id, usage_count`
 
 	err := db.QueryRow(query, userID, tag.Name, tag.Color).Scan(&tag.ID, &tag.UsageCount)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -653,7 +799,6 @@ func createTemplateHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := db.QueryRow(query, template.UserID, template.Name, template.Description,
 		template.Content, template.Category, template.IsPublic).Scan(&template.ID, &template.CreatedAt)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

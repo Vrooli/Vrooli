@@ -1,0 +1,163 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"slices"
+	"strconv"
+	"syscall"
+
+	"github.com/vrooli/api-core/localprincipal"
+	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
+	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/config"
+)
+
+func nativeOperatorIdentity() error {
+	principal, err := localprincipal.Current()
+	if err != nil {
+		return err
+	}
+	security, err := platform.ProcessSecurity(os.Getpid())
+	if err != nil {
+		return err
+	}
+	if security.Elevated || os.Geteuid() == 0 || principal.String() == "windows:S-1-5-18" {
+		return errors.New("native operator worker requires the actual nonroot operator identity")
+	}
+	return nil
+}
+
+func nativeOperatorLifetimeContext(parent context.Context) (context.Context, func(), error) {
+	raw := os.Getenv(platform.NativeBrokerOperatorLifetimeEnv)
+	value, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil || value == 0 || uint64(uintptr(value)) != value || strconv.FormatUint(value, 10) != raw {
+		return nil, nil, errors.New("native operator lifetime handle is missing or malformed")
+	}
+	file, err := openNativeOperatorLifetime(uintptr(value))
+	if err != nil {
+		return nil, nil, err
+	}
+	if file == nil {
+		return nil, nil, errors.New("native operator lifetime pipe is unavailable")
+	}
+	return nativeOperatorLifetimeFileContext(parent, file)
+}
+
+func nativeOperatorLifetimeFileContext(parent context.Context, file *os.File) (context.Context, func(), error) {
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, nil, err
+	}
+	if info.Mode()&os.ModeNamedPipe == 0 {
+		file.Close()
+		return nil, nil, errors.New("native operator lifetime requires a private inherited pipe")
+	}
+	if err = protectNativeOperatorLifetime(file); err != nil {
+		file.Close()
+		return nil, nil, err
+	}
+	ctx, cancel := context.WithCancel(parent)
+	done := make(chan struct{})
+	go func() { var token [1]byte; _, _ = file.Read(token[:]); cancel(); close(done) }()
+	return ctx, func() { cancel(); _ = file.Close(); <-done }, nil
+}
+
+func runNativeOperatorSupervisorCommand(args []string, stderr io.Writer) (bool, int) {
+	expected := cliinvoke.NativeOperatorSupervisorRun()
+	if len(args) == 0 || args[0] != expected[0] {
+		return false, 0
+	}
+	if !slices.Equal(args, expected) {
+		fmt.Fprintln(stderr, "native operator supervisor accepts no arguments")
+		return true, 1
+	}
+	if err := nativeOperatorIdentity(); err != nil {
+		fmt.Fprintln(stderr, err)
+		return true, 1
+	}
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	ctx, closeLifetime, err := nativeOperatorLifetimeContext(signalCtx)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return true, 1
+	}
+	defer closeLifetime()
+	if err = buildinfo.PinCompiledRuntimeHome(); err != nil {
+		fmt.Fprintln(stderr, "native operator supervisor requires compiled runtime-home authority")
+		return true, 1
+	}
+	home, err := config.HomeDir()
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return true, 1
+	}
+	if err = guardNativeOperatorSupervisorActivation(ctx, home); err != nil {
+		fmt.Fprintln(stderr, err)
+		return true, 1
+	}
+	app := runtimeapp.Service{Version: vrooliVersion, ResolveRootFn: func() (string, error) { return runtimeapp.ResolveNativeOperatorSource(home) }}
+	// No machine-broker option: this is the sole ordinary lease/process/SQLite
+	// supervisor, running as the actual operator, with fixed resource IPC below.
+	err = app.RunSupervisor(ctx, home, runtimeapp.SupervisorRunOptions{Takeover: true})
+	if ctx.Err() != nil && errors.Is(err, context.Canceled) {
+		return true, 0
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "native operator supervisor stopped: %v\n", err)
+		return true, 1
+	}
+	return true, 0
+}
+
+// Only the native owner's exact current actor-image proof supplies this digest;
+// no environment/caller digest or mutable executable pathname is accepted.
+func guardNativeOperatorSupervisorActivation(ctx context.Context, home string) error {
+	file, err := platform.OpenCurrentNativeOperatorSupervisorImage(ctx)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > 512<<20 {
+		return errors.New("native operator supervisor image exceeds bounds")
+	}
+	if _, err = file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	hash := sha256.New()
+	reader := &nativeOperatorImageReader{ctx: ctx, reader: io.LimitReader(file, 512<<20+1)}
+	n, err := io.Copy(hash, reader)
+	if err != nil {
+		return err
+	}
+	if n <= 0 || n > 512<<20 || n != info.Size() {
+		return errors.New("native operator supervisor image changed")
+	}
+	return guardRootActivationForImage(home, true, hex.EncodeToString(hash.Sum(nil)))
+}
+
+type nativeOperatorImageReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r *nativeOperatorImageReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
+}

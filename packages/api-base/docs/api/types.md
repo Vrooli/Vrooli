@@ -502,7 +502,8 @@ interface ServerTemplateOptions {
   distDir?: string
   serviceName?: string
   version?: string
-  corsOrigins?: string | string[]
+  allowedOrigins?: readonly string[]
+  publicPaths?: ReadonlyArray<string | RegExp>
   verbose?: boolean
   configBuilder?: (env: Record<string, string | undefined>) => ScenarioConfig
   setupRoutes?: (app: any) => void
@@ -531,7 +532,8 @@ interface ServerTemplateOptions {
 | `distDir` | `string` | `"./dist"` | Static files directory |
 | `serviceName` | `string` | - | Service name for logging |
 | `version` | `string` | - | Service version |
-| `corsOrigins` | `string \| string[]` | - | Allowed CORS origins |
+| `allowedOrigins` | `readonly string[]` | `[]` | Exact origins allowed to call cross-origin with credentials; same-origin needs no entry. Wildcards and `null` are refused. See [SECURITY.md](../../SECURITY.md) |
+| `publicPaths` | `ReadonlyArray<string \| RegExp>` | `[]` | Paths any origin may read (GET/HEAD) without credentials |
 | `verbose` | `boolean` | `false` | Enable verbose logging |
 | `configBuilder` | `function` | - | Custom config builder |
 | `setupRoutes` | `function` | - | Custom route setup function |
@@ -558,7 +560,6 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
-  corsOrigins: ['http://localhost:5173'],
   verbose: true,
 
   configBuilder: (env) => ({
@@ -784,7 +785,6 @@ interface ConfigEndpointOptions {
   serviceName?: string
   additionalConfig?: Record<string, unknown>
   configBuilder?: () => ScenarioConfig
-  cors?: boolean
   includeTimestamp?: boolean
   cacheControl?: boolean | string
 }
@@ -803,7 +803,6 @@ interface ConfigEndpointOptions {
 | `serviceName` | `string` | - | Service name |
 | `additionalConfig` | `Record<string, unknown>` | `{}` | Extra config fields |
 | `configBuilder` | `function` | - | Custom config builder |
-| `cors` | `boolean` | `false` | Enable CORS headers |
 | `includeTimestamp` | `boolean` | `false` | Add timestamp field |
 | `cacheControl` | `boolean \| string` | `false` | Cache control header |
 
@@ -821,7 +820,6 @@ app.get('/config', createConfigEndpoint({
   additionalConfig: {
     features: { analytics: true },
   },
-  cors: true,
   cacheControl: 'no-cache',
 }))
 ```

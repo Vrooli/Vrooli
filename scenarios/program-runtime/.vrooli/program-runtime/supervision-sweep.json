@@ -1,0 +1,114 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.supervision-sweep",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read fleet lifecycle state once and report running/health for a named delivery-scenario set, naming any that are not running or not healthy, so a supervisor runs one program instead of one status call per scenario.",
+  "inputs": {
+    "scenarios": {
+      "type": "string",
+      "required": false,
+      "default": "agent-manager,prompt-manager,web-console,workflow-health,browser-automation-studio,scenario-to-desktop,nutrition-planner,personal-planner",
+      "description": "Comma-separated scenario slugs to supervise. Defaults to the delivery/product scenario set."
+    }
+  },
+  "assumptions": [
+    "the vrooli project control-plane API is reachable (the process that serves vrooli/scenario/list)"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "exactly one governed read (vrooli/scenario/list) is issued; no per-scenario fan-out",
+    "filter the fleet handle by requested scenario slugs before materializing at most 32 matching rows; report incomplete coverage when matches exceed the bound",
+    "the envelope is printed exactly once, on every path",
+    "at most 32 requested scenarios are reported; the request is truncated with truncated=true"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli/scenario/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "requested": "count of scenario slugs supervised after truncation",
+      "found": "count of requested slugs present in the fleet list",
+      "running": "count of requested scenarios whose lifecycle status is running",
+      "healthy": "count of requested scenarios whose health is healthy",
+      "attention": "list of {name, status, health} for requested scenarios that are not running or not healthy, plus any requested slug absent from the fleet list",
+      "truncated": "true when more than 32 slugs were requested",
+      "source_truncated": "true when matching fleet rows exceed the bounded materialization"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "binding ids read"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 64
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Requires the project control-plane API serving vrooli/scenario/list. When that endpoint is down the program returns status unavailable with reason scenario_unreachable; that is the honest sensor result, not a program defect."
+    },
+    {
+      "id": "empty-request",
+      "inputs": {
+        "scenarios": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "An empty scenario set after trimming is an invalid input the program reports as failed with class invalid_input before any read."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

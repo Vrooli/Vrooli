@@ -1,0 +1,95 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.optimize",
+  "version": "1",
+  "purpose": "Submit one immutable optimization request to the durable owner engine, wait once for a bounded interval, and return its pending or terminal receipt.",
+  "inputs": {
+    "request": {
+      "type": "object",
+      "required": true,
+      "free_text": true,
+      "description": "Complete immutable optimization.Request object with stable run_id, owner target id, subject, candidates, suite_id, fixed case_ids, and minimum_cases. The registered target adapter validates target-specific shape; Ollama role runs use an authoritative role name, three candidates pinned to expected artifact digests, and 20+ cases, while desktop-startup pins DP1's paired denominator."
+    },
+    "wait_ms": {
+      "type": "integer",
+      "default": 30000,
+      "description": "One bounded wait after submit, from 1 to 60000 milliseconds. A pending response remains durable and can be resumed later."
+    }
+  },
+  "assumptions": [
+    "The request names a registered owner adapter and pins every candidate and evaluation case before owner effects begin.",
+    "Request keys follow the optimization.Request JSON contract exactly; the LM6 showcase uses three chat.default candidates pinned to their expected owner-policy artifact digests and at least 20 fixed cases, and the Ollama owner adapter may accept other authoritative roles for LM8. Desktop-startup pins one candidate digest and 30 distinct class-phase-pair case IDs. Other lower-case target IDs are delegated to a registered owner adapter, which must validate the target-specific contract before effects.",
+    "The engine owns durable run identity, recovery, rights and disk admission, promotion, cleanup, and refusal; this program does not recreate those policies.",
+    "Target adapters obtain facts and effects through their owning resource or scenario APIs; this program never shells out or calls a private CLI command.",
+    "A single wait can return pending; the optimizer continues under its durable owner and a later invocation resumes by the same immutable run_id."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "The request must be a valid optimization.Request object with a non-empty stable run_id before submit is called.",
+    "Submit is called at most once and Wait is called at most once per program invocation; the program never polls.",
+    "A pending result is reported as partial with the same run_id and is not presented as a winner or completed optimization.",
+    "Only an owner record with stage complete is reported as ok; a refused owner record stays refused.",
+    "All model acquisition, evaluation, rights, disk, promotion, and deletion decisions remain in governed owner boundaries.",
+    "No target-specific effect runs unless a matching owner adapter is registered; unknown owner targets fail closed."
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/optimization/submit",
+      "effect": "destructive",
+      "note": "Starts or resumes one immutable durable optimization run; each downstream side effect remains gated by owner receipts."
+    },
+    {
+      "id": "program-runtime/optimization/wait",
+      "effect": "read",
+      "optional": true,
+      "note": "If the one bounded wait is unavailable, return the submitted durable record as pending so a later invocation can resume it."
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": ["ok", "partial", "unavailable", "refused", "failed"],
+      "note": "partial means the durable owner run remains pending after the single bounded wait."
+    },
+    "phase": {
+      "enum": ["validate", "collect", "act", "report"]
+    },
+    "signals": {
+      "run_id": "Stable owner run identity.",
+      "state": "pending or terminal.",
+      "stage": "Last durable engine stage.",
+      "revision": "Last durable record revision.",
+      "waited_ms": "Time spent in the single bounded owner wait, in milliseconds.",
+      "winner_id": "Owner accepted winner, when promotion completed.",
+      "failure": "Owner refusal or failure reason, when present.",
+      "last_error": "Most recent retryable owner error, when the durable run is pending.",
+      "retry_at": "Owner-scheduled retry time for a pending run.",
+      "stage_attempts": "Bounded per-stage retry counts recorded by the durable manager.",
+      "candidate_artifact_digests": "Acquisition receipt mapping of every pinned candidate ID to its acquired artifact digest.",
+      "candidate_results": "Evaluation receipt results keyed by candidate ID, with each owner's case count, case digest, and score.",
+      "promoted_artifact_digest": "Exact pinned artifact digest named by the promotion receipt.",
+      "removal_receipts": "Cleanup owner receipts keyed by every losing candidate and predecessor ID.",
+      "receipts": "Bounded list of stage and owner receipt IDs from the durable record."
+    },
+    "errors": {
+      "classes": ["invalid_input", "binding_error", "scenario_unreachable", "no_grant", "not_run_eligible", "deadline_exceeded", "remote_error", "kernel_runtime"]
+    },
+    "evidence": "Durable owner receipt IDs, one entry per returned evidence stage."
+  },
+  "budget": {
+    "wall_ms": 100000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-request",
+      "inputs": {"request": {"run_id": ""}},
+      "expect": {"status": ["failed"], "signals": {"run_id": ""}},
+      "note": "Exercises local request validation before any optimizer binding or owner operation."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "tight-optimization-loop"
+}

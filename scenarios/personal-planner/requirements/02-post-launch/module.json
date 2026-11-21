@@ -1,0 +1,175 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Native goals with explicit progress method, evidence-based milestones, explicit promises with full revision/acknowledgment history, and finish-to-start dependencies with waits and passive work (plan REQ-06/REQ-07/REQ-08, §9).",
+      "id": "PLAN-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Goals, milestones, commitments, dependencies",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A pure scheduling kernel returns explainable candidate placements that never write accepted records; apply is a separate revalidated, idempotent, atomic command with conditional undo (plan REQ-10, §11).",
+      "id": "PLAN-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Deterministic proposal engine with review/apply/undo",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "One shared personal resource model produces central/cautious scenario finishes (not false probabilities), with freshness, input fingerprints, risk state, and compact change explanations separating evidence from cause (plan REQ-11, §12).",
+      "id": "PLAN-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Explainable scenario forecasts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Add-a-task, reduce-scope, move-a-target, protect-a-day, and change-available-hours scenarios compare against the accepted baseline without writing sources, commitments, shares, or notifications (plan REQ-12, §11.5).",
+      "id": "PLAN-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Side-effect-free what-if",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Four focus modes, at-most-one exclusive session per person across devices, server-durable timers, interruption capture, and manual/approximate actuals with preserved correction provenance (plan REQ-13/REQ-14, §13).",
+      "id": "PLAN-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Durable focus sessions and correctable actuals",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Planned-vs-actual review with visible coverage, selective carry-forward, and conservative descriptive recommendations that only change settings on explicit acceptance (plan REQ-15, §14).",
+      "id": "PLAN-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Daily/weekly review and evidence-linked learning",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Source registration, normalized scheduling-intent projection, and schedule command/query contracts let Daily/Cadence and agent work submit intent and read accepted schedules through one owner (plan REQ-16, §15).",
+      "id": "PLAN-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Shared Vrooli scheduling contracts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "At least one real provider (Google fallback target) connects read-only, importing external obligations into capacity with honest freshness, incremental sync, and stale-busy behavior (plan REQ-17, §16).",
+      "id": "PLAN-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Read-only external calendar integration",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Owners share chosen commitment fields to a recipient-bound viewer with server-side field masks and revocation, plus useful deduplicated notifications through the ecosystem owner (plan REQ-18/REQ-19, §17-18).",
+      "id": "PLAN-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Selective read-only sharing and notifications",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Versioned native export, actuals CSV, calendar ICS, explicit permanent deletion, and validated import/preview that never reactivates shares, credentials, or a running timer (plan REQ-20, §23).",
+      "id": "PLAN-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "Portability and safe restore",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bounded reference-scale datasets, p95 targets for Today/commands, coalesced forecasts, redacted diagnostics, and a real deployment/migration runbook with rollback (plan REQ-24, §23.6-23.8).",
+      "id": "PLAN-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Measured performance and operator runbook",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

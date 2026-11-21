@@ -122,7 +122,6 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
-  corsOrigins: '*',  // Allow tunnel/proxy origins
   verbose: true       // Logs proxy requests
 })
 
@@ -139,7 +138,7 @@ This automatically sets up:
 - `/api/*` proxy to your API server
 - `/health` endpoint with API connectivity check
 - `/config` endpoint with runtime configuration
-- CORS handling (set to `'*'` to allow all origins including tunnels)
+- Browser origin policy: same-origin by default, which already covers tunnels and Web Console; cross-origin pages are refused ([SECURITY.md](../../SECURITY.md))
 - SPA fallback routing
 
 ## Step 5: Test All Contexts
@@ -289,7 +288,7 @@ server.listen(process.env.UI_PORT)
 2. Proxies `/api/*` requests to your API server
 3. Provides `/health` with API connectivity checks
 4. Provides `/config` with runtime environment info
-5. Handles CORS for localhost origins
+5. Refuses cross-origin browser requests (same-origin by default; see [SECURITY.md](../../SECURITY.md))
 6. Sets up SPA fallback routing
 
 ## Common Customizations
@@ -427,23 +426,27 @@ export default defineConfig({
 
 Then rebuild: `pnpm build`
 
-### CORS errors in tunnel/proxy contexts
+### 403 "Cross-origin request refused"
 
-**Problem**: Requests blocked with "Origin not allowed" errors
+**Problem**: A browser request is refused with `{"error":"Cross-origin request refused"}`
 
-**Symptoms**:
-```
-[cors] Blocked origin: https://my-scenario.itsagitime.com
-```
+**Cause**: The calling page is on a different origin than the scenario. Different
+`localhost` ports and sibling tunnel subdomains count as different origins. Pages
+served by the scenario itself, including through the tunnel, are same-origin and
+are never refused.
 
-**Solution**: Set `corsOrigins: '*'` in your server:
+**Solution**: Open the scenario at its own address, or route the call through a
+server-side relay. Declare a real cross-origin client, such as a browser
+extension, by its exact origin:
 
 ```javascript
 const app = createScenarioServer({
-  corsOrigins: '*',  // ✅ Allow all origins
+  allowedOrigins: ['chrome-extension://abcdefghijklmnopabcdefghijklmnop'],
   // ... other config
 })
 ```
+
+`corsOrigins` and wildcards are refused at startup. See [SECURITY.md](../../SECURITY.md).
 
 ### API requests return 502
 

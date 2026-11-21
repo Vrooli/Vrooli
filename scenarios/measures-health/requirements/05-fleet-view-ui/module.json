@@ -1,0 +1,100 @@
+{
+  "description": "Ship a polished direct UI showing which scenarios expose measures, at what tier and coverage, with loading/error/empty states, a per-scenario EM rung derived automatically from the decision-trace, and a measures-specific drill-down matching the `measures-health validate` report shape.",
+  "module_id": "MOD-P2-005",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-003",
+        "REQ-P1-002"
+      ],
+      "description": "Ship a polished direct UI page displaying a fleet-level view of all scenarios, showing which scenarios expose measures, at what tier (full/partial/fallback) and coverage percentage. The UI must include loading, error, and empty states. Each scenario row must display an EM rung derived automatically from the decision-trace. Clicking a scenario row must open a measures-specific drill-down panel matching the `measures-health validate` report shape. The UI must be a translation layer over the Connect RPC API and must not contain business logic.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Fleet-View UI for Measures Coverage Dashboard",
+      "validation": [
+        {
+          "notes": "Unit test: fleet-view component renders a row per scenario with correct tier badge and coverage percentage when given fixture API response data",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: fleet-view component renders loading spinner when data is being fetched",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: fleet-view component renders error banner when API returns an error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: fleet-view component renders empty-state illustration when no scenarios are returned",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: drill-down panel renders expected/covered/waived counts and per-measure tier matching the validate report shape",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Browser smoke test: load the fleet-view URL; assert the coverage dashboard table renders at least one row with a status badge visible in the DOM",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Browser smoke test: click a scenario row; assert the drill-down panel opens and contains at least one measure entry with tier and verdict fields rendered",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Browser smoke test: simulate API error by intercepting network; assert error state banner is displayed and no crash occurs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Browser smoke test: simulate empty API response; assert empty-state illustration is displayed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fleet-view page first contentful paint completes within 3 seconds for a fleet of up to 50 scenarios on the CI browser smoke-test harness",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "EM rung displayed per scenario in the fleet view matches the rung computed by the EM ladder dimension calculator for the same scenario, verified by cross-checking API response and UI rendered value in the browser smoke test",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Fleet-View UI"
+}

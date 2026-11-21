@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package vrooli.unit_health.v1.validation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1";
+
+// Zero/future status values mean unknown analysis, never checked clean.
+enum QualityCheckStatus {
+  QUALITY_CHECK_STATUS_UNSPECIFIED = 0;
+  QUALITY_CHECK_STATUS_VIOLATION = 1;
+  QUALITY_CHECK_STATUS_CHECKED_CLEAN = 2;
+  QUALITY_CHECK_STATUS_UNKNOWN = 3;
+  QUALITY_CHECK_STATUS_NOT_APPLICABLE = 4;
+}
+
+enum QualityReason {
+  QUALITY_REASON_UNSPECIFIED = 0;
+  QUALITY_REASON_NONE = 1;
+  QUALITY_REASON_MISSING_ANALYSIS = 2;
+  QUALITY_REASON_UNSUPPORTED_ADAPTER = 3;
+  QUALITY_REASON_UNSUPPORTED_VERSION = 4;
+  QUALITY_REASON_UNSUPPORTED_TEST_KIND = 5;
+  QUALITY_REASON_MISSING_INPUT = 6;
+  QUALITY_REASON_PARSE_FAILURE = 7;
+  QUALITY_REASON_EXTERNAL_HELPER_UNRESOLVED = 8;
+  QUALITY_REASON_RESOLUTION_LIMIT = 9;
+  QUALITY_REASON_BUILD_CONTEXT_UNAVAILABLE = 10;
+  QUALITY_REASON_NOT_EXECUTED = 11;
+  QUALITY_REASON_SKIPPED = 12;
+  QUALITY_REASON_OWNER_UNAVAILABLE = 13;
+  QUALITY_REASON_STALE_EVIDENCE = 14;
+  QUALITY_REASON_UNRECOGNIZED_VALUE = 15;
+}
+
+enum QualityEvidenceKind {
+  QUALITY_EVIDENCE_KIND_UNSPECIFIED = 0;
+  QUALITY_EVIDENCE_KIND_STATIC = 1;
+  QUALITY_EVIDENCE_KIND_RUNTIME = 2;
+  QUALITY_EVIDENCE_KIND_REGISTRY = 3;
+}
+
+enum QualitySeverity {
+  QUALITY_SEVERITY_UNSPECIFIED = 0;
+  QUALITY_SEVERITY_INFO = 1;
+  QUALITY_SEVERITY_WARNING = 2;
+  QUALITY_SEVERITY_ERROR = 3;
+}
+
+// Enforcement is independent of severity and requires profile promotion.
+enum QualityEnforcement {
+  QUALITY_ENFORCEMENT_UNSPECIFIED = 0;
+  QUALITY_ENFORCEMENT_ADVISORY = 1;
+  QUALITY_ENFORCEMENT_BLOCKING = 2;
+}
+
+message QualityTestTarget {
+  string workspace = 1;
+  string file = 2;
+  string test_id = 3;
+  // Empty is historical per-test scope; "file" has no test_id.
+  string scope = 4;
+}
+
+message QualitySourceLocation {
+  int32 line = 1;
+  int32 column = 2;
+  int32 end_line = 3;
+  int32 end_column = 4;
+}
+
+message QualityCheckResult {
+  string rule_id = 1;
+  string rule_version = 2;
+  QualityTestTarget target = 3;
+  string test_kind = 4;
+  string support_profile = 5;
+  QualityCheckStatus status = 6;
+  QualityReason reason = 7;
+  QualityEvidenceKind evidence_kind = 8;
+  QualitySeverity severity = 9;
+  QualityEnforcement enforcement = 10;
+  QualitySourceLocation location = 11;
+  repeated string evidence_refs = 12;
+  repeated string limitations = 13;
+  repeated QualityNativeDiagnostic diagnostics = 14;
+  QualityRuntimeObservation runtime_observation = 15;
+  // Provider-owned next action for an unknown reason; absent on historical data.
+  string reason_guidance = 16;
+}
+
+// A native final result. Retry count does not constitute an attempt history.
+message QualityRuntimeObservation {
+  string run_id = 1;
+  string state = 2;
+  optional string seed = 3;
+  optional int32 retry_count = 4;
+  optional int32 retry_ordinal = 5;
+}
+
+message QualityNativeDiagnostic {
+  string native_rule_id = 1;
+  string message_id = 2;
+  string message = 3;
+  int32 native_severity = 4;
+  QualitySourceLocation location = 5;
+}
+
+// Counts apply before result-list truncation. Assessed includes violations.
+// Discovered = assessed + unknown + not_applicable, per rule/support profile.
+message QualityAssessmentCoverage {
+  string rule_id = 1;
+  string support_profile = 2;
+  uint64 discovered = 3;
+  uint64 assessed = 4;
+  uint64 unknown = 5;
+  uint64 not_applicable = 6;
+  // Empty counts test cases; "file" counts source files, never tests.
+  string scope = 7;
+}
+
+// Absence on a historical response means unavailable analysis, not clean.
+message TestQualityReport {
+  string schema_version = 1;
+  string catalog_version = 2;
+  repeated QualityCheckResult results = 3;
+  repeated QualityAssessmentCoverage coverage = 4;
+  uint64 total_results = 5;
+  bool truncated = 6;
+  // Required when truncated; identifies the complete stored detail projection.
+  string details_ref = 7;
+  // Missing/unsupported schema or inconsistent projection. Such results are
+  // unknown and coverage is absent, even if historical rows claimed clean.
+  QualityReason unavailable_reason = 8;
+  string reason_guidance = 9;
+  // Some collectors could not report. Denominators cover reported rows only.
+  repeated QualityCollectionLimitation collection_limitations = 10;
+}
+
+message QualityCollectionLimitation {
+  QualityReason reason = 1;
+  string guidance = 2;
+}
+
+enum RequirementRegistration {
+  REQUIREMENT_REGISTRATION_UNSPECIFIED = 0;
+  REQUIREMENT_REGISTRATION_REGISTERED = 1;
+  REQUIREMENT_REGISTRATION_STALE = 2;
+  REQUIREMENT_REGISTRATION_UNKNOWN = 3;
+}
+enum RequirementExecutionState {
+  REQUIREMENT_EXECUTION_STATE_UNSPECIFIED = 0;
+  REQUIREMENT_EXECUTION_STATE_PASSED = 1;
+  REQUIREMENT_EXECUTION_STATE_FAILED = 2;
+  REQUIREMENT_EXECUTION_STATE_SKIPPED = 3;
+  REQUIREMENT_EXECUTION_STATE_NOT_RUN = 4;
+  REQUIREMENT_EXECUTION_STATE_UNKNOWN = 5;
+}
+enum RequirementApplicability {
+  REQUIREMENT_APPLICABILITY_UNSPECIFIED = 0;
+  REQUIREMENT_APPLICABILITY_APPLICABLE = 1;
+  REQUIREMENT_APPLICABILITY_NOT_APPLICABLE = 2;
+  REQUIREMENT_APPLICABILITY_UNKNOWN = 3;
+}
+message RequirementTraceLink {
+  string requirement_id = 1;
+  QualityTestTarget target = 2;
+  RequirementRegistration registration = 3;
+  RequirementExecutionState execution = 4;
+  QualityReason reason = 5;
+  string run_id = 6;
+}
+message RequirementTraceScope {
+  string requirement_id = 1;
+  RequirementApplicability applicability = 2;
+}
+// Links and observed passes are not requirement completion or behavioral proof.
+// Missing historical reports are unavailable, never a clean empty registry.
+message RequirementTraceabilityReport {
+  string schema_version = 1;
+  QualityReason unavailable_reason = 2;
+  QualityReason evidence_unavailable_reason = 3;
+  repeated RequirementTraceScope requirements = 4;
+  repeated RequirementTraceLink links = 5;
+  repeated string limitations = 6;
+}

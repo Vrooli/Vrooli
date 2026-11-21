@@ -61,7 +61,7 @@ type:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 60*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 60*time.Second)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -169,7 +169,7 @@ type:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 120*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 120*time.Second)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -248,7 +248,7 @@ lint:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 60*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 60*time.Second)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -312,7 +312,7 @@ lint:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 120*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 120*time.Second)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -372,7 +372,7 @@ lint:
 	// Run scan 5 times and collect durations
 	var durations []time.Duration
 	for run := 0; run < 5; run++ {
-		scanner := NewLightScanner(tmpDir, 60*time.Second)
+		scanner := newLightScannerForTest(tmpDir, 60*time.Second)
 		ctx := context.Background()
 
 		start := time.Now()

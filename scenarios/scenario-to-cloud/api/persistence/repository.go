@@ -10,20 +10,35 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
+
+// DB is the small SQL surface used by this repository. Both *sql.DB and
+// database.RoutedDB implement it, which keeps every query on the request
+// context and allows test-genie to route shadow runs without giving the
+// repository a second persistence path.
+type DB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
 // Repository provides database operations for the deployment domain.
 type Repository struct {
-	db *sql.DB
+	db DB
+	// hostConcurrencyMax bounds live operations per target (0 = unbounded).
+	hostConcurrencyMax int
 }
 
 // NewRepository creates a new repository with the given database connection.
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db DB) *Repository {
 	return &Repository{db: db}
 }
 
-// DB returns the underlying database connection for direct access when needed.
-func (r *Repository) DB() *sql.DB {
+// DB returns the repository's routed SQL surface for direct access when
+// needed. Callers must pass their request context so test-genie routing is
+// preserved.
+func (r *Repository) DB() DB {
 	return r.db
 }
 
@@ -31,6 +46,29 @@ func (r *Repository) DB() *sql.DB {
 // This creates all required tables and indexes using idempotent statements.
 // Note: With per-scenario databases, we use the public schema directly.
 func (r *Repository) InitSchema(ctx context.Context) error {
+	return r.InitSchemaOn(ctx, r.db)
+}
+
+// InitSchemaOn applies the idempotent schema and migrations to a specific
+// pool. It is used both for the primary pool and as RoutedDB's test-pool
+// initializer, so a shadow database can never begin a run with a partial
+// schema.
+func (r *Repository) InitSchemaOn(ctx context.Context, db DB) error {
+	return r.InitSchemaOnDialect(ctx, db, "postgres")
+}
+
+// InitSchemaOnDialect applies the schema for the selected SQL engine. The
+// production authority is PostgreSQL, while Test Genie deliberately provisions
+// disposable SQLite pools for routed workflow runs. Keeping the two DDL forms
+// explicit prevents PostgreSQL-only defaults and casts from making the test
+// isolation contract fail before a workflow can start.
+func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect string) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	if strings.EqualFold(strings.TrimSpace(dialect), "sqlite") || strings.EqualFold(strings.TrimSpace(dialect), "sqlite3") {
+		return initSQLiteSchema(ctx, db)
+	}
 	// Create deployments table
 	baseSchema := `
 	CREATE TABLE IF NOT EXISTS deployments (
@@ -39,6 +77,14 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		-- Identification
 		name TEXT NOT NULL,
 		scenario_id TEXT NOT NULL,
+		-- Identity: (scenario_id, environment, target_key) is unique. target_key
+		-- is denormalised from target_binding on every write.
+		environment TEXT NOT NULL DEFAULT 'production',
+		target_binding JSONB,
+		target_key TEXT,
+		fence BIGINT NOT NULL DEFAULT 0,
+		desired_state TEXT NOT NULL DEFAULT 'running',
+		persistent_data JSONB,
 
 		-- Status
 		status TEXT NOT NULL DEFAULT 'pending'
@@ -74,9 +120,27 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 	CREATE INDEX IF NOT EXISTS idx_deployments_scenario_id ON deployments(scenario_id);
 	CREATE INDEX IF NOT EXISTS idx_deployments_created_at ON deployments(created_at DESC);
+
+	CREATE TABLE IF NOT EXISTS cloud_instances (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		name TEXT NOT NULL UNIQUE,
+		provider TEXT NOT NULL,
+		state TEXT NOT NULL,
+		image TEXT NOT NULL,
+		workdir TEXT NOT NULL,
+		address TEXT NOT NULL DEFAULT '127.0.0.1',
+		ssh_port INTEGER NOT NULL DEFAULT 0,
+		profile TEXT NOT NULL DEFAULT 'headless-linux',
+		pid INTEGER NOT NULL DEFAULT 0,
+		command JSONB NOT NULL DEFAULT '[]'::jsonb,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		last_error TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_cloud_instances_state ON cloud_instances(state);
 	`
 
-	if _, err := r.db.ExecContext(ctx, baseSchema); err != nil {
+	if _, err := db.ExecContext(ctx, baseSchema); err != nil {
 		return fmt.Errorf("failed to create base schema: %w", err)
 	}
 
@@ -116,17 +180,16 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			ALTER TABLE deployment_investigations
 			ADD COLUMN IF NOT EXISTS deployment_run_id TEXT;
 		`},
-		{"add_idempotency_tracking", `
-			-- Track completed steps for replay-safe execution
-			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS completed_steps JSONB DEFAULT '[]'::jsonb;
-			-- UUID for the current execution run; changes on each fresh execution
-			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS run_id TEXT;
-		`},
 		{"add_preflight_result", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS preflight_result JSONB;
 		`},
 		{"add_ssh_identity", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS ssh_identity JSONB;
+		`},
+		{"add_cloud_instance_runtime_fields", `
+			ALTER TABLE cloud_instances ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT '127.0.0.1';
+			ALTER TABLE cloud_instances ADD COLUMN IF NOT EXISTS ssh_port INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE cloud_instances ADD COLUMN IF NOT EXISTS profile TEXT NOT NULL DEFAULT 'headless-linux';
 		`},
 		{"add_task_columns", `
 			-- Add columns for unified task system (investigate/fix tasks)
@@ -147,12 +210,51 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 			ALTER TABLE deployment_investigations
 				ADD COLUMN IF NOT EXISTS iteration INTEGER DEFAULT 0;
 			ALTER TABLE deployment_investigations
-				ADD COLUMN IF NOT EXISTS max_iterations INTEGER DEFAULT 5;
+			ADD COLUMN IF NOT EXISTS max_iterations INTEGER DEFAULT 5;
+		`},
+		{"add_recovery_operations", `
+			CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
+				id UUID PRIMARY KEY,
+				deployment_id UUID NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+				idempotency_key TEXT NOT NULL,
+				action TEXT NOT NULL CHECK (action IN ('rollback', 'forward_repair')),
+				expected_bundle_sha256 TEXT,
+				repair_bundle_sha256 TEXT NOT NULL,
+				repair_bundle_path TEXT NOT NULL,
+				data_compatibility TEXT NOT NULL,
+				status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+				receipt JSONB,
+				error_message TEXT,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				started_at TIMESTAMPTZ,
+				completed_at TIMESTAMPTZ,
+				UNIQUE (deployment_id, idempotency_key)
+			);
+			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
+			CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
+		`},
+		{"add_cloud_operations", cloudOperationsPostgresDDL},
+		{"add_cloud_credentials", cloudCredentialsPostgresDDL},
+		{"add_cloud_credential_expiry", `
+			ALTER TABLE cloud_credential_bindings ADD COLUMN IF NOT EXISTS version_expires_at TIMESTAMPTZ;
+		`},
+		{"add_cloud_operations_active_step", `
+			ALTER TABLE cloud_operations ADD COLUMN IF NOT EXISTS active_step JSONB;
+		`},
+		{"add_cloud_evidence", cloudEvidencePostgresDDL},
+		{"add_recovery_binding", `
+			ALTER TABLE cloud_recovery_operations ADD COLUMN IF NOT EXISTS binding JSONB;
+		`},
+		{"add_cloud_recovery_points", cloudRecoveryPointsPostgresDDL},
+		{"add_desired_state_and_persistent_data", `
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS desired_state TEXT NOT NULL DEFAULT 'running';
+			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS persistent_data JSONB;
 		`},
 	}
 
 	for _, m := range migrations {
-		if _, err := r.db.ExecContext(ctx, m.sql); err != nil {
+		if _, err := db.ExecContext(ctx, m.sql); err != nil {
 			// Ignore "already exists" type errors
 			errStr := err.Error()
 			if !contains(errStr, "already exists") && !contains(errStr, "duplicate") {
@@ -161,7 +263,146 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	// Identity columns, predecessor-record conversion and the uniqueness index
+	// run outside the tolerant loop so a real conflict is never mistaken for
+	// "already exists".
+	if err := ensureDeploymentIdentity(ctx, db, "postgres"); err != nil {
+		return err
+	}
+	return convertLegacyKeyPathBindings(ctx, db)
+}
+
+// initSQLiteSchema is intentionally complete rather than migration-shaped:
+// each routed Test Genie pool is fresh and SQLite does not support the
+// PostgreSQL casts/functions used by the production DDL. All columns required
+// by the repository are declared here so the shadow pool has the same logical
+// surface as the primary database.
+func initSQLiteSchema(ctx context.Context, db DB) error {
+	const schema = `
+CREATE TABLE IF NOT EXISTS deployments (
+	 id TEXT PRIMARY KEY,
+	 name TEXT NOT NULL,
+	 scenario_id TEXT NOT NULL,
+	 environment TEXT NOT NULL DEFAULT 'production',
+	 target_binding TEXT,
+	 target_key TEXT,
+	 fence INTEGER NOT NULL DEFAULT 0,
+	 desired_state TEXT NOT NULL DEFAULT 'running',
+	 persistent_data TEXT,
+	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'setup_running', 'setup_complete', 'deploying', 'deployed', 'failed', 'stopped')),
+	 manifest TEXT NOT NULL,
+	 bundle_path TEXT,
+	 bundle_sha256 TEXT,
+	 bundle_size_bytes INTEGER,
+	 setup_result TEXT,
+	 deploy_result TEXT,
+	 preflight_result TEXT,
+	 last_inspect_result TEXT,
+	 ssh_identity TEXT,
+	 error_message TEXT,
+	 error_step TEXT,
+	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 last_deployed_at TIMESTAMP,
+	 last_inspected_at TIMESTAMP,
+	 progress_step TEXT,
+	 progress_percent REAL DEFAULT 0,
+	 deployment_history TEXT DEFAULT '[]'
+);
+CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
+CREATE INDEX IF NOT EXISTS idx_deployments_scenario_id ON deployments(scenario_id);
+CREATE INDEX IF NOT EXISTS idx_deployments_created_at ON deployments(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS cloud_instances (
+	 id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+	 name TEXT NOT NULL UNIQUE,
+	 provider TEXT NOT NULL,
+	 state TEXT NOT NULL,
+	 image TEXT NOT NULL,
+	 workdir TEXT NOT NULL,
+	 address TEXT NOT NULL DEFAULT '127.0.0.1',
+	 ssh_port INTEGER NOT NULL DEFAULT 0,
+	 profile TEXT NOT NULL DEFAULT 'headless-linux',
+	 pid INTEGER NOT NULL DEFAULT 0,
+	 command TEXT NOT NULL DEFAULT '[]',
+	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_cloud_instances_state ON cloud_instances(state);
+
+CREATE TABLE IF NOT EXISTS deployment_investigations (
+	 id TEXT PRIMARY KEY,
+	 deployment_id TEXT NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+	 deployment_run_id TEXT,
+	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+	 findings TEXT,
+	 progress INTEGER DEFAULT 0,
+	 details TEXT,
+	 agent_run_id TEXT,
+	 error_message TEXT,
+	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 completed_at TIMESTAMP,
+	 task_type TEXT DEFAULT 'investigate',
+	 focus_harness INTEGER DEFAULT 1,
+	 focus_subject INTEGER DEFAULT 1,
+	 effort TEXT,
+	 perm_immediate INTEGER DEFAULT 0,
+	 perm_permanent INTEGER DEFAULT 0,
+	 perm_prevention INTEGER DEFAULT 0,
+	 iteration INTEGER DEFAULT 0,
+	 max_iterations INTEGER DEFAULT 5
+);
+CREATE INDEX IF NOT EXISTS idx_investigations_deployment_id ON deployment_investigations(deployment_id);
+CREATE INDEX IF NOT EXISTS idx_investigations_status ON deployment_investigations(status);
+
+CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
+	 id TEXT PRIMARY KEY,
+	 deployment_id TEXT NOT NULL REFERENCES deployments(id) ON DELETE CASCADE,
+	 idempotency_key TEXT NOT NULL,
+	 action TEXT NOT NULL CHECK (action IN ('rollback', 'forward_repair')),
+	 expected_bundle_sha256 TEXT,
+	 repair_bundle_sha256 TEXT NOT NULL,
+	 repair_bundle_path TEXT NOT NULL,
+	 data_compatibility TEXT NOT NULL,
+	 status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+	 receipt TEXT,
+	 error_message TEXT,
+	 binding TEXT,
+	 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	 started_at TIMESTAMP,
+	 completed_at TIMESTAMP,
+	 UNIQUE (deployment_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
+CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
+` + cloudOperationsSQLiteDDL + cloudEvidenceSQLiteDDL + cloudCredentialsSQLiteDDL + cloudRecoveryPointsSQLiteDDL
+	if _, err := db.ExecContext(ctx, schema); err != nil {
+		return fmt.Errorf("failed to create SQLite schema: %w", err)
+	}
+	if columns, err := sqliteColumns(ctx, db, "cloud_recovery_operations"); err != nil {
+		return err
+	} else if !columns["binding"] {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE cloud_recovery_operations ADD COLUMN binding TEXT`); err != nil {
+			return fmt.Errorf("add recovery binding column: %w", err)
+		}
+	}
+	if columns, err := sqliteColumns(ctx, db, "cloud_credential_bindings"); err != nil {
+		return err
+	} else if !columns["version_expires_at"] {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE cloud_credential_bindings ADD COLUMN version_expires_at TIMESTAMP`); err != nil {
+			return fmt.Errorf("add credential expiry column: %w", err)
+		}
+	}
+	// A pool that already holds a predecessor-shaped deployments table (for
+	// example a preserved shadow database) gets the identity columns,
+	// conversion and index exactly like the PostgreSQL authority.
+	if err := ensureDeploymentIdentity(ctx, db, "sqlite"); err != nil {
+		return err
+	}
+	return convertLegacyKeyPathBindings(ctx, db)
 }
 
 // contains checks if a string contains a substring (case-insensitive check not needed here)

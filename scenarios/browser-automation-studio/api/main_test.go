@@ -1,13 +1,54 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestResolveEntitlementServiceURLPreservesConfiguredOverride(t *testing.T) {
+	configured := " https://lpbs.example/api "
+	called := false
+	got := resolveEntitlementServiceURL(context.Background(), configured, func(context.Context, string) (string, error) {
+		called = true
+		return "http://shim:1234", nil
+	})
+	if got != configured {
+		t.Fatalf("configured URL = %q, want unchanged %q", got, configured)
+	}
+	if called {
+		t.Fatal("configured URL should bypass discovery")
+	}
+}
+
+func TestResolveEntitlementServiceURLUsesDedicatedResolverWhenBlank(t *testing.T) {
+	var gotScenario string
+	got := resolveEntitlementServiceURL(context.Background(), " \t", func(_ context.Context, scenario string) (string, error) {
+		gotScenario = scenario
+		return "http://shim:1234", nil
+	})
+	if got != "http://shim:1234" {
+		t.Fatalf("resolved URL = %q", got)
+	}
+	if gotScenario != "landing-page-business-suite" {
+		t.Fatalf("resolved scenario = %q", gotScenario)
+	}
+}
+
+func TestResolveEntitlementServiceURLKeepsBlankOnDiscoveryError(t *testing.T) {
+	got := resolveEntitlementServiceURL(context.Background(), "", func(context.Context, string) (string, error) {
+		return "", errors.New("shim unavailable")
+	})
+	if strings.TrimSpace(got) != "" {
+		t.Fatalf("URL on discovery failure = %q, want blank", got)
+	}
+}
 
 // TestCheckPortAvailable tests the port availability check function
 func TestCheckPortAvailable(t *testing.T) {

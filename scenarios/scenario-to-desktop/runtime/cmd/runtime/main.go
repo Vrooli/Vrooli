@@ -13,8 +13,8 @@ import (
 
 	"github.com/vrooli/api-core/preflight"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	"scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func main() {
@@ -50,13 +50,13 @@ func main() {
 	if bundleRoot == "" {
 		bundleRoot = filepath.Dir(absManifest)
 	}
-
-	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
+	options := bundleruntime.Options{
 		AppDataDir: appData,
 		Manifest:   m,
 		BundlePath: bundleRoot,
 		DryRun:     dryRun,
-	})
+	}
+	supervisor, err := bundleruntime.NewSupervisor(options)
 	if err != nil {
 		log.Fatalf("init supervisor: %v", err)
 	}
@@ -65,7 +65,6 @@ func main() {
 	defer cancel()
 
 	if err := supervisor.Start(ctx); err != nil {
-		cancel()
 		log.Fatalf("start runtime: %v", err)
 	}
 
@@ -73,7 +72,11 @@ func main() {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	fmt.Println("shutdown requested")
-	_ = supervisor.Shutdown(context.Background())
+	select {
+	case <-sigCh:
+		fmt.Println("shutdown requested")
+		_ = supervisor.Shutdown(context.Background())
+	case <-supervisor.Done():
+		fmt.Println("shutdown requested by control API")
+	}
 }

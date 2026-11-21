@@ -16,6 +16,74 @@ func TestDefaultLevers_Valid(t *testing.T) {
 	}
 }
 
+func TestSandboxLevers_Defaults(t *testing.T) {
+	levers := config.DefaultLevers()
+	if levers.Sandbox.AvailabilityCheckTimeout != 2*time.Second {
+		t.Fatalf("unexpected availability timeout: %v", levers.Sandbox.AvailabilityCheckTimeout)
+	}
+	if levers.Sandbox.EnsureStartTimeout != time.Minute {
+		t.Fatalf("unexpected ensure timeout: %v", levers.Sandbox.EnsureStartTimeout)
+	}
+	if levers.Sandbox.OperationMaxAttempts != 4 {
+		t.Fatalf("unexpected operation attempts: %d", levers.Sandbox.OperationMaxAttempts)
+	}
+}
+
+func TestSandboxLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.SandboxLevers)
+		wantErr bool
+	}{
+		{
+			name:    "valid defaults",
+			modify:  func(s *config.SandboxLevers) {},
+			wantErr: false,
+		},
+		{
+			name:    "availability timeout too short",
+			modify:  func(s *config.SandboxLevers) { s.AvailabilityCheckTimeout = 50 * time.Millisecond },
+			wantErr: true,
+		},
+		{
+			name:    "ensure timeout too short",
+			modify:  func(s *config.SandboxLevers) { s.EnsureStartTimeout = time.Second },
+			wantErr: true,
+		},
+		{
+			name:    "poll interval greater than ensure timeout",
+			modify:  func(s *config.SandboxLevers) { s.EnsurePollInterval = s.EnsureStartTimeout },
+			wantErr: true,
+		},
+		{
+			name:    "attempts too low",
+			modify:  func(s *config.SandboxLevers) { s.OperationMaxAttempts = 0 },
+			wantErr: true,
+		},
+		{
+			name:    "initial backoff too short",
+			modify:  func(s *config.SandboxLevers) { s.OperationInitialBackoff = time.Millisecond },
+			wantErr: true,
+		},
+		{
+			name:    "max backoff below initial",
+			modify:  func(s *config.SandboxLevers) { s.OperationMaxBackoff = s.OperationInitialBackoff - time.Millisecond },
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			levers := config.DefaultLevers()
+			tt.modify(&levers.Sandbox)
+			err := levers.Sandbox.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestExecutionLevers_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -464,5 +532,176 @@ func TestDefaultLevers_SafetyDefaults(t *testing.T) {
 		if !found {
 			t.Errorf("expected deny pattern %s not found", expected)
 		}
+	}
+}
+
+// =============================================================================
+// HEARTBEAT / RECOVERY / SCANNER / DIAGNOSTICS LEVERS
+// =============================================================================
+//
+// These sections moved into Levers from inline literals scattered across
+// run_executor.go, recovery.go, transcript_consumer.go, claude_code*.go.
+// The default-snapshot tests assert each Default matches the literal it
+// replaced, so a typo during the refactor regresses loudly.
+
+func TestHeartbeatLevers_DefaultsMatchPreRefactorLiterals(t *testing.T) {
+	h := config.DefaultLevers().Heartbeat
+	if h.RunHeartbeatInterval != 15*time.Second {
+		t.Errorf("RunHeartbeatInterval default drift: got %v, want 15s", h.RunHeartbeatInterval)
+	}
+	if h.CheckpointInterval != time.Minute {
+		t.Errorf("CheckpointInterval default drift: got %v, want 1m", h.CheckpointInterval)
+	}
+	if h.StaleThreshold != 5*time.Minute {
+		t.Errorf("StaleThreshold default drift: got %v, want 5m", h.StaleThreshold)
+	}
+	if h.TeardownTimeout != 30*time.Second {
+		t.Errorf("TeardownTimeout default drift: got %v, want 30s", h.TeardownTimeout)
+	}
+	if h.MaxRetriesPerPhase != 3 {
+		t.Errorf("MaxRetriesPerPhase default drift: got %d, want 3", h.MaxRetriesPerPhase)
+	}
+	if h.AgentTickInterval != 2*time.Second {
+		t.Errorf("AgentTickInterval default drift: got %v, want 2s", h.AgentTickInterval)
+	}
+	if h.AgentIdleThreshold != 30*time.Second {
+		t.Errorf("AgentIdleThreshold default drift: got %v, want 30s", h.AgentIdleThreshold)
+	}
+	if h.RunnerSignalGracePeriod != 5*time.Second {
+		t.Errorf("RunnerSignalGracePeriod default drift: got %v, want 5s", h.RunnerSignalGracePeriod)
+	}
+}
+
+func TestHeartbeatLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.HeartbeatLevers)
+		wantErr bool
+	}{
+		{"valid defaults", func(*config.HeartbeatLevers) {}, false},
+		{"heartbeat too short", func(h *config.HeartbeatLevers) { h.RunHeartbeatInterval = 500 * time.Millisecond }, true},
+		{"heartbeat too long", func(h *config.HeartbeatLevers) { h.RunHeartbeatInterval = 10 * time.Minute }, true},
+		{"checkpoint too short", func(h *config.HeartbeatLevers) { h.CheckpointInterval = time.Second }, true},
+		{"stale below heartbeat", func(h *config.HeartbeatLevers) {
+			h.RunHeartbeatInterval = 2 * time.Minute
+			h.StaleThreshold = time.Minute
+		}, true},
+		{"teardown too short", func(h *config.HeartbeatLevers) { h.TeardownTimeout = time.Second }, true},
+		{"retries negative", func(h *config.HeartbeatLevers) { h.MaxRetriesPerPhase = -1 }, true},
+		{"retries too high", func(h *config.HeartbeatLevers) { h.MaxRetriesPerPhase = 11 }, true},
+		{"agent tick too short", func(h *config.HeartbeatLevers) { h.AgentTickInterval = 50 * time.Millisecond }, true},
+		{"agent tick too long", func(h *config.HeartbeatLevers) { h.AgentTickInterval = 30 * time.Second }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := config.DefaultLevers()
+			tt.modify(&l.Heartbeat)
+			err := l.Heartbeat.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() err=%v, wantErr=%v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRecoveryLevers_DefaultsMatchPreRefactorLiterals(t *testing.T) {
+	r := config.DefaultLevers().Recovery
+	if r.TranscriptTailInterval != 100*time.Millisecond {
+		t.Errorf("TranscriptTailInterval default drift: got %v, want 100ms", r.TranscriptTailInterval)
+	}
+	if r.TranscriptPollInterval != 100*time.Millisecond {
+		t.Errorf("TranscriptPollInterval default drift: got %v, want 100ms", r.TranscriptPollInterval)
+	}
+}
+
+func TestRecoveryLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.RecoveryLevers)
+		wantErr bool
+	}{
+		{"valid defaults", func(*config.RecoveryLevers) {}, false},
+		{"tail too short", func(r *config.RecoveryLevers) { r.TranscriptTailInterval = 10 * time.Millisecond }, true},
+		{"tail too long", func(r *config.RecoveryLevers) { r.TranscriptTailInterval = 10 * time.Second }, true},
+		{"poll too short", func(r *config.RecoveryLevers) { r.TranscriptPollInterval = 10 * time.Millisecond }, true},
+		{"poll too long", func(r *config.RecoveryLevers) { r.TranscriptPollInterval = 10 * time.Second }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := config.DefaultLevers()
+			tt.modify(&l.Recovery)
+			err := l.Recovery.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() err=%v, wantErr=%v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestScannerLevers_DefaultsMatchPreRefactorLiterals(t *testing.T) {
+	s := config.DefaultLevers().Scanner
+	if s.StdoutMaxLineBytes != 10*1024*1024 {
+		t.Errorf("StdoutMaxLineBytes default drift: got %d, want 10MB", s.StdoutMaxLineBytes)
+	}
+	if s.TranscriptMaxLineBytes != 10*1024*1024 {
+		t.Errorf("TranscriptMaxLineBytes default drift: got %d, want 10MB", s.TranscriptMaxLineBytes)
+	}
+}
+
+func TestScannerLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.ScannerLevers)
+		wantErr bool
+	}{
+		{"valid defaults", func(*config.ScannerLevers) {}, false},
+		{"stdout too small", func(s *config.ScannerLevers) { s.StdoutMaxLineBytes = 1024 }, true},
+		{"stdout too big", func(s *config.ScannerLevers) { s.StdoutMaxLineBytes = 128 * 1024 * 1024 }, true},
+		{"transcript too small", func(s *config.ScannerLevers) { s.TranscriptMaxLineBytes = 1024 }, true},
+		{"transcript too big", func(s *config.ScannerLevers) { s.TranscriptMaxLineBytes = 128 * 1024 * 1024 }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := config.DefaultLevers()
+			tt.modify(&l.Scanner)
+			err := l.Scanner.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() err=%v, wantErr=%v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDiagnosticsLevers_DefaultsMatchPreRefactorLiterals(t *testing.T) {
+	d := config.DefaultLevers().Diagnostics
+	if d.LaunchFailedMaxDuration != 2*time.Second {
+		t.Errorf("LaunchFailedMaxDuration default drift: got %v, want 2s", d.LaunchFailedMaxDuration)
+	}
+	if d.RateLimitMessageMaxLen != 512 {
+		t.Errorf("RateLimitMessageMaxLen default drift: got %d, want 512", d.RateLimitMessageMaxLen)
+	}
+}
+
+func TestDiagnosticsLevers_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*config.DiagnosticsLevers)
+		wantErr bool
+	}{
+		{"valid defaults", func(*config.DiagnosticsLevers) {}, false},
+		{"launch window too short", func(d *config.DiagnosticsLevers) { d.LaunchFailedMaxDuration = 50 * time.Millisecond }, true},
+		{"launch window too long", func(d *config.DiagnosticsLevers) { d.LaunchFailedMaxDuration = time.Minute }, true},
+		{"truncate too small", func(d *config.DiagnosticsLevers) { d.RateLimitMessageMaxLen = 32 }, true},
+		{"truncate too big", func(d *config.DiagnosticsLevers) { d.RateLimitMessageMaxLen = 16384 }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := config.DefaultLevers()
+			tt.modify(&l.Diagnostics)
+			err := l.Diagnostics.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() err=%v, wantErr=%v", err, tt.wantErr)
+			}
+		})
 	}
 }

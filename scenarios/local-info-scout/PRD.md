@@ -87,10 +87,10 @@ optional:
     fallback: Mock data and local database only
     access_method: POST http://localhost:8888/search
 
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Screenshot capture for UI testing
     fallback: Manual UI validation
-    access_method: resource-browserless screenshot
+    access_method: browser-automation-studio screenshot
 ```
 
 ### Resource Integration Standards
@@ -99,7 +99,7 @@ integration_priorities:
   1_resource_cli:
     - command: resource-postgres exec
       purpose: Database schema initialization and migrations
-    - command: resource-browserless screenshot
+    - command: browser-automation-studio screenshot
       purpose: UI testing and validation
 
   2_direct_api:
@@ -435,7 +435,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with complete metadata
-    - initialization/storage/postgres/schema.sql for DB setup
+    - api/internal/<domain>/storage/postgres/schema.sql for DB setup
     - Makefile with start/stop/test/logs targets
     - Health check at /health endpoint
 
@@ -519,20 +519,20 @@ structure:
     - api/go.mod
     - cli/local-info-scout
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
 
   required_dirs:
     - api
     - cli
     - initialization
-    - initialization/storage
-    - initialization/storage/postgres
+    - api/internal/<domain>/storage
+    - api/internal/<domain>/storage/postgres
     - test
     - test/phases
 
 resources:
   required: [postgres, ollama]
-  optional: [redis, searxng, browserless]
+  optional: [redis, searxng, browser-automation-studio]
   health_timeout: 60
 
 tests:
@@ -656,11 +656,12 @@ make test  # Runs all 5 phases: structure, dependencies, business, integration, 
 
 **Last Updated**: 2025-10-18
 **Status**: Validated (P0: 100%, P1: 75%, P2: 50%) - Production Ready
-**Owner**: Ecosystem Manager AI Agent
+**Owner**: Swarm Manager AI Agent
 **Review Cycle**: Validated on every improver run via scenario-auditor
 **Code Quality**: Excellent (0 critical, 0 high violations - 55 medium in test files only)
 
 ## Change History
+- 2026-04-15 (go-cli-standardization): **Go CLI Test Surface Standardized** - Removed legacy `.bats` coverage for the migrated Go CLI and standardized validation on `go test ./...` for the CLI module plus scenario-level lifecycle tests. This aligns local-info-scout with the greenfield Go CLI standard: no shell fallback coverage, no legacy wrapper contract, and no duplicate CLI test surface. CLI behavior is now validated through the standard scenario app scaffold, domainized Go command tests, and the main scenario test phases.
 - 2025-10-18 (improver v20): **Comprehensive Validation & Production Certification** - Performed thorough validation confirming scenario maintains excellent production-ready status. All quality gates passed: All 5 test phases passing (structure, dependencies, business, integration, performance), all 23 CLI BATS tests passing (100% pass rate), API health: 5ms response time, 0 security vulnerabilities, 55 standards violations (all medium severity in test files only - 86.5% reduction from v15's 430 violations). Code quality verified: 0 unstructured logging in production code, 0 panic/log.Fatal in production code, modular architecture maintained with 8 specialized modules (main.go: 872 lines, database.go: 218 lines, cache.go: 121 lines, nlp.go: 131 lines, recommendations.go: 444 lines, logger.go: 112 lines, utils.go: 13 lines, multisource.go: 537 lines) totaling 2,448 lines of well-organized production code. All API endpoints functional (health, categories, search, discover, recommendations, profile, trending, cache management, places). PostgreSQL: 5 properly prefixed tables (lis_*). Status: P0 100% (7/7), P1 75% (3/4 - Redis blocked by infrastructure), P2 50% (2/4). Production-ready with excellent code quality and comprehensive test coverage. No actionable improvements needed.
 - 2025-10-18 (improver v19): **CLI API Contract Alignment** - Fixed CLI to parse new API response structure. Updated cli/main.go to add SearchResponse struct with `places` and `sources` fields, matching the API contract (PRD lines 187-201). CLI now correctly parses `{"places": [...], "sources": [...]}` instead of expecting bare array. All 23 CLI BATS tests passing (100% pass rate). All 5 test phases passing (structure, dependencies, business, integration, performance). API health: <1ms response. Security: 0 vulnerabilities maintained. Standards: 55 medium violations (test files only). Status: Production-ready with complete CLI-API parity. Zero regressions.
 - 2025-10-18 (improver v18): **API Contract Compliance Fix** - Fixed critical PRD API contract violation in /api/search endpoint. Added SearchResponse struct with `places` and `sources` fields per PRD specification (lines 187-201). Updated searchHandler to return proper response structure instead of bare array. Added hasPostgresDb() helper to detect active data sources. Enhanced integration tests to validate response structure matches PRD contract. All 5 test phases passing with new contract validation. API health: <5ms response. Security: 0 vulnerabilities maintained. Standards: 55 medium violations (test files only). Status: Production-ready with correct API contract implementation. Zero regressions.
@@ -680,7 +681,7 @@ make test  # Runs all 5 phases: structure, dependencies, business, integration, 
 - 2025-10-14 (improver v4): **Makefile Cleanup** - Removed stale UI references from Makefile (clean, build, fmt-ui, lint-ui targets). Cleaned code quality targets to only handle Go API code. Updated PROBLEMS.md to reflect 473 standards violations (slight increase due to rescan variation, still mostly false positives in binaries/tests/coverage). All 5 test phases passing. P0: 100% (7/7), P1: 75% (3/4), P2: 50% (2/4). Zero security vulnerabilities maintained. Scenario remains production-ready.
 - 2025-10-14 (improver v3): **Code Quality & Documentation** - Added explicit API_PORT validation in main() for better error messages. Removed empty UI directory to eliminate misleading warnings. Updated PROBLEMS.md to accurately reflect current state: 471 standards violations (mostly false positives in binaries/tests), 0 security vulnerabilities. All 5 test phases passing. P0: 100% (7/7), P1: 75% (3/4), P2: 50% (2/4). Scenario remains production-ready with excellent performance (<10ms response times).
 - 2025-10-14 (afternoon v2): **Health Check Schema Compliance** - Fixed health endpoint to include required `readiness` field per v2.0 API health schema. Health endpoint now fully validates against `/cli/commands/scenario/schemas/health-api.schema.json`. Scenario status now shows "✅ healthy" instead of "⚠️ Invalid health response". Standards violations reduced from 476 to 463 (13 violations fixed, 2.7% reduction). All 5 test phases passing. Zero security vulnerabilities maintained.
-- 2025-10-14 (morning v2): **PRD v2.0 Migration** - Migrated PRD.md to v2.0 template structure matching scripts/scenarios/templates/react-vite/PRD.md. Added all 12 required sections (Capability Definition, Technical Architecture, CLI Interface Contract, Integration Requirements, Style and Branding, Value Proposition, Evolution Path, Scenario Lifecycle Integration, Risk Mitigation, Validation Criteria, Implementation Notes, References). Preserved all existing requirements, progress tracking, and change history. Addresses 12 high-severity prd_structure violations. Total standards violations reduced from 488 to 476 (expected).
+- 2025-10-14 (morning v2): **PRD v2.0 Migration** - Migrated PRD.md to v2.0 template structure matching templates/scenarios/react-vite/PRD.md. Added all 12 required sections (Capability Definition, Technical Architecture, CLI Interface Contract, Integration Requirements, Style and Branding, Value Proposition, Evolution Path, Scenario Lifecycle Integration, Risk Mitigation, Validation Criteria, Implementation Notes, References). Preserved all existing requirements, progress tracking, and change history. Addresses 12 high-severity prd_structure violations. Total standards violations reduced from 488 to 476 (expected).
 - 2025-10-14 (early morning): Standards compliance improvements - Fixed 7 high-severity Makefile violations by correcting header comment formatting to match auditor standards (exact spacing, correct command list). Reduced total standards violations from 495 to 488. All 5 test phases passing. P0: 100% complete (7/7), P1: 75% complete (3/4), P2: 50% complete (2/4). Zero security vulnerabilities maintained. Remaining 488 violations are mostly env_validation warnings (medium severity, no functional impact) and PRD structure gaps (requires v2.0 template migration).
 - 2025-10-14 (midnight): Documentation and standards update - Documented Redis permission issue (requires infrastructure-level fix). Updated Makefile help text formatting. All 5 test phases passing (structure, dependencies, business, integration, performance). P0: 100% complete (7/7), P1: 75% complete (3/4), P2: 50% complete (2/4). Zero security vulnerabilities maintained. 495 standards violations remain (mostly env_validation and documentation formatting - no functional impact).
 - 2025-10-14 (late evening): Database schema fix - Resolved PostgreSQL table name conflicts by prefixing all tables with `lis_` (lis_search_history, lis_saved_places, lis_user_preferences). Updated all Go code references. Fixed Makefile help text to include proper usage entries and lifecycle warning. All tests passing. Documented PRD structure standards gap (495 violations) in PROBLEMS.md for future improvement cycle. Zero security vulnerabilities maintained.

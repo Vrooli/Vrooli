@@ -1,0 +1,14 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "CardHeader",
+      "CardTitle",
+      "CardDescription",
+      "CardContent"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 2
+  },
+  "componentId": "react-component-library:Card",
+  "version": "1.3.1"
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "controller",
+    "title": "Controller",
+    "routes": ["/controllers/:controllerId"],
+    "purpose": "Enroll a stable controller and set capability-aware zone colors while distinguishing saved, sent, acknowledged, and observed output.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    { "id": "loading", "description": "Controller and zone capabilities are loading." },
+    { "id": "default", "description": "Shows stable controller identity, capabilities, editable color, and per-zone results." },
+    { "id": "empty", "description": "A returned or disconnected controller not present in current inventory is explained." },
+    { "id": "partial", "description": "Unsupported effects and missing zones remain explicit; static control is only offered when supported." },
+    { "id": "request-error", "description": "Control errors are visible and preserve durable desired state." },
+    { "id": "stale", "description": "Old status is marked with its last backend check time." }
+  ]
+}

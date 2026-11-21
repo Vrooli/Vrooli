@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-003",
+      "title": "Refresh Token Rotation with Token-Family Reuse Detection and Revocation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "security",
+      "description": "Access tokens must be short-lived (configurable, default ≤15 min). Each sign-in issues a refresh token belonging to a token family. On refresh, the old refresh token is invalidated and a new one issued (rotation). If a previously rotated (already-used) refresh token is presented, the entire token family must be immediately revoked and the event audited. Revocation state is stored in Redis for hot-path lookups.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/token/rotation_test.go: state-machine test — issue family, rotate once → old token rejected, new token valid"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/token/rotation_test.go: reuse-detection test — rotate, then present the original token → entire family revoked, both old and new tokens rejected"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/token/rotation_test.go: expired refresh token is rejected before rotation logic executes"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/token/rotation_test.go: family revocation marks all descendants as invalid in Redis within the same transaction boundary"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/refresh_e2e_test.go: full rotate chain — login → refresh → get new access token; original refresh token is now rejected"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/refresh_e2e_test.go: reuse-detection integration — login, rotate, replay old refresh token → 401 + family revoked; attempt to use the new token issued in step 2 → also rejected"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/refresh_e2e_test.go: verify audit log entry is written for family-revoke event triggered by reuse detection"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "api/internal/token/rotation_bench_test.go: refresh-rotation path (Redis check + SQLite write + new token sign) completes under 50 ms p99 under 100 concurrent goroutines"
+        }
+      ]
+    }
+  ]
+}

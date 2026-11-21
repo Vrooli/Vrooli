@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.upload-workflow",
+    "name": "UploadWorkflow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The file upload flow with selection, validation, queueing, concurrency control, per-file progress, retry, cancellation, background continuation, and a final per-file result.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.dropzone",
+        "reason": "Selection, validation, and drag intake are shared."
+      },
+      {
+        "asset": "media.attachment-preview",
+        "reason": "Per-file progress and retry presentation are shared."
+      },
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Long work survives navigation by living in the shared task registry."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "upload-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

@@ -63,21 +63,6 @@ func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 			Observations: CleanObservations(phase.Observations),
 		}
 
-		if strings.EqualFold(phase.Name, "standards") {
-			if phase.Error != "" {
-				insight.Cause = phase.Error
-			} else if phase.Classification != "" {
-				insight.Cause = phase.Classification
-			} else {
-				insight.Cause = "Standards scan failed"
-			}
-			if phase.Remediation != "" {
-				insight.Fixes = append(insight.Fixes, strings.TrimSpace(phase.Remediation))
-			}
-			insights = append(insights, insight)
-			continue
-		}
-
 		switch {
 		case failurePatterns["typescript"].MatchString(content):
 			insight.Cause = "TypeScript compilation error"
@@ -85,7 +70,7 @@ func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 			insight.Impact = []string{"integration", "performance"}
 			insight.Fixes = append(insight.Fixes,
 				fmt.Sprintf("Fix TypeScript compiler errors (see %s)", insight.Log),
-				"Rebuild UI and rerun: test-genie execute <scenario> lint")
+				"Rebuild UI and rerun: test-genie execute <scenario> quality")
 		case failurePatterns["ui_bundle"].MatchString(content):
 			insight.Cause = "Stale or missing UI bundle"
 			insight.Detail = extractLine(content, failurePatterns["ui_bundle"])
@@ -208,25 +193,6 @@ func DiagnoseFailures(phases []execTypes.Phase) *FailureDiagnosis {
 	for _, phase := range failed {
 		content := ReadLogSnippet(phase.LogPath, 48_000)
 
-		if strings.EqualFold(phase.Name, "standards") {
-			if diag.Primary == "" {
-				diag.Primary = "Standards violations detected"
-				diag.PrimaryPhase = phase.Name
-				diag.Details = strings.TrimSpace(phase.Error)
-				if diag.Details == "" {
-					diag.Details = extractLine(content, failurePatterns["tests"])
-				}
-				if phase.Remediation != "" {
-					diag.QuickFixes = append(diag.QuickFixes, strings.TrimSpace(phase.Remediation))
-				} else {
-					diag.QuickFixes = append(diag.QuickFixes, "Re-run: scenario-auditor audit <scenario> --standards-only --timeout 60")
-				}
-			}
-
-			diag.SecondaryIssues = append(diag.SecondaryIssues, fmt.Sprintf("%s: standards violations detected", phase.Name))
-			continue
-		}
-
 		switch {
 		case diag.Primary == "" && failurePatterns["typescript"].MatchString(content):
 			diag.Primary = "TypeScript compilation error"
@@ -235,7 +201,7 @@ func DiagnoseFailures(phases []execTypes.Phase) *FailureDiagnosis {
 			diag.ImpactedPhases = append(diag.ImpactedPhases, "integration", "performance")
 			diag.QuickFixes = append(diag.QuickFixes,
 				fmt.Sprintf("Fix TypeScript compiler errors (see %s)", DescribeLogPath(phase.LogPath)),
-				"Rebuild/restart scenario, then re-run: test-genie execute <scenario> lint")
+				"Rebuild/restart scenario, then re-run: test-genie execute <scenario> quality")
 		case diag.Primary == "" && failurePatterns["ui_bundle"].MatchString(content):
 			diag.Primary = "Stale or missing UI bundle"
 			diag.PrimaryPhase = phase.Name

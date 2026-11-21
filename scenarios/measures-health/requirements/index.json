@@ -1,0 +1,54 @@
+{
+  "_metadata": {
+    "entity": "measures-health",
+    "generated_at": "2026-06-08T09:53:02-04:00",
+    "generator": "business-health",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-static-coverage-validation/module.json",
+    "02-central-measures-index-and-registered-se/module.json",
+    "03-behavioral-adoption-probe/module.json",
+    "04-producer-wiring-into-em-maturity-ladder/module.json",
+    "05-fleet-view-ui/module.json",
+    "06-eval-and-observability-hooks/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-static-coverage-validation",
+      "priority": "P0",
+      "title": "Static Coverage Validation"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-central-measures-index-and-registered-se",
+      "priority": "P0",
+      "title": "Central Measures Index and Registered Search-Hub Provider"
+    },
+    {
+      "id": "MOD-P1-003",
+      "path": "03-behavioral-adoption-probe",
+      "priority": "P1",
+      "title": "Behavioral Adoption Probe"
+    },
+    {
+      "id": "MOD-P1-004",
+      "path": "04-producer-wiring-into-em-maturity-ladder",
+      "priority": "P1",
+      "title": "Producer Wiring into EM Maturity Ladder"
+    },
+    {
+      "id": "MOD-P2-005",
+      "path": "05-fleet-view-ui",
+      "priority": "P2",
+      "title": "Fleet-View UI"
+    },
+    {
+      "id": "MOD-P2-006",
+      "path": "06-eval-and-observability-hooks",
+      "priority": "P2",
+      "title": "Eval and Observability Hooks"
+    }
+  ]
+}

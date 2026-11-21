@@ -1,179 +1,4 @@
 {
-  "metadata": {
-    "name": "open-demo-project",
-    "description": "Navigates to the BAS dashboard and opens the seeded demo project",
-    "labels": {
-      "fixture_id": "open-demo-project",
-      "seed_required": "true",
-      "seed_keys": "projectId,projectName,projectFolder",
-      "reset": "none",
-      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
-      "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier created by the seed script\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project name created by the seed script\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Seed project folder path\"}]"
-    },
-    "execution_mode": "observer"
-  },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "fixture-seed-state",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/load-seed-state.json",
-          "args": {
-            "projectId": {
-              "string_value": "${@params/projectId}"
-            },
-            "projectName": {
-              "string_value": "${@params/projectName}"
-            },
-            "projectFolder": {
-              "string_value": "${@params/projectFolder}"
-            },
-            "workflowId": {
-              "string_value": "${@params/workflowId}"
-            },
-            "workflowName": {
-              "string_value": "${@params/workflowName}"
-            }
-          }
-        },
-        "metadata": {
-          "label": "Load seed metadata"
-        }
-      }
-    },
-    {
-      "id": "fixture-navigate-dashboard",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "url": "",
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "browser-automation-studio",
-          "scenario_path": "/",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 45000
-        },
-        "metadata": {
-          "label": "Open BAS dashboard"
-        }
-      },
-      "execution_settings": {
-        "wait_after_ms": 2000
-      }
-    },
-    {
-      "id": "fixture-dismiss-tutorial",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/dismiss-tutorial.json"
-        },
-        "metadata": {
-          "label": "Dismiss onboarding tutorial if present"
-        }
-      }
-    },
-    {
-      "id": "fixture-click-projects-tab",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/dashboard.tabs.projects"
-        },
-        "metadata": {
-          "label": "Navigate to Projects tab"
-        }
-      },
-      "execution_settings": {
-        "timeout_ms": 5000,
-        "wait_after_ms": 500
-      }
-    },
-    {
-      "id": "fixture-wait-for-projects",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/dashboard.newProjectButton",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for Projects tab to load"
-        }
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      }
-    },
-    {
-      "id": "fixture-assert-seed-project",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 10000,
-          "failure_message": "Seed project with ID ${@params/projectId} should exist. Ensure seed script ran successfully."
-        },
-        "metadata": {
-          "label": "Verify seed project exists"
-        }
-      }
-    },
-    {
-      "id": "fixture-click-demo",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")"
-        },
-        "metadata": {
-          "label": "Select demo project"
-        }
-      },
-      "execution_settings": {
-        "timeout_ms": 10000,
-        "resilience": {
-          "success_selector": "h1",
-          "success_timeout_ms": 10000
-        }
-      }
-    },
-    {
-      "id": "fixture-assert-demo-heading",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "h1",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Project header should be visible"
-        },
-        "metadata": {
-          "label": "Verify project header"
-        }
-      }
-    },
-    {
-      "id": "fixture-wait-for-project-tabs",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/workflows.tab",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for project tabs"
-        }
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
-      }
-    }
-  ],
   "edges": [
     {
       "id": "fixture-edge-0",
@@ -188,40 +13,248 @@
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1b",
+      "id": "fixture-edge-2",
       "source": "fixture-dismiss-tutorial",
       "target": "fixture-click-projects-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1c",
+      "id": "fixture-edge-3",
       "source": "fixture-click-projects-tab",
       "target": "fixture-wait-for-projects",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1a",
+      "id": "fixture-edge-4",
       "source": "fixture-wait-for-projects",
+      "target": "fixture-assert-projects-settled",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-5",
+      "source": "fixture-assert-projects-settled",
+      "target": "fixture-assert-projects-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "fixture-edge-6",
+      "source": "fixture-assert-projects-ready",
       "target": "fixture-assert-seed-project",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-1b",
+      "id": "fixture-edge-7",
       "source": "fixture-assert-seed-project",
       "target": "fixture-click-demo",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-2",
+      "id": "fixture-edge-8",
       "source": "fixture-click-demo",
       "target": "fixture-assert-demo-heading",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "fixture-edge-3",
+      "id": "fixture-edge-9",
       "source": "fixture-assert-demo-heading",
       "target": "fixture-wait-for-project-tabs",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     }
-  ]
+  ],
+  "metadata": {
+    "description": "Navigates to the BAS dashboard and opens the seeded demo project",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "open-demo-project",
+      "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "seed_keys": "projectId,projectName,projectFolder",
+      "seed_required": "true"
+    },
+    "name": "open-demo-project"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Load seed metadata"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": {
+              "string_value": "${@params/projectFolder}"
+            },
+            "projectId": {
+              "string_value": "${@params/projectId}"
+            },
+            "projectName": {
+              "string_value": "${@params/projectName}"
+            },
+            "workflowId": {
+              "string_value": "${@params/workflowId}"
+            },
+            "workflowName": {
+              "string_value": "${@params/workflowName}"
+            }
+          },
+          "workflow_path": "actions/load-seed-state.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "fixture-seed-state"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Open the BAS dashboard on its Projects tab"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "browser-automation-studio",
+          "scenario_path": "/?tab=projects",
+          "timeout_ms": 45000,
+          "url": "",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "fixture-navigate-dashboard"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        },
+        "subflow": {
+          "workflow_path": "actions/dismiss-tutorial.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "fixture-dismiss-tutorial"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "timeout_ms": 5000
+      },
+      "id": "fixture-click-projects-tab"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Settle the declared projects-grid surface"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"ready\"], [data-testid=\"projects-grid-surface\"][data-experience-state=\"empty\"], [data-testid=\"projects-grid-surface\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_ATTACHED",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "fixture-wait-for-projects"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The projects-grid surface is still reporting data-experience-state=loading after settling, so the dashboard never reached a terminal lifecycle state.",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"loading\"]",
+          "timeout_ms": 2000
+        },
+        "metadata": {
+          "label": "Projects grid is no longer loading"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-projects-settled"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The projects-grid surface settled to empty or error rather than ready. The seeded demo project is missing or the project list request failed; this is reported in milliseconds instead of as a downstream selector timeout.",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "[data-testid=\"projects-grid-surface\"][data-experience-state=\"ready\"]",
+          "timeout_ms": 2000
+        },
+        "metadata": {
+          "label": "Projects grid settled to ready"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-projects-ready"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "The deterministic Demo Browser Automations project should exist. Ensure routed fixture setup completed.",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Verify seed project exists"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-seed-project"
+    },
+    {
+      "action": {
+        "click": {
+          "selector": "@selector/projects.cardByName(name=\"Demo Browser Automations\")"
+        },
+        "metadata": {
+          "label": "Select demo project"
+        },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "execution_settings": {
+        "resilience": {
+          "success_selector": "@selector/breadcrumbs.project",
+          "success_timeout_ms": 10000
+        },
+        "timeout_ms": 10000
+      },
+      "id": "fixture-click-demo"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "Project breadcrumb should be visible",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": "@selector/breadcrumbs.project",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify project breadcrumb"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "fixture-assert-demo-heading"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for project tabs"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflows.tab",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "fixture-wait-for-project-tabs"
+    }
+  ],
+  "settings": {}
 }

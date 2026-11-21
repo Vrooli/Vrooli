@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "landing-page-business-suite-treasury-x402-order",
+      "resource": "treasury-x402-order",
+      "audience": "scenario-authenticator:treasury-x402-order",
+      "scopes": ["treasury:x402-authorize", "treasury:x402-settle", "treasury:x402-cancel"]
+    },
+    {
+      "name": "landing-page-business-suite-treasury-x402-receipt-reader",
+      "resource": "treasury-x402-receipt",
+      "audience": "scenario-authenticator:treasury-x402-receipt",
+      "scopes": ["treasury:x402-receipt-read"]
+    },
+    {
+      "name": "landing-page-business-suite-money-ledger-writer",
+      "resource": "money-ledger",
+      "audience": "scenario-authenticator:money-ledger",
+      "scopes": ["money-ledger:write"]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-control.check-app",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Screenshot a phone or TV, or try an app on it: install an APK when one is given, open the app and verify it is in the foreground, then capture its screen.",
+  "inputs": {
+    "device": {
+      "type": "string",
+      "required": true,
+      "description": "Device id or unique display name"
+    },
+    "actor": {
+      "type": "string",
+      "required": true,
+      "description": "Audited operator or program actor"
+    },
+    "apk": {
+      "type": "string",
+      "description": "Absolute path of an APK to install on a phone first; omit for an app that is already installed"
+    },
+    "app": {
+      "type": "string",
+      "description": "App name or exact package when no apk is given"
+    },
+    "screenshot": {
+      "type": "boolean",
+      "default": true,
+      "description": "Capture a screenshot after the app is in the foreground"
+    },
+    "home": {
+      "type": "boolean",
+      "default": false,
+      "description": "Screenshot-only: press Home first"
+    }
+  },
+  "assumptions": [
+    "Device Control owns identity resolution, wake, transport selection, leases and evidence retention"
+  ],
+  "invariants": [
+    "Install is sent only when an apk is supplied; an app that is already installed is never reinstalled",
+    "Success needs the foreground observation and, when requested, a retained screenshot",
+    "A failure reports its next actions; nothing is retried on another device"
+  ],
+  "bindings": [
+    {
+      "id": "device-control/device/install",
+      "effect": "write",
+      "via": "binding"
+    },
+    {
+      "id": "device-control/device/open",
+      "effect": "write",
+      "via": "binding"
+    },
+    {
+      "id": "device-control/device/screenshot",
+      "effect": "write",
+      "via": "binding"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "install_status": "installed_verified or failed (apk path only)",
+      "launch_status": "foreground_verified, launched_unverified, not_installed or failed",
+      "package": "resolved package",
+      "next_actions": "exact commands that resolve a failure",
+      "fetch": "command that saves an evidence id",
+      "learning": "Durable feedback_ref identifies this task."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "check_failed",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Operation and state observation references"
+  },
+  "budget": {
+    "wall_ms": 240000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "device-control"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "device-control",
+  "verbs": [
+    "learn.note",
+    "learn.outcome",
+    "learn.result",
+    "learn.task",
+    "lib"
+  ]
+}

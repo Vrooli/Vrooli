@@ -1,0 +1,48 @@
+{
+  "observed_at": "2026-11-07T04:36:37.267773+00:00",
+  "scope": "offline run-evidence qualification; no new runtime reader or live changes",
+  "gate": "run_unqualified",
+  "reason": [
+    "No retained terminal event-ID backlink or immutable terminal observation in canonical run owner",
+    "UpdatedAt and LifecycleVersion do not retain historical snapshots",
+    "Generic WorkReferences are retained declarations, not verified Flywheel scope and executor bindings"
+  ],
+  "baseline": {
+    "focused_tests_passed": 1,
+    "focused_tests_failed": 2,
+    "cause": "Accounting projection was not implemented by test fixture"
+  },
+  "final_checks": {
+    "investigation_evidence_tests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "agent_manager_declared_program_tests": {
+      "passed": 13,
+      "failed": 0
+    },
+    "local_work_snapshot_tests": {
+      "passed": 26,
+      "failed": 0
+    },
+    "git_diff_check": "passed",
+    "live_reader": "not_run",
+    "scenario_suite": "not_run"
+  },
+  "source_sha256": {
+    "scenarios/agent-manager/.vrooli/program-runtime/investigation-evidence.json": "8cbf7adf7e9a6689033f91d7edc302ba4c14279eff225f3055f80a009e115811",
+    "scenarios/agent-manager/.vrooli/program-runtime/investigation-evidence.py": "7f0c145d3908605e7bf0213adbf6ccdc51e6b3d52aafc518dcaf227e7f50e06a",
+    "scenarios/agent-manager/.vrooli/program-runtime/tests/test_investigation_evidence.py": "47b09999dfe5ffa623705eaea7e765648b554182c7e4bd4bbbb959545cbf8ca1",
+    "scenarios/agent-manager/api/internal/orchestration/run_outcome_events.go": "8a6e311549c220109b0ef0237b0c9d1a3222d9f85ce45ae0d4a112f50c943be6"
+  },
+  "changed_files": [
+    "scenarios/agent-manager/.vrooli/program-runtime/tests/test_investigation_evidence.py",
+    "scenarios/program-runtime/docs/guides/local-work-bridge.md"
+  ],
+  "independent_review": {
+    "result": "passed",
+    "findings": "No actionable defects in fixture additions or appended guidance; owner-gap conclusion confirmed",
+    "focused_tests_passed": 9
+  },
+  "remaining": "Prospective owner receipt and separately source-backed reciprocal Work binding; no historical reconstruction"
+}

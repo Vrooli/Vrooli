@@ -1,0 +1,123 @@
+# The `/public/*` Public-Asset Convention
+
+> **Owner:** operator-direct for the security contract; agents may extend the
+> "what belongs here" guidance as new world-readable surfaces appear, subject to
+> operator review. **Siblings:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) (the
+> technical how), [`ECOSYSTEM.md`](./ECOSYSTEM.md) (how a scenario fits the
+> whole). The enforcement lives in `tunnel-manager` (edge Access bypass) and
+> `brand-manager` (validation + autofix); this doc is the canon they cite.
+
+## What this convention is
+
+**Anything a scenario serves under the URL path prefix `/public/*` is publicly
+fetchable by anonymous, unauthenticated clients — by design.**
+
+The contract is the **URL path**, not any framework's source-directory name. A
+file that ends up at `https://<host>/public/apple-touch-icon.png` is covered; a
+file at `https://<host>/apple-touch-icon.png` is not, regardless of where it
+lives in the repo.
+
+## Why it exists
+
+Every scenario routed through the Cloudflare named tunnel sits behind a
+**Cloudflare Access (Zero Trust)** application: every request returns a `302`
+redirect to the Access login page unless the caller carries the Access session
+cookie. That is correct for the app itself, but it breaks **anonymous system
+fetchers** that legitimately need a handful of assets:
+
+- **iOS Add-to-Home-Screen** fetches the web manifest + `apple-touch-icon` with
+  a cookieless system fetcher → it receives login HTML, not a PNG → the home
+  screen falls back to a generic letter glyph.
+- **Link unfurlers / Open Graph crawlers** are likewise anonymous → blank
+  previews.
+
+The most-missed sub-point: the **manifest itself must be public**. If
+`/site.webmanifest` returns `302`, the browser discards the *entire* manifest
+(name + every icon) via a CORS failure, so exempting only the PNGs still fails.
+
+`tunnel-manager` enforces the convention at the Cloudflare edge with a narrow,
+guard-railed Access **Bypass** policy scoped to `<host>/public` (a plain
+"Allow + Everyone" policy does **not** work — it still shows a login; only a
+**Bypass** decision serves the raw asset with no redirect). Cloudflare's
+most-specific-path precedence keeps the operator's host-level protective app
+authoritative for everything outside `/public`.
+
+## The security contract (read before putting anything here)
+
+- `/public/*` is **world-readable by design**. Treat it as if it were on a
+  public CDN with no auth, ever.
+- Therefore **nothing sensitive may ever be served under `/public/`** — no
+  tokens, no per-user data, no internal API responses, no anything that depends
+  on the Access gate for its confidentiality.
+- The exemption is *only* a Bypass for the `/public` path prefix. Every other
+  path stays fully gated by the operator's primary Access application, which
+  `tunnel-manager` never modifies or deletes.
+
+## What belongs under `/public/`
+
+- Branding + PWA assets: favicons, `apple-touch-icon`, `icon-192`/`icon-512`,
+  the web manifest (`site.webmanifest`), `logo.svg`.
+- Open Graph / Twitter-card preview images (`og-image.png`).
+- `robots.txt`, `sitemap.xml`, and anything else meant to be world-readable.
+
+## Target profiles
+
+A scenario declares which icon targets it ships in
+`.vrooli/service.json` (`branding.brand` + `branding.targets`) and brand-manager
+`apply` writes them. The `web-public-v1` profile is the `/public/*` PWA set under
+`ui/public/public/`:
+
+| File | Size / format | Purpose |
+|---|---|---|
+| `logo.svg` | SVG, viewBox 512 | vector mark |
+| `favicon-16.png`, `favicon-32.png` | PNG at exact size | `<link rel="icon" sizes>` |
+| `favicon-196.png` | PNG 196×196 | file only |
+| `icon-192.png`, `icon-512.png` | PNG at exact size | manifest `purpose: any` |
+| `maskable-icon-192.png`, `maskable-icon-512.png` | PNG at exact size, opaque | manifest `purpose: maskable` |
+| `apple-touch-icon.png` | PNG 180×180, opaque | `<link rel="apple-touch-icon">` |
+| `og-image.png` | PNG 1200×630, opaque | `og:image` / `twitter:image` |
+| `site.webmanifest` | JSON | manifest, icon srcs relative |
+
+The complete definition, including the `electron-v1` desktop profile, is in
+`scenarios/brand-manager/docs/concepts/BRAND-ASSET-PIPELINE.md`.
+
+## What must never go there
+
+- Anything private or sensitive (see the security contract above).
+
+## Adopter requirements
+
+- Emit explicit `<link>` / `<meta>` tags in the document head that point at
+  the public surface with **relative** paths and no leading slash
+  (`public/site.webmanifest`, `public/apple-touch-icon.png`). Served from the
+  host root, a relative link resolves to `/public/...`, the prefix the Access
+  bypass covers; behind a path-prefix proxy it resolves under that prefix
+  instead of escaping to the proxy host's root, so the same document works in
+  both places (the `<base href>` the scenario server and proxy host inject
+  keeps this true on nested routes). iOS A2HS and OG crawlers read those tags, so pointing them at
+  the public surface is what makes the flow work. `og:image` and
+  `twitter:image` keep the absolute `/public/...` path: Open Graph expects an
+  absolute image URL, and a host-agnostic build can only fix the path, not the
+  host.
+- A PWA manifest at `/public/site.webmanifest` resolves its icon `src` values
+  relative to the manifest URL, so relative icon paths keep working.
+  `start_url` and `scope` are `../`: relative to the manifest that is the
+  **app root**, not `/public/`, so the installed app launches into the app and
+  not the asset folder, and the manifest stays correct behind a path-prefix
+  proxy. The manifest omits `id`: browsers resolve `id` against the origin, so
+  `"/"` or `"."` would give every app behind one proxy the same install
+  identity, while an omitted `id` defaults to the resolved `start_url` (the
+  origin at a host root, keeping existing installs; the app's own prefix
+  behind a proxy).
+- The operator approved relative links and the `../` manifest scope on
+  2026-11-07; they replace the earlier absolute-path requirement. The security
+  contract and the `/public` URL-prefix bypass above are unchanged.
+
+## Accepted edges
+
+- A bare-root `/favicon.ico` probe (browsers fetch it with no `<link>` tag)
+  stays gated. This is cosmetic only: real flows (A2HS, OG) read explicit tags,
+  which adopters point at `/public/...`.
+- Framework source-dir nesting can look odd (e.g. Vite serves `ui/public/` at
+  URL root `/`, so the convention surface lives at `ui/public/public/` →
+  `/public/`). The contract is the **URL** prefix, not the directory name.

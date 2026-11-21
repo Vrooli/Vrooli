@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "label": "Actions"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Actions",
+          "role": "group"
+        },
+        {
+          "kind": "text",
+          "value": "Save"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Default actions",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Segmented",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-variant",
+          "kind": "attribute",
+          "selector": "[data-rcl-button-group]",
+          "value": "segmented"
+        },
+        {
+          "attribute": "aria-pressed",
+          "kind": "attribute",
+          "selector": "[data-rcl-button][aria-pressed=\"true\"]",
+          "value": "true"
+        }
+      ],
+      "id": "segmented",
+      "mode": "live",
+      "name": "Segmented choice",
+      "role": "boundary"
+    }
+  ],
+  "title": "ButtonGroup"
+}

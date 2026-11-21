@@ -18,14 +18,14 @@ func TestFetchScenarioAuditorSummary(t *testing.T) {
 		GeneratedAt:     time.Now().UTC().Format(time.RFC3339),
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/standards/violations/summary" {
+		if r.URL.Path != "/v2/runtime/api/v1/standards/violations/summary" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"summary": summaryPayload})
 	}))
 	defer server.Close()
 
-	t.Setenv("SCENARIO_AUDITOR_API_BASE_URL", server.URL)
+	t.Setenv("SCENARIO_AUDITOR_API_BASE_URL", server.URL+"/v2/runtime/")
 
 	service := &AppService{
 		httpClient: server.Client(),

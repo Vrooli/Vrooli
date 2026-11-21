@@ -1,0 +1,92 @@
+{
+  "description": "Capture build (and optionally test) status at migration start; refuse to land conflict resolutions or per-domain applies when the build has broken since baseline; allow --force only with a required --note that is logged in analytics.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must capture the build (and optionally test) status at migration start as a baseline (AC-BUILD-BASELINE). Before landing any conflict resolution or per-domain apply, cartographer must verify the current build status against the baseline (AC-BUILD-GUARD) and refuse to proceed if the build has broken since baseline. The --force flag is permitted only when accompanied by a required --note argument; the note must be logged in analytics (AC-BUILD-FORCE-NOTE). Build state must be cached by content hash to avoid redundant rebuilds (AC-BUILD-CACHE).",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Build-Green Baseline Guardrail for Safe Migration",
+      "validation": [
+        {
+          "notes": "AC-BUILD-BASELINE: Baseline capture records build status (pass/fail), timestamp, and content hash of the repository state",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-BUILD-GUARD: Apply command invoked after a build failure since baseline returns an error referencing the baseline comparison",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-BUILD-FORCE-NOTE: --force without --note returns an error listing the requirement for a note",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-BUILD-FORCE-NOTE: --force with --note proceeds and persists the note in the analytics events table",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-BUILD-CACHE: Second apply with the same content hash reuses cached build status and does not invoke the build toolchain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: break a fixture scenario's build → run arch-cart apply → command refuses and prints baseline diff",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: arch-cart apply --force --note 'deliberate override' on a broken build proceeds and the note appears in arch-cart history",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Build cache invalidation: modify a source file → content hash changes → build is re-invoked",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No conflict resolution or migration can silently land on a broken build without an explicit human-acknowledged override",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The --force note provides an audit trail for post-incident review of broken-build overrides",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Build-Green Baseline Guardrail"
+}

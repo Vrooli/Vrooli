@@ -7,29 +7,79 @@
 
 import type { ChartDataPoint } from '../../types';
 
+interface SingleSeriesPoint {
+	[key: string]: string | number | boolean | undefined;
+  timestamp: string;
+  value: number;
+	gapBefore?: boolean;
+}
+
 /** Normalise a time series into sorted {timestamp, value} tuples. */
-export const buildSingleSeriesData = (series?: ChartDataPoint[]) => {
+export const buildSingleSeriesData = (series?: ChartDataPoint[]): SingleSeriesPoint[] => {
   if (!series || series.length === 0) {
-    return [] as Array<{ timestamp: string; value: number }>;
+    return [];
   }
   return [...series]
-    .map(point => ({ timestamp: point.timestamp, value: Number(point.value) }))
+    .map(point => ({ timestamp: point.timestamp, value: Number(point.value), ...(point.gapBefore ? { gapBefore: true } : {}) }))
     .filter(point => !Number.isNaN(point.value))
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 };
 
-/** Merge read/write disk series into a single sorted array. */
+/** Merge read/write disk series without fabricating a zero for a missing rate. */
 export const combineDiskSeries = (readSeries?: ChartDataPoint[], writeSeries?: ChartDataPoint[]) => {
-  const combined = new Map<string, { timestamp: string; read: number; write: number }>();
+  const combined = new Map<string, { timestamp: string; read?: number; write?: number; gapBefore?: boolean }>();
   (readSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.read = Number(point.value) || 0;
+    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing.read = Number.isFinite(point.value) ? point.value : undefined;
+    existing.gapBefore = existing.gapBefore || point.gapBefore || undefined;
     combined.set(point.timestamp, existing);
   });
   (writeSeries ?? []).forEach(point => {
-    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp, read: 0, write: 0 };
-    existing.write = Number(point.value) || 0;
+    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing.write = Number.isFinite(point.value) ? point.value : undefined;
+    existing.gapBefore = existing.gapBefore || point.gapBefore || undefined;
     combined.set(point.timestamp, existing);
   });
   return Array.from(combined.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+};
+
+/**
+ * Merge memory and swap series into one sorted dataset keyed by timestamp.
+ *
+ * The two are plotted together deliberately: memory utilisation can sit in a
+ * healthy band while swap fills, and that divergence is invisible on a
+ * memory-only chart. Points are kept `undefined` rather than zero when a
+ * series has no reading at that timestamp, so recharts breaks the line instead
+ * of drawing a false drop to 0%.
+ */
+export const combineMemorySeries = (
+  memorySeries?: ChartDataPoint[],
+  swapSeries?: ChartDataPoint[]
+) => {
+  const combined = new Map<string, { timestamp: string; memory?: number; swap?: number }>();
+  const upsert = (point: ChartDataPoint, key: 'memory' | 'swap') => {
+    const value = Number(point.value);
+    if (!Number.isFinite(value)) return;
+    const existing = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing[key] = value;
+    combined.set(point.timestamp, existing);
+  };
+	(memorySeries ?? []).forEach(point => { upsert(point, 'memory'); });
+	(swapSeries ?? []).forEach(point => { upsert(point, 'swap'); });
+  return Array.from(combined.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
+
+export const combineFlowSeries = (series: Array<{ key: string; points?: ChartDataPoint[] }>) => {
+  type FlowPoint = { timestamp: string } & Record<string, string | number>;
+  const combined = new Map<string, FlowPoint>();
+  for (const { key, points } of series) for (const point of points ?? []) {
+    const value = Number(point.value);
+    if (!Number.isFinite(value)) continue;
+    const existing: FlowPoint = combined.get(point.timestamp) ?? { timestamp: point.timestamp };
+    existing[key] = value;
+    combined.set(point.timestamp, existing);
+  }
+  return Array.from(combined.values()).sort((a, b) => new Date(String(a.timestamp)).getTime() - new Date(String(b.timestamp)).getTime());
 };

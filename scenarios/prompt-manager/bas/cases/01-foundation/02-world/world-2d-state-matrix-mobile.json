@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "name": "world-2d-state-matrix-mobile",
+    "description": "The renderer-backed 2D world remains usable at the narrow mobile viewport across populated, selected, empty, and 3D transition states",
+    "labels": { "reset": "none", "safety": "fixture-only", "routed_isolation": "true", "requires_confirmation": "true" },
+    "requirement": "UX-CAMPAIGN-007",
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "populated", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=25&seed=7&period=day", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the populated mobile map" } } },
+    { "id": "ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the mobile map" } } },
+    { "id": "map", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.map", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "The mobile map surface is not visible" }, "metadata": { "label": "Mobile map surface visible" } } },
+    { "id": "no-selection", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{if(document.body.innerText.includes('Selected agent'))throw Error('2D world should start without a selected agent');return true;})()" }, "metadata": { "label": "Mobile no-selection state is explicit" } } },
+    { "id": "list", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.actorList", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "The mobile activity list is not visible" }, "metadata": { "label": "Mobile activity list visible" } } },
+    { "id": "focus", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/world.hud.actorRow" }, "metadata": { "label": "Select a mobile agent" } } },
+    { "id": "selected", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.agentCard", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 15000, "failure_message": "The selected mobile agent card is not visible" }, "metadata": { "label": "Mobile selected state visible" } } },
+    { "id": "empty", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/world?view=2d&intro=0&actors=0&seed=7&period=day", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Open the mobile empty roster" } } },
+    { "id": "empty-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/world.hud.twoDMode", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the mobile empty state" } } },
+    { "id": "empty-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/world.hud.emptyState", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "timeout_ms": 15000, "expected": { "string_value": "No agents are connected yet" }, "failure_message": "The mobile empty roster is ambiguous" }, "metadata": { "label": "Mobile empty truth visible" } } },
+    { "id": "back-3d", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/world.hud.twoDToggle" }, "metadata": { "label": "Return from mobile 2D to 3D" } } },
+    { "id": "canvas", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(()=>{const root=document.querySelector('[data-testid=\"world-view\"]');const renderer=root?.getAttribute('data-world-renderer');if(renderer!=='2d'&&renderer!=='2d-fallback'&&renderer!=='3d')throw Error(`Unexpected mobile world renderer: ${renderer}`);return true;})()" }, "metadata": { "label": "Mobile renderer state is capability-aware" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "populated", "target": "ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "ready", "target": "map", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "map", "target": "no-selection", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "no-selection", "target": "list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "list", "target": "focus", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "focus", "target": "selected", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "selected", "target": "empty", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "empty", "target": "empty-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "empty-ready", "target": "empty-assert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "empty-assert", "target": "back-3d", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "back-3d", "target": "canvas", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

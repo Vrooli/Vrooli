@@ -3,7 +3,7 @@
  * from API responses to strongly-typed frontend structures.
  */
 
-import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import { buildApiUrl } from "@vrooli/api-base";
 import { getCachedConfig } from "../config";
 import type {
   ReplayFrame,
@@ -227,7 +227,7 @@ const getCanonicalInfo = (): CanonicalInfo | null => {
       : `${forcedBase.replace(/\/$/, "")}${API_SUFFIX}`;
     candidateBases.push(normalized);
   }
-  candidateBases.push(resolveApiBase({ appendSuffix: true }));
+  candidateBases.push(getCachedConfig().API_URL);
 
   for (const base of candidateBases) {
     try {
@@ -375,18 +375,6 @@ export const resolveUrl = (url?: string | null): string | undefined => {
   const fromConfig = attemptBuildWithBase(trimmed, configBase);
   if (fromConfig) {
     return fromConfig;
-  }
-
-  const resolvedBase = (() => {
-    try {
-      return resolveApiBase({ appendSuffix: false });
-    } catch {
-      return undefined;
-    }
-  })();
-  const fromResolved = attemptBuildWithBase(trimmed, resolvedBase);
-  if (fromResolved) {
-    return fromResolved;
   }
 
   if (typeof window !== "undefined" && window.location?.origin) {

@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Technique: show how a plan unfolds, and how small it is next to the big one.
+  Shows: .hub-timeline with .is-now, .hub-callout, .hub-chip, hub.prefill.
+  Based on a real decision to test demand for a small paid version of Vrooli
+  before building the full selling platform. No attachments:
+
+  notification-hub conversations ask \
+    --question 'Should we test demand for one small paid version of Vrooli for three weeks before building the full selling platform?' \
+    --big-picture '...' \
+    --option 'test-first=Yes, run the small paid version and the three-week test first' \
+    --option 'build-first=No, keep building the full platform first' \
+    --recommend test-first --recommend-reason '...' \
+    --subject-key o5-demand-test-first \
+    --packet ./work/PAID-VERSION-TEST \
+    --explainer ./rollout-timeline.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test demand first</title>
+<style>
+  h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+  .sum { display: grid; gap: 0.75rem; margin: 1rem 0 1.5rem; }
+  .bar { display: grid; grid-template-columns: 5.5rem 1fr; align-items: center; gap: 0.75rem; font-size: 0.875rem; }
+  .bar b { display: block; height: 1.5rem; border-radius: 0.25rem; background: var(--hub-muted); }
+  .bar.is-small b { background: var(--hub-primary); }
+  .bar span { display: flex; flex-direction: column; }
+  .bar .fill { position: relative; }
+  .bar .fill i { position: absolute; left: 0.5rem; top: 0; font: 600 0.8125rem/1.5rem var(--hub-font); color: var(--hub-bg); font-style: normal; }
+  .branches { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .branches > div { padding: 0.75rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+  .branches h3 { margin: 0.25rem 0; }
+  .branches p { margin: 0; font-size: 0.875rem; }
+  @media (max-width: 420px) { .branches { grid-template-columns: 1fr; } }
+  .go { margin-top: 1rem; width: 100%; }
+</style>
+</head>
+<body>
+  <h1>Find out if anyone will pay, before we build for them</h1>
+  <p>Today the plan is to build a general selling platform first. That is about 2,780 hours of agent work and 13 steps only you can do, all before a single sale. I suggest two small jobs and a three-week check first.</p>
+
+  <div class="sum" aria-label="Work compared">
+    <div class="bar"><span>Full platform</span><div class="fill"><b></b><i>2,780 hours</i></div></div>
+    <div class="bar is-small"><span>Small test</span><div class="fill"><b style="width: 1%; min-width: 4px"></b></div></div>
+    <small>The small test is about 28 hours in all: 16 for the paid version, 12 for the waitlist page.</small>
+  </div>
+
+  <h2>How it would run</h2>
+  <ol class="hub-timeline">
+    <li class="is-now"><span class="hub-when">Today</span><h3>You decide</h3><p>If you do not answer, the current order stays.</p></li>
+    <li><span class="hub-when">First, about 16 hours</span><h3>One paid version</h3><p>Cut the plan down to a single paid, self-hosted Linux version and rehearse its checkout in test mode.</p></li>
+    <li><span class="hub-when">Then, about 12 hours</span><h3>Waitlist goes live</h3><p>A founding-member waitlist with two test prices on vrooli.com.</p></li>
+    <li><span class="hub-when">Day 21</span><h3>Count sign-ups</h3><p>100 sign-ups is the line.</p></li>
+  </ol>
+
+  <div class="branches">
+    <div><span class="hub-chip is-success">100 or more</span><h3>Build it</h3><p>The platform work is kept and built once a buyer exists.</p></div>
+    <div><span class="hub-chip is-warning">Fewer than 100</span><h3>Stop and rethink</h3><p>We do not build the platform on a guess.</p></div>
+  </div>
+
+  <h2>What happens when you approve</h2>
+  <p>The release plan is cut to the paid version today, and the waitlist goes live within two days.</p>
+  <button type="button" class="is-quiet" data-hub-open="BRIEF.md">Read the prepared plan</button>
+
+  <button type="button" class="go" id="go">Choose: test first</button>
+
+  <script>
+    document.getElementById("go").addEventListener("click", function () {
+      if (window.hub && window.hub.prefill) window.hub.prefill("answer", "test-first");
+    });
+  </script>
+</body>
+</html>

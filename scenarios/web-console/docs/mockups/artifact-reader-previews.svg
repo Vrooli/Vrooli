@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840">
+<style>text{font:14px system-ui;fill:#cbd5e1}.title{font-size:19px;font-weight:600;fill:#f1f5f9}.muted{fill:#94a3b8}.accent{fill:#2dd4bf}.line{stroke:#334155}</style>
+<rect width="1200" height="840" fill="#070d18"/><text x="28" y="38" class="title">Focused artifact inspection · Reading and configuration</text>
+<text x="28" y="66" class="muted">Desktop: navigation beside content. Phone: read first; outline and full values on demand.</text>
+<g transform="translate(28 90)">
+<rect width="720" height="340" rx="14" fill="#0f172a" stroke="#334155"/><text x="20" y="31" class="title">README.md</text>
+<path d="M0 50H720M0 102H720M0 294H720M180 102V294" class="line"/>
+<text x="20" y="82">Read / Source</text><text x="225" y="82">Find in document…</text><text x="550" y="82">A−   16px   A+</text>
+<text x="18" y="132" class="muted">CONTENTS</text><text x="18" y="165" class="accent">Overview</text><text x="30" y="195">Getting started</text><text x="30" y="225">Configuration</text>
+<text x="210" y="145" class="title">A comfortable reading column</text><text x="210" y="181">Existing rich Markdown, diagrams and tables.</text><text x="210" y="213" class="muted">Search navigates actual rendered text.</text><text x="210" y="245" class="muted">Source remains one tap away.</text>
+<text x="20" y="323" class="muted">Markdown · File size</text><text x="575" y="323">↓    Actions ▾</text></g>
+<g transform="translate(782 90)">
+<rect width="390" height="340" rx="14" fill="#0f172a" stroke="#334155"/><text x="18" y="31" class="title">README.md</text><path d="M0 50H390M0 102H390M0 294H390" class="line"/>
+<text x="18" y="82">Read / Source</text><text x="204" y="82">☰     Find     Aa</text><text x="18" y="145" class="title">Overview</text><text x="18" y="183">Full-width reading, without a sidebar.</text><text x="18" y="217" class="muted">Contents opens the outline;</text><text x="18" y="243" class="muted">select a section to return to reading.</text><text x="18" y="323" class="muted">Markdown · Size</text><text x="260" y="323">↓  Actions ▾</text></g>
+<g transform="translate(28 462)">
+<rect width="720" height="340" rx="14" fill="#0f172a" stroke="#334155"/><text x="20" y="31" class="title">service.yaml</text><path d="M0 50H720M0 102H720M0 294H720M400 102V294" class="line"/>
+<text x="20" y="82">Structure / Source</text><text x="245" y="82">Filter keys, values or paths…</text><text x="590" y="82">Doc 1 / 2</text>
+<text x="18" y="143">⌄ root</text><text x="38" y="179">⌄ services  ·  2 properties</text><text x="58" y="215" class="accent">port   16382</text><text x="58" y="251">host   localhost</text>
+<text x="422" y="142" class="muted">SELECTED VALUE</text><text x="422" y="177" class="accent">$.services.port</text><text x="422" y="215">16382</text><text x="422" y="263">Copy value     Copy path</text><text x="20" y="323" class="muted">YAML · Properties · Size</text><text x="575" y="323">↓    Actions ▾</text></g>
+<g transform="translate(782 462)">
+<rect width="390" height="340" rx="14" fill="#0f172a" stroke="#334155"/><text x="18" y="31" class="title">service.yaml</text><path d="M0 50H390M0 102H390M0 294H390" class="line"/>
+<text x="18" y="82">‹ Back to structure</text><text x="18" y="142" class="muted">SELECTED VALUE</text><text x="18" y="178" class="accent">$.services.port</text><text x="18" y="222" class="title">16382</text><text x="18" y="268">Copy value     Copy path</text><text x="18" y="323" class="muted">YAML · Size</text><text x="260" y="323">↓  Actions ▾</text></g>
+</svg>

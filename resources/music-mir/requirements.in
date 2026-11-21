@@ -1,0 +1,4 @@
+# Governed owner install is pending support for managed resource surfaces in
+# Scenario Dependency Analyzer. Do not run pip directly or use a host Python.
+msst[bs_roformer]==0.1.0
+imageio-ffmpeg==0.8.1

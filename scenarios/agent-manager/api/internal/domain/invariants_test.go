@@ -174,10 +174,10 @@ func TestRun_CheckTerminalTransition(t *testing.T) {
 	}{
 		{"pending to running - valid", RunStatusPending, RunStatusRunning, true},
 		{"running to complete - valid", RunStatusRunning, RunStatusComplete, true},
-		{"complete to running - invalid", RunStatusComplete, RunStatusRunning, false},
+		{"complete to running - explicit continuation", RunStatusComplete, RunStatusRunning, true},
 		{"failed to pending - invalid", RunStatusFailed, RunStatusPending, false},
-		{"cancelled to running - invalid", RunStatusCancelled, RunStatusRunning, false},
-		{"complete to failed - valid (terminal to terminal)", RunStatusComplete, RunStatusFailed, true},
+		{"cancelled to running - explicit continuation", RunStatusCancelled, RunStatusRunning, true},
+		{"complete to failed - invalid terminal rewrite", RunStatusComplete, RunStatusFailed, false},
 	}
 
 	for _, tt := range tests {
@@ -751,9 +751,9 @@ func TestTask_CheckTerminalTransition(t *testing.T) {
 		{"running to needs_review - valid", TaskStatusRunning, TaskStatusNeedsReview, true},
 		{"approved to running - invalid (terminal)", TaskStatusApproved, TaskStatusRunning, false},
 		{"rejected to queued - invalid (terminal)", TaskStatusRejected, TaskStatusQueued, false},
-		{"failed to running - invalid (terminal)", TaskStatusFailed, TaskStatusRunning, false},
+		{"failed to running - valid new attempt", TaskStatusFailed, TaskStatusRunning, true},
 		{"cancelled to running - invalid (terminal)", TaskStatusCancelled, TaskStatusRunning, false},
-		{"approved to failed - valid (terminal to terminal)", TaskStatusApproved, TaskStatusFailed, true},
+		{"approved to failed - invalid (failed can be retried)", TaskStatusApproved, TaskStatusFailed, false},
 	}
 
 	for _, tt := range tests {

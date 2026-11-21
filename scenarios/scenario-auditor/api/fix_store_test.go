@@ -39,8 +39,8 @@ func TestAutomatedFixStoreEnableDefaults(t *testing.T) {
 	if len(cfg.Severities) == 0 {
 		t.Errorf("expected severities to default to critical/high")
 	}
-	if cfg.Model != openRouterModel {
-		t.Errorf("expected default model %q, got %q", openRouterModel, cfg.Model)
+	if cfg.Model != openRouterModel() {
+		t.Errorf("expected default model %q, got %q", openRouterModel(), cfg.Model)
 	}
 }
 
@@ -93,5 +93,22 @@ func TestAutomatedFixStoreEnableCustom(t *testing.T) {
 	}
 	if cfg.Model != normalizeAgentModel(model) {
 		t.Fatalf("expected model %s, got %s", normalizeAgentModel(model), cfg.Model)
+	}
+}
+
+func TestSanitizeConfigNormalizesNonNegativeBounds(t *testing.T) {
+	cfg := sanitizeConfig(AutomatedFixConfig{
+		Strategy:       defaultAutomatedFixStrategy,
+		LoopDelay:      -1,
+		TimeoutSeconds: -1,
+		MaxFixes:       -1,
+	})
+	if cfg.LoopDelay != defaultLoopDelaySeconds || cfg.TimeoutSeconds != defaultTimeoutSeconds || cfg.MaxFixes != defaultMaxFixes {
+		t.Fatalf("negative settings should use defaults: loop=%d timeout=%d max=%d", cfg.LoopDelay, cfg.TimeoutSeconds, cfg.MaxFixes)
+	}
+
+	cfg.LoopDelay = 0
+	if got := sanitizeConfig(cfg).LoopDelay; got != 0 {
+		t.Fatalf("zero loop delay should be preserved, got %d", got)
 	}
 }

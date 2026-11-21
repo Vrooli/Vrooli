@@ -1,0 +1,272 @@
+{
+  "id": "SMzmcQfryP0eGNSK",
+  "name": "A (LITE) — Newsletter: Daily Sender [FREE]",
+  "tags": [],
+  "nodes": [
+    {
+      "id": "schedule-lite",
+      "name": "Daily at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        0,
+        400
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.3
+    },
+    {
+      "id": "config-lite",
+      "name": "⚙️ Config",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        224,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// ========================================\n// CONFIGURATION — edit only this node\n// ========================================\n// sheetId: Your Google Sheet ID (from the URL between /d/ and /edit)\nconst sheetId = 'YOUR-GOOGLE-SHEET-ID';\n\nreturn [{ json: { sheetId } }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "read-products-lite",
+      "name": "Read Products",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        448,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "products"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "typeVersion": 4.7
+    },
+    {
+      "id": "filter-today-lite",
+      "name": "Filter by Today",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        672,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const today = new Date().toISOString().split('T')[0];\nconst result = [];\nconst allItems = $input.all();\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  const raw = item.json.send_date;\n  if (raw) {\n    try {\n      const normalized = new Date(raw).toISOString().split('T')[0];\n      if (normalized === today) {\n        result.push({ json: item.json });\n      }\n    } catch (e) {}\n  }\n}\nreturn result;"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "if-lite",
+      "name": "Products Found?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        880,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cond1",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "build-html-lite",
+      "name": "Build HTML Email",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1104,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst today = new Date();\nconst days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\nconst months = ['January','February','March','April','May','June','July','August','September','October','November','December'];\nconst weekday = days[today.getDay()];\nconst dateStr = today.getDate() + ' ' + months[today.getMonth()] + ' ' + today.getFullYear();\nconst products = items.map(i => i.json);\nconst count = products.length;\nconst cards = [];\nfor (let i = 0; i < products.length; i++) {\n  const p = products[i];\n  const hasRef = p.referral_link && p.referral_link.trim() !== '';\n  let card = '<div style=\"margin-bottom:24px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;\">';\n  if (p.image_url) { card += '<div style=\"padding:12px 12px 0;\"><img src=\"' + p.image_url + '\" style=\"width:100%;max-height:220px;object-fit:contain;display:block;\" alt=\"' + p.product_name + '\" /></div>'; }\n  card += '<div style=\"padding:10px 14px 12px;\">';\n  card += '<h2 style=\"margin:0 0 4px;font-size:15px;color:#111;\">' + p.product_name + '</h2>';\n  card += '<p style=\"margin:0 0 10px;color:#666;line-height:1.4;font-size:13px;\">' + p.description + '</p>';\n  if (hasRef) {\n    card += '<a href=\"' + p.referral_link + '\" style=\"display:inline-block;background:#000;color:#fff;padding:7px 16px;border-radius:6px;text-decoration:none;font-size:13px;\">Learn more →</a>';\n  }\n  card += '</div></div>';\n  cards.push(card);\n}\nconst productCards = cards.join('');\nconst h1text = count + ' new product' + (count > 1 ? 's' : '') + ' for you today';\nconst html = '<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#f9fafb;\"><div style=\"max-width:600px;margin:0 auto;padding:24px;font-family:-apple-system,sans-serif;\"><h1 style=\"margin:0 0 24px;font-size:24px;color:#111;\">' + h1text + '</h1>' + productCards + '<p style=\"margin-top:32px;font-size:12px;color:#999;\">You are receiving this because you subscribed to our product newsletter.</p></div></body></html>';\nconst subject = count + ' new product' + (count > 1 ? 's' : '') + ' for you – ' + weekday + ', ' + dateStr;\nreturn [{ json: { html, subject } }];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "read-recipients-lite",
+      "name": "Read Recipients",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1360,
+        400
+      ],
+      "parameters": {
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "recipients"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "typeVersion": 4.7
+    },
+    {
+      "id": "personalize-lite",
+      "name": "Prepare per Recipient",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1552,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const template = $('Build HTML Email').first().json;\nconst recipients = $input.all();\nconst result = [];\nfor (let i = 0; i < recipients.length; i++) {\n  const email = recipients[i].json.email;\n  if (!email) continue;\n  result.push({ json: { to: email, subject: template.subject, html: template.html } });\n}\nreturn result;"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "send-lite",
+      "name": "Send Newsletter",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1760,
+        400
+      ],
+      "parameters": {
+        "sendTo": "avery@example.invalid",
+        "message": "Synthetic message only; no email will be sent.",
+        "options": {},
+        "subject": "Synthetic newsletter preview"
+      },
+      "typeVersion": 2.2
+    }
+  ],
+  "active": false,
+  "settings": {
+    "timezone": "Europe/Berlin",
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "versionId": "e6876c55-d696-4896-a530-75107c2a213e",
+  "nodeGroups": [],
+  "connections": {
+    "Read Products": {
+      "main": [
+        [
+          {
+            "node": "Filter by Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Config": {
+      "main": [
+        [
+          {
+            "node": "Read Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily at 08:00": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter by Today": {
+      "main": [
+        [
+          {
+            "node": "Products Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Products Found?": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Recipients": {
+      "main": [
+        [
+          {
+            "node": "Prepare per Recipient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Email": {
+      "main": [
+        [
+          {
+            "node": "Read Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare per Recipient": {
+      "main": [
+        [
+          {
+            "node": "Send Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "labelField": "label",
+  "maximumCount": 8,
+  "maximumLabelCharacters": 24,
+  "primaryAction": "not-applicable",
+  "property": "items",
+  "stableIdField": "id",
+  "typicalCount": 3
+}

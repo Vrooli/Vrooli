@@ -4,10 +4,11 @@
   "description": "Interactive bedtime story reader with time-aware children's room UI",
   "private": true,
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "vrooli lifecycle protect -- node server.js",
     "assets:blockout": "node ./scripts/generate-blockout.mjs",
     "lint": "eslint 'src/**/*.{js,jsx}' --fix",
     "lint:check": "eslint 'src/**/*.{js,jsx}'"
@@ -16,9 +17,10 @@
     "@react-three/drei": "^9.105.0",
     "@react-three/fiber": "^8.15.13",
     "@react-three/postprocessing": "^2.16.0",
-    "axios": "^1.6.2",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "axios": "^1.21.0",
     "date-fns": "^3.0.6",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "framer-motion": "^10.16.16",
     "gsap": "^3.12.5",
     "jszip": "^3.10.1",
@@ -27,8 +29,7 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
     "three": "^0.161.0",
-    "zustand": "^4.5.4",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",
@@ -37,6 +38,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "vite": "^5.0.10"
-  }
+    "vite": "^5.4.21"
+  },
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

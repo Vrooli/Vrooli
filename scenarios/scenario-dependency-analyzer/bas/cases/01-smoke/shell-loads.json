@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "scenario-dependency-analyzer-shell-loads",
+    "description": "Open the SDA operator shell and verify its root layout renders.",
+    "requirement": "SDA-P0-013",
+    "version": "1",
+    "labels": { "reset": "none", "purpose": "operator-ui-smoke" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    {
+      "id": "open-sda",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-dependency-analyzer",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open SDA" }
+      }
+    },
+    {
+      "id": "wait-shell",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/layout.shell",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "SDA shell is visible" }
+      }
+    }
+  ],
+  "edges": [{ "source": "open-sda", "target": "wait-shell" }]
+}

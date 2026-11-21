@@ -631,24 +631,39 @@ func TestDeduplicateAndLimitEdgeCases(t *testing.T) {
 	})
 }
 
-// TestEnableCORSMethodHandling tests CORS for all HTTP methods
+// TestEnableCORSMethodHandling verifies the origin allowlist: an allowed
+// origin is echoed for every method, any other origin gets no grant, and
+// preflight requests short-circuit with 200.
 func TestEnableCORSMethodHandling(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	t.Setenv("ALLOWED_ORIGIN", "https://scout.example")
 
 	methods := []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"}
+	origins := map[string]string{
+		"https://scout.example":    "https://scout.example",
+		"http://localhost:3001":    "http://localhost:3001",
+		"https://attacker.example": "",
+		"":                         "",
+	}
 
 	for _, method := range methods {
-		t.Run(method, func(t *testing.T) {
-			w := makeHTTPRequest(enableCORS(healthHandler), HTTPTestRequest{
-				Method: method,
-				Path:   "/health",
-			})
+		for origin, wantGrant := range origins {
+			t.Run(method+" "+origin, func(t *testing.T) {
+				w := makeHTTPRequest(enableCORS(healthHandler), HTTPTestRequest{
+					Method:  method,
+					Path:    "/health",
+					Headers: map[string]string{"Origin": origin},
+				})
 
-			// Check CORS headers are present
-			if w.Header().Get("Access-Control-Allow-Origin") == "" {
-				t.Errorf("Missing CORS origin header for %s", method)
-			}
-		})
+				if got := w.Header().Get("Access-Control-Allow-Origin"); got != wantGrant {
+					t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, wantGrant)
+				}
+				assertHeaderPresent(t, w, "Access-Control-Allow-Methods")
+				if method == "OPTIONS" && w.Code != http.StatusOK {
+					t.Errorf("OPTIONS should return 200, got %d", w.Code)
+				}
+			})
+		}
 	}
 }

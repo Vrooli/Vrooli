@@ -23,6 +23,8 @@
     // ║  the type errors they produce at compile time.                           ║
     // ╚══════════════════════════════════════════════════════════════════════════╝
     "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/vrooli/api-core/storage"
 )
@@ -16,6 +17,21 @@ type Store interface {
 	Delete(scenarioName, captureID string) error
 	DeleteAll(scenarioName string) ([]Capture, error)
 	Summary(scenarioName string) (CapturesSummary, error)
+}
+
+// FilenameReferences is implemented by stores that can answer whether a
+// content object is still referenced by metadata. It keeps deduplicated files
+// alive until their final metadata record is removed.
+type FilenameReferences interface {
+	FilenameReferences(filename string) (int, error)
+}
+
+type PipelineAnnotator interface {
+	UpdatePipelineID(scenarioName, captureID, pipelineID string) error
+}
+
+type Voider interface {
+	Void(scenarioName, captureID, reason, supersededBy string) error
 }
 
 // FileStore is a JSON-file-backed Store implementation.
@@ -78,6 +94,33 @@ func (s *FileStore) Add(capture Capture) error {
 	return s.flush()
 }
 
+func (s *FileStore) UpdatePipelineID(scenarioName, captureID, pipelineID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.data[scenarioName] {
+		if s.data[scenarioName][i].ID == captureID {
+			s.data[scenarioName][i].PipelineID = pipelineID
+			return s.flush()
+		}
+	}
+	return fmt.Errorf("capture %q not found for scenario %q", captureID, scenarioName)
+}
+
+func (s *FileStore) Void(scenarioName, captureID, reason, supersededBy string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.data[scenarioName] {
+		if s.data[scenarioName][i].ID == captureID {
+			now := time.Now().UTC()
+			s.data[scenarioName][i].VoidReason = reason
+			s.data[scenarioName][i].VoidedAt = &now
+			s.data[scenarioName][i].SupersededBy = supersededBy
+			return s.flush()
+		}
+	}
+	return fmt.Errorf("capture %q not found for scenario %q", captureID, scenarioName)
+}
+
 func (s *FileStore) Delete(scenarioName, captureID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -119,4 +162,42 @@ func (s *FileStore) Summary(scenarioName string) (CapturesSummary, error) {
 		Count:      len(caps),
 		TotalBytes: total,
 	}, nil
+}
+
+func (s *FileStore) FilenameReferences(filename string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	count := 0
+	for _, captures := range s.data {
+		for _, capture := range captures {
+			if capture.Filename == filename {
+				count++
+			}
+		}
+	}
+	return count, nil
+}
+
+// OrphanFiles returns regular files in the capture directory that are not
+// referenced by any durable metadata record.
+func (s *FileStore) OrphanFiles(filesDir string) ([]string, error) {
+	entries, err := os.ReadDir(filesDir)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	referenced := make(map[string]bool)
+	for _, captures := range s.data {
+		for _, capture := range captures {
+			referenced[capture.Filename] = true
+		}
+	}
+	orphans := make([]string, 0)
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && !referenced[entry.Name()] {
+			orphans = append(orphans, entry.Name())
+		}
+	}
+	return orphans, nil
 }

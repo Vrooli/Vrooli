@@ -63,7 +63,9 @@ Open http://localhost:3200 in your browser
 
 ### Research Integration
 - Request automated research for new APIs
-- Integrates with research-assistant scenario
+- Uses canonical scenario discovery for an optional local legacy research-assistant service when one is provided by the runtime
+- Configure `RESEARCH_ASSISTANT_API_BASE_URL` to use an external or deployed research service
+- Without either target, the request is recorded as failed with a configuration hint; API Library remains available
 - Continuous discovery and library expansion
 
 ## 🔧 CLI Usage
@@ -305,7 +307,8 @@ When adding new APIs:
 - Check Qdrant service is running on correct port
 
 ### Research requests not processing
-- Verify research-assistant scenario is available
+- If a compatible local research-assistant service is provided, verify its lifecycle peer is published and it is running
+- For an external/deployed research service, set `RESEARCH_ASSISTANT_API_BASE_URL` to its API base URL
 - Check research_requests table for status
 
 ## 📚 References

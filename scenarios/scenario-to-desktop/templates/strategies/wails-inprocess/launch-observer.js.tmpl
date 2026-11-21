@@ -1,0 +1,93 @@
+(() => {
+  const endpoint = "/__s2d/launch-mark";
+  if (!window.API_BASE_URL) window.API_BASE_URL = ".";
+  let painted = false;
+  let apiResponse = false;
+  let interactive = false;
+  let idleTimer = 0;
+  let longTaskObservationAvailable = false;
+
+  const report = (name, source) => {
+    if (interactive && name === "app_interactive") return;
+    if (name === "app_interactive") interactive = true;
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, source }),
+      keepalive: true,
+    }).catch(() => {});
+  };
+
+  const maybeStartIdleFallback = () => {
+    if (!painted || !apiResponse || !longTaskObservationAvailable || interactive || idleTimer) return;
+    idleTimer = window.setTimeout(() => {
+      idleTimer = 0;
+      report("app_interactive", "fallback:fcp_api_response_500ms_without_long_task");
+    }, 500);
+  };
+
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.name === "first-contentful-paint" && !painted) {
+          painted = true;
+          report("first_contentful_paint", "renderer_performance_observer");
+          maybeStartIdleFallback();
+        }
+      }
+    }).observe({ type: "paint", buffered: true });
+  } catch (_) {
+    // A missing paint observer stays unavailable in packaged-launch.v1.
+  }
+
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.name === "app-interactive" && !interactive) {
+          report("app_interactive", "scenario_performance_mark");
+        }
+      }
+    }).observe({ type: "mark", buffered: true });
+  } catch (_) {
+    // Scenarios that do not publish a performance mark use the bounded fallback.
+  }
+
+  try {
+    const observer = new PerformanceObserver(() => {
+      if (!idleTimer) return;
+      window.clearTimeout(idleTimer);
+      idleTimer = 0;
+      maybeStartIdleFallback();
+    });
+    observer.observe({ type: "longtask", buffered: true });
+    longTaskObservationAvailable = true;
+  } catch (_) {
+    // WebKit builds without long-task entries retain the documented timing fallback.
+  }
+
+  if (typeof window.fetch === "function") {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const response = await nativeFetch(...args);
+      try {
+        const requestURL = new URL(args[0] instanceof Request ? args[0].url : args[0], location.href);
+        const contentType = response.headers.get("content-type") || "";
+        if (
+          requestURL.origin === location.origin &&
+          requestURL.pathname !== endpoint &&
+          !requestURL.pathname.startsWith("/assets/") &&
+          response.ok &&
+          /(?:application\/(?:json|connect\+json|[^;]+\+json|grpc-web\+proto))/i.test(contentType)
+        ) {
+          response.clone().arrayBuffer().then(() => {
+            apiResponse = true;
+            maybeStartIdleFallback();
+          }).catch(() => {});
+        }
+      } catch (_) {
+        // Ignore non-URL and opaque fetch requests.
+      }
+      return response;
+    };
+  }
+})();

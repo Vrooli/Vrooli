@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
@@ -174,9 +175,7 @@ export function LabelManager({
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>
-          Close
-        </Button>
+        <OverlayActionBar actions={[{ id: "close", label: "Close", onSelect: onClose, primary: true }]} />
       </DialogFooter>
     </Dialog>
   );

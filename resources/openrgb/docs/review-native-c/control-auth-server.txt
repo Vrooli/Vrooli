@@ -1,0 +1,6 @@
+# ./internal/auth
+stat /home/matthalloran8/Vrooli-native-lighting/scenarios/lighting-control/api/internal/auth: directory not found
+FAIL	./internal/auth [setup failed]
+ok  	lighting-control/internal/control	7.764s
+ok  	lighting-control/internal/server	1.013s
+FAIL

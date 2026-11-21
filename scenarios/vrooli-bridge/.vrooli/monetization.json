@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "vrooli-bridge",
+  "requires_entitlement": true,
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "workflow_executions",
+      "class": "B",
+      "enforcement_paths": ["api/main.go"]
+    }
+  ]
+}

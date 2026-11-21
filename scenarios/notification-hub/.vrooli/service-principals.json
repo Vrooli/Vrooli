@@ -1,0 +1,16 @@
+{
+  "principals": [
+    {
+      "name": "notification-hub-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "portfolio-steward-notification-hub",
+      "resource": "notification-hub",
+      "audience": "scenario-authenticator:notification-hub",
+      "scopes": ["notification-hub:send"]
+    }
+  ]
+}

@@ -10,14 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // mockRuntime implements Runtime for testing.
@@ -30,15 +32,63 @@ type mockRuntime struct {
 	appDataDir     string
 	fs             infra.FileSystem
 	secretStore    *secrets.Manager
-	shutdownCalled bool
+	shutdownCalled atomic.Bool
 	startCalled    bool
 	telemetryLogs  []string
+	telemetryData  []map[string]interface{}
 	gpuStatus      gpu.Status
 	runtimeInfo    RuntimeInfo
 }
 
+type providerObservationRuntime struct {
+	*mockRuntime
+	observations map[string]resourceplan.ProviderObservation
+}
+
+func (m *providerObservationRuntime) ProviderObservations() map[string]resourceplan.ProviderObservation {
+	return m.observations
+}
+
+type authenticationModeRuntime struct {
+	*mockRuntime
+	selected string
+}
+
+type readinessEventRuntime struct {
+	*mockRuntime
+	changes  chan struct{}
+	ready    atomic.Bool
+	statuses map[string]health.Status
+}
+
+func (m *readinessEventRuntime) StatusChanges() <-chan struct{} { return m.changes }
+func (m *readinessEventRuntime) ServiceStatuses() map[string]health.Status {
+	if m.statuses != nil {
+		return m.statuses
+	}
+	return map[string]health.Status{"api": {Ready: m.ready.Load()}}
+}
+
+func (m *authenticationModeRuntime) AuthenticationStatus() map[string]interface{} {
+	return map[string]interface{}{"mode": m.selected, "state": "offline_ready"}
+}
+
+func (m *authenticationModeRuntime) AuthenticationModeOptions() []map[string]interface{} {
+	return []map[string]interface{}{{"mode": "personal_local", "selected": m.selected == "personal_local"}}
+}
+
+func (m *authenticationModeRuntime) SelectAuthenticationMode(_ context.Context, mode string) (map[string]interface{}, error) {
+	m.selected = mode
+	return m.AuthenticationStatus(), nil
+}
+
+func (m *authenticationModeRuntime) RollbackAuthenticationMode(_ context.Context) (map[string]interface{}, error) {
+	m.selected = "personal_local"
+	return m.AuthenticationStatus(), nil
+}
+
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
-	m.shutdownCalled = true
+	m.shutdownCalled.Store(true)
 	return nil
 }
 
@@ -80,6 +130,11 @@ func (m *mockRuntime) StartServicesIfReady() {
 
 func (m *mockRuntime) RecordTelemetry(event string, details map[string]interface{}) error {
 	m.telemetryLogs = append(m.telemetryLogs, event)
+	copyDetails := make(map[string]interface{}, len(details))
+	for key, value := range details {
+		copyDetails[key] = value
+	}
+	m.telemetryData = append(m.telemetryData, copyDetails)
 	return nil
 }
 
@@ -135,7 +190,7 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 		manifest:      m,
 		appDataDir:    appData,
 		fs:            fs,
-		secretStore:   secrets.NewManager(m, fs, filepath.Join(appData, "secrets.json")),
+		secretStore:   secrets.NewManager(m),
 		gpuStatus: gpu.Status{
 			Available: true,
 			Method:    "mock",
@@ -154,13 +209,11 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 
 func TestHandleHealth(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -184,16 +237,36 @@ func TestHandleHealth(t *testing.T) {
 	}
 }
 
+func TestHandleProviderObservations(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &providerObservationRuntime{mockRuntime: base, observations: map[string]resourceplan.ProviderObservation{
+		"vault": {DeploymentMode: "bundled", ProviderTier: "tier1-local-vrooli", Readiness: "ready", SafeRouteClass: "shared-resource"},
+	}}
+	mux := testMux(rt, "test-token")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/provider-observations", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("provider observations status = %d, want 200", w.Code)
+	}
+	var body struct {
+		Observations map[string]resourceplan.ProviderObservation `json:"observations"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Observations["vault"].SafeRouteClass != "shared-resource" {
+		t.Fatalf("provider observations = %#v", body.Observations)
+	}
+}
+
 func TestHandleReady(t *testing.T) {
 	t.Run("all services ready", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -227,13 +300,11 @@ func TestHandleReady(t *testing.T) {
 	t.Run("service not ready", func(t *testing.T) {
 		rt := testRuntime(t, nil)
 		rt.statuses["api"] = health.Status{Ready: false, Message: "starting"}
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -250,16 +321,96 @@ func TestHandleReady(t *testing.T) {
 	})
 }
 
+func TestHandleReadyWaitReturnsOnStatusNotification(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
+	mux := testMux(rt, "test-token")
+	req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=1000", nil)
+	w := httptest.NewRecorder()
+
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		rt.ready.Store(true)
+		rt.changes <- struct{}{}
+	}()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body["ready"] != true {
+		t.Fatalf("ready = %v, want true", body["ready"])
+	}
+}
+
+func TestHandleReadyWaitValidatesTimeout(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
+	mux := testMux(rt, "test-token")
+	for _, raw := range []string{"0", "120001", "invalid"} {
+		req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms="+raw, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("timeout_ms=%q status=%d, want 400", raw, w.Code)
+		}
+	}
+}
+
+func TestHandleReadyWaitCanReturnWhenCriticalServicesAreReady(t *testing.T) {
+	critical := true
+	noncritical := false
+	base := testRuntime(t, &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop", App: manifest.App{Name: "test-app", Version: "1.0.0"},
+		Services: []manifest.Service{{ID: "api", Critical: &critical}, {ID: "worker", Critical: &noncritical}},
+	})
+	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1), statuses: map[string]health.Status{
+		"api": {Ready: true}, "worker": {Ready: false, Message: "still starting"},
+	}}
+	mux := testMux(rt, "test-token")
+
+	criticalReq := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=100&critical_only=true", nil)
+	criticalResp := httptest.NewRecorder()
+	mux.ServeHTTP(criticalResp, criticalReq)
+	var criticalBody map[string]interface{}
+	if err := json.Unmarshal(criticalResp.Body.Bytes(), &criticalBody); err != nil {
+		t.Fatalf("decode critical readiness: %v", err)
+	}
+	if criticalBody["ready"] != true {
+		t.Fatalf("critical ready = %v, want true", criticalBody["ready"])
+	}
+
+	fullReq := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	fullResp := httptest.NewRecorder()
+	mux.ServeHTTP(fullResp, fullReq)
+	var fullBody map[string]interface{}
+	if err := json.Unmarshal(fullResp.Body.Bytes(), &fullBody); err != nil {
+		t.Fatalf("decode full readiness: %v", err)
+	}
+	if fullBody["ready"] != false {
+		t.Fatalf("all-services ready = %v, want false", fullBody["ready"])
+	}
+}
+
 func TestHandleStatus(t *testing.T) {
-	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
+	rt := testRuntime(t, &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true,
+		},
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/status", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -286,17 +437,59 @@ func TestHandleStatus(t *testing.T) {
 	if body["manifest_hash"] != "abc123" {
 		t.Errorf("handleStatus() manifest_hash = %v, want abc123", body["manifest_hash"])
 	}
+	authentication, ok := body["authentication"].(map[string]interface{})
+	if !ok || authentication["mode"] != "personal_local" || authentication["offline"] != true {
+		t.Errorf("handleStatus() authentication = %#v, want personal_local offline profile", body["authentication"])
+	}
+	authenticationStatus, ok := body["authentication_status"].(map[string]interface{})
+	if !ok || authenticationStatus["state"] != "declared" {
+		t.Errorf("handleStatus() authentication_status = %#v, want declared profile state", body["authentication_status"])
+	}
+}
+
+func TestAuthenticationModeRoutesAreProtectedAndExplicit(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &authenticationModeRuntime{mockRuntime: base, selected: "personal_local"}
+	handler := testHandler(rt, "test-token")
+
+	unauthorized := httptest.NewRecorder()
+	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/authentication/modes", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthorized mode list status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
+	}
+
+	list := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/authentication/modes", nil)
+	request.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(list, request)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "personal_local") {
+		t.Fatalf("mode list status/body = %d/%s", list.Code, list.Body.String())
+	}
+
+	selectResponse := httptest.NewRecorder()
+	selectRequest := httptest.NewRequest(http.MethodPost, "/authentication/mode", strings.NewReader(`{"mode":"local_multi_user"}`))
+	selectRequest.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(selectResponse, selectRequest)
+	if selectResponse.Code != http.StatusOK || rt.selected != "local_multi_user" {
+		t.Fatalf("mode select status/body = %d/%s, selected=%q", selectResponse.Code, selectResponse.Body.String(), rt.selected)
+	}
+
+	rollback := httptest.NewRecorder()
+	rollbackRequest := httptest.NewRequest(http.MethodPost, "/authentication/rollback", nil)
+	rollbackRequest.Header.Set("Authorization", "Bearer test-token")
+	handler.ServeHTTP(rollback, rollbackRequest)
+	if rollback.Code != http.StatusOK || rt.selected != "personal_local" {
+		t.Fatalf("mode rollback status/body = %d/%s, selected=%q", rollback.Code, rollback.Body.String(), rt.selected)
+	}
 }
 
 func TestHandlePorts(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/ports", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -325,7 +518,6 @@ func TestHandlePorts(t *testing.T) {
 func TestHandleLogs(t *testing.T) {
 	t.Run("returns log content", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		logPath := filepath.Join(rt.appDataDir, "logs", "api.log")
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
@@ -339,8 +531,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=3", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -351,21 +542,22 @@ func TestHandleLogs(t *testing.T) {
 			t.Fatalf("handleLogs() status = %d, body = %s", resp.StatusCode, string(body))
 		}
 
-		body, _ := io.ReadAll(resp.Body)
-		if !strings.Contains(string(body), "line5") {
-			t.Errorf("handleLogs() should contain last lines, got %q", string(body))
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read log response: %v", err)
+		}
+		if got, want := string(body), "line3\nline4\nline5"; got != want {
+			t.Errorf("handleLogs() tail = %q, want exactly %q", got, want)
 		}
 	})
 
 	t.Run("rejects unknown service", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=unknown", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -378,7 +570,6 @@ func TestHandleLogs(t *testing.T) {
 
 	t.Run("rejects log dir that is a directory", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		logDir := filepath.Join(rt.appDataDir, "logs", "api.log")
 		if err := os.MkdirAll(logDir, 0o755); err != nil {
@@ -388,8 +579,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -424,37 +614,40 @@ func TestHandleLogs(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
+		logPath := filepath.Join(rt.appDataDir, "resources", "api", "logs", "service.log")
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(logPath, []byte("bundled api log"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
 		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("handleLogs() status = %d, want %d", resp.StatusCode, http.StatusOK)
 		}
 
 		body, _ := io.ReadAll(resp.Body)
-		if !strings.Contains(string(body), "no log_dir") {
-			t.Fatalf("handleLogs() expected missing log_dir message, got %q", string(body))
+		if !strings.Contains(string(body), "bundled api log") {
+			t.Fatalf("handleLogs() expected conventional service log, got %q", string(body))
 		}
 	})
 
 	t.Run("rejects when log file missing", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -472,7 +665,6 @@ func TestHandleLogs(t *testing.T) {
 
 	t.Run("defaults to 200 lines when not provided", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		lines := make([]string, 0, 250)
 		for i := 1; i <= 250; i++ {
@@ -491,8 +683,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -514,3 +705,101 @@ func TestHandleLogs(t *testing.T) {
 	})
 }
 
+func TestCredentialRoutesRequireAuthAndNeverReturnValues(t *testing.T) {
+	required := true
+	manifestWithCredential := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "credential-test", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+		Secrets: []manifest.Secret{{
+			ID:        "openrouter-api-key",
+			LogicalID: "provider/openrouter",
+			Field:     "api-key",
+			Required:  &required,
+		}},
+	}
+	rt := testRuntime(t, manifestWithCredential)
+	secretValue := "value-must-not-cross-the-control-api"
+	rt.secretStore.Set(map[string]string{"openrouter-api-key": secretValue})
+	server := NewServer(rt, "test-token")
+
+	call := func(method, path, body, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		server.AuthMiddleware(mux).ServeHTTP(w, req)
+		return w
+	}
+
+	for _, path := range []string{
+		"/credentials/list",
+		"/credentials/doctor",
+		"/credentials/status?identity=provider%2Fopenrouter&field=api-key",
+		"/credentials/resolve?identity=provider%2Fopenrouter&field=api-key",
+		"/credentials/provision",
+		"/credentials/delete",
+		"/credentials/recovery/export",
+		"/credentials/recovery/restore",
+	} {
+		w := call(http.MethodGet, path, `{"identity":"provider/openrouter","field":"api-key","value":"`+secretValue+`"}`, "")
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("%s without auth status = %d, want %d", path, w.Code, http.StatusUnauthorized)
+		}
+		if strings.Contains(w.Body.String(), secretValue) {
+			t.Errorf("%s without auth echoed the credential value", path)
+		}
+	}
+
+	list := call(http.MethodGet, "/credentials/list", "", "test-token")
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), secretValue) {
+		t.Fatalf("credential list status/body unsafe: status=%d body=%s", list.Code, list.Body.String())
+	}
+
+	provision := call(http.MethodPost, "/credentials/provision", `{"identity":"provider/openrouter","field":"api-key","value":"new-secret"}`, "test-token")
+	if provision.Code != http.StatusCreated || strings.Contains(provision.Body.String(), "new-secret") {
+		t.Fatalf("credential provision status/body unsafe: status=%d body=%s", provision.Code, provision.Body.String())
+	}
+
+	status := call(http.MethodGet, "/credentials/status?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"configured":true`) || strings.Contains(status.Body.String(), "new-secret") {
+		t.Fatalf("credential status unexpected or leaked value: status=%d body=%s", status.Code, status.Body.String())
+	}
+
+	resolved := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if resolved.Code != http.StatusOK || !strings.Contains(resolved.Body.String(), `"value":"new-secret"`) {
+		t.Fatalf("credential resolve status/body unexpected: status=%d body=%s", resolved.Code, resolved.Body.String())
+	}
+
+	deleted := call(http.MethodPost, "/credentials/delete", `{"identity":"provider/openrouter","field":"api-key"}`, "test-token")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("credential delete status = %d, body=%s", deleted.Code, deleted.Body.String())
+	}
+	missing := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("resolved deleted credential status = %d, want %d", missing.Code, http.StatusNotFound)
+	}
+
+	doctor := call(http.MethodGet, "/credentials/doctor", "", "test-token")
+	if doctor.Code != http.StatusOK || strings.Contains(doctor.Body.String(), secretValue) || strings.Contains(doctor.Body.String(), "new-secret") {
+		t.Fatalf("credential doctor status/body unsafe: status=%d body=%s", doctor.Code, doctor.Body.String())
+	}
+
+	telemetry, err := json.Marshal(rt.telemetryData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(telemetry), secretValue) || strings.Contains(string(telemetry), "provider/openrouter") {
+		t.Fatalf("credential telemetry leaked value or identity-to-value context: %s", telemetry)
+	}
+
+	undeclared := call(http.MethodPost, "/credentials/provision", `{"identity":"provider/unknown","field":"api-key","value":"new-secret"}`, "test-token")
+	if undeclared.Code != http.StatusForbidden || strings.Contains(undeclared.Body.String(), "new-secret") {
+		t.Fatalf("undeclared credential status/body unsafe: status=%d body=%s", undeclared.Code, undeclared.Body.String())
+	}
+}

@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "aquila-marketing-and-capability-maturity",
+  "roles": [
+    {
+      "id": "aquila-launch-coordinator",
+      "name": "Aquila Launch Coordinator",
+      "description": "Deliver the source-linked Aquila launch bundle and reusable production capability. Allocate substantial asset bundles and capability qualification independently where their contracts permit; join release identity and approval before distribution."
+    }
+  ]
+}

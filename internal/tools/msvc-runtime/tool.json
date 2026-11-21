@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "msvc-runtime",
+  "description": "Microsoft C++ v14 x64 runtime prerequisite for explicitly enabled native OpenRGB",
+  "storage": {
+    "entries": {},
+    "rationale": "System-managed runtime libraries; no private persistent state."
+  },
+  "commands": [],
+  "handler": "msvc-runtime",
+  "packages": {
+    "winget": "Microsoft.VCRedist.2015+.x64"
+  },
+  "privilege": "elevated",
+  "bundling": "host-required",
+  "installHint": "Explicit optional setup only: scenario-dependency-analyzer deps install system/msvc-runtime --scenario msvc-runtime --surface host-tool --apply. Uses Microsoft winget package and then verifies System32 x64 runtime ABI/version/signature. No DLL search-path fallback.",
+  "platform_status": {
+    "linux": {
+      "status": "unsupported",
+      "evidence": "Windows native runtime only."
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "Windows native runtime only."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "privilegeReason": "The optional Microsoft runtime is installed and serviced by the native Windows package manager into System32; no service runs with this elevation.",
+  "versionArgs": [],
+  "capability": "runtime-language",
+  "capability_role": "primary"
+}

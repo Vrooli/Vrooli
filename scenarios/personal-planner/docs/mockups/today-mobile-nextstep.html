@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personal Planner — Today (mobile) mockup</title>
+<style>
+  :root {
+    --tile-top: #15243c;
+    --tile-bottom: #0b1728;
+    --accent: #22d3ee;
+    --ink: #e8eefc;
+    --ink-dim: #93a4c4;
+    --card: rgba(20, 33, 58, 0.72);
+    --card-line: rgba(120, 150, 200, 0.18);
+    --halo: 0 0 9px rgba(34, 211, 238, 0.35);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #060b16;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 24px 80px;
+  }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .col h3 { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+  .col p.note { font-size: 12px; color: var(--ink-dim); max-width: 340px; text-align: center; line-height: 1.5; }
+
+  /* ---- Phone frame ---- */
+  .phone {
+    width: 372px;
+    height: 760px;
+    border-radius: 44px;
+    background: #000;
+    padding: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 2px #1c2740;
+    position: relative;
+  }
+  .screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 34px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--tile-top) 0%, var(--tile-bottom) 62%, #060d1a 100%);
+    display: flex;
+    flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 128px; height: 26px; background: #000; border-radius: 0 0 16px 16px; z-index: 40;
+  }
+
+  /* ---- Star field ---- */
+  .sky { position: relative; height: 200px; flex: none; overflow: hidden; }
+  .star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #dbe6ff; opacity: 0.8; }
+  .star.big { width: 3px; height: 3px; box-shadow: 0 0 5px 1px rgba(219,230,255,0.7); }
+  .constellation-line { position: absolute; height: 1px; background: linear-gradient(90deg, transparent, rgba(34,211,238,0.5), transparent); transform-origin: left center; }
+  .observatory {
+    position: absolute; bottom: -2px; left: 34px; width: 118px; height: 92px;
+  }
+  .obs-dome { position:absolute; bottom: 0; left: 14px; width: 82px; height: 52px; background: #0e1b30; border: 1px solid rgba(120,150,200,0.4); border-radius: 50px 50px 6px 6px; }
+  .obs-slit { position:absolute; bottom: 8px; left: 50px; width: 10px; height: 40px; background: linear-gradient(180deg, rgba(34,211,238,0.5), transparent); border-radius: 6px; }
+  .obs-base { position:absolute; bottom: 0; left: 4px; width: 102px; height: 14px; background: #0a1526; border-top: 1px solid rgba(120,150,200,0.3); }
+
+  .greeting { position: absolute; top: 40px; right: 20px; text-align: right; z-index: 5; }
+  .greeting .date { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  .greeting .h1 { font-size: 26px; font-weight: 700; margin-top: 2px; }
+
+  /* ---- Timeline (the "truly important info", now above the fold) ---- */
+  .timeline { flex: 1; overflow-y: auto; padding: 18px 18px 130px; }
+  .timeline h2 { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 14px; }
+  .slot { display: flex; gap: 14px; margin-bottom: 6px; }
+  .slot .time { font-size: 12px; color: var(--ink-dim); width: 52px; flex: none; padding-top: 12px; letter-spacing: 0.04em; }
+  .slot .body {
+    flex: 1; background: var(--card); border: 1px solid var(--card-line);
+    border-radius: 14px; padding: 12px 14px;
+  }
+  .slot.now .body { border-color: rgba(34,211,238,0.55); box-shadow: var(--halo); }
+  .slot .body .title { font-size: 14px; font-weight: 600; }
+  .slot .body .meta { font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
+  .slot .rail { width: 8px; flex: none; display: flex; justify-content: center; padding-top: 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-dim); }
+  .slot.now .dot { background: var(--accent); box-shadow: var(--halo); }
+
+  /* ---- Persistent Next-Step bar (thumb zone) ---- */
+  .nextbar {
+    position: absolute; left: 12px; right: 12px; bottom: 74px; z-index: 30;
+    background: rgba(13,23,40,0.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(34,211,238,0.4);
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5), var(--halo);
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    transition: transform 0.25s ease;
+  }
+  .nextbar:active { transform: scale(0.985); }
+  .nextbar .kicker { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  .nextbar .task { font-size: 15px; font-weight: 650; margin-top: 1px; }
+  .nextbar .min { font-size: 11px; color: var(--ink-dim); margin-top: 2px; }
+  .nextbar .grow { flex: 1; min-width: 0; }
+  .nextbar .grow .task { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .startbtn {
+    flex: none; background: var(--accent); color: #04121a; border: none;
+    font-weight: 700; font-size: 13px; border-radius: 12px; padding: 10px 16px;
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+  }
+  .startbtn .play { width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 8px; border-color: transparent transparent transparent #04121a; }
+  .chev { color: var(--ink-dim); font-size: 18px; margin-left: 2px; }
+
+  /* ---- Bottom tab nav ---- */
+  .tabs {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 66px; z-index: 25;
+    background: rgba(6,11,22,0.96);
+    border-top: 1px solid rgba(120,150,200,0.16);
+    display: flex; align-items: center; justify-content: space-around;
+    padding-bottom: 6px;
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; letter-spacing: 0.05em; color: var(--ink-dim); }
+  .tab.active { color: var(--accent); }
+  .tab .ico { width: 20px; height: 20px; border-radius: 6px; border: 1.6px solid currentColor; }
+  .tab.active .ico { box-shadow: var(--halo); }
+
+  /* ---- Bottom sheet (progressive disclosure) ---- */
+  .scrim {
+    position: absolute; inset: 0; background: rgba(3,7,15,0.55); z-index: 45;
+    opacity: 0; pointer-events: none; transition: opacity 0.28s ease;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: linear-gradient(180deg, #14213a, #0b1728);
+    border-top: 1px solid rgba(34,211,238,0.35);
+    border-radius: 26px 26px 34px 34px;
+    padding: 12px 20px 26px;
+    transform: translateY(105%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    box-shadow: 0 -20px 50px rgba(0,0,0,0.5);
+  }
+  .screen.open .sheet { transform: translateY(0); }
+  .screen.open .scrim { opacity: 1; pointer-events: auto; }
+  .grab { width: 40px; height: 4px; border-radius: 3px; background: rgba(147,164,196,0.5); margin: 4px auto 16px; }
+  .sheet .sheet-kicker { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  .sheet .sheet-title { font-size: 20px; font-weight: 700; margin-top: 3px; }
+  .sheet .sheet-desc { font-size: 13px; color: var(--ink-dim); margin-top: 8px; line-height: 1.5; }
+  .sheet .source { font-size: 12px; color: var(--ink-dim); margin-top: 12px; display: flex; align-items: center; gap: 7px; }
+  .sheet .source .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .sheet .actions { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .sheet .actions button {
+    width: 100%; padding: 15px; border-radius: 14px; font-size: 15px; font-weight: 650;
+    border: 1px solid var(--card-line); cursor: pointer; display:flex; align-items:center; justify-content:center; gap: 8px;
+  }
+  .sheet .actions .primary { background: var(--accent); color: #04121a; border-color: transparent; }
+  .sheet .actions .secondary { background: rgba(30,45,74,0.6); color: var(--ink); }
+  .sheet .actions .primary .play { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent #04121a; }
+
+  .caption { font-size: 11px; color: var(--ink-dim); text-align:center; max-width: 372px; line-height: 1.55; }
+  .caption b { color: var(--ink); font-weight: 650; }
+  .toggle-hint { font-size: 12px; color: var(--accent); text-align:center; }
+</style>
+</head>
+<body>
+
+  <div class="col">
+    <h3>Today · mobile · default</h3>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen" id="screen">
+        <!-- SKY -->
+        <div class="sky" id="sky">
+          <div class="greeting">
+            <div class="date">Sat · Sep 20</div>
+            <div class="h1">Good evening</div>
+          </div>
+          <div class="observatory">
+            <div class="obs-base"></div>
+            <div class="obs-dome"></div>
+            <div class="obs-slit"></div>
+          </div>
+        </div>
+
+        <!-- TIMELINE (important info, now above the fold) -->
+        <div class="timeline">
+          <h2>Today's plan</h2>
+
+          <div class="slot"><div class="time">2:00</div><div class="rail"><div class="dot"></div></div><div class="body"><div class="title">Deep work — spec draft</div><div class="meta">90 min · completed</div></div></div>
+          <div class="slot now"><div class="time">4:30</div><div class="rail"><div class="dot"></div></div><div class="body"><div class="title">Review PR feedback</div><div class="meta">45 min · up next</div></div></div>
+          <div class="slot"><div class="time">6:00</div><div class="rail"><div class="dot"></div></div><div class="body"><div class="title">Evening walk</div><div class="meta">30 min · routine</div></div></div>
+          <div class="slot"><div class="time">7:30</div><div class="rail"><div class="dot"></div></div><div class="body"><div class="title">Reading — chapter 4</div><div class="meta">40 min · flexible</div></div></div>
+          <div class="slot"><div class="time">9:00</div><div class="rail"><div class="dot"></div></div><div class="body"><div class="title">Wind down</div><div class="meta">no time set</div></div></div>
+        </div>
+
+        <!-- PERSISTENT NEXT-STEP BAR -->
+        <div class="nextbar" onclick="document.getElementById('screen').classList.add('open')">
+          <div class="grow">
+            <div class="kicker">Up next · ready to place</div>
+            <div class="task">Review PR feedback</div>
+            <div class="min">45 min</div>
+          </div>
+          <button class="startbtn" onclick="event.stopPropagation()"><span class="play"></span>Start</button>
+          <div class="chev">⌃</div>
+        </div>
+
+        <!-- BOTTOM TABS -->
+        <div class="tabs">
+          <div class="tab active"><div class="ico"></div>Today</div>
+          <div class="tab"><div class="ico"></div>Plan</div>
+          <div class="tab"><div class="ico"></div>Goals</div>
+          <div class="tab"><div class="ico"></div>Focus</div>
+          <div class="tab"><div class="ico"></div>Review</div>
+        </div>
+
+        <!-- SHEET (progressive disclosure) -->
+        <div class="scrim" onclick="document.getElementById('screen').classList.remove('open')"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sheet-kicker">Up next · ready to place</div>
+          <div class="sheet-title">Review PR feedback</div>
+          <div class="source"><span class="sdot"></span>from Command Center · 45 min</div>
+          <div class="sheet-desc">Address reviewer comments on the mobile-adaptation PR and re-request review before end of day.</div>
+          <div class="actions">
+            <button class="primary"><span class="play"></span>Start focus</button>
+            <button class="secondary">Open draft</button>
+            <button class="secondary">Capture a different task</button>
+            <button class="secondary">Reschedule</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="toggle-hint">▶ Tap the glowing bar to open the sheet</p>
+  </div>
+
+  <div class="col">
+    <p class="caption" style="margin-top:8px">
+      <b>What changed vs. today's build</b><br><br>
+      • The <b>timeline</b> (what you're actually here to see) now owns the fold — it's no longer pushed down by a hero card.<br><br>
+      • The <b>next-step card</b> became a <b>persistent bar in the thumb zone</b>, sitting just above the tab nav. The most common action (Start) is one tap, inline — no scroll.<br><br>
+      • The full option set (start / open draft / capture / reschedule + description + source) moved into a <b>bottom sheet</b> that the bar opens — progressive disclosure instead of an always-expanded panel.<br><br>
+      • Same <code>nextAllocation</code> / <code>nextWork</code> / <code>focus</code> data as desktop — only the <b>component tree and interaction model diverge</b>, chosen by a breakpoint hook. That's the level-2 move.<br><br>
+      <span style="color:#93a4c4">This is a static mockup — geometry and starfield are illustrative, not the real Observatory scene.</span>
+    </p>
+  </div>
+
+<script>
+  // sprinkle a starfield + a constellation line
+  const sky = document.getElementById('sky');
+  for (let i = 0; i < 46; i++) {
+    const s = document.createElement('div');
+    s.className = 'star' + (i % 6 === 0 ? ' big' : '');
+    s.style.left = (7 + (i * 37) % 340) + 'px';
+    s.style.top = (6 + (i * 53) % 150) + 'px';
+    s.style.opacity = (0.35 + (i % 5) * 0.14).toFixed(2);
+    sky.appendChild(s);
+  }
+  // a small constellation (Aquila-ish) connecting a few big stars
+  const pts = [[210,40],[248,70],[286,54],[300,96],[262,120]];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1,y1] = pts[i], [x2,y2] = pts[i+1];
+    const len = Math.hypot(x2-x1, y2-y1);
+    const ang = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+    const l = document.createElement('div');
+    l.className = 'constellation-line';
+    l.style.left = x1 + 'px'; l.style.top = y1 + 'px';
+    l.style.width = len + 'px'; l.style.transform = 'rotate(' + ang + 'deg)';
+    sky.appendChild(l);
+    const b = document.createElement('div');
+    b.className = 'star big'; b.style.left = (x1-1) + 'px'; b.style.top = (y1-1) + 'px';
+    sky.appendChild(b);
+  }
+</script>
+</body>
+</html>

@@ -1,17 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { Node, Edge } from 'reactflow';
 import { stableSerialize, computeWorkflowFingerprint } from './fingerprint';
 import type { Workflow } from '../types';
-
-// Mock dependencies
-vi.mock('./serialization', () => ({
-  sanitizeNodesForPersistence: vi.fn((nodes) => nodes?.map((n: Node) => ({ id: n.id, type: n.type })) ?? []),
-  sanitizeEdgesForPersistence: vi.fn((edges) => edges?.map((e: Edge) => ({ id: e.id, source: e.source, target: e.target })) ?? []),
-}));
-
-vi.mock('./viewport', () => ({
-  sanitizeViewportSettings: vi.fn((v) => v),
-}));
 
 describe('fingerprint utilities', () => {
   describe('stableSerialize', () => {
@@ -164,8 +154,8 @@ describe('fingerprint utilities', () => {
 
     it('generates different fingerprints for different nodes', () => {
       const workflow = createWorkflow();
-      const nodes1: Node[] = [{ id: 'node-1', type: 'navigate', position: { x: 0, y: 0 }, data: {} }];
-      const nodes2: Node[] = [{ id: 'node-2', type: 'click', position: { x: 0, y: 0 }, data: {} }];
+      const nodes1: Node[] = [{ id: 'node-1', type: 'navigate', position: { x: 0, y: 0 }, data: {}, action: { type: 'ACTION_TYPE_NAVIGATE' } }];
+      const nodes2: Node[] = [{ id: 'node-2', type: 'click', position: { x: 0, y: 0 }, data: {}, action: { type: 'ACTION_TYPE_CLICK' } }];
 
       const fp1 = computeWorkflowFingerprint(workflow, nodes1, []);
       const fp2 = computeWorkflowFingerprint(workflow, nodes2, []);

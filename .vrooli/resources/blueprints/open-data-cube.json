@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "open-data-cube",
+  "display_name": "Open Data Cube",
+  "category": "geospatial",
+  "summary": "Earth observation and raster analytics stack for turning imagery collections into analysis-ready data cubes.",
+  "why_it_matters": "Open Data Cube preserves useful remote-sensing capability knowledge, but there is no current validated geospatial workflow that warrants actively supporting the full stack.",
+  "when_to_use": [
+    "A future scenario needs satellite imagery indexing and time-series analysis.",
+    "Operators want analysis-ready geospatial data cubes rather than ad hoc raster handling.",
+    "The workflow depends on earth-observation analytics across large datasets."
+  ],
+  "example_scenarios": [
+    "Environmental monitoring",
+    "Agricultural intelligence",
+    "Land-use and change detection analysis"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The stack can be containerized, but realistic support depends on storage, dataset ingestion, and geospatial service validation.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Persistent storage for large imagery datasets",
+    "Reference datasets and ingest pipeline",
+    "Clear operator workflow for indexing and export"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should validate a concrete ingest-and-query workflow.",
+    "Keep data-management concerns separate from geospatial visualization concerns.",
+    "Avoid broad platform support without real scenario demand."
+  ],
+  "operational_notes": [
+    "Storage growth and ingest throughput dominate operations.",
+    "Validation should include a known dataset and query path.",
+    "Backup strategy needs to cover both metadata and content."
+  ],
+  "risks": [
+    "The stack is heavy and easy to keep around speculatively.",
+    "Without active scenarios, maintenance cost outweighs value."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "open-data-cube"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/open-data-cube"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

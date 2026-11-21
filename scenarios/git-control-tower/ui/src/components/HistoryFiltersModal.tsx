@@ -1,3 +1,4 @@
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
@@ -164,55 +165,42 @@ export function HistoryFiltersModal({
   // Mobile: full-screen modal
   if (isMobile) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label="History filters"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
-          <div>
-            <h2 className="text-base font-semibold text-slate-100">History Filters</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Narrow commits by search, scope, or working set.
-            </p>
+      <FullPageDrawer
+        open={isOpen}
+        onClose={onClose}
+        title="History Filters"
+        ariaLabel="History filters"
+        closeLabel="Close"
+        dismissAffordance="close"
+        contentClassName="px-4 py-6 space-y-6"
+        headerExtra={
+          <p className="text-xs text-slate-500">
+            Narrow commits by search, scope, or working set.
+          </p>
+        }
+        footer={
+          <div className="flex w-full items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClearFilters}
+              className="flex-1 h-12 text-sm touch-target"
+            >
+              Clear
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onClose}
+              className="flex-1 h-12 text-sm touch-target"
+            >
+              Done
+            </Button>
           </div>
-          <button
-            type="button"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 active:bg-slate-700 touch-target"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {formContent}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center gap-3 border-t border-slate-800 px-4 py-4 pb-safe">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearFilters}
-            className="flex-1 h-12 text-sm touch-target"
-          >
-            Clear
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onClose}
-            className="flex-1 h-12 text-sm touch-target"
-          >
-            Done
-          </Button>
-        </div>
-      </div>
+        }
+      >
+        {formContent}
+      </FullPageDrawer>
     );
   }
 

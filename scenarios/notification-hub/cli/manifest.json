@@ -1,0 +1,1302 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "notification-hub",
+  "description": "Chimesail — owner notification delivery and decision surface.",
+  "groups": [
+    {
+      "name": "notifications",
+      "description": "Accept and inspect notifications.",
+      "commands": [
+        {
+          "name": "send",
+          "description": "Accept a notification and return its durable id.",
+          "flags": [
+            {
+              "name": "title"
+            },
+            {
+              "name": "body",
+              "required": true
+            },
+            {
+              "name": "urgency",
+              "values": [
+                "low",
+                "normal",
+                "high",
+                "critical"
+              ]
+            },
+            {
+              "name": "sensitivity-label",
+              "required": true
+            },
+            {
+              "name": "idempotency-key",
+              "required": true
+            },
+            {
+              "name": "dedupe-key"
+            },
+            {
+              "name": "scheduled-at"
+            },
+            {
+              "name": "digest-window-seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotificationsService",
+            "method": "Send"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "relay",
+          "description": "Accept a bridge-safe base64 notification payload.",
+          "flags": [
+            {
+              "name": "payload-base64",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotificationsService",
+            "method": "Relay"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read a notification and its receipts.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotificationsService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List the notification timeline.",
+          "flags": [
+            {
+              "name": "limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotificationsService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "channels",
+      "description": "Inspect delivery channel readiness.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Report channel readiness for this recipient and machine.",
+          "flags": [
+            {
+              "name": "machine-id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "ChannelsStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "delivery",
+      "description": "Operate durable delivery.",
+      "commands": [
+        {
+          "name": "deliver",
+          "description": "Attempt delivery for a durable notification.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeliveryService",
+            "method": "Deliver"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "timeline",
+          "description": "Read delivery history.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeliveryService",
+            "method": "GetTimeline"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "analytics",
+          "description": "Report delivery counts, failures, and latency.",
+          "flags": [
+            {
+              "name": "since"
+            },
+            {
+              "name": "until"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeliveryService",
+            "method": "GetAnalytics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "conversations",
+      "description": "Ask, answer, dismiss, or withdraw operator decisions, with attachments and an answer form. Before writing a decision, read the writing guide: prompt-manager skill read notification-hub",
+      "commands": [
+        {
+          "name": "ask",
+          "description": "Ask the operator a decision, or send a status update, using a Hub kit template with JSON data. For templates give both --template NAME and --data-file object.json (or - for stdin); producers send data, never HTML. Decisions need --question and either --yes-no or two --option values. Status updates use --kind status and have no answer menu or default expiry; the operator can mark them read or send optional steering. Existing explainer, packet and typed-form flags remain available for decisions. --and-wait waits for an answer and returns its structured steering data.",
+          "flags": [
+            {
+              "name": "question",
+              "description": "One plain sentence the operator can answer from the push alone: the choice and what it affects. No internal IDs, codes, or file paths. Required unless --body-file gives it, or --subject-key revises an open ask (which keeps its question). On a revision it replaces the question."
+            },
+            {
+              "name": "kind",
+              "description": "decision (default) or status. A status update has no required answer and no default expiry."
+            },
+            {
+              "name": "template",
+              "description": "Hub kit template name. Give this with --data-file; the Hub renders the page from the embedded object."
+            },
+            {
+              "name": "data-file",
+              "description": "JSON object for --template, read from a file or stdin with -; producers do not generate HTML."
+            },
+            {
+              "name": "option",
+              "repeatable": true,
+              "description": "One option the operator can pick, as key or key=label; repeat for each (2 to 8). Or use --yes-no. The Hub adds its own free-text Other. A revision that names none keeps the open ask's options; naming them changes the options, which replaces the ask and pushes once.",
+              "local_only": true
+            },
+            {
+              "name": "yes-no",
+              "bool": true,
+              "description": "Shorthand for the two options yes and no. Use it when the question itself says what yes causes; otherwise write --option labels that say what each choice does. Not with --option.",
+              "local_only": true
+            },
+            {
+              "name": "body-file",
+              "description": "A markdown file (or - for standard input) holding the cover text: its first paragraph is the question, ## Background the big picture, ## Details the technical details. A leading # title line is ignored. Do not also give the part it supplies as a flag.",
+              "local_only": true
+            },
+            {
+              "name": "recommend",
+              "description": "The recommended option key; shown first. A revision that changes the options drops it with the old options.",
+              "local_only": true
+            },
+            {
+              "name": "recommend-reason",
+              "description": "One sentence on why the recommendation is best.",
+              "local_only": true
+            },
+            {
+              "name": "default",
+              "description": "Option key applied if unanswered; needs --reversible. Applies after the ask expires and at least 12 h after delivery.",
+              "local_only": true
+            },
+            {
+              "name": "reversible",
+              "bool": true,
+              "description": "The decision can be undone later (required for --default)."
+            },
+            {
+              "name": "urgency",
+              "values": [
+                "low",
+                "normal",
+                "high",
+                "critical"
+              ],
+              "description": "Default normal. high only when work is blocked right now; critical only for a real emergency, the only level that may pass quiet hours.",
+              "default": "normal"
+            },
+            {
+              "name": "context-url",
+              "description": "A web page that opens on the operator's phone. Never a local file path or localhost link; put those in --technical-details."
+            },
+            {
+              "name": "from",
+              "description": "Overrides who is asking, as the operator reads it. Normally leave it out: the CLI names the sender from the label of your Web Console session, or of your run when someone named it (for example \"research · steward-channel-ux-tooling\"; a trailing run date such as -20261114 is dropped so one role keeps one sender across days, and the generic label \"This machine\" and the made-up \"claude-code session <id>\" labels are ignored), looked up once per command in about a second and skipped silently when it cannot be found, and the operator uses that name to tell agents apart and to filter by sender. When no label is found (a plain session nobody named, so you will show as \"Agent run\") the Hub names the sender itself: your service's name, or \"Agent run\". Pass --from only when that label would mislead: a short name of 1 to 60 characters, such as \"Treasury steward\". The Hub does not verify the name and never uses it for access. The session label only names an ask when it is created: a revision never renames an ask, and only a --from you give changes the name of an open one.",
+              "local_only": true
+            },
+            {
+              "name": "big-picture",
+              "description": "Plain sentences for a reader with no context: what this is about, why it matters now, what each option leads to, and what happens with no answer. At most 4,000 characters. Replaces the whole text on a revision: to add to it, resend the old text and the addition (read it with `get --json`, field ask.big_picture). The answer to an operator's \"I need more context\" question does not belong here: use --context-response."
+            },
+            {
+              "name": "technical-details",
+              "description": "Evidence, IDs, commands, and file paths for the agent that acts on the answer. The only place internal names belong; never what the operator needs in order to choose. At most 12,000 characters. Replaces the whole text on a revision."
+            },
+            {
+              "name": "expires",
+              "description": "When the ask closes if nobody answers it: an RFC 3339 time, or a duration from now such as 6h or 7d. Default 24h. This is the ask's life, not how long your command waits (that is --timeout). With a duration, a resend still counts as the same request: the key is derived from the duration you wrote, not from the clock.",
+              "local_only": true
+            },
+            {
+              "name": "sensitivity-label",
+              "description": "public, private, sensitive or critical: who may see the content on a device. Default private."
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Names this request so that a retry returns the same ask. Default: derived from the terms and printed (an ask without --subject-key: the same terms and expiry give the same key, changed terms a new one; a keyed ask: a fresh key per send, because the subject already makes a repeat of identical terms change nothing). Give one only to control retries yourself; reusing it with different terms is a conflict. The Hub treats a key as a retry only when it is the key of the latest request applied to that ask."
+            },
+            {
+              "name": "subject-key",
+              "description": "Names the situation this ask is about, for example disk-pressure; always set it. Sending the same key again revises the open ask instead of adding another: identical terms change nothing, new text updates it without a new push, different options replace it, and an ask the operator dismissed is not reopened by identical terms. If the ask has already been answered or closed, a partial revision is refused with what became of the ask (read it with `get --subject-key`), and a whole ask starts a new one. 1-128 of A-Z a-z 0-9 . _ : / @ -, starting with a letter or digit."
+            },
+            {
+              "name": "allow-related",
+              "bool": true,
+              "description": "After reviewing a related-decision conflict, affirm that this is a distinct decision and send it separately. This does not grant access to another conversation's ask."
+            },
+            {
+              "name": "feature-card",
+              "description": "Send one complete research-feature-decision/v2 JSON card generated with its matching sibling HTML page and BRIEF.md. The Hub derives the question, keep/drop choices, recommendation, finding-version subject key, evidence attachment, explainer, and execution packet from these files; the resolved event returns that subject key with the chosen answer. Do not combine this with manual question, option, recommendation, attachment, explainer, or form flags. Use --dry-run first to see the packet check."
+            },
+            {
+              "name": "no-context-requests",
+              "bool": true,
+              "description": "With --subject-key: do not tell the Hub you will answer the operator's \"I need more context\" question. By default a keyed ask does, and the operator is offered the button; you answer with --context-response (any revision marks the question answered, but only --context-response shows your answer to the operator). Use this when nothing will read the question (no wait, no answer), so the operator is not left waiting.",
+              "local_only": true
+            },
+            {
+              "name": "and-wait",
+              "bool": true,
+              "description": "After sending, wait for the answer in the same command (see --timeout) and exit with the status `wait` uses; the first `wait` needs no separate command. If it exits 3 (the operator asked for more context), answer with `ask --subject-key K --context-response '...' --and-wait`, which sends the answer and waits again. The send prints its own result first (the `ask_id=... outcome=...` line, or with --json its document), then the wait prints its result; a send that failed exits 1 before any wait starts, with its error and no `ask_id=` line. Not with --dry-run, which creates no ask to wait for.",
+              "local_only": true
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Run the packet check and show the notification the operator would get and who they would see as the sender (the name and where it came from: your --from, your session label, kept from the open ask, or named by the Hub; --json: sender and sender_source), then stop: no ask or notification is created, no file is uploaded and nothing is stored. To check the packet, the CLI does send the Hub each attachment's hash and size, and the content of the explainer page and of any Markdown file a review follows; the Hub reads them for this one check and keeps none of it. On a keyed ask the check runs on the revision merged over the open ask.",
+              "local_only": true
+            },
+            {
+              "name": "timeout",
+              "description": "With --and-wait: how long your command waits for an answer, a duration such as 30m or an RFC 3339 time. Default 30m. Exit status 4 means this wait ran out; the ask stays open until it expires (--expires).",
+              "default": "30m",
+              "local_only": true
+            },
+            {
+              "name": "reassert-within",
+              "description": "With --subject-key: close the ask if you have not sent it again for this long (a duration from 1m to 720h such as 15m). Send it on that cadence while it is still needed; a send with the same terms is outcome reasserted.",
+              "local_only": true
+            },
+            {
+              "name": "attach",
+              "repeatable": true,
+              "description": "A file or folder the operator can open inside the Hub, as PATH or PATH=LABEL (the label is only a caption); repeat for each (the Hub keeps 24, the explainer counts). The attachment's name is the file's base name, so a revision that sends a file with the same name replaces that one and the other attachments stay. A folder is one attachment: files in path order, at most 500 (extra files are left out with a warning), skipping .git, .hg, .svn, node_modules, __pycache__, .venv, .mypy_cache, .pytest_cache, .cache, .idea, .DS_Store and Thumbs.db, and never following symlinks. Each file is at most 64 MiB and all files together 256 MiB (checked from file sizes before anything is read). The Hub keeps a copy; it never serves a host path. A path that is missing, unreadable or over a limit is left out with a warning on stderr; the ask is still sent.",
+              "local_only": true
+            },
+            {
+              "name": "explainer",
+              "description": "One self-contained HTML file the Hub shows sealed at the top of the decision. It is its own attachment: you do not also --attach it. It can name other attachments in src/href/poster. A revision that sends an explainer replaces the current one. Without one the operator gets the Hub's plain page made from the question and options. Rules and a starter kit: skills/notification-hub/references/html-explainers.md.",
+              "local_only": true
+            },
+            {
+              "name": "packet",
+              "description": "The decision's ready-to-run packet: the brief (work/<ID>/BRIEF.md, or its folder) saying what executes on each answer. The Hub keeps its absolute path on the ask and gives it back in get, wait and the resolution, so the agent that receives the answer starts a worker from it. The brief is also attached, so the operator can open it. A revision without --packet keeps the open ask's packet.",
+              "local_only": true
+            },
+            {
+              "name": "clear-attachments",
+              "bool": true,
+              "description": "On a revision, drop every current attachment (the explainer included) before applying the --attach and --explainer you send. Without it a revision keeps the open ask's attachments. To drop only some, use --remove-attachment."
+            },
+            {
+              "name": "remove-attachment",
+              "repeatable": true,
+              "description": "On a revision, drop the current attachment with this name (its file's base name; the explainer by its name too); repeat for each. The other attachments stay. A name the ask has no attachment of is reported on stderr and changes nothing. A name you also send with --attach is replaced, not removed.",
+              "local_only": true
+            },
+            {
+              "name": "form",
+              "description": "A YAML or JSON file declaring typed questions under the main options: a `questions:` list (or a bare list) of {id, type, prompt, help, required, choices, sections, sections_from, recommended, recommendation_reason, unanswered_verdict}. Types: single_choice, multi_choice, variant, section_review, text. unanswered_verdict (section_review) is what a section the operator leaves alone means: approve (default), change or drop. `recommended` is a choice key, a list of keys, a text, or a full response mapping. `sections_from: NAME_OR_PATH` makes a section_review follow the ## and ### headings of an attached Markdown file: the Hub reads the headings, and reads them again whenever a revision replaces that file, so the review always matches the document. A form file that cannot be read leaves out all questions; a broken question or recommendation is left out with a warning and the rest is kept. On a revision a question with the same id replaces the current one and the other current questions stay.",
+              "local_only": true
+            },
+            {
+              "name": "remove-question",
+              "repeatable": true,
+              "description": "On a revision, drop the current form question with this id; repeat for each. The other questions stay. An id the ask has no question of is reported on stderr and changes nothing. An id you also send in --form is replaced, not removed.",
+              "local_only": true
+            },
+            {
+              "name": "context-response",
+              "description": "Your written answer to the operator's open \"I need more context\" question, 1-4000 characters. The operator reads it under their question on the ask, and the question is marked answered. It works on its own (`ask --subject-key K --context-response '...'` changes nothing else) or with any other change in the same command. It is kept with the question, so several rounds of question and answer stay readable. When the operator has no open question the text is not stored and a warning says so."
+            },
+            {
+              "name": "clear-questions",
+              "bool": true,
+              "description": "On a revision, drop every current form question before applying the ones in --form. Without it a revision keeps the open ask's questions and a question you send replaces the one with the same id."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "Ask"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "answer",
+          "description": "Record an answer to a pending notification question.",
+          "flags": [
+            {
+              "name": "ask-id",
+              "required": true
+            },
+            {
+              "name": "answer",
+              "required": true
+            },
+            {
+              "name": "note",
+              "description": "Optional note, stored verbatim and returned to the requester."
+            },
+            {
+              "name": "responses-file",
+              "description": "A JSON file with the answers to the ask's form questions and notes on attachments: a list of {question_id, selected, text, sections:[{section_key, verdict, note}]}, or an object {\"responses\": [...], \"attachment_notes\": [{\"attachment\", \"path\", \"note\"}]} (path names a file inside a folder attachment).",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "Answer"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "request-context",
+          "description": "Record the recipient's question about an open ask without answering it. The ask stays open; the requester sees the question through `conversations wait` and answers it with `ask --subject-key K --context-response '...'`.",
+          "flags": [
+            {
+              "name": "ask-id",
+              "required": true
+            },
+            {
+              "name": "question",
+              "required": true,
+              "description": "What the recipient needs to know, 1-2,000 characters."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "RequestContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dismiss",
+          "description": "Close an ask without recording an answer; recipient only.",
+          "flags": [
+            {
+              "name": "ask-id",
+              "required": true
+            },
+            {
+              "name": "note",
+              "description": "Optional reason shown to the requester."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "Dismiss"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "withdraw",
+          "description": "Withdraw an ask you sent, by id (`withdraw <ask-id>`) or by --subject-key; it keeps its audit record. A run waiting on the ask ends with status 5 and sees your --reason. Access: by ask id you reach the asks sent from your own conversation (your run and the runs recovered from it, spawned by it or re-attached to the same harness session); by exact --subject-key you reach the ask of any run of the same owner, and that key never lists other asks. A shell with no verified identity is refused. Withdrawing follows the same rule as reading.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "The ask to withdraw. Give the id or --subject-key.",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "ask-id",
+              "description": "The ask to withdraw, as an alternative to the positional id. Give an id or --subject-key."
+            },
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why the ask is no longer applicable."
+            },
+            {
+              "name": "subject-key",
+              "description": "Withdraw the ask with this exact subject key instead of naming its id."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "Withdraw"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Wait for an answer, for the operator to ask for more context, or for your timeout (--timeout, default 30m). Name the ask by id (`wait <ask-id>`) or by --subject-key; a restarted agent re-derives its key and waits on it. It carries on across dropped connections and the Hub's own ten-minute limit on a single wait, until the answer or your timeout. Exit status: 0 an answer is available (answered, or the default applied); 3 the operator asked for more context, and the ask is still open; 4 your wait timed out (--timeout), and the ask is still open; 5 the ask closed without an answer (withdrawn, dismissed or expired; by id also when a revision with new options replaced it). Any other status (1) means the command itself failed: bad flags, an unreachable Hub, or a refused read. With --json the same document is printed on 0, 3, 4 and 5. An answered ask prints the plain-text answer summary (the option, the note and each form answer). Output ends with `ask_id=... state=... [answer=...]`. By --subject-key the wait follows a replacement ask (new options), so it never reports a replacement as status 5; by id it does. Access: by ask id you reach the asks sent from your own conversation (your run and the runs recovered from it, spawned by it or re-attached to the same harness session); by exact --subject-key you reach the ask of any run of the same owner, and that key never lists other asks. A shell with no verified identity is refused.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "The ask to wait on. Give the id or --subject-key.",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "ask-id",
+              "description": "The ask to wait on, as an alternative to the positional id. Give an id or --subject-key."
+            },
+            {
+              "name": "subject-key",
+              "description": "Wait on the ask with this exact subject key instead of its id. It follows the key: if the asker replaces the ask, the wait continues on the replacement. This is how a restarted agent resumes: re-derive the key and wait."
+            },
+            {
+              "name": "timeout",
+              "description": "How long this command waits: an RFC 3339 time or a duration from now such as 10m. Default 30m. When it runs out the command exits 4 and the ask stays open until it expires; it does not change the ask.",
+              "default": "30m",
+              "local_only": true
+            },
+            {
+              "name": "until-answer",
+              "bool": true,
+              "description": "Keep waiting through the operator's context questions: return only on an answer, a close, or your timeout (status 0, 5 or 4, never 3).",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "Wait"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "notification-hub conversations get"
+              ]
+            }
+          }
+        },
+        {
+          "name": "get",
+          "aliases": [
+            "get-ask",
+            "show"
+          ],
+          "description": "Read one ask without changing it: options, attachments (kind, size, whether the source file still matches), form questions, the operator's responses, notes pinned to attachments, answer summary, and context requests. Name it by id (`get <ask-id>`) or by --subject-key. --json prints {ask: {...}}; a field with no value is left out, so read a missing count as 0. Access: by ask id you reach the asks sent from your own conversation (your run and the runs recovered from it, spawned by it or re-attached to the same harness session); by exact --subject-key you reach the ask of any run of the same owner, and that key never lists other asks. A shell with no verified identity is refused.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "The ask to read. Give the id or --subject-key.",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "ask-id",
+              "description": "The ask to read, as an alternative to the positional id. Give an id or --subject-key."
+            },
+            {
+              "name": "subject-key",
+              "description": "Read the ask with this exact subject key instead of its id; for a run that lost its conversation."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "GetAsk"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "portfolio-continuity",
+          "description": "Let the registered portfolio steward continue one pending roadmap or daily ask that your verified run can already read by creator or conversation lineage. The Hub checks the stored recipient and records a durable exact-ask association; this does not answer or revise the ask.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "The exact pending roadmap or daily ask ID already visible to this run."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stored-attachment",
+          "description": "Download one stored ask attachment through the authenticated Hub API and report its SHA-256.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "The exact ask ID."
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "The exact attachment name shown by conversations get."
+            }
+          ],
+          "flags": [
+            {
+              "name": "output",
+              "description": "File path for the downloaded bytes; output is created with private permissions."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "aliases": [
+            "list-asks"
+          ],
+          "description": "List your asks, newest first unless you sort them. --sort attention puts what needs the operator first (escalated asks, then pending asks closing within the Hub's closing window of 6 hours, nearest first, then critical, high, normal and low urgency, then the earliest deadline, then newest); --sort due puts the earliest deadline first (an ask with none last); --sort oldest reverses newest. Narrow them with --state (--open is --state awaiting), --urgency, --sender and --query: every sort takes every filter, filters combine with AND, and the values of one filter with OR. Each row ends with the sender, an urgency other than normal, and the deadline of an ask that still waits. The summary ends with the counts by urgency and by sender under your other filters (--json: facets.urgencies and facets.senders, each a list of {value, count}); a facet's value is what --urgency and --sender take. A page holds up to --limit asks; when more follow, next_cursor (--json) or the printed hint continues from the same filters. An agent run lists only the asks of its own conversation; the owner lists all. To find an ask you sent before a restart, `list --open --query WORDS`; an ask you can name exactly is reached by its --subject-key instead.",
+          "flags": [
+            {
+              "name": "open",
+              "bool": true,
+              "bind": {
+                "field": "open_only"
+              },
+              "description": "Only asks that still wait for an answer; the shortcut for --state awaiting."
+            },
+            {
+              "name": "state",
+              "description": "Only asks in this state: all (the default), awaiting (pending or escalated), pending, escalated, answered, defaulted, expired, withdrawn or dismissed.",
+              "local_only": true
+            },
+            {
+              "name": "sort",
+              "description": "How to order the asks: newest (the default), oldest, attention (escalated first, then asks closing within 6 hours, then critical to low urgency, then the earliest deadline) or due (the earliest deadline first, asks with none last).",
+              "local_only": true
+            },
+            {
+              "name": "urgency",
+              "repeatable": true,
+              "description": "Only asks of this urgency: low, normal, high or critical. Repeat the flag or separate values with commas (--urgency high,critical).",
+              "local_only": true
+            },
+            {
+              "name": "sender",
+              "repeatable": true,
+              "description": "Only asks from this sender, named exactly as a list prints it under By sender (the whole name; a comma is part of a name, so repeat the flag for several): --sender 'Research Desk' --sender 'Agent run'.",
+              "local_only": true
+            },
+            {
+              "name": "limit",
+              "description": "Page size (default 50, maximum 200)."
+            },
+            {
+              "name": "cursor",
+              "description": "Opaque continuation for the same filters."
+            },
+            {
+              "name": "query",
+              "description": "Literal substring filter including requester identity."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationsService",
+            "method": "ListAsks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "recipients",
+      "description": "Manage the authenticated recipient projection, devices, addresses, preferences, and escalation.",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read the authenticated recipient.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "GetRecipient"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "push-subscribe",
+          "description": "Register a browser push subscription.",
+          "flags": [
+            {
+              "name": "endpoint",
+              "required": true
+            },
+            {
+              "name": "p256dh",
+              "required": true
+            },
+            {
+              "name": "auth",
+              "required": true
+            },
+            {
+              "name": "origin",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "RegisterPushSubscription"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "push-remove",
+          "description": "Remove a browser push subscription.",
+          "flags": [
+            {
+              "name": "endpoint",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "RemovePushSubscription"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "device-list",
+          "description": "List registered devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "device-upsert",
+          "description": "Register or update a device.",
+          "flags": [
+            {
+              "name": "id"
+            },
+            {
+              "name": "name",
+              "required": true
+            },
+            {
+              "name": "machine-id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "UpsertDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "device-remove",
+          "description": "Remove a device.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "RemoveDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "address-upsert",
+          "description": "Register or update a channel address.",
+          "flags": [
+            {
+              "name": "id"
+            },
+            {
+              "name": "device-id",
+              "required": true
+            },
+            {
+              "name": "channel",
+              "required": true
+            },
+            {
+              "name": "address",
+              "required": true
+            },
+            {
+              "name": "approved-labels"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "UpsertChannelAddress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "address-remove",
+          "description": "Remove a channel address.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "RemoveChannelAddress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "quiet-set",
+          "description": "Create or replace a quiet window.",
+          "flags": [
+            {
+              "name": "weekday",
+              "required": true
+            },
+            {
+              "name": "start",
+              "required": true
+            },
+            {
+              "name": "end",
+              "required": true
+            },
+            {
+              "name": "timezone",
+              "required": true
+            },
+            {
+              "name": "critical-override"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "SetQuietWindow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "quiet-list",
+          "description": "List quiet windows.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "ListQuietWindows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "quiet-delete",
+          "description": "Delete a quiet window.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "DeleteQuietWindow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "escalation-set",
+          "description": "Set ordered escalation channels.",
+          "flags": [
+            {
+              "name": "channels",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "SetEscalationChain"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "escalation-get",
+          "description": "Read ordered escalation channels.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecipientsService",
+            "method": "GetEscalationChain"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "integrations",
+      "description": "Inspect and update live event integration settings.",
+      "commands": [
+        {
+          "name": "event-config",
+          "description": "Show the live event integration settings: the vrooli-events API base, the webhook URL and the subscription pattern. Prints the settings document the API returns.",
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": true,
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "event-config-set",
+          "description": "Update the live event integration settings without restarting the API; a setting you leave out keeps its current value. Prints the settings document after the update.",
+          "flags": [
+            {
+              "name": "events-api-base",
+              "description": "vrooli-events API base URL."
+            },
+            {
+              "name": "webhook-url",
+              "description": "The URL vrooli-events calls with events for this Hub."
+            },
+            {
+              "name": "pattern",
+              "description": "The event subscription pattern, such as incident.**."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": true,
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pages",
+      "description": "Check and photograph a decision page the way the Hub will judge and show it, before any ask is sent.",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Run the Hub's packet check (the one behind ask --dry-run) on one page and the decision it belongs to, without sending or storing anything. Findings marked blocking are what would refuse the ask: a page that only restates the cover, text the operator cannot read in light or dark, a recommendation with no reason. Exit 0 when nothing would refuse it, 1 when something would. Without --cover-file only the page itself is judged.",
+          "positionals": [
+            {
+              "name": "page",
+              "required": true,
+              "description": "The HTML page."
+            }
+          ],
+          "flags": [
+            {
+              "name": "cover-file",
+              "description": "A JSON file with the decision's cover: question, options [{key, label}], recommended, recommendation_reason, big_picture, technical_details. Other keys are ignored, so a page writer's request file works as it is."
+            },
+            {
+              "name": "attach",
+              "repeatable": true,
+              "description": "A file the page names (for example a screenshot in src), as for ask --attach; repeat for each."
+            },
+            {
+              "name": "form",
+              "description": "The answer form the decision will carry, as for ask --form, so a page's group switches are checked against its question ids."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": true,
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "shoot",
+          "description": "Photograph a page as the Hub frames it, with the Hub's kit, 390 px wide in light and dark, using headless Chrome. Writes the screenshots to --out (default shots/ beside the page) and prints their paths. Look at every one.",
+          "positionals": [
+            {
+              "name": "page",
+              "required": true,
+              "description": "The HTML page."
+            }
+          ],
+          "flags": [
+            {
+              "name": "out",
+              "description": "The folder for the screenshots. Default: shots/ beside the page."
+            },
+            {
+              "name": "narrow",
+              "bool": true,
+              "description": "Also photograph 320 px wide."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": false,
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "ConversationsService",
+      "method": "AnswerRootWithPassword",
+      "reason": "Browser-only fresh authentication for an exact root decision; passwords must not enter terminal arguments or output."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "MarkRead",
+      "reason": "Browser-only acknowledgement of a status update in the decision interface."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "ListNativeConsents",
+      "reason": "Read-only cross-source Needs You projection for the browser. Native permission review and action stay in Agent Manager, not in Hub conversations commands."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "StatAttachmentBlobs",
+      "reason": "Used internally by `conversations ask --attach`: the CLI hashes the files, stats which blobs the Hub lacks, and uploads only those. Not a user-facing operation."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "PutAttachmentBlob",
+      "reason": "Used internally by `conversations ask --attach`: the CLI hashes the files, stats which blobs the Hub lacks, and uploads only those. Not a user-facing operation."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "CheckAsk",
+      "reason": "Used by `conversations ask --dry-run`: the same flags build the request, and the packet check and notification preview print instead of a send. Not a separate command."
+    },
+    {
+      "service": "IdentityService",
+      "method": "Login",
+      "reason": "Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."
+    },
+    {
+      "service": "IdentityService",
+      "method": "GetSession",
+      "reason": "Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."
+    },
+    {
+      "service": "IdentityService",
+      "method": "Logout",
+      "reason": "Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "GetAppState",
+      "reason": "Read for the calling scenario's own settings panel (this browser's subscription and pairable devices); there is no browser in the CLI."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "EnableApp",
+      "reason": "Browser app flow: the installed scenario web app pairs its own browser push subscription with a device, so the subscription never leaves that browser; the CLI has no subscription to offer."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "ConfirmApp",
+      "reason": "Called by the installed web app each time it opens to confirm the subscription is still live; a CLI has no app to confirm."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "DisableApp",
+      "reason": "Browser app flow: the installed scenario web app pairs its own browser push subscription with a device, so the subscription never leaves that browser; the CLI has no subscription to offer."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "ListDeviceApps",
+      "reason": "Read for Notification Hub's own settings page; the CLI's `recipients device-list` is the terminal view of devices."
+    },
+    {
+      "service": "AppDeliveryService",
+      "method": "RemoveDeviceApp",
+      "reason": "Settings-page action keyed by browser subscription id; the CLI's `recipients push-remove` removes a subscription by endpoint."
+    },
+    {
+      "service": "RecipientsService",
+      "method": "ListChannelAddresses",
+      "reason": "Read for the settings page's address list; the CLI manages addresses with `recipients address-upsert` and `address-remove`."
+    },
+    {
+      "service": "RecipientsService",
+      "method": "CreateChannelAddress",
+      "reason": "Settings-page form with create-only semantics; the CLI's `recipients address-upsert` covers creating an address."
+    },
+    {
+      "service": "RecipientsService",
+      "method": "UpdateChannelAddress",
+      "reason": "Settings-page form with update-only semantics; the CLI's `recipients address-upsert` covers updating an address."
+    }
+  ]
+}

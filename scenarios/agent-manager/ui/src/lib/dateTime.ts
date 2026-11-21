@@ -1,4 +1,5 @@
 import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
+import { MISSING } from "./format";
 
 export type DateInput = string | Date | Timestamp | undefined;
 
@@ -30,7 +31,7 @@ export function toValidDate(value: DateInput): Date | undefined {
 export function formatDateTime(
   value: DateInput,
   options?: Intl.DateTimeFormatOptions,
-  fallback = "N/A"
+  fallback = MISSING
 ): string {
   const date = toValidDate(value);
   if (!date) return fallback;
@@ -46,7 +47,7 @@ export function formatStatsDateTime(value: DateInput): string {
       hour: "numeric",
       minute: "2-digit",
     },
-    "N/A"
+    MISSING
   );
 }
 
@@ -58,7 +59,7 @@ export function formatStatsChartDate(value: DateInput): string {
       day: "numeric",
       hour: "numeric",
     },
-    "N/A"
+    MISSING
   );
 }
 
@@ -69,7 +70,7 @@ export function formatStatsChartTime(value: DateInput): string {
       hour: "numeric",
       minute: "2-digit",
     },
-    "N/A"
+    MISSING
   );
 }
 
@@ -84,7 +85,7 @@ export function formatChartAxisByPreset(
         month: "short",
         day: "numeric",
       },
-      "N/A"
+      MISSING
     );
   }
   if (preset === "7d") {
@@ -105,7 +106,7 @@ export function formatRelativeTimeShort(
   options?: RelativeTimeOptions
 ): string {
   const date = toValidDate(value);
-  if (!date) return options?.fallback ?? "N/A";
+  if (!date) return options?.fallback ?? MISSING;
 
   const now = options?.now ?? new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -132,11 +133,11 @@ export function formatRelativeTimeShort(
 }
 
 export function formatStandardDateTime(value: DateInput): string {
-  return formatDateTime(value, undefined, "N/A");
+  return formatDateTime(value, undefined, MISSING);
 }
 
 export function formatStandardRelativeTime(value: DateInput): string {
-  return formatRelativeTimeShort(value, { fallback: "N/A" });
+  return formatRelativeTimeShort(value, { fallback: MISSING });
 }
 
 export function formatStatsRelativeTime(value: DateInput): string {

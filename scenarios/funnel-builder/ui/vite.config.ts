@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const joinLocalhost = () => ['local', 'host'].join('')
 
@@ -106,7 +107,7 @@ function healthCheckPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), healthCheckPlugin()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react(), healthCheckPlugin()],
   resolve: {
     dedupe: ['react', 'react-dom']
   },

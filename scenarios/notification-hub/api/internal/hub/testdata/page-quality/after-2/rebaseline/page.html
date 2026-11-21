@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approve the disk capacity install</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; color: var(--hub-muted); font-size: .8125rem; }
+  .verdict { margin: .25rem 0 1rem; }
+  .areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: 1rem 0; }
+  .areas div { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); padding: .625rem; }
+  .areas div:last-child { grid-column: 1 / -1; }
+  .areas small { display: block; color: var(--hub-muted); }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Disk capacity · install decision</p>
+  <h1>Approve the new control plane install today</h1>
+  <p class="verdict"><span class="hub-chip is-primary">I recommend running it today.</span> The update is built and tested, and this is the only way to activate disk capacity.</p>
+
+  <section class="hub-command">
+    <p class="hub-command__where">In a terminal on the Vrooli computer</p>
+    <div class="hub-command__line"><code>cd ~/Vrooli &amp;&amp; make rebaseline</code><button type="button" class="is-quiet" data-hub-copy>Copy</button></div>
+    <ol class="hub-command__steps">
+      <li>It runs the full build check, which takes several minutes.</li>
+      <li>It lists the stored-data changes and waits for your confirmation before changing anything.</li>
+      <li>After you confirm, it saves the installed version, pauses automatic updates, installs and checks the new version, then turns automatic updates back on.</li>
+      <li>When it finishes, choose “I ran it” here so I can finish the install checks.</li>
+    </ol>
+    <p><strong>Before it changes anything:</strong> the full build check runs first, then the command shows the stored-data changes and asks you to confirm.</p>
+    <p><strong>Undo:</strong> there is no automatic rollback because the old version cannot read the new stored data. A saved copy at <code>~/.vrooli/state/root-rebaseline/</code> makes a manual rollback possible.</p>
+  </section>
+
+  <h2>What changes in stored data</h2>
+  <p>The update changes how the control plane writes persistent state in five areas:</p>
+  <div class="areas" aria-label="Five stored-data areas touched by the update">
+    <div>Disk capacity</div><div>Resources</div><div>Process records</div><div>Managed services</div><div>Operator state</div>
+  </div>
+  <p>The installer stops when stored fields are added, even if none are removed or renamed. That guard caused this second request in five days. A rule change could stop repeat prompts, but it needs its own operator decision.</p>
+  <aside class="hub-recurrence"><strong class="hub-recurrence__count">2×</strong><div><p>You have been asked to run this command twice in five days: 11 Nov and 15 Nov.</p><p class="hub-recurrence__stop">A separate decision on the installer's stored-field guard is the path to stopping these repeats.</p></div></aside>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Run it today</h3>
+      <p>Confirm the command's listed changes. After it completes, tell me you ran it; I finish the install and check it. The new stored data has no automatic rollback.</p>
+      <button type="button" data-answer="run">Choose this</button>
+    </section>
+    <section>
+      <h3>Hold</h3>
+      <p>The current install stays in place, disk capacity remains inactive, and work continues on source only. Nothing breaks; no stored data changes.</p>
+      <button type="button" class="is-quiet" data-answer="hold">Choose this</button>
+    </section>
+  </div>
+  <div class="hub-callout"><strong>If you do not answer:</strong> the result is the same as Hold. The current install stays and disk capacity remains inactive.</div>
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

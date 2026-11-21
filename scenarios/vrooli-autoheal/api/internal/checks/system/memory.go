@@ -4,13 +4,15 @@ package system
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // MemoryCheck monitors RAM usage and detects memory pressure.
@@ -20,6 +22,7 @@ type MemoryCheck struct {
 	warningThreshold  int // percentage used
 	criticalThreshold int // percentage used
 	procReader        checks.ProcReader
+	hostCollector     hostSnapshotCollector
 	executor          checks.CommandExecutor
 }
 
@@ -42,6 +45,13 @@ func WithMemoryProcReader(reader checks.ProcReader) MemoryCheckOption {
 	}
 }
 
+func WithMemoryHostCollector(collector hostSnapshotCollector) MemoryCheckOption {
+	return func(c *MemoryCheck) {
+		c.hostCollector = collector
+		c.procReader = nil
+	}
+}
+
 // WithMemoryExecutor sets the command executor (for testing and recovery actions).
 // [REQ:TEST-SEAM-001]
 func WithMemoryExecutor(executor checks.CommandExecutor) MemoryCheckOption {
@@ -56,7 +66,7 @@ func NewMemoryCheck(opts ...MemoryCheckOption) *MemoryCheck {
 	c := &MemoryCheck{
 		warningThreshold:  80,
 		criticalThreshold: 90,
-		procReader:        checks.DefaultProcReader,
+		hostCollector:     defaultHostSnapshotCollector{},
 		executor:          checks.DefaultExecutor,
 	}
 	for _, opt := range opts {
@@ -84,15 +94,14 @@ func (c *MemoryCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		result.Status = checks.StatusWarning
-		result.Message = "Memory check not yet implemented for Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Memory check is not implemented on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 
-	// Read memory information via injected reader
-	memInfo, err := c.procReader.ReadMeminfo()
+	memInfo, err := c.readMemoryInfo(ctx)
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Failed to read memory information"
@@ -176,22 +185,41 @@ func (c *MemoryCheck) Run(ctx context.Context) checks.Result {
 	return result
 }
 
+func (c *MemoryCheck) readMemoryInfo(ctx context.Context) (*checks.MemInfo, error) {
+	if c.procReader != nil {
+		return c.procReader.ReadMeminfo()
+	}
+	collector := c.hostCollector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	snap, err := collector.Collect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return memInfoFromSnapshot(snap), nil
+}
+
+func memInfoFromSnapshot(snap sharedhost.Snapshot) *checks.MemInfo {
+	return &checks.MemInfo{
+		MemTotal:     snap.Memory.TotalBytes / 1024,
+		MemAvailable: snap.Memory.AvailableBytes / 1024,
+		Buffers:      snap.Memory.BuffersBytes / 1024,
+		Cached:       snap.Memory.CachedBytes / 1024,
+		SwapTotal:    snap.Swap.TotalBytes / 1024,
+		SwapFree:     snap.Swap.FreeBytes / 1024,
+	}
+}
+
 // RecoveryActions returns available recovery actions for memory issues.
 // Note: Memory issues often can't be "healed" automatically, so actions focus on
 // diagnostics and identifying memory hogs.
 // [REQ:HEAL-ACTION-001]
 func (c *MemoryCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
 	isLinux := runtime.GOOS == "linux"
-	isCritical := lastResult != nil && lastResult.Status == checks.StatusCritical
+	_ = lastResult
 
 	return []checks.RecoveryAction{
-		{
-			ID:          "drop-caches",
-			Name:        "Drop Caches",
-			Description: "Drop filesystem caches to free memory (safe operation)",
-			Dangerous:   false,
-			Available:   isLinux && isCritical,
-		},
 		{
 			ID:          "top-memory",
 			Name:        "Top Memory Users",
@@ -227,9 +255,6 @@ func (c *MemoryCheck) ExecuteAction(ctx context.Context, actionID string) checks
 	}
 
 	switch actionID {
-	case "drop-caches":
-		return c.executeDropCaches(ctx, start)
-
 	case "top-memory":
 		return c.executeTopMemory(ctx, start)
 
@@ -245,56 +270,6 @@ func (c *MemoryCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		result.Duration = time.Since(start)
 		return result
 	}
-}
-
-// executeDropCaches drops filesystem caches to free memory
-func (c *MemoryCheck) executeDropCaches(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "drop-caches",
-		CheckID:   c.ID(),
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-
-	// Get memory before
-	outputBuilder.WriteString("=== Memory Before ===\n")
-	beforeOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(beforeOutput)
-	outputBuilder.WriteString("\n")
-
-	// Sync filesystem to disk first
-	outputBuilder.WriteString("=== Syncing Filesystem ===\n")
-	if err := c.executor.Run(ctx, "sync"); err != nil {
-		outputBuilder.WriteString(fmt.Sprintf("Warning: sync failed: %v\n", err))
-	} else {
-		outputBuilder.WriteString("Sync completed\n")
-	}
-
-	// Drop caches (3 = drop page cache, dentries, and inodes)
-	outputBuilder.WriteString("\n=== Dropping Caches ===\n")
-	output, err := c.executor.CombinedOutput(ctx, "sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches")
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = false
-		result.Error = err.Error()
-		result.Message = "Failed to drop caches (may require sudo)"
-		return result
-	}
-	outputBuilder.Write(output)
-	outputBuilder.WriteString("Caches dropped successfully\n")
-
-	// Get memory after
-	outputBuilder.WriteString("\n=== Memory After ===\n")
-	afterOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(afterOutput)
-
-	result.Duration = time.Since(start)
-	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "Filesystem caches dropped successfully"
-	return result
 }
 
 // executeTopMemory shows the top memory-consuming processes
@@ -345,34 +320,60 @@ func (c *MemoryCheck) executeMemorySummary(ctx context.Context, start time.Time)
 	}
 
 	var outputBuilder strings.Builder
+	var failures []string
 
-	// Overall memory with human-readable format
+	// Basic inventory and privileged slab accounting both belong to the native
+	// control plane. Keep useful partial output, but never call it complete.
 	outputBuilder.WriteString("=== Memory Overview ===\n")
-	freeOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(freeOutput)
-	outputBuilder.WriteString("\n")
-
-	// Detailed /proc/meminfo
-	outputBuilder.WriteString("=== Detailed Memory Info ===\n")
-	meminfoOutput, _ := c.executor.Output(ctx, "cat", "/proc/meminfo")
-	outputBuilder.Write(meminfoOutput)
-	outputBuilder.WriteString("\n")
-
-	// Memory by type (slab, etc.)
-	outputBuilder.WriteString("=== Slab Memory ===\n")
-	slabOutput, _ := c.executor.Output(ctx, "cat", "/proc/slabinfo")
-	// Only show header and top entries
-	slabLines := strings.Split(string(slabOutput), "\n")
-	if len(slabLines) > 20 {
-		slabLines = slabLines[:20]
+	memInfo, err := c.readMemoryInfo(ctx)
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("memory inventory unavailable: %v", err))
+	} else if memInfo == nil || memInfo.MemTotal == 0 {
+		failures = append(failures, "memory inventory is empty")
+	} else {
+		fmt.Fprintf(&outputBuilder, "MemTotal: %d kB\n", memInfo.MemTotal)
+		fmt.Fprintf(&outputBuilder, "MemAvailable: %d kB\n", memInfo.MemAvailable)
+		fmt.Fprintf(&outputBuilder, "Buffers: %d kB\n", memInfo.Buffers)
+		fmt.Fprintf(&outputBuilder, "Cached: %d kB\n", memInfo.Cached)
+		fmt.Fprintf(&outputBuilder, "SwapTotal: %d kB\n", memInfo.SwapTotal)
+		fmt.Fprintf(&outputBuilder, "SwapFree: %d kB\n", memInfo.SwapFree)
 	}
-	outputBuilder.WriteString(strings.Join(slabLines, "\n"))
-	outputBuilder.WriteString("\n... (truncated)\n")
+
+	outputBuilder.WriteString("\n=== Kernel Slab Memory ===\n")
+	kernelOutput, err := c.executor.Output(ctx, "vrooli", "host", "kernel-memory", "--json")
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("kernel memory diagnostic unavailable: %v", err))
+	} else {
+		var report sharedhost.KernelMemoryReport
+		if err := json.Unmarshal(kernelOutput, &report); err != nil {
+			failures = append(failures, fmt.Sprintf("invalid kernel memory diagnostic: %v", err))
+		} else if report.Source == "" || report.CacheCount < len(report.Caches) || len(report.Caches) == 0 {
+			failures = append(failures, "kernel memory diagnostic is empty or incomplete")
+		} else {
+			fmt.Fprintf(&outputBuilder, "Source: %s\nAllocated: %d bytes across %d caches\n", report.Source, report.AllocatedBytes, report.CacheCount)
+			for _, cache := range report.Caches {
+				reclaimable := "unknown"
+				if cache.Reclaimable != nil {
+					reclaimable = fmt.Sprint(*cache.Reclaimable)
+				}
+				fmt.Fprintf(&outputBuilder, "%s: %d bytes; reclaimable=%s\n", cache.Name, cache.AllocatedBytes, reclaimable)
+			}
+			if report.CacheCount > len(report.Caches) {
+				fmt.Fprintf(&outputBuilder, "Showing the largest %d caches.\n", len(report.Caches))
+			}
+		}
+	}
 
 	result.Duration = time.Since(start)
+	result.Success = len(failures) == 0
+	if result.Success {
+		result.Message = "Memory summary retrieved"
+	} else {
+		result.Message = "Memory summary incomplete"
+		result.Error = strings.Join(failures, "; ")
+		fmt.Fprintf(&outputBuilder, "\nUnavailable diagnostics: %s\n", result.Error)
+	}
 	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "Memory summary retrieved"
 	return result
 }
 

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "u-001",
+    "owner": "owner-a",
+    "name": "invoice-001.txt",
+    "bytes": 24,
+    "sha256": "f3673493222b4c1f884b3835afc15a93aa6e0a5d22e770fe5efacca92a2d1ecb"
+  },
+  {
+    "id": "u-002",
+    "owner": "owner-b",
+    "name": "photo-002.txt",
+    "bytes": 22,
+    "sha256": "354f38fa7a80184bf622783cc01c356d903787c2bdabef1b428935d55e1a4edf"
+  },
+  {
+    "id": "u-003",
+    "owner": "owner-c",
+    "name": "notes-003.txt",
+    "bytes": 22,
+    "sha256": "b0aff46e45bdf937b99cef9b81bdee0a10f0a913793863201b2eae5bd4fa068a"
+  }
+]

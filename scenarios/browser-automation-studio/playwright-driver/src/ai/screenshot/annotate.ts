@@ -355,36 +355,3 @@ export function formatElementLabelsForPrompt(labels: ElementLabel[]): string {
 
   return lines.join('\n');
 }
-
-/**
- * Create a mock annotator for testing.
- */
-export function createMockAnnotator(
-  mockLabels?: ElementLabel[]
-): ElementAnnotatorInterface & {
-  getCalls(): number;
-  reset(): void;
-} {
-  let callCount = 0;
-
-  return {
-    annotate(
-      screenshot: Buffer,
-      _elements: ElementLabel[]
-    ): Promise<AnnotatedScreenshot> {
-      callCount++;
-      return Promise.resolve({
-        image: screenshot,
-        labels: mockLabels ?? _elements,
-      });
-    },
-
-    getCalls(): number {
-      return callCount;
-    },
-
-    reset(): void {
-      callCount = 0;
-    },
-  };
-}

@@ -1,0 +1,129 @@
+{
+  "id": "f7-client-shaped-gmail-sheets-crm",
+  "name": "Synthetic Client Lead Intake, CRM, Audit Sheet, and Reply",
+  "active": false,
+  "nodes": [
+    {
+      "id": "f7-trigger",
+      "name": "Lead intake",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f7-crm",
+      "name": "Upsert lead in CRM",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert"
+      },
+      "credentials": {
+        "hubspotApi": {
+          "id": "synthetic",
+          "name": "Synthetic CRM"
+        }
+      }
+    },
+    {
+      "id": "f7-sheet",
+      "name": "Append intake audit row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "synthetic-lead-audit",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "synthetic",
+          "name": "Synthetic Sheets"
+        }
+      }
+    },
+    {
+      "id": "f7-mail",
+      "name": "Send synthetic acknowledgement",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "We received your request",
+        "message": "Your synthetic lead record was added to CRM and the audit sheet."
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "synthetic",
+          "name": "Synthetic Gmail"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lead intake": {
+      "main": [
+        [
+          {
+            "node": "Upsert lead in CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert lead in CRM": {
+      "main": [
+        [
+          {
+            "node": "Append intake audit row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append intake audit row": {
+      "main": [
+        [
+          {
+            "node": "Send synthetic acknowledgement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

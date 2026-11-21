@@ -1,0 +1,24 @@
+{
+  "background_color": "#ffffff",
+  "description": "Preview-first, policy-gated cleanup orchestration for reclaimable host and scenario storage.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "manifest-icon-192.maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "manifest-icon-512.maskable.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Storage Manager",
+  "scope": "../",
+  "short_name": "storage-manager",
+  "start_url": "../",
+  "theme_color": "#ffffff"
+}

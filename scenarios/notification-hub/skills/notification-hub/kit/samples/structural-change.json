@@ -1,0 +1,376 @@
+{
+ "template": "structural-change",
+ "meta": {
+  "title": "Loosen three checks that keep stopping agents, for 14 days, while a team fixes them?",
+  "producer": "Portfolio steward",
+  "sentAt": "2026-11-16T08:00:00Z",
+  "timezone": "UTC",
+  "notice": "Sample data for previewing the template. Every number on this page is illustrative."
+ },
+ "recommendation": {
+  "option": "temp",
+  "headline": "I recommend loosening the three checks that only guard things git can restore and that the guard can switch, and keeping the four that guard money, messages, secrets and unbacked data.",
+  "why": "These checks stopped 31 runs and cost about 46 agent hours this week. A single agent can't overrule them, and shouldn't. From the portfolio view they look like immature parts of our own system, not real dangers."
+ },
+ "blocked": {
+  "source": {
+   "status": "real",
+   "label": "Agent Manager blocked runs by check"
+  },
+  "title": "Runs stopped by a check, each day for two weeks",
+  "days": [
+   {
+    "t": "2026-11-03T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-04T12:00:00Z",
+    "values": {
+     "1": 0,
+     "2": 1,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-05T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 0,
+     "3": 1,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-06T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 1,
+     "3": 0,
+     "4": 1
+    }
+   },
+   {
+    "t": "2026-11-07T12:00:00Z",
+    "values": {
+     "1": 2,
+     "2": 0,
+     "3": 0,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-08T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-09T12:00:00Z",
+    "values": {
+     "1": 2,
+     "2": 0,
+     "3": 0,
+     "4": 1
+    }
+   },
+   {
+    "t": "2026-11-10T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 1,
+     "3": 1,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-11T12:00:00Z",
+    "values": {
+     "1": 2,
+     "2": 1,
+     "3": 0,
+     "4": 1
+    }
+   },
+   {
+    "t": "2026-11-12T12:00:00Z",
+    "values": {
+     "1": 2,
+     "2": 1,
+     "3": 1,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-13T12:00:00Z",
+    "values": {
+     "1": 1,
+     "2": 2,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "t": "2026-11-14T12:00:00Z",
+    "values": {
+     "1": 3,
+     "2": 1,
+     "3": 1,
+     "4": 0
+    }
+   },
+   {
+    "t": "2026-11-15T12:00:00Z",
+    "values": {
+     "1": 2,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    }
+   },
+   {
+    "t": "2026-11-16T12:00:00Z",
+    "values": {
+     "1": 3,
+     "2": 2,
+     "3": 1,
+     "4": 1
+    }
+   }
+  ],
+  "responses": [
+   {
+    "label": "Stopped and called it expected",
+    "count": 22,
+    "tone": "muted"
+   },
+   {
+    "label": "Tried a workaround, failed",
+    "count": 5,
+    "tone": 2
+   },
+   {
+    "label": "Asked you",
+    "count": 3,
+    "tone": "accent"
+   },
+   {
+    "label": "Got around it",
+    "count": 1,
+    "tone": "good"
+   }
+  ]
+ },
+ "checks": {
+  "source": {
+   "status": "real",
+   "label": "guard audit log"
+  },
+  "zone": {
+   "minHours": 4,
+   "maxHarm": 4,
+   "label": "Costs time, guards little"
+  },
+  "groups": [
+   {
+    "key": "restorable",
+    "title": "Guard only things git can restore",
+    "pill": {
+     "text": "Recommended: loosen",
+     "tone": "info"
+    }
+   },
+   {
+    "key": "irreversible",
+    "title": "Guard things nothing can undo",
+    "pill": {
+     "text": "Recommended: keep",
+     "tone": "good"
+    }
+   }
+  ],
+  "items": [
+   {
+    "id": 1,
+    "guardId": "sample.identity_token",
+    "title": "Agent identity check on code edits",
+    "text": "Stops an agent whose identity token didn't reach its session.",
+    "hoursPerWeek": 18,
+    "harm": 1.2,
+    "group": "restorable",
+    "recommended": "loosen",
+    "jobs": 6,
+    "worst": "a wrong edit, restored from git",
+    "tone": 2
+   },
+   {
+    "id": 2,
+    "guardId": "sample.approval_run_binding",
+    "title": "Approval must match the exact run",
+    "text": "Your approval exists but is tied to a different run, so it's refused.",
+    "hoursPerWeek": 12,
+    "harm": 1.6,
+    "group": "restorable",
+    "recommended": "loosen",
+    "jobs": 4,
+    "worst": "an approved action runs in the wrong session",
+    "tone": 3
+   },
+   {
+    "id": 3,
+    "guardId": "sample.sandbox_shared_tree",
+    "title": "Sandbox blocks writes to the shared work tree",
+    "text": "Agents work in one shared tree by design; the sandbox assumes separate copies.",
+    "hoursPerWeek": 9,
+    "harm": 2.6,
+    "group": "restorable",
+    "recommended": "loosen",
+    "jobs": 3,
+    "worst": "another agent's unsaved changes overwritten",
+    "tone": 1
+   },
+   {
+    "id": 4,
+    "title": "Agents may only launch through Agent Manager",
+    "text": "When Agent Manager is down, agents wait instead of using the coding agent CLI.",
+    "hoursPerWeek": 7,
+    "harm": 1,
+    "group": "restorable",
+    "recommended": "keep",
+    "jobs": 1,
+    "worst": "a run Agent Manager doesn't track",
+    "tone": 4
+   },
+   {
+    "id": 5,
+    "hardStop": true,
+    "title": "Payments and purchases need your yes",
+    "text": "Anything that spends or charges money.",
+    "hoursPerWeek": 0.5,
+    "harm": 9.5,
+    "group": "irreversible",
+    "recommended": "keep"
+   },
+   {
+    "id": 6,
+    "hardStop": true,
+    "title": "Messages to people outside need your yes",
+    "text": "Emails, outreach, posts.",
+    "hoursPerWeek": 1,
+    "harm": 7.6,
+    "group": "irreversible",
+    "recommended": "keep"
+   },
+   {
+    "id": 7,
+    "hardStop": true,
+    "title": "Secrets and credentials",
+    "text": "Reading or changing keys and passwords.",
+    "hoursPerWeek": 2,
+    "harm": 9,
+    "group": "irreversible",
+    "recommended": "keep"
+   },
+   {
+    "id": 8,
+    "hardStop": true,
+    "title": "Deleting data outside the repo",
+    "text": "Includes 59 GB of research with no backup yet.",
+    "hoursPerWeek": 1.5,
+    "harm": 6.8,
+    "group": "irreversible",
+    "recommended": "keep"
+   }
+  ]
+ },
+ "steps": {
+  "title": "Fourteen days, then the checks come back fixed",
+  "items": [
+   {
+    "when": "Today",
+    "text": "The chosen checks switch to “log only”. Every action they would have stopped is still recorded."
+   },
+   {
+    "when": "Today",
+    "text": "The blocked jobs re-run. A fix team starts on each loosened check."
+   },
+   {
+    "when": "Daily",
+    "text": "The briefing lists what got through that the checks would have stopped."
+   },
+   {
+    "when": "30 Nov",
+    "text": "Checks return on their own, fixed. If a fix isn't ready, I ask before extending."
+   }
+  ]
+ },
+ "tripwire": {
+  "text": "If anything touches money, outside messages, secrets or data outside the repo, every loosened check snaps back at once and you get a notification."
+ },
+ "answerTitle": "How long to loosen them",
+ "options": [
+  {
+   "key": "temp",
+   "title": "Loosen for 14 days",
+   "pill": {
+    "text": "Recommended",
+    "tone": "info"
+   },
+   "bullets": [
+    "Checks return on 30 Nov, fixed",
+    "Trip wire stays on throughout",
+    "Daily list of what got through"
+   ]
+  },
+  {
+   "key": "perm",
+   "title": "Loosen until I say otherwise",
+   "pill": {
+    "text": "Faster, less checking",
+    "tone": "warn"
+   },
+   "bullets": [
+    "No return date; fixes still happen",
+    "You rely on git and reviews",
+    "Revisit at any weekly review"
+   ]
+  },
+  {
+   "key": "keep",
+   "title": "Keep them; fix first",
+   "pill": {
+    "text": "Slower"
+   },
+   "bullets": [
+    "About 46 h a week stays lost",
+    "Fixes take an estimated 2–3 weeks",
+    "Agents keep stopping in the meantime"
+   ]
+  }
+ ],
+ "noAnswer": {
+  "text": "All checks stay as they are and keep stopping runs at about the same rate. I bring this to Tuesday's weekly review with one more week of evidence."
+ },
+ "technical": [
+  {
+   "label": "Subject key",
+   "value": "steward.structural.guard-loosen"
+  },
+  {
+   "label": "Check 4",
+   "value": "measured, but no guard check ID maps to it yet, so it is shown as evidence only"
+  },
+  {
+   "label": "Mode",
+   "value": "log-only with expiry; trip wire restores on money, outside messages, secrets or deletion outside the repo"
+  }
+ ]
+}

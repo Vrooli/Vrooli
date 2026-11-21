@@ -1,0 +1,327 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "document-manager",
+  "description": "Document Manager CLI surface. Single source of truth for the intake and corpus domains.",
+  "groups": [
+    {
+      "name": "intake",
+      "description": "Ingest and inspect content-addressed documents",
+      "commands": [
+        {
+          "name": "ingest",
+          "description": "Ingest a file by content",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "CLI-local file path is read into the IngestRequest.content bytes by the intake command."
+            },
+            {
+              "name": "source",
+              "bind": {
+                "field": "source_name"
+              }
+            },
+            {
+              "name": "collection",
+              "bind": {
+                "field": "collection_id"
+              }
+            },
+            {
+              "name": "privacy",
+              "bind": {
+                "field": "privacy_class"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "Ingest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a document",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "GetDocument"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List documents",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum documents",
+              "default": "100"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "ListDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sources",
+          "description": "List document sources",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "ListSources"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Configure watched-directory intake",
+          "flags": [
+            {
+              "name": "path",
+              "required": true
+            },
+            {
+              "name": "enabled",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "ConfigureWatch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "verdict",
+          "description": "Read the stored type verdict",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntakeService",
+            "method": "GetTypeVerdict"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "corpus",
+      "description": "Manage privacy-scoped document collections and portable archives",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a collection",
+          "flags": [
+            { "name": "name", "required": true },
+            { "name": "privacy", "default": "internal", "bind": { "field": "default_privacy_class" } },
+            { "name": "federated", "default": "false" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "CreateCollection" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "get",
+          "description": "Get collection metadata",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "GetCollection" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "list",
+          "description": "List collections",
+          "flags": [{ "name": "limit", "default": "100" }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "ListCollections" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "add-document",
+          "description": "Add a content-addressed document to a collection",
+          "positionals": [{ "name": "collection_id", "required": true }, { "name": "document_hash", "required": true }],
+          "flags": [{ "name": "privacy", "default": "", "bind": { "field": "privacy_class" } }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "AddDocument" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "list-documents",
+          "description": "List documents in a collection",
+          "positionals": [{ "name": "collection_id", "required": true }],
+          "flags": [{ "name": "limit", "default": "100" }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "ListDocuments" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "export",
+          "description": "Export a collection as open JSON",
+          "positionals": [{ "name": "collection_id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "Export" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "import",
+          "description": "Import an open JSON collection archive",
+          "flags": [{ "name": "file", "required": true, "local_only": true, "bind_waiver": "CLI-local file path is read into ImportRequest.archive_json by the corpus command." }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "Import" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "prune",
+          "description": "Coordinate safe regeneration pruning",
+          "flags": [{ "name": "dry-run", "default": "true" }],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "Prune" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "enrichment",
+      "description": "Run optional gateway-governed enrichment",
+      "commands": [
+        {
+          "name": "enrich",
+          "description": "Summarize and classify a document",
+          "flags": [
+            { "name": "document-hash", "required": true },
+            { "name": "text", "required": true },
+            { "name": "privacy", "default": "internal", "bind": { "field": "privacy_class" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EnrichmentService", "method": "Enrich" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "embed",
+          "description": "Create a semantic embedding through the gateway",
+          "flags": [
+            { "name": "document-hash", "required": true },
+            { "name": "unit-id", "required": true },
+            { "name": "text", "required": true },
+            { "name": "privacy", "default": "internal", "bind": { "field": "privacy_class" } },
+            { "name": "role", "default": "semantic-query" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EnrichmentService", "method": "Embed" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "retrieval",
+      "description": "Query this corpus with privacy filtering",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Run a hybrid lexical and semantic query",
+          "flags": [
+            { "name": "text", "required": true },
+            { "name": "collection", "bind": { "field": "collection_id" } },
+            { "name": "privacy", "default": "internal", "bind": { "field": "caller_max_privacy" } },
+            { "name": "federated", "default": "false" },
+            { "name": "limit", "default": "20" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RetrievalService", "method": "Query" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "similar",
+          "description": "Find similar units for a document",
+          "flags": [
+            { "name": "document-hash", "required": true },
+            { "name": "privacy", "default": "internal", "bind": { "field": "caller_max_privacy" } },
+            { "name": "limit", "default": "20" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RetrievalService", "method": "Similar" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

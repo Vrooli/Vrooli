@@ -1,0 +1,519 @@
+-- research/ATTENTION.md --
+# Research — current status
+
+Operator page for commissioned research: proposals awaiting your approval first, then requests that need your action, then agent-owned gates.
+
+## Proposals awaiting approval
+
+No proposals are recorded.
+
+## Actionable now
+### PROGRAMME-THREE-HOST-DISK-REBASELINE-20261111 — Review the persistent-state contract change
+- **Needs you:** The approved HOST-DISK build has a candidate CLI, but installation is gated because its persistent-state contract differs from the serving CLI.
+### PROGRAMME-THREE-AV2-YTDLP-TARGET-20261111 — Choose how AV4 handles yt-dlp
+- **Needs you:** Recommended: keep yt-dlp uninstalled and continue AV5–AV7. SDA found no valid existing Python install target; the only approved scenario (`musi
+### IMAGE-TOOLS-C06-RESTOREFORMER-RIGHTS-20261110 — Decide whether to accept restoration checkpoint rights uncertainty
+- **Needs you:** Recommended: keep RestoreFormer++ disabled until its checkpoint grant and training-data rights are explicit; the owner will continue looking fo
+### IMAGE-TOOLS-C08-OPENPOSE-RIGHTS-20261111 — Decide whether to use the pose-control checkpoint under OpenRAIL-M
+- **Answered 2026-11-11:** “A — Allow under those terms”. This applies only to the exact checkpoint after immutable revision/license verification, with OpenRAIL
+### FREELANCE-MAKE-A1-EXECUTION-20261110 — Connect an approved Make execution path for A1
+- **Needs you:** F7 can continue, but its approved A1-in-Make proof is waiting because Keyring reports no connected execution authority for workers. Recommended
+### FRAUD-FREE-KEYS-20261107 — One free API key still needed for public-data fraud research
+- **Done 2026-11-10:** the api.data.gov key and the CourtListener API token are stored in the credential authority (`vrooli/api-data-gov` field `api-key`; `vroo
+- **Details:** [public-data-fraud mission, "PF1 prepared item"](topics/public-data-fraud/MISSION.md).
+### DESKTOP-TEAM-RECORDS-20261110 — Three leftover records of the retired desktop team
+- **Decision:** none; three taps only you can make. The team is retired and disabled, and none of these can start work.
+## Agent prerequisites and future gates
+
+None of these needs a response from you now.
+
+## Prepared DR1 migration decision — not delivered
+
+### DR1-GRAPH-SCENARIO-RETIREMENT-PREPARED — Consolidate Go and TypeScript Code Graph into Code Facts
+
+**State:** Prepared migration decision only. No Notification Hub ask or operator question has been sent. DR1 reduction continues; this gate does not pause inter
+
+## Current operational context
+
+- Standing authority in force: the verified-human Other note on ask `ec30d056-0f45-4bc2-a137-4d8cbc4d7ab0` covers only repairs of the same orphan q-manifest blo
+- Notification Hub owns asks, answers and delivery receipts; this page is a dated projection, not an approval ledger. Method: [operator attention]({{home}}/Vrooli/scenarios/research-desk/skills/resear
+-- research/cohorts/local-models-w1-20261111/KERNEL.txt --
+Work until every card in {{research}}/cohorts/local-models-w1-20261111/README.md lands its listed showcases in order, then the next open ones, or a fresh challenger (LONG_EFFORT_DESIGN.md §2a) returns NONE. Stance: "We want to go above and beyond here, and also make sure we’re tracking disk usage". Follow its scheduler procedure; re-read it and STATE.md each unit and after compaction. You are the scheduler: do no domain work. Block on wait_agent (timeout_ms 3600000) until an owner return or the hourly review; after it is recorded, end your turn.
+-- research/cohorts/local-models-w1-20261111/LEDGER.md --
+# Ledger — local models, first window
+
+Append-only. One entry per unit.
+
+## 2026-11-11 — prepared
+
+- The packet was written from the realigned `MISSION.md` after a fresh architect pass and an ambition review (REJECT→revised; both are in `topics/local-model-pe
+-- research/cohorts/local-models-w1-20261111/README.md --
+# Local models, first window — residency, measurement, contracts and vectors in serving
+
+**State: PREPARED, not commissioned.** Nothing is running and no clock has started. The proposed
+
+[MISSION.md]({{research}}/topics/local-model-performance/MISSION.md) holds
+
+## Operator stance (verbatim; carry all of it into every brief)
+
+> "Thanks this was a great follow up. All of your additional findings and insights are really helpful. This is exactly the type of things. I was hoping you woul
+
+## Destination for this window
+
+Every card lands the showcases listed for it, in the order given, or a fresh challenger
+
+## Shared machine
+
+- **GPU.** Other research cohorts share the 16 GB card, Image Tools and video above all. Never stop, message or resume their schedulers, goals or owners. Queue 
+
+## Cards
+
+Four owners, one per card. Each card lists its workstreams in the order of work; the destination,
+
+### Card 1 — Capacity: disk, residency and placement
+
+Workstreams, in order:
+
+- The [residency audit]({{research}}/topics/local-model-performance/runs/efficiency-survey-20261110/residency-design.md).
+
+### Card 2 — Measurement and model currency
+
+Workstreams, in order:
+
+State per role lives in [ROLES.md]({{research}}/topics/local-model-performance/ROLES.md).
+
+- The [evaluation design]({{research}}/topics/local-model-performance/runs/efficiency-survey-20261110/evaluation-design.md) and the [LLM survey]({{research}}/topics/local-model-performance/runs/effici
+
+### Card 3 — Contracts, rights and debt
+
+Workstreams, in order:
+
+- The [routing audit]({{research}}/topics/local-model-performance/runs/efficiency-survey-20261110/routing-design.md) and the [rights audit]({{research}}/topics/local-model-performance/runs/efficiency-
+
+### Card 4 — Vectors, retrieval and runtime
+
+Workstreams, in order:
+
+- The [embedding architecture]({{research}}/topics/local-model-performance/runs/efficiency-survey-20261110/embedding-architecture.md), the [store inventory]({{research}}/topics/local-model-performance
+
+### Hardening (LM14) is the scheduler's
+
+After the LM1–LM4 wave, after LM5–LM9 and after LM10–LM12, the scheduler starts one fresh adversarial reviewer per wave, named `LM14_challenge_<n>`. Each review
+
+## Scheduler procedure
+
+The session that holds the goal is the scheduler and the only writer of this folder. It does no
+
+## Owner brief template
+
+Fill the brackets from the card, with the destination and stance first.
+
+You own [card name] for the first window of the local-models mission: land, in this order, [the card's ordered workstream IDs with each one's showcase copied from the mission], running live on this ho
+
+## Commissioning
+
+The operator starts a **fresh** Codex session, so that owners run on `gpt-6-luna`, and sends two
+-- research/cohorts/local-models-w1-20261111/STANCE-MESSAGE.txt --
+Research commission, first window of the local-models mission. You are the scheduler. Your charter is {{research}}/cohorts/local-models-w1-20261111/README.md. Re-read it and STATE.md beside it at ever
+(excerpt)
+The goal follows this message. Reply "ready" and wait for it.
+-- research/cohorts/local-models-w1-20261111/STATE.md --
+# State — local models, first window
+
+Overwritten by the scheduler at each review. Written 2026-11-11 by the preparation pass. **Nothing
+
+## Needs you
+1. **Commission the window when you want it to run.** Open a fresh Codex session and send
+2. **Nothing else is expected from you.** Licence conditions the business meets (such as LFM3's
+## Cards
+
+## Host at preparation (2026-11-11 21:18Z)
+
+- **GPU:** 3.6 of 16 GiB in use. Whisper holds 1,867 MiB and the reranker 1,380 MiB; no Ollama model is loaded.
+-- research/cohorts/programme-three-20261111/KERNEL.txt --
+Work until every card in {{research}}/cohorts/programme-three-20261111/README.md lands its listed showcases in order, then the next open ones, or a fresh challenger (LONG_EFFORT_DESIGN.md §2a) returns NONE; 24h allowance. Stance: "We want to make significant progress on all of these". Follow its scheduler procedure; re-read it and STATE.md at every unit start and after compaction. You are the scheduler: do no domain work. Block on wait_agent (timeout_ms 3600000) until an owner return or the hourly review; after it is recorded, end your turn.
+-- research/cohorts/programme-three-20261111/README.md --
+# Three-programme commission — Medical practice IT, Niche books, AI video
+
+**State: ACTIVE (started 2026-11-10T14:51:02Z).** The current scheduler, native goal, owners and
+
+## Operator stance (verbatim; carry all of it into every brief)
+
+> "I suspect we fixed a lot of problems preventing the changes from being tiny, but we probably haven’t done enough to make the agents *abitious*. Nor have we u
+
+## Destination for this window
+
+Every card lands the showcases listed for it below, in the order given, or a fresh challenger
+
+## Shared machine
+
+The other session ([programme-four-20261110](../programme-four-20261110/README.md)) has
+
+## Current operator steering (2026-11-10)
+
+> "make sure that everything is truly set up and fix and improve the research folders as needed"
+
+## Storage and usage admission (2026-11-10 preparation update)
+
+The old 180 GB figure is historical, not available capacity. Before admitting a download,
+
+## Writing reuse steering — 2026-11-10
+
+Books and video owners must read their missions' Writing capability reuse section. Investigate
+
+## Cards
+
+An owner may switch to another `open` or `approved` workstream in its mission, never to a
+
+### Card 1 — Medical practice IT modernization · mode `gated-effect`
+
+- **Mission:** [MISSION.md](../../topics/medical-practice-it-modernization/MISSION.md) · list [OPTIONS.md](../../topics/medical-practice-it-modernization/OPTION
+
+### Card 2 — Niche-book production and learning · mode `artifact`
+
+- **Mission:** [MISSION.md](../../topics/niche-book-production/MISSION.md) · list [BOOKS.md](../../topics/niche-book-production/BOOKS.md) · run folder `{{resear
+
+### Card 3 — AI video production and funnels · mode `artifact` (adoption proposed separately)
+
+- **Mission:** [MISSION.md](../../topics/ai-video-production-and-funnels/MISSION.md) · list [FILMS.md](../../topics/ai-video-production-and-funnels/FILMS.md) · 
+- **Capability inventory:** [CAPABILITIES.md](../../topics/ai-video-production-and-funnels/CAPABILITIES.md) tracks production types, tools, progress and integration; FILMS.md tracks individual film br
+  2. **First hour:** create the rights register `{{research}}/topics/ai-video-production-and-funnels/rights/register.jsonl` (one JSON line per asset: asset path, sha256, source URL, retrieval date, ac
+
+## Scheduler procedure
+
+The session that holds the goal is the scheduler and the only writer of this folder. It does no
+
+## Owner brief template
+
+Fill in the brackets from the card. Put the destination and stance first. Copy this charter's Current operator steering and Storage and usage admission sections
+
+## Commissioning
+
+The operator sends two messages to a **fresh** Codex session, in this order:
+
+## AI-video operator correction — 2026-11-11
+
+The operator rejected the exact voxel animatic at 0/10 and named horizon-rust/horizon.
+-- research/cohorts/programme-three-20261111/STANCE-MESSAGE.txt --
+Research commission, third window: medical practice IT, niche books, AI video and funnels. You are the scheduler. Charter: {{research}}/cohorts/programme-three-20261111/README.md. Re-read it and STATE
+(excerpt)
+The goal follows this message. Reply "ready" and wait for it.
+-- research/cohorts/programme-three-20261111/STATE.md --
+# State — three-programme commission
+
+**Status: PAUSED by operator at 2026-11-11T19:11Z for review and digestion.** The 24-hour cooperative window ended at 2026-11-11T14:51:02Z. No continuation owne
+
+## Needs you
+1. **HOST-DISK persistent-state rebaseline:** review the serving/candidate contract change and, if approved, run `make rebaseline` yourself. The exact Hub ask `
+2. **AV4 yt-dlp target choice:** recommended choice is keep yt-dlp uninstalled and continue AV5–AV7; alternative is request a concrete maintained-scenario targe
+## Closeout — 2026-11-11T19:11Z
+
+- Completed owners: niche books, AI video, HOST-DISK, and medical v2. One already-running medical child, `/root/medical_it_fresh/openemr_baseline`, was still li
+
+## Recovery evidence
+
+- Medical checkpoint: `{{research}}/topics/medical-practice-it-modernization/runs/programme-three-20261111/CHECKPOINT.md`
+-- research/cohorts/research-night-20261031/README.md --
+# Research night — 31 October 2026
+
+## Operator continuation — 2026-10-31
+
+The operator rejected the premature 04:24 UTC cohort closure and directed resumption of the same four selected topics. This is a sustained research commission: 
+
+## Authorized subjects and current starting points
+
+1. Validation and UX: `{{research}}/topics/validation-quality/runs/prepared-20261028/CURRENT.md` and its linked brief and final. Reconcile previous closed work,
+2. Debt reduction: `{{research}}/topics/debt-reduction/README.md` and linked current results. Prioritize significant scenario-scale net simplification and existing debt tools, not small line-count vic
+4. Freelance workflow readiness: `{{research}}/topics/freelance-workflow-readiness/README.md` and `runs/20261028-initial/NEXT-EXPERIMENT.md`. User has now commissioned study and supervisor pickup. Pre
+-- research/cohorts/research-night-20261031/STATUS.md --
+# Research night status — 31 October 2026
+
+## Continuation audit — 13:09 UTC
+
+The resumed managed supervisor `9f7943d2-5aa0-44a3-bec8-384f1394f160` began at 04:54 UTC and Agent Manager marked it failed at 04:55:39 after a transcript event
+
+## Commission and supervision
+
+- Authorized window began 04:10 UTC; no new research after 11:55 UTC; stop and clean up owned effects by 12:10 UTC. Maximum eight hours includes workers, superv
+
+## Provider observation
+
+- `agent-manager subscription quota list --provider openai --pool primary --window 10080m --limit 1 --json` returned observation `790343907227c83dea8029826e04e1
+
+## Studies and workers
+
+## Constraints and next actions
+
+- Each worker checks UTC cutoff and provider quota before substantive batches; the conservative stop is 64% used. They must preserve account attribution uncerta
+
+## Update — 04:13 UTC
+
+- Supervisor task ID confirmed by operator handoff: `01a19026-fc85-7281-92de-52d245a168a5`; parent thread is `01a1901d-59bf-73d1-abcc-abd3c925eaeb`. Native goal
+
+## Review — 04:14:45 UTC
+
+- Freelance static-review run record was read and verified. It lists exact input SHA-256 `b5336e0bfc5758c4487ed8c34cefee865389085ba570d5333518a093e6f3f5a8`, two
+
+## Review — 04:17 UTC
+
+- Validation journey execution `012a44b2-17c4-4b3b-a771-235064383d3b` ran 04:14:57–04:15:29 UTC. Pre-submit absence control, inputs, submit click and visible de
+
+## Freelance setup-owner follow-up — 04:17 UTC
+
+- The fresh follow-up was explicitly assigned GPT-6 Luna but its runtime readback exposes only GPT-6 family; exact Luna variant remains unverified. It has there
+-- research/cohorts/standing-teams-w1-20261110/KERNEL.txt --
+Work until every card in {{research}}/cohorts/standing-teams-w1-20261110/README.md lands its listed showcases in order, then the next open ones, or a fresh challenger (LONG_EFFORT_DESIGN.md §2a) returns NONE; 24h allowance. Stance: "the teams are meant to sort of be more proactive in figuring out what is best for us". Follow its scheduler procedure; re-read it and STATE.md each unit and after compaction. You are the scheduler: do no domain work. Block on wait_agent (timeout_ms 3600000) until an owner return or the hourly review; after it is recorded, end your turn.
+-- research/cohorts/standing-teams-w1-20261110/README.md --
+# Standing teams, first window — a live pilot, the guards and the board
+
+**State: PREPARED (2026-11-10).** Nothing is running under this packet. The clock, the cohort ID and
+
+here. The topic's [MISSION.md](../../topics/standing-teams-work-routes/MISSION.md) holds the
+
+## Operator stance (verbatim; carry all of it into every brief)
+
+> "I had you investigate all of that and set up a research task. So the idea is that since research can implement things and is in a working state where can do 
+
+## Destination for this window
+
+By the end of the window:
+
+## Cards
+
+An owner may switch to another open workstream in the mission when the evidence favours it. It may
+
+### Card 1 — Guards and proof
+
+- **Cards to read:** `cards/SW23.md`, `cards/SW17.md`.
+
+### Card 2 — Launch authority and the pilot
+
+- **Cards to read:** `cards/SW03.md`, `cards/SW06.md`, `cards/SW02.md`, `cards/SW19.md`,
+
+### Card 3 — The board records and tells
+
+- **Cards to read:** `cards/SW08.md`, `cards/SW01.md`, `cards/SW05.md`.
+
+### Card 4 — Ledger and Plan Manager follow-through
+
+- **Cards to read:** `cards/SW07.md`, `cards/SW14.md`.
+
+## Scheduler procedure
+
+The session that holds the goal is the scheduler and the only writer of this folder. It does no
+
+## Owner brief template
+
+Fill in the brackets from the card. Put the destination and stance first.
+
+You own [card name] for this commission of the standing-teams mission: land, in this order, [the card's ordered list, copied], toward the showcases on your workstream cards. Operator stance, verbatim:
+
+## Commissioning
+
+The operator starts a **fresh** Codex session (the standing Codex usage mode puts it on `gpt-6-luna`;
+-- research/cohorts/standing-teams-w1-20261110/STANCE-MESSAGE.txt --
+Research commission, first window of the standing-teams mission. You are the scheduler. Your charter is {{research}}/cohorts/standing-teams-w1-20261110/README.md. Re-read it and STATE.md beside it at 
+(excerpt)
+
+My words, verbatim:
+
+"at least for now things are still meant to flow through swarm manager as that act as a place to like I said, you store all of the work and track it and help prioritize everything we do still want to try to adopt that approach"
+
+The goal follows this message. Reply "ready" and wait for it.
+-- research/topics/ai-video-production-and-funnels/README.md --
+# AI video production and funnels
+
+Build complete original non-launch films and reusable production capabilities across animation,
+
+## Current findings
+
+The programme was commissioned on 2026-11-10, with retained work under
+
+## Relationships and return
+
+[Launch-video](../launch-video/README.md) remains a separate programme. The review includes its
+-- research/topics/ai-video-production-and-funnels/runs/programme-three-20261111/CHECKPOINT.md --
+# AI video — current checkpoint
+
+Reconciled 2026-11-11 from retained source artifacts and receipts. This is a file-based
+
+## Needs you
+The cohort STATE records a human-only HOST-DISK contract/rebaseline decision. Read its
+## Delivered and demonstrated
+
+- AV1: A1 has a source-grounded 343-word provisional direct-written narration, six-scene
+
+## Open capability outcomes and next decisions
+
+1. Complete AV1/A1 and AV2 through admitted local voice, real word timing, synchronized
+
+## Recovery and ownership
+
+Read [the run guide](README.md), [mission](../../MISSION.md), and the relevant lane's
+
+## History and effects
+
+The complete previous 128,115-byte checkpoint is preserved byte-for-byte in
+
+### AV4 downloader governance route assessment — 2026-11-11
+
+- **Changed:** Re-read `MISSION.md`, `FILMS.md`, `CAPABILITIES.md` and this checkpoint, and assessed the existing S4 `Wanted` item in the same unit. Updated S4 
+
+### AV4 SDA target and approval-path lookup — 2026-11-11
+
+- **Changed:** Continued the S4 owner assessment through the installed SDA CLI, current SDA docs and install-governance source. The exact yt-dlp approval is res
+
+## Operator delivery correction — 2026-11-11
+
+Read [DELIVERY-RESET.md](../../DELIVERY-RESET.md) before the next unit. The operator rejects the exact generic animatic at 0/10, identifies Horizon as the Minec
+
+### AV5 writing-quality extension picked up across AV1/AV2 and books — 2026-11-11
+
+- **Changed:** Removed the 2026-11-10 writing-quality line from `CAPABILITIES.md` Wanted and preserved its wording/source in the owned AV5/AV1/AV2 + NB1/NB3/NB4
+-- research/topics/local-model-performance/README.md --
+# Local model performance and context
+
+Every local AI capability in Vrooli should run the best model this machine can serve for the task
+
+## Scorecard snapshot
+
+See [MISSION.md § Scorecard](MISSION.md#scorecard). In short, as of 2026-11-11:
+
+## Findings that change decisions
+
+- **Complete the contracts before swapping models.** Task roles, provider profiles, resource policy, the capacity broker, generation primitives and evaluators a
+
+## History and runs
+
+- [LEDGER.md](LEDGER.md): dated receipts, newest first.
+-- research/topics/medical-practice-it-modernization/README.md --
+# Medical practice IT modernization
+
+Start with [STATE.md](STATE.md) for the evidence and next direction, then [CLIENT-PROPOSAL.md](CLIENT-PROPOSAL.md), [RESEARCH-METHOD.md](RESEARCH-METHOD.md) and
+
+## Purpose
+
+Find genuinely affordable, maintainable practice IT options and demonstrate actual software, migration and recovery using synthetic records. Compare keeping or 
+
+## Current position — folder review, 2026-11-11
+
+The original 24-hour commission ran from November 10 at 15:03 UTC to November 11 at 15:03 UTC. The run retains actual OpenEMR evidence; the old “prepared, not s
+
+## Existing private project
+
+- [Medical project home](https://docs.google.com/document/d/1NjU9gios50NqJaNIdKGrQCs2egrVKmf-zfna8rp4o_8/edit)
+-- research/topics/niche-book-production/MISSION.md --
+# Niche-book production and learning — mission
+
+Mode: artifact
+
+Last architect pass: 2026-11-10 · Last ambition review: 2026-11-10
+
+## Operator intent (verbatim)
+
+> "Any further improvements you see to make the research task structured even better and be even more powerful, go ahead — 2026-11-11, current chat; further task
+
+## Earlier launch-hold context
+
+The following two fragments preceded the book discussion and referred to the medical research discussion. They are not a book-specific instruction. Source: pare
+
+## End state
+
+The operator has a small collection of complete, original niche-book alternatives that readers can actually use, with polished interiors, covers, editable sourc
+
+## Scorecard
+
+Current observations for the 2026-11-11 folder review. Detailed evidence is in the
+
+| Dimension | Now | Target |
+| --- | --- | --- |
+| Complete useful books | 0 | 4 |
+| Reader need and differentiation | unproven | traced |
+| Reproducible production | manual | rebuilt by a second producer |
+| Rights and factual quality | unchecked | independently reviewed |
+| Economics and workload | unknown | reproducible model |
+
+## Workstreams
+
+Ranked by value toward the end state, not by execution order. All six are approved at this size (answer B1: A). The rows sum to 560–930 agent-hours before share
+
+| ID | Destination | Dimensions | Magnitude | Showcase | Status |
+| --- | --- | --- | --- | --- | --- |
+| NB1 | Deliver a first batch of at least four complete  | Complete useful books; Reader need and different | 220–360 h · book producer + editor | An independent reader completes each book's cent | approved 2026-11-10 |
+| NB2 | Establish the buyer and niche evidence that driv | Reader need and differentiation; Niche-choice me | 60–100 h · buyer researcher + editorial challeng | A fresh reviewer can trace every candidate promi | approved 2026-11-10 · open; see [current state]( |
+| NB3 | Build the usable production capability, not just | Reproducible production; Complete useful books;  | 100–160 h · production engineer + book producer | A second producer rebuilds all four delivered bo | approved 2026-11-10 |
+| NB4 | Deliver an editorial, rights and page-quality sy | Rights and factual quality; Readability and file | 60–100 h · independent quality editor + producti | Given the exact final exports, independent revie | approved 2026-11-10 |
+| NB5 | Build the measured economic model for the delive | Economics and workload; Reader need and differen | 50–90 h · economics analyst + coordinator | A reviewer changes any input and reproduces cont | approved 2026-11-10 |
+| NB6 | Build separate Workbook and Magazine fixtures fr | Transfer without product merger; Reproducible pr | 70–120 h · transfer engineer + receiving-owner r | A fresh producer runs both fixtures end to end t | approved 2026-11-10 |
+
+## Proving ground and quality standard
+
+NB3/NB4's reusable production and preflight harness lives with the programme's `production/`
+
+## Approval flow
+
+The operator approved all six workstreams on 2026-11-10 (answer B1: A). That authorizes, for a 24-hour window, producing the books and the production capability
+
+## Real boundaries
+
+- Nothing is listed, uploaded, advertised, sold or shown to the public (answer B4: A): no KDP account action, draft or previewer upload; no plugin, GPT or actio
+
+## Exemplar
+
+[Launch films mission]({{research}}/topics/launch-video/MISSION.md) demonstrates artifact mode: complete alternatives plus a production capability, with taste b
+
+## Not this
+
+- A niche list, prompt collection or production report offered instead of complete useful books and a repeatable build.
+
+## Required reading and exact technical references
+
+Source precedence: current operator words and later authorized amendments; existing project scope/decisions; fresh observations; this approved, not-yet-started 
+
+## Existing relationship procedure
+
+Follow the existing [Financial ventures relationship procedure](https://docs.google.com/document/d/1nnZDhlYfvEqhKl-7RtDpO3LmDc4aY8lCoHLWZMe5rGw/edit?tab=t.fldhj
+
+## Largest risk
+
+The programme could produce polished files without a sufficiently valuable reader promise; buyer evidence and actual reader-task checks must shape the books, wh
+
+## Preparation alignment — 2026-11-10
+
+The operator's current preparation stance, verbatim:
+
+## Writing capability reuse — current steering, 2026-11-10
+
+Investigate and reuse [Prose Studio]({{home}}/Vrooli/scenarios/prose-studio/README.md)
+
+## Current delivery priorities — 2026-11-11
+
+[DELIVERY-PRIORITIES.md](DELIVERY-PRIORITIES.md) records the folder review, next delivery order,
+
+## Visual design, customization and collection requirements — 2026-11-11
+
+[DESIGN-RESEARCH.md](DESIGN-RESEARCH.md) is the current required research direction for
+
+## Research method and acceptance — 2026-11-11
+
+[RESEARCH-METHOD.md](RESEARCH-METHOD.md) specializes experiment selection, competent baselines,
+-- research/topics/standing-teams-work-routes/README.md --
+# Standing teams, Swarm Manager and Plan Manager — a work route that works
+
+Vrooli has several ways to get work done: research programmes (working), finite delivery teams (broken, out of scope here),
+
+## Scorecard snapshot
+
+See [MISSION.md § Scorecard](MISSION.md#scorecard). In short: all 7 teams are off; 3 of 210 team-filed items completed; a wake
+
+## Findings that change decisions
+
+Four passes back the mission; the last one asked whether the mission would succeed when run
+
+## Commissioning (prepared, not started)
+
+No clock, goal, owner or effect has started. A launch packet for the first window is prepared at
+
+## History and runs
+
+- [LEDGER.md](LEDGER.md): dated receipts, newest first.

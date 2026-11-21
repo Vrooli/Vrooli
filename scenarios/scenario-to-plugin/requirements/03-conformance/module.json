@@ -1,0 +1,235 @@
+{
+  "_metadata": {
+    "module": "conformance",
+    "description": "Conformance is the fail-closed gate between a composed package and any signing. It owns skill specification checks, the skill-to-CLI drift check, and install-script safety.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-CONF-DRIFT",
+      "title": "When a package is composed, the ramp shall resolve every command shown in a SKILL.md body against the wrapped scenario's pinned cli-manifest and fail the package when a command does not resolve.",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "conformance.drift",
+      "description": "This is the differentiating check. A skill that documents commands the CLI no longer has is the most likely long-run failure of any published wrapper, and it is the one failure mode a registry scanner cannot detect. Resolving against the cli-manifest is structural rather than textual, so a renamed flag is caught as reliably as a deleted command.",
+      "tags": [
+        "drift",
+        "cli-manifest",
+        "differentiator",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/drift_test.go; api: api/handlers/conformance/module_test.go; cli: cli/domains/conformance/register_test.go; e2e: bas/cases/03-conformance/drift-blocks-package.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-DRIFT-PIN",
+      "title": "The ramp shall record the cli-manifest revision used for each drift check so a later re-check can distinguish a CLI change from a skill change.",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "conformance.drift",
+      "description": "Without the pinned revision, a drift failure is ambiguous: the skill may have regressed, or the CLI may have moved underneath a correct skill. Recording the revision makes the remediation obvious and lets a published version be re-verified against the surface it was actually built against.",
+      "tags": [
+        "drift",
+        "provenance",
+        "pinning"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/pin_test.go; ui: ui/src/features/conformance/__tests__/DriftDetail.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-FRONTMATTER",
+      "title": "When a SKILL.md is packaged, the ramp shall reject frontmatter that carries a key outside the Agent Skills permitted set, a name that does not match its containing folder, or a description longer than the specification limit.",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "conformance.spec",
+      "description": "The Agent Skills specification requires name and description, permits a small closed set of additional keys, and requires the name to match the folder exactly or the skill will not load. A skill that fails to load in the consumer runtime is indistinguishable from a broken publish, so these are gate failures rather than warnings.",
+      "tags": [
+        "agent-skills",
+        "frontmatter",
+        "spec-conformance"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/frontmatter_test.go; ui: ui/src/features/conformance/__tests__/FindingList.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-UNICODE",
+      "title": "If a skill body contains zero-width characters, bidirectional control marks, or text that is not NFC normalized, then the ramp shall fail the package and report the offending byte offset.",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "conformance.injection",
+      "description": "Hidden Unicode is the primary carrier for prompt injection in skill content, and it is invisible in review. Reporting the offset rather than only the verdict is what makes the finding actionable, because the author cannot see the character in their editor.",
+      "tags": [
+        "prompt-injection",
+        "unicode",
+        "security",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/sanitize_test.go; ui: ui/src/features/conformance/__tests__/OffsetFinding.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-ANGLE",
+      "title": "If frontmatter contains an angle bracket, then the ramp shall fail the package.",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "conformance.injection",
+      "description": "Angle brackets in frontmatter can inject unintended instructions into a consuming agent's system prompt. The specification advises against them; for a published artifact carrying Vrooli provenance the ramp treats them as a hard failure.",
+      "tags": [
+        "prompt-injection",
+        "frontmatter",
+        "security"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/frontmatter_test.go; cli: cli/domains/conformance/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-TOOLS",
+      "title": "The ramp shall reject an allowed-tools declaration that grants unrestricted shell, network, or filesystem access.",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "conformance.permissions",
+      "description": "Broad permissions fail registry scanner heuristics and lower a skill's trust score, and they defeat the wrap-not-use posture in which the wrapped CLI \u2014 not the skill \u2014 enforces scope. A skill that needs unrestricted shell has an architecture problem upstream.",
+      "tags": [
+        "permissions",
+        "allowed-tools",
+        "least-privilege"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/permissions_test.go; ui: ui/src/features/conformance/__tests__/PermissionFinding.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-INSTALL-PIN",
+      "title": "When an install script is packaged, the ramp shall fail the package if any download target resolves to a mutable reference.",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "conformance.install",
+      "description": "A download pinned to a branch, a moving tag, or a latest alias means the artifact a user installs tomorrow is not the artifact that was signed and scanned today. Only immutable references \u2014 a release tag bound to a digest, or a commit SHA \u2014 are accepted.",
+      "tags": [
+        "supply-chain",
+        "install-script",
+        "pinning"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/install_test.go; cli: cli/domains/conformance/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-INSTALL-SUM",
+      "title": "The ramp shall fail the package when an install script downloads an artifact without verifying it against a recorded checksum.",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "conformance.install",
+      "description": "Pinning alone protects against a moved reference but not against a compromised host serving different bytes at the same URL. The checksum is the second, independent control, and its absence is the single most common insecure-install finding in published skills.",
+      "tags": [
+        "supply-chain",
+        "install-script",
+        "checksum"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/install_test.go; ui: ui/src/features/conformance/__tests__/InstallFinding.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-INSTALL-PRIV",
+      "title": "If an install script requests privilege escalation or writes outside a user-scoped prefix, then the ramp shall fail the package.",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "conformance.install",
+      "description": "Privilege escalation is confined to project setup as a platform rule, and a published artifact runs on a machine Vrooli does not own. An install that needs root is out of scope for this channel regardless of intent.",
+      "tags": [
+        "security",
+        "install-script",
+        "no-elevation"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/install_test.go; e2e: bas/cases/03-conformance/install-privilege-blocked.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-CONF-REPAIR",
+      "title": "The ramp may propose a SKILL.md edit when a drift check fails against a renamed or removed command.",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "conformance.repair",
+      "description": "A proposal is a convenience over an already-correct gate, and it is deliberately deferred: an auto-repair that silently rewrites published documentation is more dangerous than a failing check that a human resolves.",
+      "tags": [
+        "drift",
+        "remediation",
+        "roadmap"
+      ],
+      "delivery_scope": "roadmap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/conformance/repair_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

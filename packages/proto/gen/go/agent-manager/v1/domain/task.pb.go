@@ -60,7 +60,10 @@ type Task struct {
 	// When the task was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the task was last updated.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Exact run attempt whose lifecycle is currently projected on this task. Empty
+	// on legacy rows whose current attempt is unresolved.
+	CurrentRunId  string `protobuf:"bytes,12,opt,name=current_run_id,json=currentRunId,proto3" json:"current_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -170,6 +173,13 @@ func (x *Task) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Task) GetCurrentRunId() string {
+	if x != nil {
+		return x.CurrentRunId
+	}
+	return ""
 }
 
 // ContextAttachment represents additional context provided to an agent.
@@ -712,7 +722,7 @@ var File_agent_manager_v1_domain_task_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"\n" +
-	"\"agent-manager/v1/domain/task.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x03\n" +
+	"\"agent-manager/v1/domain/task.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x04\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\x05title\x18\x02 \x01(\tB\n" +
@@ -730,7 +740,8 @@ const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb6\x02\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12$\n" +
+	"\x0ecurrent_run_id\x18\f \x01(\tR\fcurrentRunId\"\xb6\x02\n" +
 	"\x11ContextAttachment\x122\n" +
 	"\x04type\x18\x01 \x01(\tB\x1e\xbaH\x1br\x19R\x04fileR\x04linkR\x04noteR\x05imageR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x10\n" +

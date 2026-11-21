@@ -1,0 +1,746 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.conversations;
+
+import "notification-hub/v1/shared/types.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1";
+
+// Asks are durable operator decisions. Reads (GetAsk, ListAsks, Wait) never
+// change an ask; answers, explicit dismissal/withdrawal, and deadline sweeps do.
+service ConversationsService {
+  rpc Ask(AskRequest) returns (AskResponse);
+  // Run the packet check and render the push an Ask would send, storing
+  // nothing. Same authentication as Ask.
+  rpc CheckAsk(CheckAskRequest) returns (CheckAskResponse);
+  rpc Answer(AnswerRequest) returns (AnswerResponse);
+  // Fresh owner authentication and the exact root decision are submitted together.
+  rpc AnswerRootWithPassword(AnswerRootWithPasswordRequest) returns (AnswerRootWithPasswordResponse);
+  // MarkRead closes a status update without recording a decision answer.
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  rpc Wait(WaitRequest) returns (WaitResponse);
+  // Dismiss closes an ask without recording an answer. It is recipient-only.
+  rpc Dismiss(DismissRequest) returns (DismissResponse);
+  // Withdraw closes a direct ask created by this requester. Provider-owned
+  // event decisions use their source event's exact withdrawal contract.
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
+  // GetAsk reads one ask for the answer page.
+  rpc GetAsk(GetAskRequest) returns (GetAskResponse);
+  // ListAsks reads asks in the requested order (newest first by default),
+  // filtered by state, urgency, sender and text; open_only limits it to asks
+  // that still wait for an answer.
+  rpc ListAsks(ListAsksRequest) returns (ListAsksResponse);
+  // Read-only projection of native human consent. It never creates a Hub ask.
+  rpc ListNativeConsents(ListNativeConsentsRequest) returns (ListNativeConsentsResponse);
+  // RequestContext records the recipient's question about an open ask. The ask
+  // stays open; the requester sees the question through Wait (with
+  // return_on_context_request), GetAsk, and the context-requested event, and
+  // answers it by revising the ask in place. Recipient-only.
+  rpc RequestContext(RequestContextRequest) returns (RequestContextResponse);
+  // StatAttachmentBlobs reports which content hashes the Hub does not hold
+  // yet, so a sender uploads each file at most once. Producer-only.
+  rpc StatAttachmentBlobs(StatAttachmentBlobsRequest) returns (StatAttachmentBlobsResponse);
+  // PutAttachmentBlob stores one file's bytes under their SHA-256. The Hub
+  // recomputes the hash and refuses a mismatch. A blob no ask references is
+  // removed after a grace period. Producer-only.
+  rpc PutAttachmentBlob(PutAttachmentBlobRequest) returns (PutAttachmentBlobResponse);
+}
+
+// AskOption is one structured answer. key is what the requester receives;
+// label is what the operator sees.
+message AskOption { string key = 1; string label = 2; }
+
+// ProviderDecisionContext binds a provider approval ask to one canonical
+// provider rule or agreement. The digest is SHA-256 of the canonical terms
+// bytes and the producer/verifier must recompute it; scope names which
+// provider decision those bytes represent. The Hub validates this typed shape
+// but does not own or interpret provider terms.
+message ProviderDecisionContext {
+  uint32 schema_version = 1;
+  string canonical_terms_sha256 = 2;
+  enum Scope {
+    SCOPE_UNSPECIFIED = 0;
+    SCOPE_PROVIDER_RULE = 1;
+    SCOPE_PROVIDER_AGREEMENT = 2;
+  }
+  Scope scope = 3;
+}
+
+// AskRequest opens an ask, or revises the open ask of its subject_key.
+//
+// A revision says only what changes. For every field below a revision that
+// does not say it keeps the open ask's value: question and options when empty,
+// the fields marked optional when unset (an explicit empty value clears them),
+// and the attachments and questions as described on those fields. A request
+// with no open ask to revise takes each unset field's default, and one without
+// a question or options is refused. recommended and default_answer name answers
+// of the menu, so they are kept only when the menu is.
+message AskRequest {
+  string question = 1;
+  // Answer keys. Ignored when options is set; kept for existing callers.
+  repeated string allowed_answers = 2;
+  string deadline = 3;
+  string sensitivity_label = 4;
+  string idempotency_key = 5;
+  // Structured answers, shown in this order (the recommended one first in the UI).
+  repeated AskOption options = 6;
+  // One option key.
+  optional string recommended = 7;
+  optional string recommendation_reason = 8;
+  // One option key; requires reversible. Applied only after the deadline and
+  // at least the hub floor (12 h) after the first delivered receipt.
+  optional string default_answer = 9;
+  optional bool reversible = 10;
+  // low, normal (default), high, or critical.
+  optional string urgency = 11;
+  optional string context_url = 12;
+  // Optional plain-text purpose and impact explanation for a cold reader.
+  optional string big_picture = 29;
+  // Optional plain-text mechanism, evidence, risks, and limitations.
+  optional string technical_details = 30;
+  // Optional typed binding for provider-rule/agreement decisions. The Hub
+  // treats it as immutable ask identity and exposes it on GetAsk.
+  ProviderDecisionContext provider_decision_context = 31;
+  // Optional situation key (1-128 of A-Z a-z 0-9 . _ : / @ -, first a letter or
+  // digit). With it the hub keeps at most one open ask per (requester, key): an
+  // identical repeat changes nothing, a text change updates the open ask in
+  // place without a new push, a changed answer menu replaces it, and an ask the
+  // operator dismissed is not re-opened by an identical repeat.
+  string subject_key = 32;
+  // Optional, 60 s to 30 days, needs subject_key: the hub closes the open ask
+  // when the requester has not re-sent it for this long.
+  optional int32 reassert_within_seconds = 33;
+  // Files and folders the operator can open inside the Hub. Every referenced
+  // blob must already be stored (PutAttachmentBlob). An attachment the Hub
+  // cannot accept is left out and reported in AskResponse.warnings; it never
+  // fails the ask.
+  repeated AskAttachment attachments = 34;
+  // Extra typed questions shown under the main answer. A question the Hub
+  // cannot accept is left out and reported in AskResponse.warnings.
+  repeated AskQuestion questions = 35;
+  // The asker will answer "I need more context" by revising this ask in place
+  // under the same subject_key. Requires subject_key; without one the Hub
+  // drops the declaration and reports a warning. Undeclared asks never offer
+  // the operator a context request they would wait on in silence.
+  optional bool accepts_context_requests = 36;
+  // On a revision (a subject_key with an open ask), attachments sent replace
+  // the current attachment of the same name (an explainer replaces the
+  // explainer) and every other current attachment stays; send none to keep
+  // them all. A revision never loses a part by omission. clear_attachments
+  // drops every current attachment before applying the ones sent.
+  bool clear_attachments = 37;
+  // Same as clear_attachments, for questions matched by question id.
+  bool clear_questions = 38;
+  // On a revision, names of current attachments to drop (the explainer
+  // included, by its name); every other current attachment stays. Applied after
+  // clear_attachments and before the attachments sent, so a name listed here
+  // and sent again is replaced, not removed. A name the ask has no attachment
+  // of is reported in the warnings and changes nothing.
+  repeated string remove_attachments = 39;
+  // On a revision, ids of current questions to drop; every other question
+  // stays. Applied after clear_questions and before the questions sent, so an
+  // id listed here and sent again is replaced, not removed. An id the ask has
+  // no question of is reported in the warnings and changes nothing.
+  repeated string remove_questions = 40;
+  // The requester's written answer to the operator's open "I need more context"
+  // question(s), 1-4000 characters. It is not part of the ask's terms: it is
+  // stored with each question it answers (the question stays in the history),
+  // marks them answered, and is shown to the operator under the question.
+  // Applying it also counts as a revision for those questions, even when no
+  // other field changes. When the ask has no open context question the text is
+  // dropped and a warning says so.
+  string context_response = 41;
+  // Who is asking, as the operator should read it: a team, an agent role or a
+  // service ("Research Desk", "Treasury steward"), 1-60 characters. The Hub does
+  // not verify it and never uses it for access; it is shown on the ask and is
+  // the value of the sender filter. Unset on a revision keeps the open ask's
+  // sender. Unset on a new ask, the Hub names the sender from its verified
+  // source (a service's name), and otherwise from the kind of caller ("Agent
+  // run"); name it so the operator can tell the asks of several senders apart.
+  optional string sender = 42;
+  // A name the caller's tooling suggests for the sender, such as the label of
+  // the session the request came from. The Hub uses it only when it creates an
+  // ask that has no `sender`, so it outranks the Hub's own naming but never a
+  // declared sender. A revision never renames from it, and a replacement keeps
+  // the name of the ask it replaces. The text is repaired, not refused: blanks
+  // collapse, control characters drop and it is cut to 60 characters.
+  optional string default_sender = 43;
+  // Absolute path of the decision's ready-to-run packet: the brief (for
+  // example work/<ID>/BRIEF.md) that says what executes on each answer, so the
+  // agent that receives the answer starts a worker from it. Shown to the asker
+  // on the ask and in the resolution; never shown to the operator. Unset on a
+  // revision keeps the open ask's packet.
+  optional string packet = 44;
+  // Stable kit template name. When set, template_data must be an object; the
+  // Hub resolves and seals the installed template instead of accepting HTML.
+  string template_name = 45;
+  google.protobuf.Struct template_data = 46;
+  // decision (default) or status. A status has no required answer and no expiry.
+  string kind = 47;
+  // The sender has reviewed the related-decision collision and determined
+  // this is a distinct decision. Does not grant access to the other ask.
+  bool allow_related = 48;
+}
+message AskResponse {
+  string ask_id = 1;
+  shared.Notification notification = 2;
+  // For an ask with a subject_key: created, reasserted, updated, replaced,
+  // suppressed (the operator dismissed these exact terms) or returned (just
+  // answered). Empty for an ask without one.
+  string outcome = 3;
+  // Packet check results: advice about how the ask reads to a cold reader and
+  // about parts the Hub left out. Warnings never block an ask.
+  repeated PacketWarning warnings = 4;
+  // The ask's state after this call (pending, answered, dismissed, ...), so a
+  // caller needs no second read.
+  string state = 5;
+  string kind = 6;
+}
+message CheckAskRequest {
+  AskRequest ask = 1;
+  // Content of the files the check reads, by SHA-256: the explainer page, and the
+  // Markdown file a review question follows. A dry run uploads nothing: the Hub
+  // takes the attachments of ask as stored, at the sha256 and size they state,
+  // reads these in place of stored copies, and keeps none of them.
+  map<string, bytes> file_contents = 2;
+}
+message CheckAskResponse {
+  // Exactly the warnings Ask would return for this request.
+  repeated PacketWarning warnings = 1;
+  // The notification the operator would receive.
+  string push_title = 2;
+  string push_body = 3;
+  // The open ask a keyed request would revise; empty when it would create.
+  string revises_ask_id = 4;
+  // The name the operator would see on the ask, worked out by the rule a real
+  // send uses: the request's sender, else the name an open ask keeps, else the
+  // request's default_sender, else the Hub's own naming. Never empty.
+  string sender = 5;
+  // Where that name came from: "declared" (the request's sender), "default"
+  // (its default_sender), "kept" (the open ask's name, on a revision or
+  // replacement), "service" (a verified service's name), "agent_run" (a
+  // verified run that named nothing) or "unnamed".
+  string sender_source = 6;
+}
+
+// PacketWarning is one packet check finding.
+message PacketWarning {
+  // Stable machine code, for example internal_id_in_question or
+  // attachment_blob_missing.
+  string code = 1;
+  // The request field it is about: question, big_picture, attachments[2], ...
+  string field = 2;
+  // One plain sentence saying what to change.
+  string message = 3;
+  // advice (the ask is complete but reads poorly) or dropped (the Hub left
+  // the named part out).
+  string severity = 4;
+  // True when this request revised an open ask that already had exactly this
+  // finding, and the request did not touch the part it is about. A caller can
+  // fold such findings into a count; they are not news.
+  bool carried_over = 5;
+}
+
+// AskAttachment is one file or folder in a decision packet. The Hub keeps its
+// own copy of the bytes from the moment the ask was sent, so the operator
+// judges exactly what the requester saw, and it serves only these copies,
+// never a path on the host.
+message AskAttachment {
+  // Unique within the ask, 1-96 of A-Z a-z 0-9 . _ - (first a letter or digit).
+  // Explainer pages and variant choices refer to attachments by this name.
+  string name = 1;
+  // Operator-facing caption; defaults to the name.
+  string label = 2;
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_FILE = 1;
+    KIND_FOLDER = 2;
+  }
+  Kind kind = 3;
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    // Supporting material listed under the decision (the default).
+    ROLE_EVIDENCE = 1;
+    // A self-contained HTML page the Hub shows sealed at the top of the
+    // decision. At most one per ask.
+    ROLE_EXPLAINER = 2;
+  }
+  Role role = 4;
+  // Absolute path on the sender's host when the ask was sent. Shown to the
+  // operator and used only for the drift check; the Hub never serves it.
+  string source_path = 5;
+  // Host name the sender ran on; the drift check runs only on the same host.
+  string source_host = 6;
+  // FILE: the content hash, size, and media type of the stored copy.
+  string sha256 = 7;
+  int64 size_bytes = 8;
+  string media_type = 9;
+  // FOLDER: its files, relative paths with "/" separators.
+  repeated AskAttachmentEntry entries = 10;
+  // Read model: how the Hub previews it (markdown, image, video, model3d,
+  // directory, ...). Set by the Hub; ignored on AskRequest.
+  string preview_kind = 11;
+  // Read model: fresh (the source still matches the copy), changed, missing,
+  // or unknown (another host, or not checked).
+  string source_status = 12;
+  string source_checked_at = 13;
+  // Read model: the sender's folder had more files than the Hub keeps.
+  bool truncated = 14;
+}
+message AskAttachmentEntry {
+  string path = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string media_type = 4;
+  // Read model, as AskAttachment.preview_kind.
+  string preview_kind = 5;
+}
+
+// AskQuestion is one field of the answer form. type is a string so a newer
+// sender never breaks an older reader: a reader that does not know the type
+// shows the prompt with a free-text box.
+message AskQuestion {
+  // Unique within the ask; same rule as an option key.
+  string id = 1;
+  // single_choice, multi_choice, variant (choices shown as attached images or
+  // files side by side), section_review (approve, change, or drop each
+  // section, with a note), or text.
+  string type = 2;
+  string prompt = 3;
+  // Optional plain-text help under the prompt.
+  string help = 4;
+  // A required question must be answered unless the operator answers the
+  // decision as a whole with "Other".
+  bool required = 5;
+  // single_choice, multi_choice, variant.
+  repeated AskQuestionChoice choices = 6;
+  // section_review.
+  repeated AskQuestionSection sections = 7;
+  // What the requester recommends, in answer shape. "Accept recommendations"
+  // copies it into the form.
+  AskQuestionResponse recommended = 8;
+  string recommendation_reason = 9;
+  // section_review: the verdict for a section the operator leaves alone:
+  // approve (the default when empty), change, or drop.
+  string unanswered_verdict = 10;
+  // section_review: the attachment the sections follow, as its name or, for a
+  // file inside a folder attachment, "name/path". The Hub reads the Markdown
+  // headings (## and ###) of that file into sections, and reads them again
+  // whenever a revision replaces the file, so the review always matches the
+  // document the operator opens. Sections sent with it are ignored.
+  string sections_from = 11;
+}
+message AskQuestionChoice {
+  string key = 1;
+  string label = 2;
+  // Optional one-line detail under the label.
+  string detail = 3;
+  // Optional attachment name to show with the choice (an image for variant).
+  string attachment = 4;
+}
+message AskQuestionSection {
+  string key = 1;
+  string title = 2;
+  // Optional one-line summary of the section.
+  string summary = 3;
+  // Optional attachment the section lives in, and a heading anchor in it.
+  string attachment = 4;
+  string anchor = 5;
+}
+// AskQuestionResponse is the operator's answer to one question.
+message AskQuestionResponse {
+  string question_id = 1;
+  // Choice keys: one for single_choice and variant, any number for
+  // multi_choice.
+  repeated string selected = 2;
+  // text answers, and a free note on any other type.
+  string text = 3;
+  // section_review verdicts.
+  repeated AskSectionVerdict sections = 4;
+}
+// AskAttachmentNote is an operator note pinned to one attachment (and, for a
+// folder, one file in it).
+message AskAttachmentNote {
+  string attachment = 1;
+  string path = 2;
+  string note = 3;
+}
+message AskSectionVerdict {
+  string section_key = 1;
+  // approve, change, or drop.
+  string verdict = 2;
+  string note = 3;
+}
+
+// AskContextRequest is a question the recipient asked about an open ask.
+message AskContextRequest {
+  string id = 1;
+  string question = 2;
+  string requested_by = 3;
+  string requested_at = 4;
+  // Set when the requester revised the ask after this request.
+  string addressed_at = 5;
+  int32 addressed_revision = 6;
+  // The requester's written answer (AskRequest.context_response), empty when the
+  // requester revised the ask without one.
+  string response = 7;
+}
+message RequestContextRequest {
+  string ask_id = 1;
+  // What the recipient needs to know, 1-2000 characters.
+  string question = 2;
+}
+message RequestContextResponse {
+  string ask_id = 1;
+  AskContextRequest request = 2;
+}
+
+message StatAttachmentBlobsRequest { repeated string sha256 = 1; }
+message StatAttachmentBlobsResponse {
+  // The hashes from the request that the Hub does not hold.
+  repeated string missing = 1;
+}
+message PutAttachmentBlobRequest {
+  // Lowercase hex SHA-256 of content.
+  string sha256 = 1;
+  string media_type = 2;
+  bytes content = 3;
+}
+message PutAttachmentBlobResponse {
+  string sha256 = 1;
+  int64 size_bytes = 2;
+  // True when the Hub already held these bytes.
+  bool existed = 3;
+}
+
+message AnswerRootWithPasswordRequest {
+  string ask_id = 1;
+  int32 revision_count = 2;
+  string answer = 3;
+  string email = 4;
+  string password = 5;
+  string mfa_challenge = 6;
+  string totp_code = 7;
+  string recovery_code = 8;
+}
+message AnswerRootWithPasswordResponse {
+  bool mfa_required = 1;
+  string mfa_challenge = 2;
+  string answered_at = 3;
+}
+
+message AnswerRequest {
+  string ask_id = 1;
+  string answer = 2;
+  // Optional operator note, stored verbatim and returned to the requester.
+  string note = 3;
+  // Answers to the ask's questions. Unknown question ids are refused.
+  repeated AskQuestionResponse responses = 4;
+  // Notes pinned to attachments. Unknown attachment names are refused.
+  repeated AskAttachmentNote attachment_notes = 5;
+  // Arbitrary answer state collected by a sealed Hub page.
+  google.protobuf.Struct changes = 6;
+  // Images uploaded to the Hub's content addressed blob store before Send.
+  repeated AnswerImage images = 7;
+}
+message AnswerResponse {
+  string ask_id = 1;
+  string answer = 2;
+  string answered_at = 3;
+  // True when this answer supersedes an applied default.
+  bool late = 4;
+  google.protobuf.Struct changes = 5;
+  repeated AnswerImage images = 6;
+}
+
+message AnswerImage {
+  string name = 1;
+  string sha256 = 2;
+  string media_type = 3;
+  int64 size_bytes = 4;
+}
+
+message MarkReadRequest { string ask_id = 1; }
+message MarkReadResponse { string ask_id = 1; string state = 2; }
+
+message DismissRequest {
+  string ask_id = 1;
+  // Optional explanation stored as the resolution reason, not an answer.
+  string note = 2;
+}
+message DismissResponse { string ask_id = 1; string state = 2; }
+
+message WithdrawRequest {
+  // The ask to close. Give ask_id or subject_key, not both.
+  string ask_id = 1;
+  // Required explanation for closing this request without an operator answer.
+  string reason = 2;
+  // Closes this requester's open ask for the subject key instead of naming its id.
+  string subject_key = 3;
+}
+message WithdrawResponse { string ask_id = 1; string state = 2; }
+
+message WaitRequest {
+  string ask_id = 1;
+  string deadline = 2;
+  // Also return while the ask is open when the recipient asked for more
+  // context and the requester has not revised the ask since.
+  bool return_on_context_request = 3;
+  // Wait on the open ask with this subject key instead of ask_id. Exactly one
+  // of ask_id and subject_key. A same-owner run that names the key may wait
+  // on it; that is how a restarted agent resumes.
+  string subject_key = 4;
+}
+message WaitResponse {
+  string ask_id = 1;
+  string state = 2;
+  string answer = 3;
+  string reason = 4;
+  string note = 5;
+  repeated AskQuestionResponse responses = 6;
+  // Plain-text rendering of the whole answer: option, note, and responses.
+  string answer_summary = 7;
+  // The oldest unaddressed context request, when Wait returned for one.
+  AskContextRequest context_request = 8;
+  repeated AskAttachmentNote attachment_notes = 9;
+  // The decision's ready-to-run packet (AskRequest.packet); empty for none.
+  // On an answer, the executing agent starts from it.
+  string packet = 10;
+  google.protobuf.Struct changes = 11;
+  repeated AnswerImage images = 12;
+}
+
+// Ask is the read model of one ask.
+message Ask {
+  string id = 1;
+  string notification_id = 2;
+  string question = 3;
+  repeated AskOption options = 4;
+  string recommended = 5;
+  string recommendation_reason = 6;
+  string default_answer = 7;
+  bool reversible = 8;
+  string urgency = 9;
+  string context_url = 10;
+  string deadline = 11;
+  // pending, escalated, answered, defaulted, expired, withdrawn, or dismissed.
+  string state = 12;
+  string reason = 13;
+  string answer = 14;
+  string answer_label = 15;
+  string note = 16;
+  // The identified answerer, recipient fallback, or "default" for an applied default.
+  string answered_by = 17;
+  string answered_at = 18;
+  bool late = 19;
+  string default_applied_at = 20;
+  // Empty means the operator has not been reached yet.
+  string first_delivered_at = 21;
+  // When the default can apply: max(deadline, first_delivered_at + floor).
+  // Empty without a default or without a delivered receipt.
+  string default_eligible_at = 22;
+  string source = 23;
+  string source_event_type = 24;
+  string requester_ref = 25;
+  string resolved_at = 26;
+  string created_at = 27;
+  string updated_at = 28;
+  string big_picture = 29;
+  string technical_details = 30;
+  // Existing notification title for concise list summaries. The full question
+  // remains authoritative and available on the detail page.
+  string title = 31;
+  // Typed binding between this durable ask and provider decision terms.
+  ProviderDecisionContext provider_decision_context = 32;
+  // Server derived from answer authentication; unknown for legacy or
+  // recipient-fallback answers, system_default for an applied default.
+  string answered_by_identity_kind = 33;
+  // Authenticator source for verified human answers; empty when unknown.
+  string answered_by_identity_source = 34;
+  // The situation key the ask is about; empty for a one-off ask.
+  string subject_key = 35;
+  // When the requester last confirmed the ask was still needed.
+  string last_asserted_at = 36;
+  // The requester's re-send bound in seconds; 0 means the ask never lapses.
+  int32 reassert_within_seconds = 37;
+  // How many times the ask was updated in place.
+  int32 revision_count = 38;
+  // The decision that replaced this one, when state is withdrawn because of it.
+  string superseded_by_ask_id = 39;
+  // Earlier versions, newest first. Filled by GetAsk only.
+  repeated AskRevision revisions = 40;
+  // The decision packet. Filled by GetAsk only.
+  repeated AskAttachment attachments = 41;
+  repeated AskQuestion questions = 42;
+  repeated AskQuestionResponse responses = 43;
+  repeated AskContextRequest context_requests = 44;
+  // Plain-text rendering of the whole answer; empty until answered.
+  string answer_summary = 45;
+  // Counts for list rows, filled by GetAsk and ListAsks.
+  int32 attachment_count = 46;
+  int32 question_count = 47;
+  // Unaddressed context requests.
+  int32 open_context_request_count = 48;
+  // Notes the operator pinned to attachments in the answer.
+  repeated AskAttachmentNote attachment_notes = 49;
+  // The ask is open and its asker declared it accepts context requests.
+  bool can_request_context = 50;
+  // The producer's correlation map, exactly as it raised the ask. A consumer that
+  // applies an answer takes it from here, not from an event body, so a forged body
+  // cannot point a genuine answer at another record.
+  map<string, string> correlation = 51;
+  // Who is asking, as the operator reads it: the sender the requester declared,
+  // else the verified service's name, else "Agent run" for a run that declared
+  // none, else "Unnamed sender". Never empty. The value of the sender filter.
+  string sender = 52;
+  // Set by ListAsks: the ask is open and its deadline is within the response's
+  // closing_window_seconds of the page's reference time. False on every other
+  // read.
+  bool closing_soon = 53;
+  // The decision's ready-to-run packet (AskRequest.packet); empty for none.
+  string packet = 54;
+  // Set when only the source's own page can take the approve answer (an Agent
+  // Manager permission request needs the operator's sign-in there): the
+  // "approve" option opens this page, and AnswerAsk refuses "approve".
+  string approval_url = 55;
+  // decision or status. Legacy records are decisions.
+  string kind = 56;
+  google.protobuf.Struct answer_changes = 57;
+  repeated AnswerImage answer_images = 58;
+  SubjectRecurrence recurrence = 59;
+  string template_name = 60;
+  google.protobuf.Struct template_data = 61;
+}
+
+message HistoricalAnswer {
+  string answer = 1;
+  string note = 2;
+  string answered_at = 3;
+  google.protobuf.Struct changes = 4;
+}
+message SubjectRecurrence {
+  int32 count = 1;
+  repeated string dates = 2;
+  repeated HistoricalAnswer previous_answers = 3;
+}
+// AskRevision is what an updated ask said before an update.
+message AskRevision {
+  int32 revision = 1;
+  string title = 2;
+  string question = 3;
+  string recommendation_reason = 4;
+  string context_url = 5;
+  string big_picture = 6;
+  string technical_details = 7;
+  repeated AskOption options = 8;
+  string deadline = 9;
+  string revised_at = 10;
+}
+message GetAskRequest {
+  string ask_id = 1;
+  // Read the ask with this subject key instead of ask_id. Exactly one of
+  // ask_id and subject_key. Naming the exact key is a read capability for a
+  // run of the same owner; keys are never enumerated.
+  string subject_key = 2;
+}
+message GetAskResponse { Ask ask = 1; }
+message ListAsksRequest {
+  // Compatibility shortcut for state_filter=awaiting. Conflicting filters fail.
+  bool open_only = 1;
+  // Page size, default 50, maximum 200. This is not a total-result limit.
+  int32 limit = 2;
+  // Opaque continuation for the same recipient, query and state filter.
+  string cursor = 3;
+  // Literal substring of question, source, answer/options, note or requester ref.
+  // Applied on the server before pagination.
+  string query = 4;
+  // all (default), awaiting (pending/escalated), answered, defaulted, expired,
+  // withdrawn, dismissed, pending or escalated.
+  string state_filter = 5;
+  // How the page is ordered. UNSPECIFIED is NEWEST. Every order accepts every
+  // state filter, and every order ends with id so a page boundary is exact.
+  enum Order {
+    ORDER_UNSPECIFIED = 0;
+    // created_at DESC, id DESC. The default.
+    ORDER_NEWEST = 1;
+    // What needs the operator first: escalated asks, then pending asks
+    // closing within closing_window_seconds (the nearest close first; an
+    // expired deadline not yet processed counts), then urgency (critical, high,
+    // normal, low), then the earliest deadline (an ask with none last), then
+    // newest. The window is measured at the time the first page was read; the
+    // cursor carries that time, so later pages do not move. Only open asks are
+    // escalated or closing, so for a closed ask it is urgency, deadline, newest.
+    ORDER_ATTENTION = 2;
+    // The earliest deadline first (an ask with none last), then urgency, then
+    // newest.
+    ORDER_DUE = 3;
+    // created_at ASC, id ASC.
+    ORDER_OLDEST = 4;
+  }
+  Order order = 6;
+  // Only asks of these urgencies (low, normal, high, critical); empty is every
+  // urgency. Values of one filter combine with OR, filters with AND.
+  repeated string urgencies = 7;
+  // Only asks from these senders (the Ask.sender text, matched exactly); empty
+  // is every sender.
+  repeated string senders = 8;
+}
+message ListAsksResponse {
+  repeated Ask asks = 1;
+  // Empty at the end. Keyset order follows ListAsksRequest.order.
+  string next_cursor = 2;
+  // Exact count of pending + escalated asks this reader may see. It ignores
+  // the request's query, state_filter and cursor, and is set on every page.
+  // Native permission requests are not counted.
+  int32 total_awaiting = 3;
+  // How many asks each urgency and sender holds under the request's query and
+  // state_filter, set on every page. A facet's counts apply every other filter
+  // but its own, so choosing "high" leaves the sender counts those of high asks
+  // and the urgency counts unchanged. A value the request selected is listed
+  // even at zero.
+  AskFacets facets = 4;
+  // How close to its deadline an open ask must be to count as closing soon
+  // (Ask.closing_soon, and the first band of ORDER_ATTENTION). Set on every
+  // page; a client names the window from this and keeps no copy of its own.
+  int32 closing_window_seconds = 5;
+}
+// AskFacets are the filter choices a list offers, with the number of asks each
+// would show.
+message AskFacets {
+  // In the order critical, high, normal, low; only urgencies that hold asks or
+  // were selected.
+  repeated AskFacetCount urgencies = 1;
+  // Most asks first, then by name; at most 20 senders, selected ones included.
+  repeated AskFacetCount senders = 2;
+}
+message AskFacetCount {
+  // The text the filter takes: an urgency, or an Ask.sender.
+  string value = 1;
+  int32 count = 2;
+}
+
+// Native consent stays owned and actionable only in the source service.
+message NativeConsent {
+  string authorization_id = 1;
+  string notification_id = 2;
+  string source = 3;
+  string title = 4;
+  string body = 5;
+  string review_url = 6;
+  // pending is source-verified; unavailable means the current state is unknown.
+  string state = 7;
+  string review_expires_at = 8;
+  string observed_at = 9;
+  string created_at = 10;
+}
+message ListNativeConsentsRequest {
+  uint32 limit = 1;
+  string cursor = 2;
+  string query = 3;
+}
+message ListNativeConsentsResponse {
+  repeated NativeConsent consents = 1;
+  // Candidate pagination includes closed records: an empty page is not the end.
+  string next_cursor = 2;
+}

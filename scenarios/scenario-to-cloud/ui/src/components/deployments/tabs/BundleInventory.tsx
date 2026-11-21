@@ -86,15 +86,16 @@ export function BundleInventory({ deploymentId }: BundleInventoryProps) {
   // Group bundles by scenario
   const bundlesByScenario: Record<string, BundleInfo[]> = {};
   for (const bundle of bundles) {
-    if (!bundlesByScenario[bundle.scenario_id]) {
-      bundlesByScenario[bundle.scenario_id] = [];
-    }
-    bundlesByScenario[bundle.scenario_id].push(bundle);
+    const scenarioBundles = bundlesByScenario[bundle.scenario_id] ?? [];
+    scenarioBundles.push(bundle);
+    bundlesByScenario[bundle.scenario_id] = scenarioBundles;
   }
 
   // Sort bundles within each scenario by date (newest first)
   for (const scenarioId of Object.keys(bundlesByScenario)) {
-    bundlesByScenario[scenarioId].sort((a, b) =>
+    const scenarioBundles = bundlesByScenario[scenarioId];
+    if (!scenarioBundles) continue;
+    scenarioBundles.sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }

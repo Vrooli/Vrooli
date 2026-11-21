@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -22,21 +21,42 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// TestHealthHandler tests the health check endpoint
+// TestHealthHandler tests the health check endpoint. The database is a
+// critical dependency, so health follows its reachability.
 func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	router := setupTestRouter()
-	suite := NewHandlerTestSuite("HealthHandler", router, "/health")
+	for _, path := range []string{"/health", "/api/health"} {
+		t.Run("UnhealthyWithoutDatabase"+path, func(t *testing.T) {
+			originalDB := db
+			db = nil
+			defer func() { db = originalDB }()
 
-	suite.RunSuccessTest(t, "Success", HTTPTestRequest{
-		Method: "GET",
-		Path:   "/health",
-	}, func(t *testing.T, w *httptest.ResponseRecorder) {
-		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldEquals(t, response, "status", "healthy")
-	})
+			w, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: path}, setupTestRouter())
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
+			}
+			response := assertJSONResponse(t, w, http.StatusServiceUnavailable)
+			assertFieldEquals(t, response, "status", "unhealthy")
+		})
+
+		t.Run("HealthyWithDatabase"+path, func(t *testing.T) {
+			testDB := setupTestDB(t)
+			if testDB == nil {
+				t.Skip("Database not available for testing")
+				return
+			}
+			defer testDB.Cleanup()
+
+			w, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: path}, setupTestRouter())
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
+			}
+			response := assertJSONResponse(t, w, http.StatusOK)
+			assertFieldEquals(t, response, "status", "healthy")
+		})
+	}
 }
 
 // TestStatusHandler tests the status endpoint
@@ -52,7 +72,7 @@ func TestStatusHandler(t *testing.T) {
 	defer testDB.Cleanup()
 
 	// Ensure tables exist
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -86,7 +106,7 @@ func TestCaptureHandler(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -167,7 +187,7 @@ func TestSpawnAgentHandler(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -246,7 +266,7 @@ func TestHistoryHandler(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -298,7 +318,7 @@ func TestIssueHandler(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -348,7 +368,7 @@ func TestUpdateStatusHandler(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 
 	router := setupTestRouter()
 
@@ -437,7 +457,7 @@ func TestDatabaseConnection(t *testing.T) {
 		}
 		defer testDB.Cleanup()
 
-		createTables()
+		requireSchema(t)
 
 		// Verify tables exist
 		tables := []string{"issues", "agent_sessions"}
@@ -516,7 +536,7 @@ func TestConcurrentRequests(t *testing.T) {
 	}
 	defer testDB.Cleanup()
 
-	createTables()
+	requireSchema(t)
 	router := setupTestRouter()
 
 	t.Run("ConcurrentCaptures", func(t *testing.T) {
@@ -535,7 +555,6 @@ func TestConcurrentRequests(t *testing.T) {
 					Path:   "/api/v1/assistant/capture",
 					Body:   issueData,
 				}, router)
-
 				if err != nil {
 					results <- err
 					return

@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-commission-spec-smoke",
+    "description": "Observer smoke: the Commission page renders at phone width for a real, retained research-home record (folders are never deleted, only marked).",
+    "requirement": "OT-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "commission",
+      "surface": "experience-commission"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-commission",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/commissions/programme-three-20261111",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Commission"
+        }
+      }
+    },
+    {
+      "id": "wait-commission-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.commission",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Commission page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-commission",
+      "source": "navigate-commission",
+      "target": "wait-commission-page"
+    }
+  ]
+}

@@ -3,18 +3,2077 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "activity_list",
+      "path": "/vrooli.react_component_library.v1.activity.ActivityService/ListActivity",
+      "method": "POST",
+      "summary": "List activity events",
+      "description": "Returns durable mutation events newest-first. Optional subject_kind, subject_id and actor filters narrow the log; since is an inclusive RFC3339 lower bound. limit defaults to 100 and is clamped to 500.",
+      "category": "activity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string",
+          "limit": "integer (default 100, max 500)",
+          "since": "string (RFC3339, inclusive)",
+          "subject_id": "string",
+          "subject_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<ActivityEvent>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "since is not RFC3339"
+        }
+      ]
+    },
+    {
+      "id": "activity_summary",
+      "path": "/vrooli.react_component_library.v1.activity.ActivityService/GetActivitySummary",
+      "method": "POST",
+      "summary": "Get the activity summary",
+      "description": "Returns total, by_day, by_actor and by_action counts for the last days (0 means 30, capped at 365). empty=true is a measured zero, not an unavailable source.",
+      "category": "activity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "days": "integer (0 means 30, max 365)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "by_action": "array<ActivityAction>",
+          "by_actor": "array<ActivityActor>",
+          "by_day": "array<ActivityDay>",
+          "empty": "boolean",
+          "total": "integer"
+        }
+      }
+    },
+    {
+      "id": "adoptions_list_scenarios",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListScenarios",
+      "method": "POST",
+      "summary": "List available scenarios for guided adoption workflows",
+      "description": "Returns scenario names discovered from the repository scenarios directory.",
+      "category": "adoptions",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<ScenarioOption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_reconcile",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconcileAdoptions",
+      "method": "POST",
+      "summary": "Backfill adoption records from on-disk provenance",
+      "description": "Scans scenario UI source read-only. Dry-run is default; apply writes only RCL adoption records without backlog reporting.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean"
+        }
+      },
+      "response": {
+        "type": "object"
+      }
+    },
+    {
+      "id": "adoptions_reconverge",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReconvergeAdoptions",
+      "method": "POST",
+      "summary": "Reconverge BEHIND adoptions to the current library version",
+      "description": "Batch-reconverges BEHIND adoptions: re-applies CLEAN copies through the validated Reapply path and flags MODIFIED copies for human review without overwriting them. Dry-run is default; apply performs the re-applies. Reports per-adoption and per-file outcomes.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "scenario": "string (filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcomes": "array<ReconvergeOutcome>"
+        }
+      }
+    },
+    {
+      "id": "adoptions_list",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListAdoptions",
+      "method": "POST",
+      "summary": "List adoption records",
+      "description": "Returns adoption records matching optional component_id / scenario / limit filters.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (filter)",
+          "limit": "int32 (max rows, 0 = server default)",
+          "scenario": "string (filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_preflight",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PreflightAdoption",
+      "method": "POST",
+      "summary": "Preflight an adoption",
+      "description": "Returns the dependency, style-fit, token, version-status, and maturity verdict without writing files.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "verdict": "AdoptionVerdict"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing component_id or scenario"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Adoption requirements are not satisfied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_list_effective",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ListEffectiveAdoptions",
+      "method": "POST",
+      "summary": "List direct and mediated adoptions for a component",
+      "description": "Returns every adoption that makes the selected component present in a scenario, including provenance through a parent component adoption.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (required)",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<EffectiveAdoption>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_sync_tokens",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SyncScenarioTokens",
+      "method": "POST",
+      "summary": "Synchronize a scenario token ramp",
+      "description": "Adds missing library-required custom properties to the scenario's managed token region; dry-run is the default.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "added": "array<string>",
+          "changed": "boolean",
+          "collisions": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or token-ramp contract error"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_prune_tokens",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/PruneScenarioTokens",
+      "method": "POST",
+      "summary": "Prune unused scenario token declarations",
+      "description": "Reports and optionally removes managed custom properties no adoption still requires.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "changed": "boolean",
+          "removed": "array<string>",
+          "retained": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario or token-ramp contract error"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_link",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/LinkAdoption",
+      "method": "POST",
+      "summary": "Link a pinned component version through the governed package",
+      "description": "Adds the file dependency to the adopter and records a linked adoption without copying source files.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "import_subpath": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "import_subpath": "string",
+          "package_path": "string"
+        }
+      }
+    },
+    {
+      "id": "adoptions_eject",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/EjectAdoption",
+      "method": "POST",
+      "summary": "Eject a component with an explicit reason",
+      "description": "Copies source into the adopter only when the operator supplies a durable fork reason.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "reason": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      }
+    },
+    {
+      "id": "adoptions_apply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption",
+      "method": "POST",
+      "summary": "Apply a component to a scenario",
+      "description": "Copies a selected component version into a target scenario, stamps provenance, and records the adoption.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "confirm_overwrite": "bool",
+          "override_validation": "bool (explicitly allow a blocking dependency verdict)",
+          "replace_existing": "bool (explicitly replace an existing source file)",
+          "scenario": "string",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "import_sites": "array<string>",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing required field or unknown component_id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_batch_apply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/BatchApplyAdoptions",
+      "method": "POST",
+      "summary": "Apply several components to scenarios as one batch",
+      "description": "Validates the union of dependency closures and target collisions before writing the batch.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "items": "array<BatchApplyItem>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<BatchApplyItemResult>",
+          "shared_dependencies": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "adoptions_reapply",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ReapplyAdoption",
+      "method": "POST",
+      "summary": "Reapply an adoption",
+      "description": "Overwrites an adopted file from a selected library version. Local modifications require explicit confirmation.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "confirm_local_overwrite": "bool",
+          "id": "string",
+          "override_validation": "bool (explicitly allow a blocking dependency verdict)",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id or local edits without confirmation"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_delete",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DeleteAdoption",
+      "method": "POST",
+      "summary": "Delete an adoption record",
+      "description": "Removes the adoption record matching the id.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adoption with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_refresh",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/RefreshAdoptions",
+      "method": "POST",
+      "summary": "Refresh drift status for adoption records",
+      "description": "Recomputes library-version and local-edit drift statuses for every adoption record, or just those for a single component when component_id is supplied.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "library_behind": "int32",
+          "library_current": "int32",
+          "local_clean": "int32",
+          "local_modified": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_fork_report",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ForkReportAdoptions",
+      "method": "POST",
+      "summary": "Classify adoption fork dispositions",
+      "description": "Computes the four-way fork report for the complete adoption registry. The report is read-only unless apply is requested.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "fork_status": "four-way classification on each adoption"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_resolve_path",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ResolveAdoptionPath",
+      "method": "POST",
+      "summary": "Resolve the canonical adopted path for a component+scenario",
+      "description": "Computes the filesystem path an adoption would land at, using the target scenario's UI manifest (template-manifest source), a heuristic, or a fallback. Read-only.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "feature": "string (optional, when slot requiresFeature)",
+          "override_path": "string (optional)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "path": "string (relative to scenario root)",
+          "slot": "string (slot name used)",
+          "source": "ResolveSource enum",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing component_id, scenario, or unsubstituted path token"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Resolver not configured (server lacks repo-root wiring)"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_suggest",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/SuggestAdoptions",
+      "method": "POST",
+      "summary": "Suggest catalog components a scenario should adopt",
+      "description": "Returns non-adopted catalog components using real UI inventory matches, design-style fit, and dependency compatibility. Every candidate carries human-readable reasons; no opaque score is emitted.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (optional)",
+          "scenario": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<AdoptionSuggestion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid scenario"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Suggestion dependencies not configured"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_discover",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/DiscoverAdoptions",
+      "method": "POST",
+      "summary": "Discover header-less vendored copies by content similarity",
+      "description": "Walks scenario UI trees for source files with no @vrooliComponentSource header and scores each against every library component version (Sørensen–Dice line similarity). Read-only: candidates carry similarity evidence for operator review; ConfirmDiscovery performs any write.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (optional)",
+          "min_similarity": "double (0 = server default 0.6)",
+          "scenario": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<DiscoveryCandidate>",
+          "min_similarity": "double",
+          "scanned": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scanner or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_confirm_discovery",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ConfirmDiscovery",
+      "method": "POST",
+      "summary": "Confirm a discovery candidate and backfill its provenance",
+      "description": "Injects an @vrooliComponentSource header into a header-less scenario file and creates its adoption record, attributed to the named component + version. Refuses files that already carry a header or are already tracked.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "similarity": "double",
+          "written_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing field, file already tagged, or already tracked"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown component_id or version"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "brand_get",
+      "path": "/api/brand",
+      "method": "GET",
+      "summary": "Read the assigned brand",
+      "description": "Projects the RCL brand assigned in Brand Manager into the shell identity. Returns assigned=false with null fields when Brand Manager is unavailable or has no RCL record.",
+      "category": "brand",
+      "response": {
+        "type": "object",
+        "properties": {
+          "accent": "string|null (CSS colour)",
+          "assigned": "boolean",
+          "mark": "string|null (data URI or absolute URL)",
+          "name": "string",
+          "wordmark": "string|null"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The workbench shell fetches a small UI projection with a plain GET; the aggregate is owned and served by Brand Manager over Connect-RPC."
+      }
+    },
+    {
+      "id": "catalog_coverage",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCoverage",
+      "method": "POST",
+      "summary": "Report achieved catalog maturity",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_next",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ListNextWork",
+      "method": "POST",
+      "summary": "Rank catalog next work",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_gate",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/RunGate",
+      "method": "POST",
+      "summary": "Inspect a declarative catalog gate without recording evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_gate_record",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/RecordGate",
+      "method": "POST",
+      "summary": "Run a declarative catalog gate and record evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_asset_check",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CheckAsset",
+      "method": "POST",
+      "summary": "Check one asset and return one verdict",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_graph",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetRelationships",
+      "method": "POST",
+      "summary": "Read catalog asset relationships",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_structure",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetCatalogStructure",
+      "method": "POST",
+      "summary": "Read catalog structure",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_reconcile",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ReconcileGraph",
+      "method": "POST",
+      "summary": "Reconcile catalog dependency graphs",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_ports",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetPortContract",
+      "method": "POST",
+      "summary": "Read asset host obligations",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_score_history",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetScoreHistory",
+      "method": "POST",
+      "summary": "Read carried-forward asset score history",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_health",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetHealthOverview",
+      "method": "POST",
+      "summary": "Read server-computed catalog health",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_readiness",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetReadiness",
+      "method": "POST",
+      "summary": "Report catalog readiness and triage",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_capture_evidence",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence",
+      "method": "POST",
+      "summary": "Capture declared visual evidence",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchAssets",
+      "method": "POST",
+      "summary": "Search authored catalog assets",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search_status",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/SearchStatus",
+      "method": "POST",
+      "summary": "Read catalog search index status",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_search_reindex",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/ReindexSearch",
+      "method": "POST",
+      "summary": "Rebuild the catalog search index",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "components_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+      "method": "POST",
+      "summary": "List components",
+      "description": "Returns components matching optional match / tag / limit filters through the generated Connect-RPC ComponentsService.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (max rows, 0 = server default)",
+          "match": "string (case-insensitive substring filter)",
+          "tag": "string (exact tag filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "components": "array<Component>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+      "method": "POST",
+      "summary": "Get a component by id",
+      "description": "Returns the component matching the request id. Set include_experience to include its declared contract and latest evidence projection.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "include_experience": "bool (optional contract and evidence projection)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "experience": "ComponentExperience (when requested)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_get_by_library_id",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentByLibraryId",
+      "method": "POST",
+      "summary": "Get a component by libraryId",
+      "description": "Returns the component matching the @libraryId header value.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "library_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that libraryId"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_index",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IndexComponents",
+      "method": "POST",
+      "summary": "Re-index components from disk",
+      "description": "Walks the configured source root for *.tsx files with @libraryId headers and upserts them into the registry. Removes rows whose files have been deleted.",
+      "category": "components",
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "int32",
+          "errors": "array<string>",
+          "indexed": "int32",
+          "library_ids": "array<string>",
+          "scanned": "int32",
+          "skipped": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Walk or upsert failure"
+        }
+      ]
+    },
+    {
+      "id": "components_initialize",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/InitializeComponent",
+      "method": "POST",
+      "summary": "Initialize a component",
+      "description": "Creates component.json plus an initial version TSX file under the Git-tracked library source root, indexes it, and returns the new registry row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "description": "string",
+          "display_name": "string",
+          "file_name": "string",
+          "initial_source": "string",
+          "initial_version": "string",
+          "library_id": "string",
+          "slug": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "manifest_path": "string",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid slug, version, file name, or source header"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Component libraryId or slug already exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_ingest",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/IngestComponent",
+      "method": "POST",
+      "summary": "Ingest a scenario component",
+      "description": "Copies a scenario-local TSX file into an indexed library component, creates a draft working version, and returns static de-scenario-ification findings.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "description": "string",
+          "display_name": "string",
+          "scenario": "string",
+          "slot": "string",
+          "slug": "string",
+          "source_file": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "checklist_path": "string",
+          "component": "Component",
+          "draft_version": "string",
+          "findings": "array<IngestFinding>",
+          "manifest_path": "string",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid scenario, source file, or component metadata"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Component libraryId or slug already exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_version_begin",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/BeginComponentVersion",
+      "method": "POST",
+      "summary": "Begin a mutable component draft",
+      "description": "Resolves a stable libraryId or UUID, computes the requested semver bump, copies the complete current version artifact set, indexes the draft, and returns its edit paths and preview path.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "bump": "major|minor|patch",
+          "component": "string (libraryId or UUID)",
+          "version": "explicit release semver"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_paths": "array<string>",
+          "component": "Component",
+          "preview_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid bump/version or an active draft already exists"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that selector"
+        }
+      ]
+    },
+    {
+      "id": "components_version_check",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CheckComponentVersion",
+      "method": "POST",
+      "summary": "Check one component version",
+      "description": "Runs source, dependency-closure, story-contract, enum-coverage, and preview-bundle checks for one explicit component version without scanning unrelated catalog assets.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component": "string (libraryId or UUID)",
+          "version": "string (defaults draft then latest)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "checks": "array<ComponentVersionCheck>",
+          "component": "Component",
+          "passed": "bool",
+          "preview_path": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or version with that selector"
+        }
+      ]
+    },
+    {
+      "id": "components_version_publish",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/PublishComponentVersion",
+      "method": "POST",
+      "summary": "Publish a validated component draft",
+      "description": "Checks the active draft, compiles its preview, preserves every version artifact, updates the release pointers, and rolls back the filesystem mutation if indexing fails.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "changelog_md": "string",
+          "component": "string (libraryId or UUID)",
+          "draft_version": "string",
+          "version": "release semver"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_paths": "array<string>",
+          "component": "Component",
+          "preview_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or draft with that selector"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Draft checks, preview compilation, or parity policy failed"
+        }
+      ]
+    },
+    {
+      "id": "components_version_create",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/CreateComponentVersion",
+      "method": "POST",
+      "summary": "Create a component version",
+      "description": "Creates a new version folder for an existing component, updates component.json latest/draft pointers, indexes the library, and returns the version row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "changelog_md": "string",
+          "component_id": "string",
+          "file_name": "string",
+          "from_version": "string",
+          "intent": "ComponentVersionIntent",
+          "source": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component",
+          "source_path": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid version, file name, or source header"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_styles_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles",
+      "method": "POST",
+      "summary": "List design styles",
+      "description": "Loads canonical design-style metadata from templates/design and returns the style IDs components may reference.",
+      "category": "components",
+      "response": {
+        "type": "object",
+        "properties": {
+          "styles": "array<DesignStyle>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Design metadata read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_style_fit_validate",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ValidateStyleFit",
+      "method": "POST",
+      "summary": "Validate component design-style fit",
+      "description": "Reads the target scenario's .vrooli/service.json generation.design.id and returns a style-fit verdict for the selected component version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "affinity": "DesignAffinity",
+          "component_id": "string",
+          "detail": "string",
+          "kind": "StyleFitVerdictKind",
+          "scenario": "string",
+          "scenario_style": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component or component version with that id/version"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scenario service.json read or parse failure"
+        }
+      ]
+    },
+    {
+      "id": "components_manifest_update",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentManifest",
+      "method": "POST",
+      "summary": "Update a component manifest",
+      "description": "Updates component.json metadata/latest/draft/deprecation fields, re-indexes the library, and returns the refreshed component row.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "deprecated_versions": "array<string>",
+          "description": "string",
+          "display_name": "string",
+          "draft_version": "string",
+          "latest_version": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component": "Component"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid manifest values"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem or repository failure"
+        }
+      ]
+    },
+    {
+      "id": "components_retire",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/RetireComponent",
+      "method": "POST",
+      "summary": "Preflight or retire a deprecated component",
+      "description": "Checks catalog and authored source consumers. Apply preserves history, withdraws source and catalog, and removes the registry entry with interrupted-operation recovery.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "boolean",
+          "library_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "catalog_archive_path": "string",
+          "error": "string",
+          "ready": "boolean",
+          "retired": "boolean",
+          "snapshot_path": "string",
+          "source_archive_path": "string"
+        }
+      }
+    },
+    {
+      "id": "components_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentContent",
+      "method": "POST",
+      "summary": "Read a component's source file",
+      "description": "Returns the raw TSX content of the component's source file plus a SHA-256 digest. Path-traversal guard rejects rows whose source_path escapes the configured root.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "sha256": "string (hex digest)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_content_set",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/UpdateComponentContent",
+      "method": "POST",
+      "summary": "Write a component's source file",
+      "description": "Overwrites the component's TSX file in place. Pass expected_sha256 from a prior read for optimistic concurrency. Re-run `index` afterward if the @libraryId header changed.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "content": "string (utf-8 source)",
+          "expected_sha256": "string (optional)",
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "sha256": "string (hex digest of written content)",
+          "source_path": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Component source_path escapes configured root"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "expected_sha256 did not match on-disk digest"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem write failure"
+        }
+      ]
+    },
+    {
+      "id": "components_versions_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions",
+      "method": "POST",
+      "summary": "List component versions",
+      "description": "Returns release and draft artifacts indexed from the component manifest's version folders.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<ComponentVersion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_version_content_get",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent",
+      "method": "POST",
+      "summary": "Read component version source",
+      "description": "Returns the indexed source body for a specific component version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "version": "ComponentVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_library_import_resolve",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ResolveLibraryImport",
+      "method": "POST",
+      "summary": "Resolve a library import",
+      "description": "Resolves a published React Component Library package specifier to its catalog asset, pinned version, export kind, description, and source path. Relative imports return an explicit unresolved diagnostic.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from_path": "string (optional source path)",
+          "specifier": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "description": "string",
+          "diagnostic": "string",
+          "export_kind": "string",
+          "library_id": "string",
+          "resolved": "bool",
+          "source_path": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_stories_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories",
+      "method": "POST",
+      "summary": "List validated story contracts",
+      "description": "Returns typed, indexed story contracts for one component and optional version.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "stories": "array<ComponentStory>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_preview_frames_list",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListPreviewFrames",
+      "method": "POST",
+      "summary": "List compatible Preview frames",
+      "description": "Returns catalog-backed frame candidates with stable compatibility diagnostics. Selection is temporary until explicitly persisted in a story contract.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "story_id": "string (optional)",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<PreviewFrameCandidate>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "component_id is required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog or component registry read failure"
+        }
+      ]
+    },
+    {
+      "id": "components_preview_frame_persist",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/PersistPreviewFrame",
+      "method": "POST",
+      "summary": "Persist a Preview frame choice",
+      "description": "Creates or updates a draft story contract with an exact compatible frame reference; released versions remain immutable.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "asset": "string",
+          "capability": "string (optional)",
+          "component_id": "string",
+          "fixture": "string (optional)",
+          "frame_version": "string",
+          "region": "string",
+          "story_id": "string",
+          "version": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "source_path": "string",
+          "story_id": "string",
+          "story_json": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "component, story, asset, frame version, and region are required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "frame or story cannot be persisted"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog or source write failure"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
+      "id": "component_tests_run",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RunComponentTest",
+      "method": "POST",
+      "summary": "Run a version-pinned component or hook contract",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_rerun",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/RerunComponentTest",
+      "method": "POST",
+      "summary": "Rerun a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_get",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/GetComponentTestReport",
+      "method": "POST",
+      "summary": "Get a durable component test report",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_list",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/ListComponentTestReports",
+      "method": "POST",
+      "summary": "List durable component test reports",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_sweep",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/SweepComponentTests",
+      "method": "POST",
+      "summary": "Run the resumable full-corpus component-test sweep",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Run the catalog component-test suite for Test Genie",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview component-test fixes",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "component_tests_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply component-test fixes",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
+      "id": "deps_list_declarations",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ListDeclarations",
+      "method": "POST",
+      "summary": "List parsed @deps declarations for a component",
+      "description": "Returns the declarations the indexer recorded for the component's @deps header field. Empty slice when the header was absent or the component has not been indexed.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "declarations": "array<DepDeclaration>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "deps_validate_adoption",
+      "path": "/vrooli.react_component_library.v1.deps.DepsService/ValidateAdoption",
+      "method": "POST",
+      "summary": "Validate a component's declared deps against a target scenario",
+      "description": "Reads the target scenario's package.json (via the storage resolver) and intersects each declared semver range against the resolved version. Returns ok / warn / block plus a per-dep issues list the UI surfaces in the adoption modal.",
+      "category": "deps",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "scenario": "string (target scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<DepIssue>",
+          "kind": "VerdictKind (ok|warn|block)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's package.json missing"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Component has no declarations on file (re-run components index)"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "designs_list",
+      "path": "/api/designs",
+      "method": "GET",
+      "summary": "List designs",
+      "description": "Returns design summaries newest-updated first, including frame counts and the optional scenario/page binding. Optional scenario and page query params filter by exact binding.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "designs": "array<DesignSummary>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_create",
+      "path": "/api/designs",
+      "method": "POST",
+      "summary": "Create a design",
+      "description": "Persists a design at revision 1. The server assigns id, revision and updatedAt. name, frames and theme are required; frames:null means [] and theme:null means {}. options is optional design chrome: {radius?: number 0-48, display?: \"sans\"|\"serif\"}; absent or null means {}.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "frames": "array<Frame> (required; null means [])",
+          "name": "string (required)",
+          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null means {})",
+          "page": "string|null",
+          "scenario": "string|null",
+          "theme": "Theme (required; null means {})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_get",
+      "path": "/api/designs/{id}",
+      "method": "GET",
+      "summary": "Get a design",
+      "description": "Returns the full design document, including opaque frame specs, theme, validated chrome options (always an object) and the optional scenario/page binding.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_save",
+      "path": "/api/designs/{id}",
+      "method": "PUT",
+      "summary": "Save a design",
+      "description": "Replaces the design document and bumps revision and updatedAt. name, frames and theme are required. options replaces the stored chrome and absent/null means {} (old clients keep working). Sending revision makes the save conditional: a stale revision returns 409 with the current document and writes nothing; omitting revision is last-write-wins.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "frames": "array<Frame> (required; null means [])",
+          "name": "string (required)",
+          "options": "{radius?: number 0-48, display?: \"sans\"|\"serif\"} (optional; null or absent means {})",
+          "page": "string|null",
+          "revision": "integer (optional; enables optimistic concurrency)",
+          "scenario": "string|null",
+          "theme": "Theme (required; null means {})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "design": "DesignDocument"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name, frames or theme is missing, frames is not an array of objects, theme is not an object, or options is not an object with a valid radius/display"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_delete",
+      "path": "/api/designs/{id}",
+      "method": "DELETE",
+      "summary": "Delete a design",
+      "description": "Hard-deletes the design and its assets in one transaction. Deleting a missing design is success.",
+      "category": "designs",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assist",
+      "path": "/api/designs/{id}/assist",
+      "method": "POST",
+      "summary": "Propose a design patch",
+      "description": "Sends the scoped design context through the durable design-inference service to the AI gateway and returns a validated, inert patch. Nothing is written: the studio applies the patch as one undoable command or discards it. The current revision is required so a proposal cannot be made against a stale document; a stale revision returns 409 with the current design. 422 means the model produced a patch this document cannot apply.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": "string (required, 8-200 chars)",
+          "prompt": "string (required, 1-2000 chars)",
+          "revision": "integer (required)",
+          "scope": "{kind: design|frame|layer, frameId?, nodeId?}"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "{id,state,provider?,model?,detail?,inputTokens?,outputTokens?}",
+          "proposal": "{summary,operations[]}",
+          "revision": "integer"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed prompt, scope, revision or idempotency key"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "revision did not match the stored revision; response also carries {design:DesignDocument}"
+        },
+        {
+          "status": 422,
+          "code": "invalid_proposal",
+          "description": "The model returned a patch that is not applicable to this document"
+        },
+        {
+          "status": 502,
+          "code": "ai_failed",
+          "description": "The gateway refused or failed the request"
+        },
+        {
+          "status": 503,
+          "code": "ai_unavailable",
+          "description": "No assistant is configured or the gateway could not be reached"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_list",
+      "path": "/api/designs/{id}/assets",
+      "method": "GET",
+      "summary": "List a design's assets",
+      "description": "Returns upload metadata for one design, oldest first. Bytes are served by the per-asset route.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<AssetMeta>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_create",
+      "path": "/api/designs/{id}/assets",
+      "method": "POST",
+      "summary": "Upload a design asset",
+      "description": "Accepts a base64 image (png/jpeg/webp/gif/svg+xml, <=8 MiB decoded), stores the bytes in SQLite and returns the metadata with a byte-route url. Width/height are read from the image header; SVG and unknown formats report 0.",
+      "category": "designs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dataBase64": "string (required)",
+          "fidelity": "reference|captured (optional, default reference)",
+          "mime": "string (required image/*)",
+          "name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "AssetMeta"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Empty name, non-image mime, invalid base64, decoded bytes over 8 MiB, or bad fidelity"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No design with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_get",
+      "path": "/api/designs/{id}/assets/{assetId}",
+      "method": "GET",
+      "summary": "Read design asset bytes",
+      "description": "Serves the raw image with its stored Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
+      "category": "designs",
+      "response": {
+        "type": "binary",
+        "properties": {
+          "body": "raw image bytes"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id for that design"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The studio renders uploaded reference images directly in <img>/CSS; the byte route is browser-native and sets Content-Type, Cache-Control and ETag rather than returning a JSON envelope."
+      }
+    },
+    {
+      "id": "designs_assets_delete",
+      "path": "/api/designs/{id}/assets/{assetId}",
+      "method": "DELETE",
+      "summary": "Delete a design asset",
+      "description": "Deletes the asset scoped to that design. Idempotent; an asset belonging to another design is untouched.",
+      "category": "designs",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "designs_assets_list_all",
+      "path": "/api/design-assets",
+      "method": "GET",
+      "summary": "List every design asset",
+      "description": "Returns metadata for every upload across designs, newest first, for the studio's 'view uploads from other designs' surface.",
+      "category": "designs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<AssetMeta>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio edits opaque TemplateNode spec JSON with plain fetches and autosave; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,16 +2082,1601 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "react-component-library status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
-    }
-  ],
-  "cli_commands": [
+    },
     {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "inventory_scan_subjects",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/Scan",
+      "method": "POST",
+      "summary": "Scan a bounded list of UI asset subjects",
+      "description": "Returns one subject-keyed result for every supplied asset subject.",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_scan_scenario",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario",
+      "method": "POST",
+      "summary": "Scan a scenario's UI tree for provenance + widgets + surfaces",
+      "description": "Implements ui-health's InventoryService.ScanScenario for React scenarios. SQLite adoptions store is authoritative; JSDoc blocks are the heal-from signal.",
+      "category": "inventory",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "provenance": "array<ComponentProvenance>",
+          "scenario": "string",
+          "surfaces": "array<SurfaceRecord>",
+          "widgets": "array<WidgetDeclaration>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Scan scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "library_health_get",
+      "path": "/vrooli.react_component_library.v1.libraryhealth.LibraryHealthService/GetLibraryHealth",
+      "method": "POST",
+      "summary": "Get the library health snapshot",
+      "description": "Returns overview, quality, activity and services sections, each with available/empty/partial/unavailable state and a reason when degraded. activity_days defaults to 30 and is capped at 365. Unavailable sources carry no zero-valued metrics.",
+      "category": "library-health",
+      "request": {
+        "type": "object",
+        "properties": {
+          "activity_days": "integer (0 means 30, max 365)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "LibraryHealth {overview, quality, activity, services, counts, generated_at}"
+        }
+      }
+    },
+    {
+      "id": "page_inspect",
+      "path": "/vrooli.react_component_library.v1.page.PageService/Inspect",
+      "method": "POST",
+      "summary": "Inspect a running page and resolve its stamped nodes to library source",
+      "description": "",
+      "category": "page"
+    },
+    {
+      "id": "preview_composition_render",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/RenderComposition",
+      "method": "POST",
+      "summary": "Render a composition with deterministic fixture bindings",
+      "description": "",
+      "category": "preview"
+    },
+    {
+      "id": "preview_composition_bundle",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetCompositionBundle",
+      "method": "POST",
+      "summary": "Bundle a pinned typed page composition",
+      "description": "",
+      "category": "preview"
+    },
+    {
+      "id": "preview_get_bundle",
+      "path": "/vrooli.react_component_library.v1.preview.PreviewService/GetPreviewBundle",
+      "method": "POST",
+      "summary": "Bundle a component for preview",
+      "description": "Transpiles a component's TSX source to an ES module via esbuild. Used by the CLI for diagnostics and by the harness HTML route for iframe rendering. Externals: react, react-dom, react-dom/client.",
+      "category": "preview",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "js": "string (ES module text)",
+          "sha256": "string (hex digest of js)",
+          "source_path": "string",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No component with that id"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bundler rejected the file (syntax error or unresolved import) or source_path escapes root"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or bundler internal failure"
+        }
+      ]
+    },
+    {
+      "id": "review_findings_list",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/ListFindings",
+      "method": "POST",
+      "summary": "List findings",
+      "description": "Returns one page of the server-owned findings queue newest-first plus the filtered total. status and severity are optional enum filters; subject_kind and query narrow further. limit defaults to 100 and is clamped to 500; offset is zero-based and must not be negative.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "integer (default 100, max 500)",
+          "offset": "integer (default 0, non-negative)",
+          "query": "string",
+          "severity": "FindingSeverity",
+          "status": "FindingStatus",
+          "subject_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<Finding>",
+          "total": "integer (filtered count before limit/offset)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "status, severity, or offset is not accepted"
+        }
+      ]
+    },
+    {
+      "id": "review_findings_get",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetFinding",
+      "method": "POST",
+      "summary": "Get a finding",
+      "description": "Returns one finding with its full disposition history, newest first.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_disposition_record",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/RecordDisposition",
+      "method": "POST",
+      "summary": "Record a disposition",
+      "description": "Appends a durable triage decision with a required reason and actor, then applies the status transition: acknowledge -> acknowledged, accept_risk -> accepted, fix -> open, retire -> retired.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (required)",
+          "decision": "DispositionDecision (required)",
+          "id": "string (required)",
+          "reason": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Decision, reason, or actor is missing or unknown"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_finding_assign",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/AssignFinding",
+      "method": "POST",
+      "summary": "Assign a finding",
+      "description": "Sets the accountable owner. An empty owner clears the assignment; both forms are explicit writes.",
+      "category": "review",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "owner": "string (empty clears)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "finding": "Finding"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No finding with that id"
+        }
+      ]
+    },
+    {
+      "id": "review_summary",
+      "path": "/vrooli.react_component_library.v1.review.ReviewService/GetReviewSummary",
+      "method": "POST",
+      "summary": "Get the review queue summary",
+      "description": "Returns open, unresolved blocker/high, acknowledged, accepted and fixed counts. Blockers and high count statuses open or acknowledged so a triaged item is not mistaken for an untouched one.",
+      "category": "review",
+      "response": {
+        "type": "object",
+        "properties": {
+          "summary": "ReviewSummary"
+        }
+      }
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search the unified workbench index",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_suggest",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Suggest",
+      "method": "POST",
+      "summary": "Suggest indexed titles and tags",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/GetSearchStatus",
+      "method": "POST",
+      "summary": "Report search index freshness and semantic leg state",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_reindex",
+      "path": "/vrooli.react_component_library.v1.search.SearchService/Reindex",
+      "method": "POST",
+      "summary": "Rebuild the unified search index",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "sketch_infer",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/InferSketch",
+      "method": "POST",
+      "summary": "Dispatch governed typed design alternatives with durable idempotency",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_inference_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketchInference",
+      "method": "POST",
+      "summary": "Read an existing design inference without redispatch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_refine",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RefineCandidate",
+      "method": "POST",
+      "summary": "Refine an exact candidate within a recorded region scope and round budget",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_screenshot",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCaptureScreenshot",
+      "method": "POST",
+      "summary": "Resolve a verified capture screenshot through its browser owner",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_retry",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RetryCapture",
+      "method": "POST",
+      "summary": "Start a new linked attempt of a terminal capture",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_list",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCritiques",
+      "method": "POST",
+      "summary": "List verified critiques of an exact candidate render",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_rubric",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritiqueRubric",
+      "method": "POST",
+      "summary": "Read the versioned visual rubric and calibration status",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_record",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecordCritique",
+      "method": "POST",
+      "summary": "Verify image evidence and record an attributed visual critique",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "critique_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCritique",
+      "method": "POST",
+      "summary": "Read an immutable visual review fact",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_cancel",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CancelCapture",
+      "method": "POST",
+      "summary": "Request cancellation of the existing capture producer",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_attach",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AttachCapture",
+      "method": "POST",
+      "summary": "Verify and attach producer-owned capture evidence",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_capture",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CaptureCandidate",
+      "method": "POST",
+      "summary": "Capture an exact candidate render through BAS",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "capture_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCapture",
+      "method": "POST",
+      "summary": "Read durable capture operation identity and state",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_list",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListCandidates",
+      "method": "POST",
+      "summary": "List verified saved candidate revisions for a page",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_place_asset",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PlaceCandidateAsset",
+      "method": "POST",
+      "summary": "Derive a candidate with an exact published region asset and story fixture",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_map_regions",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/MapCandidateRegions",
+      "method": "POST",
+      "summary": "Derive an immutable candidate with explicit semantic port mappings",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_save",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SaveCandidate",
+      "method": "POST",
+      "summary": "Persist an immutable candidate without changing the page",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_accept_check",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/CheckCandidateAcceptance",
+      "method": "POST",
+      "summary": "Check whether an exact candidate meets current acceptance requirements",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_accept",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AcceptCandidate",
+      "method": "POST",
+      "summary": "Record a terminal acceptance decision for an exact candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "acceptance_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetAcceptance",
+      "method": "POST",
+      "summary": "Read a recorded acceptance decision for a candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetCandidate",
+      "method": "POST",
+      "summary": "Read an exact immutable candidate",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "candidate_render",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderCandidate",
+      "method": "POST",
+      "summary": "Render an immutable candidate independently of current page edits",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_propose",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ProposeSketch",
+      "method": "POST",
+      "summary": "Propose bounded catalog-backed page alternatives",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_render",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RenderSketch",
+      "method": "POST",
+      "summary": "Render an exact authored design revision",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "design_pages",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ListDesignPages",
+      "method": "POST",
+      "summary": "Discover scenario design pages and contract gaps",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_history",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetHistory",
+      "method": "POST",
+      "summary": "Read immutable design revisions",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_recover",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/RecoverSketch",
+      "method": "POST",
+      "summary": "Recover an interrupted page apply",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_get",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/GetSketch",
+      "method": "POST",
+      "summary": "Read a scenario page sketch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_put",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/PutSketch",
+      "method": "POST",
+      "summary": "Write a scenario page sketch",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_verify",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/VerifySketch",
+      "method": "POST",
+      "summary": "Verify page regions against observed source",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_import",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/ImportPage",
+      "method": "POST",
+      "summary": "Decompose a page through the catalog",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_place",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Place",
+      "method": "POST",
+      "summary": "Place a catalog asset into a region",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_placeholder",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Placeholder",
+      "method": "POST",
+      "summary": "Record a genuinely new region need",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_note",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/AddNote",
+      "method": "POST",
+      "summary": "Add a scoped sketch note",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_unplace",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/Unplace",
+      "method": "POST",
+      "summary": "Move a placement to the unplaced set",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_template",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/SetTemplate",
+      "method": "POST",
+      "summary": "Swap a page template with an explicit remap",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "sketch_brief",
+      "path": "/vrooli.react_component_library.v1.sketch.SketchService/BuildBrief",
+      "method": "POST",
+      "summary": "Build an ordered implementation brief",
+      "description": "",
+      "category": "sketch"
+    },
+    {
+      "id": "templates_list",
+      "path": "/api/templates",
+      "method": "GET",
+      "summary": "List templates",
+      "description": "Returns the studio's template shelf newest-updated first. palette and spec are opaque JSON objects; local on the client still means authoring draft, not a published asset.",
+      "category": "templates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "templates": "array<Template>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_create",
+      "path": "/api/templates",
+      "method": "POST",
+      "summary": "Create a template",
+      "description": "Persists a shelf template. id is client-assigned and must match ^[a-z0-9][a-z0-9._-]{0,127}$; a duplicate id returns 409. name is required. tagline/category/palette/spec/display/radius default to '', {}, 'sans' and 14.",
+      "category": "templates",
+      "request": {
+        "type": "object",
+        "properties": {
+          "category": "string (<=80 chars)",
+          "display": "sans|serif",
+          "id": "string (required)",
+          "idea": "string",
+          "name": "string (required, 1-120 chars)",
+          "palette": "JSON object (<=8 KiB)",
+          "radius": "integer 0-48",
+          "slotHint": "string",
+          "spec": "JSON object (<=1 MiB)",
+          "tagline": "string (<=240 chars)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id/name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "A template with that id already exists"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_update",
+      "path": "/api/templates/{id}",
+      "method": "PUT",
+      "summary": "Replace a template",
+      "description": "Replaces every field of an existing template and bumps updatedAt. The path id is authoritative; a body id is ignored. Same validation and defaults as create.",
+      "category": "templates",
+      "request": {
+        "type": "object",
+        "properties": {
+          "category": "string (<=80 chars)",
+          "display": "sans|serif",
+          "idea": "string",
+          "name": "string (required, 1-120 chars)",
+          "palette": "JSON object (<=8 KiB)",
+          "radius": "integer 0-48",
+          "slotHint": "string",
+          "spec": "JSON object (<=1 MiB)",
+          "tagline": "string (<=240 chars)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name missing or out of range, display not sans|serif, radius out of range, palette/spec not JSON objects or over their byte limit, or the body exceeds 2 MiB"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No template with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "templates_delete",
+      "path": "/api/templates/{id}",
+      "method": "DELETE",
+      "summary": "Delete a template",
+      "description": "Hard-deletes the shelf template. Deleting a missing template is success, so a retried or cross-tab delete does not fail.",
+      "category": "templates",
+      "response": {
+        "type": "object"
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The design studio's template shelf saves opaque TemplateNode spec JSON with plain fetches and a fire-and-forget queue; the document shape is owned by the client, so there is no generated Connect payload counterpart."
+      }
+    },
+    {
+      "id": "themes_list_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/ListBuiltinThemes",
+      "method": "POST",
+      "summary": "List built-in themes",
+      "description": "Returns the seeded built-in themes (vrooli-default, neutral-light, neutral-dark, high-contrast).",
+      "category": "themes",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "themes": "array<Theme>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "themes_get_builtin",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetBuiltinTheme",
+      "method": "POST",
+      "summary": "Get a built-in theme by id",
+      "description": "Returns the named built-in theme including its flat token map.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No built-in theme with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "themes_get_from_scenario",
+      "path": "/vrooli.react_component_library.v1.themes.ThemesService/GetThemeFromScenario",
+      "method": "POST",
+      "summary": "Resolve a theme from a target scenario's DESIGN.md",
+      "description": "Reads <scenarios-root>/<scenario_id>/DESIGN.md via the storage resolver, parses the YAML front-matter, and projects it into a flat CSS-custom-property token map. Client never builds the URL or parses DESIGN.md directly.",
+      "category": "themes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "theme": "Theme"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target scenario's DESIGN.md missing"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "DESIGN.md is malformed or does not project to a recognizable theme"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Filesystem read or parse failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_list",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/ListVersions",
+      "method": "POST",
+      "summary": "List recorded versions for a component",
+      "description": "Returns version rows newest-first for the given component_id.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "limit": "int32 (max rows, 0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<Version>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_get",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/GetVersion",
+      "method": "POST",
+      "summary": "Get a specific recorded version",
+      "description": "Returns the row matching (component_id, version). Set include_content=true to receive the full recorded body.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "include_content": "bool",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string (populated only when include_content was true)",
+          "version": "Version"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No version with that component_id/version pair"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_diff",
+      "path": "/vrooli.react_component_library.v1.versions.VersionsService/DiffVersions",
+      "method": "POST",
+      "summary": "Diff two versions or a version and an adopted copy",
+      "description": "Returns paired left/right diff cells (equal/add/remove/empty). `from` and `to` accept either a @version value or `adoption:<id>` to compare against an adopted copy on disk.",
+      "category": "versions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "from": "string (version or adoption:<id>)",
+          "to": "string (version or adoption:<id>)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "additions": "int32",
+          "from_label": "string",
+          "removals": "int32",
+          "rows": "array<DiffRow>",
+          "to_label": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing from/to or invalid adoption reference"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Referenced version or adoption does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "versions_progression",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListVersionLedger",
+      "method": "POST",
+      "summary": "List durable version progression ledger",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_retire_candidates",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ListRetireCandidates",
+      "method": "POST",
+      "summary": "List safe version retirement candidates",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_plan_cleanup",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/PlanCleanup",
+      "method": "POST",
+      "summary": "Plan safe batch version cleanup",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_cleanup",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupVersions",
+      "method": "POST",
+      "summary": "Apply confirmed batch version cleanup",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_cleanup_draft",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/CleanupDraft",
+      "method": "POST",
+      "summary": "Discard a confirmed abandoned draft",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_deprecate",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/DeprecateVersion",
+      "method": "POST",
+      "summary": "Deprecate a version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ArchiveVersion",
+      "method": "POST",
+      "summary": "Archive a version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_retire",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RetireVersion",
+      "method": "POST",
+      "summary": "Retire an unreferenced version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_materialize",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/MaterializeVersion",
+      "method": "POST",
+      "summary": "Materialize version bytes from the durable mirror",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_reconcile_presence",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ReconcilePresence",
+      "method": "POST",
+      "summary": "Reconcile materialized and evicted version presence",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_export_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ExportArchive",
+      "method": "POST",
+      "summary": "Export the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_import_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive",
+      "method": "POST",
+      "summary": "Import the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_recover_button_224",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RecoverButton224",
+      "method": "POST",
+      "summary": "Recover the attested Button 2.2.4 release bundle",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_doctor",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/Doctor",
+      "method": "POST",
+      "summary": "Check evicted version mirror integrity",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "workflows_start",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/StartWorkflow",
+      "method": "POST",
+      "summary": "Start assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_list",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/ListWorkflows",
+      "method": "POST",
+      "summary": "List assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_get",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/GetWorkflow",
+      "method": "POST",
+      "summary": "Get assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_refresh",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/RefreshWorkflow",
+      "method": "POST",
+      "summary": "Refresh assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_stop",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/StopWorkflow",
+      "method": "POST",
+      "summary": "Stop assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_retry",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/RetryWorkflow",
+      "method": "POST",
+      "summary": "Retry assisted catalog work",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workflows_promotion_readiness",
+      "path": "/vrooli.react_component_library.v1.workflows.WorkflowsService/GetPromotionReadiness",
+      "method": "POST",
+      "summary": "Read promotion readiness evidence",
+      "description": "",
+      "category": "workflows"
+    },
+    {
+      "id": "workspaces_list",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaces",
+      "method": "POST",
+      "summary": "List workspaces",
+      "description": "Returns workspace summaries newest-updated first, with page/display/state counts. Optional provenance filters the collection; query is a case-insensitive substring over name, summary and tags.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (0 = server default, capped)",
+          "provenance": "WorkspaceProvenance (optional)",
+          "query": "string (optional substring)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspaces": "array<WorkspaceSummary>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown provenance filter"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Storage read failure"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_get",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/GetWorkspace",
+      "method": "POST",
+      "summary": "Get a workspace aggregate",
+      "description": "Returns the workspace with its pages, displays and states in stored order.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_create",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/CreateWorkspace",
+      "method": "POST",
+      "summary": "Create an authored workspace",
+      "description": "Persists a workspace at revision 1, assigning ids to any page/display/state that lacks one. An empty page list seeds one page, one desktop display and one default state.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "binding_page": "string",
+          "binding_scenario": "string",
+          "name": "string (required)",
+          "options_json": "opaque JSON",
+          "pages": "array<WorkspacePage>",
+          "provenance": "WorkspaceProvenance",
+          "summary": "string",
+          "tags": "array<string>",
+          "theme_json": "opaque JSON"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "name is missing, provenance is curated (seed only), or the aggregate fails validation; issues carry paths"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_save",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/SaveWorkspace",
+      "method": "POST",
+      "summary": "Replace a workspace aggregate",
+      "description": "Replaces pages/displays/states in one transaction, normalizes ordering to 0..n-1, bumps the revision and appends a protojson revision snapshot. base_revision is required; a stale base returns ABORTED and writes nothing.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "actor": "string (recorded on the snapshot)",
+          "base_revision": "int32 (required)",
+          "workspace": "Workspace (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing workspace/base_revision or an aggregate validation issue"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "base_revision did not match the stored revision"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_delete",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/DeleteWorkspace",
+      "method": "POST",
+      "summary": "Delete a workspace",
+      "description": "Deletes the aggregate, its nested rows and its revision history in one transaction.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_fork",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ForkWorkspace",
+      "method": "POST",
+      "summary": "Fork a workspace",
+      "description": "Copies the aggregate with fresh page/display/state ids, sets provenance FORKED and origin_workspace_id, and starts the fork at revision 1. An empty name means \"Copy of <origin name>\".",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "name": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_validate",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ValidateWorkspace",
+      "method": "POST",
+      "summary": "Validate a workspace without writing",
+      "description": "Checks the required name, aggregate-wide id uniqueness, concrete devices and per-display state-name uniqueness, and returns path-specific issues.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "workspace": "Workspace"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "issues": "array<ValidationIssue>",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "workspaces_assist",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/AssistWorkspace",
+      "method": "POST",
+      "summary": "Propose a patch for one workspace page",
+      "description": "Ask the AI gateway for a validated patch against one page, at an explicit revision and with the state on screen selected per display. The proposal is returned as opaque JSON and never written; the studio applies it as one undoable command or discards it.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "active_states": "array<{display_id,state_id}>",
+          "base_revision": "int32 (required)",
+          "id": "string (required)",
+          "idempotency_key": "string (8..200, required)",
+          "page_id": "string (optional; first page)",
+          "prompt": "string (1..2000 chars)",
+          "scope": "{kind: design|frame|layer, display_id?, node_id?}"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "WorkspaceAssistOperation",
+          "proposal_json": "opaque validated patch JSON",
+          "revision": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id/key, a bad scope, an unknown page/state, or an unreadable composition"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "base_revision did not match the stored revision"
+        },
+        {
+          "status": 422,
+          "code": "failed_precondition",
+          "description": "The model returned a patch this page cannot apply"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The AI gateway is not configured or could not be reached"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_revisions",
+      "path": "/vrooli.react_component_library.v1.workspace.WorkspaceService/ListWorkspaceRevisions",
+      "method": "POST",
+      "summary": "List workspace revision snapshots",
+      "description": "Returns revision snapshots newest-first, bounded by limit (0 = server default).",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "limit": "int32 (0 = server default, capped)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "revisions": "array<WorkspaceRevision>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "id is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ]
+    },
+    {
+      "id": "workspaces_assets_list",
+      "path": "/api/workspaces/{id}/assets",
+      "method": "GET",
+      "summary": "List a workspace's reference assets",
+      "description": "Returns upload metadata newest-first. Bytes are served by the per-asset route. A missing workspace is 404.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<WorkspaceAsset>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_create",
+      "path": "/api/workspaces/{id}/assets",
+      "method": "POST",
+      "summary": "Upload a reference asset",
+      "description": "Stores one image as a workspace reference. name is required; mime must be png, jpeg, webp, gif or svg+xml; decoded bytes are capped at 8 MiB; fidelity is reference (default) or captured. Dimensions are read from the header when the type carries them.",
+      "category": "workspaces",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dataBase64": "string (required; bare base64 or data URL)",
+          "fidelity": "\"reference\"|\"captured\" (optional)",
+          "mime": "string (required)",
+          "name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "WorkspaceAsset"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or invalid name/mime/dataBase64/fidelity, or bytes over 8 MiB"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_list_all",
+      "path": "/api/workspace-assets",
+      "method": "GET",
+      "summary": "List uploads across every workspace",
+      "description": "Returns metadata for uploads in any workspace, newest-first and bounded, so a reference already uploaded elsewhere can be found. Bytes remain scoped to the owning workspace.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<WorkspaceAsset>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_get",
+      "path": "/api/workspaces/{id}/assets/{assetId}",
+      "method": "GET",
+      "summary": "Read a reference asset's bytes",
+      "description": "Serves the stored image with its Content-Type, Cache-Control: private, max-age=3600 and an ETag equal to the asset id. If-None-Match returns 304.",
+      "category": "workspaces",
+      "response": {
+        "type": "binary",
+        "properties": {
+          "body": "image bytes"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id for that workspace"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The byte route is browser-native: it sets Content-Type, Cache-Control and an ETag and answers If-None-Match with 304. Wrapping the bytes in Connect JSON would force base64 on every image render.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspaces_assets_delete",
+      "path": "/api/workspaces/{id}/assets/{assetId}",
+      "method": "DELETE",
+      "summary": "Delete a reference asset",
+      "description": "Deletes the asset scoped to that workspace. Idempotent for an existing workspace; an asset belonging to another workspace is untouched.",
+      "category": "workspaces",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "204 No Content"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No workspace with that id"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Reference images are rendered directly by the browser and uploaded as a data URL. The list/create metadata travels with the same routes so one client owns uploads; failures still use the canonical JSON error envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
     }
   ]
 }

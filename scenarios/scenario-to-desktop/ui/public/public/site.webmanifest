@@ -1,0 +1,24 @@
+{
+  "background_color": "#0b1220",
+  "description": "Build, package, and validate native desktop applications from Vrooli scenarios.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "192x192",
+      "src": "icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "icon-512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "Scenario to Desktop",
+  "scope": "../",
+  "short_name": "Scenario Desktop",
+  "start_url": "../",
+  "theme_color": "#0b1220"
+}

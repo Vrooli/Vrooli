@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -10,8 +11,11 @@ import (
 
 // CommitDeps contains dependencies for commit operations.
 type CommitDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git               GitRunner
+	RepoDir           string
+	Precommit         *PrecommitService
+	CandidateSecurity CandidateSecurityScanner
+	Checks            CommitCheckRecorder
 }
 
 func commitValidationFailure(errors []string) *CommitResponse {
@@ -73,6 +77,16 @@ func validateCommitRequest(ctx context.Context, deps CommitDeps, repoDir string,
 // CreateCommit creates a new git commit with the given message.
 // [REQ:GCT-OT-P0-005] Commit composition API
 func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*CommitResponse, error) {
+	if err := requireHumanMutation(ctx, "create commit"); err != nil {
+		return nil, err
+	}
+	return createAuthorizedCommit(ctx, deps, req)
+}
+
+// createAuthorizedCommit runs validation, the configured pre-commit check and
+// git commit. Callers must already hold a consumed human intent for their own
+// operation; CreateCommit and proposal apply each check theirs.
+func createAuthorizedCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*CommitResponse, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}
@@ -85,13 +99,46 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
 		return resp, nil
 	}
+	if deps.CandidateSecurity != nil {
+		candidateCheck := scanStagedCandidate(ctx, deps.Git, repoDir, deps.CandidateSecurity)
+		if candidateCheck.Status != "passed" {
+			return &CommitResponse{
+				Success: false, Error: "candidate security check did not pass",
+				Precommit: &candidateCheck, Timestamp: time.Now().UTC(),
+			}, nil
+		}
+	}
+	var passedPrecommit *PrecommitRunResult
+	if deps.Precommit != nil && !req.SkipPrecommitOnce {
+		result, err := deps.Precommit.AwaitCandidateCheck(ctx, repoDir, deps.Git)
+		if err != nil {
+			return nil, err
+		}
+		if result.Status != "" && result.Status != "passed" {
+			return &CommitResponse{
+				Success:   false,
+				Error:     "precommit failed",
+				Precommit: &result,
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+		if result.Status == "passed" {
+			passedPrecommit = &result
+		}
+	}
 
 	noEdit := req.Amend && message == ""
+	precommitTree := ""
+	if passedPrecommit != nil {
+		precommitTree = passedPrecommit.receiptTree
+	}
 	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
-		AuthorName:  strings.TrimSpace(req.AuthorName),
-		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
-		Amend:       req.Amend,
-		NoEdit:      noEdit,
+		AuthorName:             strings.TrimSpace(req.AuthorName),
+		AuthorEmail:            strings.TrimSpace(req.AuthorEmail),
+		Amend:                  req.Amend,
+		NoEdit:                 noEdit,
+		NoVerify:               req.SkipPrecommitOnce,
+		PrecommitCandidateTree: precommitTree,
 	})
 	if err != nil {
 		return &CommitResponse{
@@ -99,6 +146,11 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 			Error:     err.Error(),
 			Timestamp: time.Now().UTC(),
 		}, nil
+	}
+	if deps.Checks != nil && passedPrecommit != nil {
+		if err := deps.Checks.Save(context.Background(), repoDir, hash, commitCheckFromPrecommit(*passedPrecommit)); err != nil {
+			log.Printf("save commit check run failed: %v", err)
+		}
 	}
 
 	return &CommitResponse{
@@ -126,19 +178,23 @@ var conventionalCommitRegex = regexp.MustCompile(`^([a-z]+)(\([a-z0-9-]+\))?!?: 
 // Based on https://www.conventionalcommits.org/en/v1.0.0/
 func ValidateConventionalCommit(message string) []string {
 	var errors []string
+	// Conventional syntax describes the title. Description and trailers are
+	// independent paragraphs and may contain arbitrary punctuation/newlines.
+	title, _, _ := strings.Cut(strings.ReplaceAll(message, "\r\n", "\n"), "\n")
+	title = strings.TrimSpace(title)
 
 	// Check basic format
-	if !conventionalCommitRegex.MatchString(message) {
+	if !conventionalCommitRegex.MatchString(title) {
 		errors = append(errors, "message must match format: type(scope): description or type: description")
 		return errors
 	}
 
 	// Extract the type (everything before the first ( or :)
-	typePart := message
-	if idx := strings.Index(message, "("); idx != -1 {
-		typePart = message[:idx]
-	} else if idx := strings.Index(message, ":"); idx != -1 {
-		typePart = message[:idx]
+	typePart := title
+	if idx := strings.Index(title, "("); idx != -1 {
+		typePart = title[:idx]
+	} else if idx := strings.Index(title, ":"); idx != -1 {
+		typePart = title[:idx]
 	}
 	// Remove trailing ! for breaking changes
 	typePart = strings.TrimSuffix(typePart, "!")

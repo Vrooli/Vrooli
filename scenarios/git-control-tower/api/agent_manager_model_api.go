@@ -10,8 +10,7 @@ type AgentProfile struct {
 	Key         string `json:"key,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	Model       string `json:"model,omitempty"`
-	RunnerType  string `json:"runnerType,omitempty"`
+	RoleRef     string `json:"roleRef,omitempty"`
 }
 
 // AgentProfileListResponse wraps a list of profiles.
@@ -40,7 +39,7 @@ type AgentRunSummary struct {
 	FilesModified []string `json:"filesModified,omitempty"`
 	FilesCreated  []string `json:"filesCreated,omitempty"`
 	FilesDeleted  []string `json:"filesDeleted,omitempty"`
-	TokensUsed    int      `json:"tokensUsed,omitempty"`
+	TokensUsed    int64    `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
 }
@@ -72,6 +71,7 @@ type AgentRun struct {
 	ApprovalState   string           `json:"approvalState,omitempty"`
 	PromptPreview   string           `json:"promptPreview,omitempty"`
 	SandboxID       string           `json:"sandboxId,omitempty"`
+	CommitHash      string           `json:"commitHash,omitempty"`
 	Summary         *AgentRunSummary `json:"summary,omitempty"`
 	Actions         *AgentRunActions `json:"actions,omitempty"`
 	CreatedAt       string           `json:"createdAt"`
@@ -121,16 +121,6 @@ type AgentRunDiffResponse struct {
 type AgentContinueRequest struct {
 	Message       string   `json:"message"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
-}
-
-// wireUploadAttachmentResponse is the response from agent-manager's upload endpoint.
-type wireUploadAttachmentResponse struct {
-	ID          string `json:"id"`
-	FileName    string `json:"file_name"`
-	ContentType string `json:"content_type"`
-	FileSize    int64  `json:"file_size"`
-	StoragePath string `json:"storage_path"`
-	URL         string `json:"url"`
 }
 
 // AttachmentUploadResponse is the UI-facing response for attachment uploads.

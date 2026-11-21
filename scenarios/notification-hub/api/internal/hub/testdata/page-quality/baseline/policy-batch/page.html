@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set the standing-teams policies</title>
+<style>
+  h1 { font-size: 1.65rem; line-height: 1.15; }
+  .lead { font-size: 1.05rem; }
+  .policy { padding: .8rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); margin: .6rem 0; }
+  .policy h3 { margin: 0 0 .25rem; }
+  .policy p { margin: .25rem 0; }
+  .flag { font: 600 .75rem var(--hub-font); color: var(--hub-accent); }
+  .choices { display: grid; gap: .65rem; }
+  .choices article { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: 1rem; background: var(--hub-surface); }
+  .choices h2 { margin: 0 0 .35rem; font-size: 1.15rem; }
+  .choices p { margin: .35rem 0; }
+  button { width: 100%; min-height: 44px; margin-top: .5rem; }
+</style>
+</head>
+<body>
+  <p class="kicker">Standing-teams programme · operating policies</p>
+  <h1>Which recommendations should set the programme's limits?</h1>
+  <p class="lead">I recommend applying all eight: together they set spending limits, reduce repeated permission asks, and clarify what the teams may do. The sender's reviewer advises deciding separately on lasting access grants and permanent run deletion.</p>
+  <p>Choose the main answer below, then select any recommendations in the form. Unchecked policies keep their current defaults. You can select the six reversible policies now and leave the two harder-to-reverse policies unchanged.</p>
+
+  <h2>The eight choices</h2>
+  <section class="policy"><h3>1. Usage ceiling</h3><p>Recommendation: at most 15 weekly quota points per 24 hours; stop and report at 50% of the week. Cheaper-model mode stays on. Default: cheaper-model mode on, no ceiling.</p><span class="flag">Reversible</span></section>
+  <section class="policy"><h3>2. Remove unused code</h3><p>Recommendation: delete about 8,000 lines across the unused control stack, duplicate plan editor and three dormant plan families. This code remains in history. Default: keep it; the board shrinks by 10% rather than 25%.</p><span class="flag">Reversible from history</span></section>
+  <section class="policy"><h3>3. Team access from a notification</h3><p>Recommendation: allow grants with no expiry until revoked, and list active grants in every daily digest. Default: grants only by link or command line, up to 30 days.</p><span class="flag">Hard to take back · decide separately</span></section>
+  <section class="policy"><h3>4. Reviews in Notification Hub</h3><p>Recommendation: answer reviews and goal close-outs in the Hub, as run reviews already are. Default: keep them in the command line and web console.</p><span class="flag">Reversible</span></section>
+  <section class="policy"><h3>5. Permanent deletion of old runs</h3><p>Recommendation: let agents permanently delete any old run belonging to the same owner without asking. Default: agents must ask.</p><span class="flag">Irreversible · deleted runs are gone</span></section>
+  <section class="policy"><h3>6. Fewer repeat permission requests</h3><p>Recommendation: agents you launched may notify and ask without a separate grant each time. Default: a grant each time. Eight of the last eleven permission requests were for this.</p><span class="flag">Reversible</span></section>
+  <section class="policy"><h3>7. Fewer “turn finished” alerts</h3><p>Recommendation: mute them and send one daily digest at normal urgency. They made up 2,448 of 3,366 notifications in 30 days. Default: leave notifications unchanged.</p><span class="flag">Reversible</span></section>
+  <section class="policy"><h3>8. Supervision objective</h3><p>Recommendation: cover research and standing-team owners, and enable the objective last. Default: leave unchanged and enable it last.</p><span class="flag">Reversible</span></section>
+
+  <h2>Choose how to answer</h2>
+  <div class="choices">
+    <article><h2>Apply selected recommendations</h2><p>Next: the teams record and apply only the policies you select in the form. Unselected policies stay at their defaults; you can leave 3 and 5 unchecked.</p><button type="button" class="is-primary" onclick="if(window.hub)hub.prefill('answer','apply')">Choose this</button></article>
+    <article><h2>Keep all eight defaults</h2><p>Next: the teams record the existing settings for every policy. No recommended change is applied.</p><button type="button" class="is-quiet" onclick="if(window.hub)hub.prefill('answer','defaults')">Choose this</button></article>
+  </div>
+  <p>Tap “Choose this,” select policies in the form if you chose the first answer, then send.</p>
+  <h2>What happens when you approve</h2>
+  <p>The selected policies are recorded and handed to the teams that apply them. An unselected policy stays at its current safe default.</p>
+  <h2>If you do not answer</h2>
+  <p>All eight defaults stay in force, and the programme continues without waiting for you.</p>
+  <div class="hub-callout"><strong>Second opinion.</strong> The sender's reviewer agrees the six reversible changes can be considered together, and recommends a separate answer on notification-based lasting grants and permanent deletion.</div>
+</body>
+</html>

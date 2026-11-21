@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "ship-a-scenario-to-a-device",
+    "title": "Take a scenario from source to an installable Android app",
+    "purpose": "The primary loop. An owner picks a scenario, generates an Android app, proves it behaves correctly, and learns exactly what remains before a person can install it. The journey must be completable on a host with no Android SDK and no Play account — ending honestly at a named blocker rather than a failure.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-002",
+      "OT-P0-005",
+      "OT-P0-009"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "empty",
+      "intent": "Start from a state with no generated project and understand that generating one is the next step.",
+      "via": "generate-project"
+    },
+    {
+      "page": "dashboard",
+      "state": "partial",
+      "intent": "See the probed target matrix and recognise which targets can actually be proven on this host.",
+      "via": "target-matrix"
+    },
+    {
+      "page": "target-detail",
+      "state": "missing-toolchain",
+      "intent": "Understand precisely why the emulator target is unavailable and what would resolve it.",
+      "via": "target-matrix row"
+    },
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "With the toolchain present, start a validation run over the selected cells.",
+      "via": "target-matrix"
+    },
+    {
+      "page": "run-review",
+      "state": "default",
+      "intent": "Read the conformance chapters and confirm the generated app satisfies the Android platform contract.",
+      "via": "run-verdict"
+    },
+    {
+      "page": "readiness",
+      "state": "nothing-started",
+      "intent": "Learn that the artifact is proven but not shippable, see the first concrete action and its cost, and see the dated obligations that constrain it.",
+      "via": "readiness-summary"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-completes-without-an-account",
+      "type": "custom",
+      "statement": "The full journey is walkable with no Play Console account, ending at a named blocking rung rather than an error.",
+      "tier": "manual",
+      "rationale": "S2A-P0-009. An owner must be able to prove their app works before spending money on distribution. A flow that dead-ends on a missing account conflates validation with release."
+    },
+    {
+      "id": "blocked-target-explains-itself-in-one-step",
+      "type": "custom",
+      "statement": "From the matrix, the reason a target is unavailable is reachable in a single navigation.",
+      "tier": "manual",
+      "rationale": "S2A-P0-003. If diagnosing an unavailable target requires the CLI, the operator surface has failed at its main job."
+    },
+    {
+      "id": "proven-does-not-imply-shippable",
+      "type": "custom",
+      "statement": "A fully passing matrix never presents itself as ready to ship while release readiness rungs are unsatisfied.",
+      "tier": "manual",
+      "rationale": "The two axes are independent. Conflating them is how an owner discovers at upload time that they cannot publish."
+    }
+  ]
+}

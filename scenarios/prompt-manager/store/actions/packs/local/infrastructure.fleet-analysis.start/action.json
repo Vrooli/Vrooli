@@ -1,0 +1,58 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "infrastructure.fleet-analysis.start",
+  "name": "Start or replay bounded fleet dependency analysis",
+  "description": "Persist a server-owned SDA fleet analysis receipt and return immediately. Reuse client_operation_id after any lost response; observe with scenario-dependency-analyzer analysis wait \u003cid\u003e. Does not repeat completed or interrupted work.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "scenario-dependency-analyzer"
+  },
+  "command": {
+    "argv": [
+      "scenario-dependency-analyzer",
+      "analysis",
+      "start",
+      "--client-operation-id",
+      "{{client_operation_id}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "client_operation_id": {
+      "type": "string",
+      "description": "Stable unique caller key; retain for recovery, at most 200 characters.",
+      "required": true
+    }
+  },
+  "outputs": {
+    "receipt": {
+      "type": "string",
+      "description": "Bounded JSON operation receipt, not a terminal success claim."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "processStart": true
+  },
+  "tags": [
+    "infrastructure",
+    "dependencies",
+    "analysis",
+    "operations",
+    "recovery"
+  ],
+  "execution": {
+    "timeoutSeconds": 60,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-11-05T21:47:22Z",
+  "updatedAt": "2026-11-05T21:47:22Z"
+}

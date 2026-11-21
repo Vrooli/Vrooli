@@ -1,0 +1,94 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-form-actions]"
+        }
+      ],
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "pending": true
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-form-actions]"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Submitting actions",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "error"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-form-actions]"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Action error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "GermanLongActions",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-form-actions]"
+        },
+        {
+          "attribute": "data-layout",
+          "kind": "attribute",
+          "selector": "[data-rcl-form-actions]",
+          "value": "row"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-form-actions] \u003e button",
+          "value": "3"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "sameRow": true,
+          "selector": "[data-rcl-form-actions]"
+        }
+      ],
+      "geometry": {
+        "height": "180px",
+        "width": "320px"
+      },
+      "id": "german-long-actions-phone",
+      "mode": "live",
+      "name": "Long German actions remain in one row at phone width",
+      "role": "boundary"
+    }
+  ]
+}

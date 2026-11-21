@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +11,8 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { Button } from "./ui/button";
 import { HelpButton } from "./HelpButton";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 
 interface CreateCampaignDialogProps {
   open: boolean;
@@ -38,7 +38,7 @@ export function CreateCampaignDialog({
   const [patterns, setPatterns] = useState("");
   const [errors, setErrors] = useState<{ name?: string; patterns?: string }>({});
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: { name?: string; patterns?: string } = {};
 
     if (!name.trim()) {
@@ -58,7 +58,7 @@ export function CreateCampaignDialog({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [name, patterns]);
 
   const handleSubmit = useCallback(() => {
     if (!validateForm()) {
@@ -76,7 +76,7 @@ export function CreateCampaignDialog({
       description,
       patterns: patternArray
     });
-  }, [name, fromAgent, description, patterns, onSubmit]);
+  }, [name, fromAgent, description, patterns, onSubmit, validateForm]);
 
   const resetForm = () => {
     setName("");
@@ -163,7 +163,7 @@ export function CreateCampaignDialog({
             </div>
             <Input
               id="fromAgent"
-              placeholder="e.g., ux-agent, manual, ecosystem-manager"
+              placeholder="e.g., ux-agent, manual, swarm-manager"
               value={fromAgent}
               onChange={(e) => setFromAgent(e.target.value)}
               disabled={isLoading}
@@ -243,15 +243,10 @@ export function CreateCampaignDialog({
             <p className="text-xs text-slate-600">
               <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Ctrl+Enter</kbd> to submit
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} disabled={isLoading}>
-                <Plus className="mr-2 h-4 w-4" />
-                {isLoading ? "Creating..." : "Create Campaign"}
-              </Button>
-            </div>
+            <OverlayActionBar className="w-auto" actions={[
+              { id: "cancel", label: "Cancel", onSelect: handleClose, disabled: isLoading },
+              { id: "create-campaign", label: isLoading ? "Creating..." : "Create Campaign", onSelect: handleSubmit, disabled: isLoading, primary: true },
+            ]} />
           </div>
         </DialogFooter>
       </DialogContent>

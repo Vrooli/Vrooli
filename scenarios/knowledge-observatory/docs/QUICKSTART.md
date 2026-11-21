@@ -50,4 +50,5 @@ This writes through the canonical record upsert path. [REQ: OT-P0-004]
 ## Next steps
 - Explore the graph view in the UI or via CLI. [REQ: OT-P0-003]
 - Review health/quality metrics. [REQ: OT-P0-002]
+- Run `knowledge-observatory docs audit knowledge-observatory` to check doc structure, traceability refs, and marked inline `path:` / `doc:` refs.
 - See: [DOC: docs/guides/getting-started.md#end-to-end-flow]

@@ -51,25 +51,25 @@ export function DialogContent({ className, onClose, children, ...props }: Dialog
   );
 }
 
-export interface DialogHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type DialogHeaderProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function DialogHeader({ className, ...props }: DialogHeaderProps) {
   return <div className={cn("mb-6", className)} {...props} />;
 }
 
-export interface DialogTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+export type DialogTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
 
 export function DialogTitle({ className, ...props }: DialogTitleProps) {
   return <h2 className={cn("text-xl font-semibold text-slate-50", className)} {...props} />;
 }
 
-export interface DialogDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
+export type DialogDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
 
 export function DialogDescription({ className, ...props }: DialogDescriptionProps) {
   return <p className={cn("text-sm text-slate-400", className)} {...props} />;
 }
 
-export interface DialogFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type DialogFooterProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function DialogFooter({ className, ...props }: DialogFooterProps) {
   return <div className={cn("mt-6 flex justify-end gap-3", className)} {...props} />;

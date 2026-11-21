@@ -1,0 +1,123 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.learning-feedback",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Record later user or downstream feedback against the exact result without replaying the original task.",
+  "owner_skill": "program-runtime",
+  "rung": "S3",
+  "assumptions": [
+    "The caller preserves a feedback reference from the original result and supplies observed evidence."
+  ],
+  "invariants": [
+    "Feedback preserves execution, verification, usefulness, efficiency, and context as separate judgments.",
+    "Recording feedback never executes the original domain task.",
+    "Unavailable delivery remains explicit and durably retryable."
+  ],
+  "inputs": {
+    "feedback_ref": {
+      "type": "string",
+      "required": true,
+      "free_text": true
+    },
+    "disposition": {
+      "type": "string",
+      "required": true
+    },
+    "dimension": {
+      "type": "string",
+      "default": "usefulness"
+    },
+    "correction": {
+      "type": "string",
+      "default": "",
+      "free_text": true
+    },
+    "evidence": {
+      "type": "array",
+      "required": true
+    }
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "output_bytes": 65536,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "verbs": [
+    "learn.feedback",
+    "learn.outcome",
+    "learn.result",
+    "learn.task"
+  ],
+  "bindings": [],
+  "fixtures": [
+    {
+      "id": "missing-reference",
+      "inputs": {
+        "disposition": "contradicted",
+        "evidence": [
+          "fixture:rejected"
+        ]
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      }
+    },
+    {
+      "id": "live-unknown-reference-refused",
+      "requires": [
+        "program-runtime"
+      ],
+      "inputs": {
+        "feedback_ref": "prt_feedback_v1_00000000-0000-0000-0000-000000000000",
+        "disposition": "contradicted",
+        "dimension": "verification",
+        "evidence": [
+          "fixture:unknown-result-refused"
+        ]
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "report"
+      ]
+    },
+    "signals": {
+      "receipt": "Durable feedback delivery and finding receipt; delivered is capture acknowledgment, not original-task success",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "kernel_runtime",
+        "binding_error",
+        "remote_error",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible"
+      ]
+    },
+    "evidence": "Observed user or downstream feedback evidence"
+  }
+}

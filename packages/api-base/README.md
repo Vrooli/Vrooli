@@ -8,6 +8,7 @@ Universal API connectivity for Vrooli scenarios. Handles API resolution, WebSock
 - 🔗 **Smart Resolution**: Automatically detects context (localhost, tunnel, proxy)
 - 🔌 **WebSocket Support**: First-class WS/WSS endpoint resolution
 - 🖥️ **Server Utilities**: Complete server with health, config, and proxy built-in
+- 🔒 **Same-Origin by Default**: Fetch Metadata and CORS refuse cross-origin browser requests ([SECURITY.md](SECURITY.md))
 - 🧪 **Fully Tested**: 156 unit tests covering all edge cases
 - 📦 **Zero Config**: Just `resolveApiBase({ appendSuffix: true })` and you're done
 - 🔄 **Backwards Compatible**: Supports existing proxy patterns
@@ -61,11 +62,12 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
-  corsOrigins: '*'  // Allow tunnel/proxy origins
 })
 
 app.listen(process.env.UI_PORT)
 ```
+
+> 🔒 **Same-origin by default:** the server refuses cross-origin browser requests (Fetch Metadata plus CORS) before any route or proxy runs, so a page the operator visits cannot read or change scenario data through `localhost` or the tunnel. The scenario's own pages, the tunnel, Web Console, host proxies, CLIs and services need no configuration. Declare exact cross-origin callers with `allowedOrigins` and uncredentialed public resources with `publicPaths`. `corsOrigins` was removed and is refused. See [SECURITY.md](SECURITY.md).
 
 > 🔄 **Fast proxying by default:** `createScenarioServer` now reuses HTTP connections between the UI and API, so proxied requests feel as fast as direct calls. Pass `proxyKeepAlive: false` (or provide a custom `proxyAgent`) to opt out when working with servers that don't support keep-alive.
 
@@ -91,15 +93,15 @@ This automatically sets up:
 - Static file serving from `./dist` (hashed assets served with immutable caching, SPA shell stays no-store)
 - SPA fallback routing
 
-## Propagating Changes to Scenarios
+## Propagating Changes To Scenarios
 
-After editing `@vrooli/api-base`, run the refresh helper so scenarios rebuild with the updated bundle:
+Package refresh is governed natively:
 
 ```bash
-./scripts/scenarios/tools/refresh-shared-package.sh api-base <scenario|all> [--no-restart]
+vrooli package refresh api-base all
 ```
 
-The script rebuilds this package, finds every targeted scenario that actually depends on `@vrooli/api-base`, runs `vrooli scenario setup`, and automatically restarts only the scenarios that were already running (unless you pass `--no-restart`). Stopped scenarios stay stopped after setup.
+That rebuilds `@vrooli/api-base`, discovers governed dependents, runs `vrooli scenario setup` for affected scenarios, and restarts only consumers that were already running.
 
 ## API Server Requirements
 
@@ -254,7 +256,6 @@ const app = createScenarioServer({
   apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'my-scenario',
-  corsOrigins: '*'  // Allow tunnel/proxy origins
 })
 
 app.listen(process.env.UI_PORT)
@@ -423,7 +424,8 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
-  corsOrigins: '*',
+  allowedOrigins: [],      // Exact cross-origin callers (default: same-origin only)
+  publicPaths: [],         // Paths any origin may read without credentials
   verbose: false,
   proxyTimeoutMs: 60000, // Optional: extend API proxy timeout for long-running requests
 
@@ -631,6 +633,16 @@ const API_BASE = resolveApiBase({
 ```
 
 The library automatically uses `window.location.origin` on localhost, which routes requests through your UI server's proxy.
+
+### 403 "Cross-origin request refused"
+
+**Cause:** A browser page on a different origin called this scenario's UI server.
+Different `localhost` ports and sibling tunnel subdomains are different origins.
+
+**Fix:** Open the scenario at its own address, or route the call through a
+server-side relay. If the caller really is a cross-origin client, such as a
+browser extension, declare its exact origin with `allowedOrigins`. The response's
+`detail` names the refused origin. See [SECURITY.md](SECURITY.md).
 
 ### API Requests Return 404
 

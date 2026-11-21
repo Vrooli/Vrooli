@@ -7,21 +7,26 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vrooli/cli-core/buildinfo"
+	"github.com/vrooli/envkit-go"
 )
 
 // StaleChecker compares the embedded build fingerprint against source files,
 // optionally auto-rebuilding via cli-installer when a mismatch is detected.
 type StaleChecker struct {
-	AppName           string
-	BuildFingerprint  string
-	BuildTimestamp    string
-	BuildSourceRoot   string
-	SourceRootEnvVars []string
-	InstallerModule   string // relative path to cli-core (default: packages/cli-core)
-	ReexecArgs        []string
+	AppName            string
+	BuildFingerprint   string
+	BuildTimestamp     string
+	BuildSourceRoot    string
+	SourceContextPath  string
+	ManifestSourcePath string
+	FreshnessInputs    []string
+	SourceRootEnvVars  []string
+	InstallerModule    string // relative path to cli-core (default: packages/cli-core)
+	InstallKind        string // scenario|resource; used only by the owner refresh command
+	InstallName        string // declared scenario/resource name, never a build path
+	ReexecArgs         []string
 
-	FingerprintFunc func(root string, skip ...string) (string, error)
+	FingerprintFunc func(spec FreshnessSpec) (string, error)
 	LookPathFunc    func(file string) (string, error)
 	CommandRunner   func(cmd *exec.Cmd) error
 	Logger          func(format string, args ...interface{})
@@ -43,92 +48,112 @@ func NewStaleChecker(appName, buildFingerprint, buildTimestamp, buildSourceRoot 
 // rebuildLoopEnvVar is set after a rebuild to detect infinite loops
 const rebuildLoopEnvVar = "CLI_CORE_REBUILD_FINGERPRINT"
 
+// debugStaleEnvVar enables per-file fingerprint diagnostics when set to a
+// truthy value. When a fingerprint mismatch is detected, the StaleChecker
+// will dump every file that participated (path, size, content hash) so that
+// install-time vs run-time divergence can be identified file-by-file.
+const debugStaleEnvVar = "VROOLI_CLI_DEBUG_STALE"
+
+// artifactModeEnvVar marks a CLI invocation running from a source-reduced
+// deployment artifact. Such a CLI must not attempt a development rebuild from
+// the deployed tree; the release pipeline already verified the binary.
+const artifactModeEnvVar = "VROOLI_CLI_ARTIFACT_MODE"
+
 // CheckAndMaybeRebuild returns true when the process was restarted after a rebuild.
-func (c *StaleChecker) CheckAndMaybeRebuild() bool {
+func (c *StaleChecker) CheckAndMaybeRebuild() (bool, error) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "1") || strings.EqualFold(strings.TrimSpace(os.Getenv(artifactModeEnvVar)), "true") {
+		return false, nil
+	}
 	if c.BuildFingerprint == "" || c.BuildFingerprint == "unknown" {
-		return false
+		return false, nil
 	}
 	srcRoot := ResolveSourceRoot(c.BuildSourceRoot, c.SourceRootEnvVars...)
 	if srcRoot == "" {
-		return false
+		return false, nil
 	}
+	spec := c.freshnessSpec(srcRoot)
 
-	var skipNames []string
 	if executable, err := os.Executable(); err == nil {
-		skipNames = append(skipNames, filepath.Base(executable))
+		spec.SkipFiles = append(spec.SkipFiles, filepath.Base(executable))
 	}
 
-	fingerprint, err := c.fingerprint(srcRoot, skipNames...)
+	fingerprint, err := c.fingerprint(spec)
 	if err != nil {
 		c.log("Warning: unable to verify CLI freshness: %v\n", err)
-		return false
+		return false, nil
 	}
 
 	if fingerprint == c.BuildFingerprint {
-		return false
+		return false, nil
 	}
 
 	// Detect infinite rebuild loops: if we already rebuilt for this fingerprint
 	// but still have a mismatch, something is wrong - don't rebuild again
 	if prevFingerprint := os.Getenv(rebuildLoopEnvVar); prevFingerprint == fingerprint {
 		c.log("Warning: %s CLI rebuild loop detected (fingerprint %s). Skipping auto-rebuild.\n", c.appLabel(), fingerprint)
-		c.log("  This usually means the binary name doesn't match between the stale checker and installer.\n")
+		c.log("  This usually means stale checking and installation still disagree about the freshness inputs.\n")
 		c.log("  Build fingerprint: %s, Source fingerprint: %s\n", c.BuildFingerprint, fingerprint)
-		return false
+		c.log("  Set %s=1 to dump per-file fingerprint inputs and identify the divergence.\n", debugStaleEnvVar)
+		c.dumpFreshnessDebug(spec)
+		return false, fmt.Errorf("%s CLI remains stale after a previous refresh attempt; refusing to dispatch with mismatched sources", c.appLabel())
 	}
+	c.dumpFreshnessDebug(spec)
 
-	if c.autoRebuild(srcRoot, fingerprint) {
-		return true
+	restarted, err := c.autoRebuild(spec, fingerprint)
+	if err != nil {
+		return false, err
 	}
-
-	c.log("Warning: %s CLI binary built at %s (fingerprint %s) does not match the current sources (fingerprint %s).\n", c.appLabel(), c.BuildTimestamp, c.BuildFingerprint, fingerprint)
-	return false
+	return restarted, nil
 }
 
-func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
+func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) (bool, error) {
 	if _, err := c.lookPath()("go"); err != nil {
-		return false
+		return false, fmt.Errorf("%s CLI is stale and the Go toolchain is unavailable: %w", c.appLabel(), err)
 	}
 
-	repoRoot, ok := findRepositoryRoot(srcRoot, c.installerModule())
+	repoRoot, ok := findRepositoryRoot(spec.SourceRoot, c.installerModule())
 	if !ok {
-		return false
+		return false, fmt.Errorf("%s CLI is stale but its cli-core installer source root is unavailable", c.appLabel())
 	}
 
 	executable, err := os.Executable()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("resolve running %s CLI path: %w", c.appLabel(), err)
 	}
-
-	// Pass the binary name to the installer so it uses the same skip file
-	// as the stale checker when computing the fingerprint. Without this,
-	// the installer would use the module directory name (e.g., "cli") while
-	// the stale checker uses the executable name (e.g., "test-genie"),
-	// causing different fingerprints and an infinite rebuild loop.
-	binaryName := filepath.Base(executable)
-
-	cmd := exec.Command("go", "run", "./cmd/cli-installer",
-		"--module", srcRoot,
-		"--output", executable,
-		"--name", binaryName,
-		"--force", "true",
-	)
-	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
-	cmd.Env = os.Environ()
+	controlPlane, err := c.controlPlaneBinary()
+	if err != nil {
+		return false, fmt.Errorf("%s CLI is stale; capacity-admitted refresh is unavailable: %w", c.appLabel(), err)
+	}
+	if c.InstallKind != "scenario" && c.InstallKind != "resource" || strings.TrimSpace(c.InstallName) == "" {
+		return false, fmt.Errorf("%s CLI is stale but has no declared scenario/resource install identity", c.appLabel())
+	}
+	cmd := exec.Command(controlPlane, "cli-refresh", c.InstallKind, c.InstallName, executable)
+	cmd.Dir = repoRoot
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	if err := c.commandRunner()(cmd); err != nil {
-		c.log("Warning: CLI auto-rebuild failed: %v\n", err)
-		return false
+		return false, fmt.Errorf("%s CLI refresh was not admitted or did not complete; retry when available: %w", c.appLabel(), err)
 	}
 
 	c.log("%s CLI rebuilt from current sources (fingerprint %s); restarting command...\n", c.appLabel(), currentFingerprint)
 	if err := c.reexec()(executable, c.ReexecArgs, currentFingerprint); err != nil {
-		c.log("Warning: unable to restart CLI after rebuild: %v\n", err)
+		return false, fmt.Errorf("restart refreshed %s CLI: %w", c.appLabel(), err)
 	}
-	return true
+	return true, nil
+}
+
+func (c *StaleChecker) controlPlaneBinary() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(LaunchRuntimeBinaryEnv)); configured != "" {
+		info, err := os.Stat(configured)
+		if err != nil || info.IsDir() {
+			return "", fmt.Errorf("configured control-plane binary %q is unavailable", configured)
+		}
+		return configured, nil
+	}
+	return c.lookPath()("vrooli")
 }
 
 func findRepositoryRoot(start, installerModule string) (string, bool) {
@@ -147,11 +172,11 @@ func findRepositoryRoot(start, installerModule string) (string, bool) {
 	return "", false
 }
 
-func (c *StaleChecker) fingerprint(root string, skip ...string) (string, error) {
+func (c *StaleChecker) fingerprint(spec FreshnessSpec) (string, error) {
 	if c.FingerprintFunc != nil {
-		return c.FingerprintFunc(root, skip...)
+		return c.FingerprintFunc(spec)
 	}
-	return buildinfo.ComputeFingerprint(root, skip...)
+	return ComputeFreshnessFingerprint(spec)
 }
 
 func (c *StaleChecker) lookPath() func(string) (string, error) {
@@ -185,8 +210,7 @@ func (c *StaleChecker) reexec() func(string, []string, string) error {
 	}
 	return func(executable string, args []string, fingerprint string) error {
 		cmd := exec.Command(executable, args...)
-		// Set the rebuild fingerprint env var to detect loops
-		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint))
+		cmd.Env = selfReexecEnv(envkit.Env(os.Environ()), fingerprint)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -202,6 +226,33 @@ func (c *StaleChecker) reexec() func(string, []string, string) error {
 	}
 }
 
+// selfReexecIdentityEnvVars are the agent identity variables envkit drops at
+// every boundary except a delegated agent. A re-exec of the rebuilt binary is
+// the same invocation by the same agent, so it keeps them; without this an
+// agent's first CLI call after a source edit runs with no identity.
+var selfReexecIdentityEnvVars = []string{EnvIdentityToken, EnvClaudeCodeSessionID, EnvCodexThreadID}
+
+// selfReexecEnv derives the environment for re-executing the rebuilt CLI. It
+// is the SameScenario environment plus the caller's own identity variables
+// (only those present in parent) and the rebuild fingerprint that detects loops.
+func selfReexecEnv(parent envkit.Env, fingerprint string) envkit.Env {
+	platform := envkit.DefaultPlatform()
+	overlay := envkit.Env{fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint)}
+	for _, entry := range parent {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		for _, identityKey := range selfReexecIdentityEnvVars {
+			if key == identityKey || (platform.CaseInsensitive && strings.EqualFold(key, identityKey)) {
+				overlay = append(overlay, entry)
+				break
+			}
+		}
+	}
+	return envkit.WithOverlayWithPlatform(parent, envkit.SameScenario, overlay, platform)
+}
+
 func (c *StaleChecker) installerModule() string {
 	if strings.TrimSpace(c.InstallerModule) != "" {
 		return c.InstallerModule
@@ -214,4 +265,71 @@ func (c *StaleChecker) appLabel() string {
 		return c.AppName
 	}
 	return "CLI"
+}
+
+func (c *StaleChecker) sourceContextRoot(srcRoot string) string {
+	if strings.TrimSpace(c.SourceContextPath) == "" {
+		return srcRoot
+	}
+	return filepath.Join(srcRoot, filepath.FromSlash(c.SourceContextPath))
+}
+
+// dumpFreshnessDebug prints the per-file fingerprint inputs when the
+// debugStaleEnvVar env var is truthy. Used to diagnose install-time vs
+// run-time divergence (typical cause: stray build artifacts left inside
+// the freshness glob by ad-hoc `go build` runs).
+func (c *StaleChecker) dumpFreshnessDebug(spec FreshnessSpec) {
+	if !truthy(os.Getenv(debugStaleEnvVar)) {
+		return
+	}
+	c.log("[%s] Freshness inputs (set %s=0 to silence):\n", c.appLabel(), debugStaleEnvVar)
+	c.log("  SourceRoot:  %s\n", spec.SourceRoot)
+	c.log("  ContextRoot: %s\n", spec.ContextRoot)
+	c.log("  Inputs:      %v\n", spec.Inputs)
+	c.log("  SkipFiles:   %v\n", spec.SkipFiles)
+	if err := dumpFreshnessFiles(spec, c.log); err != nil {
+		c.log("  (file enumeration failed: %v)\n", err)
+	}
+}
+
+func truthy(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "0", "false", "no", "off":
+		return false
+	}
+	return true
+}
+
+// freshnessSpec derives the same spec the installer recorded: declared inputs
+// plus the local replace targets the CLI imports. Caller-provided inputs are
+// not baked, so the runtime must expand them itself to agree with the build.
+func (c *StaleChecker) freshnessSpec(srcRoot string) FreshnessSpec {
+	return WithGoReplaceFreshnessInputs(FreshnessSpec{
+		SourceRoot:  srcRoot,
+		ContextRoot: c.sourceContextRoot(srcRoot),
+		Inputs:      append([]string(nil), c.FreshnessInputs...),
+	})
+}
+
+func (c *StaleChecker) manifestSourcePath(contextRoot string) string {
+	if strings.TrimSpace(c.ManifestSourcePath) == "" {
+		return ""
+	}
+	return filepath.Join(contextRoot, filepath.FromSlash(c.ManifestSourcePath))
+}
+
+func dumpFreshnessFiles(spec FreshnessSpec, logf func(string, ...interface{})) error {
+	entries, err := collectFreshnessEntries(spec)
+	if err != nil {
+		return err
+	}
+	logf("  Files (%d):\n", len(entries))
+	for _, entry := range entries {
+		hash := entry.Hash
+		if len(hash) > 12 {
+			hash = hash[:12]
+		}
+		logf("    %s  %10d  %s\n", hash, entry.Size, entry.Rel)
+	}
+	return nil
 }

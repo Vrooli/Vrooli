@@ -12,6 +12,7 @@
 
 // Backlog
 export { backlogService, createBacklogService } from "./backlog-service";
+export { autoFilerService, createAutoFilerService } from "./auto-filer-service";
 export type { IBacklogService, QueueResponse } from "./backlog-service";
 
 // Captures
@@ -20,11 +21,20 @@ export type { ICaptureService, CreateCaptureResponse, ClassifyResponse } from ".
 
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";
-export type { IScenariosService } from "./scenarios-service";
+export type { IScenariosService, ScenarioMaturityCampaignPreview, ScenarioRemediationPreview } from "./scenarios-service";
 
 // Settings
 export { settingsService, createSettingsService } from "./settings-service";
 export type { ISettingsService } from "./settings-service";
+
+// Integration status
+export { integrationStatusService, createIntegrationStatusService } from "./integration-status-service";
+export type {
+  IIntegrationStatusService,
+  IntegrationAvailability,
+  IntegrationStatus,
+  IntegrationStatusResponse,
+} from "./integration-status-service";
 
 // Agent Manager
 export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
@@ -34,21 +44,34 @@ export type { IAgentManagerService, AgentRunDetails } from "./agent-manager-serv
 export { agentActivityService, createAgentActivityService } from "./agent-activity-service";
 export type { IAgentActivityService, ListAgentActivitiesFilters } from "./agent-activity-service";
 
+// Agent Sessions
+export { agentSessionService, createAgentSessionService } from "./agent-session-service";
+export { proposalSessionService, createProposalSessionService } from "./proposal-session-service";
+export type {
+  ApplyAgentSessionProposalResult,
+  CreateAgentSessionArgs,
+  ContinueAgentSessionArgs,
+  IAgentSessionService,
+  ListAgentSessionsFilters,
+} from "./agent-session-service";
+
 // Execution
 export { executionService, createExecutionService } from "./execution-service";
 export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } from "./execution-service";
 
-// Initiatives
-export { initiativeService, createInitiativeService } from "./initiative-service";
-export type { IInitiativeService } from "./initiative-service";
+// Registry-declared transitions
+export { transitionService, createTransitionService } from "./transition-service";
+export type { ITransitionService } from "./transition-service";
+
+// Goals
+export { goalsService, createGoalsService } from "./goals-service";
+export type { IGoalsService } from "./goals-service";
 
 // Prompt Center
 export { promptService, createPromptService } from "./prompt-service";
 export type {
-  IPromptService,
-  PromptPreviewResponse,
-  PromptSimulateRequest,
-  PromptSimulateResponse,
+	IPromptService,
+	PromptPreviewResponse,
 } from "./prompt-service";
 
 // Graph
@@ -73,6 +96,9 @@ export type {
   EvidenceType,
   RequestThread,
 } from "./review-service";
+
+
+// Milestone Review
 
 // Embedded Services
 export { embeddedService, createEmbeddedService } from "./embedded-service";

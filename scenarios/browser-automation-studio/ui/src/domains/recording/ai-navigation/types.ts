@@ -11,10 +11,9 @@
 export interface VisionModelSpec {
   id: string;
   displayName: string;
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  inputCostPer1MTokens: number;
-  outputCostPer1MTokens: number;
-  tier: 'budget' | 'standard' | 'premium';
+  /** Provider-neutral AI Gateway routing profile. */
+  profile: 'local_first' | 'remote_only';
+  tier: 'local' | 'remote';
   recommended: boolean;
 }
 
@@ -23,64 +22,20 @@ export interface VisionModelSpec {
  */
 export const VISION_MODELS: VisionModelSpec[] = [
   {
-    id: 'qwen3-vl-30b',
-    displayName: 'Qwen3-VL-30B',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 0.15,
-    outputCostPer1MTokens: 0.60,
-    tier: 'budget',
+    id: 'local_first',
+    displayName: 'Local-first vision',
+    profile: 'local_first',
+    tier: 'local',
     recommended: true,
   },
   {
-    id: 'gpt-4o',
-    displayName: 'GPT-4o',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 2.50,
-    outputCostPer1MTokens: 10.00,
-    tier: 'standard',
-    recommended: true,
-  },
-  {
-    id: 'gpt-4o-mini',
-    displayName: 'GPT-4o Mini',
-    provider: 'openrouter',
-    inputCostPer1MTokens: 0.15,
-    outputCostPer1MTokens: 0.60,
-    tier: 'budget',
+    id: 'remote_only',
+    displayName: 'Hosted vision',
+    profile: 'remote_only',
+    tier: 'remote',
     recommended: false,
   },
-  {
-    id: 'claude-sonnet-4',
-    displayName: 'Claude Sonnet 4',
-    provider: 'anthropic',
-    inputCostPer1MTokens: 3.00,
-    outputCostPer1MTokens: 15.00,
-    tier: 'premium',
-    recommended: true,
-  },
 ];
-
-/**
- * Request to start AI navigation.
- */
-export interface AINavigateRequest {
-  sessionId: string;
-  prompt: string;
-  model: string;
-  maxSteps?: number;
-  apiKey?: string;
-}
-
-/**
- * Response when AI navigation starts.
- */
-export interface AINavigateResponse {
-  navigationId: string;
-  status: string;
-  model: string;
-  maxSteps: number;
-  estimatedCost?: number;
-}
 
 /**
  * Token usage for credit tracking.
@@ -95,9 +50,11 @@ export interface TokenUsage {
  * Browser action from vision model.
  */
 export interface BrowserAction {
-  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done' | 'request_human';
+  type: 'click' | 'type' | 'scroll' | 'navigate' | 'hover' | 'select' | 'wait' | 'keypress' | 'done' | 'request_human' | 'find' | 'read' | 'evaluate' | 'tabs' | 'drag' | 'zoom';
   elementId?: number;
   coordinates?: { x: number; y: number };
+  selector?: string;
+  value?: string;
   text?: string;
   direction?: 'up' | 'down' | 'left' | 'right';
   url?: string;
@@ -182,18 +139,6 @@ export interface HumanInterventionState {
 }
 
 /**
- * Navigation status response.
- */
-export interface NavigationStatusResponse {
-  navigationId: string;
-  sessionId: string;
-  status: string;
-  stepCount: number;
-  totalTokens: number;
-  startedAt: string;
-}
-
-/**
  * State of an AI navigation session.
  */
 export interface AINavigationState {
@@ -202,8 +147,13 @@ export interface AINavigationState {
   prompt: string;
   model: string;
   steps: AINavigationStep[];
-  status: 'idle' | 'navigating' | 'aborting' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
+  status: 'idle' | 'navigating' | 'aborting' | 'observation_unavailable' | 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   totalTokens: number;
+  totalDurationMs: number;
+  finalUrl: string;
+  verifiedSuccess: boolean;
+  extractedData: Record<string, unknown> | null;
+  verificationError: string | null;
   error: string | null;
   humanIntervention: HumanInterventionState | null;
 }

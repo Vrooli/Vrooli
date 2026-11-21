@@ -1,0 +1,52 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "experiential-ui-design",
+  "name": "experiential-ui-design",
+  "description": "Design a scenario UI to be genuinely beautiful, intuitive, cohesive, and market-standout across desktop and mobile as co-equal media — design the medium (not the screen size), model content once and compose it twice, work mockup-first, and unify the surfaces under one concept. Not token/primitive infrastructure (ui-design-system-migration), not i18n (ui-i18n-adoption), not usability heuristics alone (ux).",
+  "modes": [
+    "steer",
+    "ux"
+  ],
+  "tags": [
+    "ui",
+    "ux",
+    "visual",
+    "mobile",
+    "responsive",
+    "design",
+    "mockup",
+    "layout"
+  ],
+  "icon": "sparkles",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetDimensions": [
+    "visual",
+    "ui",
+    "accessibility"
+  ],
+  "requires": {
+    "scenarios": [
+      "prompt-manager"
+    ],
+    "commands": [
+      "prompt-manager skill read"
+    ]
+  },
+  "origin": {
+    "kind": "authored",
+    "sourceUrl": "",
+    "commit": "",
+    "license": "",
+    "checksum": "",
+    "importedBy": "",
+    "importedAt": "",
+    "review": {
+      "verdict": ""
+    }
+  },
+  "revision": 7,
+  "createdAt": "2026-09-21T00:00:00Z",
+  "updatedAt": "2026-11-14T15:55:05Z"
+}

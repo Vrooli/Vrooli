@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remove one stored BAS execution?</title>
+<style>
+  body { font-family: var(--hub-font); }
+  h1 { font-size: 1.55rem; line-height: 1.15; }
+  .eyebrow { color: var(--hub-muted); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .scope { display: grid; gap: .65rem; margin: 1.25rem 0; }
+  .scope-row { display: grid; grid-template-columns: 5rem 1fr; gap: .75rem; align-items: center; }
+  .scope-row strong { font-size: 1.2rem; }
+  .bar { min-height: 2.5rem; border-radius: var(--hub-radius); padding: .55rem .7rem; background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .bar.target { background: var(--hub-primary); color: var(--hub-on-primary); }
+  .fine { color: var(--hub-muted); font-size: .9rem; }
+  .answers { display: grid; gap: .75rem; }
+  .answer { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: 1rem; background: var(--hub-surface); color: var(--hub-fg); }
+  .answer h2 { margin-top: 0; font-size: 1.1rem; }
+  .answer p { margin-bottom: .8rem; }
+  .answer button { min-height: 44px; }
+  .reason { border-left: .25rem solid var(--hub-accent); padding: .25rem .75rem; }
+  @media (min-width: 560px) { .answers { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Browser Automation Studio · stored conversation text</p>
+  <h1>Should I build and review a safe way to remove this one execution, then delete it?</h1>
+  <p>I recommend yes: it removes the stored private text while protecting the 6,121 unrelated runs the current cleanup would also select.</p>
+
+  <h2>What the cleanup would touch</h2>
+  <div class="scope" role="img" aria-label="The intended cleanup targets one stored execution. The existing workflow cleanup preview includes 6,121 unrelated runs.">
+    <div class="scope-row"><strong>1</strong><div class="bar target">execution containing the unrelated conversation</div></div>
+    <div class="scope-row"><strong>6,121</strong><div class="bar">unrelated runs in the current workflow cleanup preview</div></div>
+  </div>
+  <p class="fine">The worker already removed its local output and stopped captures. This one recorded execution is still stored in BAS. The broad cleanup was previewed and left untouched.</p>
+
+  <div class="reason"><strong>Why this decision exists.</strong> BAS cleanup currently selects by age, workflow, or project, so it cannot safely isolate this execution. Building and independently reviewing exact selection fixes that gap. The deletion itself cannot be undone.</div>
+
+  <h2>Your choice</h2>
+  <div class="answers">
+    <section class="answer">
+      <h2>Build, review, then delete this one</h2>
+      <p>I will build exact single-execution cleanup, get an independent review, and delete only this execution if the review proves its scope. If exact scope is not proven, I will stop without deleting.</p>
+      <p><strong>Cost or risk:</strong> the final deletion is irreversible; the independent review is the safeguard.</p>
+      <button type="button" onclick="if(window.hub&amp;&amp;window.hub.prefill)window.hub.prefill('answer','delete')">Choose this</button>
+    </section>
+    <section class="answer">
+      <h2>Hold the execution</h2>
+      <p>I will keep it stored and avoid using BAS for this proof until a safe exact cleanup path exists. Other work continues.</p>
+      <p><strong>Cost or risk:</strong> the conversation text remains stored in this execution while the proof stays on hold.</p>
+      <button type="button" class="is-quiet" onclick="if(window.hub&amp;&amp;window.hub.prefill)window.hub.prefill('answer','hold')">Choose this</button>
+    </section>
+  </div>
+
+  <h2>What follows</h2>
+  <p>If you approve, the prepared work is to build the exact cleanup, obtain independent review, and delete only this execution after the scope is confirmed. If you do not answer, the choice is hold: keep the execution and do not use BAS for this proof until a safe path exists.</p>
+  <details>
+    <summary>Where these numbers and details come from</summary>
+    <p>The supplied incident facts and the workflow cleanup preview. The preview would select 6,121 unrelated runs; no run was deleted. The worker's local files are already deleted, but the recorded execution remains in BAS.</p>
+  </details>
+</body>
+</html>

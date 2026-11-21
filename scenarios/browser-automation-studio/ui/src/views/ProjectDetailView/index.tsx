@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
 import { useWorkflowStore } from '@stores/workflowStore';
 import { useModals } from '@shared/modals';
@@ -259,7 +259,7 @@ export default function ProjectDetailView() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-flow-bg">
+      <div className="h-full flex items-center justify-center bg-flow-bg">
         <LoadingSpinner variant="default" size={24} message="Loading project..." />
       </div>
     );
@@ -273,7 +273,7 @@ export default function ProjectDetailView() {
     <div data-testid={selectors.app.shell.ready} className="flex-1 flex flex-col min-h-0">
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="default" size={24} message="Loading project..." />
           </div>
         }

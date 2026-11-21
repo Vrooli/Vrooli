@@ -156,6 +156,9 @@ func TestHandlerPerformance(t *testing.T) {
 
 	t.Run("HealthCheckLatency", func(t *testing.T) {
 		const iterations = 1000
+		testDB := setupTestDatabase(t)
+		defer testDB.Cleanup()
+		healthHandler := newHealthHandler(testDB.DB)
 
 		start := time.Now()
 

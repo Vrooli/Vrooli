@@ -1,3 +1,4 @@
+import { HistoryFileSafetyBadge } from "./PushSafetyIndicators";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { File, History, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -47,6 +48,7 @@ export function HistoryFileList({
   fillHeight = true,
   onDeletePath
 }: HistoryFileListProps) {
+
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
@@ -112,6 +114,7 @@ export function HistoryFileList({
             </div>
           </div>
 
+
           <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
             <div style={{ paddingBottom: 48 }}>
             {sortedFiles.length === 0 ? (
@@ -142,6 +145,7 @@ export function HistoryFileList({
                         <span className="font-mono text-xs truncate block w-full" title={file}>
                           {displayPath}
                         </span>
+                        <HistoryFileSafetyBadge hash={viewingCommit.hash} path={file} />
                       </div>
                       {onDeletePath && (
                         <button

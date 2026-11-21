@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schemas.vrooli.dev/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "web-console",
+  "product_shape": "meter_only",
+  "requires_entitlement": false,
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "byok": true,
+      "enforcement_paths": ["api/internal/ai/provider.go"]
+    }
+  ]
+}

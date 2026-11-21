@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["program", "version", "status", "phase", "signals", "errors", "evidence"],
+  "properties": {
+    "program": {"const": "command-center.portfolio-pulse"},
+    "version": {"type": "string"},
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "classify", "report"]},
+    "signals": {
+      "type": "object",
+      "required": ["generated_at", "stale_backlog", "aging_goals", "board", "attention", "quality"],
+      "properties": {
+        "generated_at": {"type": "string"},
+        "stale_backlog": {
+          "type": "object",
+          "required": ["total_stale", "returned", "truncated", "items"],
+          "properties": {
+            "total_stale": {"type": "integer"},
+            "returned": {"type": "integer"},
+            "truncated": {"type": "boolean"},
+            "selection": {"type": "string"},
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["ref", "updated", "age_days"],
+                "properties": {
+                  "ref": {"type": "string"},
+                  "title": {"type": "string"},
+                  "status": {"type": "string"},
+                  "priority": {},
+                  "updated": {"type": ["string", "null"]},
+                  "age_days": {"type": ["integer", "null"]}
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "aging_goals": {
+          "type": "object",
+          "required": ["threshold_days", "total_active", "aging_count", "returned", "truncated", "items"],
+          "properties": {
+            "threshold_days": {"type": "integer"},
+            "total_active": {"type": "integer"},
+            "aging_count": {"type": "integer"},
+            "returned": {"type": "integer"},
+            "truncated": {"type": "boolean"},
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "updated", "age_days"],
+                "properties": {
+                  "name": {"type": ["string", "null"]},
+                  "title": {"type": "string"},
+                  "updated": {"type": ["string", "null"]},
+                  "age_days": {"type": ["integer", "null"]},
+                  "scope": {"type": "object"}
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "board": {
+          "type": "object",
+          "required": ["status", "outcome_count"],
+          "properties": {
+            "status": {"type": "string"},
+            "outcome_count": {"type": ["integer", "null"]},
+            "untrusted": {"type": "array"},
+            "reading_at": {"type": ["string", "null"]},
+            "truncated": {"type": "boolean"},
+            "focus_coverage_gap": {"type": "object"}
+          },
+          "additionalProperties": true
+        },
+        "attention": {"type": "array", "items": {"type": "string"}},
+        "quality": {
+          "type": "object",
+          "required": ["sources_read", "sources_unavailable"],
+          "properties": {
+            "sources_read": {"type": "integer"},
+            "sources_unavailable": {"type": "integer"},
+            "stale_backlog_total": {"type": "integer"},
+            "aging_goals_total": {"type": "integer"}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "errors": {"type": "array"},
+    "evidence": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

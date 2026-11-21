@@ -7,9 +7,14 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"agent-manager/internal/conversationpolicy"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // LoadLevers loads configuration with the following precedence (highest first):
@@ -21,7 +26,7 @@ func LoadLevers() (*Levers, error) {
 	levers := DefaultLevers()
 
 	// Load from config file if specified
-	if configPath := os.Getenv("AGENT_MANAGER_CONFIG"); configPath != "" {
+	if configPath, configured := os.LookupEnv("AGENT_MANAGER_CONFIG"); configured && configPath != "" {
 		if err := loadFromFile(&levers, configPath); err != nil {
 			return nil, err
 		}
@@ -30,12 +35,52 @@ func LoadLevers() (*Levers, error) {
 	// Apply environment variable overrides
 	applyEnvOverrides(&levers)
 
+	// Merge the dedicated conversation-policy file. Inline rules (from the main
+	// config file) win, so an operator who set rules there is not overridden by a
+	// stale sidecar file; otherwise the sidecar file — which the CLI edits — is
+	// the source of truth. A missing file is simply no policy.
+	if len(levers.ConversationPolicy.Rules) == 0 {
+		path := strings.TrimSpace(os.Getenv(conversationpolicy.FileEnvVar))
+		if path == "" {
+			var err error
+			path, err = ScenarioSourcePath(".vrooli", conversationpolicy.DefaultFileName)
+			if err != nil {
+				return nil, err
+			}
+		}
+		doc, err := conversationpolicy.LoadDocument(path)
+		if err != nil {
+			return nil, err
+		}
+		levers.ConversationPolicy.Rules = doc.Rules
+	}
+
 	// Validate final configuration
 	if err := levers.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &levers, nil
+}
+
+// RepoRoot resolves canonical configuration and declaration source, not retained
+// executable artifacts or runtime state. PROJECT_ROOT remains the explicit
+// Agent Manager override; the shared contract owns lifecycle/process discovery.
+func RepoRoot() (string, error) {
+	return repocontract.ResolveScenarioSourceRoot("agent-manager", os.Getenv("PROJECT_ROOT"))
+}
+
+// ScenarioSourcePath resolves a configuration path using the canonical layout.
+func ScenarioSourcePath(parts ...string) (string, error) {
+	root, err := RepoRoot()
+	if err != nil {
+		return "", err
+	}
+	scenario, err := repocontract.ResolveScenarioPath(root, "agent-manager")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(append([]string{scenario}, parts...)...), nil
 }
 
 // loadFromFile reads configuration from a JSON file.
@@ -128,6 +173,9 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
 		l.Runners.StartupGracePeriod = v
 	}
+	if v, ok := envBoolOpt("AGENT_MANAGER_RUNNERS_USE_CLI_DEFAULT_MODEL"); ok {
+		l.Runners.UseCliDefaultModel = v
+	}
 
 	// Server levers
 	if v := getEnv("AGENT_MANAGER_SERVER_PORT"); v != "" {
@@ -173,6 +221,31 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvInt("AGENT_MANAGER_STORAGE_ARTIFACT_RETENTION_DAYS"); v > 0 {
 		l.Storage.ArtifactRetentionDays = v
 	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_STALE_RUN_STATE_RETENTION_DAYS"); v > 0 {
+		l.Storage.StaleRunStateRetentionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_DAYS"); v > 0 {
+		l.Storage.ImportedToolCompactionDays = v
+	}
+	if v := getEnvInt("AGENT_MANAGER_STORAGE_IMPORTED_TOOL_COMPACTION_MIN_BYTES"); v > 0 {
+		l.Storage.ImportedToolCompactionMinBytes = v
+	}
+	// Transcript recall budget. Presence-checked (not >0) so an operator can
+	// set 0 to keep usage summaries only.
+	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_MAX_BYTES")); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v >= 0 {
+			l.Storage.ImportedCorpusMaxBytes = v
+		}
+	}
+
+	// Transcript-import levers. The interval keeps its historical env name; the
+	// scan-roots list is new and is additive to the built-in harness roots.
+	if v := getEnvDuration("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL"); v > 0 {
+		l.TranscriptImport.Interval = v
+	}
+	if v := envStringList("AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS"); len(v) > 0 {
+		l.TranscriptImport.ScanRoots = v
+	}
 }
 
 // =============================================================================
@@ -180,7 +253,8 @@ func applyEnvOverrides(l *Levers) {
 // =============================================================================
 
 func getEnv(key string) string {
-	return strings.TrimSpace(os.Getenv(key))
+	value, _ := os.LookupEnv(key)
+	return strings.TrimSpace(value)
 }
 
 func getEnvInt(key string) int {

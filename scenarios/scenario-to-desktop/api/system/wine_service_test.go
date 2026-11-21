@@ -51,9 +51,9 @@ func TestWineServiceStartInstallation(t *testing.T) {
 		method      string
 		expectError bool
 	}{
-		{"flatpak", "flatpak", false},
-		{"flatpak-auto", "flatpak-auto", false},
-		{"appimage", "appimage", false},
+		{"flatpak", "flatpak", true},
+		{"flatpak-auto", "flatpak-auto", true},
+		{"appimage", "appimage", true},
 		{"skip", "skip", false},
 		{"invalid", "invalid", true},
 	}

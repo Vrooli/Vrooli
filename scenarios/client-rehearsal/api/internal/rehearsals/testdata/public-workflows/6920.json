@@ -1,0 +1,31 @@
+{
+  "id": "public-template-6920",
+  "name": "Sanitized public template 6920",
+  "nodes": [
+    {
+      "id": "error-trigger-6920",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "parameters": {}
+    },
+    {
+      "id": "gmail-send-6920",
+      "name": "Send a message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "parameters": {
+        "toList": "workflow-owner@example.invalid",
+        "message": "Synthetic failure notification for {{ $json.error.message }}",
+        "subject": "Synthetic workflow failure",
+        "resource": "message",
+        "additionalFields": {}
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{"node": "Send a message", "type": "main", "index": 0}]]
+    }
+  }
+}

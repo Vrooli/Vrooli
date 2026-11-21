@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "name": "team-dashboard-state-matrix-mobile",
+    "description": "Proves the isolated dashboard fixture state matrix remains legible and contained at 390px without changing persisted team state.",
+    "labels": { "reset": "none", "safety": "read-only", "fixture_only": "true", "routed_isolation": "true" },
+    "requirement": "UX-CAMPAIGN-003",
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "active", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=active", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "active-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "healthy" }, "timeout_ms": 30000, "failure_message": "Mobile active dashboard fixture did not render" } } },
+    { "id": "active-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } },
+    { "id": "paused", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=paused", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "paused-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "paused" }, "timeout_ms": 30000, "failure_message": "Mobile paused dashboard fixture did not render" } } },
+    { "id": "paused-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } },
+    { "id": "blocked", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=blocked", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "blocked-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "blocked" }, "timeout_ms": 30000, "failure_message": "Mobile blocked dashboard fixture did not render" } } },
+    { "id": "blocked-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } },
+    { "id": "idle", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=idle", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "idle-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "idle" }, "timeout_ms": 30000, "failure_message": "Mobile idle dashboard fixture did not render" } } },
+    { "id": "idle-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } },
+    { "id": "partial", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=partial", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "partial-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-coverage", "expected": { "string_value": "partial" }, "timeout_ms": 30000, "failure_message": "Mobile partial dashboard fixture did not disclose partial coverage" } } },
+    { "id": "partial-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } },
+    { "id": "unknown", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=unknown", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 } } },
+    { "id": "unknown-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "unknown" }, "timeout_ms": 30000, "failure_message": "Mobile unknown-health dashboard fixture did not render" } } },
+    { "id": "unknown-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "active", "target": "active-assert" }, { "id": "e2", "source": "active-assert", "target": "active-shot" }, { "id": "e3", "source": "active-shot", "target": "paused" },
+    { "id": "e4", "source": "paused", "target": "paused-assert" }, { "id": "e5", "source": "paused-assert", "target": "paused-shot" }, { "id": "e6", "source": "paused-shot", "target": "blocked" },
+    { "id": "e7", "source": "blocked", "target": "blocked-assert" }, { "id": "e8", "source": "blocked-assert", "target": "blocked-shot" }, { "id": "e9", "source": "blocked-shot", "target": "idle" },
+    { "id": "e10", "source": "idle", "target": "idle-assert" }, { "id": "e11", "source": "idle-assert", "target": "idle-shot" }, { "id": "e12", "source": "idle-shot", "target": "partial" },
+    { "id": "e13", "source": "partial", "target": "partial-assert" }, { "id": "e14", "source": "partial-assert", "target": "partial-shot" }, { "id": "e15", "source": "partial-shot", "target": "unknown" }, { "id": "e16", "source": "unknown", "target": "unknown-assert" }, { "id": "e17", "source": "unknown-assert", "target": "unknown-shot" }
+  ]
+}

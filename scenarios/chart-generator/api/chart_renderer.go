@@ -2,7 +2,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -13,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
@@ -24,27 +27,81 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/consts/fontfamily"
 	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
 	"github.com/johnfercher/maroto/v2/pkg/props"
+	"github.com/vrooli/api-core/discovery"
 )
+
+const (
+	// chartScenarioSlug and basScenarioSlug are the discovery slugs used to
+	// reach this scenario's own served files and the BAS bundle service.
+	chartScenarioSlug = "chart-generator"
+	basScenarioSlug   = "browser-automation-studio"
+
+	// renderedURLPrefix is the HTTP path prefix under which the API server
+	// exposes generated chart files (registered in main.go). BAS screenshots a
+	// chart by navigating to scenario=chart-generator,path=<renderedURLPrefix><rel>.
+	renderedURLPrefix = "/charts/rendered/"
+
+	// renderRootDir is the on-disk root the renderer writes chart output under
+	// and that the API server serves at renderedURLPrefix. Scoped to a
+	// dedicated dir (not bare /tmp) so only chart output is ever HTTP-exposed.
+	renderRootDir = "/tmp/chart-generator-rendered"
+
+	// defaultCaptureTimeout bounds one BAS bundle capture. A capture is a real
+	// navigation (2–10s) plus artifact export, so this is deliberately generous.
+	defaultCaptureTimeout = 60 * time.Second
+)
+
+// captureClient is the narrow EX9 pixels seam the renderer needs.
+type captureClient interface {
+	CaptureScenarioPixels(ctx context.Context, scenario, route string, width, height int) ([]byte, error)
+}
+
+// captureResolver lazily produces the BAS bundle client. Production resolves
+// browser-automation-studio's base URL through scenario discovery on first use
+// (BAS may boot after chart-generator); tests inject a canned client.
+type captureResolver func(ctx context.Context) (captureClient, error)
 
 // ChartRenderer handles actual chart rendering with go-echarts
 type ChartRenderer struct {
 	outputDir string
+
+	// BAS capture seam. resolveCapture builds the client on first PNG render;
+	// nil disables BAS rendering entirely (the caller falls back to the
+	// placeholder PNG). The resolved client is cached and dropped on error so a
+	// BAS restart (new port) re-resolves.
+	resolveCapture captureResolver
+	captureMu      sync.Mutex
+	capture        captureClient
 }
 
-// NewChartRenderer creates a new chart renderer
+// NewChartRenderer creates a renderer wired to BAS's versioned pixel bundle.
 func NewChartRenderer(outputDir string) *ChartRenderer {
+	httpClient := &http.Client{Timeout: defaultCaptureTimeout}
 	return &ChartRenderer{
 		outputDir: outputDir,
+		resolveCapture: func(ctx context.Context) (captureClient, error) {
+			baseURL, err := discovery.ResolveScenarioURLDefault(ctx, basScenarioSlug)
+			if err != nil {
+				return nil, fmt.Errorf("browser-automation-studio not available: %w", err)
+			}
+			return scenarioBundleCaptureClient{baseURL: baseURL, httpClient: httpClient}, nil
+		},
 	}
 }
 
 // RenderChart generates actual chart files using go-echarts
-func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
+func (cr *ChartRenderer) RenderChart(ctx context.Context, chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	files := make(map[string]string)
 
 	// Create output directory
 	chartDir := filepath.Join(cr.outputDir, chartID+"_output")
-	if err := os.MkdirAll(chartDir, 0755); err != nil {
+	if err := os.MkdirAll(chartDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -81,7 +138,7 @@ func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcesso
 
 	// Save HTML output for all formats
 	htmlPath := filepath.Join(chartDir, chartID+".html")
-	if err := os.WriteFile(htmlPath, []byte(chartHTML), 0644); err != nil {
+	if err := os.WriteFile(htmlPath, []byte(chartHTML), 0o644); err != nil {
 		return nil, fmt.Errorf("failed to write HTML file: %w", err)
 	}
 
@@ -93,16 +150,19 @@ func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcesso
 		case "svg":
 			// Extract SVG from HTML (simplified - in production, use proper conversion)
 			svgContent := cr.extractSVGFromHTML(chartHTML)
-			if err := os.WriteFile(outputPath, []byte(svgContent), 0644); err != nil {
+			if err := os.WriteFile(outputPath, []byte(svgContent), 0o644); err != nil {
 				return nil, err
 			}
 			files[format] = outputPath
 
 		case "png":
-			// Generate actual PNG using browserless screenshot
-			if err := cr.generatePNG(outputPath, htmlPath, req); err != nil {
-				fmt.Printf("⚠️ Browserless PNG generation failed: %v\n", err)
-				// Fall back to placeholder if browserless is not available
+			// Generate actual PNG via browser-automation-studio's EX9 pixel bundle.
+			if err := cr.generatePNG(ctx, outputPath, htmlPath, req); err != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+				fmt.Printf("⚠️ browser-automation-studio PNG generation failed: %v\n", err)
+				// Fall back to placeholder if BAS is not available
 				if err := cr.generatePNGPlaceholder(outputPath, req); err != nil {
 					return nil, err
 				}
@@ -847,66 +907,103 @@ func (cr *ChartRenderer) extractSVGFromHTML(html string) string {
 	</svg>`, time.Now().Format("15:04:05"))
 }
 
-// generatePNG creates an actual PNG file using browserless
-func (cr *ChartRenderer) generatePNG(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
-	fmt.Println("🌐 Attempting to generate PNG using browserless...")
-	// Read the HTML file
-	htmlContent, err := os.ReadFile(htmlPath)
+// generatePNG creates an actual PNG file by asking browser-automation-studio
+// to screenshot the chart HTML the API server is already serving.
+func (cr *ChartRenderer) generatePNG(ctx context.Context, outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
+	fmt.Println("🌐 Attempting to generate PNG using browser-automation-studio...")
+	if err := cr.capturePNGWithBAS(ctx, outputPath, htmlPath, req); err != nil {
+		return err
+	}
+
+	info, err := os.Stat(outputPath)
 	if err != nil {
-		return fmt.Errorf("failed to read HTML file: %w", err)
+		return fmt.Errorf("failed to stat generated PNG: %w", err)
 	}
 
-	// Prepare the screenshot request for browserless
-	screenshotReq := map[string]interface{}{
-		"html": string(htmlContent),
-		"options": map[string]interface{}{
-			"type":     "png",
-			"fullPage": false,
-			"viewport": map[string]int{
-				"width":  req.Width,
-				"height": req.Height,
-			},
-		},
-		"waitForTimeout": 2000, // Wait for charts to render
-	}
-
-	// Convert request to JSON
-	jsonData, err := json.Marshal(screenshotReq)
-	if err != nil {
-		return fmt.Errorf("failed to marshal screenshot request: %w", err)
-	}
-
-	// Send request to browserless with timeout
-	client := &http.Client{
-		Timeout: 5 * time.Second, // 5 second timeout
-	}
-	resp, err := client.Post("http://localhost:4110/screenshot", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to connect to browserless: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("browserless returned status %d", resp.StatusCode)
-	}
-
-	// Save the PNG data to file
-	pngData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read PNG data: %w", err)
-	}
-
-	if err := os.WriteFile(outputPath, pngData, 0644); err != nil {
-		return fmt.Errorf("failed to write PNG file: %w", err)
-	}
-
-	fmt.Printf("✅ Successfully generated PNG using browserless (size: %d bytes)\n", len(pngData))
+	fmt.Printf("✅ Successfully generated PNG using browser-automation-studio (size: %d bytes)\n", info.Size())
 	return nil
+}
+
+// capturePNGWithBAS renders outputPath from one manifest-verified EX9 pixel artifact.
+// Any failure returns an error so the caller keeps its existing placeholder fallback.
+func (cr *ChartRenderer) capturePNGWithBAS(ctx context.Context, outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	client, err := cr.captureClientOrResolve(ctx)
+	if err != nil {
+		return err
+	}
+	captureCtx, cancel := context.WithTimeout(ctx, defaultCaptureTimeout)
+	defer cancel()
+	width, height := req.Width, req.Height
+	if width <= 0 {
+		width = 800
+	}
+	if height <= 0 {
+		height = 600
+	}
+	servedPath, err := cr.renderedURLPath(htmlPath)
+	if err != nil {
+		return err
+	}
+	pngData, err := client.CaptureScenarioPixels(captureCtx, chartScenarioSlug, servedPath, width, height)
+	if captureCtx.Err() != nil {
+		return captureCtx.Err()
+	}
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			cr.captureMu.Lock()
+			cr.capture = nil
+			cr.captureMu.Unlock()
+		}
+		return fmt.Errorf("browser-automation-studio UX capture failed: %w", err)
+	}
+	if len(pngData) == 0 {
+		return fmt.Errorf("browser-automation-studio UX capture returned empty pixels")
+	}
+	if err := os.WriteFile(outputPath, pngData, 0o644); err != nil {
+		return fmt.Errorf("write PNG to %q: %w", outputPath, err)
+	}
+	return nil
+}
+
+// captureClientOrResolve returns the cached BAS client, resolving it on first
+// use. Mirrors web-search's browser leg: resolution is lazy because BAS may
+// boot after this scenario.
+func (cr *ChartRenderer) captureClientOrResolve(ctx context.Context) (captureClient, error) {
+	cr.captureMu.Lock()
+	defer cr.captureMu.Unlock()
+	if cr.capture != nil {
+		return cr.capture, nil
+	}
+	if cr.resolveCapture == nil {
+		return nil, fmt.Errorf("chart renderer has no BAS capture resolver")
+	}
+	client, err := cr.resolveCapture(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cr.capture = client
+	return client, nil
+}
+
+// renderedURLPath maps a chart file written under outputDir to the HTTP path
+// the API server serves it at (renderedURLPrefix + path relative to outputDir).
+func (cr *ChartRenderer) renderedURLPath(htmlPath string) (string, error) {
+	rel, err := filepath.Rel(cr.outputDir, htmlPath)
+	if err != nil {
+		return "", fmt.Errorf("chart file %q not under output dir %q: %w", htmlPath, cr.outputDir, err)
+	}
+	if strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("chart file %q escapes output dir %q", htmlPath, cr.outputDir)
+	}
+	return renderedURLPrefix + filepath.ToSlash(rel), nil
 }
 
 // generatePNGPlaceholder creates a placeholder PNG file
 func (cr *ChartRenderer) generatePNGPlaceholder(outputPath string, req ChartGenerationProcessorRequest) error {
-	fmt.Println("⚠️ Browserless not available, using fallback Go PNG generation...")
+	fmt.Println("⚠️ browser-automation-studio not available, using fallback Go PNG generation...")
 	// Generate a real PNG image using Go's image library
 	return cr.generateBasicPNGChart(outputPath, req)
 }

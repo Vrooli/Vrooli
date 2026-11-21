@@ -6,8 +6,10 @@ import (
 	"context"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // =============================================================================
@@ -22,28 +24,28 @@ func TestNTPCheckRunWithMock_Synchronized(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// timedatectl is available
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
+	mockExec.Responses["which timedatectl"] = testutil.MockResponse{
 		Output: []byte("/usr/bin/timedatectl"),
 		Error:  nil,
 	}
 	// NTP is synchronized
-	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = testutil.MockResponse{
 		Output: []byte("yes"),
 		Error:  nil,
 	}
 	// NTP is enabled
-	mockExec.Responses["timedatectl show -p NTP --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTP --value"] = testutil.MockResponse{
 		Output: []byte("yes"),
 		Error:  nil,
 	}
 	// Timezone info
-	mockExec.Responses["timedatectl show -p Timezone --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p Timezone --value"] = testutil.MockResponse{
 		Output: []byte("America/New_York"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte("2024-01-15T12:00:00-0500"),
 		Error:  nil,
 	}
@@ -66,20 +68,20 @@ func TestNTPCheckRunWithMock_NotSynchronized(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["which timedatectl"] = testutil.MockResponse{
 		Output: []byte("/usr/bin/timedatectl"),
 		Error:  nil,
 	}
-	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = testutil.MockResponse{
 		Output: []byte("no"),
 		Error:  nil,
 	}
-	mockExec.Responses["timedatectl show -p NTP --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTP --value"] = testutil.MockResponse{
 		Output: []byte("yes"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -102,20 +104,20 @@ func TestNTPCheckRunWithMock_NTPDisabled(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["which timedatectl"] = testutil.MockResponse{
 		Output: []byte("/usr/bin/timedatectl"),
 		Error:  nil,
 	}
-	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = testutil.MockResponse{
 		Output: []byte("no"),
 		Error:  nil,
 	}
-	mockExec.Responses["timedatectl show -p NTP --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTP --value"] = testutil.MockResponse{
 		Output: []byte("no"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
@@ -141,10 +143,10 @@ func TestNTPCheckRunWithMock_TimedatectlNotAvailable(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["which timedatectl"] = testutil.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 
 	check := NewNTPCheck(caps, WithNTPExecutor(mockExec))
@@ -166,12 +168,9 @@ func TestNTPCheckRecoveryActions(t *testing.T) {
 		expectAvailable map[string]bool
 	}{
 		{
-			name:       "nil result",
-			lastResult: nil,
-			expectAvailable: map[string]bool{
-				"enable-ntp": false, // Default: NTP assumed enabled
-				"force-sync": true,
-			},
+			name:            "nil result",
+			lastResult:      nil,
+			expectAvailable: map[string]bool{"force-sync": true},
 		},
 		{
 			name: "ntp disabled",
@@ -180,10 +179,7 @@ func TestNTPCheckRecoveryActions(t *testing.T) {
 					"ntpEnabled": false,
 				},
 			},
-			expectAvailable: map[string]bool{
-				"enable-ntp": true,
-				"force-sync": true,
-			},
+			expectAvailable: map[string]bool{"force-sync": true},
 		},
 		{
 			name: "ntp enabled",
@@ -192,10 +188,7 @@ func TestNTPCheckRecoveryActions(t *testing.T) {
 					"ntpEnabled": true,
 				},
 			},
-			expectAvailable: map[string]bool{
-				"enable-ntp": false,
-				"force-sync": true,
-			},
+			expectAvailable: map[string]bool{"force-sync": true},
 		},
 	}
 
@@ -235,43 +228,6 @@ func TestNTPCheckRecoveryActionsAllSafe(t *testing.T) {
 	}
 }
 
-// TestNTPCheckExecuteAction_EnableNTP tests enable-ntp action
-func TestNTPCheckExecuteAction_EnableNTP(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform:        platform.Linux,
-		SupportsSystemd: true,
-	}
-
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo timedatectl set-ntp true"] = checks.MockResponse{
-		Output: []byte(""),
-		Error:  nil,
-	}
-	// After enabling, verification shows NTP is now synced
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
-		Output: []byte("/usr/bin/timedatectl"),
-		Error:  nil,
-	}
-	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = checks.MockResponse{
-		Output: []byte("yes"),
-		Error:  nil,
-	}
-	mockExec.DefaultResponse = checks.MockResponse{
-		Output: []byte("yes"),
-		Error:  nil,
-	}
-
-	check := NewNTPCheck(caps, WithNTPExecutor(mockExec))
-	result := check.ExecuteAction(context.Background(), "enable-ntp")
-
-	if result.ActionID != "enable-ntp" {
-		t.Errorf("ActionID = %q, want %q", result.ActionID, "enable-ntp")
-	}
-	if result.CheckID != check.ID() {
-		t.Errorf("CheckID = %q, want %q", result.CheckID, check.ID())
-	}
-}
-
 // TestNTPCheckExecuteAction_ForceSync tests force-sync action
 func TestNTPCheckExecuteAction_ForceSync(t *testing.T) {
 	caps := &platform.Capabilities{
@@ -279,20 +235,20 @@ func TestNTPCheckExecuteAction_ForceSync(t *testing.T) {
 		SupportsSystemd: true,
 	}
 
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo systemctl restart systemd-timesyncd"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["sudo systemctl restart systemd-timesyncd"] = testutil.MockResponse{
 		Output: []byte(""),
 		Error:  nil,
 	}
-	mockExec.Responses["which timedatectl"] = checks.MockResponse{
+	mockExec.Responses["which timedatectl"] = testutil.MockResponse{
 		Output: []byte("/usr/bin/timedatectl"),
 		Error:  nil,
 	}
-	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = checks.MockResponse{
+	mockExec.Responses["timedatectl show -p NTPSynchronized --value"] = testutil.MockResponse{
 		Output: []byte("yes"),
 		Error:  nil,
 	}
-	mockExec.DefaultResponse = checks.MockResponse{
+	mockExec.DefaultResponse = testutil.MockResponse{
 		Output: []byte("yes"),
 		Error:  nil,
 	}
@@ -318,30 +274,9 @@ func TestNTPCheckExecuteAction_UnknownAction(t *testing.T) {
 	}
 }
 
-// TestNTPCheckExecuteAction_EnableNTPFailure tests enable-ntp action failure
-func TestNTPCheckExecuteAction_EnableNTPFailure(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform:        platform.Linux,
-		SupportsSystemd: true,
-	}
-
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sudo timedatectl set-ntp true"] = checks.MockResponse{
-		Output: []byte("Failed to set NTP"),
-		Error:  checks.ErrPermissionDenied,
-	}
-
-	check := NewNTPCheck(caps, WithNTPExecutor(mockExec))
-	result := check.ExecuteAction(context.Background(), "enable-ntp")
-
-	if result.Success {
-		t.Error("Success should be false when enable-ntp fails")
-	}
-}
-
 // TestNTPCheckExecutorInjection verifies executor is properly injected
 func TestNTPCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	check := NewNTPCheck(testCaps(), WithNTPExecutor(mockExec))
 
 	if check.executor != mockExec {

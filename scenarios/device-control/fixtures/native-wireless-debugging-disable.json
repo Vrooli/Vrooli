@@ -1,0 +1,9 @@
+{
+  "id": "native-wireless-debugging-disable",
+  "name": "Disable paired wireless debugging",
+  "transport": "usb",
+  "steps": [
+    {"id": "disable", "kind": "wireless-debugging", "target": "disable"},
+    {"id": "verify", "kind": "wireless-debugging-assert", "target": "disable"}
+  ]
+}

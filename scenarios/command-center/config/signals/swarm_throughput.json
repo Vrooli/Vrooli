@@ -1,0 +1,22 @@
+{
+  "id": "swarm_throughput",
+  "label": "Items shipped · 7 days",
+  "description": "Backlog items Swarm Manager completed in the trailing seven days.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "swarm_throughput",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "swarm_throughput",
+    "contractVersion": "legacy.v1",
+    "selector": "swarm_throughput",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

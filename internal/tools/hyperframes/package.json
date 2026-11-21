@@ -1,0 +1,11 @@
+{
+  "name": "vrooli-hyperframes-tool",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "hyperframes": "0.8.112"
+  }
+}

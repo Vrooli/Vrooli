@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// OperationStanding is the one lifecycle decision surface for durable work.
+// Providers own the state; clients render this message and must never infer a
+// blocked operation merely because it is non-terminal.
+message OperationStanding {
+  // queued | preparing | executing | finalizing | terminal
+  string lifecycle = 1;
+  // passed | failed | aborted | not-comparable. Empty until terminal.
+  string terminal_outcome = 2;
+  // The durable provider which owns the operation: test-genie or
+  // git-control-tower.
+  string owner = 3;
+  string operation_id = 4;
+  string started_at = 5;
+  string last_progress_at = 6;
+  double elapsed_seconds = 7;
+  int32 estimated_remaining_seconds = 8;
+  bool eta_known = 9;
+  // wait | inspect | recover. A wait directive is an explicit guarantee that
+  // the provider still owns forward progress; it is not a client-side guess.
+  string directive = 10;
+  int32 recommended_wait_seconds = 11;
+  // Empty during preparing/finalizing is valid and never implies a stall.
+  string active_phase = 12;
+  repeated OperationStanding children = 13;
+  // Provider-owned reason only when directive is inspect or recover.
+  string detail = 14;
+  // Reattach to the single owner-facing wait operation. Empty only when the
+  // standing is terminal.
+  string reattach_command = 15;
+}

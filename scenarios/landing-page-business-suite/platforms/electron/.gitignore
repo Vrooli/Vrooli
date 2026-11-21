@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+renderer/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron builder
+app-update.yml
+dev-app-update.yml
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp

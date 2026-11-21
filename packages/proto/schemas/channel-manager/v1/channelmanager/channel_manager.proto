@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package vrooli.channel_manager.v1.channelmanager;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/channel-manager/v1/channelmanager;channelmanager_v1";
+
+// ChannelManagerService is the safe operator-facing account-operations
+// boundary. It returns references and recorded work only; credentials never
+// cross this contract.
+service ChannelManagerService {
+  rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse);
+  rpc GetEligibility(GetEligibilityRequest) returns (GetEligibilityResponse);
+  rpc SubmitRelease(SubmitReleaseRequest) returns (SubmitReleaseResponse);
+  rpc DeliverReleaseOutcome(DeliverReleaseOutcomeRequest) returns (DeliverReleaseOutcomeResponse);
+  rpc DeliverMetricSample(DeliverMetricSampleRequest) returns (DeliverMetricSampleResponse);
+  rpc AssignAutomation(AssignAutomationRequest) returns (AssignAutomationResponse);
+  rpc DispatchBrowserAction(DispatchBrowserActionRequest) returns (DispatchBrowserActionResponse);
+  rpc GetBrowserExecutionReview(GetBrowserExecutionReviewRequest) returns (GetBrowserExecutionReviewResponse);
+}
+
+message GetOverviewRequest {}
+
+message Identity {
+  string id = 1;
+  string platform_id = 2;
+  string purpose = 3;
+  string environment_ref = 4;
+  // Opaque credential-authority identity/field reference. Values never cross
+  // the API boundary; the executor resolves them in its own authority scope.
+  string credential_ref = 5;
+  string status = 6;
+  repeated string lane_grants = 7;
+  string handle = 8;
+  string display_label = 9;
+  string lifecycle = 10;
+  string automation_mode = 11;
+}
+
+message Action {
+  string id = 1;
+  string identity_id = 2;
+  string kind = 3;
+  string window = 4;
+  string status = 5;
+  int32 rolled_count = 6;
+}
+
+message GetOverviewResponse {
+  repeated Identity identities = 1;
+  repeated Action actions = 2;
+}
+
+message GetEligibilityRequest {
+  string identity_id = 1;
+  string lane = 2;
+}
+message GetEligibilityResponse {
+  string eligibility = 1;
+}
+
+message SubmitReleaseRequest {
+  string identity_id = 1;
+  string lane = 2;
+  string draft_id = 3;
+  string idempotency_key = 4;
+  // Metadata-only Asset Studio identifiers. Channel Manager uses these to
+  // prevent cross-identity reuse after publication; it never receives bytes.
+  repeated string asset_ids = 5;
+  // Operator-confirmed result of the descriptor-driven rendered preview.
+  bool disclosure_visible = 6;
+}
+message ReleaseReceipt {
+  string id = 1;
+  string draft_id = 2;
+  string action_id = 3;
+  string status = 4;
+  string platform_post_id = 5;
+  string published_url = 6;
+  string first_comment_status = 7;
+}
+message SubmitReleaseResponse {
+  ReleaseReceipt receipt = 1;
+}
+
+message DeliverReleaseOutcomeRequest {
+  string release_id = 1;
+}
+message DeliverReleaseOutcomeResponse {
+  string delivery_status = 1;
+}
+message DeliverMetricSampleRequest {
+  string sample_id = 1;
+}
+message DeliverMetricSampleResponse {
+  string delivery_status = 1;
+}
+
+// A profile reference is opaque to Channel Manager. It must never contain
+// cookies or platform credentials; BAS resolves it in its own boundary.
+message AssignAutomationRequest {
+  string identity_id = 1;
+  string session_profile_ref = 2;
+  repeated string enabled_action_kinds = 3;
+  string operator_note = 4;
+  // Opaque BAS workflow UUID selected for this operator-approved action kind.
+  string workflow_ref = 5;
+  // Scenario-owned, non-secret profile key from the BAS consumer declaration.
+  // BAS remains unaware of this consumer-specific mapping.
+  string consumer_profile_key = 6;
+}
+message AssignAutomationResponse {
+  string identity_id = 1;
+}
+message DispatchBrowserActionRequest {
+  string action_id = 1;
+}
+message DispatchBrowserActionResponse {
+  string execution_id = 1;
+}
+
+// A bounded BAS review projection. Artifact IDs are stable references only;
+// raw evidence bytes and all session material stay behind BAS's own policy.
+message GetBrowserExecutionReviewRequest {
+  string action_id = 1;
+}
+message GetBrowserExecutionReviewResponse {
+  string execution_id = 1;
+  string status = 2;
+  string failure = 3;
+  repeated string artifact_refs = 4;
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Scenario to Plugin safely.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "states": [
+    {
+      "id": "loading",
+      "description": "Settings are loading."
+    },
+    {
+      "id": "empty",
+      "description": "No configurable preference applies in the current context."
+    },
+    {
+      "id": "partial",
+      "description": "Some preferences loaded and others could not be read."
+    },
+    {
+      "id": "stale",
+      "description": "A preference changed in another tab and this view has not refreshed."
+    },
+    {
+      "id": "request-error",
+      "description": "Settings could not be loaded."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+@import "./design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * `design-tokens.css` is generated: the shared `_base` vocabulary plus the
+ * selected design kit's overlay, written by `template-manager lifecycle
+ * generate`. It owns colours, type, spacing, dark mode, safe-area utilities
+ * and reduced motion. Only rules that belong to this scenario's document
+ * live here.
+ */
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Keep native text-entry controls at the mobile browser's no-zoom minimum. */
+@media (max-width: 639px) {
+  :where(input, textarea, select) {
+    font-size: 16px;
+  }
+}

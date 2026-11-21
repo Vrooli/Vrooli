@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Extraction Range safely.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "states": [
+    { "id": "default", "description": "Appearance, language and enabled notification preferences are available." },
+    { "id": "loading", "description": "No independent settings data load is required; shell preferences initialize before the page is shown." },
+    { "id": "empty", "description": "No additional scenario-specific preferences are configured." },
+    { "id": "partial", "description": "If optional notification controls are not enabled, appearance and language remain usable." },
+    { "id": "stale", "description": "Preferences are browser-local; the page does not present remote freshness." },
+    { "id": "request-error", "description": "Preference changes do not call a remote service; a locale load error is surfaced by the UI framework." }
+  ]
+}

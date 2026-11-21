@@ -2,15 +2,39 @@ package bundleruntime
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
+
+func TestServiceOwnerScenario(t *testing.T) {
+	m := &manifest.Manifest{
+		App:                 manifest.App{Scenario: "web-console"},
+		Peers:               []manifest.Peer{{Scenario: "audio-tools"}},
+		ProgramBindingPeers: []manifest.Peer{{Scenario: "ai-gateway"}},
+	}
+	s := &Supervisor{opts: Options{Manifest: m}}
+	for _, tc := range []struct{ service, want string }{
+		{"api", "web-console"},
+		{"audio-tools--api", "audio-tools"},
+		{"ai-gateway--api", "ai-gateway"},
+	} {
+		got, err := s.serviceOwnerScenario(tc.service)
+		if err != nil || got != tc.want {
+			t.Errorf("serviceOwnerScenario(%q) = %q, %v; want %q", tc.service, got, err, tc.want)
+		}
+	}
+	if _, err := s.serviceOwnerScenario("undeclared-peer--api"); err == nil {
+		t.Fatal("serviceOwnerScenario accepted an undeclared peer")
+	}
+}
 
 func TestStartService_WithDataDirs(t *testing.T) {
 	tmp := t.TempDir()
@@ -151,6 +175,88 @@ func TestLaunchServices_DependencyOrder(t *testing.T) {
 	}
 }
 
+type dependencyBarrierChecker struct {
+	mu      sync.Mutex
+	arrived chan string
+	release chan struct{}
+}
+
+func (c *dependencyBarrierChecker) WaitForReadiness(context.Context, string) error { return nil }
+func (c *dependencyBarrierChecker) CheckOnce(context.Context, string) bool         { return true }
+func (c *dependencyBarrierChecker) WaitForDependencies(ctx context.Context, svc *manifest.Service) error {
+	c.mu.Lock()
+	c.arrived <- svc.ID
+	c.mu.Unlock()
+	select {
+	case <-c.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestSharedRuntimeReadinessToggleControlsParallelIndependentStarts(t *testing.T) {
+	binKey := platformBinaryKey()
+	for _, test := range []struct {
+		name     string
+		enabled  bool
+		parallel bool
+	}{
+		{name: "optimized profile starts independent services concurrently", enabled: true, parallel: true},
+		{name: "sidecar default keeps serial startup", enabled: false, parallel: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.enabled {
+				t.Setenv("VROOLI_DESKTOP_PARALLEL_START", "true")
+			} else {
+				t.Setenv("VROOLI_DESKTOP_PARALLEL_START", "false")
+			}
+			tmp := t.TempDir()
+			m := &manifest.Manifest{App: manifest.App{Name: "parallel-profile-test", Version: "1.0.0"}, Services: []manifest.Service{
+				{ID: "api", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/api"}}},
+				{ID: "ui", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/ui"}}},
+			}}
+			s := newTestSupervisor(t, testSupervisorConfig{manifest: m, bundlePath: tmp, appData: tmp})
+			checker := &dependencyBarrierChecker{arrived: make(chan string, 2), release: make(chan struct{})}
+			s.healthChecker = checker
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- s.launchServices(ctx) }()
+
+			select {
+			case <-checker.arrived:
+			case <-ctx.Done():
+				t.Fatal("no independent service reached its dependency barrier")
+			}
+			if test.parallel {
+				select {
+				case <-checker.arrived:
+				case <-ctx.Done():
+					t.Fatal("optimized profile did not start both independent dependency checks concurrently")
+				}
+			} else {
+				select {
+				case service := <-checker.arrived:
+					t.Fatalf("sidecar started %s before the first dependency check completed", service)
+				case <-time.After(25 * time.Millisecond):
+				}
+			}
+			close(checker.release)
+			if !test.parallel {
+				select {
+				case <-checker.arrived:
+				case <-ctx.Done():
+					t.Fatal("sidecar did not continue serial startup after dependency completion")
+				}
+			}
+			if err := <-done; err != nil {
+				t.Fatalf("launchServices() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestStopServices_GracefulShutdown(t *testing.T) {
 	mockClock := testutil.NewMockClock(time.Now())
 
@@ -258,6 +364,27 @@ func TestResolveUIDistRoot_ExplicitDistRoot(t *testing.T) {
 	}
 }
 
+func TestResolveUIDistRoot_InstalledComponentUsesItsVerifiedGeneration(t *testing.T) {
+	hostRoot, componentRoot := t.TempDir(), t.TempDir()
+	s := &Supervisor{opts: Options{BundlePath: hostRoot}}
+	for _, explicit := range []bool{true, false} {
+		t.Run(fmt.Sprint("explicit=", explicit), func(t *testing.T) {
+			svc := manifest.Service{ID: "audio-tools--ui", Type: "ui-bundle", ComponentID: "audio-tools", BundleRoot: componentRoot, Assets: []manifest.Asset{{Path: "peers/audio-tools/ui/dist/index.html"}}}
+			if explicit {
+				svc.DistRoot = "peers/audio-tools/ui/dist"
+			}
+			got, err := s.resolveUIDistRoot(svc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := filepath.Join(componentRoot, "peers/audio-tools/ui/dist")
+			if got != want {
+				t.Fatalf("installed UI root=%s, want verified generation=%s (host=%s)", got, want, hostRoot)
+			}
+		})
+	}
+}
+
 func TestResolveUIDistRoot_FindIndexHtml(t *testing.T) {
 	tmp := t.TempDir()
 	s := &Supervisor{
@@ -274,7 +401,7 @@ func TestResolveUIDistRoot_FindIndexHtml(t *testing.T) {
 		Type: "ui-bundle",
 		Assets: []manifest.Asset{
 			{Path: "ui/dist/assets/abap-BdImnpbu.js"},  // First asset in subdirectory
-			{Path: "ui/dist/assets/app-xyz123.js"},    // Another asset
+			{Path: "ui/dist/assets/app-xyz123.js"},     // Another asset
 			{Path: "ui/dist/assets/styles-abc456.css"}, // Another asset
 			{Path: "ui/dist/index.html"},               // Entry point at dist root
 		},

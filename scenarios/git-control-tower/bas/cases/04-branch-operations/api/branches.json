@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "Branch Operations",
-    "description": "Validates /api/v1/repo/branches returns local and remote branch lists",
+    "description": "Validates BranchService.ListBranches returns local and remote branch lists",
     "tags": [
       "e2e",
       "api",
@@ -20,12 +20,13 @@
       "id": "branches",
       "type": "http_request",
       "data": {
-        "label": "GET /api/v1/repo/branches",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/repo/branches",
+        "label": "POST BranchService.ListBranches",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.branch.BranchService/ListBranches",
         "headers": {
           "Content-Type": "application/json"
         },
+        "body": {},
         "assertions": [
           {
             "type": "status_code",

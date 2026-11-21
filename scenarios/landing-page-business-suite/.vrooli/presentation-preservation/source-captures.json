@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "captureId": "bas-public-sections-source-captures-v1",
+  "generatedAt": "2026-09-15",
+  "immutable": true,
+  "purpose": "Byte-for-byte recovery anchors for the legacy BAS public sections and fallback helpers before admin migration.",
+  "sourcePolicy": "Only files present in the LPBS tree are captured. Missing binaries, screenshots, and release evidence remain explicitly unlocated in inventory.json.",
+  "captures": [
+    {
+      "id": "public-section-hero",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/HeroSection.tsx",
+      "capturePath": "source-captures/hero-section.tsx",
+      "sha256": "560a854d95e980d99bd69b055cf3cfb3b8148c47ed7bc15523692deea75bded2",
+      "bytes": 29619,
+      "coverage": "hero display, BAS workspace preview labels, workflow nodes, recorded actions, execution steps"
+    },
+    {
+      "id": "public-section-features",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/FeaturesSection.tsx",
+      "capturePath": "source-captures/features-section.tsx",
+      "sha256": "21edb7a6faf59297baf9dde959392abd212695fe40f91c92d2db3a42aec50337",
+      "bytes": 11150,
+      "coverage": "feature categories, feature labels, descriptions, bullets, and icon mapping"
+    },
+    {
+      "id": "public-section-pricing",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/PricingSection.tsx",
+      "capturePath": "source-captures/pricing-section.tsx",
+      "sha256": "9a64b3cac37413453292ac5cea76fae293203f06a1fa7a3ac9f15197c3aade8e",
+      "bytes": 26555,
+      "coverage": "pricing display, fallback plan merge, checkout labels, and plan formatting"
+    },
+    {
+      "id": "public-section-download",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/DownloadSection.tsx",
+      "capturePath": "source-captures/download-section.tsx",
+      "sha256": "574bc91f9ce15aa6ede3446a9a1ca409e7a8d79888644efb4b7cfc75fbebb7e9",
+      "bytes": 30288,
+      "coverage": "download section labels, platform grouping, entitlement messaging, and artifact actions"
+    },
+    {
+      "id": "public-section-faq",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/FAQSection.tsx",
+      "capturePath": "source-captures/faq-section.tsx",
+      "sha256": "89d02acbb9f32397093c45d2c18c2c593f3a34f34d20599274b1383d1c942e82",
+      "bytes": 5978,
+      "coverage": "FAQ labels, fallback questions and answers, expansion behavior, and support action"
+    },
+    {
+      "id": "public-section-cta",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/CTASection.tsx",
+      "capturePath": "source-captures/cta-section.tsx",
+      "sha256": "73728f5ca9d1cc1f12d22aa1047c349b85b90694d46538be03ccb013a960a51b",
+      "bytes": 5012,
+      "coverage": "closing CTA labels, Aquila workspace copy, and navigation action"
+    },
+    {
+      "id": "public-section-footer",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/FooterSection.tsx",
+      "capturePath": "source-captures/footer-section.tsx",
+      "sha256": "c9e04dbb851daa2d4855a1816cd8eeadb1a5dbde997e03aae902ff84cbf7189c",
+      "bytes": 4482,
+      "coverage": "footer company copy, navigation columns, social links, and copyright"
+    },
+    {
+      "id": "public-section-testimonials",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/TestimonialsSection.tsx",
+      "capturePath": "source-captures/testimonials-section.tsx",
+      "sha256": "a484952085cc81028d662cb304cbd4d99948ab4d965afb2f10ddbf70044c13da",
+      "bytes": 3533,
+      "coverage": "legacy testimonial rendering and fallback copy; not evidence that any endorsement is authentic"
+    },
+    {
+      "id": "public-section-video",
+      "kind": "public-section-component",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/surfaces/public-landing/sections/VideoSection.tsx",
+      "capturePath": "source-captures/video-section.tsx",
+      "sha256": "68081cf839385407ad3b72debf43d694fc01a5f229874d315fbbfbfc363438e2",
+      "bytes": 4862,
+      "coverage": "video URL parsing, poster fallback, caption, and playback display"
+    },
+    {
+      "id": "fallback-ui-helper",
+      "kind": "fallback-helper-source",
+      "sourcePath": "scenarios/landing-page-business-suite/ui/src/shared/lib/fallbackLandingConfig.ts",
+      "capturePath": "source-captures/fallback-landing-config.ts",
+      "sha256": "5534ec0d65858404b68ef74f0362fae21676f76afc235ed2cc184f5bb6e8e094",
+      "bytes": 3080,
+      "coverage": "fallback payload import, section/order normalization, pricing normalization, and isolated clone"
+    },
+    {
+      "id": "fallback-data-source",
+      "kind": "fallback-data-source",
+      "sourcePath": "scenarios/landing-page-business-suite/.vrooli/fallback/fallback.json",
+      "capturePath": "source-captures/fallback.json",
+      "sha256": "385943eec85c3c0760c337dd4c950b85ef51d2644470997b18c1267ead52ddc6",
+      "bytes": 28642,
+      "coverage": "fallback variant/header, all legacy public sections, pricing, downloads, and axes"
+    },
+    {
+      "id": "fallback-api-helper",
+      "kind": "fallback-helper-source",
+      "sourcePath": "scenarios/landing-page-business-suite/api/internal/landing/landing_config_fallback.go",
+      "capturePath": "source-captures/landing-config-fallback.go",
+      "sha256": "417e2e18c494e9f03fa751d88ceaf0f934a573e9ceacfc90a8b182240f7c98f3",
+      "bytes": 14515,
+      "coverage": "server fallback provider, clone/normalization path, downloads, pricing, and fallback response"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "vrooli-onboarding.configuration",
+      "lifecycle": "production",
+      "provider_group": "vrooli-onboarding",
+      "bucket": "BUCKET_DO",
+      "type": "configuration",
+      "description": "Safe onboarding configuration settings searchable by purpose, policy, resource, and setup step. Results contain metadata and stable routes only; configured values and credentials are never indexed.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "routing_profile": {
+        "answer_spaces": ["configuration setting", "onboarding setup"],
+        "intents": ["find_setting", "revise_configuration", "understand_prerequisite"],
+        "positive_examples": ["where do I configure credentials", "find the setting for host safeguards"],
+        "exclusions": ["configured values", "credential contents", "private machine inventory"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "vrooli-onboarding",
+          "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"target\":\"{{scope_value}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "vrooli-onboarding",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "purpose",
+        "path_field": "route",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"max_gap": 0, "hard_floor": 0}
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 1},
+        "name": "onboarding configuration — stable settings corpus",
+        "description": "The provider exposes safe metadata and stable setup routes. It must not return configured values or credentials.",
+        "cases": [
+          {"id": "find-credentials", "query": "where do I configure credentials", "expect_ids": ["setup.credentials"], "expect_within_top_k": 3, "tags": ["settings", "credentials"]},
+          {"id": "find-consent", "query": "review and consent before apply", "expect_ids": ["setup.apply"], "expect_within_top_k": 3, "tags": ["settings", "consent"]},
+          {"id": "gibberish", "query": "florbnax zxcv nonsense", "expect_no_strong_hit": true, "expect_max_score": 0.6, "tags": ["gibberish"]}
+        ]
+      }
+    }
+  ]
+}

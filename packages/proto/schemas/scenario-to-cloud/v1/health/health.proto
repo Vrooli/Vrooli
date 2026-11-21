@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.health;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-cloud/v1/errors/errors.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/health;healthv1";
+
+// =============================================================================
+// HEALTH — typed deployment health observations
+// =============================================================================
+//
+// @stability beta
+//
+// A HealthObservation is the only wire shape consumers may use to decide
+// whether a cloud deployment is healthy. HTTP 200 on the producing endpoint
+// means the report was produced; it says nothing about the deployment.
+//
+// Consumers fail closed: a missing or unspecified status, a freshness other
+// than CURRENT, a deployment_id or observed_release_digest that does not
+// match what the caller expected, an observed_at older than the caller's
+// policy, or an enum value the consumer does not know all mean "not proven
+// healthy". Unknown fields are forward-compatible; unknown mandatory status
+// values are not.
+//
+// observed_at is the producer's time of the live-state inspection, never the
+// time the response was assembled or served from a cache.
+//
+// USAGE CONTEXTS:
+//   - api/health: builds the observation from the live-state, DNS and TLS
+//     report plus the deployment record; serves it over REST and Connect.
+//   - deployment-manager api/deployments: decodes it with protojson and
+//     gates release promotion on it.
+//   - ui: renders status, freshness, observed_at and release on the
+//     deployment badge.
+//
+// =============================================================================
+
+service HealthService {
+  // GetHealthObservation produces a fresh observation for one deployment.
+  rpc GetHealthObservation(GetHealthObservationRequest) returns (GetHealthObservationResponse);
+}
+
+// HealthStatus is the overall deployment verdict. UNKNOWN is a real answer:
+// the producer could not observe the deployment (for example the target was
+// unreachable). Consumers must never map UNKNOWN or UNSPECIFIED to healthy.
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+  HEALTH_STATUS_UNKNOWN = 4;
+}
+
+// Freshness says whether the observation is recent enough to describe the
+// deployment now. CURRENT means the live-state inspection succeeded within
+// the producer's policy window; STALE means it succeeded but is older than
+// that window; UNKNOWN means the inspection did not succeed, so the
+// observation age is meaningless. A report can be CURRENT and UNHEALTHY, or
+// HEALTHY and STALE.
+enum Freshness {
+  FRESHNESS_UNSPECIFIED = 0;
+  FRESHNESS_CURRENT = 1;
+  FRESHNESS_STALE = 2;
+  FRESHNESS_UNKNOWN = 3;
+}
+
+// CheckStatus is the verdict of one check. UNAVAILABLE means the check's
+// evidence could not be gathered (the producer dependency was absent); it is
+// distinct from SKIPPED, which means the check did not apply.
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED = 0;
+  CHECK_STATUS_PASSED = 1;
+  CHECK_STATUS_WARNED = 2;
+  CHECK_STATUS_FAILED = 3;
+  CHECK_STATUS_SKIPPED = 4;
+  CHECK_STATUS_UNAVAILABLE = 5;
+}
+
+// HealthCheck is one named check. The stable ids are: host_presence,
+// transport_reach, application_readiness, release_freshness, edge_dns,
+// edge_tls, system_resources, deployment_record.
+message HealthCheck {
+  string id = 1;
+  CheckStatus status = 2;
+  // Stable machine reason, snake_case. @example "ssh_unreachable"
+  string reason_code = 3;
+  // Operator-facing detail. Never contains secrets.
+  string detail = 4;
+}
+
+// HealthObservation is one producer observation of one deployment.
+message HealthObservation {
+  // Stable deployment identity the observation is about.
+  string deployment_id = 1;
+  // Target key: "machine:<id>" for a Bridge-enrolled machine or
+  // "host:<host>" for an SSH-only target.
+  string target_id = 2;
+  // Release the target is observed to run. "sha256:<bundle_sha256>" until the
+  // release domain supplies a release digest.
+  string observed_release_digest = 3;
+  // Configuration the target is observed to run. "sha256:<manifest sha256>"
+  // until the release domain supplies a configuration digest.
+  string observed_configuration_digest = 4;
+  // Producer time of the live-state inspection.
+  google.protobuf.Timestamp observed_at = 5;
+  HealthStatus status = 6;
+  repeated HealthCheck checks = 7;
+  Freshness freshness = 8;
+  // Producer that made the observation. @example "scenario-to-cloud:health:v1"
+  string producer_ref = 9;
+  // True when at least one evidence source was absent; the missing sources
+  // are listed in missing_dependencies.
+  bool partial = 10;
+  // Evidence sources that were absent: "live_state", "edge_dns", "edge_tls".
+  repeated string missing_dependencies = 11;
+  // Typed next actions from the owning service, one per failed or warned
+  // check that has a remedy.
+  repeated errors.NextAction next_actions = 12;
+}
+
+message GetHealthObservationRequest {
+  // @format uuid
+  string deployment_id = 1;
+}
+
+message GetHealthObservationResponse {
+  // @default "1"
+  string schema_version = 1;
+  HealthObservation observation = 2;
+}

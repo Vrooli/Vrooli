@@ -1,0 +1,143 @@
+package credentialescrow
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
+	"github.com/vrooli/vrooli/internal/securestore"
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
+)
+
+func TestDiscoverReturnsTypedMissingInputsAndMetadataOnlyCandidates(t *testing.T) {
+	home := t.TempDir()
+	provider := NewProvider(t.TempDir(), home)
+	provider.now = func() time.Time { return time.Date(2026, 8, 19, 16, 0, 0, 0, time.UTC) }
+	provider.describeStore = func() (securestore.StoreStatus, error) {
+		return securestore.StoreStatus{Initialized: true, Path: filepath.Join(home, "secrets.enc.json")}, nil
+	}
+	provider.loadRepositories = func() ([]kopiaregistry.Entry, error) { return nil, nil }
+	provider.discoverStorage = func(policy hostinventory.StoragePolicy) ([]hostinventory.StorageCandidate, error) {
+		if len(policy.ProtectedRoots) == 0 || !policy.RequirePhysicalSeparation {
+			t.Fatalf("provider did not pass the separation policy: %+v", policy)
+		}
+		return []hostinventory.StorageCandidate{{
+			ID: "candidate-1", Kind: "removable-or-local", Location: filepath.Join(home, "external"),
+			StableIdentity: "stable-1", DeviceIdentity: "dev-2", Filesystem: "ntfs3",
+			Writable: true, PhysicalIndependence: "observed", Status: "ready",
+		}}, nil
+	}
+	provider.readCopyConfig = func(string) (securestore.CopyConfig, error) { return securestore.CopyConfig{}, nil }
+	provider.readReceipt = func(string) (credentialauthority.RecoveryReceipt, bool, error) {
+		return credentialauthority.RecoveryReceipt{}, false, nil
+	}
+
+	status, err := provider.Discover(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.State != "needs_operator_input" {
+		t.Fatalf("state = %s, want needs_operator_input", status.State)
+	}
+	if strings.Join(status.MissingInputs, ",") != "sink,recovery_passphrase" {
+		t.Fatalf("missing inputs = %v", status.MissingInputs)
+	}
+	if len(status.Descriptor.Inputs) == 0 || len(status.Descriptor.Inputs[0].Candidates) != 1 {
+		t.Fatalf("descriptor candidates = %+v", status.Descriptor.Inputs)
+	}
+	payload, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The word passphrase is contract metadata; no answer value can appear
+	// because discovery has no value-bearing input.
+	if strings.Contains(string(payload), "secret-answer") {
+		t.Fatalf("discovery response leaked a secret answer: %s", payload)
+	}
+}
+
+func TestEscrowContractRequiresOperatorSinkAndKeepsReceiptsAddressOnly(t *testing.T) {
+	descriptor := NewProvider(t.TempDir(), t.TempDir()).Descriptor()
+	if descriptor.ID != CapabilityID || !descriptor.Policy.RequiresConfirmation || !descriptor.Evidence.SecretFree {
+		t.Fatalf("unsafe escrow contract: %+v", descriptor)
+	}
+	inputs := map[string]operatorcapability.InputDescriptor{}
+	for _, input := range descriptor.Inputs {
+		inputs[input.ID] = input
+	}
+	if sink, ok := inputs["sink"]; !ok || !sink.Required || sink.Kind != operatorcapability.KindPath {
+		t.Fatalf("operator-selected sink input = %+v, want required path input", sink)
+	}
+	if passphrase, ok := inputs["recovery_passphrase"]; !ok || !passphrase.Required || passphrase.Kind != operatorcapability.KindSecret {
+		t.Fatalf("recovery passphrase input = %+v, want required secret input", passphrase)
+	}
+
+	configured := []credentialauthority.RecoveryEntry{
+		{Identity: "vrooli/kopia/remote-a", Field: "repository-passphrase"},
+		{Identity: "vrooli/kopia/remote-b", Field: "repository-passphrase"},
+	}
+	if !coversAll(configured, configured) || coversAll(configured[:1], configured) {
+		t.Fatal("coverage must include every configured credential address")
+	}
+	coverage := strings.Join(recoveryCoverage(configured), ",")
+	if strings.Contains(coverage, "secret-value") || !strings.Contains(coverage, "vrooli/kopia/remote-a:repository-passphrase") {
+		t.Fatalf("coverage should expose address metadata only: %q", coverage)
+	}
+}
+
+func TestStoreProviderVerificationReturnsFreshContextBoundEvidence(t *testing.T) {
+	provider := NewProvider(t.TempDir(), t.TempDir())
+	provider.now = func() time.Time { return time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC) }
+	provider.describeStore = func() (securestore.StoreStatus, error) {
+		return securestore.StoreStatus{Initialized: true, Unlocked: true}, nil
+	}
+	store := &storeProvider{parent: provider}
+	receipts, err := store.Verify(context.Background(), operatorcapability.VerificationRequest{
+		CapabilityID: StoreCapabilityID, TargetID: "local", Environment: "development", AccountIdentity: "operator", Operation: "readiness-check",
+		Effect: operatorcapability.EffectBudget{Class: operatorcapability.EffectReadOnly},
+	})
+	if err != nil || len(receipts) != 1 {
+		t.Fatalf("store verification = %+v, %v", receipts, err)
+	}
+	receipt := receipts[0]
+	if receipt.Stage != operatorcapability.VerificationStorage || receipt.TargetID != "local" || receipt.Environment != "development" || receipt.AccountIdentity != "operator" || receipt.Operation != "readiness-check" || !receipt.FreshAt(provider.now().Add(time.Minute)) {
+		t.Fatalf("store evidence was not fresh and context-bound: %+v", receipt)
+	}
+}
+
+func TestVerifyEvidenceRejectsStaleEscrowArtifacts(t *testing.T) {
+	home := t.TempDir()
+	stateDir := filepath.Join(home, "state")
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	verifiedAt := time.Date(2026, 7, 1, 16, 0, 0, 0, time.UTC)
+	copyStatus := securestore.CopyStatus{
+		Path: filepath.Join(home, "external", "root-copy"), Generation: "generation-1", Checksum: "copy-checksum", Verification: "readback", VerifiedAt: verifiedAt,
+	}
+	encoded, err := json.Marshal(copyStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "credential-store-copy.json"), encoded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	provider := NewProvider(t.TempDir(), home)
+	provider.now = func() time.Time { return time.Date(2026, 9, 1, 16, 0, 0, 0, time.UTC) }
+	receipt := credentialauthority.RecoveryReceipt{
+		ArtifactIdentity: "bundle-identity", SourceGeneration: "generation-1", Checksum: "bundle-checksum",
+		VerifiedAt: verifiedAt, Verification: "decrypt-readback",
+	}
+	ready, _, remediation := provider.verifyEvidence(securestore.StoreStatus{}, receipt, securestore.CopyConfig{})
+	if ready || !strings.Contains(remediation, "older than") {
+		t.Fatalf("ready=%v remediation=%q, want stale evidence rejection", ready, remediation)
+	}
+}

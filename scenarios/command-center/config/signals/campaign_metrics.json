@@ -1,0 +1,34 @@
+{
+  "id": "campaign_metrics",
+  "label": "Campaign sends · 30 days",
+  "description": "Outbound campaigns sent in the trailing thirty days.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "marketing-crew",
+    "binding": "none",
+    "read": "",
+    "select": "campaign_metrics",
+    "ttlSeconds": 30,
+    "integrationId": "none",
+    "featureId": "campaign_metrics",
+    "contractVersion": "legacy.v1",
+    "selector": "campaign_metrics",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "MISSING",
+  "sample": {
+    "value": 6,
+    "series": [
+      2,
+      3,
+      3,
+      4,
+      5,
+      6
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

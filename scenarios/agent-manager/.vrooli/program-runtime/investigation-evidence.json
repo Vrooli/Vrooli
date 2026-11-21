@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.investigation-evidence",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Collect bounded run reports for an explicit investigation subject set, preserving unknown evidence as unknown.",
+  "inputs": {
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "One to eight explicit run identifiers; cohort membership is never inferred."
+    }
+  },
+  "assumptions": [
+    "agent-manager is running and its run report projection is reachable",
+    "run reports are bounded owner projections; transcript bodies are not read"
+  ],
+  "invariants": [
+    "read only; no launches, mutations, cursor movement, or recommendations",
+    "one report and accounting read per declared subject run",
+    "report and accounting failures remain explicit; any available sibling is retained as partial evidence",
+    "the envelope is printed exactly once on every path"
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/run/report",
+      "effect": "read",
+      "optional": true
+    },
+    {"id": "agent-manager/run/accounting", "effect": "read", "optional": true}
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "subjects": "Bounded subject rows include owner-reported duration, event gap, repeated tool calls, time-accounting, reported aggregate tokens, model and goal outcome; missing values are null. Accounting carries owner-reported non-cache and cache tokens, known flags, charge and terminal state; a failed accounting read is unknown. Source completeness and freshness remain unknown.",
+      "subject_count": "Number of requested subjects",
+      "available": "Subjects with at least one available projection",
+      "unknown": "Subjects with at least one unavailable projection",
+      "coverage": "complete only when both projections and report evidence are available for every subject; this is not source completeness or freshness"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Explicit subject run IDs and projection command identities; never transcript bodies"
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-subjects",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "empty-subjects",
+      "inputs": {
+        "run_ids": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

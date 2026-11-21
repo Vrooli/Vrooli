@@ -1,27 +1,19 @@
 /**
  * AttachmentButton - ChatGPT-style "+" button with dropdown menu.
  *
- * Opens a dropdown with options for image/PDF upload, web search, force tool,
+ * Opens a dropdown with options for image/PDF upload, web search,
  * templates, and skills. Sub-menu components extracted to AttachmentMenuItems.tsx.
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
-import type { EffectiveTool } from "../../lib/api";
 import type { Template } from "@/lib/types/templates";
 import {
   UploadMenuItems,
   WebSearchMenuItem,
-  ForceToolMenu,
   TemplateSkillMenuItems,
 } from "./AttachmentMenuItems";
-
-/** Forced tool selection state */
-export interface ForcedTool {
-  scenario: string;
-  toolName: string;
-}
 
 interface AttachmentButtonProps {
   onImageSelect: (file: File) => void;
@@ -32,10 +24,6 @@ interface AttachmentButtonProps {
   modelSupportsImages: boolean;
   modelSupportsPDFs: boolean;
   modelSupportsWebSearch?: boolean;
-  enabledToolsByScenario?: Map<string, EffectiveTool[]>;
-  forcedTool?: ForcedTool | null;
-  onForceTool?: (scenario: string, toolName: string) => void;
-  modelSupportsTools?: boolean;
   onOpenTemplateSelector?: () => void;
   onOpenSkillSelector?: () => void;
   activeTemplate?: Template | null;
@@ -51,36 +39,24 @@ export function AttachmentButton({
   modelSupportsImages,
   modelSupportsPDFs,
   modelSupportsWebSearch = true,
-  enabledToolsByScenario,
-  forcedTool,
-  onForceTool,
-  modelSupportsTools = true,
   onOpenTemplateSelector,
   onOpenSkillSelector,
   activeTemplate,
   selectedSkillCount = 0,
 }: AttachmentButtonProps) {
   const showWebSearch = !!onWebSearchToggle;
-  const showForceTools = !!onForceTool && modelSupportsTools;
   const showTemplates = !!onOpenTemplateSelector;
   const showSkills = !!onOpenSkillSelector;
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedScenario, setExpandedScenario] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  const scenariosWithTools = enabledToolsByScenario
-    ? Array.from(enabledToolsByScenario.entries()).filter(([, tools]) => tools.length > 0)
-    : [];
-  const hasEnabledTools = scenariosWithTools.length > 0;
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) && buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        setExpandedScenario(null);
       }
     }
     if (isOpen) {
@@ -89,7 +65,7 @@ export function AttachmentButton({
     }
   }, [isOpen]);
 
-  const closeMenu = useCallback(() => { setIsOpen(false); setExpandedScenario(null); }, []);
+  const closeMenu = useCallback(() => { setIsOpen(false); }, []);
 
   const handleImageClick = useCallback(() => { imageInputRef.current?.click(); closeMenu(); }, [closeMenu]);
   const handlePDFClick = useCallback(() => { pdfInputRef.current?.click(); closeMenu(); }, [closeMenu]);
@@ -108,15 +84,6 @@ export function AttachmentButton({
   const handleTemplateClick = useCallback(() => { onOpenTemplateSelector?.(); closeMenu(); }, [onOpenTemplateSelector, closeMenu]);
   const handleSkillClick = useCallback(() => { onOpenSkillSelector?.(); closeMenu(); }, [onOpenSkillSelector, closeMenu]);
 
-  const handleScenarioClick = useCallback((scenario: string) => {
-    setExpandedScenario((prev) => (prev === scenario ? null : scenario));
-  }, []);
-
-  const handleToolSelect = useCallback((scenario: string, toolName: string) => {
-    onForceTool?.(scenario, toolName);
-    closeMenu();
-  }, [onForceTool, closeMenu]);
-
   return (
     <div className="relative">
       <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleImageChange} className="hidden" />
@@ -134,19 +101,6 @@ export function AttachmentButton({
             <UploadMenuItems modelSupportsImages={modelSupportsImages} modelSupportsPDFs={modelSupportsPDFs} onImageClick={handleImageClick} onPDFClick={handlePDFClick} />
 
             {showWebSearch && <WebSearchMenuItem webSearchEnabled={webSearchEnabled} modelSupportsWebSearch={modelSupportsWebSearch} onClick={handleWebSearchClick} />}
-
-            {showForceTools && hasEnabledTools && (
-              <>
-                {!showWebSearch && <div className="my-1 border-t border-white/10" />}
-                <ForceToolMenu
-                  scenariosWithTools={scenariosWithTools}
-                  expandedScenario={expandedScenario}
-                  onScenarioClick={handleScenarioClick}
-                  onToolSelect={handleToolSelect}
-                  forcedTool={forcedTool}
-                />
-              </>
-            )}
 
             <TemplateSkillMenuItems
               showTemplates={showTemplates}

@@ -42,7 +42,7 @@ export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
  * }
  */
 export function safeParse<T>(
-  schema: z.ZodSchema<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   data: unknown,
   context: string
 ): ParseResult<T> {

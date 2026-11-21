@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "set-up-kitchen",
+    "title": "Set up the kitchen",
+    "purpose": "Choose equipment through the tiles and scene, adjust a device's functions, see which future meals a removal affects, and change a required preference with its conflicts previewed.",
+    "prd_refs": [
+      "OT-P0-020",
+      "OT-P0-006",
+      "OT-P0-009",
+      "OT-P0-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "kitchen",
+      "state": "equipment-tab",
+      "intent": "Select appliances with the tiles and watch the scene reflect them.",
+      "via": "equipment-tile"
+    },
+    {
+      "page": "kitchen",
+      "state": "equipment-details",
+      "intent": "Open a device's details from a scene marker or tile and set its functions.",
+      "via": "scene-marker"
+    },
+    {
+      "page": "kitchen",
+      "state": "equipment-removal-preview",
+      "intent": "Remove an appliance and review the affected future meals.",
+      "via": "removal-preview"
+    },
+    {
+      "page": "kitchen",
+      "state": "rule-change-preview",
+      "intent": "Change a required food rule and review its plan conflicts.",
+      "via": "rule-change-preview"
+    },
+    {
+      "page": "week",
+      "intent": "See affected occurrences flagged for repair rather than silently kept.",
+      "via": "week-board"
+    }
+  ],
+  "claims": [
+    {
+      "id": "selection-is-free-and-immediate",
+      "type": "custom",
+      "statement": "Selecting equipment updates immediately, persists, and never triggers image generation.",
+      "tier": "aspirational"
+    }
+  ]
+}

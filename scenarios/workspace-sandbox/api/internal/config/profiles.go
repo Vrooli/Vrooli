@@ -6,7 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+
+	"github.com/vrooli/api-core/storage"
+
+	"workspace-sandbox/internal/types"
 )
 
 // IsolationProfile defines a named isolation configuration.
@@ -42,10 +47,42 @@ type IsolationProfile struct {
 	// Hostname to set inside the sandbox.
 	Hostname string `json:"hostname"`
 
+	// MaskPaths lists host paths hidden from the workload by mounting an
+	// empty tmpfs over them (after all other binds, so deny beats allow).
+	// Use $HOME, $USER, $VROOLI_ROOT as placeholders. Intended for host
+	// state the home overlay would otherwise expose but no workload needs
+	// — e.g. unrelated repository checkouts under $HOME.
+	MaskPaths []string `json:"maskPaths,omitempty"`
+
+	// HomeOverlayRequirement declares how strongly this profile depends
+	// on the per-sandbox host-$HOME overlay being present:
+	//
+	//   - "not_needed":  profile ignores $HOME (e.g. HOME=/tmp).
+	//   - "optional":    profile uses $HOME-relative paths when the
+	//                    overlay is Present, falls back gracefully when
+	//                    Absent. Callers record HOME_OVERLAY_FALLBACK
+	//                    audit code instead of refusing.
+	//   - "required":    profile cannot function without the overlay.
+	//                    Handlers MUST refuse exec with HTTP 409
+	//                    (HomeOverlayRequiredError) when the sandbox's
+	//                    HomeOverlayState is anything other than
+	//                    HomeOverlayPresent — failing fast at exec time
+	//                    prevents the silent
+	//                    "env: $HOME/.local/bin/agent: No such file"
+	//                    at process spawn.
+	//
+	// DOC: home-overlay seam — profile-side requirement declaration.
+	// See docs/internal/SEAMS.md.
+	HomeOverlayRequirement types.HomeOverlayRequirement `json:"homeOverlayRequirement"`
+
 	// Future extensibility (currently unused, reserved for later)
 	// SharePID bool `json:"sharePID,omitempty"`
 	// AllowDevices bool `json:"allowDevices,omitempty"`
 	// SeccompProfile string `json:"seccompProfile,omitempty"`
+}
+
+func platformPathList(entries ...string) string {
+	return strings.Join(entries, string(os.PathListSeparator))
 }
 
 // ProfileStore manages isolation profile storage and retrieval.
@@ -74,11 +111,33 @@ type FileProfileStore struct {
 }
 
 // NewFileProfileStore creates a profile store backed by a JSON file.
-// basePath should be the scenario directory (e.g., scenarios/workspace-sandbox).
-func NewFileProfileStore(basePath string) *FileProfileStore {
-	return &FileProfileStore{
-		path: filepath.Join(basePath, ".vrooli", "workspace-sandbox-profiles.json"),
+func NewFileProfileStore(_ string) (*FileProfileStore, error) {
+	path, err := resolveProfilesPath()
+	if err != nil {
+		return nil, err
 	}
+	return &FileProfileStore{path: path}, nil
+}
+
+// NewFileProfileStoreAtPath creates a profile store pinned to an explicit file path.
+// This is primarily intended for tests.
+func NewFileProfileStoreAtPath(path string) *FileProfileStore {
+	return &FileProfileStore{path: path}
+}
+
+func resolveProfilesPath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: "workspace-sandbox"},
+		storage.ClassConfig,
+		"profiles.json",
+	)
 }
 
 // DefaultProfiles returns the built-in isolation profiles.
@@ -90,6 +149,15 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Maximum isolation - only /workspace and basic system paths accessible. No network access.",
 			Builtin:       true,
 			NetworkAccess: "none",
+			// HOME=/tmp; no host $HOME visibility expected.
+			HomeOverlayRequirement: types.HomeOverlayNotNeeded,
+			// /etc/ssl/certs is bound so TLS clients using the system
+			// trust store (rustls-native-certs, OpenSSL, Go's crypto/x509
+			// fallback) find the host CA bundle. Without it, Rust agents
+			// like Codex emit "no native root CA certificates found" and
+			// every HTTPS handshake fails. The dir is mostly symlinks
+			// into /usr/share/ca-certificates (already covered by the
+			// /usr bind) plus the generated ca-certificates.crt bundle.
 			ReadOnlyBinds: map[string]string{
 				"/usr":             "/usr",
 				"/lib":             "/lib",
@@ -99,14 +167,21 @@ func DefaultProfiles() []IsolationProfile {
 				"/etc/hosts":       "/etc/hosts",
 				"/etc/passwd":      "/etc/passwd",
 				"/etc/group":       "/etc/group",
+				"/etc/ssl/certs":   "/etc/ssl/certs",
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				"PATH":  "/usr/local/bin:/usr/bin:/bin",
-				"HOME":  "/tmp",
-				"SHELL": "/bin/sh",
+				"PATH": platformPathList("/usr/local/bin", "/usr/bin", "/bin"),
+				"HOME": "/tmp",
+				// SSL_CERT_FILE / SSL_CERT_DIR pin the trust store path
+				// explicitly so TLS libraries that don't probe the
+				// default locations still find the bundle.
+				"SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+				"SSL_CERT_DIR":  "/etc/ssl/certs",
+				"SHELL":         "/bin/sh",
 			},
-			Hostname: "sandbox",
+			Hostname:  "sandbox",
+			MaskPaths: []string{"$HOME/.codex-worktrees"},
 		},
 		{
 			ID:            "vrooli-aware",
@@ -114,28 +189,58 @@ func DefaultProfiles() []IsolationProfile {
 			Description:   "Access to Vrooli CLIs, configs, and localhost network for API communication.",
 			Builtin:       true,
 			NetworkAccess: "localhost",
+			// PATH=$HOME/... and HOME=$HOME require the host-home overlay
+			// to be present; the handler refuses exec otherwise.
+			HomeOverlayRequirement: types.HomeOverlayRequired,
+			// Most $HOME-relative state is provided by the per-sandbox
+			// HOME overlay set up in driver.Mount. One path is
+			// intentionally different: ~/.vrooli is mounted read-only
+			// from the host after the HOME overlay bind so agents see
+			// live runtime state, logs, and scenario databases instead
+			// of a stale per-sandbox snapshot. The bind is read-only
+			// because Vrooli runtime state is outside the tracked
+			// workspace; host mutations must go through controlled
+			// lifecycle/scenario APIs.
+			// See `full` profile for why /etc/ssl/certs is bound — Codex
+			// (rustls) and any system-OpenSSL caller need the host CA
+			// trust store to verify HTTPS endpoints.
 			ReadOnlyBinds: map[string]string{
-				"/usr":                 "/usr",
-				"/lib":                 "/lib",
-				"/lib64":               "/lib64",
-				"/bin":                 "/bin",
-				"/etc/resolv.conf":     "/etc/resolv.conf",
-				"/etc/hosts":           "/etc/hosts",
-				"/etc/passwd":          "/etc/passwd",
-				"/etc/group":           "/etc/group",
-				"$HOME/.local/bin":     "/usr/local/bin",
-				"$HOME/.config/vrooli": "$HOME/.config/vrooli",
-				"$VROOLI_ROOT":         "/vrooli",
+				"/usr":             "/usr",
+				"/lib":             "/lib",
+				"/lib64":           "/lib64",
+				"/bin":             "/bin",
+				"/etc/resolv.conf": "/etc/resolv.conf",
+				"/etc/hosts":       "/etc/hosts",
+				"/etc/passwd":      "/etc/passwd",
+				"/etc/group":       "/etc/group",
+				"/etc/ssl/certs":   "/etc/ssl/certs",
+				"$VROOLI_ROOT":     "/vrooli",
+				"$HOME/.vrooli":    "$HOME/.vrooli",
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				"PATH":        "/usr/local/bin:/usr/bin:/bin",
-				"HOME":        "/tmp",
-				"SHELL":       "/bin/sh",
-				"VROOLI_ROOT": "/vrooli",
-				"VROOLI_ENV":  "$VROOLI_ENV",
+				// PATH includes canonical Vrooli and Go tool locations
+				// surfaced through the HOME overlay, then standard
+				// system paths. This makes Vrooli agents independent of
+				// the caller's interactive shell while keeping every
+				// $HOME-relative write auditable through the sandbox.
+				"PATH": platformPathList("$HOME/.vrooli/bin", "$HOME/go/bin", "$HOME/.local/bin", "/usr/local/bin", "/usr/bin", "/bin"),
+				// HOME points to the host home so $HOME-relative
+				// lookups resolve to the overlay merged dir, not /tmp.
+				"HOME": "$HOME",
+				// SSL_CERT_FILE / SSL_CERT_DIR pin the trust store path
+				// explicitly — see `full` profile comment.
+				"SSL_CERT_FILE": "/etc/ssl/certs/ca-certificates.crt",
+				"SSL_CERT_DIR":  "/etc/ssl/certs",
+				"SHELL":         "/bin/sh",
+				"VROOLI_ROOT":   "/vrooli",
+				"VROOLI_ENV":    "$VROOLI_ENV",
 			},
 			Hostname: "sandbox",
+			// Other repository checkouts under $HOME are never a workload's
+			// business; the home overlay would otherwise expose them
+			// read-visible (2026-07-20 escaped-agent incident).
+			MaskPaths: []string{"$HOME/.codex-worktrees"},
 		},
 	}
 }
@@ -193,6 +298,17 @@ func (s *FileProfileStore) Save(profile IsolationProfile) error {
 		if b.ID == profile.ID && b.Builtin {
 			return fmt.Errorf("cannot modify builtin profile: %s", profile.ID)
 		}
+	}
+
+	if profile.HomeOverlayRequirement == "" {
+		profile.HomeOverlayRequirement = types.HomeOverlayNotNeeded
+	}
+	if !profile.HomeOverlayRequirement.IsValid() {
+		return fmt.Errorf(
+			"profile %q: invalid homeOverlayRequirement %q (want one of %q/%q/%q)",
+			profile.ID, profile.HomeOverlayRequirement,
+			types.HomeOverlayNotNeeded, types.HomeOverlayOptional, types.HomeOverlayRequired,
+		)
 	}
 
 	s.mu.Lock()
@@ -272,6 +388,19 @@ func (s *FileProfileStore) ensureLoaded() error {
 	var profiles []IsolationProfile
 	if err := json.Unmarshal(data, &profiles); err != nil {
 		return fmt.Errorf("failed to parse profiles: %w", err)
+	}
+
+	for i := range profiles {
+		if profiles[i].HomeOverlayRequirement == "" {
+			profiles[i].HomeOverlayRequirement = types.HomeOverlayNotNeeded
+		}
+		if !profiles[i].HomeOverlayRequirement.IsValid() {
+			return fmt.Errorf(
+				"profile %q: invalid homeOverlayRequirement %q (want one of %q/%q/%q)",
+				profiles[i].ID, profiles[i].HomeOverlayRequirement,
+				types.HomeOverlayNotNeeded, types.HomeOverlayOptional, types.HomeOverlayRequired,
+			)
+		}
 	}
 
 	s.cache = profiles

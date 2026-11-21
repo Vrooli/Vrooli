@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "journal",
+    "title": "Journal",
+    "routes": [
+      "/journal"
+    ],
+    "purpose": "Answer 'who did this, as whom, on whose authority, and when' for any action this scenario has ever taken \u2014 including the ones it refused.",
+    "prd_refs": [
+      "OT-P0-011",
+      "OT-P0-003",
+      "OT-P0-009"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Refusals are as prominent as successes. A refused act-as or a refused release is what an audit actually comes here to find."
+    },
+    {
+      "statement": "Every row carries the full chain \u2014 authorising human, persona, run \u2014 because a row that names only one of the three cannot answer the question."
+    },
+    {
+      "statement": "The log is visibly append-only; the interface offers no edit or delete affordance anywhere."
+    },
+    {
+      "statement": "Export is a first-class action, not buried.",
+      "notes": "An audit trail that cannot leave the machine is not an audit trail."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Entries present, newest first."
+    },
+    {
+      "id": "empty",
+      "description": "No actions recorded yet."
+    },
+    {
+      "id": "loading",
+      "description": "Entries resolving."
+    },
+    {
+      "id": "filtered",
+      "description": "A filter is applied; the active filter and the resulting count are both stated."
+    },
+    {
+      "id": "partial",
+      "description": "Entries load but chain resolution for some rows is incomplete; those rows say so rather than showing a blank actor."
+    },
+    {
+      "id": "request-error",
+      "description": "Entries cannot be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "Entries are served from cache during an outage. Explicitly labelled, because a partial audit view presented as complete is worse than no view."
+    }
+  ]
+}

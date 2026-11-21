@@ -154,7 +154,7 @@ func TestCleanupOrphans_WithOrphan(t *testing.T) {
 	}
 	defer func() {
 		// Ensure cleanup regardless of test outcome
-		_, _ = db.Exec("DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
 	}()
 
 	handlers := NewAdminOverrideHandlers(db, &Logger{})

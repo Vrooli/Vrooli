@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/net/publicsuffix"
-
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	"scenario-to-cloud/domain"
+
+	"golang.org/x/net/publicsuffix"
 )
 
 // PreflightChecks evaluates DNS validation checks for a deployment preflight.
@@ -16,220 +17,184 @@ func PreflightChecks(ctx context.Context, svc Service, domainName, vpsHost strin
 	return PreflightChecksFromEvaluation(eval, policy)
 }
 
+// MailDNSChecks verifies reviewed provider requirements without forcing
+// web-only deployments to declare a mail configuration.
+func MailDNSChecks(ctx context.Context, domainName string, requirements []maildns.ProviderRequirement, policy domain.DNSPolicy) []domain.PreflightCheck {
+	if len(requirements) == 0 {
+		return nil
+	}
+	return MailDNSChecksFromReport(VerifyMailDNS(ctx, domainName, requirements), policy)
+}
+
+// MailDNSChecksFromReport converts a verified mail-DNS report into deployment
+// checks. Keeping this mapping separate makes the required-versus-warn policy
+// explicit and testable without depending on the live DNS resolver.
+func MailDNSChecksFromReport(report maildns.Report, policy domain.DNSPolicy) []domain.PreflightCheck {
+	checks := make([]domain.PreflightCheck, 0, len(report.Providers))
+	for _, verdict := range report.Providers {
+		status := domain.PreflightFail
+		if verdict.Status == maildns.Pass {
+			status = domain.PreflightPass
+		} else if policy != domain.DNSPolicyRequired {
+			status = domain.PreflightWarn
+		}
+		checks = append(checks, domain.PreflightCheck{
+			ID: domain.PreflightDNSMailID, Title: "Mail DNS authorization", Status: status,
+			Details: fmt.Sprintf("%s: %s", verdict.Provider, verdict.Detail),
+			Hint:    "Publish the provider's SPF/DKIM records, then rerun preflight.",
+			Data:    map[string]string{"provider": verdict.Provider, "record": verdict.Record, "lookup_cost": fmt.Sprint(verdict.Cost)},
+		})
+	}
+	return checks
+}
+
 // PreflightChecksFromEvaluation maps a DNS evaluation to preflight checks.
 func PreflightChecksFromEvaluation(eval Evaluation, policy domain.DNSPolicy) []domain.PreflightCheck {
-	checks := make([]domain.PreflightCheck, 0, 5)
-	fail := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightFail,
-			Details: details,
-			Hint:    hint,
-			Data:    data,
-		})
-	}
-	pass := func(id, title, details string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightPass,
-			Details: details,
-			Data:    data,
-		})
-	}
-	warn := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightWarn,
-			Details: details,
-			Hint:    hint,
-			Data:    data,
-		})
-	}
-
+	builder := preflightCheckBuilder{checks: make([]domain.PreflightCheck, 0, 5), policy: policy}
 	if policy == domain.DNSPolicySkip {
-		skippedHint := "DNS checks skipped by policy. Set edge.dns_policy to required to enforce DNS validation."
-		warn(domain.PreflightDNSVPSHostID, "Resolve VPS host", "DNS checks skipped by policy", skippedHint, nil)
-		warn(domain.PreflightDNSEdgeApexID, "Apex domain", "DNS checks skipped by policy", skippedHint, nil)
-		warn(domain.PreflightDNSEdgeWWWID, "WWW domain", "DNS checks skipped by policy", skippedHint, nil)
-		warn(domain.PreflightDNSDoOriginID, "Origin domain", "DNS checks skipped by policy", skippedHint, nil)
-		warn(domain.PreflightDNSOGWorkerID, "OG worker readiness", "DNS checks skipped by policy", skippedHint, nil)
-		warn(domain.PreflightDNSEdgeIPv6ID, "Edge IPv6 records", "DNS checks skipped by policy", skippedHint, nil)
-		return checks
+		builder.appendSkippedChecks()
+		return builder.checks
 	}
+	builder.appendVPSHost(eval)
+	builder.appendDomainStatuses(eval)
+	builder.appendEdgeIPv6(eval)
+	builder.appendOGWorker(eval)
+	return builder.checks
+}
 
-	recordDNSIssue := func(id, title, details, hint string, data map[string]string) {
-		if policy == domain.DNSPolicyWarn {
-			warn(id, title, details, hint, data)
-			return
-		}
-		fail(id, title, details, hint, data)
+type preflightCheckBuilder struct {
+	checks []domain.PreflightCheck
+	policy domain.DNSPolicy
+}
+
+func (b *preflightCheckBuilder) fail(id, title, details, hint string, data map[string]string) {
+	b.checks = append(b.checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightFail, Details: details, Hint: hint, Data: data})
+}
+
+func (b *preflightCheckBuilder) pass(id, title, details string, data map[string]string) {
+	b.checks = append(b.checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightPass, Details: details, Data: data})
+}
+
+func (b *preflightCheckBuilder) warn(id, title, details, hint string, data map[string]string) {
+	b.checks = append(b.checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightWarn, Details: details, Hint: hint, Data: data})
+}
+
+func (b *preflightCheckBuilder) issue(id, title, details, hint string, data map[string]string) {
+	if b.policy == domain.DNSPolicyWarn {
+		b.warn(id, title, details, hint, data)
+		return
 	}
+	b.fail(id, title, details, hint, data)
+}
 
+func (b *preflightCheckBuilder) appendSkippedChecks() {
+	hint := "DNS checks skipped by policy. Set edge.dns_policy to required to enforce DNS validation."
+	b.warn(domain.PreflightDNSVPSHostID, "Resolve VPS host", "DNS checks skipped by policy", hint, nil)
+	b.warn(domain.PreflightDNSEdgeApexID, "Apex domain", "DNS checks skipped by policy", hint, nil)
+	b.warn(domain.PreflightDNSEdgeWWWID, "WWW domain", "DNS checks skipped by policy", hint, nil)
+	b.warn(domain.PreflightDNSDoOriginID, "Origin domain", "DNS checks skipped by policy", hint, nil)
+	b.warn(domain.PreflightDNSOGWorkerID, "OG worker readiness", "DNS checks skipped by policy", hint, nil)
+	b.warn(domain.PreflightDNSEdgeIPv6ID, "Edge IPv6 records", "DNS checks skipped by policy", hint, nil)
+}
+
+func (b *preflightCheckBuilder) appendVPSHost(eval Evaluation) {
 	if eval.VPS.Error != nil {
-		recordDNSIssue(
-			domain.PreflightDNSVPSHostID,
-			"Resolve VPS host",
-			fmt.Sprintf("Unable to resolve VPS host %q", eval.VPS.Host),
-			eval.VPS.Error.Message,
-			nil,
-		)
-	} else {
-		pass(domain.PreflightDNSVPSHostID, "Resolve VPS host", "Resolved VPS host", map[string]string{"ips": strings.Join(eval.VPS.IPs, ",")})
+		b.issue(domain.PreflightDNSVPSHostID, "Resolve VPS host", fmt.Sprintf("Unable to resolve VPS host %q", eval.VPS.Host), eval.VPS.Error.Message, nil)
+		return
 	}
+	b.pass(domain.PreflightDNSVPSHostID, "Resolve VPS host", "Resolved VPS host", map[string]string{"ips": strings.Join(eval.VPS.IPs, ",")})
+}
 
+func (b *preflightCheckBuilder) appendDomainStatuses(eval Evaluation) {
 	for _, status := range eval.Statuses {
-		title := ""
-		id := ""
-		switch status.Role {
-		case "apex":
-			id = domain.PreflightDNSEdgeApexID
-			title = "Apex domain"
-		case "www":
-			id = domain.PreflightDNSEdgeWWWID
-			title = "WWW domain"
-		case "origin":
-			id = domain.PreflightDNSDoOriginID
-			title = "Origin domain"
-		case "edge":
-			id = domain.PreflightDNSEdgeDomainID
-			title = "Edge domain"
-		default:
-			continue
-		}
-
-		if status.Lookup.Error != nil {
-			recordDNSIssue(
-				id,
-				title,
-				fmt.Sprintf("Unable to resolve %s (%q)", title, status.Lookup.Host),
-				status.Lookup.Error.Message,
-				nil,
-			)
-			continue
-		}
-
-		if status.AllowProxy && status.Proxied {
-			pass(
-				id,
-				title,
-				fmt.Sprintf("%s resolves to Cloudflare proxy", status.Lookup.Host),
-				map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "proxied": "cloudflare"},
-			)
-			continue
-		}
-
-		if eval.VPS.Error != nil {
-			recordDNSIssue(
-				id,
-				title,
-				fmt.Sprintf("Unable to verify %s (VPS host unresolved)", status.Lookup.Host),
-				eval.VPS.Error.Message,
-				nil,
-			)
-			continue
-		}
-
-		if status.PointsToVPS {
-			pass(
-				id,
-				title,
-				fmt.Sprintf("%s resolves to the VPS", status.Lookup.Host),
-				map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "vps_ips": strings.Join(eval.VPS.IPs, ",")},
-			)
-			continue
-		}
-
-		hint := ""
-		if len(eval.VPS.IPs) > 0 {
-			hint, _ = BuildARecordHint(status.Lookup.Host, eval.VPS.IPs[0])
-		}
-		recordDNSIssue(
-			id,
-			title,
-			fmt.Sprintf("%s resolves to %s, not your VPS (%s)", status.Lookup.Host, strings.Join(status.Lookup.IPs, ", "), strings.Join(eval.VPS.IPs, ", ")),
-			hint,
-			map[string]string{"vps_ips": strings.Join(eval.VPS.IPs, ","), "edge_ips": strings.Join(status.Lookup.IPs, ","), "domain": status.Lookup.Host},
-		)
+		b.appendDomainStatus(eval, status)
 	}
+}
 
-	ogWorkerHint := "To enable OG worker routing, proxy both apex and www through Cloudflare and point do-origin to the VPS (DNS-only A record)."
+func (b *preflightCheckBuilder) appendDomainStatus(eval Evaluation, status DomainStatus) {
+	id, title, ok := preflightIdentityForRole(status.Role)
+	if !ok {
+		return
+	}
+	if status.Lookup.Error != nil {
+		b.issue(id, title, fmt.Sprintf("Unable to resolve %s (%q)", title, status.Lookup.Host), status.Lookup.Error.Message, nil)
+		return
+	}
+	if status.AllowProxy && status.Proxied {
+		b.pass(id, title, fmt.Sprintf("%s resolves to Cloudflare proxy", status.Lookup.Host), map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "proxied": "cloudflare"})
+		return
+	}
+	if eval.VPS.Error != nil {
+		b.issue(id, title, fmt.Sprintf("Unable to verify %s (VPS host unresolved)", status.Lookup.Host), eval.VPS.Error.Message, nil)
+		return
+	}
+	if status.PointsToVPS {
+		b.pass(id, title, fmt.Sprintf("%s resolves to the VPS", status.Lookup.Host), map[string]string{"ips": strings.Join(status.Lookup.IPs, ","), "vps_ips": strings.Join(eval.VPS.IPs, ",")})
+		return
+	}
+	hint := ""
+	if len(eval.VPS.IPs) > 0 {
+		hint, _ = BuildARecordHint(status.Lookup.Host, eval.VPS.IPs[0])
+	}
+	b.issue(id, title, fmt.Sprintf("%s resolves to %s, not your VPS (%s)", status.Lookup.Host, strings.Join(status.Lookup.IPs, ", "), strings.Join(eval.VPS.IPs, ", ")), hint, map[string]string{"vps_ips": strings.Join(eval.VPS.IPs, ","), "edge_ips": strings.Join(status.Lookup.IPs, ","), "domain": status.Lookup.Host})
+}
+
+func preflightIdentityForRole(role string) (string, string, bool) {
+	switch role {
+	case "apex":
+		return domain.PreflightDNSEdgeApexID, "Apex domain", true
+	case "www":
+		return domain.PreflightDNSEdgeWWWID, "WWW domain", true
+	case "origin":
+		return domain.PreflightDNSDoOriginID, "Origin domain", true
+	case "edge":
+		return domain.PreflightDNSEdgeDomainID, "Edge domain", true
+	default:
+		return "", "", false
+	}
+}
+
+func (b *preflightCheckBuilder) appendEdgeIPv6(eval Evaluation) {
+	issues := []string{}
+	data := map[string]string{}
+	vpsIPv6 := filterIPv6(eval.VPS.IPs)
+	for _, status := range eval.Statuses {
+		if status.Role != "apex" && status.Role != "www" || status.Proxied {
+			continue
+		}
+		edgeIPv6 := filterIPv6(status.Lookup.IPs)
+		if len(edgeIPv6) == 0 || eval.VPS.Error == nil && len(vpsIPv6) > 0 && intersects(edgeIPv6, vpsIPv6) {
+			continue
+		}
+		issues = append(issues, fmt.Sprintf("%s -> %s", status.Host, strings.Join(edgeIPv6, ", ")))
+		data[status.Host] = strings.Join(edgeIPv6, ",")
+	}
+	if len(issues) == 0 {
+		b.pass(domain.PreflightDNSEdgeIPv6ID, "Edge IPv6 records", "No mismatched IPv6 records detected", nil)
+		return
+	}
+	b.warn(domain.PreflightDNSEdgeIPv6ID, "Edge IPv6 records", fmt.Sprintf("IPv6 records detected without matching VPS IPv6: %s", strings.Join(issues, " | ")), "Remove AAAA records or configure IPv6 on the VPS to match. Clients preferring IPv6 may time out if AAAA points to a non-serving host.", data)
+}
+
+func (b *preflightCheckBuilder) appendOGWorker(eval Evaluation) {
+	hint := "To enable OG worker routing, proxy both apex and www through Cloudflare and point do-origin to the VPS (DNS-only A record)."
 	apexStatus, _ := eval.StatusForRole("apex")
 	wwwStatus, hasWWW := eval.StatusForRole("www")
 	doOriginStatus, _ := eval.StatusForRole("origin")
 	apexProxied := apexStatus.Proxied
-	wwwProxied := false
-	if hasWWW {
-		wwwProxied = wwwStatus.Proxied
-	}
-
-	edgeIPv6Issues := []string{}
-	edgeIPv6Data := map[string]string{}
-	vpsIPv6 := filterIPv6(eval.VPS.IPs)
-	for _, status := range eval.Statuses {
-		if status.Role != "apex" && status.Role != "www" {
-			continue
-		}
-		if status.Proxied {
-			continue
-		}
-		edgeIPv6 := filterIPv6(status.Lookup.IPs)
-		if len(edgeIPv6) == 0 {
-			continue
-		}
-		if eval.VPS.Error != nil || len(vpsIPv6) == 0 || !intersects(edgeIPv6, vpsIPv6) {
-			edgeIPv6Issues = append(edgeIPv6Issues, fmt.Sprintf("%s -> %s", status.Host, strings.Join(edgeIPv6, ", ")))
-			edgeIPv6Data[status.Host] = strings.Join(edgeIPv6, ",")
-		}
-	}
-
-	if len(edgeIPv6Issues) > 0 {
-		warn(
-			domain.PreflightDNSEdgeIPv6ID,
-			"Edge IPv6 records",
-			fmt.Sprintf("IPv6 records detected without matching VPS IPv6: %s", strings.Join(edgeIPv6Issues, " | ")),
-			"Remove AAAA records or configure IPv6 on the VPS to match. Clients preferring IPv6 may time out if AAAA points to a non-serving host.",
-			edgeIPv6Data,
-		)
-	} else {
-		pass(
-			domain.PreflightDNSEdgeIPv6ID,
-			"Edge IPv6 records",
-			"No mismatched IPv6 records detected",
-			nil,
-		)
-	}
+	wwwProxied := hasWWW && wwwStatus.Proxied
 	if eval.WWWDomain == eval.ApexDomain {
 		wwwProxied = apexProxied
 	}
 	if !apexProxied || !wwwProxied {
-		warn(
-			domain.PreflightDNSOGWorkerID,
-			"OG worker readiness",
-			"Apex and www should be proxied through Cloudflare for OG routing",
-			ogWorkerHint,
-			nil,
-		)
-	} else if doOriginStatus.Lookup.Error != nil || !doOriginStatus.PointsToVPS {
-		warn(
-			domain.PreflightDNSOGWorkerID,
-			"OG worker readiness",
-			fmt.Sprintf("%s should point to the VPS for OG routing", doOriginStatus.Host),
-			ogWorkerHint,
-			map[string]string{"domain": doOriginStatus.Host},
-		)
-	} else {
-		pass(
-			domain.PreflightDNSOGWorkerID,
-			"OG worker readiness",
-			"OG worker routing prerequisites look good",
-			nil,
-		)
+		b.warn(domain.PreflightDNSOGWorkerID, "OG worker readiness", "Apex and www should be proxied through Cloudflare for OG routing", hint, nil)
+		return
 	}
-
-	return checks
+	if doOriginStatus.Lookup.Error != nil || !doOriginStatus.PointsToVPS {
+		b.warn(domain.PreflightDNSOGWorkerID, "OG worker readiness", fmt.Sprintf("%s should point to the VPS for OG routing", doOriginStatus.Host), hint, map[string]string{"domain": doOriginStatus.Host})
+		return
+	}
+	b.pass(domain.PreflightDNSOGWorkerID, "OG worker readiness", "OG worker routing prerequisites look good", nil)
 }
 
 func filterIPv6(ips []string) []string {

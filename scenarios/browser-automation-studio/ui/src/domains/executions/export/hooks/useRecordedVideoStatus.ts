@@ -7,7 +7,7 @@
  * - Clear in its single responsibility
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   defaultExportApiClient,
   type ExportApiClient,
@@ -35,6 +35,7 @@ export interface UseRecordedVideoStatusResult {
    * Whether recorded video is available for this execution.
    */
   available: boolean;
+  url: string | null;
 
   /**
    * Number of recorded video artifacts available.
@@ -57,6 +58,14 @@ export interface UseRecordedVideoStatusResult {
   refresh: () => void;
 }
 
+const EMPTY_STATUS: RecordedVideoStatus = { available: false, count: 0, videos: [] };
+interface RecordedVideoSnapshot {
+  executionId: string;
+  status: RecordedVideoStatus;
+  loading: boolean;
+  error: string | null;
+}
+
 // =============================================================================
 // Hook Implementation
 // =============================================================================
@@ -65,63 +74,58 @@ export function useRecordedVideoStatus({
   executionId,
   apiClient = defaultExportApiClient,
 }: UseRecordedVideoStatusOptions): UseRecordedVideoStatusResult {
-  const [status, setStatus] = useState<RecordedVideoStatus>({
-    available: false,
-    count: 0,
-    videos: [],
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<RecordedVideoSnapshot>({ executionId, status: EMPTY_STATUS, loading: false, error: null });
+  const currentExecution = useRef(executionId);
+  currentExecution.current = executionId;
+  const requestRef = useRef<{ generation: number; controller: AbortController | null }>({ generation: 0, controller: null });
 
-  const fetchStatus = useCallback(
-    async (signal?: AbortSignal) => {
-      // Guard: Skip API calls if no valid execution ID
-      if (!executionId || executionId.trim() === '') {
-        setStatus({ available: false, count: 0, videos: [] });
-        setLoading(false);
-        setError(null);
-        return;
-      }
+  const cancelRequest = useCallback(() => {
+    requestRef.current.controller?.abort();
+    requestRef.current = { generation: requestRef.current.generation + 1, controller: null };
+  }, []);
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await apiClient.fetchRecordedVideoStatus(executionId, signal);
-        setStatus(result);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-        const message =
-          err instanceof Error ? err.message : "Failed to check recorded video status";
-        setError(message);
-        setStatus({ available: false, count: 0, videos: [] });
-      } finally {
-        setLoading(false);
-      }
-    },
-    [executionId, apiClient],
-  );
+  const fetchStatus = useCallback(async () => {
+    // A retained callback from an old execution cannot retire its successor.
+    if (currentExecution.current !== executionId) return;
+    cancelRequest();
+    const controller = new AbortController();
+    const generation = requestRef.current.generation;
+    requestRef.current.controller = controller;
+    const isCurrent = () => requestRef.current.generation === generation
+      && currentExecution.current === executionId && !controller.signal.aborted;
+    if (!executionId.trim()) {
+      setSnapshot({ executionId, status: EMPTY_STATUS, loading: false, error: null });
+      return;
+    }
+    setSnapshot(previous => ({ executionId, status: previous.executionId === executionId ? previous.status : EMPTY_STATUS, loading: true, error: null }));
+    try {
+      const status = await apiClient.fetchRecordedVideoStatus(executionId, controller.signal);
+      if (isCurrent()) setSnapshot({ executionId, status, loading: false, error: null });
+    } catch (error) {
+      if (!isCurrent() || (error instanceof DOMException && error.name === "AbortError")) return;
+      const message = error instanceof Error ? error.message : "Failed to check recorded video status";
+      setSnapshot({ executionId, status: EMPTY_STATUS, loading: false, error: message });
+    } finally {
+      // Old transports may resolve even after abort, or return an abort failure.
+      // Their finalizers must not clear a successor's loading state.
+      if (isCurrent()) setSnapshot(previous => ({ ...previous, loading: false }));
+    }
+  }, [executionId, apiClient, cancelRequest]);
 
   useEffect(() => {
-    const abortController = new AbortController();
-    void fetchStatus(abortController.signal);
-
-    return () => {
-      abortController.abort();
-    };
-  }, [fetchStatus]);
-
-  const refresh = useCallback(() => {
     void fetchStatus();
-  }, [fetchStatus]);
+    return cancelRequest;
+  }, [fetchStatus, cancelRequest]);
 
+  const refresh = useCallback(() => { void fetchStatus(); }, [fetchStatus]);
+  const current = snapshot.executionId === executionId;
+  const status = current ? snapshot.status : EMPTY_STATUS;
   return {
     available: status.available,
+    url: status.videos.find(video => video.url)?.url ?? null,
     count: status.count,
-    loading,
-    error,
+    loading: current ? snapshot.loading : Boolean(executionId.trim()),
+    error: current ? snapshot.error : null,
     refresh,
   };
 }

@@ -16,8 +16,7 @@ export function HistoryTab() {
     setExecutionForm({
       scenarioName: execution.scenarioName,
       preset: execution.preset ?? "quick",
-      failFast: true,
-      suiteRequestId: execution.suiteRequestId ?? ""
+      failFast: true
     });
     navigateToScenarioDetail(execution.scenarioName);
   };

@@ -1,0 +1,524 @@
+{
+  "metadata": {
+    "name": "p1-mobile-focus-warm-return-cache-neutral-scene-readiness",
+    "description": "Diagnostic reference-scale 390x844 Focus→Goals→Focus warm-return sequence. Reuses the existing useful-data/readiness, resource timing, Service Worker and overlapping Long Task probe; counts/times only 32x8 panorama sample canvas drawImage/getImageData calls per route mount, but does not require canvas reads because valid warmed scene data may be memoized. Each route is ready only after its exact route content is visible and its ObservatoryScene inline day/night/aspect CSS values remain stable across two animation frames. Restores instrumentation and captures the warm Focus page with normal art. Uses the separate reference-scale setup case in the same routed lease. No app preference, business state or source changes; not a production/mobile-device latency gate.",
+    "requirement": "OT-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "performance-reference-scale-v1-canvas-warm-return",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-today-fresh",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open the default Today route in this workflow case/browser page"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-today-data",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today page root"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-today-data",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded work data before starting the tab sequence"
+        },
+        "assert": {
+          "selector": "@selector/pages.today",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Require seeded work data before starting the tab sequence"
+        }
+      }
+    },
+    {
+      "id": "assert-today-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject a page-level error before measuring"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "Reject a page-level error before measuring"
+        }
+      }
+    },
+    {
+      "id": "install-canvas-route-probe",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Install bounded per-route canvas/resource/long-task observer without changing app preferences"
+        },
+        "evaluate": {
+          "expression": "(() => {\n const prior=window.__plannerWarmReturnProbe; prior?.cleanup?.();\n const scene=document.querySelector('.observatory.scene-today');if(!scene||!['--scene-sky-seam-day','--scene-sky-seam-night','--scene-band-aspect'].every(name=>scene.style.getPropertyValue(name)))throw new Error('initial Today scene sample has not settled; do not attribute prior canvas calls to Focus');const prefs={art_free:localStorage.getItem('planner.art-free')==='true',reduced_scenery:localStorage.getItem('planner.reduced-scenery')==='true',subdued_night:localStorage.getItem('planner.subdued-night')==='true',scene_class:scene?.className??null};\n const cfg=[\n  {key:'focus-cold',route:'focus',selector:'[data-testid=\"page-focus\"]',condition:'visible seeded Focus work picker',nav:'focus'},\n  {key:'goals',route:'goals',selector:'[data-testid=\"page-goals\"]',condition:'visible seeded Goals outcome',nav:'goals'},\n  {key:'focus-warm',route:'focus',selector:'[data-testid=\"page-focus\"]',condition:'visible seeded Focus work picker on warm return',nav:'focus'}\n ];\n const visible=el=>{if(!el||!el.isConnected)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0;};\n const cue={\n  'focus-cold':root=>root.querySelector('.focus-start-card h2')?.textContent?.includes('P1 Reference work')===true,\n  goals:root=>root.innerText.includes('P1 Reference outcome'),\n  'focus-warm':root=>root.querySelector('.focus-start-card h2')?.textContent?.includes('P1 Reference work')===true\n };\n const p={transitions:[],longTasks:[],canvasOps:[],observerAvailable:false,startedAt:performance.now(),serviceWorker:{supported:'serviceWorker' in navigator,controller_path:null,registrations:[]},originals:{},cleanupDone:false};\n const check=t=>{const root=document.querySelector(t.selector);if(!visible(root))return 'pending';const alerts=[...root.querySelectorAll('[role=alert]')].filter(visible).map(e=>e.innerText.trim()).filter(Boolean);if(alerts.length){t.error_text=alerts.join(' | ').slice(0,500);t.error_ms=performance.now()-t.click_ms;return 'error';}const busy=[...root.querySelectorAll('[role=status]')].filter(visible).map(e=>e.innerText.trim()).some(x=>/loading|calculating|preparing|checking|reading/i.test(x));if(busy)return 'pending';if(!cue[t.key](root))return 'pending';const scene=root.closest('.observatory');const names=['--scene-sky-seam-day','--scene-sky-seam-night','--scene-band-aspect'];const values=names.map(name=>scene?.style.getPropertyValue(name).trim()??'');if(values.some(value=>!value)){t.scene_css_stable_frames=0;t.scene_css_signature=null;return 'pending';}const signature=values.join('\\u001f');if(signature===t.scene_css_signature)t.scene_css_stable_frames=(t.scene_css_stable_frames??0)+1;else{t.scene_css_signature=signature;t.scene_css_stable_frames=1;}t.scene_css_values=Object.fromEntries(names.map((name,index)=>[name,values[index]]));return t.scene_css_stable_frames>=2?'ready':'pending';};\n const observe=t=>{t.raf_checks=(t.raf_checks??0)+1;const state=check(t);if(state==='ready'){t.ready_ms=performance.now()-t.click_ms;t.scene_css_ready=true;t.status='ready';document.documentElement.setAttribute(`data-p1-scene-${t.key}`,'ready');return;}if(state==='error'){t.status='error';return;}if(performance.now()-t.click_ms>30000){t.status='timeout';return;}t.raf=requestAnimationFrame(()=>observe(t));};\n const countSamples=t=>{const n=t.canvas_ops.filter(x=>x.method==='getImageData'&&x.ok).length;document.documentElement.setAttribute(`data-p1-samples-${t.key}`,n>=2?'ready':'pending');if(n>=2&&t.sample_complete_ms==null)t.sample_complete_ms=performance.now()-t.click_ms;};\n const wrap=(method)=>{const proto=CanvasRenderingContext2D.prototype;const original=proto[method];p.originals[method]=original;proto[method]=function(...args){if(this.canvas?.width!==32||this.canvas?.height!==8)return Reflect.apply(original,this,args);const active=p.active;const start=performance.now();let ok=false;try{const result=Reflect.apply(original,this,args);ok=true;return result;}finally{const end=performance.now();if(active){const op={method,start_after_click_ms:Math.round((start-active.click_ms)*100)/100,duration_ms:Math.round((end-start)*1000)/1000,ok};active.canvas_ops.push(op);p.canvasOps.push({transition:active.key,...op});if(method==='getImageData')countSamples(active);}}};};\n wrap('drawImage');wrap('getImageData');\n p.outOfSequence=null;\n p.clickListener=event=>{const target=event.target instanceof Element?event.target.closest(cfg.map(item=>`[data-testid=\"layout-nav-${item.nav}-tab\"]`).join(',')):null;if(!target)return;const item=cfg[p.transitions.length];if(!item)return;const expected=`[data-testid=\"layout-nav-${item.nav}-tab\"]`;if(!target.matches(expected)){p.outOfSequence={expected:item.key,observed:target.getAttribute('data-testid')};return;}const transition={key:item.key,route:item.route,selector:item.selector,ready_condition:item.condition+' plus stable route-scene CSS values',click_ms:performance.now(),ready_ms:null,status:'pending',canvas_ops:[],scene_css_stable_frames:0,scene_css_values:null};p.transitions.push(transition);p.active=transition;document.documentElement.setAttribute(`data-p1-samples-${item.key}`,'0');document.documentElement.setAttribute(`data-p1-scene-${item.key}`,'pending');observe(transition);};\n document.addEventListener('click',p.clickListener,true);\n if('PerformanceObserver' in window){try{const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries())p.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});});observer.observe({type:'longtask',buffered:true});p.longObserver=observer;p.observerAvailable=true;}catch{}}\n if(navigator.serviceWorker){p.serviceWorker.controller_path=navigator.serviceWorker.controller?new URL(navigator.serviceWorker.controller.scriptURL,location.href).pathname:null;p.serviceWorkerPromise=navigator.serviceWorker.getRegistrations().then(items=>{p.serviceWorker.registrations=items.map(item=>{const scope=new URL(item.scope,location.href);const script=item.active?new URL(item.active.scriptURL,location.href):null;return {scope_path:scope.pathname,scope_same_origin:scope.origin===location.origin,active_script_path:script?.pathname??null,active_script_same_origin:script?script.origin===location.origin:null,active_state:item.active?.state??null,waiting_state:item.waiting?.state??null};});}).catch(()=>{p.serviceWorker.read_error=true;});}\n p.prefs=prefs;\n p.measure=(key)=>{if(p.outOfSequence)throw new Error(`unexpected tab order: expected ${p.outOfSequence.expected}, observed ${p.outOfSequence.observed}`);const t=[...p.transitions].reverse().find(item=>item.key===key);const end=performance.now();for(const entry of p.longObserver?.takeRecords()??[])p.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration});if(!t||t.status!=='ready'||t.ready_ms==null)throw new Error(`tab transition ${key} did not reach its captured ready state`);if(!t.scene_css_ready||!t.scene_css_values||t.scene_css_stable_frames<2)throw new Error(`route scene CSS readiness was not captured for ${key}`);const intervalStart=t.click_ms;const resources=performance.getEntriesByType('resource').filter(e=>e.startTime>=intervalStart&&e.startTime<=end).filter(e=>{try{const u=new URL(e.name);return (/^\\/vrooli\\.personal_planner\\.v1\\./.test(u.pathname)||/^\\/api\\/v1\\//.test(u.pathname)||/\\.(js|css)$/.test(u.pathname)||e.initiatorType==='img'||e.initiatorType==='image'||/\\.(?:avif|gif|jpe?g|png|svg|webp|woff2?|ttf|otf)$/i.test(u.pathname));}catch{return false;}}).map(e=>{const u=new URL(e.name),path=u.pathname.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,':id');return {path,same_origin:u.origin===location.origin,initiator_type:e.initiatorType,start_after_click_ms:Math.round((e.startTime-t.click_ms)*100)/100,duration_ms:e.duration>0?Math.round(e.duration*100)/100:null,ttfb_ms:e.responseStart>0?Math.round((e.responseStart-e.startTime)*100)/100:null,transfer_bytes:e.transferSize>0?e.transferSize:null,encoded_bytes:e.encodedBodySize>0?e.encodedBodySize:null};});const tasks=p.longTasks.filter(x=>x.start_ms<=end&&x.start_ms+x.duration_ms>=intervalStart);const ops=t.canvas_ops;const successful=ops.filter(x=>x.method==='getImageData'&&x.ok).length;const draws=ops.filter(x=>x.method==='drawImage'&&x.ok).length;return {key,route:t.route,transition_status:t.status,ready_condition:t.ready_condition,click_to_visible_data_and_scene_ready_ms:t.ready_ms,scene_css_ready:t.scene_css_ready===true,scene_css_stable_frames:t.scene_css_stable_frames,scene_css_values:t.scene_css_values,canvas_samples_observed:successful>0,sample_complete_after_click_ms:t.sample_complete_ms,sample_window_ms:Math.round((end-intervalStart)*100)/100,canvas_filter:'only contexts whose canvas is exactly 32x8 (the current shared scene sampler crop); counts are observations, not a readiness gate',raf_readiness_checks:t.raf_checks??0,canvas_counts:{drawImage:draws,getImageData:successful},canvas_operations:ops,route_resource_timing:resources,long_tasks:tasks,long_task_max_ms:Math.max(0,...tasks.map(x=>x.duration_ms)),observer_available:p.observerAvailable,service_worker:p.serviceWorker,scene_preferences:p.prefs,timing_note:'click_to_visible_data_and_scene_ready_ms requires the route data cue and stable inline ObservatoryScene CSS values across two animation frames; sample_window_ms includes BAS wait/assert settling. Canvas counts are observed only and may validly be zero when scene samples are memoized. Canvas timings include wrapper overhead and do not measure compositor/GPU work; resource timing zero fields are null.'};};\n p.cleanup=()=>{if(p.cleanupDone)return;p.cleanupDone=true;document.removeEventListener('click',p.clickListener,true);for(const t of p.transitions)if(t.raf)cancelAnimationFrame(t.raf);if(p.originals.drawImage)CanvasRenderingContext2D.prototype.drawImage=p.originals.drawImage;if(p.originals.getImageData)CanvasRenderingContext2D.prototype.getImageData=p.originals.getImageData;p.longObserver?.disconnect();for(const t of p.transitions){document.documentElement.removeAttribute(`data-p1-samples-${t.key}`);document.documentElement.removeAttribute(`data-p1-scene-${t.key}`);}};\n window.__plannerWarmReturnProbe=p;return {viewport:{width:innerWidth,height:innerHeight},initial_route:location.pathname,sequence:'Focus cold mount → Goals → Focus warm return',scene_preferences:prefs,observer_available:p.observerAvailable,service_worker_supported:p.serviceWorker.supported,canvas_target:'32x8 crop only'};\n})()",
+          "store_result": "planner_warm_probe_setup"
+        }
+      }
+    },
+    {
+      "id": "click-focus-cold",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Enter Focus as route A (first measured scene mount)"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-cold",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Focus route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-focus-cold-data",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded Focus work data to be visible"
+        },
+        "assert": {
+          "selector": "@selector/pages.focus",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded work picker is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-cold-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject Focus page error state"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on focus"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-cold-scene-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for stable Focus scene CSS readiness; canvas reads are observational only"
+        },
+        "wait": {
+          "selector": "html[data-p1-scene-focus-cold=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "measure-focus-cold",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Capture first Focus mount readiness, canvas sampling, resources and overlapping long tasks"
+        },
+        "evaluate": {
+          "expression": "window.__plannerWarmReturnProbe.measure('focus-cold')",
+          "store_result": "planner_focus_cold_scene_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-goals",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Enter Goals as route B"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-goals-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-goals",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Goals route surface"
+        },
+        "wait": {
+          "selector": "@selector/pages.goals",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-goals-data",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded Goals outcome to be visible"
+        },
+        "assert": {
+          "selector": "@selector/pages.goals",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference outcome"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded reference outcome is rendered"
+        }
+      }
+    },
+    {
+      "id": "assert-goals-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject Goals page error state"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on goals"
+        }
+      }
+    },
+    {
+      "id": "wait-goals-scene-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for stable Goals scene CSS readiness; canvas reads are observational only"
+        },
+        "wait": {
+          "selector": "html[data-p1-scene-goals=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "measure-goals",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Capture Goals mount readiness, canvas sampling, resources and overlapping long tasks"
+        },
+        "evaluate": {
+          "expression": "window.__plannerWarmReturnProbe.measure('goals')",
+          "store_result": "planner_goals_scene_metrics"
+        }
+      }
+    },
+    {
+      "id": "click-focus-warm",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Return to Focus as warm route A"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-focus-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-warm",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Focus route surface on return"
+        },
+        "wait": {
+          "selector": "@selector/pages.focus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-focus-warm-data",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require seeded Focus work data again on warm return"
+        },
+        "assert": {
+          "selector": "@selector/pages.focus",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "the seeded work picker is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-focus-warm-no-error",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Reject Focus page error state on warm return"
+        },
+        "assert": {
+          "selector": "[role=\"alert\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 20000,
+          "failure_message": "No error state on focus"
+        }
+      }
+    },
+    {
+      "id": "wait-focus-warm-scene-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for stable warm Focus scene CSS readiness; canvas reads are observational only"
+        },
+        "wait": {
+          "selector": "html[data-p1-scene-focus-warm=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "measure-focus-warm",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Capture warm Focus return readiness, canvas sampling, resources and overlapping long tasks"
+        },
+        "evaluate": {
+          "expression": "window.__plannerWarmReturnProbe.measure('focus-warm')",
+          "store_result": "planner_focus_warm_scene_metrics"
+        }
+      }
+    },
+    {
+      "id": "finalize-probe",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Restore native canvas methods and remove temporary observers before screenshot"
+        },
+        "evaluate": {
+          "expression": "(async () => { const p=window.__plannerWarmReturnProbe; let swTimer; if(p.serviceWorkerPromise) await Promise.race([p.serviceWorkerPromise,new Promise(resolve=>{swTimer=setTimeout(()=>{p.serviceWorker.read_timed_out=true;resolve();},500);})]); if(swTimer)clearTimeout(swTimer); for(const entry of p.longObserver?.takeRecords()??[])p.longTasks.push({start_ms:entry.startTime,duration_ms:entry.duration}); const result={transition_count:p.transitions.length,transitions:p.transitions.map(({key,route,status,ready_condition,ready_ms,error_ms,error_text,sample_complete_ms,raf_checks,canvas_ops,scene_css_ready,scene_css_stable_frames,scene_css_values})=>({key,route,status,ready_condition,ready_ms,error_ms,error_text,scene_css_ready:scene_css_ready===true,scene_css_stable_frames,scene_css_values,sample_complete_after_click_ms:sample_complete_ms,canvas_samples_observed:canvas_ops.some(x=>x.method==='getImageData'&&x.ok),raf_readiness_checks:raf_checks??0,canvas_counts:{drawImage:canvas_ops.filter(x=>x.method==='drawImage'&&x.ok).length,getImageData:canvas_ops.filter(x=>x.method==='getImageData'&&x.ok).length}})),observer_available:p.observerAvailable,service_worker:p.serviceWorker,scene_preferences:p.prefs,normal_art_observed:!p.prefs.art_free&&!p.prefs.reduced_scenery}; p.cleanup(); const cleanup={cleanup_done:p.cleanupDone,drawImage_restored:CanvasRenderingContext2D.prototype.drawImage===p.originals.drawImage,getImageData_restored:CanvasRenderingContext2D.prototype.getImageData===p.originals.getImageData}; if(!cleanup.cleanup_done||!cleanup.drawImage_restored||!cleanup.getImageData_restored)throw new Error('canvas instrumentation cleanup did not restore original prototypes'); result.instrumentation_cleanup=cleanup; return result; })()",
+          "store_result": "planner_warm_probe_final"
+        }
+      }
+    },
+    {
+      "id": "assert-normal-art",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Require normal scene art before capturing screenshot; do not toggle preferences"
+        },
+        "evaluate": {
+          "expression": "(() => { const p=window.__plannerWarmReturnProbe; if(p.prefs.art_free||p.prefs.reduced_scenery) throw new Error('normal-art screenshot unavailable: browser preference is art-free or reduced-scenery; no preference was changed'); return {normal_art:true,scene_class:document.querySelector('.observatory')?.className??null}; })()",
+          "store_result": "planner_warm_probe_art_check"
+        }
+      }
+    },
+    {
+      "id": "capture-normal-art-focus",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "metadata": {
+          "label": "Capture the warm-return Focus page with its existing normal art preference"
+        },
+        "screenshot": {
+          "full_page": false
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e01-open-today-fresh-to-wait-today-data",
+      "source": "open-today-fresh",
+      "target": "wait-today-data"
+    },
+    {
+      "id": "e02-wait-today-data-to-assert-today-data",
+      "source": "wait-today-data",
+      "target": "assert-today-data"
+    },
+    {
+      "id": "e03-assert-today-data-to-assert-today-no-error",
+      "source": "assert-today-data",
+      "target": "assert-today-no-error"
+    },
+    {
+      "id": "e04-assert-today-no-error-to-install-canvas-route-probe",
+      "source": "assert-today-no-error",
+      "target": "install-canvas-route-probe"
+    },
+    {
+      "id": "e05-install-canvas-route-probe-to-click-focus-cold",
+      "source": "install-canvas-route-probe",
+      "target": "click-focus-cold"
+    },
+    {
+      "id": "e06-click-focus-cold-to-wait-focus-cold",
+      "source": "click-focus-cold",
+      "target": "wait-focus-cold"
+    },
+    {
+      "id": "e07-wait-focus-cold-to-assert-focus-cold-data",
+      "source": "wait-focus-cold",
+      "target": "assert-focus-cold-data"
+    },
+    {
+      "id": "e08-assert-focus-cold-data-to-assert-focus-cold-no-error",
+      "source": "assert-focus-cold-data",
+      "target": "assert-focus-cold-no-error"
+    },
+    {
+      "id": "e09-assert-focus-cold-no-error-to-wait-focus-cold-scene-ready",
+      "source": "assert-focus-cold-no-error",
+      "target": "wait-focus-cold-scene-ready"
+    },
+    {
+      "id": "e10-wait-focus-cold-scene-ready-to-measure-focus-cold",
+      "source": "wait-focus-cold-scene-ready",
+      "target": "measure-focus-cold"
+    },
+    {
+      "id": "e11-measure-focus-cold-to-click-goals",
+      "source": "measure-focus-cold",
+      "target": "click-goals"
+    },
+    {
+      "id": "e12-click-goals-to-wait-goals",
+      "source": "click-goals",
+      "target": "wait-goals"
+    },
+    {
+      "id": "e13-wait-goals-to-assert-goals-data",
+      "source": "wait-goals",
+      "target": "assert-goals-data"
+    },
+    {
+      "id": "e14-assert-goals-data-to-assert-goals-no-error",
+      "source": "assert-goals-data",
+      "target": "assert-goals-no-error"
+    },
+    {
+      "id": "e15-assert-goals-no-error-to-wait-goals-scene-ready",
+      "source": "assert-goals-no-error",
+      "target": "wait-goals-scene-ready"
+    },
+    {
+      "id": "e16-wait-goals-scene-ready-to-measure-goals",
+      "source": "wait-goals-scene-ready",
+      "target": "measure-goals"
+    },
+    {
+      "id": "e17-measure-goals-to-click-focus-warm",
+      "source": "measure-goals",
+      "target": "click-focus-warm"
+    },
+    {
+      "id": "e18-click-focus-warm-to-wait-focus-warm",
+      "source": "click-focus-warm",
+      "target": "wait-focus-warm"
+    },
+    {
+      "id": "e19-wait-focus-warm-to-assert-focus-warm-data",
+      "source": "wait-focus-warm",
+      "target": "assert-focus-warm-data"
+    },
+    {
+      "id": "e20-assert-focus-warm-data-to-assert-focus-warm-no-error",
+      "source": "assert-focus-warm-data",
+      "target": "assert-focus-warm-no-error"
+    },
+    {
+      "id": "e21-assert-focus-warm-no-error-to-wait-focus-warm-scene-ready",
+      "source": "assert-focus-warm-no-error",
+      "target": "wait-focus-warm-scene-ready"
+    },
+    {
+      "id": "e22-wait-focus-warm-scene-ready-to-measure-focus-warm",
+      "source": "wait-focus-warm-scene-ready",
+      "target": "measure-focus-warm"
+    },
+    {
+      "id": "e23-measure-focus-warm-to-finalize-probe",
+      "source": "measure-focus-warm",
+      "target": "finalize-probe"
+    },
+    {
+      "id": "e24-finalize-probe-to-assert-normal-art",
+      "source": "finalize-probe",
+      "target": "assert-normal-art"
+    },
+    {
+      "id": "e25-assert-normal-art-to-capture-normal-art-focus",
+      "source": "assert-normal-art",
+      "target": "capture-normal-art-focus"
+    }
+  ]
+}

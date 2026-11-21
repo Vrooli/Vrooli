@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Binary brand-asset storage (logos, favicons, derived icon variants, transparent cutouts) on the filesystem, tracked by metadata rows in SQLite. Upsert-by-(brand_id, filename): exploratory AI generations land under unique filenames (preserved, never clobbered) while canonical/derived assets use stable names.",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
+    "module": "assets",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSET-001",
+      "title": "Store brand asset files under a per-brand directory",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "assets",
+      "criticality": "P0",
+      "description": "Uploaded or generated brand assets are written to ~/.vrooli/brand-manager/assets/{brand_id}/ and represented by an assets metadata row referencing the file path, kind, and content type.",
+      "tags": [
+        "assets",
+        "filesystem",
+        "storage"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/assets/store_test.go once asset storage is ported."
+        }
+      ]
+    },
+    {
+      "id": "ASSET-002",
+      "title": "Asset writes are atomic and do not corrupt on failure",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "assets",
+      "criticality": "P0",
+      "description": "Asset files are written via a temp-file-then-rename so an interrupted write never leaves a partially-written asset at the canonical path.",
+      "tags": [
+        "atomic",
+        "durability"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/assets/atomic_test.go once atomic asset writes are ported."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,389 @@
+{
+  "nodes": [
+    {
+      "id": "c2b1647f-4bcb-42cb-b0e4-b5d885adafbb",
+      "name": "When clicking ‘Execute workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -512,
+        -208
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "1fb28c6c-1828-4c31-ac0b-386afcf3a5da",
+      "name": "Get many child blocks",
+      "type": "n8n-nodes-base.notion",
+      "position": [
+        0,
+        -160
+      ],
+      "parameters": {
+        "blockId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "resource": "block",
+        "operation": "getAll"
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "8fa2862f-6be3-4c34-bc4c-bb3ac7d36cb5",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -512,
+        80
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "daysInterval": 7,
+              "triggerAtHour": 16
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.2
+    },
+    {
+      "id": "fea6281a-8dbd-45e0-9b7b-903c94383c88",
+      "name": "Get Daily Journals",
+      "type": "n8n-nodes-base.notion",
+      "position": [
+        -224,
+        -160
+      ],
+      "parameters": {
+        "limit": 5,
+        "filters": {
+          "conditions": [
+            {
+              "key": "Type|select",
+              "condition": "equals",
+              "selectValue": "Journal"
+            },
+            {
+              "key": "Last edited time|last_edited_time",
+              "condition": "past_week"
+            }
+          ]
+        },
+        "options": {},
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "22c1b7ff-072a-80c4-8175-cab05d54bb2b"
+        },
+        "filterType": "manual"
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "4ea7bb6f-83d9-46ff-a618-2b74b79ea5e1",
+      "name": "To Dos Totals",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        0,
+        32
+      ],
+      "parameters": {
+        "jsCode": "let totalTasks = $input.all().length;\nlet emoji = \"\";\nif (totalTasks > 40) {\n  emoji = \"✨🤩✨\";\n} else if (totalTasks > 30) {\n  emoji = \"🥳\"\n} else if (totalTasks > 20) {\n  emoji = \"🤠\";\n} else if (totalTasks < 10) {\n  emoji = \"🤨\";\n}\n\nreturn [\n  {\n    json: {\n      message: \"\\n\\n**Tasks Summary:**\\nYou completed a total of **\" + totalTasks + \"** tasks this week! \" + emoji\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "4d19c32a-cf6c-4723-abc9-378d64913dc4",
+      "name": "To Do Summary",
+      "type": "n8n-nodes-base.discord",
+      "position": [
+        208,
+        32
+      ],
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {},
+        "authentication": "webhook"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "dc0d9a36-9e76-4b20-a16a-f50b22d338e8",
+      "name": "Combined Summary for LLM",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        432,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "let combinedSummary = \"\";\nfor (const item of $input.all()) {\n  if (item.json.content.length > 0) {\n    combinedSummary += \" \" + item.json.content;  \n  }  \n}\n\nreturn [\n  {\n    json: {\n      message: combinedSummary\n    }\n  }\n];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "49819461-b703-4000-8aff-da38042d8844",
+      "name": "Save Back to Notion",
+      "type": "n8n-nodes-base.notion",
+      "position": [
+        1056,
+        -64
+      ],
+      "parameters": {
+        "title": "={{ $now.format('MMM d, yy') }} Weekly Summary [automated]",
+        "blockUi": {
+          "blockValues": [
+            {
+              "text": {
+                "text": [
+                  {
+                    "text": "={{ $json.choices[0].message.content }}",
+                    "annotationUi": {}
+                  }
+                ]
+              },
+              "richText": true
+            }
+          ]
+        },
+        "options": {},
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "22c1b7ff-072a-80c4-8175-cab05d54bb2b"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Type|select",
+              "selectValue": "Weekly"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "c8f7b1d5-7938-4ca6-9aef-bd798d00c888",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        208,
+        -160
+      ],
+      "parameters": {
+        "options": {},
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "content"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "23550382-cf64-4ff3-aee8-d1ade7e94fbb",
+      "name": "Generate Summary",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        656,
+        -160
+      ],
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1",
+          "cachedResultName": "GPT-4.1"
+        },
+        "options": {},
+        "messages": {
+          "values": [
+            {
+              "content": "=Given this blob of text which is the aggregation of the past week of Journal entries I've made, can you give me a concise summary for the week?\n\n {{ $json.message }}"
+            }
+          ]
+        },
+        "simplify": false
+      },
+      "typeVersion": 1.8
+    },
+    {
+      "id": "e769232f-bd6f-4437-93a4-8f7acddc704e",
+      "name": "Send Summary",
+      "type": "n8n-nodes-base.discord",
+      "position": [
+        1056,
+        -256
+      ],
+      "parameters": {
+        "content": "={{ $json.choices[0].message.content }}",
+        "options": {},
+        "authentication": "webhook"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "6bf259b0-0771-42c3-a438-1fe4df1267fb",
+      "name": "Get Tasks",
+      "type": "n8n-nodes-base.notion",
+      "position": [
+        -224,
+        32
+      ],
+      "parameters": {
+        "limit": 100,
+        "filters": {
+          "conditions": [
+            {
+              "key": "Completed Date|date",
+              "condition": "past_week"
+            }
+          ]
+        },
+        "options": {},
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "22c1b7ff-072a-807a-b0c7-cb5733cb7997"
+        },
+        "filterType": "manual"
+      },
+      "typeVersion": 2.2
+    }
+  ],
+  "settings": {
+    "timezone": "America/New_York",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Combined Summary for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tasks": {
+      "main": [
+        [
+          {
+            "node": "To Dos Totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "To Dos Totals": {
+      "main": [
+        [
+          {
+            "node": "To Do Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Back to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Journals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Journals": {
+      "main": [
+        [
+          {
+            "node": "Get many child blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many child blocks": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combined Summary for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Journals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-7032",
+  "name": "Public template 7032 (sanitized)",
+  "active": false
+}

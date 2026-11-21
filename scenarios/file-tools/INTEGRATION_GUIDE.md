@@ -515,7 +515,7 @@ func verifyBackupChecksum(filePath string) error {
 3. **Replace one file operation** as proof of concept
 4. **Expand integration** to cover all file operations
 5. **Update documentation** to reflect file-tools usage
-6. **Submit integration report** to ecosystem-manager for tracking
+6. **Submit integration report** to swarm-manager for tracking
 
 ---
 

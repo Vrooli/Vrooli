@@ -1,0 +1,49 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "infrastructure.kernel-memory",
+  "name": "Inspect kernel slab allocation",
+  "description": "Read total kernel slab allocation and the 32 largest caches through the setup-managed, read-only host broker. Returns unavailable until project setup installs the capability.",
+  "status": "active",
+  "owner": {
+    "type": "project",
+    "id": "vrooli"
+  },
+  "command": {
+    "argv": [
+      "vrooli",
+      "host",
+      "kernel-memory",
+      "--json"
+    ]
+  },
+  "outputs": {
+    "report": {
+      "type": "string",
+      "description": "Bounded JSON allocation metadata; no kernel addresses or arbitrary paths."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "processStart": true
+  },
+  "tags": [
+    "infrastructure",
+    "memory",
+    "slab",
+    "kernel",
+    "host",
+    "diagnostics"
+  ],
+  "execution": {
+    "timeoutSeconds": 30,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-11-05T20:03:59Z",
+  "updatedAt": "2026-11-05T20:03:59Z"
+}

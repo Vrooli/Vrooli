@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "motion.scroll-reveal",
+    "name": "ScrollReveal",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "motion",
+    "description": "The viewport-triggered presence component with a restrained replay policy, pooled observation, reduced-motion collapse, and content that remains visible without scripting.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and nesting are owned once rather than per animated component."
+      },
+      {
+        "asset": "hooks.use-intersection-observer",
+        "reason": "Viewport observation is pooled rather than per-element."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "entrance-restraint"
+  ],
+  "beauty": {
+    "avoid": [
+      "ambient-motion-competing-with-status"
+    ]
+  },
+  "rationale": "Appropriate for the conversion-landing kit and almost never for operational surfaces, where content appearing on scroll reads as slowness rather than polish."
+}

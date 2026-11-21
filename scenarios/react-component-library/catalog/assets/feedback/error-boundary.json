@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.error-boundary",
+    "name": "ErrorBoundary",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The recoverable rendering boundary with reset keys, contextual fallback, telemetry reporting, retry, safe diagnostic disclosure, and preservation of the unaffected interface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.error-state",
+        "reason": "Fallback presentation is shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "telemetry-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "error-honesty",
+    "error-message-usefulness",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "request-error",
+    "retry"
+  ]
+}

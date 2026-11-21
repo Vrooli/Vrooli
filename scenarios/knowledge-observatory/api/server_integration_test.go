@@ -7,56 +7,38 @@ import (
 
 // [REQ:KO-SS-001,KO-SS-002,KO-SS-003] Test server creation error handling
 func TestNewServerIntegration(t *testing.T) {
-	t.Run("handles missing database config gracefully", func(t *testing.T) {
-		oldPort := os.Getenv("API_PORT")
-		oldDB := os.Getenv("DATABASE_URL")
-		oldUser := os.Getenv("POSTGRES_USER")
-		oldHost := os.Getenv("POSTGRES_HOST")
-		oldPortVar := os.Getenv("POSTGRES_PORT")
-		oldPassword := os.Getenv("POSTGRES_PASSWORD")
-		oldDBName := os.Getenv("POSTGRES_DB")
-		oldPostgresURL := os.Getenv("POSTGRES_URL")
-		defer func() {
-			if oldPort != "" {
-				_ = os.Setenv("API_PORT", oldPort)
-			} else {
-				_ = os.Unsetenv("API_PORT")
-			}
-			if oldDB != "" {
-				_ = os.Setenv("DATABASE_URL", oldDB)
-			}
-			if oldUser != "" {
-				_ = os.Setenv("POSTGRES_USER", oldUser)
-			}
-			if oldHost != "" {
-				_ = os.Setenv("POSTGRES_HOST", oldHost)
-			}
-			if oldPortVar != "" {
-				_ = os.Setenv("POSTGRES_PORT", oldPortVar)
-			}
-			if oldPassword != "" {
-				_ = os.Setenv("POSTGRES_PASSWORD", oldPassword)
-			}
-			if oldDBName != "" {
-				_ = os.Setenv("POSTGRES_DB", oldDBName)
-			}
-			if oldPostgresURL != "" {
-				_ = os.Setenv("POSTGRES_URL", oldPostgresURL)
-			}
-		}()
-
-		_ = os.Setenv("API_PORT", "8080")
-		_ = os.Unsetenv("DATABASE_URL")
-		_ = os.Unsetenv("POSTGRES_URL")
-		_ = os.Unsetenv("POSTGRES_USER")
-		_ = os.Unsetenv("POSTGRES_HOST")
-		_ = os.Unsetenv("POSTGRES_PORT")
-		_ = os.Unsetenv("POSTGRES_PASSWORD")
-		_ = os.Unsetenv("POSTGRES_DB")
-
-		_, err := NewServer()
-		if err == nil {
-			t.Error("NewServer() should return error when database config is missing")
+	// The scenario stores relational data in SQLite, so no PostgreSQL
+	// environment is required to boot. This test previously asserted the
+	// opposite — that a missing POSTGRES_* set must fail startup — which was
+	// the contract that made the scenario unstartable without a provisioned
+	// POSTGRES_PASSWORD. Removing that requirement is the point of the engine
+	// migration, so the assertion is inverted rather than deleted.
+	t.Run("starts without any postgres configuration", func(t *testing.T) {
+		for _, key := range []string{
+			"DATABASE_URL", "POSTGRES_URL", "POSTGRES_USER", "POSTGRES_HOST",
+			"POSTGRES_PORT", "POSTGRES_PASSWORD", "POSTGRES_DB",
+		} {
+			t.Setenv(key, "")
+			_ = os.Unsetenv(key)
 		}
+		t.Setenv("API_PORT", "8080")
+		// Keep the test's database inside the test's own tree rather than the
+		// operator's real data directory.
+		t.Setenv("VROOLI_DATA_ROOT", t.TempDir())
+
+		srv, err := NewServer()
+		if err != nil {
+			t.Fatalf("NewServer() must succeed with no postgres configuration, got: %v", err)
+		}
+		if srv == nil {
+			t.Fatal("NewServer() returned no server and no error")
+		}
+		if srv.db == nil {
+			t.Fatal("NewServer() left the database unset; SQLite needs no credentials and must always open")
+		}
+		if srv.stores == nil {
+			t.Fatal("NewServer() left the domain repositories unset")
+		}
+		t.Cleanup(func() { _ = srv.db.Close() })
 	})
 }

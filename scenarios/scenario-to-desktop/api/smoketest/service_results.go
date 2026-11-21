@@ -102,7 +102,6 @@ func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, art
 	// Success!
 	s.transitionTo(smokeTestID, StatePassed, "smoke test passed")
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.Status = "passed"
 		status.Logs = append(status.Logs, "Smoke test passed")
 		now := time.Now()
 		status.CompletedAt = &now

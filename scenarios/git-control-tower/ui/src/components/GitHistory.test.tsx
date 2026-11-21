@@ -1,7 +1,23 @@
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
+import { ProposalTrailerSchema } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GitHistory } from "./GitHistory";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
+
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getTotalSize: () => count * 80,
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        start: index * 80,
+        size: 80,
+        key: index
+      })),
+    measureElement: vi.fn()
+  })
+}));
 
 // Minimal history lines with pN pattern commits and a non-pN commit
 const HISTORY_LINES = [
@@ -17,7 +33,7 @@ const ENTRIES = [
 ];
 
 function renderHistory(overrides: Partial<React.ComponentProps<typeof GitHistory>> = {}) {
-  return render(
+  return renderWithProviders(
     <GitHistory
       lines={HISTORY_LINES}
       entries={ENTRIES}
@@ -49,7 +65,7 @@ describe("GitHistory continue action", () => {
     const buttons = screen.getAllByTestId("history-continue-btn");
     fireEvent.click(buttons[0] as HTMLElement);
 
-    expect(onContinue).toHaveBeenCalledWith("web-console TTS p11");
+    expect(onContinue).toHaveBeenCalledWith("web-console TTS p11\n\nVrooli-Continues: abc1234");
   });
 
   it("increments correctly for second entry", () => {
@@ -59,7 +75,7 @@ describe("GitHistory continue action", () => {
     const buttons = screen.getAllByTestId("history-continue-btn");
     fireEvent.click(buttons[1] as HTMLElement);
 
-    expect(onContinue).toHaveBeenCalledWith("web-console TTS p10");
+    expect(onContinue).toHaveBeenCalledWith("web-console TTS p10\n\nVrooli-Continues: def5678");
   });
 });
 
@@ -114,4 +130,45 @@ describe("GitHistory group filter banner", () => {
     fireEvent.click(screen.getByTestId("clear-group-filter-btn"));
     expect(onClear).toHaveBeenCalledOnce();
   });
+});
+
+describe("GitHistory commit check badges", () => {
+  it("renders precommit status badge for entries with recorded checks", () => {
+    renderHistory({
+      entries: [
+        {
+          hash: "abc1234",
+          subject: "web-console TTS p10",
+          files: ["src/a.ts"],
+          checks: [{
+            kind: "precommit",
+            status: "passed",
+            command: "custom check",
+            exit_code: 0,
+            summary: "checks passed",
+            duration_ms: 12,
+            timestamp: "2026-05-09T12:00:00Z"
+          }]
+        },
+        ...ENTRIES.slice(1)
+      ]
+    });
+
+    expect(screen.getByTestId("history-precommit-badge")).toHaveTextContent("precommit passed");
+  });
+});
+
+it("uses structured work relationships and server continuation metadata in ordinary history", () => {
+  const onContinue = vi.fn();
+  const onFilter = vi.fn();
+  const continuation = "Next work\n\nVrooli-Effort: effort:example\nVrooli-Continues: fff9999";
+  renderHistory({ onContinueCommit: onContinue, onFilterGroup: onFilter, entries: [{ hash: "fff9999", subject: "fix typo in readme", files: ["README.md"], continuation_message: continuation, trailers: [create(ProposalTrailerSchema, { key: "Vrooli-Effort", value: "effort:example@3", kind: "effort", known: true })] }] });
+  const continueButton = screen.getAllByTestId("history-continue-btn").slice(-1)[0];
+  if (!continueButton) throw new Error("Missing structured continuation action");
+  fireEvent.click(continueButton);
+  expect(onContinue).toHaveBeenCalledWith(continuation);
+  const filterButton = screen.getAllByTestId("history-filter-group-btn").slice(-1)[0];
+  if (!filterButton) throw new Error("Missing structured group filter");
+  fireEvent.click(filterButton);
+  expect(onFilter).toHaveBeenCalledWith("Vrooli-Effort: effort:example");
 });

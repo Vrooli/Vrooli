@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "experience-distribution-spec-smoke",
+    "description": "Observer smoke for active experience page distribution.",
+    "requirement": "OT-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "distribution",
+      "surface": "experience-distribution"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-distribution",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-to-android",
+          "scenario_path": "/distribution",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Distribution"
+        }
+      }
+    },
+    {
+      "id": "wait-distribution-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.distribution",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Distribution page visible"
+        }
+      }
+    }
+  ]
+}

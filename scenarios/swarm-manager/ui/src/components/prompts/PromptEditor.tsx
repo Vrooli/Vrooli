@@ -1,7 +1,9 @@
-import type { Ref } from "react";
+import type { CSSProperties, Ref } from "react";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
+import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1";
 import { Code, Eye, List } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { Button } from "../ui/button";
 import { InlineLoadingIndicator } from "../ui/loading-states";
 import { selectors } from "../../consts/selectors";
@@ -38,9 +40,10 @@ const EDITOR_OPTIONS = {
 
 export interface PromptEditorProps {
   workspaceRef: Ref<HTMLDivElement>;
-  skillsPanelWidth: number;
+  skillsPanelRef: Ref<HTMLDivElement>;
+  skillsPanelStyle?: CSSProperties;
   isResizing: boolean;
-  skillsResizeHandleProps: Record<string, unknown>;
+  skillsSeparatorProps: ResizeSeparatorProps;
   skillsSidebar: React.ReactNode;
   selectedSkill: PromptSkillSummary | undefined;
   skillLoading: boolean;
@@ -49,14 +52,9 @@ export interface PromptEditorProps {
   markdownView: "raw" | "rendered";
   onToggleMarkdownView: () => void;
   markdownPreviewSource: string;
-  lastSimulationPayload: { kind: string; mode: string } | null;
   onSaveDraft: () => void;
   onPublish: () => void;
   updatePending: boolean;
-  canSimulate: boolean;
-  onOpenSimulation: () => void;
-  hasSimulationResult: boolean;
-  onClearSimulation: () => void;
   onShowMobileSkills: () => void;
   versions: PromptSkillVersion[];
   comparisonVersion: PromptSkillVersion | null;
@@ -68,9 +66,10 @@ export interface PromptEditorProps {
 
 export function PromptEditor({
   workspaceRef,
-  skillsPanelWidth,
+  skillsPanelRef,
+  skillsPanelStyle,
   isResizing,
-  skillsResizeHandleProps,
+  skillsSeparatorProps,
   skillsSidebar,
   selectedSkill,
   skillLoading,
@@ -79,14 +78,9 @@ export function PromptEditor({
   markdownView,
   onToggleMarkdownView,
   markdownPreviewSource,
-  lastSimulationPayload,
   onSaveDraft,
   onPublish,
   updatePending,
-  canSimulate,
-  onOpenSimulation,
-  hasSimulationResult,
-  onClearSimulation,
   onShowMobileSkills,
   versions,
   comparisonVersion,
@@ -101,14 +95,13 @@ export function PromptEditor({
         ref={workspaceRef}
         className={`flex h-[calc(100dvh-12rem)] flex-col lg:h-[calc(100dvh-15rem)] lg:flex-row ${isResizing ? "select-none" : ""}`}
       >
-        <div className="hidden lg:flex lg:flex-col" style={{ width: skillsPanelWidth }}>
-          {skillsSidebar}
-        </div>
         <div
-          className="hidden lg:flex w-2 items-center justify-center border-x border-white/10 bg-slate-900/40 cursor-col-resize"
-          {...skillsResizeHandleProps}
+          ref={skillsPanelRef}
+          className="relative hidden lg:flex lg:flex-col"
+          style={skillsPanelStyle}
         >
-          <div className="h-10 w-1 rounded-full bg-slate-700/80" />
+          {skillsSidebar}
+          <ResizeHandle separatorProps={skillsSeparatorProps} testId="prompts-skills-resize-handle" />
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid={selectors.prompts.editor}>
@@ -152,14 +145,6 @@ export function PromptEditor({
                   >
                     Publish
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onOpenSimulation}
-                    disabled={!canSimulate}
-                  >
-                    Simulation Preview
-                  </Button>
                   <button
                     type="button"
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300/40 text-slate-200 transition-colors hover:bg-slate-900/20 hover:text-white"
@@ -169,11 +154,6 @@ export function PromptEditor({
                   >
                     {markdownView === "rendered" ? <Code className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
-                  {hasSimulationResult ? (
-                    <Button variant="outline" size="sm" onClick={onClearSimulation}>
-                      Clear Simulation
-                    </Button>
-                  ) : null}
                 </div>
               </div>
 
@@ -197,15 +177,7 @@ export function PromptEditor({
                     />
                   ) : (
                     <div className="h-full overflow-auto p-4" data-testid={selectors.prompts.preview}>
-                      {lastSimulationPayload ? (
-                        <p className="mb-3 text-xs text-cyan-300">
-                          Simulation: {lastSimulationPayload.kind}/{lastSimulationPayload.mode}
-                        </p>
-                      ) : null}
-                      <div
-                        className="prose prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:bg-slate-900 prose-code:text-cyan-300"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(markdownPreviewSource) }}
-                      />
+                      <MarkdownRenderer content={markdownPreviewSource} className="prose prose-invert max-w-none prose-headings:mb-2 prose-headings:mt-4 prose-p:my-2 prose-pre:bg-slate-900 prose-code:text-cyan-300" />
                     </div>
                   )}
                 </div>

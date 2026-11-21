@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-topic-spec-smoke",
+    "description": "Observer smoke: the Topic page renders at phone width for a real, retained research-home record (folders are never deleted, only marked).",
+    "requirement": "OT-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "topic",
+      "surface": "experience-topic"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-topic",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/topics/local-model-performance",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Topic"
+        }
+      }
+    },
+    {
+      "id": "wait-topic-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.topic",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Topic page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-topic",
+      "source": "navigate-topic",
+      "target": "wait-topic-page"
+    }
+  ]
+}

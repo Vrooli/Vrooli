@@ -1,0 +1,614 @@
+/* In-context view: real frames, typed slots, instruments and checks. */
+
+.ic {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 100%;
+}
+
+/* ── toolbar ─────────────────────────────────────────────────────────────── */
+
+.ic-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--wb-line);
+  background: var(--wb-panel);
+}
+
+.ic-bar-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.ic-viewport-select {
+  min-width: 92px;
+}
+
+.ic-template-select {
+  min-width: 180px;
+}
+
+.ic-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-bg);
+}
+
+.ic-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: calc(var(--wb-r-sm) - 2px);
+  background: transparent;
+  color: var(--wb-muted);
+  font: 10px/1 var(--wb-sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ic-tool:hover {
+  color: var(--wb-ink-2);
+  background: var(--wb-panel-2);
+}
+
+.ic-tool.is-on {
+  background: var(--wb-signal-soft);
+  color: var(--wb-signal-strong);
+}
+
+.ic-tool:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 1px;
+}
+
+.ic-reload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-panel-2);
+  color: var(--wb-ink-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ── body ────────────────────────────────────────────────────────────────── */
+
+.ic-body {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.ic-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  overflow: auto;
+  border-right: 1px solid var(--wb-line);
+  background: var(--wb-panel);
+}
+
+.ic-eyebrow {
+  color: var(--wb-muted);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ic-chosen {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-panel-2);
+}
+
+.ic-chosen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ic-chosen-head b {
+  min-width: 0;
+  color: var(--wb-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ic-why {
+  margin: 0;
+  color: var(--wb-ink-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ic-meta {
+  margin: 0;
+  color: var(--wb-muted);
+  font: 10px/1.5 var(--wb-mono);
+  overflow-wrap: anywhere;
+}
+
+.ic-slots {
+  display: grid;
+  gap: 2px;
+}
+
+.ic-slot-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) 26px;
+  grid-template-rows: auto 3px;
+  align-items: center;
+  gap: 3px 7px;
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--wb-r-sm);
+  background: transparent;
+  color: var(--wb-ink-2);
+  font: 11px/1.3 var(--wb-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ic-slot-row .ic-slot-mark {
+  grid-row: 1 / span 2;
+}
+
+.ic-slot-row .ic-slot-score {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.ic-slot-row .ic-affinity {
+  grid-column: 2 / span 2;
+  grid-row: 2;
+}
+
+.ic-slot-row:hover {
+  background: var(--wb-panel-2);
+}
+
+.ic-slot-row[aria-pressed="true"] {
+  border-color: var(--wb-signal-line);
+  background: var(--wb-signal-soft);
+  color: var(--wb-ink);
+}
+
+.ic-slot-row:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 1px;
+}
+
+.ic-slot-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--wb-signal);
+}
+
+.ic-slot-mark.is-mismatch {
+  background: var(--wb-amber);
+}
+
+.ic-slot-label {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ic-slot-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ic-slot-auto {
+  color: var(--wb-signal-strong);
+  font: 8px/1 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ic-affinity {
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--wb-line-2);
+}
+
+.ic-affinity i {
+  display: block;
+  height: 100%;
+  background: var(--wb-signal);
+}
+
+.ic-slot-kind {
+  color: var(--wb-muted-2);
+  font: 9px/1 var(--wb-mono);
+}
+
+.ic-slot-score {
+  color: var(--wb-muted);
+  font: 9px/1 var(--wb-mono);
+  text-align: right;
+}
+
+.ic-reset {
+  padding: 7px 9px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-panel-2);
+  color: var(--wb-ink-2);
+  font: 11px/1 var(--wb-sans);
+  cursor: pointer;
+}
+
+.ic-reset:hover {
+  color: var(--wb-ink);
+  border-color: var(--wb-signal-line);
+}
+
+.ic-flow,
+.ic-note {
+  margin: 0;
+  color: var(--wb-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.ic-note.is-warn {
+  display: grid;
+  gap: 3px;
+  padding: 8px 9px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-amber-soft);
+  color: var(--wb-ink-2);
+}
+
+.ic-note b {
+  color: var(--wb-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ic-note p {
+  margin: 0;
+}
+
+.ic-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--wb-signal-strong);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ic-link:focus-visible,
+.ic-reset:focus-visible,
+.ic-reload:focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+/* ── canvas ──────────────────────────────────────────────────────────────── */
+
+.ic-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 22px 16px 30px;
+  overflow: auto;
+  background:
+    radial-gradient(var(--wb-line) 1px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(180deg, var(--wb-bg-2), var(--wb-bg));
+}
+
+.ic-canvas .df {
+  margin-inline: auto;
+  flex: none;
+}
+
+.ic-caption {
+  margin: 0;
+  max-width: 100%;
+  color: var(--wb-muted);
+  font: 10px/1.5 var(--wb-mono);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.ic-caption.is-error {
+  color: var(--wb-red);
+}
+
+/* ── the page inside the frame ───────────────────────────────────────────── */
+
+.ic-page {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  /* The authored compositions respond to their container, not the browser
+     window. This is what makes the same spec reflow at 390, 834 and 1180. */
+  container-type: inline-size;
+  transition: filter 160ms ease;
+}
+
+.ic-page.is-blurred {
+  filter: blur(3px) contrast(0.92);
+}
+
+.ic-page-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+.ic-slot-body,
+.ic-empty-slot {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  /* The shared slot placeholder sets mono placeholder type. The live slot must
+     take the page's type instead, so the stage resets it inline. */
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ic-slot-body > * {
+  display: block;
+  width: 100%;
+}
+
+.ic-empty-slot {
+  display: grid;
+  place-items: center;
+  min-height: 72px;
+  padding: 14px;
+  border: 1px dashed var(--wb-line-3);
+  border-radius: var(--wb-r-sm);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ic-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ic-mark {
+  position: absolute;
+  border: 1px solid var(--wb-red);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--wb-red-soft);
+}
+
+.ic-mark.is-amber {
+  border-color: var(--wb-amber);
+  box-shadow: 0 0 0 1px var(--wb-amber-soft);
+}
+
+/* The contrast probe marks the selected text box. The ratio itself lives in
+   the checks panel, so the overlay is a pure outline. */
+.ic-contrast {
+  position: absolute;
+  z-index: 3;
+  border: 1px dashed var(--wb-signal-strong);
+  background: var(--wb-signal-soft);
+  pointer-events: none;
+}
+
+/* Hidden probes: page-only compositions at the reference widths. They are
+   clipped to a 1 px box rather than pushed off-canvas, so a 1180 px probe can
+   never widen the document at 390. `scrollWidth` still reports the page's real
+   width inside the clipped frame. */
+.ic-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ic-probe-frame {
+  display: block;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+/* ── checks panel (inspector) ────────────────────────────────────────────── */
+
+.ic-checks {
+  display: grid;
+  gap: 0;
+}
+
+.ic-check {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.ic-check:last-of-type {
+  border-bottom: 0;
+}
+
+.ic-check-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  color: var(--wb-muted-2);
+}
+
+.ic-check.is-pass .ic-check-icon {
+  color: var(--wb-green);
+}
+
+.ic-check.is-fail .ic-check-icon {
+  color: var(--wb-red);
+}
+
+.ic-check.is-warn .ic-check-icon {
+  color: var(--wb-amber);
+}
+
+.ic-check-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ic-check-text b {
+  color: var(--wb-ink-2);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ic-check-text span {
+  color: var(--wb-muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.ic-check-verdict {
+  display: grid;
+  gap: 1px;
+  justify-items: end;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.06em;
+}
+
+.ic-check.is-pass .ic-check-verdict {
+  color: var(--wb-green);
+}
+
+.ic-check.is-fail .ic-check-verdict {
+  color: var(--wb-red);
+}
+
+.ic-check.is-warn .ic-check-verdict {
+  color: var(--wb-amber);
+}
+
+.ic-check-verdict em {
+  color: var(--wb-muted-2);
+  font: 8px/1.3 var(--wb-mono);
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.ic-checks-note,
+.ic-checks-empty {
+  margin: 10px 0 0;
+  color: var(--wb-muted-2);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* A specimen that cannot load says why in the slot instead of spinning. */
+.ic .wb-fixture-state.is-error {
+  display: grid;
+  place-items: center;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px dashed var(--wb-red);
+  border-radius: var(--wb-r-sm);
+  background: var(--wb-red-soft);
+  color: var(--wb-red);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ── responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .ic-body {
+    grid-template-columns: 208px minmax(0, 1fr);
+  }
+
+  .ic-template-select {
+    min-width: 150px;
+  }
+}
+
+@media (max-width: 720px) {
+  .ic-bar {
+    padding-inline: 12px;
+  }
+
+  .ic-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ic-side {
+    order: 2;
+    border-right: 0;
+    border-top: 1px solid var(--wb-line);
+  }
+
+  .ic-canvas {
+    order: 1;
+    padding: 14px 10px 20px;
+  }
+
+  .ic-affinity {
+    display: none;
+  }
+}
+
+/* The component page is a two-column surface on a desktop and one column on
+   anything narrower. The In-context branch owns its own collapse so the
+   inspector never squeezes the frame into a 90 px column. */
+@media (max-width: 980px) {
+  .wb-comp-layout.is-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

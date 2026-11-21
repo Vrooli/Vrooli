@@ -1,0 +1,143 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Show how this scenario is configured: which providers are available, whether their credentials resolve, and how often the reconciler and expiry sweeper run.",
+    "prd_refs": [
+      "OT-P1-004",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which providers are configured and whether each can actually be reached."
+    },
+    {
+      "statement": "That credentials resolve, without ever displaying one."
+    },
+    {
+      "statement": "Each provider's billing facts, because product decisions depend on them."
+    },
+    {
+      "statement": "How often the unattended loops run."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Configuration is being read."
+    },
+    {
+      "id": "default",
+      "description": "Configured providers with credential status and billing facts."
+    },
+    {
+      "id": "empty",
+      "description": "No provider is configured, so nothing can be provisioned. The page says exactly that."
+    },
+    {
+      "id": "request-error",
+      "description": "Configuration could not be read."
+    },
+    {
+      "id": "partial",
+      "description": "Providers render but at least one credential status could not be checked, shown as unknown rather than as healthy."
+    },
+    {
+      "id": "stale",
+      "description": "Sweep completion times are older than their interval, which is itself the signal that a loop has stopped."
+    }
+  ],
+  "elements": [
+    {
+      "id": "provider-list",
+      "role": "list",
+      "name": "Providers"
+    },
+    {
+      "id": "provider-item",
+      "role": "listitem",
+      "name": "Provider",
+      "description": "Identifier, credential status, and declared billing facts."
+    },
+    {
+      "id": "billing-facts",
+      "role": "table",
+      "name": "Billing facts",
+      "description": "Rounding, minimum billable unit, whether a stopped instance bills, and whether inbound traffic is charged."
+    },
+    {
+      "id": "sweep-intervals",
+      "role": "region",
+      "name": "Sweep intervals",
+      "description": "Reconciler and expiry sweeper schedules, and when each last completed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "settings-never-shows-a-credential",
+      "type": "element-absent",
+      "statement": "No credential value is rendered anywhere on this page, in any state, including a masked or partial form.",
+      "tier": "aspirational",
+      "rationale": "Provider tokens resolve through the credential authority at call time. A masked secret in a UI is still a secret in a screenshot."
+    },
+    {
+      "id": "settings-billing-facts-are-visible",
+      "type": "element-present",
+      "statement": "Each provider's rounding, minimum billable unit and stopped-instance behaviour are shown as data rather than buried in documentation.",
+      "tier": "aspirational",
+      "elements": [
+        "billing-facts"
+      ],
+      "rationale": "These constants decide whether a short-lived instance is profitable. They belong where the operator can see them."
+    },
+    {
+      "id": "settings-empty-is-explicit",
+      "type": "state-distinct",
+      "statement": "With no provider configured, the page states that nothing can be provisioned rather than rendering an empty list.",
+      "tier": "aspirational",
+      "elements": [
+        "provider-list"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "settings-states-covered",
+      "type": "state-covered",
+      "statement": "Every declared state renders a distinct, readable surface.",
+      "tier": "aspirational",
+      "states": [
+        "loading",
+        "default",
+        "empty",
+        "request-error",
+        "partial",
+        "stale"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "provider-list": {
+        "testid": "provider-list"
+      },
+      "provider-item": {
+        "testid": "provider-item"
+      },
+      "billing-facts": {
+        "testid": "billing-facts"
+      },
+      "sweep-intervals": {
+        "testid": "sweep-intervals"
+      }
+    }
+  }
+}

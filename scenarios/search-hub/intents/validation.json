@@ -1,0 +1,176 @@
+{
+ "scenario": "*",
+ "description": "Validation and health scenarios: plain requests to check code, tests, contracts and security of a scenario.",
+ "cases": [
+  {
+   "id": "test-coverage",
+   "owner": "unit-health",
+   "query": "check test coverage for a scenario"
+  },
+  {
+   "id": "test-maturity",
+   "owner": "unit-health",
+   "query": "how mature are the tests of a scenario"
+  },
+  {
+   "id": "api-check",
+   "owner": "api-health",
+   "query": "check a scenario's api health and http behaviour"
+  },
+  {
+   "id": "api-hygiene",
+   "owner": "api-health",
+   "query": "find runtime hygiene problems in an api"
+  },
+  {
+   "id": "proto-contracts",
+   "owner": "proto-health",
+   "query": "validate protobuf contracts"
+  },
+  {
+   "id": "proto-surface",
+   "owner": "proto-health",
+   "query": "list the proto surface of a scenario"
+  },
+  {
+   "id": "vuln-scan",
+   "owner": "security-health",
+   "query": "scan a scenario for security vulnerabilities"
+  },
+  {
+   "id": "dependency-vulns",
+   "owner": "security-health",
+   "query": "find vulnerable dependencies across the fleet"
+  },
+  {
+   "id": "lint-audit",
+   "owner": "quality-health",
+   "query": "run a lint and type safety quality audit"
+  },
+  {
+   "id": "remediate-quality",
+   "owner": "quality-health",
+   "query": "get remediation advice for quality findings"
+  },
+  {
+   "id": "workflow-validate",
+   "owner": "workflow-health",
+   "query": "validate browser workflows of a scenario"
+  },
+  {
+   "id": "workflow-index",
+   "owner": "workflow-health",
+   "query": "find a workflow that already tests this"
+  },
+  {
+   "id": "structure-check",
+   "owner": "structure-health",
+   "query": "check a scenario has the right folder structure"
+  },
+  {
+   "id": "lifecycle-wiring",
+   "owner": "structure-health",
+   "query": "verify lifecycle wiring of a scenario"
+  },
+  {
+   "id": "prd-validate",
+   "owner": "business-health",
+   "query": "validate a scenario's PRD and requirements"
+  },
+  {
+   "id": "requirements-scaffold",
+   "owner": "business-health",
+   "query": "scaffold requirements for a scenario"
+  },
+  {
+   "id": "slow-startup",
+   "owner": "performance-health",
+   "query": "why is a scenario slow to start"
+  },
+  {
+   "id": "ui-perf",
+   "owner": "performance-health",
+   "query": "measure browser performance of a page"
+  },
+  {
+   "id": "cli-manifest",
+   "owner": "cli-health",
+   "query": "validate a scenario's cli manifest"
+  },
+  {
+   "id": "find-command",
+   "owner": "cli-health",
+   "query": "find the command that does something"
+  },
+  {
+   "id": "code-evidence",
+   "owner": "code-facts",
+   "query": "find evidence in the code for how something works"
+  },
+  {
+   "id": "symbol-lookup",
+   "owner": "code-facts",
+   "query": "where is this contract or function defined"
+  },
+  {
+   "id": "go-callers",
+   "owner": "go-code-graph",
+   "query": "who imports this go package"
+  },
+  {
+   "id": "go-refactor",
+   "owner": "go-code-graph",
+   "query": "mechanically move a go symbol"
+  },
+  {
+   "id": "ts-imports",
+   "owner": "typescript-code-graph",
+   "query": "show typescript imports of a module"
+  },
+  {
+   "id": "ts-refactor",
+   "owner": "typescript-code-graph",
+   "query": "rename a typescript symbol across files"
+  },
+  {
+   "id": "verify-flow",
+   "owner": "flow-verifier",
+   "query": "verify a state machine flow formally"
+  },
+  {
+   "id": "quint-trace",
+   "owner": "flow-verifier",
+   "query": "show a quint trace of a flow"
+  },
+  {
+   "id": "architecture-map",
+   "owner": "architecture-cartographer",
+   "query": "map the actual architecture of a scenario"
+  },
+  {
+   "id": "migrate-architecture",
+   "owner": "architecture-cartographer",
+   "query": "plan a migration to the target architecture"
+  },
+  {
+   "id": "template-drift",
+   "owner": "template-manager",
+   "query": "which scenarios drifted from their template"
+  },
+  {
+   "id": "generate-from-template",
+   "owner": "template-manager",
+   "query": "generate a new scenario from a template"
+  },
+  {
+   "id": "measures-adoption",
+   "owner": "measures-health",
+   "query": "does a scenario adopt the measures layer"
+  },
+  {
+   "id": "metric-index",
+   "owner": "measures-health",
+   "query": "find a metric in the central measures index"
+  }
+ ]
+}

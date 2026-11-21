@@ -1,16 +1,32 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { i18n } from "../i18n";
 import WorkspaceSection from "../components/settings/WorkspaceSection";
+import { toolbarPrefsFromPreset } from "../lib/toolbarLayout";
 
 const mockStoreState: Record<string, unknown> = {
   isMinimapVisible: true,
   setMinimapVisible: vi.fn(),
   displayMode: "grid",
   setDisplayMode: vi.fn(),
-  toolbarLayout: "expanded",
-  setToolbarLayout: vi.fn(),
+  toolbarPrefs: toolbarPrefsFromPreset("balanced"),
+  setToolbarPreset: vi.fn(),
+  updateToolbarPrefs: vi.fn(),
+  setToolbarControlEnabled: vi.fn(),
   keepScreenAwake: true,
   setKeepScreenAwake: vi.fn(),
+  adaptiveChrome: true,
+  setAdaptiveChrome: vi.fn(),
+  touchScrollSensitivity: 1,
+  wheelScrollSensitivity: 1,
+  setTouchScrollSensitivity: vi.fn(),
+  setWheelScrollSensitivity: vi.fn(),
+  tmuxMouseMode: false,
+  setTmuxMouseMode: vi.fn(),
+  predictionLatencyThresholdMs: 20,
+  setPredictionLatencyThresholdMs: vi.fn(),
+  resetScrollSensitivities: vi.fn(),
 };
 
 let mockWakeLockStatus = "active";
@@ -25,10 +41,11 @@ vi.mock("../stores/useWakeLockStatus", () => ({
 }));
 
 describe("WorkspaceSection", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockStoreState.keepScreenAwake = true;
     mockWakeLockStatus = "active";
+    await i18n.changeLanguage("en");
   });
 
   it("renders keep-screen-awake toggle checked when enabled", () => {
@@ -49,6 +66,12 @@ describe("WorkspaceSection", () => {
     const toggle = screen.getByTestId("keep-screen-awake-toggle");
     fireEvent.click(toggle);
     expect(mockStoreState.setKeepScreenAwake).toHaveBeenCalledWith(false);
+  });
+
+  it("selects sidebar display mode", () => {
+    render(<WorkspaceSection />);
+    fireEvent.click(screen.getByTestId("display-mode-sidebar"));
+    expect(mockStoreState.setDisplayMode).toHaveBeenCalledWith("sidebar");
   });
 
   it("shows unsupported hint when wake lock API is not available", () => {
@@ -91,5 +114,66 @@ describe("WorkspaceSection", () => {
     const hint = screen.getByText(/Re-acquiring/i);
     expect(hint).toBeTruthy();
     expect(hint.className).toContain("text-yellow-500");
+  });
+
+  it("wires all workspace display, toolbar, sensitivity, and device controls", () => {
+    render(<WorkspaceSection />);
+    fireEvent.click(screen.getByTestId("display-mode-grid"));
+    fireEvent.click(screen.getByTestId("display-mode-tabs"));
+    fireEvent.click(screen.getByTestId("display-mode-sidebar"));
+    fireEvent.click(screen.getByTestId("toolbar-preset-dense"));
+    fireEvent.click(screen.getByTestId("toolbar-preset-balanced"));
+    fireEvent.click(screen.getByTestId("minimap-toggle"));
+    fireEvent.click(screen.getByTestId("adaptive-chrome-toggle"));
+    fireEvent.click(screen.getByTestId("keep-screen-awake-toggle"));
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+    fireEvent.change(touch, { target: { value: "1.5" } });
+    fireEvent.blur(touch);
+    const wheel = screen.getByLabelText("Wheel scroll sensitivity");
+    fireEvent.change(wheel, { target: { value: "2.0" } });
+    fireEvent.blur(wheel);
+    const deviceInput = screen.getByRole("textbox");
+    fireEvent.change(deviceInput, { target: { value: "phone" } });
+
+    expect(mockStoreState.setDisplayMode).toHaveBeenCalledWith("sidebar");
+    expect(mockStoreState.setToolbarPreset).toHaveBeenCalledWith("balanced");
+    expect(mockStoreState.setMinimapVisible).toHaveBeenCalledWith(false);
+    expect(mockStoreState.setAdaptiveChrome).toHaveBeenCalledWith(false);
+    expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledWith(1.5);
+    expect(mockStoreState.setWheelScrollSensitivity).toHaveBeenCalledWith(2);
+  });
+
+  // A sensitivity slider writes into the persisted store, so a drag across the
+  // track must not turn into one write per step.
+  it("commits a sensitivity slider once per interaction, not once per step", () => {
+    render(<WorkspaceSection />);
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+
+    for (const value of ["1.1", "1.2", "1.3", "1.4", "1.5"]) {
+      fireEvent.change(touch, { target: { value } });
+    }
+    expect(mockStoreState.setTouchScrollSensitivity).not.toHaveBeenCalled();
+
+    fireEvent.blur(touch);
+    expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledWith(1.5);
+  });
+
+  it("shows the sensitivity slider's live value while it is being moved", () => {
+    render(<WorkspaceSection />);
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+
+    fireEvent.change(touch, { target: { value: "2.4" } });
+    // Uncommitted, but the person moving it must still see where it is.
+    expect(touch).toHaveAttribute("aria-valuetext", "2.4");
+  });
+
+  it("exposes the off-by-default tmux mouse choice and reset control", () => {
+    render(<WorkspaceSection />);
+    expect(screen.getByTestId("tmux-mouse-mode-default-toggle")).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(screen.getByTestId("tmux-mouse-mode-default-toggle"));
+    fireEvent.click(screen.getByRole("button", { name: "Reset scroll sensitivities" }));
+    expect(mockStoreState.setTmuxMouseMode).toHaveBeenCalledWith(true);
+    expect(mockStoreState.resetScrollSensitivities).toHaveBeenCalled();
   });
 });

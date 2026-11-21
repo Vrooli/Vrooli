@@ -1,6 +1,6 @@
 // Maintenance tab with purge controls
 
-import { Button } from "../../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -42,28 +42,28 @@ export function MaintenanceTab({
 
             <div className="grid gap-2 sm:grid-cols-2">
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => onPurgePreview([PurgeTarget.PROFILES], "Delete Profiles")}
                 disabled={loading}
               >
                 Delete Profiles
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => onPurgePreview([PurgeTarget.TASKS], "Delete Tasks")}
                 disabled={loading}
               >
                 Delete Tasks
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => onPurgePreview([PurgeTarget.RUNS], "Delete Runs")}
                 disabled={loading}
               >
                 Delete Runs
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() =>
                   onPurgePreview(
                     [PurgeTarget.PROFILES, PurgeTarget.TASKS, PurgeTarget.RUNS],

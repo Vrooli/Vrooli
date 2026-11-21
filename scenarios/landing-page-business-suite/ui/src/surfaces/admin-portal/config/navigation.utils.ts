@@ -1,6 +1,12 @@
 import type { BreadcrumbSegment, NavItem, NavGroup, NavigationConfig } from './navigation.types';
 import { NAVIGATION_CONFIG, ROUTE_LABELS } from './navigation';
 
+/** Explicit variant-owned document; never guess a first legacy section. */
+export const presentationEditorPath = (slug?: string) => slug ? `/admin/presentation/${encodeURIComponent(slug)}` : '/admin/presentation';
+function decodeRouteSegment(value: string) {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
 /**
  * Find a navigation item by its path across all groups and direct links
  */
@@ -60,13 +66,19 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname.startsWith('/admin/analytics')) {
     segments.push({ label: 'Analytics', path: '/admin/analytics' });
     const variantMatch = pathname.match(/\/admin\/analytics\/(.+)/);
-    if (variantMatch) {
-      segments.push({ label: `Variant ${variantMatch[1]}` });
+    const variantSlug = variantMatch?.[1];
+    if (variantSlug) {
+      segments.push({ label: `Variant ${variantSlug}` });
     }
     return segments;
   }
 
   // Handle customization routes with variants and sections
+  if (pathname.startsWith('/admin/presentation/')) {
+    segments.push({ label: 'Presentation', path: '/admin/presentation' });
+    segments.push({ label: `Variant ${decodeRouteSegment(pathname.slice('/admin/presentation/'.length))}` });
+    return segments;
+  }
   if (pathname.startsWith('/admin/customization')) {
     segments.push({ label: 'Customization', path: '/admin/customization' });
 
@@ -74,17 +86,18 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
       segments.push({ label: 'New Variant' });
     } else {
       const variantMatch = pathname.match(/\/variants\/([^/]+)/);
-      if (variantMatch) {
+      const variantSlug = variantMatch?.[1];
+      if (variantSlug) {
         segments.push({
-          label: `Variant ${variantMatch[1]}`,
-          path: `/admin/customization/variants/${variantMatch[1]}`,
+          label: `Variant ${variantSlug}`,
+          path: `/admin/customization/variants/${variantSlug}`,
         });
 
-        const sectionMatch = pathname.match(/\/sections\/(\d+|new)/);
-        if (sectionMatch) {
-          const sectionId = sectionMatch[1];
+        const sectionMatch = pathname.match(/\/sections\/([^/]+)/);
+        const sectionId = sectionMatch?.[1];
+        if (sectionId) {
           segments.push({
-            label: sectionId === 'new' ? 'New Section' : `Section ${sectionId}`,
+            label: 'Presentation', path: presentationEditorPath(decodeRouteSegment(variantSlug)),
           });
         }
       }

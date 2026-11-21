@@ -1,0 +1,86 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "bas.audit",
+  "name": "Full UI Audit (Screenshot + Console + Network)",
+  "description": "One-shot full audit of a page: screenshot, console logs, AND network requests captured from a single browser session. Use this as the default 'is this UI healthy?' check — covers what broke visually, what the JavaScript runtime complained about, and what the page actually fetched, in one bundle.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "browser-automation-studio"
+  },
+  "command": {
+    "argv": [
+      "browser-automation-studio",
+      "capture",
+      "--url",
+      "{{url}}",
+      "--capture",
+      "screenshot,console-logs,network",
+      "--out",
+      "{{out}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "http(s) URL or `scenario=<slug>,path=<path>` shorthand."
+    },
+    "out": {
+      "type": "path",
+      "required": true,
+      "description": "Directory the audit bundle is written into."
+    }
+  },
+  "outputs": {
+    "executionId": {
+      "type": "string",
+      "description": "BAS execution id."
+    },
+    "artifacts": {
+      "type": "string",
+      "description": "JSON array of artifact descriptors covering screenshot, console-logs, and network."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Audit the swarm-manager backlog page.",
+      "input": {
+        "url": "scenario=swarm-manager,path=/backlog",
+        "out": "/tmp/bas-audit"
+      }
+    }
+  ],
+  "tags": [
+    "audit",
+    "regression",
+    "ui",
+    "errors",
+    "browser",
+    "debug",
+    "screenshot",
+    "console",
+    "network",
+    "health-check",
+    "bundle"
+  ],
+  "execution": {
+    "timeoutSeconds": 180,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-05-18T00:00:00Z",
+  "updatedAt": "2026-05-18T00:00:00Z"
+}

@@ -1,0 +1,1407 @@
+Nooch
+Whole product design dossier
+Review candidate 0.3 · Core visual edition · 
+How the experience should work, where choices remain, and what needs correction
+
+Current review status. The core visual edition remains 0.3; its new mockups remain owner-unreviewed. The live source incorporates NQ-001 A (ND-007), NQ-011 A (ND-008), NQ-004 A (ND-009) and clarified/delegated NQ-010 A (ND-010). NQ-002a layout A and NQ-002b threshold A are independently accepted in ND-013/014. NQ-014 cost A and NQ-013 inventory A are accepted in ND-011/012. NQ-003 purchase review A and NQ-006 offline-commit A are accepted in ND-015/016. The register preserves exact owner answers, the quantity-entry clarification and the separate later threshold answer. Other product choices remain open in the project register, including additional scope questions found during complete review. Today v02 retains visual-direction-only acceptance. The original NDL-003 PDF and prior native revision preserve the exact delivered edition; this live source includes later decision annotations. No team creation, enablement or start is authorized.
+Review route. Begin with the core visual route below, then use the first-session, plan-change and purchase chapters. Follow one meal through preparation, partial shopping and recorded leftovers. The complete decision index and review chapter retain the unresolved choices and the boundary between approval, source application and implementation.
+
+Core visual review route
+Follow the connected Sesame tofu journey. The linked boards are readable full-size captures; the chapters below retain source requirements, alternatives and the complete decision index.
+Setup and recoverable capture · Chapter 2; Figure 1 and Core C1
+Discovery and the recipe · Chapter 5; Figures 9–10 and Core R1
+Week and consequential change · Chapter 4; Figures 5–8
+Shopping and dated stock · Chapter 6; Figures 11–12 and Core G1–G2
+Cooking and recorded leftovers · Chapter 7; Figures 13–14 and Core K1/A1
+Equipment and household constraints · Chapter 8; Figure 15
+The shared fixture and change guide are in Editable sources and captures. The complete Core visual review index at the end links all desktop, mobile and paired versions. Use the Decision index as a chapter route; the project-owned register holds current answers, remaining questions and added scope checks.
+Main trace: 800 g tofu demand − 100 g exact stock = 700 g shortage. Two separately confirmed 400 g purchases create 900 g raw stock. An 800 g batch leaves 100 g raw stock; an actual yield of three reserves two portions Monday and one Tuesday, leaving one Tuesday portion unresolved. Unknown price, broccoli mass and complete nutrition remain unknown.
+Contents
+1. The whole experience
+2. First useful session
+3. Today and a tired evening
+4. Planning a realistic week
+5. Finding and shaping meals
+6. Shopping and purchase reconciliation
+7. Cooking and the return to ordinary life
+8. A kitchen that remains useful with imperfect information
+9. Shared components and responsive behavior
+10. Domain integrity and recovery
+11. Artwork providers and portable data
+12. One meal across the whole product
+13. Review status and remaining decisions
+14. Coverage and visual treatment
+15. Decision index
+The whole experience
+Product purpose and the limits of this proposal
+Nooch helps a person decide what to eat, arrange a realistic week, shop, use their kitchen and cook with less recurring effort. Nutrition, cost, variety and dietary rules inform those decisions, but none should require a perfect food diary or pantry census before the product becomes useful. The proposed experience is meal-first and progressively detailed. It should remain honest and capable when quantities, prices, targets, equipment details or external providers are missing.
+SOURCE REQUIREMENT
+R02 retains the full food loop. Nooch is not solely a dinner gallery, calorie logger or calendar. Today, Week, Meals, Groceries and Kitchen remain the five primary destinations in that order. Provider-dependent generation, lookup and calendar integration have explicit fallbacks. Public publishing, automated purchasing, commercial billing and unrestricted scene editing are outside the core redesign.
+
+The source foundation already contains extensive behavior and engineering defaults. This dossier develops their interaction consequences, corrects cross-surface inconsistencies and presents unresolved choices. Source requirements are not all individually pinned owner approvals. New boards, exact wording, visual composition and recommended defaults remain proposals. The owner-confirmed Team Anteaters reference establishes desired involvement and depth; its theatre architecture and original document format do not define Nooch.
+The primary audience is the owner making design choices and a future implementer needing a coherent basis. A design-inspection pass can establish internal consistency and readable specifications. It cannot prove that the current nutrition-planner application behaves this way. Current signed-in implementation, migration safety and production accessibility remain separately verifiable work.
+The first useful outcome
+Recommendation. Begin with a person who can save valid settings, choose or capture a meal, make an understandable plan change and confirm what was actually purchased. Missing recipes, stock quantities, prices or provider access should produce a usable fallback rather than fabricated values. Follow First useful session → Planning a realistic week → Shopping and purchase reconciliation, then One meal across the whole product for the connected consistency check.
+Decision dependency. NQ-001, NQ-002 and NQ-003 govern this first review slice; NQ-006 governs authoritative effects. Immersive coverage, calendar changes and full export defaults remain important later review slices. This is a proposed reading path through the whole-product design, not an approved release cut or implementation schedule.
+A source requirement appears in a green treatment with its locator. A recommendation appears in blue. An owner question uses amber and names alternatives, recommendation and tradeoffs. A defect or evidence gap uses red with consequence and proposed repair. Color is a scanning aid; the labels and IDs carry the meaning. Settled design is reserved for an explicit decision with its scope and source.
+Navigation that preserves the task
+The five destinations answer different questions. Today answers what to do next. Week answers whether the plan fits. Meals answers what can be made or discovered. Groceries answers what remains to acquire. Kitchen answers what is available and what constraints matter. Global Settings contains appearance, artwork, provider usage, integration, units, account and data transfer; it should not absorb food preferences merely because they are settings-like.
+A navigation change must preserve meaningful local context. Opening a recipe from Wednesday dinner retains that date, slot and intended action. Returning to Explore restores its filters and Add versus Replace context. Switching Week from Meals to Nutrition preserves the same occurrences and dates. A browser back action should not create another meal, abandon a draft silently or reset a shopping trip.
+RECOMMENDED DESIGN
+Maintain explicit contextual banners for target-specific browsing. A banner such as “Replacing Wednesday dinner” includes a clear exit. Leaving the context changes the available action to ordinary discovery; it never silently replaces the old target after the user believes they have exited. The destination itself remains the same Meals area, avoiding parallel unexplained copies of Explore.
+
+ISSUE OR GAP
+Historical compact references show four tabs and omit Kitchen. Correcting this is not a new style preference: R01 explicitly requires five labeled destinations. The new compact shell must also avoid a five-tab bar competing with a second persistent action bar. Focused cooking intentionally changes navigation, but retains Exit cooking and View full recipe.
+
+Connected lifecycle example
+A person saves a Sesame tofu bowl as a draft, later adds sufficient quantities and a viable stovetop method, places its selected revision on Monday, and reserves a leftover portion for Tuesday. The grocery list derives the missing ingredients without consuming pantry stock. Confirmed purchases add actual acquired quantities. Cooking records a batch, and optional intake consumes a prepared portion. Editing the recipe on Wednesday creates a new revision; Monday's batch and intake keep their original basis. Each chapter below must preserve this same identity chain.
+First useful session
+Save useful progress without false readiness
+The four source-defined steps are Your food, Your kitchen, Your rhythm and Ready. They should be a short introduction to decisions that influence the next meal, not an exhaustive survey. Food rules distinguish hard exclusions from dislikes. Kitchen records selected capabilities without guessing appliances. Rhythm introduces effort, variety, cost preferences and flexible slots. Targets, detailed inventory, supplements and retailer preferences can follow when relevant.
+SOURCE REQUIREMENT
+Setup drafts are separate from active settings until applied. Explore first is allowed with an explicit unconfigured state. No personalized nutrition targets, allergies, stock or supplement doses are copied from illustrative fixtures. A household serving count does not create identical personal nutrition profiles.
+
+RECOMMENDED DESIGN
+Ready presents the saved configuration and actual candidate availability as separate outcomes. A successful settings save may coexist with a blocked automatic plan. If there are no eligible meals, say so and provide capture and clearly labeled sample routes. Do not disable saving valid preferences because the recipe corpus is empty. Do not encourage weakening a hard rule merely to populate a week.
+
+ACCEPTED BEHAVIOR
+NQ-001 accepted: save valid setup and offer capture, labeled examples or Today (ND-007).
+Selected A. Save valid settings even with no eligible meals; offer Add meal, clearly labeled examples or Today, preserving an immediate exit. Do not relax food rules or make a missing recipe corpus fail a valid save.
+Unselected alternative B is retained for history: a guided capture sequence before planning, with saved settings and an exit. Owner evidence: Sentinel_440c5f1776a0819181a14b71eb26887a answered the packet Sentinel_030a566606308191b13e9cb68c180495. Acceptance covers pacing and behavior, not exact pixels or the remaining dossier.
+
+Requirements for each step
+Your food needs selectable rules with explanations and a way to add or edit a rule. A hard exclusion and a disliked ingredient must look and behave differently. If a rule cannot be evaluated against current recipe data, the outcome is Needs information. A polished green “Fits” label is not justified by absence of a detected conflict.
+Your kitchen exposes tiles as the complete authoritative interface. The scene is supportive context. Zero appliances is valid and should allow assembly or ready-to-eat suggestions where their evidence is sufficient. A stove and oven are distinct capabilities; a combined range can supply both. Do not silently select equipment in a real new account because the demo kitchen shows it.
+Your rhythm can start with a small number of preference prompts, but it must preserve an existing custom vector during editing. A preset changes only the intended soft preferences. Required exclusions and hard targets do not become weaker in Easy mode. A temporary low-effort preference carries an explicit scope, such as this meal or through a date, rather than becoming a hidden permanent profile change.
+Ready summarizes what is known and what remains optional. Apply has a precise save boundary. A local offline draft says it is stored on this device or queued, not server-confirmed. A failure retains the draft and exposes Retry. Successful application returns a stable receipt/state and a useful next action; reopening should not restart the questionnaire.
+Unconfigured and incomplete states
+An unconfigured Explore screen can show clearly identified examples. It cannot say they fit allergies that have not been entered. A partially configured profile can evaluate only the supported rules, with the unevaluated portion visible. A valid profile with an empty collection has no candidate generation outcome, while retaining all saved work.
+ISSUE OR GAP
+NF-001: the earlier packet's no-candidate block did not clearly separate automatic generation from saving settings. The proposed screen resolves that ambiguity, but future implementation must test the save, leave, reopen and recovery paths. A static success screen is not persistence evidence.
+
+The first-session acceptance walkthrough includes empty collection, excluded candidates, unresolved ingredient amounts, save failure, offline queued save and a later added valid recipe. It should show exactly which operation is blocked and which remains available. The design passes this walkthrough only if the user can move forward without false assurances or repeated setup.
+First use without a false plan
+
+Figure 1. Core 0.3 detail: valid setup is saved even when the collection has no eligible candidate. Capture, labeled samples and an empty-Today exit remain available. The four-step setup and interruption cases are included in the full paired visual route. NQ-001 behavior is accepted in ND-007; this exact visual remains unreviewed.
+Two ways to continue
+
+Figure 2. Same saved setup and empty corpus: free exploration versus guided capture. Both preserve settings. NQ-001 alternatives retained for history; A behavior is accepted in ND-007.
+Today and a tired evening
+The next useful action
+Today leads with a selected occurrence: local date and slot, meal identity, active preparation time, total elapsed time and the appropriate primary action. It does not assume that dinner is always next. Configured slots and user selection determine the focus. Where timing is absent, show the slot and let the person choose instead of claiming to know their present activity.
+The hero supports immersive scene, editorial photo and minimal no-photo treatments within one action structure. A missing or incompatible image must not move the controls, leave an empty dominant rectangle or make the meal look unfinished. The source requires a deterministic fallback; theme switching changes presentation, not recipe, portion or date.
+SOURCE REQUIREMENT
+Start cooking pins recipe revision, method and yield. A ready-to-eat product may use View meal or Log meal. A draft without instructions opens an incomplete detail with Edit, not an empty cooking session. The presence of a food photograph never determines readiness.
+
+The seven-day strip is a shortcut to planned meals, not a second calendar authority. Selecting Tuesday updates the hero's explicit date and slot. A compact full-day section beneath it retains breakfast, lunch, dinner, snacks, recurring foods and supplements. This prevents a dinner-first composition from erasing the full-day product requirement.
+Swap without collateral changes
+A tired-evening flow begins with immediate suitable alternatives. Optional reasons help ranking, but Missing ingredients is temporary context rather than a permanent dislike. A low-effort choice must still satisfy required restrictions and a viable method. Candidates should communicate the comparable basis: active effort, elapsed time, stock uncertainty and material plan consequences.
+RECOMMENDED DESIGN
+Show a short comparison focused on what changes now. “15 minutes active, 25 minutes elapsed” is more useful than an unlabeled single time. If the swap removes tomorrow's reserved leftover lunch, say that beside the option. A compatible isolated swap may apply quickly with conditional Undo; a material conflict opens ImpactPreview.
+
+ACCEPTED BEHAVIOR
+Accepted threshold NQ-002b A (ND-014). Use a short confirmation for an isolated compatible same-slot swap. Require full impact review when effects reach locks, leftover dependencies, food rules, confirmed shopping or another date. Existing domain and revision checks still apply; a preview cannot silently weaken restrictions or commit stale effects. Owner selected A in Sentinel_5fcf8a6869f48191918134e81b7a0ff1 after clarification Sentinel_f2241dd3ebe88191a1fd8ae73df4d424. The full-review-every-swap alternative remains unselected.
+
+Occurrence actions and scope
+View recipe, Move, Lock, Change servings, Skip, Remove and Record intake have different consequences. Removing a future occurrence does not delete the recipe or erase past intake. Copying an occurrence creates a new identity and never duplicates actual consumption. Moving onto an occupied slot asks whether to add alongside, swap or replace; drag-and-drop is a shortcut, not the only accessible route.
+A planned item already partially consumed cannot be treated like an untouched future card. Show its recorded portion and explain the remaining planned quantity. Editing future intent preserves actual history. Undo must be conditional on whether dependent state has changed; a stale Undo should offer a reviewed correction rather than silently reverting someone else's work.
+Today states worth designing
+Empty Today offers Choose a meal or Plan my week, without displaying the synthetic bowl as personal data. An intentionally open/social meal is an explicit choice, not a missing assignment. A no-photo meal remains typographically complete. Unknown active time reads Time not set. A completed meal remains inspectable after recipe edits. A full-day nutrition view identifies Planned, Recorded or Expected and its completeness.
+ISSUE OR GAP
+Retained images use historical Daily branding, occasional non-vegan demo meals and incomplete compact navigation. Preserve those files as evidence of atmosphere, but do not use them as exact new screen contracts. New boards should use one coherent vegan fixture, Nooch identity and the same five destinations.
+
+The decisive walkthrough is a low-effort swap with a dependent leftover and an unavailable ingredient quantity. It should preserve hard rules, show the dependency, avoid claiming a precise shopping impact from qualitative stock, and return the user to the correct selected meal after confirmation or cancellation.
+A rich meal first composition
+
+Figure 3. Exact accepted today.sunroom@v02, retained unchanged. Acceptance covers visual direction only. Copy such as “Ready for tonight” is not stock-readiness evidence, and the other proposed behaviors remain unresolved. This is an orientation reproduction; the full-resolution original is retained.
+The same useful action without artwork
+
+Figure 4. Proposed minimal Today with full-day scope and an unresolved ingredient quantity. No-photo fallback keeps the primary actions intact.
+Planning a realistic week
+One plan with three lenses
+Meals, Nutrition and Time & cost are views over the same week and occurrence identities. The selected local date range remains stable when switching. A day counts as fully planned only relative to its configured required slots or intentional open states. One dinner is not a complete day unless the summary explicitly says dinner scope.
+The wide Meals view uses seven day columns and flexible slot rows. Multiple foods can share one slot without being forced into a composite recipe. A smoothie and toast remain separate items when that is how the person thinks about them. Locked, leftover, prep-ahead and eating-out states have explicit labels. Unknown time never sorts as fastest.
+Compact Day is the default readable view; All week shows seven stacked sections. It is not a seven-column miniature. The same Add, Move, Lock and servings actions remain available without drag gestures. Day changes retain meaningful local editing state, while an unsaved draft explains whether it follows the day or remains a separate proposal.
+Plan proposal and application
+Plan my week creates a draft for unlocked future slots. Accepted routine anchors and recorded history remain. The proposal explains changed, unchanged and locked scope; it does not ask the owner to reconsider every unchanged meal. Nutrition, effort, cost and grocery effects are scoped to the same proposal and expose missing evidence.
+ACCEPTED BEHAVIOR
+NQ-002a accepted: summary first, with expandable detail and full-week comparison (ND-013).
+Selected A. Begin with changed, unchanged and locked scope, expand affected days and metrics on demand, and retain a Compare full week route. Owner evidence: Sentinel_bb1ccf09513c819190e58fa00ca4f408. Layout acceptance is separate from the threshold accepted in ND-014.
+Unselected B began with the full side-by-side week. The full comparison remains available as a secondary route. Final matched before/after and responsive pixels still require review; this behavior choice does not approve every existing specimen.
+
+SOURCE REQUIREMENT
+Apply revalidates relevant source revisions. A changed profile, recipe, stock reservation or plan can invalidate a preview. An unrelated note edit should not force a global restart. Keep editing, Review updated impact and Discard are distinct actions; none silently commits a stale proposal.
+
+Leftovers and shared prep
+A producer and its later consumers refer to one batch identity. “From Monday” and “For Tuesday lunch” are reciprocal navigable relationships. Moving a producer later than its consumer is not a cosmetic calendar edit; reject the invalid chronology or offer a concrete repair. Removing a consumer releases its reservation without discarding food.
+When actual yield is lower than planned, outstanding reservations need reconciliation. A four-portion plan that produces three portions cannot keep four reserved meals looking fulfilled. The batch review should show the shortfall and offer resizing, replacement or an explicit unresolved future meal. This is a cross-chapter contract linking cooking completion, Week and groceries.
+Prep for the week groups tasks only where methods and preparation states support sharing. Two recipes containing rice do not necessarily share one batch. Wash greens may be reusable; baking incompatible items simultaneously may not be. Show contributing meals, known active and elapsed time, and storage assumptions. Schedule prep creates a proposal through a verified adapter, never a silently completed task.
+Nutrition and time cost views
+Nutrition rows identify nutrient, unit, amount or known subtotal, target bounds, period, evidence completeness and selected scope. Expected combines recorded past intake with explicitly remaining planned quantities. It must not add the entire original plan to actual intake. A weekly average cannot erase a daily upper-bound breach. No universal green completeness score should hide missing products or quantities.
+Time & cost separates active work, elapsed duration and cleanup. Shared prep is counted once; reheating is separate. A timeline is justified only where timing and dependencies exist. Otherwise display per-meal/day estimates without implying a solved schedule. Portion cost and incremental checkout are different measures, with currency and price age. An old price is dated evidence, not a live quote. Accepted NQ-014 A (ND-011): the cost criterion ranks the next grocery bill after credible stock and package purchases; consumed-food/portion cost remains separately visible. Unknown prices never become free. Cost is still one preference within suitable plans, not permission to trade away hard constraints. Owner evidence: Sentinel_a71916c9c6248191af1b9c8dc1b4dd8d.
+ISSUE OR GAP
+Historical Week boards show Meals and a compact Day view, while Nutrition and Time & cost mostly exist as labels. Requirements are present in prose, but these tab bodies need concrete design resolution. New proposals should show incomplete evidence, not fill every cell with persuasive fictional precision.
+
+The critical walkthrough starts with two locked meals, a leftover pair and a missing price. Replan only the unlocked future scope, then change one stock fact before Apply. The document's screens, state diagram and calculation example must agree on which rows require review and which remain unchanged.
+A week that remains readable
+
+Figure 5. Monday/Tuesday detail from the paired Week proposal, plan p1. One four-portion preparation serves two Monday dinner portions and two Tuesday lunch portions. Locked meals, all seven days, compact Day/All week and the complete Time & cost scope remain available in the full captures.
+Expose the dependent meal before apply
+
+Figure 6. Detail of the proposed impact decision, alternative branch RP-01. “Choose a separate meal” is a next step, not an already completed Tuesday repair. The companion applied state shows a separate p2 branch; the main shopping/cooking trace keeps p1. NQ-002a/b behaviors are accepted in ND-013/014; the exact resulting visual target remains unreviewed.
+Unknown contributions remain visible
+
+Figure 7. A separately named source example, Example tofu crunch bowl (Appendix A FIX-02/FIX-04), demonstrates complete protein/energy versus a known subtotal plus unknown sauce. It is not Sesame tofu r1. Bars use declared 50 g and 700 kcal visual scales, not personal targets. The full specimen includes valid partial lower-bound, unresolved upper-bound and failed-bound cases.
+A stale proposal on a compact screen
+
+Figure 8. Compact retained-draft detail: a changed Tuesday lock requires scoped revalidation, not silent overwrite. The selected meal and proposed change survive; no plan effect is applied until the new dependency is reviewed.
+Finding and shaping meals
+Collection and discovery serve different purposes
+Your meals is the person's saved collection. Explore offers candidates from curated and user-approved material, with reasons connected to a target slot or current priorities. A favorite is personal metadata; saving creates or links a stable record; recommendation eligibility is a separate assessment. These must not collapse into one heart icon or one undifferentiated status.
+SOURCE REQUIREMENT
+A name-only meal can be saved as Draft. A meal that conflicts with current rules may remain in the collection. It must not become an automatically recommended compliant recipe. A manual unresolved plan note is allowed only with its unresolved status intact. The product should help capture imperfect information without pretending it is ready.
+
+Collection cards show identity, trustworthy time and a small number of supported tags. Quick meals uses a visible active-time threshold. High protein needs an explicit policy and sufficient evidence; a food name or generated photo does not justify the badge. Unknown numeric fields form an explicit group when sorting, rather than making incomplete meals appear fastest or cheapest.
+The empty collection should not feel like a failure. Offer Add meal, paste rough text and labeled samples. Search with no result retains the query and allows clearing individual filters. Archived and Draft records remain discoverable through deliberate filters; they are not silently mixed into the normal Ready collection.
+Quick capture and the full editor
+RECOMMENDED DESIGN
+Start Add meal with a small capture surface, then open structured groups only as needed. Name and rough text establish a durable draft. Yield and time, ingredients, method, nutrition and source/notes are independent sections with clear incompleteness. A long form that requires every field before Save would contradict the source's low-effort capture goal.
+
+Ingredient quantities may be left blank; offer optional suggestions such as pinch, dash or to taste under ND-010. These suggestions never supply invented grams or complete nutrient values. The original source text remains visible beside proposed extraction. An imported “a handful” stays unresolved until the person supplies a basis; it is not converted into an arbitrary gram value. An empty numeric field differs from zero. A failed parser retains the text and allows manual editing. An asynchronous extraction must not overwrite a newer typed amount or changed ingredient identity.
+Ingredient changes invalidate only the relevant assessments. A changed amount affects nutrition and cost; an ingredient identity can affect required rules and method suitability. Editing a personal note should not trigger an unnecessary allergen re-review or a new image job. The editor explains material invalidation near the affected section, without requiring the person to understand dependency graphs.
+A saved recipe keeps a stable identity and receives an immutable revision. Future occurrences can stay pinned or adopt the new revision through an impact choice. Past cooking and intake retain the original. Adapt creates a draft fork with provenance, not an in-place mutation of a public source or another person's recipe.
+Explore reasons should be inspectable
+A contextual banner states Add to Wednesday lunch or Replace Wednesday dinner and offers a clear exit. Candidate reasons are structured facts: known active time, ingredients used, viable equipment, compatible current rules, or a dated price basis. “Uses your broccoli” does not mean “you have enough broccoli.” Missing data cannot be translated into a confident affordability badge.
+The source defines sections such as For your week, Use what you have, Quick meals, Something different, Cook once eat twice and Affordable additions. Show a section only when there is meaningful evidence and a useful result. An empty carousel should collapse into a concise explanation or relevant action. Endless inspiration is not a substitute for deciding what to eat.
+Save, Add, Replace, Adapt and Favorite remain distinct. Add to week preserves a usable pinned recipe record and creates the occurrence coherently. Save twice should not duplicate it. Replace previews material effects and revalidates a target changed on another device. AI meal idea is a separate optional draft workflow; it is not required for ordinary discovery.
+Recipe reading and the full action map
+Recipe, Nutrition and Notes are the top tabs. Inside Recipe, Reading and Recipe map represent one method graph. The old “At a glance” miniature is useful orientation but does not cover split ingredient uses, branches, joins or intermediate outputs.
+ACCEPTED BEHAVIOR
+NQ-004 accepted: preserve selected-step context between Reading and Map (ND-009).
+Selected A. Reading and Map preserve the same selected recipe/method step when switching views; step 4 stays step 4. Step links and a readable compact alternative remain. This is navigation context, not a cooking-completion event.
+Unselected alternative B remains historical: an independent map inspection route with links to the written steps. Owner evidence: Sentinel_7b271bf819748191a7ff86370dc2945a answers displayed option A in Sentinel_a73984b520108191bc3b09f788e300e2. Exact visual acceptance remains separate.
+
+The proposed full map shows parallel preparation branches and their joins, with ingredient paths and a supporting allocation table. A split amount can feed two stages; an output becomes a named input to a later stage. Selecting a step or allocation identifies the matching instruction and quantity. Missing allocations remain visible and do not disappear from shopping or nutrition. Wide graphs scroll within the graph region, not the whole page, and never force tiny text.
+Viewing a scaled recipe changes displayed quantities only. Reset restores the base view. Apply to planned meal explicitly changes the occurrence and its downstream needs. Portion count does not linearly scale cooking temperature, duration or equipment capacity. Switching a method changes actual instructions and required equipment; it is not a cosmetic label.
+ISSUE OR GAP
+The historical recipe and cooking boards disagree on step count. New boards use one selected method revision and explicit step IDs. The same source drives reading, map, print and cooking. A mockup showing a beautiful independent diagram is insufficient if its instructions contradict the reading view.
+
+The difficult walkthrough captures a rough recipe with an unknown amount, later resolves it, adapts one ingredient, saves a revision, previews affected future meals and starts a session pinned to the selected method. The design must preserve original evidence and past uses while making the next useful action obvious.
+Save useful rough material
+
+Figure 9. Failed extraction preserves original source text and both manual correction and Retry extraction. Unknown amounts remain unknown. Core C1 shows the saved-draft return; the full editor review later saves a canonical two-portion r1 before the viewer displays four portions.
+
+Return to the saved draft
+
+Core C1. Saving the rough meal returns to Your meals with the “sesame” search and the draft selected. Edit details is the next useful action. A name-only draft creates neither a complete recipe nor a meal plan; the manual editor later saves the selected recipe r1.
+One method across reading and map
+
+Figure 10. Readable compact causal map for the same four-step r1 method. Rice and preparation run in parallel; cooked rice and tofu join at S4, while the prepared broccoli has its own path into cooking. The full desktop map also shows split oil allocations and named outputs; ingredient paths retain unknown broccoli mass and water quantity.
+
+The cooking steps are concrete
+
+Core R1. Detail of Reading steps S3–S4 at a four-portion display scale. Medium heat, a golden tofu endpoint and tender-crisp broccoli are explicit illustrative authoring assumptions. The source’s 15-minute active and 30-minute elapsed values remain fixture assertions, not verified timing or safety guarantees. Full Reading, Map and Cooking share four step IDs.
+Shopping and purchase reconciliation
+Review before the aisle
+Review mode explains the scope of the list: date range or selected meals, contributing requirements, exact or qualitative stock, missing amounts, package choices and price coverage. Shop mode emphasizes readable rows, quick pickup state and remaining needs. Both modes exist on wide and compact screens; the old desktop Review and phone Shop boards are examples, not exclusive device capabilities.
+The list mixes derived ingredients and deliberately added manual items without losing either identity. A plan change can remove an unpurchased derived requirement, but cannot erase soap added manually or a purchase already recorded. A row expansion explains which meals contributed and which conversion/product assumption produced the displayed amount.
+SOURCE REQUIREMENT
+Have this records a stock assertion with its evidence basis. A shopping checkmark records picked up. Purchase confirmation records acquisition. Intake records eating. The interface must make these distinctions without forcing the person through a technical ledger.
+
+A quantity-aware purchase review
+The proposed confirmation screen shows product/package, amount picked up, optional actual total paid in a stated currency, and resulting effects. The connected core fixture requires 800 g tofu and starts with 100 g exact compatible stock: 700 g is missing. Picking up one 400 g pack leaves 300 g still to acquire; actual on-hand remains 100 g until confirmation. Confirming it makes on-hand 500 g once, if inventory tracking is enabled. A separate second whole-pack acquisition produces 900 g on hand. The earlier 700 g requirement / 600 g shortage / 200 g remainder example is retained as a distinct priced calculation example in Domain integrity and recovery; it is not mixed into this trace.
+ACCEPTED BEHAVIOR
+NQ-003 accepted: review the trip’s actual purchases together (ND-015).
+Selected A. At the end of the trip, review actual quantities/units and optional prices together before recording purchases. Preserve partial purchases and remaining need; pickup checks are not receipts. Inventory-disabled purchase-only use remains explicit. Owner evidence: Sentinel_daee2f5ecd6081919e3a58e403a92023.
+Unselected alternative B confirms individual items in the aisle. Meaningful quantities, correction history and idempotent effects remain required under the selected trip-review design. No automated buying or payment is implied.
+
+Unknown actual price is not a free purchase. An optional price may be omitted while stock quantity is recorded, provided the physical quantity basis is known. An incompatible or unknown package conversion cannot produce a precise gram effect; explain the missing basis and preserve the staged purchase rather than guessing. Inventory-disabled use needs a clearly labeled purchase-only route.
+Changes while shopping
+A plan edit produces Added, Changed and No longer needed groups. Preserve picked-up, fulfilled and manual quantities. Increased requirements expose only the added amount; they do not reset the whole list or pretend the original checkmark covers a larger demand. The person can inspect the contributing recipe revision before accepting the recalculation.
+Two devices can act on the same pending pickup. A request idempotency key handles a repeat of the same operation, but two distinct operation IDs need an additional pending-quantity/version boundary. The design must show a refreshed confirmation when another device already claimed the amount. A genuine second purchase remains possible through a new explicit acquisition, not by replaying the first checkbox.
+Correction preserves history and previews affected stock and costs. If some acquired quantity has already been consumed or used in a batch, a correction cannot simply delete the receipt and create impossible negative stock. It needs a reviewed adjustment or explicit unresolved reconciliation. The domain chapter supplies the transactional meaning; the screen must express the consequence in ordinary language.
+Price and substitution
+Price book records product, package, retailer, amount, currency, date, conditions and source. Unit comparisons require compatible units and products. An old promotion cannot be silently treated as today's universally available price. If no prices exist, invite Add prices and show the known requirement without a fabricated total.
+Portion cost and checkout are different lenses. In the separate priced calculation example, buying two 400 g packs at USD 2.40 costs USD 4.80 at checkout; allocating 700 g at that basis is USD 4.20. The remaining amount is stock, not a rounding error. Those prices are not silently assigned to the core visual trace, where actual prices remain unknown. A proposed cheaper product must preserve restrictions and method feasibility, and explain whether it changes a shopping choice or creates a recipe revision.
+ISSUE OR GAP
+NF-002: naming partial purchase without an actual amount control was insufficient. This core visual edition now supplies quantity-aware confirmation, both grocery modes on both device sizes, a retained uncertain confirmation, incompatible-unit handling and inventory-disabled/correction alternatives. This is design-addressed in the reviewed static artifacts; owner acceptance and working transactions remain unverified.
+
+The acceptance walkthrough includes one of two packs, missing price, incompatible units, a plan increase during shopping, concurrent confirmation, lost response, correction after partial use and a genuine second purchase. Each case must preserve the difference between what is needed, picked up, purchased, on hand and eaten.
+
+Review the demand before the aisle
+
+Core G1. Compact Review detail shows 800 g tofu demand, 100 g exact stock and 700 g to buy, with two 400 g packs as a practical package choice. Broccoli mass and other pantry quantities remain unknown. The paired desktop uses the same Review mode and facts.
+
+Picked up is still not recorded stock
+
+Core G2. Shop-mode detail keeps manual dish soap and the pending 400 g pickup visible. On this shopping trip, 300 g remains unpicked; the recorded-stock shortage stays 700 g until confirmation. Confirm purchases opens the quantity review; the checkmark alone changes neither Kitchen stock nor intake. Both desktop and compact Shop captures are retained.
+Confirm the quantity actually acquired
+
+Figure 11. The connected 800 g fixture’s purchase-effect detail. Confirming one 400 g pack changes exact tofu stock from 100 g to 500 g once, leaving 300 g to acquire. The full confirmation includes pack/quantity controls and optional total paid (USD) for the selected quantity. Purchase is neither ordering nor intake. NQ-003 behavior is accepted in ND-015; the exact visual remains unreviewed.
+Keep the draft during a conflict
+
+Figure 12. An uncertain confirmation keeps its draft and checks for the recorded receipt before retrying the same acquisition. A genuine second pack is a new explicit purchase. Inventory-off, incompatible-unit, correction and changed-plan states are included in the full visual route.
+Cooking and the return to ordinary life
+A focused session without hidden effects
+Start cooking creates or resumes a session pinned to a recipe revision, method, scale and optional occurrence. A matching active session offers Resume or Start another. The choice matters because starting another may represent a second real batch; it should not happen silently because the person tapped twice.
+Focused mode removes ordinary navigation clutter while retaining Exit cooking and View full recipe. The step display shows its title, complete instruction, relevant ingredient quantities, equipment/settings and timers. Desktop has a step list; compact uses a reachable step sheet. A person can preview any step, but completion is an explicit action.
+SOURCE REQUIREMENT
+Previous and Next navigate only. Mark step done records completion. Timer expiry does not prove the food is cooked. Session pause does not automatically pause real-world cooking or every timer. These meanings should be evident from distinct controls and status labels, not hidden in a help document.
+
+Timers and interruptions
+A timer identifies its purpose and target instant, with Start, Pause, Resume, add time, Reset and Dismiss as applicable. Multiple timers remain distinguishable. Leaving the current step moves them into a tray rather than discarding them. On reload, an elapsed timer remains elapsed; it does not restart because the page was reconstructed.
+RECOMMENDED DESIGN
+When exiting an active session, offer Leave cooking view with a concise statement that running timers continue. A separate timer action pauses selected timers when the user explicitly chooses it. This respects the physical process: closing a screen cannot stop a pan on the stove.
+
+Offline and cross-tab behavior need a clear ownership policy and reconciliation. The dossier's compact state table names transitions and stale states. A notification provider being unavailable should not erase in-app timing or imply the person will hear an alarm after closing every app. Device notification permission and actual delivery are distinct capabilities.
+Finishing a batch and recording intake
+The source allows Finish without inventory. This is essential for a useful low-tracking experience, not an error escape that should remain permanently nagging. Alternatively, batch confirmation records actual yield and ingredient adjustments. Intake remains a separate optional action.
+DECISION NEEDED
+NQ-005: How should completion prioritize detail?
+A. Finish promptly, with optional batch and intake review (recommended), preserving low effort and honest unknowns.
+B. Offer a structured completion review first, with an explicit Skip inventory update action. This encourages richer records but adds a step. Both choices preserve Finish without inventory; neither may invent actual quantities.
+
+A planned four-portion recipe may produce three portions. Show its dependent reservations and the resulting shortfall. In the core fixture, reserving two portions for Monday leaves only one for Tuesday, so the second Tuesday portion remains unresolved. Offer a review to resize, replace or mark unresolved future meals while preserving the actual batch. Eating one prepared portion consumes prepared stock once, not the raw ingredients a second time.
+An unlinked intake record may capture a ready-to-eat food without a batch. Its data basis and inventory effect must be explicit; optional inventory means it cannot require a fabricated batch just to record eating. Corrections retain the original event and reverse the appropriate effect once. They do not rewrite the original recipe yield.
+The next visit
+Returning to Today should make the next relevant action clear while preserving completed history. The person may resume a paused session, inspect a batch, record an unlogged portion or simply move on. A completed dinner is not removed from history when its recipe is revised. Feedback is optional and should not make a deviation feel like failure.
+ISSUE OR GAP
+The old cooking concept lacks an explicit Mark step done control and shows only one running timer state. Its atmosphere and focused hierarchy are useful, but it does not establish completion, pause, expired, multiple-timer or recovery behavior. New specimens must develop those states coherently with the same recipe method.
+
+The difficult walkthrough leaves mid-step with two timers, reloads after one expires, completes a smaller batch, repairs one leftover reservation, records one portion and undoes it. The screen actions, state table and domain arithmetic must agree throughout.
+A smaller batch affects future portions
+
+Figure 13. A three-portion actual batch cannot fulfill four planned portions. This proposed review reserves two Monday and one Tuesday, leaving one Tuesday portion unresolved. The full screen retains Finish without inventory and explicitly previews 900 g − 800 g = 100 g raw tofu; intake is separate. NQ-005 remains open.
+
+Reverse only the selected intake
+
+Core A1. The main fixture creates three prepared portions. Two separate one-portion intakes leave one; reversing only the second restores one, leaving two. The first intake and original events remain. Tuesday’s reservation does not silently expand.
+Navigation and completion stay distinct
+
+Figure 14. Compact cooking detail places Mark step done before the timer stack. Previous and Next only navigate; Reading, Map and Cooking share four method steps. Core K1 exposes the independent running/elapsed timers and the full transition specimen retains reset cancellation.
+
+Timers keep their own state
+
+Core K1. Detail from the proposed resumed session: tofu is running and rice has elapsed. Pause, +1 minute, Dismiss and Reset have different effects. A timer never completes a step, and this static specimen does not establish notification delivery.
+A kitchen that remains useful with imperfect information
+Stock is evidence, not omniscience
+On hand supports exact, estimated, qualitative, out and unknown amounts. “About half a bag” remains an original expression with a separate reviewed mapping if one exists. Last checked refers to actual evidence, not the date a page was opened. A global fresh-looking label must not imply that every lot was recently measured.
+Accepted NQ-013 A (ND-012): start with minimal inventory tracking; offer optional stock or staples tracking when useful, with short dismissible checks rather than a pantry census. Inventory remains optional. Skip inventory and Track only staples remain valid. Unknown stock stays unknown and full grocery requirements remain available until credible quantities justify a reduction. Repeatedly dismissed checks are suppressed or adjustable. This does not remove inventory capability or infer stock from planning. Owner evidence: Sentinel_a71916c9c6248191af1b9c8dc1b4dd8d.
+SOURCE REQUIREMENT
+Planning reserves stock; it does not consume it. Purchases, batches, intake and corrections create distinct effects. Use soon is a planning prompt based on user input or disclosed date policy, not food-safety certification. No numerical confidence percentage should be fabricated for qualitative stock.
+
+RECOMMENDED DESIGN
+A stock detail begins with the original amount wording, its date/source and current mapping. Edit amount and Correct history are distinct when a previous event has dependent effects. A quick correction can remain simple, but the affected stock basis should be inspectable. Multiple lots appear only where they matter; casual users should not be forced into lot administration.
+
+Equipment as physical resources and capabilities
+The scene helps a person recognize their kitchen; the tiles provide the complete selection interface. Categories Appliances, Cookware and Tools remain reachable on compact screens. Search and More equipment cover less common items without pretending that a decorative room contains the full catalogue.
+A tile toggles selection with visible pending/error status. A scene marker opens details rather than silently removing the appliance. A combined range can provide cooktop and oven; one multicooker can provide pressure and slow-cooking functions but is still one physical resource. Simultaneous-use planning must not count it twice.
+Zero appliances remains valid. Removing an appliance previews affected future methods and offers alternatives where supported. A recipe is eligible when one complete viable method works with selected capabilities, not only when every appliance across every alternative is present. Recorded history remains intact after a kitchen change.
+ISSUE OR GAP
+The historical equipment board omits compact category controls and does not show removal impact. The new proposal should compare scene-plus-tiles against tiles-first compact presentation using the same selected devices. The scene must not make selection less discoverable or require image generation on each toggle.
+
+Preferences without hidden health assumptions
+Food rules, household/servings, time/effort, variety, routines, targets/supplements and shopping preferences belong in Kitchen. Appearance and providers remain global. Hard exclusions are separate from soft dislikes; changing a hard rule previews future conflicts and invalidates affected assessments. It does not erase meals from history or secretly relax the rule to improve recommendation count.
+Routine editing distinguishes reusable baseline templates from dated occurrences. A copied day does not copy actual eating. A temporary low-effort mode has an explicit end. All-zero priority sliders need a defined neutral behavior and a visible Custom state, not a divide-by-zero result or an unexplained forced preset.
+Nutrition targets carry nutrient, unit, bounds, period, enforcement, source and effective dates. Supplements carry explicit product and schedule. The optimizer does not increase a dose to repair a shortfall. Missing values stay missing; defaults for demonstration are never personal prescriptions. Target deactivation preserves history and explains future calculation scope.
+The difficult walkthrough changes one equipment capability, corrects qualitative stock, edits a recurring slot and deactivates a target. It must preserve past records, identify affected future choices and keep uncertainty visible without requiring every kitchen field to be complete.
+Change a capability without erasing history
+
+Figure 15. Complete tile/category access from the paired equipment proposal. Cooktop and oven are distinct capabilities, and the illustrative scene is not selection evidence. Zero-appliance, stove-only, oven-only and consequential removal states remain available without erasing history.
+Shared components and responsive behavior
+A quiet system that remains honest under pressure
+Nooch's shared components should make an ordinary week feel manageable: a recognizable meal, an obvious next action, useful quantities and a calm explanation when information is incomplete. The same interaction must keep its meaning when it moves from a wide kitchen display to a phone in a grocery aisle. This chapter develops the reusable contracts behind those experiences, with particular attention to the evidence, editing and recovery components missing from the historical visual catalogue.
+SOURCE REQUIREMENT
+R05–R07. The visual direction is a warm, cookbook-like interface with quiet typography, restrained icons, semantic themes and predictable controls. The 25 named components below come from R05.3. The catalogue records 17 partial embedded specimens, two context-only references and six missing dedicated specimens. None establishes a complete, implemented component. A parent-screen image is not proof of the component's state behavior.
+
+RECOMMENDED DESIGN
+Use seven component families with a common interaction vocabulary rather than a separate visual language for each page. Normal views emphasize the food and task. Evidence appears next to the value it qualifies; save feedback stays near the action that produced it; consequential changes receive a review surface. The detailed proposals and new visual specimens in this chapter are design candidates, not owner-approved screens.
+
+ISSUE OR GAP
+The signed-in application has not been tested for this chapter. Source requirements, designed specimens and planned checks are separately identified. The SVG/PNG plates are static, editable design specimens; their controls do not execute, and their visual appearance does not establish keyboard, screen-reader, persistence or responsive-runtime behavior.
+
+Status vocabulary used beside the design
+Text label
+Reader meaning
+Recommended printed treatment
+SOURCE REQUIREMENT
+Explicit intended behavior in the recovered specification; exact tokens and breakpoints may be source defaults rather than individually approved choices
+Forest #315D43 on pale green #E8EEE5
+RECOMMENDED DESIGN
+Proposed resolution of composition, copy or interaction detail
+Deep blue #245477 on pale blue #EAF0F5
+DECISION NEEDED
+A consequential choice remains for the owner
+Brown #815119 on pale amber #F8EDD5
+ISSUE OR GAP
+A known omission, contradiction, evidence limit or unverified behavior
+Brick #9E3A30 on pale rose #F7E8E4
+
+Color reinforces these visible words; it never replaces them. SETTLED DESIGN is intentionally absent from new proposals here because no individual new specimen has a pinned approval.
+The visual grammar
+SOURCE REQUIREMENT
+R05.1–R05.2. Light and Evening are semantic themes, with Follow device as the initial preference unless an established user preference exists. Theme changes do not change meal, recipe, servings or date, and do not start image generation. Font loading must not block content. Titles wrap rather than shrink to fit.
+
+RECOMMENDED DESIGN
+Use the dossier's warm ivory #F5F3EC for the specimen canvas and deep blue #245477 for the recommendation treatment. Product-state specimens derive their content colors from the specification's Light/Evening tokens, including the source Light primary-action default #A9472D with white text. Forest remains for selection, focus and product text; it is not an alternate primary-action proposal. Keep editorial serif type for meal/page titles and a readable sans-serif for controls, amounts and instructions. Use tabular numerals for quantities and timers. An evidence qualifier should be smaller than the amount but remain comfortably readable; never dim “Unknown” until it disappears.
+
+Source starting values are: 16 px body, 13–14 px metadata, 44–48 px usual control height, 4 px spacing base, and 10–14 px card corners. These are tuning defaults, not measured accessibility results. The specimen palette is intentionally restrained: a green selected surface, terracotta primary actions in Light, amber primary actions in Evening, and text-labeled errors. Source dividers are not assumed sufficient for control boundaries; contrast must be measured in the real component at its actual background.
+Use spacing and typography before adding another box. A meal card contains one meal; an evidence detail panel explains one value; an impact preview groups one intended change. A status chip should not turn every partially known nutrient into a warning banner.
+Family 1 · Orientation and choices
+SOURCE REQUIREMENT
+R03, R05.3, R06. Every normal shell exposes the same five destinations in order: Today, Week, Meals, Groceries, Kitchen. Settings remains reachable. Focused cooking uses an explicit Exit cooking action instead of ordinary navigation.
+
+Component and coverage
+Proposed interaction contract
+Meaningful states and compact treatment
+AppShell · N01
+Owns the content region, route heading, navigation clearance and global connectivity notice. It does not own recipe, plan or inventory data. A direct link opens a coherent page without requiring earlier navigation history
+Initial load reserves the navigation and heading geometry; page failure renders recovery within the shell. Compact content reserves actual bottom-navigation and safe-area height. No invisible spacer assumption may obscure the last row
+PrimaryNavigation · N01
+Each destination is a labeled link with an unambiguous current state. Navigation does not reset the selected date, saved filter or active session unless the destination explicitly requires it
+Current, noncurrent, keyboard-focus and unavailable destination explanation. All five labels remain visible on compact layouts; do not reproduce historical four-tab mockups. The whole touch target is generous, even if the icon is small
+PageHeader · N01/N07/N13/N29/N34
+Combines one title, relevant context and one named primary action. A scope such as “Oct 5–11 · all meals” belongs beside the title, not only in an overflow menu
+Long title wraps; actions move below it rather than collapsing to unexplained icons. A pending-data header retains known context and does not show a fabricated count
+SegmentedControl · N07/N08/N09/N20/N29/N44
+Labels the choice's meaning: Week view, recipe presentation, or shopping mode. Use real tabs when changing a content panel; use a labeled choice group for an independent display preference. Similar appearance does not justify interchangeable semantics
+Selected, keyboard-focus, loading selected panel and unavailable with reason. Reading/Map is distinct from Recipe/Nutrition/Notes. Compact options wrap or remain locally reachable without forcing page overflow
+FilterChip · N13/N14/N34
+Represents one removable criterion. The label includes the criterion; removal is a named action. Applying a filter changes results, not stored preferences or dietary exclusions
+Applied, focused, inactive suggestion and no-results contribution. A “No oven” discovery filter cannot quietly change the user's equipment. Scroll continuation is visible, with all options keyboard-reachable
+WeekSelector · N07
+Displays the actual date range; previous/next move by one range. A Today/current-week shortcut is distinct from selection. Changing the viewed week does not move meals
+Current week, past/future range and loading the requested range. Compact controls keep range text readable; do not reduce seven dates to unlabeled dots
+
+RECOMMENDED DESIGN
+For tabbed panels that require noticeable loading, arrow keys move focus and Enter/Space activates. For already available panels, automatic activation can be considered after testing. This follows the distinction in the W3C tabs pattern without forcing one implementation across every visually segmented choice.
+
+ISSUE OR GAP
+N01. Historical compact Today, Week, Meals and Groceries examples sometimes show four destinations. This chapter follows the five-destination source override; the integration review must not accidentally restore the old count when reusing images.
+
+Family 2 · Meals, occurrences and serving scale
+SOURCE REQUIREMENT
+R03.2, R08–R12, R17.1. Viewing a meal, changing a display scale, modifying a future occurrence and starting a pinned cooking session are distinct actions. A picture is optional; the meal identity and primary action are not.
+
+Component and coverage
+Proposed interaction contract
+State specimen to carry into page designs
+MealCard · N13/N14
+The title opens the meal; a separately named Add to week action preserves the target slot/context. Favorite and overflow remain separate controls, with no nested button inside a clickable button
+Ordinary photo, no photo, long title, draft, partial nutrition and incompatible-with-current-rules explanation. Drafts remain editable; missing data must not create an “Affordable” or “High protein” badge
+MealHero · N02/N03
+Presents the selected occurrence and Start cooking, with Swap as secondary. The image uses the selected recipe revision and one coherent crop. Status belongs in the solid content area
+Honor explicit presentation choice: Minimal stays Minimal; Editorial uses an eligible photo, then Minimal; Immersive tries an approved matching scene, an explicitly approved compatible cutout, an ordinary photo, then Minimal. Failed imagery follows that eligible chain without changing the meal or action placement. Compact artwork yields height before the title and action
+MealSlotCard · N07/N10
+Represents a dated slot containing zero, one or several items. Lock, move, copy, replace and add have distinct labels and effects. A locked item remains inspectable and can still display a conflict
+Empty “Add lunch”; multi-item lunch; locked favorite; leftover dependency; required-rule conflict. Compact agenda keeps item-level actions instead of flattening a slot to a single recipe
+ServingControl · N24
+Shows the current display scale with labeled decrease, editable number and increase controls. Reset restores the pinned/default scale. “Apply to planned meal” is a separate consequential action when context exists
+2 → 3 servings scales 150 g dry rice to 225 g in the synthetic fixture, but does not scale cooking time or temperature. Invalid/unsupported fractions retain the last valid result with an inline explanation
+
+RECOMMENDED DESIGN
+A serving change announces its result once after a committed edit, rather than announcing every intermediate keystroke. Preserve the raw input while the person types a fraction or decimal. Do not normalize “.” into zero or drop the field's focus when derived quantities refresh. The step size and permissible fractions come from the recipe/product constraint, not a universal integer stepper.
+
+ACCEPTED BEHAVIOR
+Accepted clarified behavior NQ-010 A (ND-010). Ingredient quantities may be omitted, with suggestions such as pinch, dash and to taste; preserve that qualitative text without inventing weights or nutrition. A draft may leave servings/base yield unspecified. Automatic scaling requires a usable numeric base yield/serving basis and a validated requested amount, subject to actual recipe/product constraints. Qualitative ingredients remain unresolved unless a reviewed mapping exists. The owner delegated the clarified choice in Sentinel_4aa12169c68c8191bb04331d52bcc6a7; recommended A was explicitly selected in Sentinel_0a87c1286b8081919ece26193451ea58. The alternative free-text serving-control mode was not selected.
+
+Family 3 · Rows preserve the meaning of a checkmark
+SOURCE REQUIREMENT
+R12.2, R14, R15. Ingredient preparation checks, picked-up grocery items, stock assertions, confirmed purchases and consumption are separate facts. A shared row layout must not imply a shared domain action.
+
+Component and coverage
+Concrete behavior
+States that must remain distinguishable
+IngredientRow · N16/N20
+Shows ingredient identity, preparation form, scaled quantity and optional source detail. The preparation checkbox is a local/session aid. Activating the amount opens its explanation or editor according to context
+“Broccoli · 1 head · mass not mapped” is usable text, not “0 g.” A checked ingredient remains included in nutrition and shopping. A split allocation can expose “used in steps 2 and 4”
+ShoppingRow · N30
+In Shop, the checkbox records picked-up status/quantity only. Details expose total need, compatible stock, missing amount and package choice. Picked-up rows retain stable identity and an immediate Undo path
+“2 packs needed”; “1 of 2 picked up”; “extra 150 g needed after plan change”; “some at home, check amount.” Unresolved quantity opens clarification rather than pretending full fulfillment
+InventoryRow · N35
+Shows exact, estimated, qualitative, out or unknown amount plus actual evidence age. Edit records a stock correction; it is not a purchase
+“500 g · checked Sep 30”; “About half a bag”; “Some left”; “Out”; “Amount not set.” Opening the row does not update its checked date. Use-soon remains a planning prompt, not a safety guarantee
+
+RECOMMENDED DESIGN
+Keep the actionable amount aligned in a predictable column on wide views. At compact widths, allow name and evidence to wrap while the primary action remains adjacent to the item. Expanding detail should not replace the row with a differently ordered list. When a checked row moves to Picked up, preserve logical focus on that same item or its Undo control and announce the move once.
+
+The synthetic purchase arithmetic belongs in the domain chapter. This shared contract merely preserves its meaning: a checkout subtotal is not a consumed-portion cost; a qualitative stock assertion is not an exact subtraction; a pending check is not a server-confirmed purchase.
+Family 4 · Cooking remains usable without decorative art
+SOURCE REQUIREMENT
+R12.2, R13. One selected method revision drives reading, map, print and cooking. Navigation, step completion, timers, batch confirmation and actual intake remain separate.
+
+Component and coverage
+Proposed behavior
+Important state specimen
+RecipeMap · N21
+Explains ingredient allocations across actions, branches, joins and named intermediate outputs. Each step link opens the corresponding method step. Provide semantic relationships and a reading alternative
+Unresolved broccoli mass stays visible; missing allocation is labeled rather than deleting the ingredient. Wide maps scroll inside their own region. Compact stage grouping replaces tiny text; the complete graph is not reduced to an “At a glance” thumbnail
+CookingStep · N25
+Shows full instruction, actual relevant quantities, equipment/settings, step position and explicit Mark step done. Previous/Next only navigate
+Active, completed, prerequisite unconfirmed and optional override assertion. A step without art still has the same hierarchy. A ready-to-eat item with no method is different from an incomplete recipe draft
+PersistentTimer · N26
+Displays label, remaining/elapsed state and specific actions. Timer state survives route changes and reload when implemented; it never derives step completion
+Idle Start; running Pause/+1 min; paused Resume/+1 min; elapsed Dismiss; reset confirmation; locally pending change. Multiple timers use distinct labels, such as Rice and Tofu, rather than a single anonymous timer
+
+RECOMMENDED DESIGN
+Put the active timer near its step and other timers in a compact, always-reachable tray. In large text, let labels wrap and controls form a second row before shrinking digits. Reduced motion removes spatial transitions. Announce Start, Pause, Resume and expiry as meaningful events, never every second. Exiting cooking should make any continuing timers obvious without implying a guaranteed background alarm.
+
+ISSUE OR GAP
+Historical evidence includes one running timer and a miniature recipe overview, not a complete multi-timer or full-map design. The main cooking/map chapters own those larger compositions; this chapter defines their reusable semantics and boundary states.
+
+Family 5 · Equipment has an accessible source of truth
+SOURCE REQUIREMENT
+R15.2, R20. The scene is contextual. Equipment tiles are the complete selection interface. A combined range can supply cooktop and oven independently; selecting a capability does not create a second physical device. Zero appliances is valid.
+
+Component and coverage
+Proposed behavior
+Compact and failure behavior
+EquipmentTile · N36
+A labeled selectable control exposes the current capability, pending state and details. A selection persists; removing a capability opens its future-plan impact. Details can describe physical device and capacities without making them mandatory for basic use
+Selected, unselected, focus, saving, local pending and failed-save states remain readable. Appliances/Cookware/Tools stay reachable. Long labels wrap in the two-column grid or reflow to one column at large text
+EquipmentScene · N36/N55
+Visible markers open details rather than silently toggling ownership. Marker hit areas may exceed visible dots, but must not overlap. Selection visuals derive from the same state as the tiles
+Missing art leaves tiles fully functional. A short compact scene sits above the grid. Reduced motion removes pan/parallax. No generation or charge is triggered by selecting an appliance
+
+RECOMMENDED DESIGN
+When oven access is removed from a combined range, state “Cooktop remains available” in the impact preview. If a future tray bake has no viable alternative, flag that occurrence rather than erasing it. A person reporting a lost appliance should not have to falsify their current kitchen to preserve a feasible plan; the domain chapter resolves the repair flow.
+
+Family 6 · Evidence, editing and recovery
+EvidenceValue and SourceDetails · N08/N09/N17/N22/N23/N30/N33/N54
+SOURCE REQUIREMENT
+R07, R12.4, R14.4, R15.1, R23. Unknown values stay unknown. Measurements, estimates, assertions and source bases remain inspectable. A known subtotal must not appear to be a complete total.
+
+RECOMMENDED DESIGN
+EvidenceValue has three visible parts: a readable value or explicit absence, a concise qualifier, and a named way to inspect the basis. Examples are “18 g · recorded per serving,” “About 250 g · estimate,” “Some left · checked Sep 30,” and “Incomplete · 2 ingredients unmapped.” These are synthetic specimens, not actual nutritional facts. Avoid unexplained question-mark icons as the only route to evidence.
+
+Use unknown text instead of a lone dash where the distinction affects a decision. Reserve a numeric zero for an actual zero. For partial totals, present the known subtotal with its scope, such as “Known ingredient cost $2.40 · 2 of 6 priced”; do not append an unsupported percentage-complete score or green “on track” label.
+SourceDetails opens in place on wide screens and in a sheet/full page on compact screens. It shows the quantity basis, source identity, observation date, conversion or recipe revision, and which parts remain unresolved. “Recorded from package label” is not the same as independently verified nutrition. An external source action uses a meaningful link; returning restores the original value and context. Edit opens a draft, not a live mutation of the evidence record.
+Plate CS-01 · Evidence and save feedback. The left specimen contrasts an exact recorded amount, qualitative stock and incomplete nutrient result. The adjacent SourceDetails view explains one ingredient basis. The right rail compares server-confirmed, locally pending and unresolved outcomes in Light and Evening. All displayed food numbers are illustrative.
+See Figure 16 for the corresponding proposed component states.
+SaveStatus · N52
+SOURCE REQUIREMENT
+R03.3, R07, R22. Feedback distinguishes server-confirmed saves, local pending operations, cached content, conflict and failure. Preserve edits during recovery. A UI change alone is not durable success.
+
+RECOMMENDED DESIGN
+Keep these states separate rather than forcing them into one linear success animation:
+
+Observed condition
+Proposed copy and action
+Meaning
+User has changed an unsent draft
+“Unsaved changes”
+No claim of local or server persistence unless confirmed
+Durable local queue accepted the edit while offline
+“Saved on this device · waiting to sync”
+A local persistence result, not account-wide success
+Request is in flight
+“Saving…”
+Preserve current controls and typed content; prevent duplicate consequential submission
+Server confirms this revision
+“Saved”
+The relevant durable operation succeeded
+Server result is unknown after a timeout
+“Save not confirmed · your changes are kept here” with “Check again”
+Do not claim failure, retry a new operation blindly, or declare success
+Remote revision conflicts
+“Updated elsewhere · review changes”
+Preserve both the local draft and a route to inspect the current version
+Definitive rejection
+Specific reason plus Retry or edit action
+Keep recoverable content and explain the affected operation
+
+“Saved on this device” is conditional on actual durable local storage confirmation. An in-memory draft can only say it remains in this open view. Cached read state is a separate contextual notice, for example “Offline · showing previously loaded list”; it must not overwrite the save status of an individual row.
+Status updates should be available to assistive technology without taking focus away from the current task. The implementation should use suitable status-message semantics, with urgent interruptions reserved for genuinely urgent conditions. W3C status-message guidance
+ImpactPreview · N05/N06/N11/N12/N18/N31/N37/N50
+SOURCE REQUIREMENT
+R03.2, R09, R14.3, R15.2–R15.3, R22. Consequential changes preserve context, disclose affected future work and revalidate the relevant revision before application. Historical events and unrelated manual items remain intact.
+
+RECOMMENDED DESIGN
+Use a shared preview frame with domain-specific content: intention, before/after, affected records, preserved facts, uncertainty and one explicit apply action. A serving change says “Apply 3 servings to Wednesday dinner,” not “Continue.” A changed shopping requirement names Added/Changed/No longer needed. A conflict refreshes the preview instead of silently applying stale impacts.
+
+A compact preview is a full-height sheet with one scroll region, a visible close action and a reachable footer above the keyboard. A complex multi-paragraph preview begins focus at its title rather than dropping the reader into the final apply button. On close, return focus to the originating control or a logical surviving target, following the W3C modal-dialog pattern.
+Plate CS-02 · One edit, two meanings. The desktop specimen previews changing a planned serving count; the phone specimen saves a minimal meal draft. The first changes future plan data only after Apply. The second saves an incomplete but legitimate draft without fabricating missing ingredients or nutrition.
+See Figure 17 for the corresponding proposed component states.
+EntityEditor · N15/N16/N19/N33/N35/N38/N40/N41/N42
+SOURCE REQUIREMENT
+R10, R16, R22. Routine forms use labeled inputs, inline validation, meaningful Cancel/Save, durable drafts where supported, source preview and conflict recovery. Minimal meal capture remains useful. Setup drafts are separate from active preferences until applied.
+
+RECOMMENDED DESIGN
+EntityEditor shares layout and recovery mechanics, not a universal form schema. Each entity declares what is required to save, what is required for downstream eligibility, and what belongs to a later enrichment step. A name-only meal may be a valid saved draft while still being ineligible for calculated planning. A nutrient value without a unit/basis may be invalid evidence. These are different reasons and require different copy.
+
+For minimal meal capture, show Name first, an optional short note, and a compact “Add ingredients and method later” explanation. Use “Save draft” when the result is explicitly incomplete. Saving succeeds only after the actual save result; failed attempts keep entered content. For an ordinary edited field, place the error immediately beside its label/input and retain the invalid text so it can be corrected. An optional summary links to multiple errors after submission; avoid announcing errors repeatedly while the user is still typing.
+Compact long editors use a full page with a clear title and one scroll region. Sticky actions must remain above the on-screen keyboard or fall into normal document flow when space is too short. Browser Back, Cancel and close all follow the same draft-preservation rule; do not let one path silently discard work. When unsaved content could be lost, offer a concise choice to keep editing or discard the draft. If durable drafts are implemented, closing can preserve the draft with an honest label rather than a needless discard prompt.
+ACCEPTED BEHAVIOR
+Accepted behavior NQ-011 A (ND-008). After minimal capture, return to the originating context with the saved draft selected and search/filter preserved. Direct capture without an originating collection opens detail. Keep the draft durable and incomplete data visibly incomplete. If the retained filter excludes it, an honest saved confirmation/link keeps the new draft findable without silently rewriting that filter. The always-open-detail alternative remains unselected. Owner evidence: Sentinel_440c5f1776a0819181a14b71eb26887a; original packet Sentinel_030a566606308191b13e9cb68c180495.
+
+EmptyState · N54
+SOURCE REQUIREMENT
+R07. Empty, loading, no-results, failed, partial and offline-capability states are different. Load failure must not masquerade as a new account.
+
+RECOMMENDED DESIGN
+Give each state one specific, useful next action:
+
+State
+Proposed specimen copy
+Primary next step
+Truly no saved meals
+“Your meals start here. Save one you already make.”
+Add meal
+Search/filter excludes all results
+“No meals match these filters.” Show the active constraints
+Reset filters; do not remove dietary rules
+Initial request is loading
+Stable card skeleton with reserved image dimensions
+Wait; no fake meal titles or numeric totals
+Collection request failed
+“We couldn't load your meals. Retry to retrieve your saved meals.”
+Retry
+Loaded recipe has missing nutrition
+“Nutrition is incomplete. 2 ingredients need a source.”
+Review ingredients
+Uncached recipe is requested offline
+“This recipe isn't available offline yet.”
+Return to previously loaded meals or retry when connected
+
+Keep the user's useful content visible when only one region fails. A photo failure should not replace the entire recipe with an error screen. A provider outage should not block manual meal capture.
+Family 7 · Background work is observable, not magical
+GenerationJobStatus · N46/N57
+SOURCE REQUIREMENT
+R18. Generation permission, provider capability, a specific job, review approval, asset activation and accounting are separate states. A completed provider request is not permission to replace the current image. Cancellation does not guarantee that no charge occurred.
+
+RECOMMENDED DESIGN
+Use a compact job row near the requested recipe plus a fuller history view. Show the requested output scope, recipe/media revision, job state, and known usage or pending accounting. Do not invent a percent-complete progress bar when only queued/running events are available.
+
+State specimen
+Proposed copy and available action
+Provider not configured
+“Generation isn't connected. Use a photo or a bundled scene.” Settings is secondary; normal artwork remains usable
+Permission is off
+“Generation is off.” Explain how to change the preference; no one-click job without its required quote/consent
+Queued
+“Waiting to start · 1 wide image requested.” Cancel is available according to actual job behavior
+Running
+“Creating your image.” Show Cancel request, with concise accounting caveat where relevant
+Awaiting review
+“Image ready to review.” Review compares the candidate with the current image; it does not silently activate
+Recipe changed
+“Made for an earlier recipe version.” Keep result attached to its original inputs; review compatibility
+Failed
+Specific recoverable reason. Retry is offered only within the approved attempt and budget scope
+Canceled with usage unresolved
+“Canceled · usage still pending.” Do not label the attempt free
+Approved and available
+“Approved · ready to use.” Activation is still explicit unless an authorized policy covers it
+
+Plate CS-03 · Useful states without false success. A compact library state, a generation job awaiting review and a canceled job with pending usage show how Nooch can remain calm without hiding limitations.
+See Figure 18 for the corresponding proposed component states.
+DECISION NEEDED
+Component option NQ-012 (candidate). The source allows Off or Ask each time as a deployment default, recommending Off as the safest first launch. This chapter retains Off as a proposal. Do not present it as an approved commercial policy, configured provider or spending permission.
+
+Responsive contracts that preserve the task
+SOURCE REQUIREMENT
+R06. Container width decides composition. Below roughly 640 px is compact; 640–1023 px is intermediate; larger widths progressively permit desktop collections and boards. These are starting points. Seven Week columns require about 136 px each plus labels; when they do not fit, use an agenda or an explicit locally scrolling board option. The page itself must not become a tiny horizontal spreadsheet.
+
+RECOMMENDED DESIGN
+Review at the source's representative 360×800, 390×844, 768×1024, 1024×768 and 1440×1000 sizes, plus 320 px and zoom stress. These dimensions are test cases, not claims about the specimens' runtime. The following transformations are requirements for the proposed compositions:
+
+Pressure
+Transform the composition
+Preserve
+Narrow width
+Single-column MealCard; selected-day agenda; source detail and editor become sheets/pages
+Meal identity, context, named primary action and all five normal navigation destinations
+Short height or large text
+Reduce/omit decorative hero art; move secondary actions below content; release sticky footer if necessary
+Start cooking, timer controls, form labels, save/cancel and focus visibility
+Long title or localization
+Wrap text, increase card height and realign actions within the grid
+Full readable title; no ellipsis as the only access to identity
+On-screen keyboard
+Use one scroll region with active field and actions reachable above keyboard
+Current field value, validation message, draft and back behavior
+Dense evidence
+Show the actionable amount plus concise qualifier; expand details on demand
+Unknown/estimate scope and a clear route to source
+Missing imagery or fonts
+Reserved media box becomes intentional minimal treatment; metric-compatible type fallback
+Content order, button location, item identity and no false loading permanence
+Reduced motion
+Remove slide/bounce/parallax; use instant or brief opacity changes
+State change feedback and information relationships
+
+At 200% zoom, a desktop layout may legitimately become compact. Focus must remain visible after that reflow. Local scrolling is appropriate for a genuinely wide recipe map, not a shortcut around a responsive editor or navigation bar. The map still needs a complete reading alternative.
+Focus and announcement contracts
+SOURCE REQUIREMENT
+R07. The implementation target is WCAG 2.2 AA, without a certification claim. Icon actions need names, focus must be visible in both themes, dialogs restore focus, drag operations have explicit Move to/Copy to alternatives, and equipment tiles provide a complete alternative to scene markers.
+
+RECOMMENDED DESIGN
+Treat focus as part of the state contract:
+
+Open SourceDetails from “Why this amount?”; close returns to the same value
+Open an editor; initial focus respects title/context and does not skip a meaningful warning; Cancel returns to the invoking item
+Apply a preview; success returns to the changed occurrence or list region, with one scoped result announcement
+Receive a validation error; keep typed content, identify the affected field and allow direct navigation to it
+Receive a remote update; do not steal focus or erase a dirty draft; expose a deliberate review action
+Reorder a shopping row after pickup; keep a logical focus destination and reachable Undo
+Expire a timer; announce that timer's label and elapsed state once under the actual platform capability; do not complete the step
+The 44×44 CSS px common-control target in the source is a product preference where practical, not a blanket statement that WCAG AA requires that exact size for every control. Measure contrast, hit areas and overlap in the actual implementation, including focused and disabled explanatory states. Native keyboard, touch, zoom, assistive-technology and background-timer behavior remain untested here.
+Component options for the project-owned review queue
+NQ-011 A is accepted in ND-008; clarified/delegated NQ-010 A is accepted in ND-010. NQ-012 remains a separate deployment/permission default and must not be bundled into routine styling approval. Resolve exact current state in the Nooch review register. The source Light primary-action default is #A9472D with white text; forest remains selection/focus and product text. This is source-default alignment, not a newly approved theme decision.
+Review route and planned checks
+The next owner review should begin with CS-01 and CS-02: can a person tell what is known, what is merely saved locally, and what will change when they apply an edit? Then review CS-03 for calm failure handling. Finally inspect the family tables against the corresponding page chapters.
+These are design acceptance scenarios, not executed runtime tests:
+A name-only meal can be saved as a draft without invented ingredients; save failure preserves the name and note
+“Some rice” never becomes a numeric stock subtraction; SourceDetails retains its real observation date
+Scaling the synthetic two-serving recipe to three shows 225 g dry rice while broccoli mass remains unresolved and method time is not multiplied
+A stale serving preview keeps the proposed edit and offers current impact review instead of silently committing it
+A locally queued shopping edit is labeled differently from a server-confirmed save and a merely in-memory draft
+Marking an ingredient prepared, picking up a grocery item, and confirming a purchase produce visibly different meanings
+Removing oven access leaves cooktop selected on a combined range and identifies the affected future method
+A timer expiring during another step remains named and accessible without marking either step complete
+A canceled generation job with unknown usage remains pending in accounting; no candidate auto-activates
+A no-results filter, failed request and uncached offline route produce different recovery actions
+A long editor at narrow width, large text and an open keyboard retains the active field and a usable way to save or cancel
+ISSUE OR GAP
+These specimens add proposed coverage for the previously missing evidence/editing/recovery layer. They do not retroactively convert catalogue rows into verified implementation or complete all page-specific designs. The full RecipeMap, multi-item Week, multi-timer cooking, stock/equipment and generation-review compositions remain linked obligations of their owning chapters.
+
+Source and specimen record
+Primary behavior source: Recovered redesign specification, prepared ; R01 authority, R03 context, R05–R07 components/responsiveness/accessibility, and cited domain sections
+Coverage basis: the current local catalogue's design_coverage.component_register, 25 entries; historical reference status is preserved as evidence, not promoted by this proposal
+Product identity and reconciliation: 
+Accessibility pattern references checked : W3C tabs, modal-dialog and status-message guidance linked above. These guide semantics; they do not prove conformance of Nooch
+New editable specimens: CS-01 components-evidence-save.svg; CS-02 components-impact-editor.svg; CS-03 components-recovery-jobs.svg, with matching PNG renders. Revision 2, ; original proposed UI artwork; synthetic scenarios; no actual account, provider or runtime capture
+Evidence and save state specimens
+
+Figure 16. Proposed component-state plate. Source requirements and recommendations are labeled; no runtime or assistive-technology verification is implied.
+Impact preview and editing specimens
+
+Figure 17. Proposed component-state plate. Source requirements and recommendations are labeled; no runtime or assistive-technology verification is implied.
+Recovery and background job specimens
+
+Figure 18. Proposed component-state plate. Source requirements and recommendations are labeled; no runtime or assistive-technology verification is implied.
+Domain integrity and recovery
+Purpose and authority
+This chapter specifies the proposed behavior that keeps Nooch's planning, shopping, cooking and nutrition views consistent. It describes a design, not verified implementation. Its source basis is the September 22 redesign specification R12–R15 and R21–R28, together with Appendix A DOM-02–05, NUT-02–04, CST-01–03, INV-01–03 and SYS-02. Requirements explicitly present there are identified below as source requirements. Interaction resolutions and additional boundary rules are recommendations for owner review.
+The central distinction is between intentions, observations and effects. Scheduling dinner is an intention. Saying there is some rice in the pantry is an observation. Confirming a purchase or a cooked batch creates an inventory effect. None should silently stand in for another. This separation permits a lightweight experience without making its numbers misleading.
+The identities behind the experience
+A recipe has a stable identity and immutable revisions. A revision contains its ingredients, yield, preparation alternatives, source assertions and calculation basis. A planned occurrence points to a specific recipe revision, date, slot and portion count. A cooking session pins a method and scale; a prepared batch records actual output; a consumption event records what was eaten. These source-required distinctions preserve history when a recipe changes tomorrow.
+This conceptual model describes relationships without prescribing database table names. An implementation may use its existing aggregates and transactional conventions so long as these meanings survive. A recipe revision may offer several methods, but an occurrence or cooking session uses one selected viable method. Equipment eligibility asks whether at least one complete method works with available capabilities. It must not require all appliances mentioned across mutually exclusive methods.
+A physical device can provide several capabilities. A combined range may offer an oven and cooktop; removing oven access does not remove its burners. Conversely, selecting two capabilities on one multicooker does not create two independent physical devices available simultaneously. Capacity and parallel-use constraints matter when a weekly plan schedules overlapping preparation.
+Source evidence is also a first-class relationship. A product's nutrient profile, a package price, an ingredient conversion and a stock assertion each have their own provenance and effective basis. A recently opened page does not make any of them newly observed. The interface can keep these details collapsed, but calculations and explanations must be able to resolve them.
+Five invariants users should be able to trust
+Planning never records eating or consumes actual stock. Reservations are separate from on-hand quantities.
+A purchase is recorded once, a batch consumes raw ingredients once, and eating a portion consumes prepared stock once.
+Unknown values remain unknown. They do not become zero, a guessed quantity or an apparently complete green assessment.
+Historical records use their pinned revisions. Editing a recipe or refreshing a price does not rewrite yesterday's meal or receipt.
+A failed or repeated action cannot silently lose an edit or apply the same real-world event twice.
+These invariants are source requirements. Their concrete interface manifestations and worked cases below are proposed design resolutions. They should appear in the acceptance suite and in the relevant screen specifications, rather than being confined to a technical appendix.
+Plan changes have a review boundary
+A draft plan is a proposal. Applying it changes future occurrences, reservations and derived grocery requirements together. The source requires expected-revision checks and all-or-nothing domain effects. A preview must therefore identify both what it is proposing and which source revisions it inspected.
+Recommended preview contents are: added, changed and removed occurrences; preserved locks; affected leftover dependencies; newly required purchases; and unresolved constraints. Avoid presenting every unchanged meal as a decision. Show the material consequence near each proposed change and let the owner inspect details. A required exclusion cannot be softened through an innocuous-looking confirmation button.
+When the owner applies a preview, revalidate affected inputs at the commit boundary. If another device changed a dependent plan, profile, recipe or stock fact, return an actionable conflict and preserve the proposal. Do not blindly apply old results. Conversely, an unrelated note edit should not invalidate the entire week's plan. The revision set should cover actual dependencies rather than use a global workspace timestamp for every action.
+Recommended conflict action choices are “Review updated impact,” “Keep editing my proposal,” and “Discard this proposal.” Recompute against current evidence, identify what changed, and require confirmation for the revised material effects. A silent automatic rebase is unsuitable when it changes food restrictions, locked meals or purchase amounts. A harmless metadata reconciliation can remain automatic when no domain consequence changes.
+The updated derived grocery requirement belongs to the same logical application result. If shopping is already active, preserve its current working fulfillment state and present a reviewable requirement diff rather than silently replacing its rows; applying that diff is a separate revision-checked shopping action. Existing manual items remain. Previously fulfilled quantities remain. Removing a planned curry may mark its unpurchased ingredients no longer needed, but it cannot erase a purchase already recorded or remove manually added soap.
+Worked reservation example
+Assume a synthetic pantry record contains 500 g of dry rice. The current plan reserves 300 g; a replacement draft needs 350 g for the same plan. During replacement, exclude that plan's superseded 300 g reservation before assessing the new requirement. The replacement fits, with 150 g available afterward. Counting both old and new reservations would invent a 150 g shortage. Reservations owned by other active plans remain relevant.
+This case assumes compatible exact stock and no competing reservation. If the pantry only says “some rice,” the result is a pantry check, not a numerical claim that the plan fits. If another plan reserves 200 g before application, the 350 g replacement no longer fits without a revised purchasing plan; the preview must be refreshed.
+Shopping records what happened in stages
+The source distinguishes a checklist mark, purchase confirmation, stock assertion and consumption. A checkmark means picked up in the current shopping session. It does not establish a paid amount, add stock, or record intake. “Have some” is a qualitative stock assertion, not a purchase.
+A binary checkbox alone cannot represent partial fulfillment. The recommended compact row keeps the quick check action but adds an expandable “Picked up” quantity control. For an exact requirement of two packs, choosing one pack shows “1 of 2 picked up” and leaves one outstanding. The full check action sets the known requested amount as picked up; when that amount is unresolved it opens the quantity entry instead of inventing it. This is a proposal requiring mockup and interaction review.
+“Confirm purchases” presents the picked-up quantities, selected product/package identity, optional actual prices and any unresolved conversions. Confirming creates the purchase and acquisition effects as one domain operation. If the price is absent, stock can still be recorded while spend remains unknown. It must not become a zero-dollar purchase merely because a price field was skipped.
+A successful confirmation marks the exact pending fulfillment records and quantities consumed by that confirmation without deleting their history. Recommended transaction rule: claim those unconfirmed fulfillment quantities under their expected revision in the same commit that creates the purchase and stock acquisition. Two devices submitting different operation IDs against the same pickup cannot both claim it; the second receives the already-confirmed result or an explicit changed-quantity conflict. A genuinely additional purchase must create a new pickup or acquisition record rather than reuse the consumed one. A repeated network request returns the same operation result. A second real purchase is a new operation, even if product, amount and date happen to match. Duplicate detection can ask for review; matching values alone cannot prove a duplicate.
+Worked purchase and checkout example
+Separate priced calculation example, retained from the preceding edition: a synthetic recipe plan requires 700 g of firm tofu. This is not the core visual trace’s 800 g requirement. Exact compatible on-hand stock is 100 g. The selected offer is 400 g per pack at USD 2.40. Missing quantity is 600 g; buying two packs provides 800 g for an estimated checkout of USD 4.80. The consumed portion allocation for 700 g is USD 4.20 using that offer basis, which is a different measure from the additional checkout.
+The shopper picks up one pack. The list records 400 g picked up, with 200 g still to acquire in this shopping session. Actual stock remains 100 g until purchase confirmation; the 200 g shopping remainder is not an on-hand inventory claim. Confirming that pack adds 400 g to the previous 100 g of stock once. It records USD 2.40 actual spend only if that actual price is confirmed; otherwise it retains the offer as an estimate and actual spend as unknown. One more whole pack would satisfy the remaining 200 g under this package choice. Do not display a half-pack purchase unless the merchant actually sells that quantity.
+If the plan later increases its requirement to 850 g, confirmed stock is 500 g before preparation. The new shortfall is 350 g. Keep the earlier acquisition and show the changed requirement. If the shopper checked the same row on two devices, desired state and stable operation identity prevent a double purchase; merely toggling a boolean twice does not represent this correctly.
+The numbers above are synthetic arithmetic fixtures, not Matt's groceries, prices or current inventory.
+Cooking and intake are different events
+A cooking session records instructions being followed. Viewing the next step does not mark the previous one complete. Timer expiry does not establish that food is cooked. Exiting a session does not cancel real-world cooking, stop every timer, consume inventory or record a meal.
+Finishing cooking offers two source-defined paths: record a batch with actual yield and ingredient adjustments, or finish without updating inventory. The latter is essential for users who want useful cooking guidance without detailed stock tracking. It should not leave the app in a broken or permanently nagging state.
+Batch confirmation consumes raw ingredients and creates prepared output together. A leftover occurrence reserves that output; eating it creates a consumption event and reduces prepared stock. Canceling tomorrow's leftover lunch releases its reservation but does not claim the food was discarded. Waste is a separate explicit event or visibly labeled estimate.
+Worked batch and correction example
+A synthetic recipe revision has a planned yield of four portions and consumes 400 g of raw tofu. The cook confirms an actual batch yield of three portions using the same recorded ingredient quantities. Raw tofu decreases by 400 g once; the prepared batch begins with three portions. Its per-portion allocation derives from the actual batch basis, without silently changing the source recipe's four-portion yield. If four future portions were reserved, the confirmed three-portion yield exposes a one-portion shortfall. Recommend recording the real batch honestly while marking affected future allocations for repair; do not reject the actual observation merely to preserve a feasible plan. Existing reservation priority must be shown, with owner choices to reduce portions, replace one future meal, or record another preparation plan. Do not silently shrink all four meals or double-allocate three available portions. The batch confirmation and shortage status must become visible coherently. Before any affected future plan is treated as feasible, require the repair preview to be applied.
+Recording one portion eaten reduces the batch to two portions. The raw tofu projection does not decrease again. Repeating the same intake operation after a lost response returns its original result. Undoing that consumption creates a reversal that restores one prepared portion once and corrects the nutrition projection.
+Undoing the original batch after a portion has been consumed is no longer a simple safe reversal. Recommend a correction review showing the linked consumption and remaining stock. The source permits exact undo only when downstream effects can be reversed coherently; otherwise offer a correction with explicit consequences. Do not implement a generic “restore old workspace snapshot” button for this case.
+An actual yield may be expressed in grams instead of servings. The design must retain its basis and any reviewed portion mapping; three containers do not automatically equal three nutritional servings. This remains a domain-specific quantity decision where the source lacks a confirmed mapping.
+Nutrition scopes remain legible
+The source requires ingredient-derived nutrition or an asserted recipe profile as the authority for a recipe, never both added together. Scaling uses compatible quantity, unit, preparation state and source revision. Dry and cooked rice are not interchangeable bases; a scoop or cup needs a product-specific mapping before conversion to mass.
+The recommended analysis selector names the scope directly: selected meal, planned day, recorded so far, expected day, or selected week. Expected day combines recorded quantities with explicitly retained future or remaining planned quantities. It cannot add the full original plan on top of partial intake.
+For example, a planned occurrence has two portions. The owner records half a portion. If they explicitly keep another half portion planned, expected intake is one portion total. If they close the occurrence at half a portion, expected intake is half a portion. Neither path silently assumes the original two portions will still be eaten.
+Unknown nutrient contributors remain visible. With a synthetic lower-only target of 100 units and a known subtotal of 110 units, the modeled lower bound is met even if additional nonnegative contributions are unknown; the total is still incomplete. With an upper bound of 150 units, a subtotal of 110 plus unbounded unknown contributions cannot establish a pass. A known subtotal of 160 already exceeds that upper bound. These are arithmetic examples about configured values, not dietary or medical recommendations.
+An average week view does not override daily bounds. Household recipe yield does not multiply one person's nutrition targets. Supplement schedules remain user-defined; optimization does not increase doses to make a target turn green.
+Timers recover without inventing certainty
+A running timer stores an absolute target timestamp and its revision. A paused timer stores remaining duration. The visible countdown is a projection of those facts, not the sole record. Navigation and reload reconstruct it. Multiple timers can run independently; pausing a cooking session does not necessarily pause them because food may still be heating.
+Recommended controls keep Start, Pause, Resume and Add minute explicit. Reset requires a deliberate action. Adding a minute changes the target of a running timer or the remaining duration of a paused timer. Dismissing expiry acknowledges its display; it does not restart the timer or mark the step complete.
+Clock changes are a real ambiguity. Use monotonic elapsed timing during an active session where available, and reconcile wall-clock/server observations on resume. If a large disagreement makes the remaining time unreliable, show “Check this timer” with the saved duration/start context and explicit correction controls. Do not promise precision across arbitrary device-clock changes. This wording is a proposed recovery design for a source-identified risk.
+Background alerts depend on actual browser/platform capabilities and granted permissions. A beautiful timer screen cannot prove that an alert will fire while the device is asleep. The settings and active timer should make known limitations discoverable, without repeatedly interrupting routine cooking.
+Offline actions preserve intent
+The source minimum supports previously loaded groceries, manual additions, checklist changes, loaded recipe/session reading and local timer controls. It does not promise first-time uncached content, planning, external imports or image generation offline.
+ACCEPTED BEHAVIOR
+Accepted NQ-006 A (ND-016). Purchase, batch and intake drafts may be saved offline, clearly labeled Not yet recorded. Revalidate and review/confirm online before authoritative stock or intake effects. Reconnection must not silently auto-apply these actual-event drafts. The baseline offline minimum remains: loaded shopping lists and checklist/manual edits, loaded recipe/session reading and local timer controls. Broader provisional offline actual-event completion/autosync is unselected. Owner evidence: Sentinel_daee2f5ecd6081919e3a58e403a92023.
+
+Permitted outbox operations, such as checklist and timer edits, need visible but quiet status. Preserve stable identity, base revision and desired effect; reconnect replays them safely and reconciles affected aggregates. Under ND-016, actual purchase/batch/intake drafts instead wait for online review and confirmation before authoritative effects. A second device setting the same item to checked must not uncheck it through a repeated toggle. If requirements changed, preserve known fulfilled quantities and ask about the new difference.
+Conflict resolution should preserve the user's local edit until they decide. Recommended actions distinguish “Use current saved version,” “Apply my change to the updated item” when valid, and “Keep a copy” when meaningful. Do not offer a generic merge for incompatible quantities or safety-relevant food rules. Explain the exact conflicting fact.
+Private caches must be isolated by account/workspace. Offline sign-out or account switching cannot display another account's cached meals. Source images and signed media links require their own lifecycle; a cached URL is not a permanent public asset identity.
+Transaction and external boundaries
+The source requires all-or-nothing effects for profile activation, plan application, purchase plus stock, preparation plus batch, and intake correction plus batch adjustment. Import/restore also needs a coherent application boundary. Calling independent writes one after another does not satisfy that requirement.
+External calendar and provider operations cannot generally share the same local transaction. Record durable intent and reconcile the external result using a stable operation key. After a timeout, check whether the event already exists before creating another. Calendar failure leaves nutrition tasks intact. Deleting a calendar block unschedules time; it does not delete a meal or record eating.
+Expected revisions and operation identities solve different problems. Revision checks detect changes since review. An operation identity prevents the same logical command from applying twice. Both are needed. The same identity with a materially different payload should be rejected or reconciled explicitly, rather than repurposed silently; this is a recommended contract tightening.
+Design verification and open choices
+Walk each diagram against the corresponding screen chapter and worked example. Check that every visible action has an explicit effect, that every consequential mutation has a recovery path, and that no edge in the diagram collapses planning into actual history.
+These walkthroughs are design inspections. They are not executed database, browser, offline or multi-device tests. Implementation acceptance must later exercise real authorized fixtures, lost responses, concurrent edits, timer reloads, account isolation, quantity conversions and exact reversal boundaries.
+Inventory prominence is now selected in NQ-013 A / ND-012: minimal tracking with optional contextual stock/staples use. The planner’s cost objective is selected in NQ-014 A / ND-011: incremental checkout, with portion cost separate. Actual-yield prompting/shortfall handling remains within open NQ-005 scope; advanced-source presentation/release scope remains under NQ-015. Other material choices, including badge meanings and evidence policy in NQ-016, remain in the project register. Settled integrity rules still prohibit silent guesses.
+Action effects reference
+This matrix is a design contract for the screen author, not an implementation receipt. “No change” means that action alone must not cause the effect. Other explicit actions may follow.
+User action
+Future plan
+Shopping fulfillment
+Actual stock
+Actual intake
+Save a valid food preference
+Reassess affected future items; do not fabricate a feasible plan
+Recompute only through the applicable review flow
+No change
+No change
+Apply a reviewed meal replacement
+Replace the selected occurrence and dependent reservations coherently
+Review added/changed requirements; preserve manual and fulfilled amounts
+No change
+No change
+Mark one pack picked up
+No change
+Increase known picked-up amount
+No change
+No change
+Confirm that purchase
+No change
+Mark that amount confirmed
+Add actual acquisition once
+No change
+Assert “Have some rice”
+May prompt reassessment
+Keep numeric shortage unresolved without a quantity
+Qualitative evidence only
+No change
+Start or resume cooking
+No change
+No change
+No change
+No change
+Advance to the next step
+No change
+No change
+No change
+No change
+Confirm a prepared batch
+Fulfill applicable preparation reservation
+No purchase implied
+Raw ingredients out and prepared yield in together
+No change
+Finish without inventory update
+Preserve relevant plan context
+No change
+No change
+No change
+Record eating a linked prepared portion
+Update occurrence actual/remainder status explicitly
+No change
+Reduce the linked batch once
+Add actual recorded quantity
+Record an unlinked meal eaten
+Update linked occurrence only if explicitly chosen
+No change
+No inferred stock change
+Add actual record with its known/unknown basis
+Cancel a future leftover meal
+Release its reservation
+No deletion of purchases
+No disposal implied
+No change
+
+The unlinked-intake row is a proposed clarification of optional inventory tracking. It prevents a bookkeeping shortcut from subtracting a nonexistent batch. The settings row resolves a separate ambiguity: a valid preference may be saved even if no candidate meal satisfies it; only the unsupported automatic plan is blocked. Users must remain able to review restrictions, add meals manually, or leave the plan incomplete without silently weakening required rules.
+Timer action contract
+This compact state table makes timer transitions and recovery actions explicit. It follows R13's timestamp and independent-completion rules. The precise Reset confirmation treatment remains a UI recommendation.
+Current state and action
+Result
+Important boundary
+Idle and Start
+Running with a target derived from the saved duration
+Starting is explicit; viewing a step does not start it
+Running and Pause
+Paused with remaining duration captured
+Pausing this timer does not pause other timers
+Paused and Resume
+Running with a newly calculated target
+Preserve the saved remainder, not the original full duration
+Running and Add minute
+Target advances by one minute
+Same timer identity; no duplicate timer
+Paused and Add minute
+Saved remaining duration increases by one minute
+State remains paused
+Running reaches its target
+Elapsed, initially unacknowledged
+No automatic step completion, batch creation or intake
+Elapsed and Dismiss
+Elapsed, acknowledged
+Does not restart or erase the timer's occurrence
+Running or paused and Reset
+After explicit confirmation, Idle with configured duration
+Explain that the current timing progress will be replaced
+Elapsed and Reset
+Idle with configured duration
+Starting again is a separate action
+Reload with saved paused state
+Restore paused remainder unchanged
+Do not count closed-tab time as running
+Reload with a trustworthy running target
+Running with reconstructed remainder, or Elapsed if passed
+Alert behavior depends on capability and permission
+Resume with material clock conflict
+Show timing uncertainty and saved context
+User confirms corrected target or sets a remainder and pauses; no false precision
+
+Reset is scoped to timer state. It never clears a completed cooking step or reverses a cooking/intake record. Controls should acknowledge a pending offline timer operation distinctly from an authoritative multi-device update; the local countdown may remain responsive while reconciliation is pending.
+Plan application boundary
+
+Figure 19. Conceptual design diagram, not database or implementation evidence. Read together with the action-effects and recovery contracts.
+Purchase stock and intake boundaries
+
+Figure 20. Conceptual design diagram, not database or implementation evidence. Read together with the action-effects and recovery contracts. The dashed unlinked-intake path records nutrition only; prepared stock is reduced only when intake is explicitly linked to that batch.
+Artwork providers and portable data
+A useful app without a connected provider
+Nooch's core experience must survive missing image generation, external nutrition lookup and calendar access. The source specification R17–19 and R24–25 makes ordinary photos, manual editing, prebuilt artwork, internal preparation tasks and readable exports first-class paths. This chapter develops their proposed controls and recovery behavior. It does not assert that any provider or integration currently works.
+SOURCE REQUIREMENT
+A page view, theme change, resized window or equipment toggle never triggers a paid generation job. Appearance is presentation state. Food rules, quantities, recipe identity and equipment capability must remain unchanged when artwork changes.
+
+RECOMMENDED DESIGN
+Show the current capability near the action that needs it. An unavailable scene-generation action offers “Use a photo” and “Keep simple layout,” plus a short explanation of the missing capability. Do not replace the entire meal page with a configuration error or make the owner visit technical settings before reading their recipe. A small Settings link can explain configuration separately.
+
+Issue to prevent: a decorative scene can look more authoritative than the data behind it. Generated food art is serving inspiration, not evidence of ingredients, portions, allergens or nutritional completeness. Reject a scene that visibly introduces conflicting ingredients; do not change the recipe to match the image.
+Three intentional presentation treatments
+A composed scene places food in a curated environment with space for real interface elements. An editorial photo uses an ordinary user or licensed image with an intentional crop. A minimal treatment uses typography, useful meal information and restrained placeholders. All three must retain the same actions and truthful data hierarchy.
+The source's initial immersive families are kitchen-table and overhead-tabletop, each with light/evening and wide/compact compositions. This describes eight empty template references, not eight finished meal images. Finished food compositions require their own production and review. Breakfast-counter and shared-table families are later possibilities, not mandatory first-release work.
+Source-required selection order respects the user’s separate presentation choice: Minimal stays minimal; Editorial uses an eligible photo or Minimal; Immersive uses a compatible approved scene, then an explicitly approved compatible cutout, then ordinary photography, then Minimal. Appearance, presentation and generation permission remain separate settings. Never display an old incompatible dish simply to fill a large hero. A failed image request should replace only the media region, preserve controls and avoid a sudden layout jump.
+DECISION NEEDED
+NQ-007: how prominent should immersive scenes be in the first release?
+A — A small curated set plus polished editorial/minimal fallback (recommended). This makes quality achievable while retaining a delightful visual identity. Many saved meals will use simpler presentation.
+B — Require an immersive scene for every saved meal. This creates a consistent idealized gallery but adds generation/review cost, delays and a larger failure surface.
+
+The recommendation follows the source's bounded asset approach. The exact selected artwork and release treatment still require review.
+The generation request is an explicit proposal
+The proposed Create scene action opens a request review showing the recipe revision, source photo if any, scene family, appearance, viewport variants, provider capability and estimated maximum cost or credits. The owner can remove unwanted variants. A request for one wide image cannot silently include paid compact and evening variants.
+SOURCE REQUIREMENT
+Automatic generation requires an explicit nonzero budget, allowed triggers, scope and limits. Without a reliable upper bound, unattended spending is unavailable. The safest source recommendation is generation Off initially, with optional manual use explained.
+
+Recommended review controls are “Generate selected variants,” “Use existing image,” and “Cancel.” Show the unit of spend, period boundary, remaining budget and whether that remainder includes pending reservations. Unknown pricing is a reason to withhold an unattended action, not display zero. This is a design of a future application; it grants no authority for this documentation task to buy credits, configure credentials or start provider work.
+Source-required budget boundary: reserve the maximum authorized attempt cost atomically before enqueue or dispatch, counting settled usage plus outstanding reservations. Concurrent jobs cannot each consume the same remainder. Every retry with potential cost must fit the approved attempt and total budget. Settle or release a reservation exactly once when usage is known; when provider usage is uncertain, retain a conservative pending amount until reconciliation rather than marking it free. The UI should explain this pending amount and its effect on available budget.
+Freeze the request’s complete input identity: workspace/privacy scope, recipe visual revision, original photo hash, scene/version, appearance, composition, provider configuration, prompt version and output parameters. Send only the task-relevant visual description and references; personal target history and supplement schedules do not belong in a food-art request.
+A repeated click reuses the same logical request. “Create another variation” is distinct and must show its additional scope and cost. The source requires privacy-scoped deduplication; identical recipe names in two workspaces do not authorize sharing private photos or results.
+Completion is not approval or activation
+Separate the visible states:
+State
+What the user knows
+Useful action
+Unavailable
+Required provider capability is missing
+Use photo or simple layout; inspect settings
+Ready for consent
+Scope and bounded cost are available
+Confirm selected variants or cancel
+Queued
+Request accepted; work may not have started
+Inspect scope or request cancellation
+Running
+Provider work is underway
+Leave safely; cancellation may not avoid charges
+Awaiting review
+A result exists but is not selected
+Compare original and proposed image; approve or reject
+Approved
+The visual passed the chosen review
+Select it for a compatible recipe/layout
+Stale compatibility
+Recipe or template changed since request
+Review compatibility or keep current image
+Failed
+No usable result was produced
+Use fallback; retry only within authorized scope
+Cancellation requested
+A stop was requested but the provider has not confirmed its outcome
+Keep fallback; show pending usage and reconciliation
+Canceled
+Cancellation outcome is confirmed and activation is stopped
+Inspect actual/pending usage; keep fallback
+
+The table is a proposed presentation of source-defined lifecycle distinctions. The UI should avoid claiming “canceled, no charge” when an already dispatched provider may still bill. A rejected image can still have real generation cost. Settled usage and outstanding reservations remain distinct.
+Approval should inspect plausible food identity, unintended writing, malformed objects, unwanted ingredients, lighting and actual crop usability. A visual approval does not certify nutritional or medical accuracy. Asset activation must check that its recipe and template revisions remain compatible; late job completion cannot overwrite a newer manual choice.
+Asset provenance and responsive quality
+Retain the original image separately from derivatives, with source/rights, content identity, dimensions, approval status and recipe/template compatibility. Record generation prompt version and references where relevant. A display filename is not a permanent identity, and a private temporary URL is not a production asset address.
+Each composition must survive long titles, realistic metadata and touch controls at its actual UI size. A gradient cannot guarantee text contrast over arbitrary artwork. Compact layouts should put controls on predictable surfaces rather than squeezing everything into a photograph. Reserve image dimensions to prevent jumps, load only appropriate renditions and preserve originals for export or recropping.
+Equipment art follows the same principle. The scene illustrates selected devices; complete accessible tiles define the actual selection. A scene with too few visual slots must not deselect a real capability. Selecting or removing a device updates deterministic state and prebuilt art, not a new generated kitchen image.
+Calendar integration has a narrow ownership boundary
+Nooch owns meal choices, quantities, preparation tasks and actual food records. Personal Planner or the verified calendar service owns timed calendar semantics. A dinner on a local date does not necessarily require a timed calendar event.
+Recommended Schedule prep review: show the source task, proposed title, local date/time, duration, IANA timezone, destination and link to the full calendar. Confirming creates or updates a durable link under the available adapter contract. The link retains the source task ID/revision, external event ID/revision, stable source-task/event-purpose identity, operation identity and explicit pending/linked/failed/conflict state. Link an existing matching event when its identity is established instead of creating a duplicate. A timeout must reconcile by that stable identity before retrying creation.
+When the adapter is unavailable, preserve the internal untimed task. Offer an export only if that capability exists; do not pretend to have scheduled it. If calendar access is revoked, show the disconnected link without deleting the nutrition task. Deleting a calendar block means unscheduled time, not erased food history.
+DECISION NEEDED
+NQ-008: how should a calendar move across local dates affect the meal plan?
+A — Show an impact review before changing the meal date (recommended). This protects leftover order and grocery assumptions, at the cost of a visible conflict to resolve.
+B — Treat the calendar move as a proposed time change only and leave the meal date untouched until edited in Nooch. Still show the cross-date impact preview and date discrepancy; the owner may leave the meal unchanged after reviewing the implications. This gives a simpler ownership rule but may temporarily show different dates.
+
+Neither option should silently rewrite past intake or equate calendar completion with eating. Same-day changes can follow a simpler agreed ownership policy. Daylight-saving ambiguities require an explicit local-time interpretation rather than an implicit UTC conversion.
+Export is useful even before full backup
+The source distinguishes human-readable outputs from a semantically complete portable record. A recipe PDF, weekly menu or grocery list is a review/print view. CSV is a convenient tabular view. Neither is a complete restore package. JSON with exact quantities, revisions and references provides the domain representation, while an optional media bundle carries original binaries.
+DECISION NEEDED
+NQ-009: what should the default export contain?
+A — Structured data with a clear media manifest, plus a separate opt-in full media archive (recommended). This keeps routine exports small and makes omissions explicit. A data-only export cannot restore missing private originals by itself.
+B — Always include every supported original media file. This is a more self-contained backup but may be slow or large and needs transfer/storage limits.
+
+Show the selected scope, record count, media count, estimated size where available, and omissions before export. Exclude secrets, access tokens, payment instruments and credential-bearing URLs. Calendar links remain non-authoritative external references; importing them does not grant access or establish a live connection. Restore does not regenerate missing artwork or incur generation cost without a separate explicitly authorized request. A checksum demonstrates byte integrity, not semantic completeness or authorization.
+Readable print output should use real text and document structure, not just a screenshot. Recipe quantities must match the selected revision and scale. Use light print styling, readable repeated table headers and sensible pagination for both supported paper sizes. Preserve fractional values and long ingredient names. CSV escaping must account for spreadsheet formula interpretation without silently altering the canonical JSON values.
+Import and restore are different commitments
+Recommended import flow: choose file, validate and stage, preview matches/conflicts, choose duplicate handling, then apply. Staging has no live domain effects. Identify unsupported versions, missing references, invalid units, cyclic components, ownership remapping, oversized content and media omissions before application.
+Duplicate options must be specific. Keeping an existing recipe leaves it untouched; copying creates a separate identity and remaps dependent references; accepting a new revision retains the history and must not rewrite pinned historical occurrences. “Replace everything” is not a harmless duplicate-resolution button.
+Import application requires all-or-nothing domain effects and expected revision checks over affected records. If current records changed since preview, preserve staged work, rebuild the impact preview and obtain confirmation of the changed effects before applying. Failed application must leave no partially remapped live graph. External effects require durable reconciliation rather than being mislabeled part of a database transaction.
+A full restore replaces only manifest-covered workspace data, never account identity, credentials, security policy or access grants. It needs a distinct recoverable checkpoint and confirmation flow. A verified recoverable checkpoint is a prerequisite: if it cannot be established, block destructive restore and offer non-destructive staged import or export instead. Explain which current records would change and validate the restore against the relevant workspace revision barrier. A failed restore retains the prior authoritative state. Give the operation a durable, idempotent identity and explicit completed/failed outcome; if interrupted, resume or reconcile that operation rather than start an ambiguous second restore. Preserve imported historical facts as history, while surfacing any conflicts with current rules in future plans instead of rewriting the past. Do not call a successful parse a successful restore.
+After application, verify semantic round trips: quantities and units, source/revision links, plan occurrences, purchase/stock/intake relationships, selected artwork metadata and omissions. An export containing only today’s projection cannot recreate the full history behind it. No actual import or restore is authorized by producing this design document.
+Privacy and capability validation
+Every nested record, attachment and job result must be authorized for its workspace. Private photos do not become public because a decorative template is shared. Imported text, URLs and generated outputs are data; they cannot instruct an agent to bypass access rules or initiate unrelated work.
+SOURCE REQUIREMENT
+Requirements include content-based file validation, image dimension and decompression limits, safe rich-text/SVG handling, controlled URL fetching, and keeping provider credentials server-side. Their exact implementation must follow verified local platform contracts. The dossier should state acceptance expectations without inventing current endpoints or claiming security certification.
+
+Collect operational evidence with safe identifiers, counts, timing and error codes. Avoid logging raw food history, private prompts, signed links or credentials by default. A future diagnostic capture needs a bounded scope and retention policy. The user-facing capability view should distinguish configured, reachable, permitted and tested, rather than using one green “connected” label for all four.
+Review evidence required
+Design walkthroughs should cover an ordinary photo, no photo, failed image, incompatible result, generation canceled after dispatch, simultaneous jobs near a cap, unavailable provider, lost calendar response, across-date calendar move, data-only export with missing media, duplicate import and failed restore validation.
+For each case, show the user's next action, retained work and unchanged authoritative records. Mark these as design-inspection results. Actual provider costs, background notifications, integrations, transfer performance, access isolation and restore reliability remain future runtime tests against authorized fixtures.
+Proposed control contracts for these review boards
+Appearance changes in the illustrated editor are a local preview until Keep this presentation. Discard preview restores the prior saved selection; leaving with a changed preview offers that explicit choice. Previewing a media treatment never starts generation. This editor-specific save model must not be confused with settings that persist immediately.
+The export board uses structured data and its media manifest as the fixed base, with one additive unchecked option to include original media. It is not two mutually exclusive package cards. Selecting the option updates counts, omissions and estimated size before export. The actual saved export scope must match that review.
+The illustrated import route is Add meals only. Its matching-recipe review defaults to copying an incoming match into a separate identity, with dependency remapping; keeping current or accepting a new revision requires an explicit per-item choice. The comparison action shows current and incoming content and downstream references before application. These records cannot silently replace plans, stock or intake merely because a broader file contains them. Full restore remains a distinct blocked action until its checkpoint prerequisites are met.
+Useful appearance without generation
+
+Figure 21. Proposed static interface using synthetic records. Provider, export and restore runtime behavior remains unverified; material choices remain open.
+Make export omissions explicit
+
+Figure 22. Proposed static interface using synthetic records. Provider, export and restore runtime behavior remains unverified; material choices remain open.
+Stage changes before restore
+
+Figure 23. Proposed static interface using synthetic records. Provider, export and restore runtime behavior remains unverified; material choices remain open.
+One meal across the whole product
+Fixture and evidence boundary
+This is a design walkthrough using explicit synthetic records. It is not an executed Nooch application session, a personal meal plan or nutritional advice. R27.2 supplies the Sesame tofu bowl's canonical two-serving recipe and four-step method. The walkthrough scales it to four planned servings: 800 g firm tofu, two broccoli heads with unresolved mass, 300 g dry rice, four tablespoons soy sauce, two tablespoons oil and two tablespoons sesame seeds. Active/elapsed times remain fixture assertions; they are not multiplied by the serving scale. Method capacity still needs evaluation.
+Use recipe identity recipe.sesame-tofu, revision r1, method stovetop.r1, plan revision p1, producer occurrence occ.mon-dinner, consumer occ.tue-lunch, and proposed batch batch.proposed.1. These are illustrative design IDs, not actual database records. The preparation plan produces four portions. Monday dinner consumes two planned portions from that batch; Tuesday lunch consumes two. The preparation yield is not Monday intake: Planned nutrition counts 2 + 2 across those dates, never 4 + 2. No actual intake exists initially.
+Initial exact compatible tofu stock is 100 g. The core visual trace has a 400 g pack-size basis but no selected current price observation; actual prices, other ingredient prices and broccoli mass remain unknown. The preceding edition’s USD 2.40 per-pack offer is retained as a separate synthetic priced variant. When that variant is explicitly selected, a tofu-only estimate is permissible, but never a complete meal cost, nutrient assessment or validated budget.
+Step 1 Save and inspect the recipe
+The saved recipe has one method graph: Cook rice; Prep tofu and broccoli; Cook tofu; Finish and serve. Reading, Recipe map and Cooking use the same step IDs. The map shows rice branching independently from prep, then joining at finish. A missing broccoli mass is visible in nutrition evidence and does not remove broccoli from groceries.
+Expected design result: the recipe can be saved and inspected with partial evidence. It is not automatically labeled nutritionally complete. A required rule whose necessary ingredient evidence is missing produces Needs information. A cooking-capacity issue must be resolved before a four-serving session is claimed feasible.
+Step 2 Propose and apply the week
+The plan draft places a four-portion preparation task on Monday, with Monday dinner assigned two portions and Tuesday lunch assigned the other two. Review displays their dependency. Applying the draft pins recipe r1 and method r1, creates the future occurrences and reservations, and derives grocery needs coherently. It does not change actual stock or create eating records.
+Expected design result: on-hand tofu remains 100 g. The gross tofu requirement is 800 g and the missing amount is 700 g. Two 400 g packs acquire 800 g; checkout remains unknown in the core visual trace. In the separate preserved priced variant, two USD 2.40 packs yield a USD 4.80 tofu-only estimate. If the source profile or a competing reservation changes before Apply, the preview becomes stale and shows the affected consequences instead of committing silently.
+Step 3 Shop partially
+The shopper picks up one 400 g pack. Picked-up amount becomes 400 g; actual on-hand remains 100 g. The list says 300 g still to acquire toward the 700 g shortage. It must not claim that this unconfirmed pickup is already pantry stock.
+After explicit confirmation of that pack, on-hand becomes 500 g once. The core visual trace leaves actual total paid blank and unknown. In the separate priced variant, confirming an actual USD 2.40 total would record that spend; an unconfirmed offer remains only an estimate. Repeating the same request does not add another 400 g. A different request trying to claim the same pending pickup must also detect the already-claimed quantity.
+The shopper then picks up and explicitly confirms a genuine second 400 g pack. On-hand becomes 900 g. The plan can now reserve 800 g, leaving 100 g unreserved under the stated exact-stock assumptions. A manually added item remains on the list through any recalculation.
+Step 4 Cook with an interruption
+Starting pins r1, method r1 and the four-serving scale. The user views step 2 before rice completes; viewing does not mark either step done. A rice timer continues when the user leaves the focused view. Reopening reconstructs its elapsed or running state without restarting it. The screen cannot promise an operating-system notification unless that capability is actually enabled and verified.
+At completion, the cook reports actual yield of three portions using the recorded 800 g tofu. Recording the batch consumes 800 g raw tofu once and creates three prepared portions. Raw on-hand becomes 100 g. The recipe's canonical two-serving yield remains unchanged, and the planned four-serving expectation is retained as history rather than rewritten to hide the difference.
+Expected design result: the four planned portion reservations exceed actual output by one. The completion review exposes the shortfall. The owner keeps two Monday dinner portions and reduces Tuesday's reserved leftovers to one, leaving one Tuesday portion unresolved or replaced through a new reviewed choice. A green fully-covered Tuesday state would be wrong.
+Step 5 Record and correct eating
+For this fixture, record two separate one-portion Monday intake events, intake.mon.1 and intake.mon.2. Together they consume two prepared portions, leaving one. It does not subtract raw tofu again. The remaining one is available for the revised Tuesday reservation. Nutrition uses the actual batch basis and the recorded portion amount; unknown ingredient contributions remain unknown.
+Undoing intake.mon.2 creates correction.mon.2 and restores exactly its one prepared portion, giving two. intake.mon.1 remains effective; intake.mon.2 and its correction remain in history. Undoing a single two-portion event would instead restore two, so that is not the operation modeled here. Retrying the same correction does not restore a third portion. The Tuesday plan is not silently expanded back to two portions; a correction to actual stock does not rewrite a separately chosen future plan.
+Step 6 Edit the recipe and revisit
+A later edit creates recipe r2. Past batch and intake retain r1. The current session, if still active, keeps its pinned method. Future unstarted occurrences may be offered the new revision with an impact preview. The grocery list and nutrition projections must use the selected future revision only after that choice is applied.
+The owner can inspect the completed meal, original purchase records, batch yield correction and unresolved future portion without reconstructing this conversation. That is the intended continuity outcome. It remains a design contract until an implementation executes the corresponding tests.
+Cross-surface contradiction checks
+Point
+Today and Week
+Groceries and Kitchen
+Cooking and nutrition
+Plan applied
+Four future portions reserved
+100 g actual stock; 700 g to acquire
+No session or intake created
+One pack picked up
+Plan unchanged
+400 g picked up; 100 g actual stock
+No batch or intake
+Purchase 1
+Plan unchanged
+500 g actual stock; 300 g shortage
+No intake
+Purchase 2
+Plan remains four servings
+900 g stock; 800 g reserved
+No cooking completion
+Batch: yield 3
+One planned portion short until repaired
+100 g raw stock; three prepared portions
+r1 method retained; actual yield three
+Two portions recorded
+Actual dinner recorded; future plan preserved
+One prepared portion remains
+No second raw deduction
+One portion undone
+Corrected actual scope, not automatic replan
+Two prepared portions remain
+One reversed portion; history retained
+Recipe r2 saved
+Future adoption requires review
+Past effects remain pinned
+Past batch/intake keep r1
+
+The arithmetic assertions for this fixture are independently calculable. Passing them proves only the fixture arithmetic; prose, diagrams and mockups still need design inspection, and runtime behavior remains untested.
+Review status and remaining decisions
+What this candidate is for
+Current status. Candidate 0.3 addresses the selected core mockup-quality commission and is presented for owner review. The earlier edition’s changes-requested feedback is preserved, and the owner’s positive feedback on depth did not accept the twelve product choices. Separate Today exemplar today.sunroom@v02 / NDL-002 remains accepted for visual direction only; it does not approve behavior, copy, new figures or runtime.
+This core visual edition preserves the existing narrative, 58-family crosswalk, diagrams and twelve-question index while replacing the selected visual occurrences and adding readable working-state details. Thirty versioned screen/state families provide paired desktop/compact captures plus individual images. Four explicitly labeled storyboard/alternative families explain state branches rather than claiming simultaneous screen states. The existing secondary provider/transfer specimens remain explanatory material; no new secondary expansion or implementation is claimed.
+Review route. When a product-review slice is selected, begin with NQ-001 first-session pacing, NQ-002 plan impact and NQ-003 quantity-aware purchase confirmation. Trace the same meal through the integrated example before deciding. NQ-006 authoritative commit policy is a dependency wherever purchases, batch or intake effects become durable. Other choices follow their actual dependencies; no owner interrogation is resumed by this edit.
+Adversarial work performed during authoring
+The first source/coverage pass found that the earlier packet did not distinguish saving valid setup from blocked automatic generation, and named partial purchases without a quantity-aware control. New screen proposals now separate those states and expose actual amount/unit entry. These are design-inspection improvements, not tested application behavior.
+Domain review found that idempotency keys alone do not prevent two distinct operations from claiming one pending pickup, and reduced actual yield must repair dependent reservations. The revised domain chapter adds an atomic pending-quantity claim and explicit shortfall handling. The integrated trace separately identifies preparation yield, planned intake and individual intake-event reversal so nutrition cannot count a four-portion preparation plus its leftovers twice.
+Presentation review found ambiguous Settled labels for merely source-stated requirements, dense decision paragraphs, missing alternative visuals, unpadded colored treatments and blank pagination. The sample now uses Source requirement, explicit A/B questions, a same-fixture comparison and padded labeled treatments. Final whole-document rendering remains a separate gate from that sample review.
+Shared-component review corrected preference-aware MealHero fallback, source palette drift, failed-load reassurance, and clipped source lines. Component plates use the source terracotta Light primary action with forest selection states. They remain proposed specimens. Provider/portability review strengthened budget reservation, cancellation uncertainty, restore checkpoints, input privacy and calendar ownership boundaries.
+New generated primary boards are inspected separately for semantic drift. Attractive food imagery cannot establish date selection, recipe consistency, completed intake, approval or runtime behavior. Any retained issue must be explicitly called out beside the figure or corrected before it is recommended.
+Exit criteria and honest limits
+A review-ready candidate needs coherent source attribution, accessible actual figures, meaningful alternatives and an inspectable treatment of all relevant product families. Critical contradictions must be fixed; high unresolved design choices must be clearly framed. Owner-only decisions may remain open without turning every recommendation into an accepted fact.
+Approval and application. A complete approved handoff is a later state. Record acceptance against the exact dossier revision and named section, question or mockup; preserve accepted, rejected and deferred scope separately. The authorized editor then applies only that accepted slice to affected specifications, mockup metadata, decisions and workflow links and verifies agreement. Until that recheck, acceptance remains approved-unapplied. Runtime, provider, live-data and device-accessibility evidence are separate.
+The local design register retains current Questions, Deliverables, Decisions and findings. This document is the review inventory, not a second queue. New source evidence invalidates only affected claims and visuals; it does not erase old decisions or justify regenerating every page.
+Sources and provenance
+The recovered redesign specification v2 is the primary intended-behavior source: https://drive.google.com/file/d/19VrhL6P_N50woaRzMn8SB-MAvB3e7hsA/view . Its R01 precedence and explicit supersessions govern the retained appendix. The recovered text copy has documented lineage; it is not a freshly authenticated repository head.
+Nooch START owns project reconciliation and current workflow routing:  . The local design register owns current questions, decisions and review findings:  . The local method is https://drive.google.com/file/d/1IzTstt92hRLutK3L9DdXioIeRxTkUXDo/view . These do not replace repository or runtime authority.
+The source/asset catalogue is https://drive.google.com/file/d/1MDUk6LweOG4vR2AUoqD944A2ohJ8RqFz/view . Fifteen mirrored historical concept images are retained at https://drive.google.com/drive/folders/1FTKbqeCN42mbuH7eQUPcdhPsOITfvDy8 . Exact historical image approval and generation pins remain unknown. The prior Today Page selection is narrower than full product approval.
+The earlier narrow journey packet is preserved at  . Its inspection and synthetic trace remain historical evidence; the owner rejected its depth as the requested whole-product deliverable.
+The owner-confirmed college depth reference is Team Anteaters Design Document: https://drive.google.com/file/d/1R_bH0Ei0qBwT2wey8dQMTzJ2Igh0Yx26/view . Its 52-page technical breadth is an example of involvement, not a literal Nooch template, approval policy or claim of sole authorship.
+The portable design-product-dossier method is available at https://chatgpt.com/skills?skill_id=6abe9b5674f881918fefc533a5a365ef . Nooch adopts a local method and can evolve independently. The current trial demonstrates useful concrete corrections; it does not establish guaranteed future design quality.
+Coverage and visual treatment
+The 58-family catalogue is a source crosswalk, not 58 independent screens or a percentage-complete score. Device/theme variants and components overlap families. This candidate develops the connected experience; ordinary forms inherit shared editor/state contracts. Historical reference gaps remain distinct from newly proposed visual coverage.
+ID
+Family
+Source
+Treatment and limit
+N01
+Application shell, navigation and page header
+R01.2; R03; R05.3; R06
+Core 01–21: five-destination shell; focused cooking exits separately. Shared contracts retained.
+N02
+Today meal-first hero and week strip
+R08.1–R08.2; R17; R29.2
+Today chapter; historical partial reference retained
+N03
+MealHero media fallbacks
+R08; R17.1; R26; R27.3
+Shared system chapter; historical partial reference retained
+N04
+Today full-day overview and analysis entry
+R08.3; Appendix A 7.1; 13.4–13.6
+Today chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N05
+Swap meal and low-effort alternatives
+R08.2; Appendix A 7.3
+Today chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N06
+Occurrence action menu and move/copy controls
+R08.2; R09.2
+Today chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N07
+Week — Meals board, Day agenda and All week
+R09.1; R09.6; R29.2
+Core 01 and 13: desktop Week, compact day and all-week scope; Figure 5.
+N08
+Week — Nutrition
+R09.4; Appendix A 13.4–13.6
+Core 12 and separate 12b: unknown, partial and complete specified nutrient evidence; Figure 7.
+N09
+Week — Time & cost
+R09.5; Appendix A 15
+Core 13: all 21 slots, partial known effort subtotal and unknown cost.
+N10
+Occurrence panel and Add to plan picker
+R03.2; R09.2; R10.2; R11.3
+Week chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N11
+Plan my week and replan ImpactPreview
+R09.2; Appendix A 7.5; 14.6
+Core 02, 02b and 14: impact decision, applied branch and stale revalidation; Figures 6/8.
+N12
+Leftovers and Prep for the week
+R09.3; Appendix A 15.4
+Core 01, 18/19: linked leftovers, actual-yield shortfall and correction; Figures 5/13.
+N13
+Meals — Your meals
+R10.1; Appendix A 8.1; R29.2
+Core 07b/08: saved-draft return and contextual collection; Core C1.
+N14
+Meals — Explore
+R11; R03.2; R29.2
+Core 08: search, filters and distinct Add/Replace/Adapt effects.
+N15
+Add meal — Quick capture
+R10.2; Appendix A 8.2
+Core 07: recoverable capture and original text; Figure 9.
+N16
+Meal details editor
+R10.2; R16; Appendix A 8.3
+Core 07c: extraction review, manual completion and canonical r1 save.
+N17
+Readiness, source evidence and import review
+R10.3; R11.1; Appendix A 8.4; 16.2
+Core 07/11: unresolved quantities and source correction; no false readiness.
+N18
+Recipe revision, adapt and conflict previews
+R10.3; Appendix A 8.5
+Meals and recipe chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N19
+Reusable components and meal families
+R01.2; Appendix A 8.6
+Meals and recipe chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N20
+Recipe detail — Header and Reading
+R12.1–R12.2; R29.2
+Core 09: four-step Reading with concrete illustrative technique; Core R1.
+N21
+Recipe — Full ingredient-action map
+R12.2; Appendix A 9.2–9.3
+Core 10: causal branches/joins plus split allocations; Figure 10.
+N22
+Recipe — Nutrition tab
+R12.4; Appendix A 13.6
+Core 11 and separate 12b: nutrition evidence and partial-known bounds.
+N23
+Recipe — Notes tab
+R12.4
+Core 11: source and personal notes with distinct evidence roles.
+N24
+ServingControl and preparation-method choice
+R12.3; Appendix A 9.6
+Core 09/11: display scale, Reset and Apply remain distinct; timing not multiplied.
+N25
+Focused cooking and CookingStep
+R13.1–R13.2; R29.2–R29.3
+Core 17: explicit completion, navigation and followable current step; Figure 14.
+N26
+PersistentTimer and timer tray
+R13.3; R22
+Core 17/17b: running, elapsed, paused, reset and dismiss distinctions; Core K1.
+N27
+Cooking resume and batch completion
+R13.1; R13.4; Appendix A 15.4
+Core 17/18: resumed session, Finish without inventory and actual yield; Figure 13.
+N28
+Record intake, feedback and correction
+R08.3; R13.4; Appendix A 7.7; 13.4
+Core 19: two intake events and reversal of only the second; Core A1.
+N29
+Groceries — Review and Shop
+R14.1; R29.2
+Core 03/04: Review and Shop on both devices; Core G1/G2.
+N30
+ShoppingRow and requirement details
+R14.1–R14.2; Appendix A 10.1–10.3
+Core 03/04: need versus pack guidance, unknown stock and partial pickup.
+N31
+Shopping changes ImpactPreview
+R14.3; R22
+Core 15b: changed-plan demand retains fulfilled and manual items.
+N32
+Confirm purchases
+R14.2; Appendix A 10.4
+Core 05/15/15b: confirmation, uncertainty, units and correction; Figures 11/12.
+N33
+Price book, product comparison and substitution
+R14.4; Appendix A 10.5; 15.1–15.2
+Shopping chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N34
+Kitchen — On hand
+R15.1; R15.4; R29.2
+Core 16/16b: dated first and second acquisitions with explicit stock effects.
+N35
+InventoryRow, ingredient/lot detail and stock correction
+R15.1; Appendix A 10.3; 15.3–15.5
+Core 16/15b/19: ingredient access and scoped purchase/intake corrections.
+N36
+Kitchen — EquipmentScene and EquipmentTile
+R15.2; R20; R29.2
+Core 20: complete equipment categories and tiles; Figure 15.
+N37
+Equipment details and capability impact
+R15.2; R20.3
+Core 20b: zero/stove/oven-only and future removal-impact alternatives.
+N38
+Kitchen — Preferences
+R15.3; R16; Appendix A 6.2–6.6
+Core 21: temporary priorities versus durable household rules.
+N39
+Priority presets and custom balance
+R16; Appendix A 6.4; 7.6
+Core 21: explicit importance weights and conditional empty-priority recovery.
+N40
+Routine and slot editor
+R08.3; R16; Appendix A 6.6–6.7
+Kitchen chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N41
+Nutrition target editor and analysis detail
+R08.3; R15.3; Appendix A 6.6–6.7; 13.6
+Kitchen chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N42
+Supplement product and schedule editor
+R08.3; R15.3; Appendix A 6.7; 13.5
+Kitchen chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N43
+Four-step onboarding
+R16; Appendix A 6.1–6.5
+Core 06/06b: all four setup steps, saved no-candidate result and immediate escape.
+N44
+Settings — Appearance and Meal artwork
+R05.2; R16; R17.1
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N45
+Settings — Generation & usage and quote
+R16; R18.1–R18.3
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N46
+GenerationJobStatus and asset review
+R18.2–R18.4; R21.3; Appendix A 16.6
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N47
+Settings — Integrations and Schedule preparation
+R16; R24
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N48
+Settings — Notifications, units/currency/timezone, Account
+R16; R13.3; R24.4
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N49
+Data & exports — Transfer center
+R16; R25.2; Appendix A 11.1; 11.5
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N50
+Import/legacy migration and full restore review
+R25.1–R25.2; Appendix A 11.2–11.3
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N51
+Recipe, week and grocery print layouts
+R25.2; Appendix A 9.7; 11.4
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N52
+SaveStatus, offline outbox and conflict recovery
+R07; R22; R26; Appendix A 18.1–18.2
+Core 07, 14, 15: retained edits, stale review and unresolved confirmation.
+N53
+Data/capability health and diagnostics
+R21.3; R25.4; Appendix A 19.2
+Shared system chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N54
+Shared empty/loading/error/partial/no-results states
+R07; R26; Appendix A 7.2
+Core 06/07/08: empty collection, extraction failure and useful recovery.
+N55
+Production artwork, scene and equipment asset matrix
+R17–R20; R27.3
+Core 20: illustrative scene with authoritative tiles; generation expansion deferred.
+N56
+Responsive/accessibility and stress-state matrix
+R06–R07; R27.5; R29.3
+Core paired/individual captures: deliberate compact reflow; runtime accessibility unverified.
+N57
+Assisted recipe/label import, meal idea and nutrition lookup
+R10.3; R11.1; R02.2; Appendix A 16.2–16.4
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+N58
+Curated scene import and review
+R18.5; R19.3
+Providers and portability chapter; source behavior plus proposed/shared patterns; no complete historical specimen
+
+Decision index
+Proposed recommendations, not owner decisions. This is a review route, not a parallel live queue. Resolve current readiness, answers and dependencies in the project-owned register. All newly proposed choices below remain open unless that register records an explicit owner decision.
+NQ-001  First-session pacing
+Accepted NQ-001 A / ND-007: save valid settings, then offer capture, clearly labeled examples or Today; preserve an immediate exit. Read the decision, alternatives and rationale
+NQ-002  Plan change preview and swap impact threshold
+Accepted NQ-002a/b A: summary-first review with full-week access (ND-013); short isolated-swap confirmation and full material-impact review (ND-014). Read the decision, alternatives and rationale
+NQ-003  Quantity-aware purchase confirmation
+Accepted NQ-003 A / ND-015: review actual trip quantities together before confirmation, retaining explicit units and optional prices. Read the decision, alternatives and rationale
+NQ-004  Reading and recipe-map relationship
+Accepted NQ-004 A / ND-009: synchronize Reading and Map around the selected step, with a readable compact alternative. Read the decision, alternatives and rationale
+NQ-005  Completion review pacing with explicit inventory skip
+Finish promptly with optional batch/intake review and an explicit inventory skip. Read the decision, alternatives and rationale
+NQ-006  Authoritative offline commit policy
+Accepted NQ-006 A / ND-016: retain offline actual-event drafts, then revalidate and confirm online; preserve baseline offline checklist, recipe and timer capability. Read the decision, alternatives and rationale
+NQ-007  Immersive artwork coverage
+Use a small curated scene set with polished photo/minimal fallbacks; keep generation consent separate. Read the decision, alternatives and rationale
+NQ-008  Cross-date calendar ownership
+Preview cross-date meal-plan effects and require explicit confirmation before changing plan ownership. Read the decision, alternatives and rationale
+NQ-009  Default export scope
+Default to data-only export; disclose omitted media and offer a deliberate complete-package choice. Read the decision, alternatives and rationale
+NQ-010  Portion entry with unknown granularity
+Accepted clarified NQ-010 A / ND-010: optional ingredient amounts with qualitative suggestions; draft yield may be unspecified; automatic scaling requires a valid numeric basis and requested amount without invented conversions. Read the decision, alternatives and rationale
+NQ-011  Return context after minimal capture
+Accepted NQ-011 A / ND-008: return to the originating context with the saved draft selected; preserve search/filter, or open detail for direct capture without context. Read the decision, alternatives and rationale
+NQ-012  Generation permission default
+Propose generation Off at first launch; enable only through an explicit permission choice. Read the decision, alternatives and rationale
+Core visual review index
+Open an individual desktop or mobile capture for readable UI detail. Paired boards compare the same moment unless named as a storyboard or branch set. All thirty families are proposed and owner-unreviewed. Today v02 remains a separate accepted visual reference.
+Editable sources and captures include the shared fixture, exact PNGs, portable SVGs, deterministic graphic authoring files, generated asset prompts and reader guide.
+01-week-meals · A realistic week
+Meals view · p1 · before shopping · Desktop · Mobile · Paired
+02-week-impact · A change with consequences
+RP-01 alternative branch · before apply · Desktop · Mobile · Paired
+03-groceries-review · Review what you need
+Recipe r1 · 4 planned portions · before pickup · Desktop · Mobile · Paired
+04-groceries-shop · A partial shopping trip
+One 400 g pack picked up · not confirmed · Desktop · Mobile · Paired
+05-purchase-preview · Confirm actual quantities
+Purchase 1 preview · price unknown · Desktop · Mobile · Paired
+06-setup-ready · Setup that keeps useful progress
+Saved configuration · no candidate is not a failed save · Desktop · Mobile · Paired
+06b-setup-storyboard · Four purposeful setup steps
+Sequential storyboard; these panels are not responsive equivalents · Desktop · Mobile · Paired
+07-capture-editor · Keep rough recipes useful
+Failed extraction · original text retained · Draft d1 · Desktop · Mobile · Paired
+08-meals-explore · Discovery with a destination
+Monday dinner context · Save, Favorite, Add, Replace and Adapt differ · Desktop · Mobile · Paired
+09-recipe-reading · A recipe that can be followed
+r1 / stovetop r1 · four steps · display scale four · Desktop · Mobile · Paired
+10-recipe-map · One method in two views
+Split oil allocations, parallel prep and named outputs remain explicit · Desktop · Mobile · Paired
+11-recipe-evidence · Evidence before certainty
+Recipe Nutrition, Notes and serving-scale review · Desktop · Mobile · Paired
+12-week-nutrition · A full day without invented totals
+Planned / Recorded / Expected remain separate · Desktop · Mobile · Paired
+13-week-time-allweek · An all-week view of effort
+Active time, elapsed duration and price gaps stay explicit · Desktop · Mobile · Paired
+14-stale-plan · Keep the draft through a conflict
+A changed Tuesday lock requires scoped revalidation · Desktop · Mobile · Paired
+15-shopping-recovery · An uncertain response is not another purchase
+Retain the same acquisition draft; find its receipt before retrying · Desktop · Mobile · Paired
+15b-shopping-branches · Shopping through change and uncertainty
+Focused branches: changed plan, incompatible units, inventory off and correction · Desktop · Mobile · Paired
+16-kitchen-acquisitions · Stock with a date and a reason
+Purchase 1 confirmed: 500 g tofu; a second acquisition is separate · Desktop · Mobile · Paired
+17-cooking-resume · Return to the same cooking session
+Four steps, explicit completion and independent timers · Desktop · Mobile · Paired
+17b-timer-transitions · Keep timer actions distinct
+Sequential timer specimens, not simultaneous states · Desktop · Mobile · Paired
+18-finish-shortfall · Three prepared portions, one shortfall
+Actual yield and raw use are separate from eating · Desktop · Mobile · Paired
+19-intake-correction · Correct only what changed
+Two one-portion intakes; reversing the second restores one · Desktop · Mobile · Paired
+20-equipment · Capabilities, not decoration
+Cooktop-only state with complete category and tile access · Desktop · Mobile · Paired
+20b-equipment-branches · No appliance assumption
+Zero, stove-only and oven-only cases; future impact of removal · Desktop · Mobile · Paired
+21-preferences-constraints · Preferences with clear boundaries
+Temporary priorities, durable rules, empty priorities and required conflict · Desktop · Mobile · Paired
+02b-replan-applied · A replan with a real end state
+Alternative RP-01 completed as p2; the main shopping trace remains p1 · Desktop · Mobile · Paired
+07b-saved-draft · Return to a useful saved draft
+Originating Your meals search and selected draft survive · Desktop · Mobile · Paired
+07c-editor-review · Complete one coherent recipe revision
+Canonical 2-portion recipe becomes r1; viewer scale four is separate · Desktop · Mobile · Paired
+16b-second-purchase · Two actual acquisitions, one plan
+P1 + P2 give 900 g before the 800 g preparation · Desktop · Mobile · Paired
+12b-numeric-coverage · Useful numbers without false completeness
+Separate FIX-02/FIX-04 source fixture; never assigned to Sesame tofu r1 · Desktop · Mobile · Paired
+Review evidence and limits
+Producer: Nooch design agent. Independent reviewer: dot lead reviewer. The reviewer read the full commission and inspected the actual paired output, then re-inspected corrections to followable cooking, causal map branches, partial weekly effort, mobile actions, purchase labeling, timer escape and priority warnings. The selected core static craft and connected-state review passed. The core static review is historical verification, not owner visual acceptance. NQ-001 A, NQ-011 A, NQ-004 A and clarified/delegated NQ-010 A are accepted under ND-007–010; NQ-002a/b A are accepted separately under ND-013/014. Other choices and exact visual targets remain open in the current register.
+The consistency closeout prerequisite is satisfied. Native revision history and the prior consistency PDF retain the earlier edition and feedback. This edition integrates selected core occurrences; transfer/recovery and optional generation/artwork expansions remain deferred. Static authoring and arithmetic checks do not prove application persistence, touch behavior, assistive technology, notification delivery, transactions or food safety.
+

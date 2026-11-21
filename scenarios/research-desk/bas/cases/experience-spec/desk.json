@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-desk-spec-smoke",
+    "description": "Observer smoke: the Desk page renders at phone width against the real research home.",
+    "requirement": "OT-P0-010",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "desk",
+      "surface": "experience-desk"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-desk",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/desk",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Desk"
+        }
+      }
+    },
+    {
+      "id": "wait-desk-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.desk",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Desk page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-desk",
+      "source": "navigate-desk",
+      "target": "wait-desk-page"
+    }
+  ]
+}

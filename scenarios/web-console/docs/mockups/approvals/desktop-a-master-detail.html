@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Desktop master-detail (pending, mixed sources)</title>
+<style>
+/* ── web-console operational palette (R G B triples from ui/src/styles.css) ── */
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59;
+  --wc-card:23 32 51; /* --color-surface-raised #172033 */
+  --wc-text-primary:248 250 252; --wc-text-secondary:226 232 240;
+  --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-border-hover:255 255 255;
+  --wc-accent:34 211 238; --wc-accent-fg:15 23 42; --wc-accent-border:6 182 212;
+  --wc-error-text:252 165 165; --wc-error-detail:248 113 113; --wc-error-border:239 68 68; --wc-error-surface:69 10 10;
+  --wc-success:74 222 128; --wc-warning:245 178 63; --wc-swarm:183 166 255;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-panel:.5rem; --r-ctrl:.375rem; --r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:rgb(var(--wc-surface-base));color:rgb(var(--wc-text-primary));
+  font-size:14px;line-height:22px;min-height:100vh;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.caption{color:rgb(var(--wc-text-faint));font-size:12px}
+/* Drawer shell (FullPageDrawer analog) */
+.drawer{width:1120px;max-width:100%;height:720px;background:rgb(var(--wc-surface-raised));
+  border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(9,18,22,.5)}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.drawer-head h1{font-size:18px;font-weight:600;line-height:24px}
+.pending-count{background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg));border-radius:var(--r-pill);
+  font-size:12px;font-weight:700;padding:2px 9px}
+.spacer{flex:1}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-ctrl);border:1px solid rgb(var(--wc-border-default)/.1);
+  background:transparent;color:rgb(var(--wc-text-muted));display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+.body{flex:1;display:flex;min-height:0}
+/* ── List (left) ── */
+.list{width:420px;border-right:1px solid rgb(var(--wc-border-default)/.1);display:flex;flex-direction:column;min-height:0}
+.search{padding:12px 16px;border-bottom:1px solid rgb(var(--wc-border-default)/.08)}
+.search input{width:100%;height:36px;border-radius:var(--r-ctrl);background:rgb(var(--wc-surface-input));
+  border:1px solid rgb(var(--wc-border-default)/.1);color:rgb(var(--wc-text-primary));padding:0 12px;font-size:13px;font-family:inherit}
+.filters{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid rgb(var(--wc-border-default)/.08);flex-wrap:wrap}
+.chip{font-size:12px;padding:4px 10px;border-radius:var(--r-pill);border:1px solid rgb(var(--wc-border-default)/.12);
+  background:transparent;color:rgb(var(--wc-text-muted));cursor:pointer}
+.chip.on{background:rgb(var(--wc-accent)/.14);border-color:rgb(var(--wc-accent-border)/.5);color:rgb(var(--wc-text-primary))}
+.rows{overflow:auto;flex:1}
+/* list row */
+.row{display:flex;gap:0;cursor:pointer;border-bottom:1px solid rgb(var(--wc-border-default)/.06);position:relative}
+.row:hover{background:rgb(var(--wc-border-default)/.04)}
+.row.sel{background:rgb(var(--wc-accent)/.1)}
+.row.sel::after{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:rgb(var(--wc-accent))}
+.urail{width:4px;flex:none}
+.u-critical{background:rgb(var(--wc-error-detail))}
+.u-high{background:rgb(var(--wc-warning))}
+.u-normal{background:rgb(var(--wc-accent)/.6)}
+.u-low{background:rgb(var(--wc-text-faint)/.5)}
+.rcontent{flex:1;padding:12px 14px;min-width:0}
+.rtop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.src{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.03em;
+  text-transform:uppercase;padding:2px 7px;border-radius:var(--r-pill)}
+.src .dot{width:7px;height:7px;border-radius:50%}
+.src-dep{background:rgb(var(--wc-warning)/.14);color:rgb(var(--wc-warning))}
+.src-am{background:rgb(var(--wc-accent)/.14);color:rgb(var(--wc-accent))}
+.src-swarm{background:rgb(var(--wc-swarm)/.16);color:rgb(var(--wc-swarm))}
+.src-heal{background:rgb(var(--wc-success)/.14);color:rgb(var(--wc-success))}
+.rtime{margin-left:auto;font-size:11px;color:rgb(var(--wc-text-faint))}
+.rtitle{font-size:14px;font-weight:600;color:rgb(var(--wc-text-primary));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rq{font-size:13px;color:rgb(var(--wc-text-muted));line-height:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.rmeta{display:flex;gap:8px;margin-top:7px;align-items:center}
+.pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--r-pill);letter-spacing:.02em}
+.pill-rev{color:rgb(var(--wc-success));background:rgb(var(--wc-success)/.12)}
+.pill-irr{color:rgb(var(--wc-error-text));background:rgb(var(--wc-error-surface)/.5);border:1px solid rgb(var(--wc-error-border)/.3)}
+.pill-dl{color:rgb(var(--wc-warning));background:rgb(var(--wc-warning)/.1)}
+.pill-rec{color:rgb(var(--wc-accent));background:rgb(var(--wc-accent)/.12)}
+/* ── Detail (right) ── */
+.detail{flex:1;display:flex;flex-direction:column;min-width:0;overflow:auto}
+.dhead{padding:20px 24px 16px;border-bottom:1px solid rgb(var(--wc-border-default)/.08)}
+.dhead .row2{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.dsubject{font-size:20px;font-weight:600;line-height:28px;margin-bottom:6px}
+.countdown{margin-left:auto;font-size:12px;font-weight:600;color:rgb(var(--wc-warning));
+  background:rgb(var(--wc-warning)/.1);padding:3px 10px;border-radius:var(--r-pill)}
+.dbody{padding:20px 24px;display:flex;flex-direction:column;gap:20px;flex:1}
+.question{font-size:15px;line-height:24px;color:rgb(var(--wc-text-secondary))}
+.sect-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgb(var(--wc-text-faint));margin-bottom:10px}
+/* context panel */
+.ctx{background:rgb(var(--wc-card));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);padding:16px 18px}
+.ctx.dep{border-left:3px solid rgb(var(--wc-warning))}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 16px;font-size:13px}
+.kv dt{color:rgb(var(--wc-text-faint))}
+.kv dd{color:rgb(var(--wc-text-secondary));word-break:break-word}
+.digest{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:rgb(var(--wc-accent))}
+.evid{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.evrow{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.ev-pass{color:rgb(var(--wc-success))}
+.ev-skip{color:rgb(var(--wc-warning))}
+.target-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11.5px;padding:2px 9px;border-radius:var(--r-pill);background:rgb(var(--wc-surface-input));color:rgb(var(--wc-text-secondary));border:1px solid rgb(var(--wc-border-default)/.1)}
+.ctxlink{display:inline-flex;align-items:center;gap:6px;color:rgb(var(--wc-accent));font-size:13px;margin-top:14px;text-decoration:none}
+/* answer options block */
+.answers{display:flex;flex-direction:column;gap:12px}
+.rec-reason{font-size:13px;color:rgb(var(--wc-text-muted));line-height:19px;margin-bottom:2px}
+.opt-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border-radius:var(--r-ctrl);font-size:14px;font-weight:600;padding:11px 20px;min-height:44px;cursor:pointer;border:1px solid transparent;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:rgb(var(--wc-accent));color:rgb(var(--wc-accent-fg))}
+.btn-secondary{background:transparent;border-color:rgb(var(--wc-border-default)/.16);color:rgb(var(--wc-text-secondary))}
+.btn-danger{background:transparent;border-color:rgb(var(--wc-error-border)/.4);color:rgb(var(--wc-error-text))}
+.star{font-size:12px}
+.notefield{width:100%;min-height:72px;border-radius:var(--r-ctrl);background:rgb(var(--wc-surface-input));
+  border:1px solid rgb(var(--wc-border-default)/.1);color:rgb(var(--wc-text-primary));padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical}
+.default-hint{font-size:12.5px;color:rgb(var(--wc-text-muted));background:rgb(var(--wc-surface-input)/.5);
+  border:1px dashed rgb(var(--wc-border-default)/.14);border-radius:var(--r-ctrl);padding:9px 12px;display:flex;gap:8px;align-items:center}
+.default-hint b{color:rgb(var(--wc-text-secondary))}
+</style>
+</head>
+<body>
+<div class="caption">Desktop · opened from the FloatingToolbar as a FullPageDrawer · 1120px · pending queue, mixed sources</div>
+<div class="drawer">
+  <div class="drawer-head">
+    <h1>Approvals</h1><span class="pending-count">5</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" title="Refresh">⟳</button>
+    <button class="icon-btn" title="Close">✕</button>
+  </div>
+  <div class="body">
+    <!-- LIST -->
+    <div class="list">
+      <div class="search"><input placeholder="Search approvals…" /></div>
+      <div class="filters">
+        <button class="chip on">Pending · 5</button>
+        <button class="chip">All sources</button>
+        <button class="chip">Resolved</button>
+        <button class="chip">Expired</button>
+      </div>
+      <div class="rows">
+        <!-- selected: deployment release -->
+        <div class="row sel">
+          <div class="urail u-high"></div>
+          <div class="rcontent">
+            <div class="rtop"><span class="src src-dep"><span class="dot" style="background:rgb(var(--wc-warning))"></span>deployment-manager</span><span class="rtime">2m ago</span></div>
+            <div class="rtitle">Release web-console v3.4.0 to production</div>
+            <div class="rq">Promote build sha256:9f3c…a1 to production (2 targets)?</div>
+            <div class="rmeta"><span class="pill pill-irr">Not reversible</span><span class="pill pill-dl">Expires in 1h 48m</span></div>
+          </div>
+        </div>
+        <!-- agent-manager run review -->
+        <div class="row">
+          <div class="urail u-normal"></div>
+          <div class="rcontent">
+            <div class="rtop"><span class="src src-am"><span class="dot" style="background:rgb(var(--wc-accent))"></span>agent-manager</span><span class="rtime">8m ago</span></div>
+            <div class="rtitle">Run r-7f2a needs review before resuming</div>
+            <div class="rq">Approve the proposed diff and resume the run, or send it back?</div>
+            <div class="rmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-rec">★ Recommends: Approve</span></div>
+          </div>
+        </div>
+        <!-- agent-manager authorization scope -->
+        <div class="row">
+          <div class="urail u-high"></div>
+          <div class="rcontent">
+            <div class="rtop"><span class="src src-am"><span class="dot" style="background:rgb(var(--wc-accent))"></span>agent-manager</span><span class="rtime">14m ago</span></div>
+            <div class="rtitle">Grant deploy scope to agent "codec-pipe-worker"?</div>
+            <div class="rq">Agent requests deployment.write for 2h to publish a canary.</div>
+            <div class="rmeta"><span class="pill pill-irr">Not reversible</span><span class="pill pill-rec">★ Recommends: Deny</span></div>
+          </div>
+        </div>
+        <!-- swarm-manager mutation -->
+        <div class="row">
+          <div class="urail u-normal"></div>
+          <div class="rcontent">
+            <div class="rtop"><span class="src src-swarm"><span class="dot" style="background:rgb(var(--wc-swarm))"></span>swarm-manager</span><span class="rtime">31m ago</span></div>
+            <div class="rtitle">Mutation proposal: raise nutrition-planner image cap to $25</div>
+            <div class="rq">Accept the proposed scenario-config mutation, or reject it?</div>
+            <div class="rmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-rec">★ Recommends: Accept</span></div>
+          </div>
+        </div>
+        <!-- vrooli-autoheal remediation -->
+        <div class="row">
+          <div class="urail u-low"></div>
+          <div class="rcontent">
+            <div class="rtop"><span class="src src-heal"><span class="dot" style="background:rgb(var(--wc-success))"></span>vrooli-autoheal</span><span class="rtime">1h ago</span></div>
+            <div class="rtitle">Restart wedged secret-service on minimouse?</div>
+            <div class="rq">Remediation ready; apply now or hold for manual review?</div>
+            <div class="rmeta"><span class="pill pill-rev">Reversible</span><span class="pill pill-dl">Auto-applies in 40m</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- DETAIL: deployment release gate (per-source context panel #1) -->
+    <div class="detail">
+      <div class="dhead">
+        <div class="row2">
+          <span class="src src-dep"><span class="dot" style="background:rgb(var(--wc-warning))"></span>deployment-manager · release</span>
+          <span class="pill pill-irr">Not reversible</span>
+          <span class="countdown">Expires in 1h 48m</span>
+        </div>
+        <div class="dsubject">Release web-console v3.4.0 to production</div>
+      </div>
+      <div class="dbody">
+        <div class="question">Promote build <span class="digest">sha256:9f3c…a1</span> to <b>production</b>? This replaces the live release on 2 targets. Rolling back requires a manual re-deploy of the previous build.</div>
+
+        <!-- per-source context panel: release gate -->
+        <div>
+          <div class="sect-label">Release context</div>
+          <div class="ctx dep">
+            <dl class="kv">
+              <dt>Artifact digest</dt><dd class="digest">sha256:9f3c0b7e…e2a1</dd>
+              <dt>Version</dt><dd>v3.4.0 (from v3.3.2)</dd>
+              <dt>Targets</dt><dd><div class="target-tags"><span class="tag">prod-us-east</span><span class="tag">prod-eu-west</span></div></dd>
+              <dt>Evidence</dt>
+              <dd><div class="evid">
+                <div class="evrow ev-pass">✓ unit · 1,284 passed</div>
+                <div class="evrow ev-pass">✓ ui-health L0–L2 · passed</div>
+                <div class="evrow ev-skip">▲ load-test · SKIPPED (no baseline)</div>
+              </div></dd>
+              <dt>Rollback</dt><dd>Manual re-deploy of v3.3.2 (no automated revert).</dd>
+            </dl>
+            <a class="ctxlink" href="#">Open release in deployment-manager ↗</a>
+          </div>
+        </div>
+
+        <!-- answer options block -->
+        <div>
+          <div class="sect-label">Your decision</div>
+          <div class="answers">
+            <div class="rec-reason">Recommended: <b>Promote</b> — all blocking gates passed; the SKIPPED load-test has no baseline and is non-blocking for this SKU.</div>
+            <div class="opt-row">
+              <button class="btn btn-primary"><span class="star">★</span> Promote to production</button>
+              <button class="btn btn-secondary">Hold for manual QA</button>
+              <button class="btn btn-danger">Reject release</button>
+            </div>
+            <textarea class="notefield" placeholder="Add a note (optional) — carried back with your decision…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

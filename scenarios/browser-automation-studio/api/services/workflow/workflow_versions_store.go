@@ -118,7 +118,7 @@ func listWorkflowVersions(ctx context.Context, project *database.ProjectIndex, w
 			continue
 		}
 		base := strings.TrimSuffix(name, ".json")
-		v, err := strconv.Atoi(base)
+		v, err := strconv.ParseInt(base, 10, 32)
 		if err != nil || v <= 0 {
 			continue
 		}
@@ -165,4 +165,3 @@ func getWorkflowVersion(ctx context.Context, project *database.ProjectIndex, wor
 	}
 	return &pb, nil
 }
-

@@ -96,7 +96,6 @@ export function buildScenarioConfig(options: ConfigEndpointOptions): ScenarioCon
  *   uiPort: process.env.UI_PORT || '3000',
  *   serviceName: 'my-scenario',
  *   version: '1.0.0',
- *   cors: true,
  *   includeTimestamp: true,
  *   cacheControl: 'no-cache, no-store, must-revalidate'
  * })
@@ -107,7 +106,6 @@ export function buildScenarioConfig(options: ConfigEndpointOptions): ScenarioCon
 export function createConfigEndpoint(options: ConfigEndpointOptions): RequestHandler {
   const {
     configBuilder,
-    cors = false,
     includeTimestamp = false,
     cacheControl = true,
   } = options
@@ -126,13 +124,6 @@ export function createConfigEndpoint(options: ConfigEndpointOptions): RequestHan
       // Add timestamp if requested
       if (includeTimestamp) {
         config = { ...config, timestamp: Date.now() }
-      }
-
-      // Set CORS headers if enabled
-      if (cors) {
-        res.header('Access-Control-Allow-Origin', '*')
-        res.header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        res.header('Access-Control-Allow-Headers', 'Content-Type')
       }
 
       // Set cache control headers

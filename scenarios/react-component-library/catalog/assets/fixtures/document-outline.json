@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.document-outline",
+    "name": "DocumentOutlineFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial hierarchical content with deep nesting, long titles, missing sections, and mixed heading depth, for navigation trees, outlines, and documentation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "DocumentNode"
+      ]
+    },
+    "recordCount": {
+      "typical": 30,
+      "volume": 5000
+    }
+  },
+  "rationale": "Includes a branch nested eight levels deep and a heading sequence that skips a level, which is what proves a tree indents legibly and an outline reports hierarchy honestly."
+}

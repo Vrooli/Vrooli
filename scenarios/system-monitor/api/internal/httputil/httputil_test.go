@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
-	"system-monitor-api/internal/apierrors"
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 // ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ func TestHandleError_GenericWithRequestID(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestProtoJSON_SnakeCase(t *testing.T) {
-	msg := &domain.SystemSettings{
+	msg := &settingspb.SystemSettings{
 		Active:       true,
 		CpuThreshold: 85.5,
 	}
@@ -221,6 +221,23 @@ func TestProtoJSON_SnakeCase(t *testing.T) {
 	}
 }
 
+func TestProtoJSONCamel_UsesGeneratedClientFieldNames(t *testing.T) {
+	msg := &settingspb.SystemSettings{Active: true, CpuThreshold: 85.5}
+
+	w := httptest.NewRecorder()
+	if err := ProtoJSONCamel(w, msg); err != nil {
+		t.Fatalf("ProtoJSONCamel returned error: %v", err)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "cpuThreshold") {
+		t.Errorf("expected camelCase key cpuThreshold in body: %s", body)
+	}
+	if strings.Contains(body, "cpu_threshold") {
+		t.Errorf("unexpected snake_case key cpu_threshold in body: %s", body)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // DecodeProtoJSON
 // ---------------------------------------------------------------------------
@@ -229,7 +246,7 @@ func TestDecodeProtoJSON(t *testing.T) {
 	jsonBody := `{"active":true,"cpu_threshold":90.0,"memory_threshold":75.5}`
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(jsonBody)))
 
-	var msg domain.SystemSettings
+	var msg settingspb.SystemSettings
 	if err := DecodeProtoJSON(r, &msg); err != nil {
 		t.Fatalf("DecodeProtoJSON returned error: %v", err)
 	}
@@ -250,7 +267,7 @@ func TestDecodeProtoJSON(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestProtoJSONWithStatus(t *testing.T) {
-	msg := &domain.SystemSettings{
+	msg := &settingspb.SystemSettings{
 		Active:        false,
 		DiskThreshold: 95.0,
 	}

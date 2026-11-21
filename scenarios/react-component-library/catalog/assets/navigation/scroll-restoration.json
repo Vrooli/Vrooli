@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.scroll-restoration",
+    "name": "ScrollRestoration",
+    "kind": "runtime-service",
+    "domain": "navigation",
+    "description": "The service restoring or resetting scroll position based on route, history action, content identity, and explicit user intent, rather than always jumping to the top.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Position history is scoped to the application instance."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "focus-order"
+  ],
+  "rationale": "Modelled as a service in the navigation domain rather than a navigation surface, which is the clearest demonstration that kind and domain are orthogonal: it ranks with runtime services so a component may depend on it."
+}

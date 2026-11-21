@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package vrooli.client_rehearsal.v1.codingjobs;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/codingjobs;codingjobs_v1";
+
+// CodingJobService is the durable practice-job ledger for blind bounty replays.
+// Solver-facing fields deliberately omit evaluator contents and reference fixes.
+service CodingJobService {
+  rpc CreateCodingJob(CreateCodingJobRequest) returns (CreateCodingJobResponse);
+  rpc RecordCodingJobStage(RecordCodingJobStageRequest) returns (RecordCodingJobStageResponse);
+  rpc RecordCodingJobEvaluation(RecordCodingJobEvaluationRequest) returns (RecordCodingJobEvaluationResponse);
+  rpc GetCodingJob(GetCodingJobRequest) returns (GetCodingJobResponse);
+  rpc ListCodingJobs(ListCodingJobsRequest) returns (ListCodingJobsResponse);
+}
+
+enum CodingJobState {
+  CODING_JOB_STATE_UNSPECIFIED = 0;
+  CODING_JOB_STATE_READY = 1;
+  CODING_JOB_STATE_SOLVING = 2;
+  CODING_JOB_STATE_SCORING = 3;
+  CODING_JOB_STATE_REVIEWABLE = 4;
+  CODING_JOB_STATE_FAILED = 5;
+}
+
+message CodingJob {
+  string id = 1;
+  string case_id = 2;
+  string project = 3;
+  string title = 4;
+  string task = 5;
+  CodingJobState state = 6;
+  string source_seal_ref = 7;
+  string solver_run_ref = 8;
+  string evaluator_receipt_ref = 9;
+  string evaluator_receipt_sha256 = 10;
+  string score = 11;
+  repeated CodingJobEvent events = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+  uint64 revision = 15;
+  string replay_key = 16;
+}
+
+message CodingJobEvent {
+  uint64 sequence = 1;
+  string stage = 2;
+  string actor = 3;
+  string evidence_ref = 4;
+  string evidence_sha256 = 5;
+  string note = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+message CreateCodingJobRequest {
+  string case_id = 1;
+  string project = 2;
+  string title = 3;
+  string task = 4;
+  string source_seal_ref = 5;
+  string replay_key = 6;
+}
+message CreateCodingJobResponse { CodingJob job = 1; }
+
+message RecordCodingJobStageRequest {
+  string id = 1;
+  string stage = 2;
+  string actor = 3;
+  string evidence_ref = 4;
+  string evidence_sha256 = 5;
+  string note = 6;
+  uint64 expected_revision = 7;
+}
+message RecordCodingJobStageResponse { CodingJob job = 1; }
+
+message RecordCodingJobEvaluationRequest {
+  string id = 1;
+  string receipt_ref = 2;
+  string receipt_sha256 = 3;
+  string score = 4;
+  uint64 expected_revision = 5;
+}
+message RecordCodingJobEvaluationResponse { CodingJob job = 1; }
+
+message GetCodingJobRequest { string id = 1; }
+message GetCodingJobResponse { CodingJob job = 1; }
+message ListCodingJobsRequest { uint32 limit = 1; string cursor = 2; }
+message ListCodingJobsResponse { repeated CodingJob jobs = 1; string next_cursor = 2; }

@@ -14,13 +14,23 @@ const STORAGE_KEY = 'system-monitor-theme';
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialTheme(): Theme {
+  // Capture tooling can request a deterministic theme without relying on the
+  // browser's OS preference. This is intentionally query-only: normal users
+  // still get their saved preference and the query is not persisted until the
+  // provider applies the selected theme to the document.
+  try {
+    const requested = new URLSearchParams(window.location.search).get('theme');
+    if (requested === 'light' || requested === 'dark') return requested;
+  } catch {
+    // URL APIs unavailable in a non-browser test environment.
+  }
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch {
     // localStorage unavailable
   }
-  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) {
+  if (window.matchMedia('(prefers-color-scheme: light)').matches) {
     return 'light';
   }
   return 'dark';
@@ -40,21 +50,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
-    applyTheme(t);
-  }, [applyTheme]);
+  }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      return next;
-    });
-  }, [applyTheme]);
+    setThemeState(prev => prev === 'dark' ? 'light' : 'dark');
+  }, []);
 
-  // Apply theme on mount
+  // Keep document and storage synchronized from the single authoritative state.
   useEffect(() => {
     applyTheme(theme);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyTheme, theme]);
 
   // Listen for OS preference changes
   useEffect(() => {
@@ -67,7 +72,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     };
     mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    return () => { mq.removeEventListener('change', handler); };
   }, [setTheme]);
 
   return (

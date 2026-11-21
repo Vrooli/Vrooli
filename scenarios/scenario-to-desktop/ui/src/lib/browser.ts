@@ -37,14 +37,17 @@ export interface DownloadTriggerOptions {
  * Write text to the system clipboard.
  * Returns a result object instead of throwing on failure.
  */
-export async function writeToClipboard(text: string): Promise<ClipboardWriteResult> {
+export async function writeToClipboard(
+  text: string,
+): Promise<ClipboardWriteResult> {
   try {
     await navigator.clipboard.writeText(text);
     return { success: true };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to copy to clipboard"
+      error:
+        error instanceof Error ? error.message : "Failed to copy to clipboard",
     };
   }
 }
@@ -64,7 +67,7 @@ export async function readFileAsText(file: File): Promise<FileReadResult> {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to read file"
+      error: error instanceof Error ? error.message : "Failed to read file",
     };
   }
 }
@@ -116,13 +119,14 @@ export const browserMocks = {
   createClipboardMock: () => {
     const writes: string[] = [];
     return {
-      writeText: async (text: string) => {
+      writeText: (text: string) => {
         writes.push(text);
+        return Promise.resolve();
       },
       getWrites: () => [...writes],
       clear: () => {
         writes.length = 0;
-      }
+      },
     };
   },
 
@@ -130,6 +134,6 @@ export const browserMocks = {
    * Create a mock file reader that returns controlled content.
    */
   createFileReaderMock: (content: string) => ({
-    text: async () => content
-  })
+    text: () => Promise.resolve(content),
+  }),
 };

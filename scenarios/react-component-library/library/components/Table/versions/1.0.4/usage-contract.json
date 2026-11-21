@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:Table",
+  "items": {
+    "labelField": "row[primaryColumn]",
+    "maximumCount": 100,
+    "maximumLabelCharacters": 64,
+    "primaryAction": "not-applicable",
+    "property": "rows",
+    "stableIdField": "row.id",
+    "typicalCount": 8
+  },
+  "version": "1.0.4-draft.1"
+}

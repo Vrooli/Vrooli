@@ -1,0 +1,181 @@
+{
+  "profile_id": "device-studio-phone-study-environment-export-v1",
+  "blender_version": [
+    5,
+    2,
+    2
+  ],
+  "input": {
+    "scene_glb": {
+      "staged_name": "phone-table-scene.glb",
+      "size_bytes": 350488,
+      "sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+      "source": "scenarios/device-studio/api/internal/physicalruntime/assets/phone-table/phone-table-scene.glb",
+      "expected_mesh_nodes": [
+        "TableLeg-NE",
+        "TableLeg-NW",
+        "TableLeg-SE",
+        "TableLeg-SW",
+        "TableTop",
+        "TeaCup",
+        "TeaCupHandle",
+        "TeaSurface"
+      ]
+    }
+  },
+  "room_geometry_blender_meters": {
+    "RoomBackWall": {
+      "dimensions": [
+        2.4,
+        0.035,
+        2.1
+      ],
+      "location": [
+        0.0,
+        0.48,
+        1.72
+      ],
+      "bevel": 0.008
+    },
+    "WindowLightPanel": {
+      "dimensions": [
+        0.68,
+        0.008,
+        0.92
+      ],
+      "location": [
+        -0.58,
+        0.455,
+        1.72
+      ],
+      "bevel": 0.0
+    },
+    "WindowFrameUprightLeft": {
+      "dimensions": [
+        0.025,
+        0.035,
+        0.98
+      ],
+      "location": [
+        -0.94,
+        0.438,
+        1.72
+      ],
+      "bevel": 0.003
+    },
+    "WindowFrameUprightRight": {
+      "dimensions": [
+        0.025,
+        0.035,
+        0.98
+      ],
+      "location": [
+        -0.22,
+        0.438,
+        1.72
+      ],
+      "bevel": 0.003
+    },
+    "WindowFrameRailLower": {
+      "dimensions": [
+        0.74,
+        0.035,
+        0.025
+      ],
+      "location": [
+        -0.58,
+        0.438,
+        1.22
+      ],
+      "bevel": 0.003
+    },
+    "WindowFrameRailUpper": {
+      "dimensions": [
+        0.74,
+        0.035,
+        0.025
+      ],
+      "location": [
+        -0.58,
+        0.438,
+        2.22
+      ],
+      "bevel": 0.003
+    }
+  },
+  "materials": {
+    "wall": {
+      "name": "Warm plaster backdrop",
+      "base_color_linear_rgb": [
+        0.68,
+        0.63,
+        0.56
+      ],
+      "roughness": 0.9
+    },
+    "window": {
+      "name": "Soft luminous window",
+      "profile": "EMISSION_V1",
+      "study_color_linear_rgb": [
+        0.78,
+        0.82,
+        0.88
+      ],
+      "study_strength": 0.8,
+      "export_emissive_factor_linear_rgb": [
+        0.624,
+        0.656,
+        0.704
+      ],
+      "export_strength": 1.0,
+      "conversion": "multiply the approved Blender emission color by its strength; encode the resulting linear RGB as glTF emissiveFactor with strength 1.0"
+    }
+  },
+  "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+  "support_interface": {
+    "id": "table-top-flat",
+    "frame_part_id": "table-top",
+    "local_frame_translation_meters": [
+      0.0,
+      0.0170000196,
+      0.0
+    ],
+    "world_top_height_meters": 0.7499999814,
+    "contact_region_part_id": "table-top"
+  },
+  "axis_export": {
+    "source": "Blender scene coordinates: +X right, +Y depth, +Z up",
+    "target": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "applied_by": "Blender glTF exporter export_yup=true exactly once; table input is already canonical GLB and is imported into Blender before the matching inverse/export basis conversion",
+    "table_geometry_transform": "preserve the imported canonical table scene object transforms; do not apply a second scale or basis correction"
+  },
+  "expected_output": {
+    "glb_name": "phone-study-environment.glb",
+    "inventory_name": "environment-inventory.json",
+    "max_bytes": 33554432,
+    "expected_mesh_nodes": [
+      "TableLeg-NE",
+      "TableLeg-NW",
+      "TableLeg-SE",
+      "TableLeg-SW",
+      "TableTop",
+      "TeaCup",
+      "TeaCupHandle",
+      "TeaSurface",
+      "RoomBackWall",
+      "WindowLightPanel",
+      "WindowFrameUprightLeft",
+      "WindowFrameUprightRight",
+      "WindowFrameRailLower",
+      "WindowFrameRailUpper"
+    ],
+    "forbidden": [
+      "camera",
+      "light",
+      "animation",
+      "skin",
+      "external_uri",
+      "embedded_texture"
+    ]
+  }
+}

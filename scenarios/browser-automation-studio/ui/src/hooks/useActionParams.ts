@@ -7,16 +7,47 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { getActionParamsFieldName } from '@/domains/workflows/utils/normalizers';
 import { useReactFlow } from 'reactflow';
 import type { Node } from 'reactflow';
-import {
-  extractParams,
-  extractMetadata,
-  updateActionParams as updateParams,
-  updateActionMetadata,
-  type ActionDefinition,
-  type ActionMetadata,
-} from '@utils/actionParams';
+import type { ActionDefinition, ActionMetadata } from '@/domains/workflows/utils/normalizers';
+
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function extractParams<T>(action: ActionDefinition | undefined): T | undefined {
+  if (!action?.type) return undefined;
+  const fieldName = getActionParamsFieldName(action.type);
+  return fieldName ? (action[fieldName] as T | undefined) : undefined;
+}
+
+function extractMetadata(action: ActionDefinition | undefined): ActionMetadata | undefined {
+  return action?.metadata;
+}
+
+function updateParams<T>(action: ActionDefinition, updates: Partial<T>): ActionDefinition {
+  const fieldName = getActionParamsFieldName(action.type);
+  if (!fieldName) throw new Error(`Cannot update params: unknown action type ${action.type}`);
+
+  const current = action[fieldName];
+  const merged: Record<string, unknown> = { ...(isRecord(current) ? current : {}), ...updates };
+  for (const key of Object.keys(merged)) {
+    if (merged[key] === undefined) delete merged[key];
+  }
+  return { ...action, [fieldName]: merged };
+}
+
+function updateActionMetadata(
+  action: ActionDefinition,
+  updates: Partial<ActionMetadata>,
+): ActionDefinition {
+  const merged = { ...(action.metadata ?? {}), ...updates };
+  for (const key of Object.keys(merged)) {
+    if ((merged as Record<string, unknown>)[key] === undefined) delete (merged as Record<string, unknown>)[key];
+  }
+  return { ...action, metadata: Object.keys(merged).length ? merged : undefined };
+}
 
 export interface UseActionParamsResult<T> {
   /** The typed params for this action (e.g., ClickParams, NavigateParams) */

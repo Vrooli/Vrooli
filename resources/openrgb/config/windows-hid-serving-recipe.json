@@ -1,0 +1,44 @@
+{
+  "arch": "amd64",
+  "id": "openrgb1.1-windows-amd64-hid-without-pawnio-v1",
+  "omit": [
+    {
+      "bytes": 43796,
+      "path": "LedsValve.bin",
+      "sha256": "1c1809281ae6f3e3c5b362f1536c0e6706013e6e33bfba66cad74636e61436d6"
+    },
+    {
+      "bytes": 18076,
+      "path": "LpcIO.bin",
+      "sha256": "b3896a1cab0d808fca31fe2ebcae045d59dac690da87b17c858bb8da357eb45e"
+    },
+    {
+      "bytes": 55540,
+      "path": "SmbusI801.bin",
+      "sha256": "a0f7d066e7efda28c0e754c1f52dbd8dc280d388ba8575b514a80cb67490530c"
+    },
+    {
+      "bytes": 19828,
+      "path": "SmbusIntelSkylakeIMC.bin",
+      "sha256": "2e2d6c1e541fdfe598aa8df4d334e11c491c8a84f23e8256dd18119dd420dbd2"
+    },
+    {
+      "bytes": 21244,
+      "path": "SmbusNCT6793.bin",
+      "sha256": "db068c6a87c0066ebfb7f691d88422fee8af350898e7a7f0db100fd6632bab17"
+    },
+    {
+      "bytes": 42404,
+      "path": "SmbusPIIX4.bin",
+      "sha256": "91f9b4b1c39e3d399ce48477a89d8f6bd3e58a2241064a4daec3a1513dff56e5"
+    }
+  ],
+  "os": "windows",
+  "payload_sha256": "e26ae71162795a8abcfb90c05c1572a00ba06ca63b886aca57392a0138963b1e",
+  "resource": "openrgb",
+  "schema_version": 1,
+  "serving_tree_sha256": "c2f9c9df90ef023a39b2d3c5bb06ec0645ebc64d43e21f8333e53e9721f39caf",
+  "source_envelope_sha256": "63291726c6fc84eb479ef2ee752e97e1187f6ce9c49fd27eee40ded588a8172a",
+  "source_tree_sha256": "062cd360105968221df877550e8e1c6f4a2cf850df2a70b93d6fde9af62bdbe9",
+  "version": "1.1"
+}

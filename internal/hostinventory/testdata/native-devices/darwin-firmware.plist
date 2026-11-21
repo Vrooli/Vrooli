@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>IORegistryEntryName</key><string>Root</string>
+  <key>IOObjectClass</key><string>IORegistryEntry</string>
+  <key>IORegistryEntryChildren</key><array>
+    <dict>
+      <key>IORegistryEntryName</key><string>arm-io</string>
+      <key>IOObjectClass</key><string>AppleARMIODevice</string>
+      <key>IORegistryEntryChildren</key><array>
+        <dict>
+          <key>IORegistryEntryName</key><string>gpu</string>
+          <key>IORegistryEntryLocation</key><string>1</string>
+          <key>IORegistryEntryID</key><integer>4294967302</integer>
+          <key>IOObjectClass</key><string>AppleARMIODevice</string>
+          <key>device_type</key><data>Z3B1AA==</data>
+        </dict>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

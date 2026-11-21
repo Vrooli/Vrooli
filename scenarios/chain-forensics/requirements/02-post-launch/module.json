@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Add bounded, rate-aware, keyless readers for Bitcoin, Ethereum, Base, and Solana, including SPL transfers and Pump-style launch instructions; cache immutable source responses and expose pruned history, pagination, RPC, and address-history limitations.",
+      "id": "CF6-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Multi-chain public source coverage",
+      "validation": [
+        {
+          "notes": "Replay bounded recorded fixtures for BTC, Ethereum, Base, Solana native/SPL, and Pump program events; verify cache keys, rate-limit behavior, finality, source identity, and explicit partial-history errors.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Correlate Across and Wormhole from source and destination chain events, then produce reproducible exchange deposit clusters only when each rule has public source support, a version, a counter-explanation, an evidence grade, and an unresolved-gap record.",
+      "id": "CF6-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Bridge and cluster evidence",
+      "validation": [
+        {
+          "notes": "Replay independently sourced Across and Wormhole fixtures through correlation rules; verify event/message joins, versioned cluster rules, public exchange label provenance, counter-explanations, and grade boundaries.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Deliver a polished responsive case-review UI, documented Connect/API endpoints, stable CLI output, and useful loading, empty, error, partial-history, stale-provider, rate-limited, export, and privacy states; keep human labels separate from chain facts.",
+      "id": "CF6-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Investigator workflow",
+      "validation": [
+        {
+          "notes": "Run UI/API/CLI journeys at mobile and desktop sizes for loading, empty, error, partial-history, stale, rate-limited, privacy, and local-export states; validate typed responses and accessibility assertions.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

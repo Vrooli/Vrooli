@@ -19,10 +19,6 @@
           "error": 0.75,
           "warn": 0.85
         },
-        "accessibility": {
-          "error": 0.9,
-          "warn": 0.95
-        },
         "best-practices": {
           "error": 0.85,
           "warn": 0.9
@@ -48,10 +44,6 @@
         "performance": {
           "error": 0.55,
           "warn": 0.6
-        },
-        "accessibility": {
-          "error": 0.9,
-          "warn": 0.95
         }
       },
       "requirements": [

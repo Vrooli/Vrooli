@@ -1,0 +1,139 @@
+{
+  "service": {
+    "name": "newcomer-service",
+    "version": "0.1.0"
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
+  "dependencies": {
+    "resources": {
+      "ledger-store": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "durable order ledger"
+      }
+    },
+    "scenarios": {
+      "ledger-service": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "settles ledger entries on behalf of the newcomer"
+      }
+    }
+  },
+  "hostTools": [
+    {
+      "name": "curl",
+      "required": true,
+      "reason": "readiness probes",
+      "platforms": [
+        "linux"
+      ]
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "firewall",
+      "required": true,
+      "reason": "public listener behind the edge",
+      "privilege": "elevated"
+    }
+  ],
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/newcomer",
+        "field": "webhook-signing-key",
+        "env": "NEWCOMER_WEBHOOK_SIGNING_KEY",
+        "required": true,
+        "label": "Webhook signing key (server-side only)"
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "callback": {
+      "env_var": "CALLBACK_PORT",
+      "range": "25000-29999"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {},
+      "run": {
+        "argv": [
+          "api"
+        ],
+        "port": "api",
+        "readiness": {
+          "type": "http",
+          "path": "/health"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "tiers": {
+      "tier-1-local": {
+        "requirements": {
+          "ram_mb": 256,
+          "disk_mb": 512,
+          "cpu_cores": 0.25
+        }
+      }
+    }
+  },
+  "deployment": {
+    "supported_targets": [
+      {
+        "os": "linux",
+        "distribution": "ubuntu",
+        "version": "24.04",
+        "architectures": [
+          "amd64"
+        ]
+      }
+    ],
+    "listeners": [
+      {
+        "id": "public-api",
+        "port": "api",
+        "visibility": "public_via_edge",
+        "readiness": {
+          "type": "http",
+          "path": "/health",
+          "timeout_ms": 5000
+        }
+      },
+      {
+        "id": "provider-callback",
+        "port": "callback",
+        "visibility": "private",
+        "readiness": {
+          "type": "port_open"
+        }
+      }
+    ],
+    "persistent_data": [
+      {
+        "id": "newcomer-orders",
+        "owner": "ledger-store",
+        "binding": "schema:newcomer",
+        "backup_provider": "data-backup-manager",
+        "migration_owner": "scenario"
+      }
+    ],
+    "recovery": {
+      "code_rollback": "compatible_predecessor_only",
+      "schema_strategy": "expand_contract"
+    }
+  }
+}

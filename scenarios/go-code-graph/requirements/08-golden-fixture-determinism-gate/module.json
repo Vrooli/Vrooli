@@ -1,0 +1,86 @@
+{
+  "description": "Ship at minimum two fixture Go modules under `bas/fixtures/` (`go-cycles/` and `go-mislocated/`) each with hand-curated `expected-graph.json`. CI fails if any fixture's extracted graph diverges byte-for-byte from the expected file. This is the trust anchor for every consumer.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-005"
+      ],
+      "description": "Ship at minimum two fixture Go modules under bas/fixtures/: go-cycles/ (a module with intentional import cycles) and go-mislocated/ (a module with mislocated files). Each fixture must include hand-curated expected-graph.json files that represent the canonical expected extraction output. CI must run extraction against each fixture and fail the build if the extracted graph differs byte-for-byte from the expected-graph.json. This gate is the trust anchor for all downstream consumers and must not be skipped or soft-failed.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Golden-Fixture Determinism CI Gate with Curated Expected Graphs",
+      "validation": [
+        {
+          "notes": "Test the fixture comparison utility: given two identical JSON byte slices, assert pass; given two differing slices, assert fail with diff output",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that expected-graph.json files are valid JSON and conform to the code_graph.proto schema",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI job extracts go-cycles fixture and compares output byte-for-byte to bas/fixtures/go-cycles/expected-graph.json; fails on any difference",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI job extracts go-mislocated fixture and compares output byte-for-byte to bas/fixtures/go-mislocated/expected-graph.json; fails on any difference",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI determinism test: extract each fixture twice in the same run; assert both outputs are byte-for-byte identical to each other and to expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Clean-clone test: git clone the repository, run extraction, verify output matches committed expected-graph.json without any local state",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI build status is RED if any fixture graph diverges from its expected-graph.json; no soft-fail or warning-only mode",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fixture expected-graph.json files are version-controlled and reviewed as part of any extraction logic change",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Downstream consumers (cartographer) can trust that a passing CI means extraction behavior is unchanged",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Golden-Fixture Determinism Gate"
+}

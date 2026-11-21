@@ -1,0 +1,149 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-asks-failure-to-wait-asks-page",
+      "source": "navigate-asks-failure",
+      "target": "wait-asks-page"
+    },
+    {
+      "id": "edge-wait-asks-page-to-wait-retry",
+      "source": "wait-asks-page",
+      "target": "wait-retry"
+    },
+    {
+      "id": "edge-wait-retry-to-assert-failure-copy",
+      "source": "wait-retry",
+      "target": "assert-failure-copy"
+    },
+    {
+      "id": "edge-assert-failure-copy-to-assert-nothing-dismissed",
+      "source": "assert-failure-copy",
+      "target": "assert-nothing-dismissed"
+    },
+    {
+      "id": "edge-assert-nothing-dismissed-to-capture-asks-failure",
+      "source": "assert-nothing-dismissed",
+      "target": "capture-asks-failure"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable recipient whose request read fails, when the owner opens Needs you, then the failure is named with a retry and nothing is shown as empty.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "asks",
+      "surface": "e4-asks-read-failure"
+    },
+    "name": "e4-asks-read-failure",
+    "requirement": "OT-P0-001",
+    "version": "3"
+  },
+  "nodes": [
+    {
+      "id": "navigate-asks-failure",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/asks?vrooli_test_mode=1&e4_fixture=asks-read-failure",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Needs you while the read fails"
+        }
+      }
+    },
+    {
+      "id": "wait-asks-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.asks",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Needs you page visible"
+        }
+      }
+    },
+    {
+      "id": "wait-retry",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/asks.loadRetry",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "A retry is offered"
+        }
+      }
+    },
+    {
+      "id": "assert-failure-copy",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.asks",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Couldn’t load your decisions."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The failure is named"
+        },
+        "metadata": {
+          "label": "The failure is named"
+        }
+      }
+    },
+    {
+      "id": "assert-nothing-dismissed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.asks",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Nothing was dismissed."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The page says nothing was dismissed"
+        },
+        "metadata": {
+          "label": "The page says nothing was dismissed"
+        }
+      }
+    },
+    {
+      "id": "capture-asks-failure",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the read failure at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

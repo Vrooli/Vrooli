@@ -456,3 +456,16 @@ pnpm add playwright
 - `src/recording/validation/verification.ts` - Script injection verification
 - `src/recording/capture/browser-scripts/recording-script.js` - Browser-side capture
 - `src/recording/orchestration/pipeline-manager.ts` - Recording orchestration
+# Audio device qualification
+
+The default browser strategy remains `host_device` when the browser host has
+usable audio. The deterministic fixture strategy is separate and must not be
+credited as an operating-system device test.
+
+Set `VROOLI_AUDIO_DEVICE_EVIDENCE=1` for a Linux/PipeWire qualification run.
+The session manager creates a user-owned `pw-loopback` source/sink, grants
+microphone permission, verifies the browser enumerates and opens the named
+source through `getUserMedia`, and closes the topology during shutdown. The
+lane can play a corpus WAV with `pw-cat`; it does not use sudo or persist host
+configuration. On non-Linux hosts the lane is unavailable and evidence must be
+reported as not measured.

@@ -5,18 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/vrooli/cli-core/cliutil"
+	"scenario-to-cloud/cli/internal/transport"
 )
 
 func edgeTestClient(baseURL string) *Client {
-	apiClient := cliutil.NewAPIClient(
-		cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
-		func() cliutil.APIBaseOptions {
-			return cliutil.APIBaseOptions{Override: baseURL}
-		},
-		nil,
-	)
-	return NewClient(apiClient)
+	return NewClient(transport.ForBaseURL(baseURL))
 }
 
 func TestRunCaddyRejectsInvalidAction(t *testing.T) {

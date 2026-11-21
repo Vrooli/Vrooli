@@ -1,0 +1,36 @@
+{
+  "id": "ai_cost_30d",
+  "label": "AI cost · 30 days",
+  "description": "Provider-reported inference cost for the trailing thirty days.",
+  "unit": "currency",
+  "format": "currency.compact",
+  "kind": "scalar",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "ai_cost_30d",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "ai_cost_30d",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "ai_cost_30d",
+    "expectedUnit": "currency",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 42.75,
+    "series": [
+      18.2,
+      24.9,
+      31.4,
+      36.8,
+      40.1,
+      42.75
+    ],
+    "basis": "hand-authored scenario for provider cost in micro-USD, reviewed 2026-09-16"
+  }
+}

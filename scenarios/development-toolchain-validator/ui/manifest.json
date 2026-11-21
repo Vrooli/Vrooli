@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Development Toolchain Validator UI manifest",
+  "description": "Declares the governed navigated-console shell for Development Toolchain Validator.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/shared/components/AppShell.tsx",
+    "export": "AppShell"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "slots": {
+    "layout-shell": {
+      "dir": "ui/src/shared/components"
+    }
+  }
+}

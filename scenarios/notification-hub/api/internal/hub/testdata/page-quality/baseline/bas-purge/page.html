@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remove one stored BAS execution?</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: var(--hub-font, system-ui, sans-serif); color: var(--hub-fg, #17212b); background: var(--hub-bg, #fff); }
+  .eyebrow { margin: 0 0 .25rem; color: var(--hub-muted); font-size: .875rem; }
+  .verdict { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .5rem 0 1rem; }
+  .facts { display: grid; grid-template-columns: 8rem 1fr; gap: .5rem .75rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+  .facts dt { font-weight: 700; }
+  .facts dd { margin: 0; color: var(--hub-muted); }
+  .sequence { margin: 1rem 0; padding: 1rem; border-left: .25rem solid var(--hub-primary); background: var(--hub-surface-muted); }
+  .sequence li { margin: .45rem 0; }
+  .choices { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+  .choices section { padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface); }
+  .choices h3 { margin-top: .5rem; }
+  .choices button { min-height: 44px; }
+  @media (max-width: 560px) { .choices { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Browser Automation Studio · one stored test execution</p>
+  <h1>Should we build a safe way to remove this one execution, then delete it?</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend yes</span><span>It removes the saved private conversation while protecting the 6,121 unrelated runs.</span></div>
+
+  <dl class="facts">
+    <dt>What happened</dt><dd>A BAS test opened an unrelated live terminal conversation and saved one execution containing its text.</dd>
+    <dt>Already stopped</dt><dd>The worker deleted local output files and stopped further captures.</dd>
+    <dt>Still stored</dt><dd>The recorded execution remains in BAS.</dd>
+    <dt>Why not use current cleanup</dt><dd>It can target only by age, workflow, or project. This workflow's preview includes 6,121 unrelated runs, so nothing was deleted.</dd>
+  </dl>
+
+  <h2>Recommended sequence</h2>
+  <ol class="sequence">
+    <li>Identify and verify the one execution from the originating test context.</li>
+    <li>Build a cleanup path limited to that execution and files owned only by it.</li>
+    <li>Get an independent review and confirm the preview names exactly one execution.</li>
+    <li>Only if those checks pass, delete that execution and verify unrelated runs remain.</li>
+  </ol>
+  <div class="hub-callout is-danger"><strong>Deletion cannot be undone.</strong> If the target or file ownership is uncertain, stop before deletion.</div>
+
+  <h2>Your choices</h2>
+  <div class="choices">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Build, review, then delete the one execution</h3>
+      <p>The exact target and its exclusive files are checked first. An independent reviewer must confirm the scope. If any check fails, nothing is deleted and the issue is reported.</p>
+      <p><strong>Cost or risk:</strong> deletion is permanent; a scope error could remove data, so the review and exact one-execution preview are required.</p>
+      <button type="button" data-answer="purge">Choose this</button>
+    </section>
+    <section>
+      <h3>Hold and keep the execution</h3>
+      <p>The private text stays stored. BAS remains out of this proof until a safe one-execution cleanup path exists; other work continues.</p>
+      <p><strong>Cost:</strong> the stored conversation text remains in BAS for now.</p>
+      <button type="button" class="is-quiet" data-answer="hold">Choose this</button>
+    </section>
+  </div>
+  <p>Tap <strong>Choose this</strong>, then send your answer.</p>
+
+  <h2>What happens when you approve</h2>
+  <p>The worker identifies the execution from the originating test context, builds and obtains independent review of a cleanup limited to that execution and its exclusive files, then deletes it only after the exact scope is confirmed. The worker reports whether the private text is gone and unrelated runs remain.</p>
+  <div class="hub-callout is-warning"><strong>If you do not answer,</strong> keep the execution and keep BAS out of this proof until a safe path exists. Other work continues.</div>
+
+  <script>
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest("[data-answer]");
+      if (button && window.hub && window.hub.prefill) {
+        window.hub.prefill("answer", button.getAttribute("data-answer"));
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1178 @@
+{
+  "workflow_id": "c73c873e-7234-40b1-b2a8-87b6087ad350",
+  "version": 1,
+  "flow_definition": {
+    "metadata": {
+      "name": "swarm-manager-voice-long-form-browser-soak",
+      "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence."
+    },
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900,
+      "fake_media": {
+        "microphone_wav": "/home/matthalloran8/Vrooli/scenarios/audio-tools/bas/fixtures/dictation-reference.wav"
+      }
+    },
+    "nodes": [
+      {
+        "id": "open-swarm-manager",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/"
+          },
+          "metadata": {
+            "label": "Open swarm-manager"
+          }
+        }
+      },
+      {
+        "id": "create-session-and-navigate",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "fetch('/api/v1/agent-sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'swarm_operations', title: 'Audio reliability long-form soak' }) }).then((response) => response.json()).then((body) => { const session = body.session || body; const id = session.id || session.sessionId || session.session_id; if (!id) throw new Error('session create response omitted id'); window.location.assign('/sessions/' + encodeURIComponent(id)); return id; })"
+          }
+        }
+      },
+      {
+        "id": "wait-composer",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=agent-session-composer]",
+            "timeout_ms": 30000
+          }
+        }
+      },
+      {
+        "id": "start-recording",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=agent-session-composer-mic]"
+          }
+        }
+      },
+      {
+        "id": "assert-recording",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid=agent-session-composer-mic]",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed",
+            "timeout_ms": 10000
+          }
+        }
+      },
+      {
+        "id": "soak-minute-01",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 01/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-02",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 02/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-03",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 03/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-04",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 04/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-05",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 05/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-06",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 06/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-07",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 07/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-08",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 08/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-09",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 09/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-10",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 10/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-11",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 11/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-12",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 12/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-13",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 13/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-14",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 14/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-15",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 15/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-16",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 16/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-17",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 17/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-18",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 18/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-19",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 19/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-20",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 20/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-21",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 21/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-22",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 22/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-23",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 23/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-24",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 24/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-25",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 25/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-26",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 26/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-27",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 27/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-28",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 28/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-29",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 29/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-30",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 30/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-31",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 31/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-32",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 32/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-33",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 33/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-34",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 34/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-35",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 35/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-36",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 36/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-37",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 37/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-38",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 38/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-39",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 39/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-40",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 40/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-41",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 41/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-42",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 42/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-43",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 43/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-44",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 44/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-45",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 45/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-46",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 46/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-47",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 47/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-48",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 48/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-49",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 49/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-50",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 50/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-51",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 51/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-52",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 52/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-53",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 53/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-54",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 54/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-55",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 55/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-56",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 56/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-57",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 57/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-58",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 58/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-59",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 59/60"
+          }
+        }
+      },
+      {
+        "id": "soak-minute-60",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 60000
+          },
+          "metadata": {
+            "label": "Run real-time capture minute 60/60"
+          }
+        }
+      },
+      {
+        "id": "stop-recording",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=agent-session-composer-mic]"
+          }
+        }
+      },
+      {
+        "id": "wait-terminal",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 30000
+          }
+        }
+      },
+      {
+        "id": "assert-terminal-composer",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const mic = document.querySelector('[data-testid=agent-session-composer-mic]'); const composer = document.querySelector('[data-testid=agent-session-composer]'); const body = document.body.innerText; return Boolean(mic && composer && mic.getAttribute('aria-pressed') === 'false' && !/voice input error|microphone access was lost|streaming transcription and retained-audio recovery failed/i.test(body)); })()"
+          }
+        }
+      },
+      {
+        "id": "capture-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e0",
+        "source": "open-swarm-manager",
+        "target": "create-session-and-navigate"
+      },
+      {
+        "id": "e1",
+        "source": "create-session-and-navigate",
+        "target": "wait-composer"
+      },
+      {
+        "id": "e2",
+        "source": "wait-composer",
+        "target": "start-recording"
+      },
+      {
+        "id": "e3",
+        "source": "start-recording",
+        "target": "assert-recording"
+      },
+      {
+        "id": "e4",
+        "source": "assert-recording",
+        "target": "soak-minute-01"
+      },
+      {
+        "id": "soak-01-02",
+        "source": "soak-minute-01",
+        "target": "soak-minute-02"
+      },
+      {
+        "id": "soak-02-03",
+        "source": "soak-minute-02",
+        "target": "soak-minute-03"
+      },
+      {
+        "id": "soak-03-04",
+        "source": "soak-minute-03",
+        "target": "soak-minute-04"
+      },
+      {
+        "id": "soak-04-05",
+        "source": "soak-minute-04",
+        "target": "soak-minute-05"
+      },
+      {
+        "id": "soak-05-06",
+        "source": "soak-minute-05",
+        "target": "soak-minute-06"
+      },
+      {
+        "id": "soak-06-07",
+        "source": "soak-minute-06",
+        "target": "soak-minute-07"
+      },
+      {
+        "id": "soak-07-08",
+        "source": "soak-minute-07",
+        "target": "soak-minute-08"
+      },
+      {
+        "id": "soak-08-09",
+        "source": "soak-minute-08",
+        "target": "soak-minute-09"
+      },
+      {
+        "id": "soak-09-10",
+        "source": "soak-minute-09",
+        "target": "soak-minute-10"
+      },
+      {
+        "id": "soak-10-11",
+        "source": "soak-minute-10",
+        "target": "soak-minute-11"
+      },
+      {
+        "id": "soak-11-12",
+        "source": "soak-minute-11",
+        "target": "soak-minute-12"
+      },
+      {
+        "id": "soak-12-13",
+        "source": "soak-minute-12",
+        "target": "soak-minute-13"
+      },
+      {
+        "id": "soak-13-14",
+        "source": "soak-minute-13",
+        "target": "soak-minute-14"
+      },
+      {
+        "id": "soak-14-15",
+        "source": "soak-minute-14",
+        "target": "soak-minute-15"
+      },
+      {
+        "id": "soak-15-16",
+        "source": "soak-minute-15",
+        "target": "soak-minute-16"
+      },
+      {
+        "id": "soak-16-17",
+        "source": "soak-minute-16",
+        "target": "soak-minute-17"
+      },
+      {
+        "id": "soak-17-18",
+        "source": "soak-minute-17",
+        "target": "soak-minute-18"
+      },
+      {
+        "id": "soak-18-19",
+        "source": "soak-minute-18",
+        "target": "soak-minute-19"
+      },
+      {
+        "id": "soak-19-20",
+        "source": "soak-minute-19",
+        "target": "soak-minute-20"
+      },
+      {
+        "id": "soak-20-21",
+        "source": "soak-minute-20",
+        "target": "soak-minute-21"
+      },
+      {
+        "id": "soak-21-22",
+        "source": "soak-minute-21",
+        "target": "soak-minute-22"
+      },
+      {
+        "id": "soak-22-23",
+        "source": "soak-minute-22",
+        "target": "soak-minute-23"
+      },
+      {
+        "id": "soak-23-24",
+        "source": "soak-minute-23",
+        "target": "soak-minute-24"
+      },
+      {
+        "id": "soak-24-25",
+        "source": "soak-minute-24",
+        "target": "soak-minute-25"
+      },
+      {
+        "id": "soak-25-26",
+        "source": "soak-minute-25",
+        "target": "soak-minute-26"
+      },
+      {
+        "id": "soak-26-27",
+        "source": "soak-minute-26",
+        "target": "soak-minute-27"
+      },
+      {
+        "id": "soak-27-28",
+        "source": "soak-minute-27",
+        "target": "soak-minute-28"
+      },
+      {
+        "id": "soak-28-29",
+        "source": "soak-minute-28",
+        "target": "soak-minute-29"
+      },
+      {
+        "id": "soak-29-30",
+        "source": "soak-minute-29",
+        "target": "soak-minute-30"
+      },
+      {
+        "id": "soak-30-31",
+        "source": "soak-minute-30",
+        "target": "soak-minute-31"
+      },
+      {
+        "id": "soak-31-32",
+        "source": "soak-minute-31",
+        "target": "soak-minute-32"
+      },
+      {
+        "id": "soak-32-33",
+        "source": "soak-minute-32",
+        "target": "soak-minute-33"
+      },
+      {
+        "id": "soak-33-34",
+        "source": "soak-minute-33",
+        "target": "soak-minute-34"
+      },
+      {
+        "id": "soak-34-35",
+        "source": "soak-minute-34",
+        "target": "soak-minute-35"
+      },
+      {
+        "id": "soak-35-36",
+        "source": "soak-minute-35",
+        "target": "soak-minute-36"
+      },
+      {
+        "id": "soak-36-37",
+        "source": "soak-minute-36",
+        "target": "soak-minute-37"
+      },
+      {
+        "id": "soak-37-38",
+        "source": "soak-minute-37",
+        "target": "soak-minute-38"
+      },
+      {
+        "id": "soak-38-39",
+        "source": "soak-minute-38",
+        "target": "soak-minute-39"
+      },
+      {
+        "id": "soak-39-40",
+        "source": "soak-minute-39",
+        "target": "soak-minute-40"
+      },
+      {
+        "id": "soak-40-41",
+        "source": "soak-minute-40",
+        "target": "soak-minute-41"
+      },
+      {
+        "id": "soak-41-42",
+        "source": "soak-minute-41",
+        "target": "soak-minute-42"
+      },
+      {
+        "id": "soak-42-43",
+        "source": "soak-minute-42",
+        "target": "soak-minute-43"
+      },
+      {
+        "id": "soak-43-44",
+        "source": "soak-minute-43",
+        "target": "soak-minute-44"
+      },
+      {
+        "id": "soak-44-45",
+        "source": "soak-minute-44",
+        "target": "soak-minute-45"
+      },
+      {
+        "id": "soak-45-46",
+        "source": "soak-minute-45",
+        "target": "soak-minute-46"
+      },
+      {
+        "id": "soak-46-47",
+        "source": "soak-minute-46",
+        "target": "soak-minute-47"
+      },
+      {
+        "id": "soak-47-48",
+        "source": "soak-minute-47",
+        "target": "soak-minute-48"
+      },
+      {
+        "id": "soak-48-49",
+        "source": "soak-minute-48",
+        "target": "soak-minute-49"
+      },
+      {
+        "id": "soak-49-50",
+        "source": "soak-minute-49",
+        "target": "soak-minute-50"
+      },
+      {
+        "id": "soak-50-51",
+        "source": "soak-minute-50",
+        "target": "soak-minute-51"
+      },
+      {
+        "id": "soak-51-52",
+        "source": "soak-minute-51",
+        "target": "soak-minute-52"
+      },
+      {
+        "id": "soak-52-53",
+        "source": "soak-minute-52",
+        "target": "soak-minute-53"
+      },
+      {
+        "id": "soak-53-54",
+        "source": "soak-minute-53",
+        "target": "soak-minute-54"
+      },
+      {
+        "id": "soak-54-55",
+        "source": "soak-minute-54",
+        "target": "soak-minute-55"
+      },
+      {
+        "id": "soak-55-56",
+        "source": "soak-minute-55",
+        "target": "soak-minute-56"
+      },
+      {
+        "id": "soak-56-57",
+        "source": "soak-minute-56",
+        "target": "soak-minute-57"
+      },
+      {
+        "id": "soak-57-58",
+        "source": "soak-minute-57",
+        "target": "soak-minute-58"
+      },
+      {
+        "id": "soak-58-59",
+        "source": "soak-minute-58",
+        "target": "soak-minute-59"
+      },
+      {
+        "id": "soak-59-60",
+        "source": "soak-minute-59",
+        "target": "soak-minute-60"
+      },
+      {
+        "id": "e64",
+        "source": "soak-minute-60",
+        "target": "stop-recording"
+      },
+      {
+        "id": "e6",
+        "source": "stop-recording",
+        "target": "wait-terminal"
+      },
+      {
+        "id": "e7",
+        "source": "wait-terminal",
+        "target": "assert-terminal-composer"
+      },
+      {
+        "id": "e8",
+        "source": "assert-terminal-composer",
+        "target": "capture-evidence"
+      }
+    ]
+  },
+  "change_description": "Initial workflow creation",
+  "created_at": "2026-08-09T10:10:18.198076622Z"
+}

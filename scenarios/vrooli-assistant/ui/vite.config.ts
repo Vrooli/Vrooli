@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 export default defineConfig(() => ({
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   build: {
     outDir: resolve(__dirname, '../api/webui'),
     emptyOutDir: true,

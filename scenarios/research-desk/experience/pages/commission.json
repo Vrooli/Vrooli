@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "commission",
+    "title": "Commission",
+    "routes": [
+      "/commissions/:id"
+    ],
+    "purpose": "One commission's state with every source on tap, what changed, steering (Say, controls, courier), its start-up read and its files.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-007",
+      "OT-P0-012",
+      "OT-P0-013"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Status tab: facts with evidence, changes since last look, sessions and launch timeline."
+    },
+    {
+      "id": "steering-off",
+      "description": "An older charter does not read the operator file; Enable steering is offered with the exact line the API's dry run says it adds, or that it is already there."
+    },
+    {
+      "id": "submitting",
+      "description": "Every control and Say entry is confirmed with exactly what will be typed or written and where; a Say entry shows the API's dry-run text and when the supervisor reads it (next unit, after resume, not until steering is enabled, or never), as a warning when it waits."
+    },
+    {
+      "id": "partial",
+      "description": "Agent Manager is down: session-derived values read unknown, controls are disabled with the reason."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "empty",
+      "description": "The commission folder holds only a packet: facts read unknown or none, and the launch steps are offered."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

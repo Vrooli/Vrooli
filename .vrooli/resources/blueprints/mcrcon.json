@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "mcrcon",
+  "display_name": "mcrcon",
+  "category": "gaming",
+  "summary": "Minecraft RCON client for remote server administration and automation workflows.",
+  "why_it_matters": "mcrcon remains useful capability knowledge for game-server automation, but current Vrooli usage does not justify maintaining it as an active resource.",
+  "when_to_use": [
+    "A future scenario needs remote Minecraft server administration.",
+    "Operators want scripted RCON access for server tasks and moderation.",
+    "The workflow benefits from lightweight command execution rather than a full game-management stack."
+  ],
+  "example_scenarios": [
+    "Game server automation",
+    "Player moderation helpers",
+    "Minecraft event integrations"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "notes": "The client itself is lightweight and portable, but useful operation depends on reachable compatible RCON servers.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Reachable Minecraft server with RCON enabled",
+    "Credential handling for admin access",
+    "Defined server automation use cases"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Promotion should validate a real server control workflow.",
+    "Keep client support separate from server provisioning support.",
+    "Avoid speculative maintenance if there is no active game-server scenario."
+  ],
+  "operational_notes": [
+    "RCON credentials should be treated as privileged secrets.",
+    "Validation should run a safe command against a known test server.",
+    "Support quality depends on the server resource, not only the client."
+  ],
+  "risks": [
+    "Client-only wrappers add little value without active server workflows.",
+    "Credential misuse has obvious operational consequences."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "mcrcon"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/mcrcon"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

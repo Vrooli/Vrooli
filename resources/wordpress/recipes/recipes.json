@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "recipes": [
+    {
+      "id": "forms-contact-form-7",
+      "version": 1,
+      "kind": "forms",
+      "title": "Contact intake with Contact Form 7",
+      "plugins": [
+        "contact-form-7"
+      ],
+      "site": {
+        "title": "K3 Contact Form 7 Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "content": {
+        "pages": [
+          {
+            "slug": "contact",
+            "title": "Contact",
+            "form": {
+              "name": "full-name",
+              "email": "email",
+              "message": "message",
+              "hiddenEventID": {
+                "name": "event_id",
+                "cssClass": "vrooli-event-id",
+                "purpose": "stable idempotency key across retries of this submission",
+                "default": ""
+              },
+              "tag": "[hidden event_id class:vrooli-event-id]"
+            }
+          }
+        ]
+      },
+      "expectedLevels": [
+        "forms.cf7.valid",
+        "forms.invalid-email",
+        "forms.missing-name",
+        "forms.replayed-event",
+        "forms.lost-response-replay"
+      ]
+    },
+    {
+      "id": "forms-wpforms-lite",
+      "version": 1,
+      "kind": "forms",
+      "title": "Contact intake with WPForms Lite",
+      "plugins": [
+        "wpforms-lite"
+      ],
+      "site": {
+        "title": "K3 WPForms Lite Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "content": {
+        "pages": [
+          {
+            "slug": "contact",
+            "title": "Contact",
+            "form": {
+              "name": "full-name",
+              "email": "email",
+              "message": "message",
+              "hiddenEventID": {
+                "name": "event_id",
+                "cssClass": "vrooli-event-id",
+                "purpose": "stable idempotency key across retries of this submission",
+                "default": ""
+              },
+              "field": {
+                "type": "hidden",
+                "label": "Event ID",
+                "cssClass": "vrooli-event-id"
+              }
+            }
+          }
+        ]
+      },
+      "expectedLevels": [
+        "forms.wpforms-lite.valid",
+        "forms.invalid-email",
+        "forms.missing-name",
+        "forms.replayed-event",
+        "forms.lost-response-replay"
+      ]
+    },
+    {
+      "id": "forms-forminator",
+      "version": 1,
+      "kind": "forms",
+      "title": "Contact intake with Forminator",
+      "plugins": [
+        "forminator"
+      ],
+      "site": {
+        "title": "K3 Forminator Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "content": {
+        "pages": [
+          {
+            "slug": "contact",
+            "title": "Contact",
+            "form": {
+              "name": "full-name",
+              "email": "email",
+              "message": "message",
+              "hiddenEventID": {
+                "name": "event_id",
+                "cssClass": "vrooli-event-id",
+                "purpose": "stable idempotency key across retries of this submission",
+                "default": ""
+              },
+              "field": {
+                "type": "hidden",
+                "label": "Event ID",
+                "name": "hidden-1",
+                "cssClass": "vrooli-event-id"
+              }
+            }
+          }
+        ]
+      },
+      "expectedLevels": [
+        "forms.forminator.valid",
+        "forms.invalid-email",
+        "forms.missing-name",
+        "forms.replayed-event",
+        "forms.lost-response-replay"
+      ]
+    },
+    {
+      "id": "shop-woocommerce",
+      "version": 1,
+      "kind": "shop",
+      "title": "Synthetic WooCommerce catalog and orders",
+      "plugins": [
+        "woocommerce"
+      ],
+      "site": {
+        "title": "K3 WooCommerce Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "settings": {
+        "storeCountry": "US",
+        "currency": "USD",
+        "paymentsEnabled": false,
+        "shippingEnabled": false,
+        "taxesEnabled": false
+      },
+      "content": {
+        "products": [
+          {
+            "sku": "K3-BOOK-001",
+            "name": "Field Notes Book",
+            "type": "simple",
+            "price": "18.00",
+            "stock": 30
+          },
+          {
+            "sku": "K3-MUG-002",
+            "name": "Workshop Mug",
+            "type": "simple",
+            "price": "12.50",
+            "stock": 24
+          },
+          {
+            "sku": "K3-SET-003",
+            "name": "Starter Bundle",
+            "type": "simple",
+            "price": "27.00",
+            "stock": 8
+          }
+        ],
+        "orders": [
+          {
+            "number": "K3-ORDER-1001",
+            "status": "processing",
+            "customerEmail": "buyer-1@example.invalid",
+            "skus": [
+              "K3-BOOK-001",
+              "K3-MUG-002"
+            ]
+          },
+          {
+            "number": "K3-ORDER-1002",
+            "status": "completed",
+            "customerEmail": "buyer-2@example.invalid",
+            "skus": [
+              "K3-SET-003"
+            ]
+          },
+          {
+            "number": "K3-ORDER-1003",
+            "status": "on-hold",
+            "customerEmail": "buyer-3@example.invalid",
+            "skus": [
+              "K3-BOOK-001"
+            ]
+          }
+        ]
+      },
+      "expectedLevels": [
+        "shop.product-catalog",
+        "shop.order-export",
+        "shop.order-replay",
+        "shop.lost-response-replay",
+        "shop.status-change"
+      ]
+    },
+    {
+      "id": "content-core-blog",
+      "version": 1,
+      "kind": "content",
+      "title": "Blog with WordPress core custom fields",
+      "plugins": [],
+      "site": {
+        "title": "K3 Core Content Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "settings": {
+        "fieldProvider": "wordpress-core-post-meta"
+      },
+      "content": {
+        "posts": [
+          {
+            "slug": "measured-onboarding",
+            "title": "A measured onboarding improvement",
+            "content": "<h2>Baseline and follow-up</h2><p>The synthetic onboarding sample records a 24 point baseline before the review. The team then compares the result with a follow-up sample and records the evidence needed to reproduce the measurement.</p>",
+            "excerpt": "A synthetic onboarding measurement with a recorded baseline.",
+            "categories": [
+              "Case Studies",
+              "Onboarding"
+            ],
+            "tags": [
+              "synthetic",
+              "measurement"
+            ],
+            "status": "publish",
+            "client_type": "synthetic",
+            "outcome_metric": 24,
+            "verified_on": "2026-11-14"
+          },
+          {
+            "slug": "content-migration",
+            "title": "A controlled content migration",
+            "content": "<h2>Preserve source structure</h2><p>This synthetic article checks that content and metadata move together. The source and destination preserve the title, excerpt, editorial taxonomy, status, and custom fields through repeatable migration.</p>",
+            "excerpt": "A synthetic migration record with explicit custom fields.",
+            "categories": [
+              "Content Operations"
+            ],
+            "tags": [
+              "synthetic",
+              "migration"
+            ],
+            "status": "publish",
+            "client_type": "synthetic",
+            "outcome_metric": 6,
+            "verified_on": "2026-11-14"
+          }
+        ]
+      },
+      "expectedLevels": [
+        "content.custom-field-read",
+        "content.missing-field",
+        "content.update-idempotency"
+      ]
+    },
+    {
+      "id": "content-pods-blog",
+      "version": 1,
+      "kind": "content",
+      "title": "Blog with Pods custom fields",
+      "plugins": [
+        "pods"
+      ],
+      "site": {
+        "title": "K3 Content Ground",
+        "language": "en_US",
+        "timezone": "UTC",
+        "permalinks": "/%postname%/"
+      },
+      "content": {
+        "customType": {
+          "name": "case_study",
+          "label": "Case studies",
+          "fields": [
+            {
+              "name": "client_type",
+              "type": "text"
+            },
+            {
+              "name": "outcome_metric",
+              "type": "number"
+            },
+            {
+              "name": "verified_on",
+              "type": "date"
+            }
+          ]
+        },
+        "posts": [
+          {
+            "slug": "measured-onboarding",
+            "title": "A measured onboarding improvement",
+            "status": "publish",
+            "client_type": "synthetic",
+            "outcome_metric": 24,
+            "verified_on": "2026-11-14"
+          },
+          {
+            "slug": "content-migration",
+            "title": "A controlled content migration",
+            "status": "publish",
+            "client_type": "synthetic",
+            "outcome_metric": 6,
+            "verified_on": "2026-11-14"
+          }
+        ]
+      },
+      "expectedLevels": [
+        "content.custom-type",
+        "content.custom-field-read",
+        "content.missing-field",
+        "content.update-idempotency"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,413 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "token-economy",
+  "description": "Token Economy typed operator, adapter, and holder commands for the complete lifecycle.",
+  "groups": [
+    {
+      "name": "mints",
+      "description": "Declare, inspect, retire, and issue token supply.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Declare a token type.",
+          "flags": [
+            { "name": "name", "required": true },
+            { "name": "symbol", "required": true },
+            { "name": "color", "required": true },
+            { "name": "supply-policy", "required": true, "values": ["SUPPLY_POLICY_UNBOUNDED", "SUPPLY_POLICY_CAPPED", "SUPPLY_POLICY_FIXED"] },
+            { "name": "cap-amount" },
+            { "name": "minter-subject", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "CreateTokenType" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "show",
+          "description": "Show one token type.",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "GetTokenType" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "list",
+          "description": "List token types.",
+          "flags": [{ "name": "include-retired", "values": ["true", "false"], "default": "false" }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListTokenTypes" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "token_types" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List the token types declared in this household economy.",
+            "questions": ["What token types exist?", "Which token types are active?"],
+            "result": { "kind": "table", "value_field": "token_types", "unit": "token types", "summary_template": "Declared token types: {token_types}" }
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Retire a token type without deleting history.",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "RetireTokenType" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "mint",
+          "description": "Increase issued supply without changing a holder balance.",
+          "positionals": [{ "name": "token-type-id", "required": true }],
+          "flags": [{ "name": "amount", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "MintSupply" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        }
+      ]
+    },
+    {
+      "name": "holders",
+      "description": "Administer holders and inspect the authenticated holder projection.",
+      "commands": [
+        {
+          "name": "add",
+          "description": "Create a holder bound to an authenticator subject.",
+          "flags": [
+            { "name": "display-name", "required": true },
+            { "name": "authenticator-subject", "required": true },
+            { "name": "idempotency-key", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "CreateHolder" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "show",
+          "description": "Show one holder as a minter.",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "GetHolder" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "list",
+          "description": "List holders as a minter.",
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListHolders" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "holders" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List holder identities participating in the economy.",
+            "questions": ["Who can hold tokens?", "How many holders are registered?"],
+            "result": { "kind": "table", "value_field": "holders", "unit": "holders", "summary_template": "Registered holders: {holders}" }
+          }
+        },
+        {
+          "name": "view",
+          "description": "View the authenticated holder's history and balances.",
+          "binding": { "kind": "connect-rpc", "service": "HolderService", "method": "ViewEconomy" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "events" },
+          "semantics": { "kind": "query" }
+        }
+      ]
+    },
+    {
+      "name": "earning",
+      "description": "Submit and inspect adapter earning receipts.",
+      "commands": [
+        {
+          "name": "submit",
+          "description": "Submit an earning through the authenticated adapter contract.",
+          "flags": [
+            { "name": "holder-id", "required": true },
+            { "name": "token-type-id", "required": true },
+            { "name": "amount-minor", "required": true },
+            { "name": "reason", "required": true },
+            { "name": "dedup-key", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EarningService", "method": "SubmitEarning" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "list",
+          "description": "List privacy-minimal earning receipts.",
+          "binding": { "kind": "connect-rpc", "service": "EarningService", "method": "ListEarnings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "submissions" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List durable earning adapter receipts.",
+            "questions": ["Which earning submissions were accepted?", "How many earning receipts exist?"],
+            "result": { "kind": "table", "value_field": "submissions", "unit": "earning submissions", "summary_template": "Earning submissions: {submissions}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "grants",
+      "description": "Issue, inspect, list, and revoke grants.",
+      "commands": [
+        {
+          "name": "issue",
+          "description": "Issue a grant and its atomic journal credit.",
+          "flags": [
+            { "name": "token-type-id", "required": true },
+            { "name": "grant-source-id", "required": true },
+            { "name": "authorizer", "required": true },
+            { "name": "holder-id", "required": true },
+            { "name": "amount-minor", "required": true },
+            { "name": "allowed-catalog-scopes", "bind": { "field": "allowed_catalog_scopes", "kind": "json_inline" } },
+            { "name": "denied-catalog-scopes", "bind": { "field": "denied_catalog_scopes", "kind": "json_inline" } },
+            { "name": "expires-at", "required": true, "description": "RFC3339 timestamp encoded as a JSON string.", "bind": { "field": "expires_at", "kind": "json_inline" } },
+            { "name": "idempotency-key", "required": true },
+            { "name": "required-evidence", "bind": { "field": "required_evidence", "kind": "json_inline" } },
+            { "name": "rules", "description": "JSON array of GrantRule objects.", "bind": { "field": "rules", "kind": "json_inline" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "CreateGrant" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "show",
+          "description": "Show one grant.",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "GetGrant" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "list",
+          "description": "List grants with optional holder and token filters.",
+          "flags": [
+            { "name": "holder-id" },
+            { "name": "token-type-id" },
+            { "name": "include-inactive", "values": ["true", "false"], "default": "false" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListGrants" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "grants" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List issued grants and their lifecycle state.",
+            "questions": ["Which grants are live?", "What grants belong to a holder?"],
+            "result": { "kind": "table", "value_field": "grants", "unit": "grants", "summary_template": "Issued grants: {grants}" }
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a live grant idempotently.",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [{ "name": "reason", "required": true }, { "name": "idempotency-key", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "RevokeGrant" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        }
+      ]
+    },
+    {
+      "name": "journal",
+      "description": "Inspect immutable events, balances, exports, and reversals.",
+      "commands": [
+        {
+          "name": "events",
+          "description": "List journal events for a holder and optional token type.",
+          "flags": [{ "name": "holder-id", "required": true }, { "name": "token-type-id" }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListJournalEvents" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "events" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List immutable balance-changing journal events.",
+            "questions": ["Why did this balance change?", "Which events affect this holder?"],
+            "result": { "kind": "table", "value_field": "events", "unit": "journal events", "summary_template": "Journal events: {events}" }
+          }
+        },
+        {
+          "name": "balance",
+          "description": "Show a holder's event-derived balance.",
+          "flags": [{ "name": "holder-id", "required": true }, { "name": "token-type-id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ShowBalance" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "export",
+          "description": "Export journal events as a typed JSON report.",
+          "flags": [{ "name": "holder-id", "required": true }, { "name": "token-type-id" }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ExportJournal" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "events" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "reverse",
+          "description": "Correct an event by appending an immutable reversal.",
+          "positionals": [{ "name": "original-event-id", "required": true }],
+          "flags": [{ "name": "reason", "required": true }, { "name": "idempotency-key", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ReverseEvent" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "description": "Manage the reward catalog and browse its holder projection.",
+      "commands": [
+        {
+          "name": "add",
+          "description": "Add a catalog entry from an inline JSON object.",
+          "flags": [
+            { "name": "entry", "required": true, "bind": { "field": "entry", "kind": "json_inline" } },
+            { "name": "idempotency-key", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "CreateCatalogEntry" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "update",
+          "description": "Update a catalog entry from an inline JSON object.",
+          "flags": [
+            { "name": "entry", "required": true, "bind": { "field": "entry", "kind": "json_inline" } },
+            { "name": "idempotency-key", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "UpdateCatalogEntry" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "show",
+          "description": "Show one catalog entry.",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "GetCatalogEntry" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "list",
+          "description": "List catalog entries as a minter.",
+          "flags": [{ "name": "include-retired", "values": ["true", "false"], "default": "false" }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListCatalogEntries" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "entries" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List rewards declared in the catalog.",
+            "questions": ["What can tokens buy?", "Which catalog entries are active?"],
+            "result": { "kind": "table", "value_field": "entries", "unit": "catalog entries", "summary_template": "Catalog entries: {entries}" }
+          }
+        },
+        {
+          "name": "browse",
+          "description": "Browse the active catalog as an authenticated holder.",
+          "binding": { "kind": "connect-rpc", "service": "HolderService", "method": "BrowseCatalog" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "entries" },
+          "semantics": { "kind": "query" }
+        },
+        {
+          "name": "retire",
+          "description": "Retire a catalog entry.",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [{ "name": "idempotency-key", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "RetireCatalogEntry" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        }
+      ]
+    },
+    {
+      "name": "redemption",
+      "description": "Request rewards and administer the durable approval queue.",
+      "commands": [
+        {
+          "name": "redeem",
+          "description": "Request redemption as an authenticated holder.",
+          "flags": [
+            { "name": "redemption", "required": true, "bind": { "field": "redemption", "kind": "json_inline" } },
+            { "name": "idempotency-key", "required": true },
+            { "name": "evidence", "bind": { "field": "evidence", "kind": "json_inline" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "HolderService", "method": "RequestRedemption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "approvals",
+          "description": "List pending redemption approvals.",
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ListPendingRedemptions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list", "primary_field": "redemptions" },
+          "semantics": { "kind": "query" },
+          "measure": {
+            "intent": "List redemption requests awaiting a minter decision.",
+            "questions": ["Which redemptions need approval?", "How large is the approval queue?"],
+            "result": { "kind": "table", "value_field": "redemptions", "unit": "pending redemptions", "summary_template": "Pending redemptions: {redemptions}" }
+          }
+        },
+        {
+          "name": "approve",
+          "description": "Approve and settle a pending redemption exactly once.",
+          "positionals": [{ "name": "redemption-id", "required": true }],
+          "flags": [{ "name": "reason" }, { "name": "idempotency-key", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "ApproveRedemption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        },
+        {
+          "name": "deny",
+          "description": "Deny a pending redemption and release its reservation.",
+          "positionals": [{ "name": "redemption-id", "required": true }],
+          "flags": [{ "name": "reason", "required": true }, { "name": "idempotency-key", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "MinterService", "method": "DenyRedemption" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"], "requires_confirmation": true },
+          "architecture": { "primitive": "proto_mutation" },
+          "semantics": { "kind": "mutate" }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      { "domain": "mints", "stateful": true, "reason": "Token declarations and issued supply are persisted." },
+      { "domain": "holders", "stateful": true, "reason": "Holder identity bindings are persisted." },
+      { "domain": "earning", "stateful": true, "reason": "Privacy-minimal adapter receipts are persisted." },
+      { "domain": "grants", "stateful": true, "reason": "Grant mandates and lifecycle state are persisted." },
+      { "domain": "journal", "stateful": true, "reason": "Immutable balance events and reversals are persisted." },
+      { "domain": "catalog", "stateful": true, "reason": "Catalog entries and retirement state are persisted." },
+      { "domain": "redemption", "stateful": true, "reason": "Requests, reservations, and decisions are persisted." }
+    ]
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "MinterService",
+      "method": "UpdateGrantRule",
+      "reason": "The server deliberately does not implement post-issue grant-rule mutation; issued authorization evidence remains immutable. Revoke and reissue instead."
+    },
+    {
+      "service": "HolderService",
+      "method": "SubmitRequest",
+      "reason": "General holder requests remain outside the specified token-economy product contract."
+    }
+  ]
+}

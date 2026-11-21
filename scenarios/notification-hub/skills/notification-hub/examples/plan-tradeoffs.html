@@ -1,0 +1,72 @@
+<!doctype html>
+<!--
+  Technique: review a plan's trade-offs as options against a few criteria.
+  Shows: table.hub-tradeoffs (stacks into cards on a phone), .hub-chip, .hub-callout.
+  Based on a real decision about who Career Desk, a job-application tool,
+  should be built for first. No attachments, so the command is short:
+
+  notification-hub conversations ask \
+    --question 'Who should we build Career Desk for first: one person on their own computer, individual customers we host, or coaching teams?' \
+    --big-picture '...' \
+    --option 'self-hosted=Start with one person running it on their own computer' \
+    --option 'hosted=Design for individual customers we host from the first release' \
+    --option 'teams=Aim at coaches and teams from the start' \
+    --recommend self-hosted --recommend-reason '...' \
+    --subject-key career-desk-first-customer \
+    --packet ./work/SINGLE-PERSON-FIRST \
+    --explainer ./plan-tradeoffs.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Career Desk is for first</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; }
+  h1, h2, th, .hub-chip, button { font-family: var(--hub-font); }
+  h1 { font-size: 1.625rem; }
+  .kicker { font: 600 0.75rem/1 var(--hub-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hub-accent); margin: 0 0 0.5rem; }
+  table.hub-tradeoffs th[scope="row"] { font-weight: 700; }
+  .verdict { margin: 1.5rem 0 0; }
+</style>
+</head>
+<body>
+  <p class="kicker">Career Desk &middot; first customer</p>
+  <h1>Who should the first version serve?</h1>
+  <p>Career Desk is the job-application tool we are building. We have found a plausible fit for people who want to keep their job-search data private, but nobody outside has shown demand yet. The first choice sets how much we have to build and secure, so it is worth making on purpose. It guides the build; it does not hold it up.</p>
+
+  <table class="hub-tradeoffs">
+    <thead>
+      <tr><th>Option</th><th>Who uses it</th><th>Where the data lives</th><th>Work for us</th></tr>
+    </thead>
+    <tbody>
+      <tr class="is-recommended">
+        <th scope="row">Self-hosted, one person <span class="hub-chip is-success">Recommended</span></th>
+        <td data-label="Who uses it">One owner, running it themselves</td>
+        <td data-label="Where the data lives">On their own computer</td>
+        <td data-label="Work for us">Least. One workflow to prove first.</td>
+      </tr>
+      <tr>
+        <th scope="row">Hosted, individuals</th>
+        <td data-label="Who uses it">Individual customers</td>
+        <td data-label="Where the data lives">With us, so we must protect it</td>
+        <td data-label="Work for us">More. We run the service and answer for the data.</td>
+      </tr>
+      <tr>
+        <th scope="row">Coaches and teams</th>
+        <td data-label="Who uses it">Coaches and workforce teams</td>
+        <td data-label="Where the data lives">Shared between several people</td>
+        <td data-label="Work for us">Most. Separate workspaces, more security, more operations.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>What happens when you approve</h2>
+  <p>I start with the single-person version this week and show you the first working screen.</p>
+  <button type="button" class="is-quiet" data-hub-open="BRIEF.md">Read the prepared plan</button>
+
+  <div class="hub-callout">
+    <strong>Why the first row.</strong> It lets us check whether the idea works for one real person before we take on hosting or teams. We can widen later when outside evidence supports it.
+  </div>
+</body>
+</html>

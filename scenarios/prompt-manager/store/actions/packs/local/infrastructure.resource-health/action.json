@@ -1,0 +1,49 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "infrastructure.resource-health",
+  "name": "Observe resource health without an artifact byte audit",
+  "description": "Read fleet process ownership, health and placement through the native control plane without hashing entire installed runtimes. Managed-service artifact_verification is not_evaluated; this observation does not authorize acquisition or launch.",
+  "status": "active",
+  "owner": {
+    "type": "project",
+    "id": "vrooli"
+  },
+  "command": {
+    "argv": [
+      "vrooli",
+      "resource",
+      "status",
+      "--health-only",
+      "--json"
+    ]
+  },
+  "outputs": {
+    "report": {
+      "type": "string",
+      "description": "Typed fleet JSON health observations with explicit artifact-verification scope."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "processStart": true
+  },
+  "tags": [
+    "infrastructure",
+    "resources",
+    "health",
+    "io",
+    "monitoring"
+  ],
+  "execution": {
+    "timeoutSeconds": 60,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-11-05T22:33:05Z",
+  "updatedAt": "2026-11-05T22:33:05Z"
+}

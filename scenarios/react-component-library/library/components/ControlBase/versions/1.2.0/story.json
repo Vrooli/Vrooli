@@ -1,0 +1,589 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "XS",
+        "density": "comfortable",
+        "size": "xs"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeXs",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XS",
+          "role": "button"
+        }
+      ],
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "Extra small",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "SM",
+        "density": "comfortable",
+        "size": "sm"
+      },
+      "axis": "size",
+      "composition": {
+        "specimen": {
+          "export": "SizeSm",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "SM",
+          "role": "button"
+        }
+      ],
+      "id": "size-sm",
+      "mode": "pinned",
+      "name": "Small",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "MD",
+        "density": "comfortable",
+        "size": "md"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeMd",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "MD",
+          "role": "button"
+        }
+      ],
+      "id": "size-md",
+      "mode": "pinned",
+      "name": "Medium",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "LG",
+        "density": "comfortable",
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeLg",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "LG",
+          "role": "button"
+        }
+      ],
+      "id": "size-lg",
+      "mode": "pinned",
+      "name": "Large",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "XL",
+        "density": "comfortable",
+        "size": "xl"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeXl",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XL",
+          "role": "button"
+        }
+      ],
+      "id": "size-xl",
+      "mode": "pinned",
+      "name": "Extra large",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "aria-label": "Icon action",
+        "children": "•",
+        "density": "comfortable",
+        "size": "icon"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Icon action",
+          "role": "button"
+        }
+      ],
+      "id": "size-icon",
+      "mode": "pinned",
+      "name": "Icon",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Compact",
+        "density": "compact",
+        "size": "md"
+      },
+      "axis": "density",
+      "composition": {
+        "specimen": {
+          "export": "DensityCompact",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Compact",
+          "role": "button"
+        }
+      ],
+      "id": "density-compact",
+      "mode": "pinned",
+      "name": "Compact density",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Primary",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "primary"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantPrimary",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Primary",
+          "role": "button"
+        }
+      ],
+      "id": "variant-primary",
+      "mode": "pinned",
+      "name": "Primary",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Secondary",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "secondary"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantSecondary",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Secondary",
+          "role": "button"
+        }
+      ],
+      "id": "variant-secondary",
+      "mode": "pinned",
+      "name": "Secondary",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Ghost",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "ghost"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantGhost",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Ghost",
+          "role": "button"
+        }
+      ],
+      "id": "variant-ghost",
+      "mode": "pinned",
+      "name": "Ghost",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Danger",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "danger"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantDanger",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Danger",
+          "role": "button"
+        }
+      ],
+      "id": "variant-danger",
+      "mode": "pinned",
+      "name": "Danger",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Default",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "default"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantDefault",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Default",
+          "role": "button"
+        }
+      ],
+      "id": "variant-default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Outline",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "outline"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantOutline",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Outline",
+          "role": "button"
+        }
+      ],
+      "id": "variant-outline",
+      "mode": "pinned",
+      "name": "Outline",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Destructive",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "destructive"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantDestructive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Destructive",
+          "role": "button"
+        }
+      ],
+      "id": "variant-destructive",
+      "mode": "pinned",
+      "name": "Destructive",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Info",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "info"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantInfo",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Info",
+          "role": "button"
+        }
+      ],
+      "id": "variant-info",
+      "mode": "pinned",
+      "name": "Info",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Success",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "success"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantSuccess",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Success",
+          "role": "button"
+        }
+      ],
+      "id": "variant-success",
+      "mode": "pinned",
+      "name": "Success",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Warning",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "warning"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantWarning",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Warning",
+          "role": "button"
+        }
+      ],
+      "id": "variant-warning",
+      "mode": "pinned",
+      "name": "Warning",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Error",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "error"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Error",
+          "role": "button"
+        }
+      ],
+      "id": "variant-error",
+      "mode": "pinned",
+      "name": "Error",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Pipeline",
+        "density": "comfortable",
+        "size": "md",
+        "variant": "pipeline"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantPipeline",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Pipeline",
+          "role": "button"
+        }
+      ],
+      "id": "variant-pipeline",
+      "mode": "pinned",
+      "name": "Pipeline",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "children": "Empty",
+        "density": "comfortable",
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty control label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Loading",
+        "density": "comfortable",
+        "pending": true,
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Pending control",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Error",
+        "density": "comfortable",
+        "invalid": true,
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Invalid control",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "A deliberately long control label that must wrap or truncate without losing its action semantics",
+        "density": "comfortable",
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button"
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long control label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Dense",
+        "denseTapTarget": true,
+        "density": "comfortable",
+        "size": "xs"
+      },
+      "composition": {
+        "specimen": {
+          "export": "TapTargetDense",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Dense",
+          "role": "button"
+        }
+      ],
+      "id": "tap-target-dense",
+      "mode": "pinned",
+      "name": "Dense tap target",
+      "role": "boundary"
+    }
+  ]
+}

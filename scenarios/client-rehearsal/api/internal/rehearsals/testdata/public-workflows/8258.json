@@ -1,0 +1,382 @@
+{
+  "nodes": [
+    {
+      "id": "5029ae4f-cddf-4ea3-887b-24dfe0bd4526",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        -240
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {},
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "9722f40e-5f71-4e2f-b774-30abaf2cd12b",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        64
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "61ab48f4-cbc4-4fe6-b999-5c8179c2f199",
+      "name": "Webhook2",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        1200
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {},
+        "httpMethod": "PUT"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "52473972-d31a-4d2d-b7bd-4021b218dbf1",
+      "name": "Webhook3",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        352
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {
+          "ipWhitelist": "",
+          "allowedOrigins": "*"
+        },
+        "httpMethod": "PATCH",
+        "responseMode": "streaming"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "977d58d2-21f2-456e-8c32-188f4058d8e5",
+      "name": "Webhook4",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        640
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {},
+        "httpMethod": "DELETE"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "6cb10c72-df1e-4b00-a616-1b814d39e49f",
+      "name": "Webhook5",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -80,
+        928
+      ],
+      "parameters": {
+        "path": "synthetic-contacts",
+        "options": {},
+        "httpMethod": "HEAD"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "d11d5a46-2b3e-4e49-beb5-4923f828492a",
+      "name": "Get a row",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        240,
+        -240
+      ],
+      "parameters": {
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email",
+              "keyValue": "={{ $json.query.email }}"
+            }
+          ]
+        },
+        "tableId": "demo_contacts",
+        "operation": "get"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "source-supabaseApi",
+          "name": "Public source supabaseApi"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "edbd8d72-79ea-4101-900e-2635b047300f",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        512,
+        -240
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "typeVersion": 1.4
+    },
+    {
+      "id": "f8d8f340-c194-4c4e-a308-d5c95e8533b9",
+      "name": "Create a row",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        512,
+        64
+      ],
+      "parameters": {
+        "tableId": "demo_contacts",
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "id"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "source-supabaseApi",
+          "name": "Public source supabaseApi"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "5999b69a-5b9f-4f55-9bf3-f579dfe869a1",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        240,
+        64
+      ],
+      "parameters": {
+        "mode": "raw",
+        "options": {},
+        "jsonOutput": "={{ $json.body }}"
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "c04fc7eb-e43a-48bd-a979-ed423b52b9f3",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        240,
+        352
+      ],
+      "parameters": {
+        "mode": "raw",
+        "options": {},
+        "jsonOutput": "={{ $json.body }}"
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "7ec4b8ac-5b1a-4b31-9759-f8b7ed070178",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        752,
+        64
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "typeVersion": 1.4
+    },
+    {
+      "id": "0d50f8f4-df4d-448f-9c05-8e2043e8a8d2",
+      "name": "Respond to Webhook2",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        752,
+        352
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "typeVersion": 1.4
+    },
+    {
+      "id": "481f146d-0d14-4b40-beeb-3f56c548d9cc",
+      "name": "Update a row",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        512,
+        352
+      ],
+      "parameters": {
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.id }}",
+              "condition": "eq"
+            }
+          ]
+        },
+        "tableId": "demo_contacts",
+        "operation": "update",
+        "dataToSend": "autoMapInputData"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "source-supabaseApi",
+          "name": "Public source supabaseApi"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "ae559e34-c048-4ab7-82d6-5e5f34d0f5d5",
+      "name": "Delete a row",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        240,
+        640
+      ],
+      "parameters": {
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.query.id }}",
+              "condition": "eq"
+            }
+          ]
+        },
+        "tableId": "demo_contacts",
+        "operation": "delete"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "source-supabaseApi",
+          "name": "Public source supabaseApi"
+        }
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook4": {
+      "main": [
+        [
+          {
+            "node": "Delete a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "name": "Learn secure webhook APIs with authentication and Supabase integration",
+  "active": false
+}

@@ -5,7 +5,7 @@
  * All metrics are calculated client-side from received frames.
  *
  * PERFORMANCE: This hook is optimized for high-frequency frame updates (30-60 FPS).
- * It uses ref-based tracking internally and only updates React state every 250ms
+ * It uses ref-based tracking internally and only updates React state every second
  * to prevent React reconciliation on every frame, which was causing FPS drops.
  *
  * Metrics tracked:
@@ -42,7 +42,8 @@ interface FrameRecord {
 
 const HISTORY_WINDOW_MS = 5000; // 5 seconds of history
 const CURRENT_WINDOW_MS = 1000; // 1 second for "current" FPS
-const STATE_UPDATE_INTERVAL_MS = 250; // Update React state every 250ms (not every frame!)
+const STATE_UPDATE_INTERVAL_MS = 1000; // Keep UI stats readable without pushing page-wide renders.
+const COMPACT_HEAD_THRESHOLD = 256;
 
 /**
  * Hook for tracking frame delivery statistics.
@@ -71,12 +72,11 @@ export function useFrameStats() {
 
   // Ring buffer of frame records (timestamp + size)
   const historyRef = useRef<FrameRecord[]>([]);
+  const historyHeadRef = useRef(0);
   const totalFramesRef = useRef(0);
   const totalBytesRef = useRef(0);
   const lastFrameSizeRef = useRef(0);
 
-  // Track when we last updated React state to batch updates
-  const lastStateUpdateRef = useRef(0);
   // Track if stats have changed since last state update
   const statsDirtyRef = useRef(false);
 
@@ -96,7 +96,9 @@ export function useFrameStats() {
     // Frames in last 5 seconds (for average)
     let totalSize = 0;
 
-    for (const record of history) {
+    for (let index = historyHeadRef.current; index < history.length; index += 1) {
+      const record = history[index];
+      if (!record) continue;
       totalSize += record.size;
       if (record.timestamp >= currentCutoff) {
         currentFrameCount += 1;
@@ -104,10 +106,11 @@ export function useFrameStats() {
     }
 
     // Calculate averages
-    const firstEntry = history[0];
-    const historyDuration = history.length > 1 && firstEntry ? (now - firstEntry.timestamp) / 1000 : 1;
-    const avgFps = history.length / Math.max(historyDuration, 0.1);
-    const avgFrameSize = history.length > 0 ? totalSize / history.length : 0;
+    const activeLength = history.length - historyHeadRef.current;
+    const firstEntry = history[historyHeadRef.current];
+    const historyDuration = activeLength > 1 && firstEntry ? (now - firstEntry.timestamp) / 1000 : 1;
+    const avgFps = activeLength / Math.max(historyDuration, 0.1);
+    const avgFrameSize = activeLength > 0 ? totalSize / activeLength : 0;
     const bytesPerSecond = historyDuration > 0 ? totalSize / historyDuration : 0;
 
     return {
@@ -140,10 +143,18 @@ export function useFrameStats() {
 
     // Prune old entries (older than HISTORY_WINDOW_MS)
     const cutoff = now - HISTORY_WINDOW_MS;
-    let firstHistoryEntry = history[0];
-    while (firstHistoryEntry && firstHistoryEntry.timestamp < cutoff) {
-      history.shift();
-      firstHistoryEntry = history[0];
+    while (historyHeadRef.current < history.length) {
+      const firstHistoryEntry = history[historyHeadRef.current];
+      if (!firstHistoryEntry || firstHistoryEntry.timestamp >= cutoff) break;
+      historyHeadRef.current += 1;
+    }
+
+    // Pruning advances a cursor in O(1) per expired frame. Compact only after
+    // the inactive prefix is substantial so steady high-rate streams do not
+    // shift the entire retained window on every incoming frame.
+    if (historyHeadRef.current >= COMPACT_HEAD_THRESHOLD && historyHeadRef.current * 2 >= history.length) {
+      historyRef.current = history.slice(historyHeadRef.current);
+      historyHeadRef.current = 0;
     }
 
     // Mark stats as dirty for the next interval update
@@ -158,7 +169,6 @@ export function useFrameStats() {
     const intervalId = setInterval(() => {
       if (statsDirtyRef.current) {
         statsDirtyRef.current = false;
-        lastStateUpdateRef.current = Date.now();
         setStats(calculateStats());
       }
     }, STATE_UPDATE_INTERVAL_MS);
@@ -171,11 +181,11 @@ export function useFrameStats() {
    */
   const reset = useCallback(() => {
     historyRef.current = [];
+    historyHeadRef.current = 0;
     totalFramesRef.current = 0;
     totalBytesRef.current = 0;
     lastFrameSizeRef.current = 0;
     statsDirtyRef.current = false;
-    lastStateUpdateRef.current = 0;
     setStats({
       currentFps: 0,
       avgFps: 0,

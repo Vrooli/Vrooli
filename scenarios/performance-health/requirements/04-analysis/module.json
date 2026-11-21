@@ -1,0 +1,81 @@
+{
+  "_metadata": {
+    "description": "Deterministic trace analysis: per-component aggregation, located findings, and before/after comparison.",
+    "last_validated_at": "2026-07-06T16:19:34-04:00",
+    "module": "analysis",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PH-ANALYSIS-001",
+      "title": "Per-component trace aggregation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The analysis engine parses the perf trace into a per-component count/avg/max table by pairing ⚛ blink.user_timing begin/end events by id2.local, and extracts long-task and paint/LCP signals from the web-vitals artifact.",
+      "tags": [
+        "analysis",
+        "trace",
+        "aggregation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/analysis_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Runs against a checked-in fixture trace and asserts the per-component table, long-task totals, and paint/LCP values."
+        }
+      ]
+    },
+    {
+      "id": "PH-ANALYSIS-002",
+      "title": "Deterministic located findings",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Findings are deterministic (NO AI): each maps a component name to a file:line definition via symbol lookup and carries quantified evidence (count/avg/max, budget delta), emitted through the maturity finding pipeline.",
+      "tags": [
+        "findings",
+        "deterministic",
+        "symbol-lookup"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/findings_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "From a fixture trace + fixture source tree, findings carry file:line locations and quantified evidence; no AI call is made."
+        }
+      ]
+    },
+    {
+      "id": "PH-ANALYSIS-003",
+      "title": "Before/after comparison primitive",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "A comparison verb diffs two traces from the same interaction into a per-component delta table (count/avg/total) plus a long-task delta, surfacing the case where commit cardinality changes but per-commit cost drops.",
+      "tags": [
+        "comparison",
+        "delta",
+        "analysis"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/compare_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Two fixture traces produce a delta table with b-cnt/a-cnt/b-avg/a-avg columns and a long-task delta line."
+        }
+      ]
+    }
+  ]
+}

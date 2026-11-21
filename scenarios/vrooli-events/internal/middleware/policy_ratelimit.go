@@ -1,3 +1,4 @@
+// DOC: docs/guides/managing-policies.md
 package middleware
 
 import (

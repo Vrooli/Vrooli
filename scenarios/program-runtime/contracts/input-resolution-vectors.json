@@ -1,0 +1,42 @@
+[
+  {
+    "name": "defaults_and_optional_inputs",
+    "inputs": {
+      "mode": {"type": "string", "default": "read", "enum": ["read", "write"]},
+      "limit": {"type": "integer", "default": 3},
+      "note": {"type": "string"}
+    },
+    "provided": {"note": "fixture"},
+    "expected": {"mode": "read", "limit": 3, "note": "fixture"}
+  },
+  {
+    "name": "missing_required",
+    "inputs": {"query": {"type": "string", "required": true}},
+    "provided": {},
+    "error_contains": ["missing required input"]
+  },
+  {
+    "name": "unknown_input",
+    "inputs": {"query": {"type": "string"}},
+    "provided": {"other": "value"},
+    "error_contains": ["unknown input", "unexpected keyword"]
+  },
+  {
+    "name": "integer_rejects_fraction",
+    "inputs": {"count": {"type": "integer"}},
+    "provided": {"count": 1.5},
+    "error_contains": ["must have type integer"]
+  },
+  {
+    "name": "boolean_is_not_number",
+    "inputs": {"count": {"type": "number"}},
+    "provided": {"count": true},
+    "error_contains": ["must have type number"]
+  },
+  {
+    "name": "nested_json_enum_distinguishes_boolean_and_number",
+    "inputs": {"payload": {"type": "object", "enum": [{"enabled": true}]}},
+    "provided": {"payload": {"enabled": 1}},
+    "error_contains": ["outside its declared enum"]
+  }
+]

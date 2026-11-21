@@ -1,0 +1,8 @@
+{"text":"My name is John Smith and my email is john.smith@acme.com.","expected":["PERSON","EMAIL_ADDRESS"]}
+{"text":"Please call Sarah at 415-555-0199 before noon.","expected":["PERSON","PHONE_NUMBER"]}
+{"text":"The patient SSN is 123-45-6789 on file.","expected":["US_SSN"]}
+{"text":"Wire the funds to IBAN GB82WEST12345698765432 today.","expected":["IBAN_CODE"]}
+{"text":"Dr. Emily Chen works at Mercy Hospital in Boston.","expected":["PERSON","LOCATION"]}
+{"text":"Card number 4111 1111 1111 1111 expires soon.","expected":["CREDIT_CARD"]}
+{"text":"Contact Michael O'Brien via michael@example.org.","expected":["PERSON","EMAIL_ADDRESS"]}
+{"text":"Her phone is (212) 555-0147 and she lives in Chicago.","expected":["PHONE_NUMBER","LOCATION"]}

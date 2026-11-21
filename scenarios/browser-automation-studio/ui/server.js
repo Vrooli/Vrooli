@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveUIDistDir } from './server-dist-path.js'
 import fs from 'node:fs'
 import zlib from 'node:zlib'
 import { startScenarioServer, injectBaseTag } from '@vrooli/api-base/server'
@@ -13,7 +14,6 @@ const API_HOST = process.env.API_HOST || 'localhost'
 const WS_HOST = process.env.WS_HOST
 const UI_PORT = process.env.UI_PORT || process.env.PORT || '3000'
 const API_PORT = process.env.API_PORT
-const PLAYWRIGHT_DRIVER_PORT = process.env.PLAYWRIGHT_DRIVER_PORT
 
 function ensureApiPort(port) {
   if (!port) {
@@ -108,7 +108,7 @@ function enableGzipStatic(app, distDir) {
 }
 
 export function startServer() {
-  const distDir = path.join(__dirname, 'dist')
+  const distDir = resolveUIDistDir(process.env.BAS_UI_DIST_DIR, __dirname)
   ensureGzipAssetsSync(distDir)
 
   return startScenarioServer({
@@ -116,14 +116,12 @@ export function startServer() {
     apiPort: ensureApiPort(API_PORT),
     apiHost: API_HOST,
     wsHost: WS_HOST || API_HOST,
-    distDir: path.join(__dirname, 'dist'),
+    distDir,
     serviceName: SERVICE_NAME,
     version: VERSION,
-    corsOrigins: '*',
     wsPathPrefix: '/ws',
     wsPathTransform: (pathValue) => pathValue,
     proxyTimeoutMs: 60000,
-    // Include playwright driver port in config for direct WebSocket frame streaming
     configBuilder: (_env) => ({
       apiUrl: `http://${API_HOST}:${API_PORT}/api/v1`,
       wsUrl: `ws://${WS_HOST || API_HOST}:${API_PORT}/ws`,
@@ -132,8 +130,6 @@ export function startServer() {
       uiPort: UI_PORT,
       service: SERVICE_NAME,
       version: VERSION,
-      // Direct frame server port (driver port + 1) for low-latency frame streaming
-      playwrightDriverPort: PLAYWRIGHT_DRIVER_PORT ? parseInt(PLAYWRIGHT_DRIVER_PORT, 10) : undefined,
     }),
     setupRoutes: (app) => {
       enableGzipStatic(app, distDir)

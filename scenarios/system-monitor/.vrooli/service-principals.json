@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "system-monitor-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    }
+  ]
+}

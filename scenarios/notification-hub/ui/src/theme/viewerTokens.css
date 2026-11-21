@@ -1,0 +1,68 @@
+/*
+ * The shared file viewer (@vrooli/file-viewer) is themed with RGB channel
+ * triplets so Tailwind can compose an alpha, which hex tokens cannot supply.
+ * This file is the Hub's mapping from its own palette (theme/tokens.css and
+ * design-tokens.css) into those triplets, one block per theme in the same
+ * selectors as tokens.css. viewerTokens.test.ts fails when a triplet drifts
+ * from the palette color it stands for.
+ *
+ * The dark accent is the palette's lighter focus blue, so links and chips read
+ * on the dark surface; its foreground is the dark ink.
+ */
+
+:root {
+  --fv-surface-base: 247 249 252;
+  --fv-surface-raised: 255 255 255;
+  --fv-surface-input: 255 255 255;
+  --fv-text-primary: 23 35 50;
+  --fv-text-secondary: 23 35 50;
+  --fv-text-muted: 92 108 125;
+  --fv-text-faint: 92 108 125;
+  --fv-border-default: 133 148 164;
+  --fv-border-hover: 92 108 125;
+  --fv-accent: 70 109 213;
+  --fv-accent-fg: 255 255 255;
+  --fv-accent-border: 70 109 213 / 0.4;
+  --fv-error-text: 220 38 38;
+  --fv-error-detail: 220 38 38;
+  --fv-success: 22 163 74;
+}
+
+:root[data-resolved-theme="dark"],
+:root[data-theme="dark"] {
+  --fv-surface-base: 16 24 30;
+  --fv-surface-raised: 23 35 44;
+  --fv-surface-input: 21 34 44;
+  --fv-text-primary: 241 244 247;
+  --fv-text-secondary: 241 244 247;
+  --fv-text-muted: 179 193 204;
+  --fv-text-faint: 179 193 204;
+  --fv-border-default: 53 70 83;
+  --fv-border-hover: 179 193 204;
+  --fv-accent: 114 148 236;
+  --fv-accent-fg: 16 24 30;
+  --fv-accent-border: 114 148 236 / 0.4;
+  --fv-error-text: 248 113 113;
+  --fv-error-detail: 248 113 113;
+  --fv-success: 34 197 94;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]):not([data-theme="light"]) {
+    --fv-surface-base: 16 24 30;
+    --fv-surface-raised: 23 35 44;
+    --fv-surface-input: 21 34 44;
+    --fv-text-primary: 241 244 247;
+    --fv-text-secondary: 241 244 247;
+    --fv-text-muted: 179 193 204;
+    --fv-text-faint: 179 193 204;
+    --fv-border-default: 53 70 83;
+    --fv-border-hover: 179 193 204;
+    --fv-accent: 114 148 236;
+    --fv-accent-fg: 16 24 30;
+    --fv-accent-border: 114 148 236 / 0.4;
+    --fv-error-text: 248 113 113;
+    --fv-error-detail: 248 113 113;
+    --fv-success: 34 197 94;
+  }
+}

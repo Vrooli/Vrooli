@@ -1,0 +1,51 @@
+{
+  "app": {
+    "brand": "コンポーネントライブラリ",
+    "title": "React Component Library"
+  },
+  "catalog": {
+    "sourcePath": "ソースパス",
+    "sourceScenario": "ソースシナリオ"
+  },
+  "design": {
+    "title": "デザイン"
+  },
+  "errorBoundary": {
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行",
+    "title": "問題が発生しました"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "nav": {
+    "browseAssets": "アセットを閲覧",
+    "capabilities": "機能の準備状況",
+    "closeDrawer": "ナビゲーションを閉じる",
+    "coverage": "カタログ使用率",
+    "inventory": "ライブラリ一覧"
+  },
+  "route": {
+    "loading": "読み込み中…"
+  },
+  "theme": {
+    "dark": "ダークテーマ",
+    "light": "ライトテーマ",
+    "system": "システムテーマ"
+  }
+}

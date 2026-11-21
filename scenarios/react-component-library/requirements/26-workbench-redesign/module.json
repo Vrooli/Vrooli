@@ -1,0 +1,394 @@
+{
+  "_metadata": {
+    "description": "Historical D \u00b7 Nocturne eleven-page workbench redesign. Superseded as a product target by the five-destination Start/Library/Design/Review/Stats IA and the workspace aggregate in docs/concepts/WORKBENCH-MATURATION.md; retained as implementation evidence.",
+    "module": "workbench-redesign",
+    "prd_ref": "OT-P0-014",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "WRD-001",
+      "title": "The workbench shell exposes the eleven-page map and preserves old routes",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "The workbench shall expose Home, Components, Component, Design, Review, Coverage, Capabilities, Activity, Settings, Create and Preview from one navigation shell, and shall preserve or deliberately redirect every current route before a route is removed.",
+      "tags": [
+        "shell",
+        "navigation",
+        "routes"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Verified by `pnpm experience:check` (15 served routes, one contract each), `pnpm build` and the desktop/phone browser sweep. /catalog redirects to /components; /sketch/* redirects into /design with scenario and page context."
+        }
+      ]
+    },
+    {
+      "id": "WRD-002",
+      "title": "Home is a launchpad with real health and continuation",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Home shall show the current continuation state, library health and freshness, open findings, recent verification, new assets, capture entry and design entry, using real projections and explicit unavailable/partial states.",
+      "tags": [
+        "home",
+        "health",
+        "continuation"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Home served against the live catalog, coverage and design-page projections at 1440/390/320; unavailable coverage renders the warming state rather than zero."
+        }
+      ]
+    },
+    {
+      "id": "WRD-003",
+      "title": "Components preserves every catalog kind and view",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "The Components page shall preserve Components, Hooks and Support assets; search; domain/status filters; list, gallery and tree views; adoption counts; pending/failed preview states; and the New asset entry.",
+      "tags": [
+        "catalog",
+        "search",
+        "views"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Components served against the live 275-asset catalog; Components/Hooks/Support assets, search, domain/status filters, list/gallery/tree and pending-preview fallback exercised in the browser."
+        }
+      ]
+    },
+    {
+      "id": "WRD-004",
+      "title": "Component Fixtures is a free, selectable canvas",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "The Fixtures mode shall render every declared story, allow free arrangement without accidental activation, select a fixture to inspect its checks, edit only declared public props, reset to the named baseline, and re-run evidence.",
+      "tags": [
+        "component",
+        "fixtures",
+        "drag"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Fixtures canvas exercised in the browser: 10 fixtures rendered from the real harness, pointer drag persisted `{x,y}`, selection drove the inspector, and a prop override applied."
+        }
+      ]
+    },
+    {
+      "id": "WRD-005",
+      "title": "Component In context places the asset in a real page",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "The In context mode shall render the component in a declared page with desktop/tablet/phone switching, move/resize, fit and contract checks, and a handoff that carries the component, version, story, data and placement into the Design studio.",
+      "tags": [
+        "component",
+        "in-context",
+        "device"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "In context exercised against eight templates: device switch to 390px, drag the live slot (persisted), corner resize (persisted 779\u2192872px), keyboard resize, and Reset position."
+        }
+      ]
+    },
+    {
+      "id": "WRD-006",
+      "title": "The Asset data drawer preserves all six current asset surfaces",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "The Component page shall expose Overview, Source, Versions, Experience, Tests and Relationships in a contextual drawer, with deep links and the same source, version, evidence and relationship facts as the current tabs.",
+      "tags": [
+        "component",
+        "drawer",
+        "preservation"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Drawer opens from the component metadata row and by `?tab=`; the six preserved surfaces are implemented. Per-tab screenshot comparison is not captured because the governed capture service is unavailable."
+        },
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Source tab hosts governed editing over the authoring RPCs: released versions are read-only, drafts are edited with the read digest, the focused check runs against the saved draft, and publish repeats the check. `ui/src/workbench/component/SourceWorkbench.test.tsx` covers begin, save, check and publish; `pnpm exec tsc --noEmit`, ESLint and the 93-file UI suite pass."
+        }
+      ]
+    },
+    {
+      "id": "WRD-007",
+      "title": "Design is one studio from brief to composition",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "workflow",
+      "criticality": "P0",
+      "description": "The Design studio shall combine scenario/page selection, layers, brief, artboard, inspector, page contract, compare/fidelity, revision, collaboration and adoption handoff, and shall migrate the three current design routes.",
+      "tags": [
+        "design",
+        "studio",
+        "adoption"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Studio exercised: layer selection, text edit, add chip, duplicate layer, duplicate template (local), palette change, present, accept and persistence."
+        }
+      ]
+    },
+    {
+      "id": "WRD-008",
+      "title": "Review exposes a real findings queue",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "workflow",
+      "criticality": "P0",
+      "description": "Review shall show open findings, failing assets, stale evidence and resolved work, ordered by blast radius, with a selected finding's why-it-matters, evidence links, affected asset and explicit triage/assign authority.",
+      "tags": [
+        "review",
+        "findings",
+        "queue"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Review renders 251 findings projected from the live coverage failed gates, ordered by blast radius, with evidence and affected-asset links. Empty/error fixtures are covered by the page story."
+        }
+      ]
+    },
+    {
+      "id": "WRD-009",
+      "title": "Coverage reports maturity without pretending an outage is zero",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Coverage shall show maturity distribution or domain matrix, ranked next work, definition of ready, domain breakdown, freshness and measured time, and shall expose unavailable/stale/empty states without rendering a false zero or green pass.",
+      "tags": [
+        "coverage",
+        "maturity",
+        "states"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Coverage renders the live maturity matrix, definition of ready and ranked next work. Cold start returns an explicit warming state in 2s and polls until the persisted report is ready."
+        }
+      ]
+    },
+    {
+      "id": "WRD-010",
+      "title": "Capabilities explains availability and recovery",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "Capabilities shall show each integration's state, what it enables, last check and recovery command, including unavailable and degraded states.",
+      "tags": [
+        "capabilities",
+        "health",
+        "recovery"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Capabilities renders live registry state (4 available), what each integration enables and its recovery command."
+        }
+      ]
+    },
+    {
+      "id": "WRD-011",
+      "title": "Activity tells what changed and who changed it",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Activity shall show publishes, adoptions, evidence, resolved findings and retries with asset/version, actor and time, plus a week summary and filters.",
+      "tags": [
+        "activity",
+        "history",
+        "actors"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "in_progress",
+          "notes": "Activity derives 550 bounded index events (200 rendered) from catalog timestamps and labels the limitation. Human attribution still requires the durable event projection."
+        }
+      ]
+    },
+    {
+      "id": "WRD-012",
+      "title": "Settings keeps browser-local preferences and the policy boundary",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Settings shall preserve theme, preview text size and language, add density, accent, evidence defaults and notifications, and state clearly that these are browser-local rather than library policy.",
+      "tags": [
+        "settings",
+        "preferences",
+        "local"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Settings persists density, default device, motion, freshness, capture viewports and locale in localStorage and states the local-vs-scenario policy boundary."
+        }
+      ]
+    },
+    {
+      "id": "WRD-013",
+      "title": "Create explains Create, Extract and Adopt as governed routes",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "workflow",
+      "criticality": "P0",
+      "description": "Create shall present three described routes with their required inputs, source provenance, draft version, next-step lifecycle and primary action; it shall replace the unexplained Main actions dialog.",
+      "tags": [
+        "create",
+        "extract",
+        "adopt"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "in_progress",
+          "notes": "Create renders all three explained routes and binds their real operations. The write path was not executed because it mutates the shared library; validation and authority states remain the acceptance gap."
+        }
+      ]
+    },
+    {
+      "id": "WRD-014",
+      "title": "Preview is a chrome-free share surface",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Preview shall preserve the story, device/viewport, checks and link back to the asset while removing application navigation.",
+      "tags": [
+        "preview",
+        "share",
+        "story"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Preview renders chrome-free with story, device, check state and back link; route isolation test passes."
+        }
+      ]
+    },
+    {
+      "id": "WRD-015",
+      "title": "Nocturne chrome is scoped and built from current RCL assets",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "The workbench shall implement the Nocturne chrome with current RCL shared controls and a scoped workbench token layer; it shall not leak chrome tokens into published components, replace BaseStyles, or ship synthetic component markup.",
+      "tags": [
+        "design-system",
+        "tokens",
+        "reuse"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Nocturne is scoped to workbench CSS and remaps BaseStyles tokens for shared controls; published assets remain on BaseStyles. Token and catalog checks pass."
+        }
+      ]
+    },
+    {
+      "id": "WRD-016",
+      "title": "The workbench is responsive, accessible and state-complete",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Every page shall define desktop, tablet and phone compositions; 390 and 320 px; keyboard and focus behavior; reduced motion and forced colors; long labels; and loading, empty, partial, stale, error and permission-denied states.",
+      "tags": [
+        "responsive",
+        "accessibility",
+        "states"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "in_progress",
+          "notes": "All eleven routes are axe-clean at 1440 and 390 (zero violations), with visible focus, no positive tabindex, roving-tabindex tabs, and focus traps that restore the trigger for the command palette, Present mode and phone studio sheets. Reduced motion removes every animation/transition above 10 ms in the workbench and its harness iframes; forced colors keeps text and graphical marks visible. 390/320 overflow and the source editor, studio sheets and in-context drag/resize are exercised. Remaining: permission-denied states do not exist in this local single-user scenario, and every loading/empty/partial/error state is not separately scripted."
+        }
+      ]
+    },
+    {
+      "id": "WRD-017",
+      "title": "Evidence and unavailable states remain honest",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-014",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "The workbench shall distinguish verified, failed, stale, unmeasured and unavailable evidence; a missing capture, zero-input run, missing producer or stale report shall not render as a pass.",
+      "tags": [
+        "evidence",
+        "honesty",
+        "states"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "in_progress",
+          "notes": "Warming, unavailable, unmeasured, stale and partial states are explicit across Home, Review, Coverage, Component and Capabilities. Permission-denied remains unimplemented."
+        }
+      ]
+    },
+    {
+      "id": "WRD-018",
+      "title": "Every shipped page has an experience contract and executable story",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "experience",
+      "criticality": "P0",
+      "description": "Every served route in the redesign shall have one experience page contract, a meaningful region binding and an executable page story; the new Review, Activity and Create pages shall be authored as drafts and promoted when their behavior is proven.",
+      "tags": [
+        "experience",
+        "route-guard",
+        "page-stories"
+      ],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "`pnpm experience:check` passes: every served route has one registered page contract and an executable page story; Home, Review, Activity and Create are now active contracts."
+        }
+      ]
+    }
+  ]
+}

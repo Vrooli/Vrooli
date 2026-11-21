@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "commissions",
+    "title": "Commissions",
+    "routes": [
+      "/commissions"
+    ],
+    "purpose": "All commissions grouped by observed state, with ended, stopped and unknown folded away.",
+    "prd_refs": [
+      "OT-P0-004"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Grouped rows; a state filter arrives from Now."
+    },
+    {
+      "id": "empty",
+      "description": "No commissions exist yet; Launch is offered."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

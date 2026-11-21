@@ -11,11 +11,11 @@ import (
 
 	orderedmap "github.com/iancoleman/orderedmap"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
-func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisResponse, applyResources, applyScenarios bool, depSvc *dependencyService) (map[string]interface{}, error) {
+func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisResponse, applyResources, applyScenarios bool, depSvc *dependencyService, selection ...map[string]struct{}) (map[string]interface{}, error) {
 	if analysis == nil {
 		return nil, fmt.Errorf("analysis is required")
 	}
@@ -37,7 +37,12 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 
 	scenariosAdded := []string{}
 	if applyScenarios {
-		scenariosAdded = ctx.applyMissingScenarios(analysis)
+		var selected map[string]struct{}
+		if len(selection) > 0 {
+			selected = selection[0]
+		}
+		scenariosAdded = ctx.applyMissingScenarios(analysis, selected)
+		scenariosAdded = append(scenariosAdded, ctx.applyInterfaceGraphScenarios(scenarioName, depSvc, selected)...)
 	}
 
 	changed := len(resourcesAdded) > 0 || len(scenariosAdded) > 0
@@ -56,10 +61,12 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 type dependencyApplyContext struct {
 	scenarioName string
 	scenarioPath string
-	cfg          *types.ServiceConfig
+	cfg          *types.Manifest
 	rawConfig    *orderedmap.OrderedMap
 	rawResources *orderedmap.OrderedMap
 	rawScenarios *orderedmap.OrderedMap
+	hadResources bool
+	hadScenarios bool
 }
 
 func newDependencyApplyContext(scenarioName string) (*dependencyApplyContext, error) {
@@ -92,6 +99,8 @@ func newDependencyApplyContext(scenarioName string) (*dependencyApplyContext, er
 
 func (c *dependencyApplyContext) prepareDependencySections() {
 	rawDependencies := ensureOrderedMap(c.rawConfig, "dependencies")
+	_, c.hadResources = rawDependencies.Get("resources")
+	_, c.hadScenarios = rawDependencies.Get("scenarios")
 	c.rawResources = ensureOrderedMap(rawDependencies, "resources")
 	c.rawScenarios = ensureOrderedMap(rawDependencies, "scenarios")
 	rawDependencies.Set("resources", c.rawResources)
@@ -131,7 +140,15 @@ func (c *dependencyApplyContext) applyMissingResources(analysis *types.Dependenc
 	return added
 }
 
-func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.DependencyAnalysisResponse) []string {
+func selectedScenario(name string, selected map[string]struct{}) bool {
+	if len(selected) == 0 {
+		return true
+	}
+	_, ok := selected[name]
+	return ok
+}
+
+func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.DependencyAnalysisResponse, selected map[string]struct{}) []string {
 	missing := driftSet(analysis.ScenarioDiff.Missing)
 	if len(missing) == 0 {
 		return nil
@@ -143,6 +160,9 @@ func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.Dependenc
 
 	added := []string{}
 	for _, dep := range analysis.Scenarios {
+		if !selectedScenario(dep.DependencyName, selected) {
+			continue
+		}
 		if _, ok := missing[dep.DependencyName]; !ok {
 			continue
 		}
@@ -153,6 +173,78 @@ func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.Dependenc
 	}
 
 	return added
+}
+
+// applyInterfaceGraphScenarios proposes scenario dependencies from the unified,
+// evidence-tagged graph store — the authoritative proto_import/go_import edges,
+// not the weak vrooli_cli regex detector. Targets are filtered to real, known
+// scenarios (the persisted store can carry proto-package-name targets that are
+// not scenarios; those are dropped here, exactly as centrality filters them).
+// Discovery-call / CLI shell-out edges remain the AST-facts follow-up's job.
+func (c *dependencyApplyContext) applyInterfaceGraphScenarios(scenarioName string, depSvc *dependencyService, selected map[string]struct{}) []string {
+	if depSvc == nil || depSvc.store == nil {
+		return nil
+	}
+	edges, err := depSvc.store.LoadGraphEdges()
+	if err != nil {
+		log.Printf("Warning: interface-graph scan proposal failed for %s: %v", scenarioName, err)
+		return nil
+	}
+	known := func(name string) bool {
+		if depSvc.detector == nil {
+			return true
+		}
+		return depSvc.detector.KnownScenario(name)
+	}
+
+	added := []string{}
+	for _, edge := range edges {
+		if !selectedScenario(edge.To, selected) {
+			continue
+		}
+		if edge.From != scenarioName || edge.Kind != "scenario" {
+			continue
+		}
+		// Only import-level evidence proposes a declaration; declared/vrooli_cli
+		// are already covered by the analyze path above.
+		if edge.Source != "proto_import" && edge.Source != "go_import" {
+			continue
+		}
+		if !known(edge.To) {
+			continue
+		}
+		if _, exists := c.cfg.Dependencies.Scenarios[edge.To]; exists {
+			continue
+		}
+		if name, ok := c.addInterfaceGraphScenario(edge.To, edge.Source); ok {
+			added = append(added, name)
+		}
+	}
+	return added
+}
+
+func (c *dependencyApplyContext) addInterfaceGraphScenario(dependencyName, evidenceSource string) (string, bool) {
+	if dependencyName == "" {
+		return "", false
+	}
+	if c.cfg.Dependencies.Scenarios == nil {
+		c.cfg.Dependencies.Scenarios = map[string]types.ScenarioDependencySpec{}
+	}
+	if _, exists := c.cfg.Dependencies.Scenarios[dependencyName]; exists {
+		return "", false
+	}
+	description := fmt.Sprintf("Import-level dependency detected via %s", evidenceSource)
+	versionRange := resolveScenarioVersionRange(dependencyName)
+	c.cfg.Dependencies.Scenarios[dependencyName] = types.ScenarioDependencySpec{
+		Required:     true,
+		VersionRange: versionRange,
+		Description:  description,
+	}
+	if c.rawScenarios == nil {
+		c.rawScenarios = orderedmap.New()
+	}
+	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(versionRange, description, true, "", ""))
+	return dependencyName, true
 }
 
 func (c *dependencyApplyContext) addDetectedResource(dep types.ScenarioDependency) (string, bool) {
@@ -196,25 +288,35 @@ func (c *dependencyApplyContext) addDetectedScenario(dep types.ScenarioDependenc
 	}
 
 	description := fmt.Sprintf("Auto-detected dependency via %s", dep.AccessMethod)
-	version, versionRange := resolveScenarioVersionSpec(dep.DependencyName)
-	c.cfg.Dependencies.Scenarios[dep.DependencyName] = types.ScenarioDependencySpec{
-		Required:     true,
-		Version:      version,
+	versionRange := resolveScenarioVersionRange(dep.DependencyName)
+	spec := types.ScenarioDependencySpec{
+		Required:     dep.Required,
 		VersionRange: versionRange,
 		Description:  description,
 	}
+	if !dep.Required {
+		spec.StartupPolicy = "try_start"
+		spec.DegradedBehavior = "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it."
+	}
+	c.cfg.Dependencies.Scenarios[dep.DependencyName] = spec
 
 	if c.rawScenarios == nil {
 		c.rawScenarios = orderedmap.New()
 	}
-	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(version, versionRange, description))
+	c.rawScenarios.Set(dep.DependencyName, orderedScenarioEntry(versionRange, description, spec.Required, spec.StartupPolicy, spec.DegradedBehavior))
 
 	return dep.DependencyName, true
 }
 
 func (c *dependencyApplyContext) persist(depSvc *dependencyService) error {
-	reordered := reorderTopLevelKeys(c.rawConfig)
-	if err := writeRawServiceConfigMap(c.scenarioPath, reordered); err != nil {
+	dependencies := ensureOrderedMap(c.rawConfig, "dependencies")
+	if !c.hadResources && len(c.rawResources.Keys()) == 0 {
+		dependencies.Delete("resources")
+	}
+	if !c.hadScenarios && len(c.rawScenarios.Keys()) == 0 {
+		dependencies.Delete("scenarios")
+	}
+	if err := writeRawServiceConfigMap(c.scenarioPath, c.rawConfig); err != nil {
 		return err
 	}
 	if depSvc == nil {
@@ -384,30 +486,17 @@ func reorderTopLevelKeys(cfg *orderedmap.OrderedMap) *orderedmap.OrderedMap {
 	return reordered
 }
 
-func cloneOrderedMap(src *orderedmap.OrderedMap) *orderedmap.OrderedMap {
-	if src == nil {
-		return orderedmap.New()
-	}
-	clone := orderedmap.New()
-	for _, key := range src.Keys() {
-		if val, ok := src.Get(key); ok {
-			clone.Set(key, val)
-		}
-	}
-	return clone
-}
-
-func resolveScenarioVersionSpec(dependencyName string) (string, string) {
+func resolveScenarioVersionRange(dependencyName string) string {
 	scenarioPath := filepath.Join(appconfig.Load().ScenariosDir, dependencyName)
 	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
-		return "", ">=0.0.0"
+		return ">=0.0.0"
 	}
 	version := strings.TrimSpace(cfg.Service.Version)
 	if version == "" {
-		return "", ">=0.0.0"
+		return ">=0.0.0"
 	}
-	return version, fmt.Sprintf(">=%s", version)
+	return fmt.Sprintf(">=%s", version)
 }
 
 func orderedMapFromStruct(value interface{}) *orderedmap.OrderedMap {
@@ -427,7 +516,7 @@ func orderedMapFromStruct(value interface{}) *orderedmap.OrderedMap {
 
 func loadRawServiceConfigMap(scenarioPath string) (*orderedmap.OrderedMap, error) {
 	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	data, err := os.ReadFile(serviceConfigPath)
+	data, err := os.ReadFile(serviceConfigPath) // #nosec G304 -- serviceConfigPath is the canonical .vrooli/service.json under the scenario path.
 	if err != nil {
 		return nil, err
 	}
@@ -444,11 +533,11 @@ func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) e
 	if err != nil {
 		return err
 	}
-	payload = bytes.TrimRight(payload, "\n")
+	payload = append(bytes.TrimRight(payload, "\n"), '\n')
 	payload = bytes.ReplaceAll(payload, []byte(`\u003c`), []byte("<"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u003e`), []byte(">"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u0026`), []byte("&"))
-	return os.WriteFile(serviceConfigPath, payload, 0644)
+	return os.WriteFile(serviceConfigPath, payload, 0o600)
 }
 
 func logTrace(format string, args ...interface{}) {
@@ -467,10 +556,15 @@ func orderedResourceEntry(typeHint, description string) *orderedmap.OrderedMap {
 	return entry
 }
 
-func orderedScenarioEntry(version, versionRange, description string) *orderedmap.OrderedMap {
+func orderedScenarioEntry(versionRange, description string, required bool, startupPolicy, degradedBehavior string) *orderedmap.OrderedMap {
 	entry := orderedmap.New()
-	entry.Set("required", true)
-	entry.Set("version", version)
+	entry.Set("required", required)
+	if startupPolicy != "" {
+		entry.Set("startup_policy", startupPolicy)
+	}
+	if degradedBehavior != "" {
+		entry.Set("degraded_behavior", degradedBehavior)
+	}
 	entry.Set("versionRange", versionRange)
 	entry.Set("description", description)
 	return entry

@@ -1,8 +1,9 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for ChatList - Basic rendering, selection, and inline rename
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ChatList } from "./ChatList";
@@ -47,7 +48,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: false,
     label_ids: [],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -63,7 +63,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: true,
     label_ids: ["label-1"],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -96,27 +95,27 @@ describe("ChatList - basic rendering and selection", () => {
   });
 
   it("renders chat list items", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     expect(screen.getByText("Test Chat 1")).toBeInTheDocument();
     expect(screen.getByText("Test Chat 2")).toBeInTheDocument();
   });
 
   it("displays labels on chat items", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     expect(screen.getByText("Important")).toBeInTheDocument();
   });
 
   it("shows unread indicator for unread chats", () => {
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     expect(screen.getByTestId("unread-indicator")).toBeInTheDocument();
   });
 
   it("calls onSelectChat when clicking a chat item", async () => {
     const user = userEvent.setup();
-    render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+    renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
     await user.click(screen.getByTestId("chat-item-chat-1"));
 
@@ -125,7 +124,7 @@ describe("ChatList - basic rendering and selection", () => {
 
   describe("inline rename [NAME-004]", () => {
     it("shows tooltip hint for renaming on hover", () => {
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       expect(chatName).toHaveAttribute("title", "Double-click to rename");
@@ -133,7 +132,7 @@ describe("ChatList - basic rendering and selection", () => {
 
     it("enters edit mode on double-click", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
@@ -143,18 +142,18 @@ describe("ChatList - basic rendering and selection", () => {
 
     it("pre-fills input with current chat name", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
-      const input = screen.getByTestId("inline-rename-input") as HTMLInputElement;
-      expect(input.value).toBe("Test Chat 1");
+      const input = screen.getByTestId("inline-rename-input");
+      expect((input as HTMLInputElement).value).toBe("Test Chat 1");
     });
 
     it("calls onRenameChat when saving with Enter", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
@@ -168,7 +167,7 @@ describe("ChatList - basic rendering and selection", () => {
 
     it("calls onRenameChat when clicking save button", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
@@ -184,7 +183,7 @@ describe("ChatList - basic rendering and selection", () => {
 
     it("cancels rename on Escape key", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
@@ -199,7 +198,7 @@ describe("ChatList - basic rendering and selection", () => {
 
     it("cancels rename when clicking cancel button", async () => {
       const user = userEvent.setup();
-      render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
+      renderWithProviders(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);

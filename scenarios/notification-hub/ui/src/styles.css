@@ -1,0 +1,149 @@
+@import "./design-tokens.css";
+@import "./theme/tokens.css";
+@import "./theme/viewerTokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+  --border-focus: var(--border-strong);
+  --rcl-safe-top: var(--safe-area-inset-top);
+  --rcl-safe-right: var(--safe-area-inset-right);
+  --rcl-safe-bottom: var(--safe-area-inset-bottom);
+  --rcl-safe-left: var(--safe-area-inset-left);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+/* The main pane's gutter, named once. A full-bleed block or a pinned bar cancels
+   exactly what the shell added, instead of guessing it with a breakpoint. */
+[data-rcl-app-shell-main] {
+  --page-gutter: clamp(var(--space-sm), 3vw, var(--space-lg));
+  /* The pane scrolls, so it must also contain what is absolutely positioned inside
+     it (a visually hidden radio, for one). Left uncontained, those boxes sit at
+     their offset in the whole document, which then scrolls: a swipe at the end of
+     the pane slid the tab bar away. */
+  position: relative;
+}
+
+@layer components {
+  /* Conversation controls replace the phone tabs and own the bottom safe area.
+     The dock cancels the pane gutter; on wide screens it sits in its panel. */
+  .packet-dock {
+    --dock-inset: env(safe-area-inset-bottom, 0px);
+    position: sticky;
+    bottom: calc(-1 * var(--page-gutter) - var(--dock-inset));
+    margin-block-end: calc(-1 * var(--page-gutter) - var(--dock-inset));
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding-inline: var(--page-gutter);
+    padding-block-end: calc(var(--space-2xs) + var(--dock-inset));
+  }
+
+  @media (max-width: 47.999rem) {
+    .conversation-shell[data-rcl-app-shell][data-mobile-nav] [data-rcl-app-shell-tabs] {
+      display: none;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .packet-dock {
+      --dock-inset: 0px;
+      bottom: 0;
+      margin: 0;
+      padding-inline: var(--space-sm);
+    }
+  }
+}
+
+/* The page header clears the top inset; the fixed drawer and main pane own
+   their own safe padding. Subtract the offset to keep the shell in the viewport. */
+[data-rcl-app-shell] {
+  --rcl-app-shell-block-size: calc(var(--hub-viewport-height, 100dvh) - var(--safe-area-inset-top));
+  block-size: var(--rcl-app-shell-block-size);
+  margin-block-start: var(--safe-area-inset-top);
+  margin-inline: var(--safe-area-inset-left) var(--safe-area-inset-right);
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-skip] {
+  inset-block-start: var(--space-2xs);
+  transform: translateY(calc(-200% - var(--safe-area-inset-top) - var(--space-2xs)));
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-skip]:focus-visible {
+  transform: none;
+}
+
+/* Tailwind's reset zeroes every border at the same specificity as the library's
+   `:where()` control border, so outline buttons lost their outline. Restore it. */
+[data-rcl-control] {
+  border-width: var(--border-hairline);
+}
+
+/* A page's actions stay beside its title on a phone, so one icon button does not cost a row. */
+[data-rcl-page-header] {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+}
+
+[data-rcl-page-header] [data-rcl-page-header-actions] {
+  inline-size: auto !important;
+  margin-inline-start: auto;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* One focus indicator surrounds both the icon and the search input. */
+.request-search-field:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.request-search-field input:focus-visible {
+  outline: none;
+}
+
+@layer utilities {
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .pt-safe {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .pr-safe {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  .pl-safe {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

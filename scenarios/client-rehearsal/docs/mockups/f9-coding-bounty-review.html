@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coding bounty review — concept mockup</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1117; --panel:#121b24; --panel2:#17232e; --line:#2a3a47; --muted:#9aabb8; --text:#edf4f7; --teal:#70e1c2; --amber:#ffd183; --red:#ff8b8b; --green:#93e5aa; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; }
+    .board { min-height:100vh; padding:28px; background:radial-gradient(ellipse at 55% -25%, #183541 0, transparent 56%), var(--bg); }
+    header { display:flex; justify-content:space-between; align-items:center; gap:18px; margin:0 auto 22px; max-width:1500px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:700; letter-spacing:.01em; }
+    .mark { width:34px; height:34px; border:1px solid #4e9d8c; color:var(--teal); border-radius:10px; display:grid; place-items:center; background:#102720; font-size:19px; }
+    .eyebrow { color:var(--muted); text-transform:uppercase; font-size:10px; letter-spacing:.15em; }
+    h1 { font-size:21px; margin:2px 0 0; letter-spacing:-.02em; }
+    .context { color:var(--muted); font-size:12px; }
+    .stage { max-width:1500px; margin:auto; display:grid; grid-template-columns:1fr 390px; gap:20px; }
+    .screen { background:linear-gradient(145deg,#101922,#0d151c); border:1px solid #33434f; border-radius:18px; padding:16px; box-shadow:0 24px 75px #0007; }
+    .caption { display:flex; justify-content:space-between; align-items:center; margin:0 2px 12px; }
+    .caption strong { font-size:12px; }
+    .caption span { color:var(--muted); font-size:11px; }
+    .desktop { min-height:690px; display:grid; grid-template-columns:220px minmax(250px, .9fr) minmax(390px, 1.4fr); gap:12px; }
+    .rail,.queue,.detail,.mobile-card,.phone-detail { border:1px solid var(--line); background:var(--panel); border-radius:13px; }
+    .rail { padding:16px 12px; display:flex; flex-direction:column; gap:18px; }
+    .rail .section { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.1em; margin:4px 8px; }
+    .nav { padding:10px 9px; border-radius:8px; color:#b7c6cf; }
+    .nav.active { color:var(--teal); background:#17332f; }
+    .count { float:right; color:#a2cbbc; }
+    .scope { border-top:1px solid var(--line); padding:14px 7px 0; margin-top:auto; color:var(--muted); font-size:11px; }
+    .queue { padding:14px 12px; }
+    .qhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .qhead h2,.detail h2 { font-size:15px; margin:0; }
+    .filter { color:var(--muted); border:1px solid var(--line); border-radius:7px; padding:6px 8px; font-size:11px; }
+    .job { padding:12px 10px; border-top:1px solid var(--line); }
+    .job.selected { border:1px solid #488b7f; background:#132822; border-radius:9px; margin:4px -3px; }
+    .job b { font-size:12px; display:block; margin:3px 0; }
+    .job small { color:var(--muted); font-size:10px; }
+    .tag { display:inline-block; border-radius:99px; padding:3px 7px; font-size:9px; margin-top:7px; border:1px solid #426857; color:var(--green); }
+    .tag.wait { border-color:#665437; color:var(--amber); }
+    .tag.fail { border-color:#633c43; color:var(--red); }
+    .detail { padding:16px; min-width:0; }
+    .detail-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+    .detail-head p { color:var(--muted); font-size:11px; margin:5px 0 14px; }
+    .pill { border:1px solid #665437; color:var(--amber); border-radius:99px; padding:5px 9px; font-size:10px; white-space:nowrap; }
+    .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:14px 0; }
+    .metric { padding:9px; background:var(--panel2); border-radius:8px; min-width:0; }
+    .metric span { display:block; color:var(--muted); font-size:9px; }
+    .metric b { display:block; font-size:11px; overflow-wrap:anywhere; margin-top:3px; }
+    .tabs { display:flex; gap:17px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; }
+    .tabs b { color:var(--teal); padding:0 0 9px; border-bottom:2px solid var(--teal); }
+    .diff { margin-top:12px; border:1px solid var(--line); border-radius:9px; overflow:hidden; background:#0a1015; }
+    .file { color:#c5d5dd; padding:8px 11px; font:10px ui-monospace, monospace; border-bottom:1px solid var(--line); }
+    pre { padding:10px 12px; margin:0; white-space:pre-wrap; overflow-wrap:anywhere; color:#cfdbdf; font:10px/1.65 ui-monospace,monospace; }
+    .minus { color:#ffadad; background:#44272c; display:block; margin:0 -12px; padding:0 12px; }
+    .plus { color:#aaf0bd; background:#153b2d; display:block; margin:0 -12px; padding:0 12px; }
+    .evidence { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; color:var(--muted); font-size:10px; }
+    .evidence strong { color:var(--green); }
+    .actions { display:flex; gap:8px; margin-top:13px; }
+    button { color:var(--text); background:#17242e; border:1px solid #3a505d; padding:8px 11px; border-radius:8px; font:600 10px inherit; }
+    button.primary { border-color:#58ad96; background:#145043; color:#ddfff2; }
+    .phone-frame { width:100%; max-width:330px; margin:auto; padding:9px; border:1px solid #53616b; border-radius:28px; background:#080d11; box-shadow:0 20px 50px #0008; }
+    .phone { border-radius:20px; overflow:hidden; min-height:650px; background:radial-gradient(ellipse at 80% 0,#173b40 0,transparent 50%),var(--bg); padding:14px 12px 75px; position:relative; }
+    .phone header { margin:1px 0 17px; }
+    .phone .mark { width:29px;height:29px;border-radius:9px; }
+    .phone h1 { font-size:17px; }
+    .mobile-card { padding:13px; }
+    .mobile-card h2 { font-size:14px; margin:0 0 4px; }
+    .mobile-card p { color:var(--muted); font-size:10px; margin:0 0 12px; }
+    .phone .metrics { grid-template-columns:1fr 1fr; }
+    .next { color:var(--muted); display:flex; justify-content:space-between; padding:13px 4px 7px; font-size:10px; }
+    .phone-detail { padding:12px; margin-top:9px; }
+    .phone-detail .tabs { gap:12px; font-size:10px; }
+    .phone-detail pre { max-height:150px; overflow:hidden; font-size:9px; }
+    .bottom { position:absolute; bottom:0; left:0; right:0; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:#111b23; border-top:1px solid var(--line); display:flex; gap:8px; }
+    .bottom button { flex:1; min-height:42px; }
+    .note { max-width:1500px; margin:14px auto 0; color:#a9b9c2; font-size:11px; }
+    @media(max-width:1180px) { .stage { grid-template-columns:1fr; } .desktop { grid-template-columns:185px minmax(210px,.8fr) minmax(330px,1.4fr); } }
+    @media(max-width:760px) { .board { padding:14px; } .desktop { grid-template-columns:1fr; } .rail { display:none; } .desktop { min-height:0; } }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header><div class="brand"><span class="mark">⌘</span><div><div class="eyebrow">Client Rehearsal</div><h1>Evidence Workbench</h1></div></div><div class="context">F9 · concept and review flow · mock data</div></header>
+    <div class="stage">
+      <section class="screen">
+        <div class="caption"><strong>Desktop · 1440 × 900</strong><span>Simultaneous scan → inspect → decide</span></div>
+        <div class="desktop">
+          <aside class="rail"><div class="brand"><span class="mark">⌘</span><span>Rehearsal</span></div><div><div class="section">Workspace</div><div class="nav">Overview</div><div class="nav active">Coding bounties <span class="count">10</span></div><div class="nav">Workflow runs</div></div><div><div class="section">Filters</div><div class="nav">All projects</div><div class="nav">Needs review <span class="count">2</span></div><div class="nav">Interrupted</div></div><div class="scope">Local evidence only<br>3 projects · latest 30 days</div></aside>
+          <section class="queue"><div class="qhead"><h2>Replay queue</h2><span class="filter">All states⌄</span></div><div class="job selected"><small>ASYNCAPI / CLI · #2018</small><b>Add CLI watch mode</b><small>Updated 08:26 · revision 2</small><br><span class="tag wait">Waiting at solver gate</span></div><div class="job"><small>ASYNCAPI / CLI · #2027</small><b>Bound registry timeout</b><small>Frozen preimage / winner pair</small><br><span class="tag">Evidence ready</span></div><div class="job"><small>SUPADATA / MCP · #2</small><b>Support hosted streamable HTTP</b><small>2 checks · sealed identities</small><br><span class="tag">Evidence ready</span></div><div class="job"><small>TSCIRCUIT / COMMENT PROXY · #7</small><b>Update the existing bot comment</b><small>1 check · sealed identities</small><br><span class="tag">Evidence ready</span></div><div class="job"><small>ASYNCAPI / CLI · #2039</small><b>Registry failure handling</b><small>Interrupted · resume available</small><br><span class="tag fail">Recovery needed</span></div></section>
+          <section class="detail"><div class="detail-head"><div><div class="eyebrow">Selected case · AsyncAPI CLI #2018</div><h2>Add CLI watch mode</h2><p>Issue #2018 · public task · source and winner are sealed</p></div><span class="pill">Awaiting authorized solver</span></div><div class="metrics"><div class="metric"><span>Task</span><b>Watch mode</b></div><div class="metric"><span>Preimage</span><b>sealed · sha256:…a91f</b></div><div class="metric"><span>Candidate</span><b>not produced</b></div><div class="metric"><span>Reference</span><b>sealed · sha256:…d30c</b></div></div><div class="tabs"><b>Code review</b><span>Test evidence</span><span>Timeline</span></div><div class="diff"><div class="file">src/commands/subscribe.ts · candidate patch preview</div><pre><span class="minus">-  await client.subscribe(options);</span><span class="plus">+  const watcher = await client.watch(options);</span><span class="plus">+  for await (const event of watcher) {</span><span class="plus">+    await output.write(event);</span><span class="plus">+  }</span></pre></div><div class="evidence"><span>Candidate view · read-only · sourced from sealed Workspace Sandbox output</span><strong>Candidate not yet available</strong></div><div class="tabs" style="margin-top:14px;padding-bottom:8px"><b>Independent validation</b><span>preimage fail</span><span>candidate pending</span><span>winner pass</span></div><div class="evidence"><span>Frozen evaluator digest <code>…7bc2</code></span><span>3 receipts · identities matched</span></div><div class="actions"><button class="primary">Open public issue ↗</button><button>Copy evidence packet</button><button>Resume replay</button></div></section>
+        </div>
+      </section>
+      <section class="screen"><div class="caption"><strong>Mobile · 390 × 844</strong><span>Sequential focus · thumb actions</span></div><div class="phone-frame"><div class="phone"><header><div class="brand"><span class="mark">⌘</span><div><div class="eyebrow">Coding bounties</div><h1>Review case</h1></div></div><span class="filter">Queue</span></header><section class="mobile-card"><div class="eyebrow">AsyncAPI CLI · #2018</div><h2>Add CLI watch mode</h2><p>Issue #2018 · updated 08:26 · revision 2</p><span class="pill">Awaiting authorized solver</span><div class="metrics"><div class="metric"><span>Preimage</span><b>sealed · …a91f</b></div><div class="metric"><span>Candidate</span><b>not produced</b></div><div class="metric"><span>Reference</span><b>sealed · …d30c</b></div><div class="metric"><span>Score</span><b>pending</b></div></div></section><div class="next"><span>Review evidence</span><span>2 of 5 sections ↓</span></div><section class="phone-detail"><div class="tabs"><b>Code</b><span>Tests</span><span>Timeline</span></div><div class="diff"><div class="file">src/commands/subscribe.ts</div><pre><span class="minus">- await client.subscribe(options);</span><span class="plus">+ const watcher = await client.watch(options);</span><span class="plus">+ for await (const event of watcher) {</span><span class="plus">+   await output.write(event);</span><span class="plus">+ }</span></pre></div><div class="evidence"><span>Read-only sealed output</span><strong>Not produced</strong></div></section><div class="next"><span>Independent validation</span><span>3 receipts</span></div><section class="mobile-card"><strong style="font-size:11px">Preimage failed · Candidate pending · Winner passed</strong><p style="margin:6px 0 0">All results link to exact seal and evaluator digests.</p></section><div class="bottom"><button>Issue ↗</button><button>Evidence</button><button class="primary">Resume</button></div></div></div></section>
+    </div>
+    <p class="note"><strong>Design intent:</strong> evidence is the workbench's organizing structure. Desktop keeps queue, exact bounty identity and review evidence in view together; mobile turns those into a queue → case → code/tests sequence and anchors the next action at the thumb. All text shown is illustrative. The current coding-job API does not expose a candidate workspace reference, candidate code, or test-hour estimate; those elements are proposed pending an owner-safe read path.</p>
+  </main>
+</body>
+</html>

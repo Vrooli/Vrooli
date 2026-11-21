@@ -18,18 +18,29 @@ This check reads `/proc/meminfo` to measure:
 - Total swap space
 - Used swap space
 - Swap usage percentage
+- Swap paging traffic (pages per second)
+
+## Level and rate matrix
+
+Swap level is a stock; paging traffic is the flow used for severity. A high
+level with near-zero traffic is healthy because cold pages are parked. High
+traffic is critical at either level; lower active traffic is a warning. If the
+rate source is unavailable the check warns with the reason instead of
+escalating from level alone. The named thresholds are 1 page/sec for
+near-zero and 128 pages/sec for high traffic, based on the incident host's
+observed steady-state paging rates.
 
 ## Status Meanings
 
 | Status | Meaning |
 |--------|---------|
-| **OK** | Swap usage below 50% |
-| **Warning** | Swap usage between 50-80% (or no swap configured) |
-| **Critical** | Swap usage above 80% |
+| **OK** | Swap level is below 50% with quiet traffic, or a high level has near-zero traffic |
+| **Warning** | Paging traffic is at least 1 and below 128 pages/sec, or its rate source is unavailable/invalid |
+| **Critical** | Paging traffic is at least 128 pages/sec |
 
 ## Why It Matters
 
-High swap usage indicates the system is under memory pressure:
+Swap occupancy records pages parked on disk, including cold pages left from earlier pressure. Current paging traffic, available RAM and memory PSI distinguish present contention from historical occupancy:
 
 - **Performance Impact**: Swapping is orders of magnitude slower than RAM access
 - **Latency Spikes**: Applications experience unpredictable delays
@@ -97,20 +108,18 @@ docker inspect --format '{{.HostConfig.Memory}}' $(docker ps -q)
    ps aux --sort=-%mem | head -10
    ```
 
-3. **Check for memory leaks over time**
+3. **Inspect maintained host findings and owner-safe recovery**
    ```bash
-   # Install smem if needed
-   sudo apt install smem
-
-   # Check proportional set size
-   smem -tk | tail -10
+   vrooli-autoheal check get system-host-pressure
+   vrooli-autoheal check actions system-host-pressure
+   vrooli-autoheal check get system-containment-occupancy
    ```
 
-4. **Clear swap (if needed)**
-   ```bash
-   # Only do this if you have enough free RAM!
-   sudo swapoff -a && sudo swapon -a
-   ```
+   Inspect exact workload ownership before disposing of an abandoned session.
+   Resource recycling remains subject to the control plane's declared ownership,
+   serving-state and pressure brakes. A swap/RSS ratio alone does not establish
+   that an active process is disposable. Do not clear swap, drop caches or restart
+   shared services merely to reduce this gauge.
 
 5. **Check OOM killer logs**
    ```bash
@@ -124,8 +133,8 @@ The check accepts the following options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `warningThreshold` | 50 | Warning at this percentage |
-| `criticalThreshold` | 80 | Critical at this percentage |
+| `warningThreshold` | 50 | Legacy occupancy diagnostic/ProcReader fixture threshold; production severity uses paging |
+| `criticalThreshold` | 80 | Legacy occupancy diagnostic/ProcReader fixture threshold; production severity uses paging |
 
 ## Details Returned
 
@@ -141,12 +150,16 @@ The check accepts the following options:
   "swapConfigured": true,
   "warningThreshold": 50,
   "criticalThreshold": 80
+  ,"swapTrafficPagesPerSecond": 0
+  ,"swapTrafficRateAvailable": true
+  ,"nearZeroRateThreshold": 1
+  ,"highRateThreshold": 128
 }
 ```
 
 ## Health Score
 
-The health score is calculated as `100 - usedPercent`.
+The production health score is `100 - 100 * min(pagingRate / 128, 1)`, rounded down in the subtraction. Quiet paging therefore scores 100 even when cold swap pages remain occupied. Occupancy remains in the returned details. Legacy ProcReader-only fixtures retain their occupancy assertions; missing production rate evidence warns.
 
 ## No Swap Configured
 

@@ -1,0 +1,13 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-journal/module.json",
+    "02-contract/module.json",
+    "03-position/module.json",
+    "04-expansion/module.json"
+  ]
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keep the lower usage mode without a daily check?</title>
+<style>
+  h1 { font-size: 1.55rem; }
+  .lede { color: var(--hub-muted); }
+  .recurrence { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .count { color: var(--hub-primary); font: 700 2rem/1 var(--hub-font); white-space: nowrap; }
+  .recurrence p { margin: .25rem 0; }
+  .split { display: grid; grid-template-columns: 10fr 4fr; overflow: hidden; min-height: 2.4rem; border-radius: var(--hub-radius); margin: .75rem 0 .4rem; }
+  .answered { display: grid; place-items: center; padding: .5rem; background: var(--hub-series-1); color: var(--hub-bg); font-weight: 700; }
+  .not-answered { display: grid; place-items: center; padding: .5rem; background: var(--hub-series-2); color: var(--hub-bg); font-weight: 700; }
+  .legend { display: flex; justify-content: space-between; color: var(--hub-muted); font-size: .875rem; }
+  .choices { display: grid; gap: .75rem; }
+  .choice { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: 1rem; background: var(--hub-surface); color: var(--hub-fg); }
+  .choice.recommended { border-color: var(--hub-primary); }
+  .choice h2 { font-size: 1.1rem; margin: 0 0 .35rem; }
+  .choice p { margin: .45rem 0; }
+  .choice button { min-height: 44px; width: 100%; margin-top: .35rem; }
+  .label { font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hub-muted); }
+  .hub-command { margin: 1rem 0; }
+</style>
+</head>
+<body>
+  <p class="label">Codex usage setting</p>
+  <h1>Keep the cheaper model setting, and stop asking every day?</h1>
+  <p class="lede"><strong>Recommended:</strong> make it standing. New Codex work keeps using GPT-6 Luna to help the weekly quota last longer; ask again only if usage or work quality changes.</p>
+
+  <section class="hub-command">
+    <p class="hub-command__where">If you want to end the setting later, run this in an Agent Manager terminal:</p>
+    <div class="hub-command__line"><code>agent-manager usage mode end &lt;id&gt;</code><button type="button" class="is-quiet" data-hub-copy>Copy</button></div>
+    <ol class="hub-command__steps"><li>Replace <code>&lt;id&gt;</code> with the active usage setting ID.</li><li>The command ends the setting so new work returns to the usual stronger models.</li></ol>
+    <p><strong>Before it changes anything:</strong> the available instructions do not describe a preview or confirmation step.</p>
+    <p><strong>Undo:</strong> no undo command is specified. This decision does not run the command; it is here if you choose to end the setting later.</p>
+  </section>
+
+  <aside class="recurrence" aria-label="Repeated daily decision">
+    <span class="count">14×</span>
+    <div><strong>The same choice has come back since 4 Nov.</strong><p>You said “keep on” each time you answered. Four times it ended without a keep-on answer: two expired and two were dismissed.</p></div>
+  </aside>
+
+  <h2>How those 14 asks ended</h2>
+  <div class="split" role="img" aria-label="Ten answered to keep it on; four ended unanswered or dismissed">
+    <div class="answered">10 kept on</div><div class="not-answered">4 no answer</div>
+  </div>
+  <div class="legend"><span>Answered: keep on</span><span>Expired or dismissed</span></div>
+  <p>The setting has no end time, so Agent Manager asks once a day. A standing rule addresses that cause while leaving you free to turn it off whenever you want.</p>
+
+  <h2>Choose what happens next</h2>
+  <div class="choices">
+    <section class="choice recommended">
+      <p class="label">Recommended</p><h2>Keep it on; make it standing</h2>
+      <p>Keep the quota benefit and stop the daily prompt. Ask again only if weekly usage changes materially (for example, passes 80%) or work quality drops. You can still turn it off any time.</p>
+      <p><strong>Cost:</strong> new work continues on GPT-6 Luna until you end the setting or a change warrants a new decision.</p>
+      <button type="button" data-answer="standing">Choose standing</button>
+    </section>
+    <section class="choice">
+      <h2>Keep the daily check</h2>
+      <p>Keep the setting and continue being asked every day whether it should stay on. No change to models or quota use.</p>
+      <p><strong>Cost:</strong> the same question keeps taking your attention.</p>
+      <button type="button" class="is-quiet" data-answer="daily">Choose daily checks</button>
+    </section>
+    <section class="choice">
+      <h2>Turn it off</h2>
+      <p>New Codex work returns to the stronger usual models. The weekly quota will be used faster; the four exempt work types remain on their usual models.</p>
+      <p><strong>Cost:</strong> less quota runway. This ends the current usage setting.</p>
+      <button type="button" class="is-quiet" data-answer="off">Choose turn off</button>
+    </section>
+  </div>
+
+  <h2>After your answer</h2>
+  <p>If you choose standing, I’ll remove the daily check and keep the setting active, then bring you a new decision if usage or quality changes. If you choose daily checks, I’ll leave the current reminder in place. If you choose turn off, I’ll end the setting so new work returns to the usual stronger models.</p>
+  <p><strong>If you don’t answer:</strong> it stays on with the daily check, and the question returns tomorrow.</p>
+  <details><summary>Terms</summary><p>“Usual models” means the models otherwise selected for new Codex work. Fallback, review, supervision, and judgment already continue using their usual models.</p></details>
+  <script>
+    document.addEventListener("click", function (e) {
+      var button = e.target.closest && e.target.closest("[data-answer]");
+      if (button && window.hub && window.hub.prefill) window.hub.prefill("answer", button.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

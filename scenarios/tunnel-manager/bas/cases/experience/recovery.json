@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-recovery",
+    "description": "Navigate to the recovery experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-RECOVERY",
+    "version": "1",
+    "labels": {"spec_entry_id": "recovery", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-recovery",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/recovery",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to recovery"}
+      }
+    },
+    {
+      "id": "wait-recovery-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.recovery",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the recovery surface"}
+      }
+    },
+    {
+      "id": "assert-recovery-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.recovery",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Recovery did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert recovery surface is visible"}
+      }
+    },
+    {
+      "id": "assert-recovery-results-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"recovery-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"recovery-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"recovery-results\"][data-experience-state=\"partial\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Recovery results did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert recovery results lifecycle"}
+      }
+    }
+  ]
+}

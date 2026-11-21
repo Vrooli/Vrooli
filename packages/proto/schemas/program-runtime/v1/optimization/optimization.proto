@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.optimization;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/optimization;optimization_v1";
+
+// SubmitOptimizationRequest starts or resumes an immutable optimizer request.
+message SubmitOptimizationRequest {
+  string request_json = 1;
+}
+
+message SubmitOptimizationResponse {
+  string run_id = 1;
+  string record_json = 2;
+}
+
+// WaitOptimizationRequest blocks once for at most wait_ms. Callers must not
+// poll; a non-terminal response is a durable run that can be resumed later.
+message WaitOptimizationRequest {
+  string run_id = 1;
+  uint32 wait_ms = 2;
+}
+
+message WaitOptimizationResponse {
+  string record_json = 1;
+  bool terminal = 2;
+  uint32 waited_ms = 3;
+}
+
+service OptimizationService {
+  rpc Submit(SubmitOptimizationRequest) returns (SubmitOptimizationResponse);
+  rpc Wait(WaitOptimizationRequest) returns (WaitOptimizationResponse);
+}

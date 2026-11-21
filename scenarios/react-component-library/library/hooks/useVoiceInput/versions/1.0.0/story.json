@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "always-on",
+        "kind": "enum",
+        "label": "Mode",
+        "options": [
+          "always-on",
+          "timeout"
+        ],
+        "path": "mode"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": [
+      {
+        "adapter": "voice-input",
+        "key": "voiceInput",
+        "options": [
+          "idle",
+          "timeout",
+          "permission-denied"
+        ]
+      }
+    ]
+  },
+  "kind": "hook",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "start-recording",
+      "interactions": [
+        {
+          "kind": "click"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Always-on fixture enters recording",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "mode": "timeout"
+      },
+      "environment": {
+        "voiceInput": "timeout"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "timeout",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Timeout fixture returns to idle",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "args": {
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "permission-denied"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "failure",
+      "interactions": [
+        {
+          "kind": "click"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Denied media fixture enters an error state",
+      "role": "boundary"
+    }
+  ],
+  "title": "useVoiceInput"
+}

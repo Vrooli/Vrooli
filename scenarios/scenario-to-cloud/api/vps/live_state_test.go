@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
 )
@@ -89,6 +89,27 @@ func TestBuildProcessState_DedupesResourceRowsByID(t *testing.T) {
 	}
 	if state.Resources[0].PID != 800 {
 		t.Fatalf("expected canonical postgres PID to be earliest (800), got %d", state.Resources[0].PID)
+	}
+}
+
+func TestBuildProcessState_UsesTypedResourceStatusWhenProcessNameDiffers(t *testing.T) {
+	t.Parallel()
+
+	state := buildProcessState(
+		[]ProcessInfo{{PID: 42, Command: "resource-supervisor", User: "root"}},
+		nil,
+		`{"landing-page":{"status":"running"}}`,
+		`{"resources":[{"resource":{"name":"postgres"},"running":true,"serving":true,"message":"ready"}]}`,
+		"landing-page",
+		map[string]bool{"postgres": true},
+	)
+
+	if len(state.Resources) != 1 {
+		t.Fatalf("resources = %#v, want one typed resource row", state.Resources)
+	}
+	resource := state.Resources[0]
+	if resource.ID != "postgres" || resource.Status != "running" || resource.PID != 0 {
+		t.Fatalf("resource = %#v, want postgres running with unknown PID", resource)
 	}
 }
 
@@ -251,7 +272,7 @@ LISTEN 0      4096         0.0.0.0:443         0.0.0.0:*    users:(("caddy",pid=
 	}
 }
 
-func TestParseCPUUsageFromTop(t *testing.T) {
+func TestParseRemoteProcStatCPUUsage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -290,37 +311,9 @@ cpu  2000 50 300 5050 100 10 5 0`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseCPUUsageFromTop(tt.input)
+			result := systemmetrics.ParseCPUUsageFromProcStat(tt.input)
 			if result < tt.wantMin || result > tt.wantMax {
-				t.Errorf("parseCPUUsageFromTop() = %f, want between %f and %f", result, tt.wantMin, tt.wantMax)
-			}
-		})
-	}
-}
-
-func TestParseHumanSize(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{"200G", 200},
-		{"1T", 1024},
-		{"512M", 0},
-		{"1024M", 1},
-		{"100K", 0},
-		{"0G", 0},
-		{"2.5T", 2560},
-		{"", 0},
-		{"notanumber", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := parseHumanSize(tt.input)
-			if result != tt.want {
-				t.Errorf("parseHumanSize(%q) = %d, want %d", tt.input, result, tt.want)
+				t.Errorf("ParseCPUUsageFromProcStat() = %f, want between %f and %f", result, tt.wantMin, tt.wantMax)
 			}
 		})
 	}
@@ -386,8 +379,8 @@ func TestCategorizePortsWithManifest(t *testing.T) {
 func TestParseSystemState_Uptime(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"uptime": {result: ssh.Result{Stdout: "389593.24 1558372.96"}},
+	results := map[string]probeResult{
+		"uptime": {result: reach.Result{Stdout: "389593.24 1558372.96"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -399,8 +392,8 @@ func TestParseSystemState_Uptime(t *testing.T) {
 func TestParseSystemState_Disk(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"df": {result: ssh.Result{Stdout: "/dev/sda1      200G   84G  116G  42% /"}},
+	results := map[string]probeResult{
+		"df_kb": {result: reach.Result{Stdout: "/dev/sda1 209715200 88080384 121634816 42% /"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -421,8 +414,8 @@ func TestParseSystemState_Disk(t *testing.T) {
 func TestParseSystemState_Memory(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"free": {result: ssh.Result{Stdout: "Mem:           3944        2048        1024         100         872        1700\nSwap:          2048         512        1536"}},
+	results := map[string]probeResult{
+		"meminfo": {result: reach.Result{Stdout: "MemTotal:       4038656 kB\nMemFree:        1048576 kB\nMemAvailable:   1740800 kB\nBuffers:         102400 kB\nCached:          790528 kB\nSwapTotal:       2097152 kB\nSwapFree:        1572864 kB\n"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -443,9 +436,9 @@ func TestParseSystemState_Memory(t *testing.T) {
 func TestParseSystemState_SSHKeyAuthUnknownWithoutKey(t *testing.T) {
 	t.Parallel()
 
-	results := map[string]sshCommandResult{
-		"ssh_ping":      {result: ssh.Result{ExitCode: 0}},
-		"ssh_key_check": {result: ssh.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
+	results := map[string]probeResult{
+		"ssh_ping":      {result: reach.Result{ExitCode: 0}},
+		"ssh_key_check": {result: reach.Result{Stdout: "ssh-ed25519 AAAA existing-key user@host", ExitCode: 0}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{AuthMode: sshidentity.AuthModeDefaultSSH}, "", systemmetrics.CollectorForOS("linux"))
@@ -458,12 +451,12 @@ func TestParseSystemState_SSHKeyAuthAuthorized(t *testing.T) {
 	t.Parallel()
 
 	pubKey := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestKey generated-by-test"
-	results := map[string]sshCommandResult{
+	results := map[string]probeResult{
 		"ssh_ping": {
-			result: ssh.Result{ExitCode: 0},
+			result: reach.Result{ExitCode: 0},
 		},
 		"ssh_key_check": {
-			result: ssh.Result{Stdout: pubKey + "\nssh-ed25519 AAAA other", ExitCode: 0},
+			result: reach.Result{Stdout: pubKey + "\nssh-ed25519 AAAA other", ExitCode: 0},
 		},
 	}
 

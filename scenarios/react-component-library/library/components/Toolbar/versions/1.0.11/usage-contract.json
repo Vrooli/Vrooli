@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:Toolbar",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 8,
+    "maximumLabelCharacters": 24,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "1.0.11"
+}

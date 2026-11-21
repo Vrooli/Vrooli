@@ -1,0 +1,375 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "body",
+        "kind": "enum",
+        "label": "Style",
+        "options": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ],
+        "path": "textStyle"
+      },
+      {
+        "default": "default",
+        "kind": "enum",
+        "label": "Tone",
+        "options": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ],
+        "path": "tone"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "textStyle": "body",
+        "tone": "default"
+      },
+      "composition": {
+        "specimen": {
+          "export": "TextAnatomy",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "A clear typographic hierarchy",
+          "role": "heading"
+        },
+        {
+          "kind": "text",
+          "value": "One component carries the reading rhythm across a surface."
+        }
+      ],
+      "id": "anatomy",
+      "name": "Default anatomy",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "textStyle": "body"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "scale",
+      "name": "Style scale",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "tone": "default"
+      },
+      "axis": "tone",
+      "composition": {
+        "specimen": {
+          "export": "TextToneMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "tone": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Four semantic tones",
+          "role": "heading"
+        }
+      ],
+      "id": "tone",
+      "name": "Semantic tones",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "body"
+      },
+      "composition": {
+        "specimen": {
+          "export": "TextBoundaries",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Boundary conditions",
+          "role": "heading"
+        }
+      ],
+      "id": "boundaries",
+      "name": "Boundary conditions",
+      "role": "boundary",
+      "states": [
+        "empty",
+        "truncate",
+        "overflow",
+        "forced-colors"
+      ]
+    },
+    {
+      "args": {
+        "textStyle": "display"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "display"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "display",
+      "name": "Display typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "title"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "title"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "title",
+      "name": "Title typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "heading"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "heading"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "heading",
+      "name": "Heading typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "body"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "body"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "body",
+      "name": "Body typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "label"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "label"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "label",
+      "name": "Label typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "caption"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "caption"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "caption",
+      "name": "Caption typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "code"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "code"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "code",
+      "name": "Code typography",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "textStyle": "overline"
+      },
+      "axis": "textStyle",
+      "composition": {
+        "specimen": {
+          "export": "TextScaleMatrix",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "textStyle": [
+          "overline"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Eight bundled styles",
+          "role": "heading"
+        }
+      ],
+      "id": "overline",
+      "name": "Overline typography",
+      "role": "axis"
+    }
+  ]
+}

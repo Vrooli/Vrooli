@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-soak-1789551583862271221",
+  "lane": "realtime",
+  "profile": "realistic",
+  "shape": "realistic",
+  "turns": 3,
+  "cell": {
+    "engineId": "kyutai",
+    "modelId": "kyutai/stt-1b-en_fr",
+    "strategy": "passthrough",
+    "policy": "default"
+  },
+  "code": {
+    "capturePackage": "sha256:919311149be956d0be5e8d4df3e3f993835f76a36b8b885e28938cdf8ac6bb00",
+    "server": "sha256:46bc299ff256519629cb563402c862b93b94bed5907fb389a6d2f22c399d5185"
+  },
+  "durationMs": 15787,
+  "assertions": [
+    {
+      "name": "interval_accounting_exactly_once",
+      "outcome": "passed",
+      "detail": "3 browser turns observed with monotonic capture coverage; signal_observed=true"
+    },
+    {
+      "name": "capture_signal_observed",
+      "outcome": "passed",
+      "detail": "non-silent PCM observed on 3/3 browser turns"
+    },
+    {
+      "name": "browser_retention_bounded",
+      "outcome": "passed",
+      "detail": "metadata-only browser retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "server_retention_bounded",
+      "outcome": "passed",
+      "detail": "server ledger retained-byte snapshots stayed within 64MiB"
+    },
+    {
+      "name": "per_frame_cost_constant",
+      "outcome": "passed",
+      "detail": "captured sample spread max/min=1.005 (66048/65704), limit=1.50"
+    },
+    {
+      "name": "zero_duplicate_committed_segments",
+      "outcome": "passed",
+      "detail": "server ledger committed segment ids were unique"
+    },
+    {
+      "name": "zero_silent_terminal_outcomes",
+      "outcome": "passed",
+      "detail": "every observed turn exposed a terminal state or reason"
+    },
+    {
+      "name": "provider_cell_identity",
+      "outcome": "failed",
+      "detail": "observed provider=\"whisper-local\" model=\"whisper-medium\"; expected provider=\"kyutai\" model=\"kyutai/stt-1b-en_fr\""
+    },
+    {
+      "name": "peak_memory_flat",
+      "outcome": "passed",
+      "detail": "audio-tools server heap delta=0 bytes across turns"
+    },
+    {
+      "name": "wire_rate_within_budget",
+      "outcome": "passed",
+      "detail": "captured wire rate 16426..16512 samples/s; expected 8000..24000"
+    },
+    {
+      "name": "first_partial_latency_stable",
+      "outcome": "failed",
+      "detail": "first_partial_latency_stable exceeded approved speech-to-visible-partial p95: p95=1291.00ms target\u003c=1000ms across 3 realtime turns; first=1291.00ms last=1248.00ms; first milestones capture_start=1789551584344 first_capture=1789551584363 first_signal=1789551584373 first_sent=1789551584459 first_partial=1789551585664"
+    },
+    {
+      "name": "committed_text_lag_stable",
+      "outcome": "not_measured",
+      "detail": "no realtime observations were available"
+    },
+    {
+      "name": "continuous_interim_text_visible",
+      "outcome": "passed",
+      "detail": "interim text remained visible at 3/3 realtime feed checkpoints across 3 turn(s)"
+    },
+    {
+      "name": "word_error_rate_stable",
+      "outcome": "failed",
+      "detail": "turn 1: wer=0.1000 substitutions=0 insertions=0 deletions=1 punctuation_rate=0.2222 capitalisation_rate=0.1111; turn 2: wer=0.3000 substitutions=0 insertions=1 deletions=2 punctuation_rate=0.0000 capitalisation_rate=0.1111; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    },
+    {
+      "name": "punctuation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.1000 substitutions=0 insertions=0 deletions=1 punctuation_rate=0.2222 capitalisation_rate=0.1111; turn 2: wer=0.3000 substitutions=0 insertions=1 deletions=2 punctuation_rate=0.0000 capitalisation_rate=0.1111; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    },
+    {
+      "name": "capitalisation_rate_recorded",
+      "outcome": "passed",
+      "detail": "turn 1: wer=0.1000 substitutions=0 insertions=0 deletions=1 punctuation_rate=0.2222 capitalisation_rate=0.1111; turn 2: wer=0.3000 substitutions=0 insertions=1 deletions=2 punctuation_rate=0.0000 capitalisation_rate=0.1111; turn 3: wer=0.0000 substitutions=0 insertions=0 deletions=0 punctuation_rate=0.2000 capitalisation_rate=0.2000"
+    }
+  ]
+}
+

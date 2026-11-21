@@ -34,6 +34,5 @@
       "placeholder": "List the main behaviors that should be tested",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

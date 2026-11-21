@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "aquila-product-presentation",
+  "agentId": "aquila-product-presentation-coordinator",
+  "roles": [
+    "aquila-product-presentation-coordinator"
+  ],
+  "status": "active"
+}

@@ -1,0 +1,21 @@
+{
+ "question": "Which Image Tools phone navigation should I use: four readable tabs, menu only, or keep today’s eight cut-off tabs?",
+ "big_picture": "On phones, eight places crowd the bottom bar until every name is cut to two or three letters; desktop is unaffected. This is a taste decision about how the app is organised, so you choose. Four keeps the editing places one tap away with readable names and puts all eight places in the menu; menu only gives the image more room but puts every place two taps away; keep leaves today’s crowded bar. If you do not answer, today’s bar stays as it is. After your answer, I update the phone layout and send you a capture.",
+ "recommend": "four",
+ "reason": "The editing places stay one tap away with readable names, and none of the eight places is lost.",
+ "options": [
+  {
+   "key": "four",
+   "label": "Use four readable tabs and put all eight places in the menu"
+  },
+  {
+   "key": "menu",
+   "label": "Remove the bottom bar and put all eight places in the menu"
+  },
+  {
+   "key": "keep",
+   "label": "Keep today’s eight tabs with cut-off names"
+  }
+ ],
+ "technical_details": "Original Hub ask: d37f6abb (15 Nov 2026). Case: image-tools-nav. Evidence and implementation context are in the supplied case folder; the displayed captures are attached. On an answer, the Research Desk experience agent changes the phone layout and sends a capture."
+}

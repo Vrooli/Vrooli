@@ -1,0 +1,30 @@
+{
+  "actions": {
+    "maximumCount": 2,
+    "maximumLabelCharacters": 28,
+    "primaryAction": "required",
+    "primaryCount": 1,
+    "primarySlot": "confirmLabel / onConfirm",
+    "secondarySlots": [
+      "cancelLabel / onCancel"
+    ],
+    "sharedContract": "react-component-library:OverlayActionBar@1.0.1",
+    "typicalCount": 2,
+    "typicalLabelCharacters": 18
+  },
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "Form",
+      "Input",
+      "Banner"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:AlertDialog",
+  "sharedParts": [
+    "react-component-library:OverlayActionBar"
+  ],
+  "version": "2.0.13-draft.1"
+}

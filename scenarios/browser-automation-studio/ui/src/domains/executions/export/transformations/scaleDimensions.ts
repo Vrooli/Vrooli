@@ -6,7 +6,9 @@
  * with no side effects, making them easy to test and reason about.
  */
 
-import type { ReplayMovieFrameRect, ReplayMoviePresentation } from "@/types/export";
+import type { ReplayFrameRect as ReplayMovieFrameRect, ReplayPresentation as ReplayMoviePresentation } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
+import { create } from "@bufbuild/protobuf";
+import { ReplayFrameRectSchema } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 
 // =============================================================================
 // Types
@@ -89,23 +91,21 @@ export function scaleFrameRect(
   fallbackDimensions: Dimensions,
   defaultRadius = 24,
 ): ReplayMovieFrameRect {
-  const source: ReplayMovieFrameRect = rect
-    ? { ...rect } as ReplayMovieFrameRect
-    : {
-        x: 0,
-        y: 0,
-        width: fallbackDimensions.width,
-        height: fallbackDimensions.height,
-        radius: defaultRadius,
-      };
+  const source = rect ?? {
+    x: 0,
+    y: 0,
+    width: fallbackDimensions.width,
+    height: fallbackDimensions.height,
+    radius: defaultRadius,
+  };
 
-  return {
+  return create(ReplayFrameRectSchema, {
     x: Math.round((source.x ?? 0) * scaleFactors.scaleX),
     y: Math.round((source.y ?? 0) * scaleFactors.scaleY),
     width: Math.round((source.width ?? fallbackDimensions.width) * scaleFactors.scaleX),
     height: Math.round((source.height ?? fallbackDimensions.height) * scaleFactors.scaleY),
     radius: source.radius ?? defaultRadius,
-  };
+  });
 }
 
 /**

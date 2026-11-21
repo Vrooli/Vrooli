@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.audits;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/audits;audits_v1";
+
+// =============================================================================
+// AUDITS DOMAIN — generic snapshot integrity proof
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audits
+// @stability stable
+//
+// Wire contract for AuditsService. A snapshot audit answers, without any
+// scenario-specific knowledge, "does this backup contain the data shape I
+// expect?". It restores the snapshot to scratch (proving recoverability),
+// captures the live target to scratch (read-only on live), walks both trees
+// with one generic filesystem walker, and compares them by generic signals
+// only: file/dir/symlink counts, regular bytes, a path-list hash, a tree
+// content hash, and per-SQLite-file integrity/schema/page facts.
+//
+// DBM never learns a scenario's domain objects (initiatives, records, …). The
+// audit is evidence, never a destructive restore — scratch directories only,
+// always cleaned up. Reports store relative paths, counts, and hashes — never
+// file contents or secret values.
+//
+// RunSnapshotAudit is ASYNCHRONOUS (mirroring RestoresService): it validates
+// synchronously, persists a non-terminal record, schedules the heavy
+// restore+capture+walk on a server-lifetime background worker, and returns the
+// record immediately. Callers poll GetAudit for the terminal status.
+// =============================================================================
+
+service AuditsService {
+  rpc RunSnapshotAudit(RunSnapshotAuditRequest) returns (RunSnapshotAuditResponse);
+  rpc GetAudit(GetAuditRequest) returns (GetAuditResponse);
+  rpc ListAudits(ListAuditsRequest) returns (ListAuditsResponse);
+}
+
+// AuditStatus is the lifecycle state of a snapshot audit.
+enum AuditStatus {
+  AUDIT_STATUS_UNSPECIFIED = 0;
+  AUDIT_STATUS_REQUESTED = 1;
+  AUDIT_STATUS_RUNNING = 2;
+  // The audit ran to completion; see AuditComparison.matches for the verdict.
+  AUDIT_STATUS_COMPLETED = 3;
+  // The audit could not complete (snapshot not restorable, capture failed, …).
+  AUDIT_STATUS_FAILED = 4;
+}
+
+// InventorySummary is the generic, domain-agnostic fingerprint of a directory
+// tree (a restored snapshot artifact or a freshly captured live artifact).
+message InventorySummary {
+  // Regular file count.
+  int64 files = 1;
+  // Directory count (excluding the tree root).
+  int64 directories = 2;
+  // Symlink count (symlinks are recorded by target, never followed).
+  int64 symlinks = 3;
+  // Entries that are neither regular file, directory, nor symlink
+  // (devices, sockets, fifos) — counted but not hashed by content.
+  int64 other = 4;
+  // Total bytes of regular files.
+  int64 regular_bytes = 5;
+  // sha256 over the sorted list of (relative path + mode/type + size +
+  // symlink target). Equal path-list hashes mean identical structure.
+  string path_list_sha256 = 6;
+  // sha256 over the streamed contents of every regular file (sorted by path),
+  // plus symlink targets. Empty when include_content_hash was false.
+  string tree_content_sha256 = 7;
+  // Per-SQLite-file generic facts found in the tree.
+  repeated SqliteInventory sqlite = 8;
+  // When this inventory was walked (drift interpretation).
+  google.protobuf.Timestamp captured_at = 9;
+  // Paths that could not be read (permission/IO), reported rather than hidden.
+  repeated string unreadable_paths = 10;
+}
+
+// SqliteInventory is the generic integrity proof for one SQLite file. It carries
+// no domain meaning: table_count is a raw count of objects in sqlite_master,
+// never a per-domain-table interpretation, and no row contents are read.
+message SqliteInventory {
+  // Relative path within the tree.
+  string path = 1;
+  // ok / failed / not_checked.
+  string integrity_status = 2;
+  int64 page_count = 3;
+  int64 page_size = 4;
+  // sha256 of the normalized sqlite_master schema (sorted by type,name,tbl_name).
+  string schema_sha256 = 5;
+  // Generic count of schema objects (tables/indexes/views/triggers).
+  int64 table_count = 6;
+}
+
+// AuditComparison is the generic verdict comparing live and snapshot
+// inventories.
+message AuditComparison {
+  // True only when every compared generic signal is identical.
+  bool matches = 1;
+  // Human-readable list of the specific generic signals that differ.
+  repeated string mismatches = 2;
+  // True when the live capture is newer than the snapshot timestamp, which
+  // explains a mismatch as expected drift rather than corruption.
+  bool live_newer_than_snapshot = 3;
+}
+
+// Audit is the canonical wire shape for one snapshot audit record.
+message Audit {
+  string id = 1;
+  string target_id = 2;
+  string destination_id = 3;
+  string snapshot_id = 4;
+  AuditStatus status = 5;
+  // Whether the run computed the streaming tree content hash.
+  bool include_content_hash = 6;
+  // Whether SQLite files were integrity/schema checked.
+  bool include_sqlite_checks = 7;
+  // True once the snapshot was successfully restored to scratch.
+  bool restorable = 8;
+  // Generic inventory of the freshly captured live target.
+  InventorySummary live = 9;
+  // Generic inventory of the restored snapshot artifact.
+  InventorySummary snapshot = 10;
+  // Generic live-vs-snapshot comparison.
+  AuditComparison comparison = 11;
+  // The snapshot's own start time (drift interpretation).
+  google.protobuf.Timestamp snapshot_time = 12;
+  google.protobuf.Timestamp requested_at = 13;
+  google.protobuf.Timestamp finished_at = 14;
+  // Failure reason; empty on success.
+  string error = 15;
+}
+
+message RunSnapshotAuditRequest {
+  string target_id = 1 [(buf.validate.field).string.min_len = 1];
+  string destination_id = 2 [(buf.validate.field).string.min_len = 1];
+  string snapshot_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Compute the streaming tree content hash. Default true; set false for huge
+  // trees where the path-list hash + counts are proof enough.
+  bool include_content_hash = 4;
+  // Run SQLite integrity/schema checks on discovered DB files. Default true.
+  bool include_sqlite_checks = 5;
+}
+
+message RunSnapshotAuditResponse {
+  Audit audit = 1;
+}
+
+message GetAuditRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetAuditResponse {
+  Audit audit = 1;
+}
+
+message ListAuditsRequest {
+  // Optional target filter.
+  string target_id = 1;
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  string page_token = 3;
+}
+
+message ListAuditsResponse {
+  repeated Audit audits = 1;
+  string next_page_token = 2;
+}

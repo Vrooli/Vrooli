@@ -1,0 +1,25 @@
+{
+  "experiment": {
+    "id": "skill-experiment-calibration-v4",
+    "protocolHash": "sha256:930932b1c488499fe962baba3dccca5bf290e8ddc0afe68285b78c4f794973a1",
+    "winnerVariantId": "known-good",
+    "outcomeCompleteness": 1,
+    "exposurePolicy": "exclude-contaminated"
+  },
+  "assignments": [
+    {
+      "assignmentId": "workflow-assignment/9325c64a-c960-41cc-92df-a5430da58ace/node/treatment",
+      "variantId": "control",
+      "verdict": "fail",
+      "success": false,
+      "outcomeStatus": "complete"
+    },
+    {
+      "assignmentId": "workflow-assignment/db842a78-7ca2-4b68-8fe1-9abb8293a0f2/node/treatment",
+      "variantId": "known-good",
+      "verdict": "pass",
+      "success": true,
+      "outcomeStatus": "complete"
+    }
+  ]
+}

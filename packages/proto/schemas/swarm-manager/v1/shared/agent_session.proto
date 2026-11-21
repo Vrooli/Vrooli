@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability beta
+
+// AgentSessionAttribution captures the verified actor that created or changed
+// an entity, optionally joined to the owning Swarm Manager agent session.
+message AgentSessionAttribution {
+  // Actor type.
+  // @constraint one of: operator, agent
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "operator",
+      "agent"
+    ]
+  }];
+
+  // Verified Agent Manager run ID when type=agent.
+  optional string run_id = 2;
+
+  // Verified Agent Manager task ID when type=agent.
+  optional string task_id = 3;
+
+  // Verified Agent Manager profile key when type=agent.
+  optional string profile_key = 4;
+
+  // Swarm Manager agent session ID when the run belongs to a session.
+  optional string session_id = 5;
+
+  // Swarm Manager session kind when the run belongs to a session.
+  // @constraint one of: empty, meta_orchestration, operating_mode_authoring, swarm_operations, workflow_authoring
+  optional string session_kind = 6 [(buf.validate.field).string = {
+    in: [
+      "",
+      "meta_orchestration",
+      "operating_mode_authoring",
+      "swarm_operations",
+      "workflow_authoring"
+    ]
+  }];
+
+  // Source marker for observability, such as session/<session_id>.
+  optional string source = 7;
+}
+
+// AgentSessionContextItem is a bounded server-resolved snapshot of an existing
+// Swarm Manager record attached to a single session message.
+message AgentSessionContextItem {
+  // Context type.
+  // @constraint one of: backlog_item, goal, capture, execution, agent_activity, scenario, operating_mode, session, operations_briefing, startup_brief
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "goal",
+      "capture",
+      "execution",
+      "agent_activity",
+      "scenario",
+      "operating_mode",
+      "session",
+      "operations_briefing",
+      "startup_brief"
+    ]
+  }];
+
+  // Stable entity reference.
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Server-resolved display title.
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Bounded server-resolved summary.
+  string summary = 4;
+
+  // Optional graph/detail routing hint.
+  optional string node_id = 5;
+
+  // Optional bounded JSON metadata with small display/prompt facts.
+  optional string metadata_json = 6;
+
+  // RFC3339 timestamp for when the ref was selected/resolved.
+  // @format rfc3339
+  string selected_at = 7 [(buf.validate.field).string.min_len = 1];
+}
+
+// AgentSessionAttachment describes an uploaded or generated attachment.
+message AgentSessionAttachment {
+  // Unique attachment identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Display filename.
+  string filename = 2 [(buf.validate.field).string.min_len = 1];
+
+  // MIME type when known.
+  optional string content_type = 3;
+
+  // Size in bytes.
+  optional int64 size_bytes = 4 [(buf.validate.field).int64.gte = 0];
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// AgentSessionArtifact links a session to a proposed or applied artifact.
+message AgentSessionArtifact {
+  // Unique artifact link identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Owning session ID.
+  string session_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Artifact type.
+  // @constraint one of: backlog_item, milestone, operating_mode_proposal, operating_mode_definition, capture, file, agent_activity
+  string artifact_type = 3 [(buf.validate.field).string = {
+    in: [
+      "backlog_item",
+      "milestone",
+      "operating_mode_proposal",
+      "operating_mode_definition",
+      "capture",
+      "file",
+      "agent_activity",
+      "transition_execution"
+    ]
+  }];
+
+  // Link action.
+  // @constraint one of: proposed, created, updated, deleted, linked
+  string action = 4 [(buf.validate.field).string = {
+    in: [
+      "proposed",
+      "created",
+      "updated",
+      "deleted",
+      "linked"
+    ]
+  }];
+
+  // Stable entity reference, such as execute/my-item, goal-name, or a file path.
+  string entity_ref = 5 [(buf.validate.field).string.min_len = 1];
+
+  // Optional human-readable title for display.
+  optional string title = 6;
+
+  // Proposal that produced this artifact, when applicable.
+  optional string proposal_id = 7;
+
+  // Agent activity record associated with this artifact, when applicable.
+  optional string activity_id = 8;
+
+  // Agent Manager run associated with this artifact, when applicable.
+  optional string run_id = 9;
+
+  // API endpoint or service entrypoint that created the link.
+  optional string mutation_source = 10;
+
+  // Provenance for the mutation that produced the artifact link.
+  optional AgentSessionAttribution attribution = 11;
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 12 [(buf.validate.field).string.min_len = 1];
+}

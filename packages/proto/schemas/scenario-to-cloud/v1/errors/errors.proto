@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.errors;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/errors;errorsv1";
+
+// =============================================================================
+// ERRORS — typed error model shared by API, CLI and UI
+// =============================================================================
+//
+// @stability beta
+//
+// Every non-2xx REST body from scenario-to-cloud is `{"error": Error}` encoded
+// with proto field names. Connect RPC failures attach the same Error message as
+// an error detail, so REST and Connect clients consume one stable code set.
+// Codes are the constants in api/apierrors/codes.go; the HTTP status is derived
+// from the code and is never part of the wire body.
+//
+// USAGE CONTEXTS:
+//   - api/apierrors: Write marshals Error; FromHTTP decodes it for Go clients.
+//   - cli: maps code to exit code (0 ok, 1 failed, 2 refused/conflict,
+//     3 pending/needs-input, 124 observer timeout).
+//   - ui: parses through ErrorSchema and renders next_action.
+//
+// =============================================================================
+
+// Error is one typed failure.
+message Error {
+  // Stable machine code, snake_case. @example "deployment_selector_ambiguous"
+  string code = 1;
+  // Human-readable explanation. Never contains secrets.
+  string message = 2;
+  // True when the same request may succeed if retried without changes.
+  bool retryable = 3;
+  // Optional pointer to the thing a caller should do or look at next.
+  NextAction next_action = 4;
+  // Structured, code-specific context (for example the candidate ids of an
+  // ambiguous selector).
+  google.protobuf.Struct details = 5;
+}
+
+// NextAction references the owner and artifact that can move a caller past
+// the error.
+message NextAction {
+  // Owning scenario or component. @example "scenario-to-cloud"
+  string owner = 1;
+  // Kind of reference: "endpoint", "command", "document", "operation",
+  // "selector".
+  string kind = 2;
+  // Owner-specific reference (a path, a command, an id).
+  string reference = 3;
+  // Short operator-facing label.
+  string label = 4;
+}

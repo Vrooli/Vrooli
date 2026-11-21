@@ -1,0 +1,163 @@
+{
+  "description": "Chimesail が連絡できる場所と、それぞれが受け取れる内容です。",
+  "browser": {
+    "title": "このブラウザー",
+    "checking": "確認中…",
+    "onTitle": "通知はオンです",
+    "onBody": "このブラウザーは登録済みで、通知を受け取れます。",
+    "offTitle": "通知はオフです",
+    "offBody": "オンにすると、判断依頼や更新をこのブラウザーで受け取れます。",
+    "deniedTitle": "通知はブロックされています",
+    "deniedBody": "このブラウザーは Chimesail からの通知を許可していません。ブラウザーのサイト設定で許可してから、もう一度確認してください。",
+    "unsupportedTitle": "ここでは通知を利用できません",
+    "unsupportedBody": "このブラウザーはプッシュ通知を受け取れません。iPhone では、Safari のタブではなくホーム画面から Chimesail を開いてください。",
+    "turnOn": "通知をオンにする",
+    "checkAgain": "もう一度確認",
+    "update": "このブラウザーを更新",
+    "updating": "更新中…",
+    "updateHelp": "新しいバージョンの Chimesail があります。通知を確実に受け取るため、更新してください。",
+    "statusUnavailable": "このブラウザーの通知の状態を読み取れませんでした。",
+    "asking": "ブラウザーでの回答を待っています…",
+    "registering": "このブラウザーを登録しています…",
+    "confirmTitle": "ここで通知をオンにしますか？",
+    "confirmBody": "ブラウザーに許可を求めたうえで登録します。登録したブラウザーは、機密性の高いものや重要なものを含むすべての通知を表示できます。あとでデバイスのページから変更できます。",
+    "confirm": "続ける",
+    "result": {
+      "registered": "このブラウザーで通知がオンになりました。",
+      "registeredNoSubscription": "Chimesail には登録されましたが、このブラウザーにはプッシュ購読がありません。アプリを再読み込みして、もう一度確認してください。",
+      "unsupported": "このブラウザーはプッシュ通知を受け取れません。",
+      "denied": "ブラウザーが通知をブロックしました。サイト設定で許可してから、もう一度確認してください。",
+      "dismissed": "許可が得られなかったため、何も登録されていません。",
+      "noKey": "登録に使うプッシュキーがありません。何も登録されていません。",
+      "unconfirmed": "登録を確認できませんでした。少し待ってからもう一度確認してください。",
+      "failed": "このブラウザーは登録されませんでした。何も変更されていません。"
+    },
+    "details": "詳細",
+    "support": "ブラウザーの対応",
+    "available": "対応",
+    "unavailable": "非対応",
+    "permission": "許可",
+    "permissionState": {
+      "granted": "許可済み",
+      "denied": "ブロック中",
+      "default": "未確認",
+      "unsupported": "非対応",
+      "unknown": "不明"
+    },
+    "subscription": "購読",
+    "subscribed": "有効",
+    "notSubscribed": "なし",
+    "worker": "サービスワーカー",
+    "noWorker": "動作していません",
+    "currentWorker": "最新です（{{version}}）",
+    "staleWorker": "{{running}} を実行中。{{available}} が利用できます",
+    "unknown": "不明"
+  },
+  "devices": {
+    "title": "デバイス",
+    "refresh": "更新",
+    "refreshLabel": "デバイスを更新",
+    "thisBrowser": "このブラウザー",
+    "noChannels": "チャンネルの報告なし",
+    "emptyTitle": "デバイスはまだありません",
+    "emptyDetail": "判断依頼にはここから回答できます。このブラウザーで通知をオンにすると、届いたときにすぐ受け取れます。",
+    "loadFailed": "デバイスを読み込めませんでした",
+    "loadFailedDetail": "空のリストではなく、何も削除されていません。",
+    "stale": "デバイスを更新できませんでした。以前に読み込んだ内容を表示しています。",
+    "removed": "{{name}}を削除しました。",
+    "removedUncertain": "{{name}}を削除しました。応答は不明確でしたが、デバイス一覧にはもう表示されていません。"
+  },
+  "device": {
+    "title": "デバイス",
+    "back": "デバイスとチャンネル",
+    "machine": "マシン",
+    "channels": "チャンネル",
+    "noChannels": "このデバイスはチャンネルを報告していません。",
+    "addEmail": "メールを追加",
+    "addressesFailed": "保存済みの設定を読み取れませんでした",
+    "addressesFailedDetail": "宛先とコンテンツの設定は、読み込めるまで表示されません。何も変更されていません。",
+    "addressesStale": "以前に読み込んだ内容を表示しています。",
+    "goneTitle": "このデバイスは登録されていません",
+    "goneDetail": "削除された可能性があります。",
+    "removeHeading": "このデバイスを削除",
+    "removeBody": "以後、このデバイスには送信されません。ブラウザーの許可や、すでに届いた通知には影響しません。",
+    "remove": "デバイスを削除",
+    "removing": "削除中…",
+    "confirmTitle": "{{name}}を削除しますか？",
+    "confirmBody": "このデバイスには送信されなくなります。あとで再登録できます。",
+    "removeFailed": "削除を確認できませんでした",
+    "removeFailedDetail": "デバイスはまだ一覧に残っています。もう一度お試しください。"
+  },
+  "channel": {
+    "description": "このチャンネルでの通知の宛先と、含めてよい内容です。",
+    "back": "デバイスに戻る",
+    "loadFailed": "このチャンネルを読み込めませんでした",
+    "loadFailedDetail": "何も変更されていません。",
+    "notEditableTitle": "ここでは編集できません",
+    "notEditableDetail": "このチャンネルには変更できる保存済みの設定がありません。",
+    "emailAddress": "メールアドレス",
+    "emailHelp": "{{device}}の通知はここに届きます。",
+    "invalidEmail": "有効なメールアドレスを入力してください。",
+    "invalidEmailKept": "有効なメールアドレスを入力してください。それまでは保存済みのアドレスがそのまま使われます。",
+    "fullContentHeading": "全文を許可する内容",
+    "fullContentHelp": "チェックしないレベルの内容は、ここには全文では送られません。",
+    "labels": {
+      "public": "公開",
+      "private": "非公開",
+      "sensitive": "機密",
+      "critical": "重要"
+    },
+    "hints": {
+      "public": "非公開の情報を含みません。",
+      "private": "ご自身の作業に関する、通常のレベルです。",
+      "sensitive": "ロック画面に表示したくない詳細です。",
+      "critical": "インシデントやセキュリティの詳細です。"
+    },
+    "fullContent": "全文を許可：{{labels}}",
+    "none": "なし",
+    "thisBrowserPrivate": "このブラウザー",
+    "unreadable": "保存済みの設定を読み取れませんでした。",
+    "preserved": "ほかに許可済み（そのまま保持）：{{labels}}",
+    "pickOne": "1 つ以上選んでください。何も選ばないと「公開」として扱われます。",
+    "widenEmail": "機密や重要な詳細が Chimesail の外に出て、メールで届きます。",
+    "widenPush": "機密や重要な詳細が、このブラウザーの通知に表示されることがあります。",
+    "confirmTitle": "許可しますか？",
+    "confirmEmail": "{{address}}は、{{labels}}の内容を全文で受け取れるようになります。",
+    "confirmPush": "このブラウザーの通知で、{{labels}}の内容を全文で表示できるようになります。",
+    "keepEditing": "編集を続ける",
+    "saved": "{{channel}}の設定を保存しました。",
+    "savedUncertain": "{{channel}}の設定を保存しました。応答は不明確でしたが、再読み込みで確認できました。",
+    "problem": {
+      "conflict": {
+        "title": "別のアドレスがすでに保存されています",
+        "body": "このデバイスにはすでにメールアドレスがあり、変更されていません。編集するにはデバイスのページから開いてください。"
+      },
+      "uncertain": {
+        "title": "保存を確認できませんでした",
+        "body": "応答が不明確で、最新の読み込みにもこの内容は表示されていません。変更はそのまま残っています。もう一度試しても問題ありません。"
+      },
+      "unconfirmed": {
+        "title": "保存されませんでした",
+        "body": "最新の読み込みにこの内容は表示されていません。変更はそのまま残っています。"
+      },
+      "unreadable": {
+        "title": "保存を確認できませんでした",
+        "body": "設定を読み戻せませんでした。変更はそのまま残っています。接続を確認してから、もう一度お試しください。"
+      }
+    }
+  },
+  "deviceApps": {
+    "title": "デバイス上のアプリ",
+    "explanation": "シナリオ専用のアプリが、Chimesail の代わりにそのシナリオの通知をデバイスに表示できます。オンにするには、そのアプリの通知設定を開いてください。どのデバイスにも、通知は 1 回ずつ届きます。",
+    "loadFailed": "アプリを読み込めませんでした",
+    "empty": "通知をオンにしているデバイスはまだありません。",
+    "chimesail": "Chimesail",
+    "useChimesail": "代わりに Chimesail を使う",
+    "removing": "切り替え中…",
+    "removed": "{{device}}の{{app}}の通知は、Chimesail に届くようになりました。",
+    "removeError": "{{app}}を元に戻せませんでした。もう一度お試しください。",
+    "lastSeen": "最終確認 {{date}}",
+    "confirmTitle": "{{device}}で{{app}}の通知を Chimesail に表示しますか？",
+    "confirmBody": "このデバイスでは{{app}}が通知を表示しなくなります。元に戻すには、{{app}}の通知設定でもう一度オンにしてください。"
+  }
+}

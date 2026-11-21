@@ -4,16 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-desktop-api/generation"
-	httputil "scenario-to-desktop-api/shared/http"
+	"scenario-to-desktop-api/storagepaths"
+
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
@@ -22,21 +20,6 @@ type ProxyHint struct {
 	Source     string `json:"source"`
 	Confidence string `json:"confidence"`
 	Message    string `json:"message"`
-}
-
-func (s *Server) proxyHintsHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scenario := vars["scenario_name"]
-	if scenario == "" {
-		http.Error(w, "scenario_name is required", http.StatusBadRequest)
-		return
-	}
-
-	hints := s.collectProxyHints(scenario)
-	httputil.WriteJSON(w, http.StatusOK, map[string]any{
-		"scenario": scenario,
-		"hints":    hints,
-	})
 }
 
 func (s *Server) collectProxyHints(scenario string) []ProxyHint {
@@ -156,7 +139,7 @@ func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
 }
 
 func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
-	analyzer := generation.NewAnalyzer(s.getVrooliRoot())
+	analyzer := generation.NewAnalyzer(sharedpath.DetectVrooliRoot())
 	metadata, err := analyzer.AnalyzeScenario(scenario)
 	if err != nil {
 		return nil
@@ -235,17 +218,11 @@ func buildProxyURLFromHost(host, scenario string) string {
 	return normalized
 }
 
-func (s *Server) getVrooliRoot() string {
-	// Use the centralized path detection from shared/path
-	return sharedpath.DetectVrooliRoot()
-}
-
 func (s *Server) resolveScenarioRoot(scenario string) string {
 	if scenario == "" {
 		return ""
 	}
-	root := s.getVrooliRoot()
-	path := filepath.Join(root, "scenarios", scenario)
+	path := sharedpath.ResolveScenarioRoot(scenario)
 	if _, err := os.Stat(path); err != nil {
 		return ""
 	}
@@ -254,6 +231,13 @@ func (s *Server) resolveScenarioRoot(scenario string) string {
 
 // telemetryFilePath returns the path to the telemetry file for a scenario.
 func (s *Server) telemetryFilePath(scenario string) string {
-	vrooliRoot := s.getVrooliRoot()
-	return filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
+	locator, err := storagepaths.NewLocator()
+	if err != nil {
+		return ""
+	}
+	path, err := locator.TelemetryFilePath(scenario)
+	if err != nil {
+		return ""
+	}
+	return path
 }

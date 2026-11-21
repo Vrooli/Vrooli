@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "name": "experience-controller-spec-smoke",
+    "description": "Given a controller is absent from current inventory, when the operator opens its details, then the unavailable state and recovery explanation are shown.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "controller",
+      "surface": "experience-controller"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-controller",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "lighting-control",
+          "scenario_path": "/controllers/experience-unavailable",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Controller details" }
+      }
+    },
+    {
+      "id": "wait-controller-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.controller",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Controller detail state visible" }
+      }
+    },
+    {
+      "id": "assert-unavailable-controller-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.controller",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "This controller is not in the current backend inventory." },
+          "case_sensitive": true,
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Unavailable controller explained" }
+      }
+    }
+  ]
+}

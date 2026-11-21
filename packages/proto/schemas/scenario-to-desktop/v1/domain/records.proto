@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+message DesktopRecordRequest {
+  string record_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message MoveDesktopRecordRequest {
+  string record_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional string target = 2;
+  optional string destination_path = 3;
+}
+
+message DeleteDesktopScenarioRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// DesktopRecord is the persisted placement and identity of a generated app.
+message DesktopRecord {
+  string id = 1;
+  string build_id = 2;
+  string scenario_name = 3;
+  optional string app_display_name = 4;
+  optional string template_type = 5;
+  optional string framework = 6;
+  optional string location_mode = 7;
+  string output_path = 8;
+  optional string destination_path = 9;
+  optional string staging_path = 10;
+  optional string custom_path = 11;
+  optional string deployment_mode = 12;
+  optional string icon = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message DesktopBuildSummary {
+  string status = 1;
+  optional string output_path = 2;
+  optional BuildMetadata metadata = 3;
+}
+
+// BuildMetadata contains the provenance fields shown with a desktop record.
+// Arbitrary JSON metadata is intentionally not part of this public contract.
+message BuildMetadata {
+  optional string version = 1;
+  optional string git_branch = 2;
+  optional string git_commit_hash = 3;
+  optional bool git_dirty = 4;
+}
+
+message ScreenRecordingSummary {
+  bool recorded = 1;
+  optional int64 duration_ms = 2;
+  optional int64 file_size_bytes = 3;
+  optional string error = 4;
+  // Capture ID resolved through the canonical captures evidence route.
+  optional string capture_id = 5;
+}
+
+message DesktopRecordWithBuild {
+  DesktopRecord record = 1;
+  optional DesktopBuildSummary build_status = 2;
+  bool has_build = 3;
+  optional string build_state = 4;
+  optional string smoke_test_id = 5;
+  optional ScreenRecordingSummary screen_recording = 6;
+}
+
+message DesktopRecordsResponse {
+  repeated DesktopRecordWithBuild records = 1;
+}
+
+message MoveDesktopRecordResponse {
+  string record_id = 1;
+  string from = 2;
+  string to = 3;
+  string status = 4;
+}
+
+message DeleteDesktopScenarioResponse {
+  string status = 1;
+  string scenario_name = 2;
+  string deleted_path = 3;
+  int32 removed_records = 4;
+  string message = 5;
+}
+
+service DesktopRecordsService {
+  rpc ListDesktopRecords(google.protobuf.Empty) returns (DesktopRecordsResponse);
+  rpc MoveDesktopRecord(MoveDesktopRecordRequest) returns (MoveDesktopRecordResponse);
+  rpc DeleteDesktopScenario(DeleteDesktopScenarioRequest) returns (DeleteDesktopScenarioResponse);
+}

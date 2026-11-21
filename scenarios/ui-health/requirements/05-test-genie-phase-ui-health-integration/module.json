@@ -1,0 +1,93 @@
+{
+  "description": "The ui-health provider supplies the canonical `experience` phase, combining static UI contracts and runtime evaluation while preserving the provider's direct validation command.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Test Genie must expose the ui-health provider through the canonical `experience` phase and include runtime evaluation when available. The direct `ui-health validate scenario \u003cname\u003e --json` command remains available for provider-local diagnostics.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "test-genie experience phase integration",
+      "validation": [
+        {
+          "notes": "The `experience` descriptor is owned by ui-health and selects runtime evaluation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The delegated provider returns the ui-health assessment with canonical `experience` identity",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each Finding in the Report JSON is mapped to a test-genie Observation with type, message, and severity fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Experience verdict is based on measured evidence, not an empty report alone",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unavailable browser/runtime evidence is represented as not-evaluated and cannot pass",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run test-genie on a scenario with known manifest violations and confirm Observations appear in test-genie output corresponding to each Finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `test-genie` with `--phases experience` and confirm it returns one served-UI verdict",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Spec contract checks remain available independently through `experience-contract`",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The single experience invocation does not duplicate the former ui-health verdict",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Runtime experience evidence and spec authoring/contract findings retain distinct phase ownership",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "test-genie experience phase integration"
+}

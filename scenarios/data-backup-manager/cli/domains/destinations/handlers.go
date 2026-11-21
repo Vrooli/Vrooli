@@ -1,0 +1,965 @@
+package destinations
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
+	destinationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations/destinations_v1connect"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client destinationsconnect.DestinationsServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	// Snapshot inventory and repository usage walk Kopia metadata and can take
+	// longer than the default 30s client timeout on a large or removable
+	// repository. Three minutes matches the run-trigger client and keeps the
+	// read path from surfacing a transport timeout as a repository failure.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 3*time.Minute)
+	return &handlers{
+		core:   core,
+		client: destinationsconnect.NewDestinationsServiceClient(httpClient, baseURL),
+	}
+}
+
+func (h *handlers) create(ctx cliapp.RunContext) error {
+	backend, err := parseBackendKind(ctx.Flag("backend"))
+	if err != nil {
+		return err
+	}
+	capBytes, err := parseOptionalInt64(ctx.Flag("cap-bytes"))
+	if err != nil {
+		return fmt.Errorf("--cap-bytes: %w", err)
+	}
+	capPolicy, err := parseCapPolicy(ctx.Flag("cap-policy"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.CreateDestination(context.Background(), connect.NewRequest(&destinationsv1.CreateDestinationRequest{
+		Name:        ctx.Flag("name"),
+		BackendKind: backend,
+		Location:    ctx.Flag("location"),
+		CapBytes:    capBytes,
+		CapPolicy:   capPolicy,
+		// A filesystem this host cannot repair needs a deliberate acceptance;
+		// otherwise a single unsafe shutdown can strand the drive forever.
+		AcknowledgeUnrepairableFilesystem: ctx.BoolFlag("allow-unrepairable"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("create destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no destination")
+	}
+	d := resp.Msg.Destination
+	changes := []string{formatDestination(d)}
+	if d.BackendKind == destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		changes = append(changes,
+			fmt.Sprintf("bundle root: %s (README.txt, RECOVERY.txt, vrooli-backup-destination.json)", d.Location),
+			fmt.Sprintf("kopia repository: %s", d.RepositoryLocation),
+			"the repository is encrypted; the passphrase is held in the credential authority and never written to the drive",
+		)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Created destination %s.", d.Id)},
+		Changes: changes,
+		NextCommand: []string{
+			fmt.Sprintf("`plans add-destination --destination %s --apply` — bind this drive into every enabled plan at once; omit --apply for a preview", d.Id),
+			fmt.Sprintf("`destinations get %s` — show this destination", d.Id),
+			"`coverage report` — confirm how many targets are now protected by two or more devices",
+			"`runs trigger --plan-id <plan>` — run a backup now instead of waiting for the schedule",
+			"`restores verify --target-id <t> --destination-id " + d.Id + "` — verify a snapshot is restorable",
+		},
+	})
+}
+
+func (h *handlers) importExisting(ctx cliapp.RunContext) error {
+	backend, err := parseBackendKind(ctx.Flag("backend"))
+	if err != nil {
+		return err
+	}
+	createdAt, err := time.Parse(time.RFC3339Nano, ctx.Flag("created-at"))
+	if err != nil {
+		return fmt.Errorf("--created-at must be RFC3339: %w", err)
+	}
+	var snapshotIDs []string
+	if raw := strings.TrimSpace(ctx.Flag("snapshot-ids")); raw != "" {
+		snapshotIDs = strings.Split(raw, ",")
+		for i := range snapshotIDs {
+			snapshotIDs[i] = strings.TrimSpace(snapshotIDs[i])
+			if snapshotIDs[i] == "" {
+				return fmt.Errorf("--snapshot-ids must be a comma-separated list of non-empty IDs")
+			}
+		}
+	}
+	capBytes, err := parseOptionalInt64(ctx.Flag("cap-bytes"))
+	if err != nil {
+		return fmt.Errorf("--cap-bytes: %w", err)
+	}
+	capPolicy, err := parseCapPolicy(ctx.Flag("cap-policy"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.ImportExistingDestination(context.Background(), connect.NewRequest(&destinationsv1.ImportExistingDestinationRequest{
+		DestinationId: ctx.Flag("id"), Name: ctx.Flag("name"), BackendKind: backend, Location: ctx.Flag("location"),
+		CreatedAt: createdAt.Format(time.RFC3339Nano), ExpectedSnapshotIds: snapshotIDs,
+		CapBytes: capBytes, CapPolicy: capPolicy,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("import existing destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no imported destination")
+	}
+	d := resp.Msg.Destination
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Imported existing destination %s without creating repository data.", d.Id)},
+		Changes: []string{formatDestination(d), fmt.Sprintf("existing Kopia repository: %s", d.RepositoryLocation), "expected snapshot IDs were present after connect"},
+		NextCommand: []string{
+			fmt.Sprintf("`destinations get %s` — inspect imported destination", d.Id),
+			"`restores verify --target <target-id> --destination " + d.Id + " --snapshot <snapshot-id>` — verify a snapshot before restore",
+		},
+	})
+}
+
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.GetDestination(context.Background(), connect.NewRequest(&destinationsv1.GetDestinationRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get destination %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no destination")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Fetched destination %s.", resp.Msg.Destination.Id)},
+		ResultsHeading: "Destination",
+		Results:        []string{formatDestination(resp.Msg.Destination)},
+	})
+}
+
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListDestinations(context.Background(), connect.NewRequest(&destinationsv1.ListDestinationsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list destinations", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no destinations response")
+	}
+	results := make([]string, 0, len(resp.Msg.Destinations))
+	for _, d := range resp.Msg.Destinations {
+		results = append(results, formatDestination(d))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d destination(s).", len(resp.Msg.Destinations))},
+		ResultsHeading: "Destinations",
+		Results:        results,
+		RetrievalHints: []string{
+			"`destinations get <id>` — show a single destination",
+			"`destinations create --name <n> --backend <b> --location <l>` — create a destination",
+		},
+	})
+}
+
+func (h *handlers) snapshots(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListTargetSnapshots(context.Background(), connect.NewRequest(&destinationsv1.ListTargetSnapshotsRequest{
+		DestinationId: ctx.Flag("destination-id"), Owner: ctx.Flag("owner"), Name: ctx.Flag("name"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list destination target snapshots", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no snapshot list")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d snapshot(s) for %s/%s.", len(resp.Msg.Snapshots), ctx.Flag("owner"), ctx.Flag("name"))},
+		ResultsHeading: "Target snapshots",
+		Results: func() []string {
+			out := make([]string, 0, len(resp.Msg.Snapshots))
+			for _, snap := range resp.Msg.Snapshots {
+				out = append(out, fmt.Sprintf("%s — %s — %s", snap.Id, snap.StartedAt.AsTime().Format(time.RFC3339Nano), snap.Source))
+			}
+			return out
+		}(),
+	})
+}
+
+func (h *handlers) update(ctx cliapp.RunContext) error {
+	capBytes, err := parseOptionalInt64(ctx.Flag("cap-bytes"))
+	if err != nil {
+		return fmt.Errorf("--cap-bytes: %w", err)
+	}
+	capPolicy, err := parseCapPolicy(ctx.Flag("cap-policy"))
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.UpdateDestination(context.Background(), connect.NewRequest(&destinationsv1.UpdateDestinationRequest{
+		Id:        ctx.Flag("id"),
+		CapBytes:  capBytes,
+		CapPolicy: capPolicy,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no destination")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Updated destination %s.", resp.Msg.Destination.Id)},
+		Changes: []string{formatDestination(resp.Msg.Destination)},
+	})
+}
+
+func (h *handlers) bindRecoveryIdentity(ctx cliapp.RunContext) error {
+	identity := &destinationsv1.DestinationDeviceIdentity{
+		Uuid:       strings.TrimSpace(ctx.Flag("device-uuid")),
+		Serial:     strings.TrimSpace(ctx.Flag("device-serial")),
+		Filesystem: strings.TrimSpace(ctx.Flag("device-filesystem")),
+		Mountpoint: strings.TrimSpace(ctx.Flag("mountpoint")),
+	}
+	resp, err := h.client.BindDestinationRecoveryIdentity(context.Background(), connect.NewRequest(&destinationsv1.BindDestinationRecoveryIdentityRequest{
+		Id: ctx.Flag("id"), Identity: identity,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("bind destination recovery identity", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return fmt.Errorf("server returned no destination")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Bound destination %s to a freshly observed stable volume identity.", resp.Msg.Destination.Id)},
+		Changes: []string{formatDestination(resp.Msg.Destination)},
+	})
+}
+
+func (h *handlers) delete(ctx cliapp.RunContext) error {
+	deleteRepo := false
+	if s := ctx.Flag("delete-repository"); s != "" {
+		deleteRepo, _ = strconv.ParseBool(s)
+	}
+	resp, err := h.client.DeleteDestination(context.Background(), connect.NewRequest(&destinationsv1.DeleteDestinationRequest{
+		Id:               ctx.Flag("id"),
+		DeleteRepository: deleteRepo,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("delete destination", err, nil)
+	}
+	msg := "No matching destination to delete."
+	var changes []string
+	if resp != nil && resp.Msg != nil && resp.Msg.Removed {
+		msg = "Deleted destination."
+		if deleteRepo {
+			changes = []string{
+				"Removed: catalog row + local resource-kopia metadata/config/cache + credential-authority refs.",
+				"NOT removed: the encrypted repository bytes on the backend remain on disk. " +
+					"Delete the bundle folder manually if you intend to destroy the backups.",
+			}
+		} else {
+			changes = []string{
+				"Removed: catalog row only. Local kopia metadata, credential-authority refs, and the encrypted repository bytes all remain.",
+				"Pass --delete-repository to also remove local kopia metadata and credential-authority refs.",
+			}
+		}
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{msg},
+		Changes: changes,
+	})
+}
+
+func (h *handlers) usage(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.GetDestinationUsage(context.Background(), connect.NewRequest(&destinationsv1.GetDestinationUsageRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get destination usage %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no usage response")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Usage for destination %s.", id)},
+		ResultsHeading: "Usage",
+		Results: []string{
+			fmt.Sprintf("usage=%d bytes cap=%d bytes state=%s policy=%s",
+				resp.Msg.UsageBytes, resp.Msg.CapBytes,
+				usageStateLabel(resp.Msg.UsageState),
+				capPolicyLabel(resp.Msg.CapPolicy)),
+		},
+	})
+}
+
+func (h *handlers) readiness(ctx cliapp.RunContext) error {
+	targetBytes, err := parseOptionalInt64(ctx.Flag("selected-target-bytes"))
+	if err != nil {
+		return fmt.Errorf("--selected-target-bytes: %w", err)
+	}
+	retentionCopies, err := parseOptionalInt32(ctx.Flag("retention-copies"))
+	if err != nil {
+		return fmt.Errorf("--retention-copies: %w", err)
+	}
+	// Declared "bool": true in the manifest, so it arrives as a boolean flag.
+	// Reading it with Flag() returns "" for a set flag, which silently made
+	// --cross-platform a no-op.
+	crossPlatform := ctx.BoolFlag("cross-platform")
+	resp, err := h.client.AnalyzeDestination(context.Background(), connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{
+		Location:              ctx.Flag("location"),
+		ProposedSubdir:        ctx.Flag("proposed-subdir"),
+		SelectedTargetBytes:   targetBytes,
+		RetentionCopies:       retentionCopies,
+		CrossPlatformRequired: crossPlatform,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("analyze destination readiness", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Report == nil {
+		return fmt.Errorf("server returned no readiness report")
+	}
+	report := resp.Msg.Report
+	results := []string{formatReadinessReport(report)}
+	for _, c := range report.Checks {
+		results = append(results, fmt.Sprintf("%s=%s — %s", c.Code, readinessSeverityLabel(c.Severity), c.Message))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Readiness for %s: %s.", report.Location, readinessSeverityLabel(report.OverallSeverity))},
+		ResultsHeading: "Readiness checks",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("`destinations create --name <name> --backend filesystem --location %q` — create a destination at the recommended path after review", report.RecommendedDestinationLocation),
+		},
+	})
+}
+
+func (h *handlers) preparePlan(ctx cliapp.RunContext) error {
+	action, err := parsePreparationAction(ctx.Flag("action"))
+	if err != nil {
+		return err
+	}
+	planReq := &destinationsv1.PlanDestinationPreparationRequest{
+		Location:          ctx.Flag("location"),
+		Action:            action,
+		DesiredSubdir:     ctx.Flag("subdir"),
+		DesiredLabel:      ctx.Flag("label"),
+		DesiredFilesystem: ctx.Flag("filesystem"),
+	}
+	// Once a remediation sequence unmounts the destination, its path is an
+	// ordinary directory on the host filesystem and no longer identifies the
+	// disk. --device keeps the remaining steps addressed to the right volume.
+	if device := strings.TrimSpace(ctx.Flag("device")); device != "" {
+		planReq.ExpectedIdentity = &destinationsv1.DestinationDeviceIdentity{DevicePath: device}
+	}
+	// UUID and serial survive unplug/replug and device-path reassignment. Keep
+	// them available to the plan even when the operator has only a stable
+	// identifier from a previous read-only inspection.
+	if uuid, serial := strings.TrimSpace(ctx.Flag("uuid")), strings.TrimSpace(ctx.Flag("serial")); uuid != "" || serial != "" {
+		if planReq.ExpectedIdentity == nil {
+			planReq.ExpectedIdentity = &destinationsv1.DestinationDeviceIdentity{}
+		}
+		planReq.ExpectedIdentity.Uuid = uuid
+		planReq.ExpectedIdentity.Serial = serial
+	}
+	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(planReq))
+	if err != nil {
+		return cliapp.WrapAPIError("plan destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Plan == nil {
+		return fmt.Errorf("server returned no preparation plan")
+	}
+	plan := resp.Msg.Plan
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Prepared plan %s.", plan.Id)},
+		ResultsHeading: "Preparation plan",
+		Results: []string{
+			formatPreparationPlan(plan),
+			fmt.Sprintf("confirmation=%q", plan.ConfirmationPhrase),
+		},
+		RetrievalHints: []string{
+			"`destinations prepare-execute --plan-json '<json>' --confirm '<phrase>' --dry-run true` — validate the plan without executing it",
+		},
+	})
+}
+
+func (h *handlers) prepareExecute(ctx cliapp.RunContext) error {
+	plan := &destinationsv1.DestinationPreparationPlan{}
+	if err := protojson.Unmarshal([]byte(ctx.Flag("plan-json")), plan); err != nil {
+		return fmt.Errorf("--plan-json: %w", err)
+	}
+	dryRun := true
+	if raw := ctx.Flag("dry-run"); raw != "" {
+		var err error
+		dryRun, err = strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("--dry-run: %w", err)
+		}
+	}
+	// Boolean flag: see the note on --cross-platform above. Read through
+	// Flag() this gate could never be satisfied, so no destructive action was
+	// reachable even with an operator explicitly acknowledging the risk.
+	ack := ctx.BoolFlag("acknowledge-data-loss")
+	resp, err := h.client.ExecuteDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.ExecuteDestinationPreparationRequest{
+		Plan:                plan,
+		Confirmation:        ctx.Flag("confirm"),
+		DryRun:              &dryRun,
+		AcknowledgeDataLoss: ack,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("execute destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no execution response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: formatPreparationExecution(resp.Msg),
+	})
+}
+
+func (h *handlers) recoveryStart(ctx cliapp.RunContext) error {
+	identity := &destinationsv1.DestinationDeviceIdentity{}
+	if raw := strings.TrimSpace(ctx.Flag("identity-json")); raw != "" {
+		if err := protojson.Unmarshal([]byte(raw), identity); err != nil {
+			return fmt.Errorf("--identity-json: %w", err)
+		}
+	}
+	var rawPlans []json.RawMessage
+	if err := json.Unmarshal([]byte(ctx.Flag("plans-json")), &rawPlans); err != nil {
+		return fmt.Errorf("--plans-json: %w", err)
+	}
+	plans := make([]*destinationsv1.DestinationPreparationPlan, 0, len(rawPlans))
+	for i, raw := range rawPlans {
+		plan := &destinationsv1.DestinationPreparationPlan{}
+		if err := protojson.Unmarshal(raw, plan); err != nil {
+			return fmt.Errorf("--plans-json[%d]: %w", i, err)
+		}
+		plans = append(plans, plan)
+	}
+	resp, err := h.client.StartVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.StartVolumeRecoveryRequest{
+		Location: ctx.Flag("location"), Identity: identity, Plans: plans,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("start volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Created recovery journal %s (state=%s).", resp.Msg.Journal.Id, resp.Msg.Journal.State)},
+		Changes: []string{"No host volume action was performed. Resume defaults to dry-run; each real step remains separately confirmed."},
+	})
+}
+
+func (h *handlers) recoveryGet(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.GetVolumeRecoveryRequest{Id: ctx.Positional("id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	j := resp.Msg.Journal
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Recovery journal %s: state=%s current=%d/%d.", j.Id, j.State, j.Current, len(j.Steps))},
+		ResultsHeading: "Recovery steps",
+		Results:        formatRecoverySteps(j),
+	})
+}
+
+func (h *handlers) recoveryResume(ctx cliapp.RunContext) error {
+	confirmations := map[int32]string{}
+	if raw := strings.TrimSpace(ctx.Flag("confirmations-json")); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &confirmations); err != nil {
+			return fmt.Errorf("--confirmations-json: %w", err)
+		}
+	}
+	dryRun := true
+	if raw := strings.TrimSpace(ctx.Flag("dry-run")); raw != "" {
+		var err error
+		dryRun, err = strconv.ParseBool(raw)
+		if err != nil {
+			return fmt.Errorf("--dry-run: %w", err)
+		}
+	}
+	resp, err := h.client.ResumeVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.ResumeVolumeRecoveryRequest{
+		Id: ctx.Positional("id"), Confirmations: confirmations, AcknowledgeDataLoss: ctx.BoolFlag("acknowledge-data-loss"), DryRun: &dryRun,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("resume volume recovery", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Journal == nil {
+		return fmt.Errorf("server returned no recovery journal")
+	}
+	j := resp.Msg.Journal
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Recovery journal %s: state=%s current=%d/%d (dry-run=%t).", j.Id, j.State, j.Current, len(j.Steps), dryRun)},
+		Changes: formatRecoverySteps(j),
+	})
+}
+
+func formatRecoverySteps(j *destinationsv1.VolumeRecoveryJournal) []string {
+	results := make([]string, 0, len(j.Steps)+1)
+	if j.RelativePath != "" {
+		results = append(results, "volume-relative destination path="+j.RelativePath)
+	}
+	for i, step := range j.Steps {
+		if step == nil || step.Plan == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%d: %s status=%s attempts=%d", i, preparationActionLabel(step.Plan.Action), step.Status, step.Attempts))
+		if step.Detail != "" {
+			results = append(results, "  detail="+step.Detail)
+		}
+		if step.Status == "in_flight" {
+			results = append(results, "  SAFETY: action outcome is ambiguous; inspect the volume before retrying")
+		}
+	}
+	return results
+}
+
+// formatPreparationExecution renders an execution result. A remediation carries
+// the control plane's typed outcome — which backend ran, the exact command, and
+// the operator command when this host has no automated path — and all of it is
+// shown, because a bare "done" gives an operator nothing to verify or resume
+// from.
+func formatPreparationExecution(msg *destinationsv1.ExecuteDestinationPreparationResponse) []string {
+	lines := []string{fmt.Sprintf("Preparation %s for %s (dry-run=%t).", preparationActionLabel(msg.GetAction()), msg.GetLocation(), msg.GetDryRun())}
+	if status := msg.GetStatus(); status != "" {
+		lines = append(lines, fmt.Sprintf("status=%s changed=%t", status, msg.GetChanged()))
+	}
+	if backend := msg.GetBackend(); backend != "" {
+		lines = append(lines, "backend="+backend)
+	}
+	if command := msg.GetCommand(); len(command) > 0 {
+		lines = append(lines, "command="+strings.Join(command, " "))
+	}
+	if consistent := msg.GetConsistent(); consistent != "" {
+		lines = append(lines, "filesystem-consistent="+consistent)
+	}
+	if detail := msg.GetDetail(); detail != "" {
+		lines = append(lines, "detail="+detail)
+	}
+	if reason := msg.GetRefusalReason(); reason != "" {
+		lines = append(lines, "reason="+reason)
+	}
+	if operator := msg.GetOperatorCommand(); operator != "" {
+		lines = append(lines, "run instead: "+operator)
+	}
+	return lines
+}
+
+// parseBackendKind maps the --backend flag string to the proto BackendKind enum.
+func parseBackendKind(s string) (destinationsv1.BackendKind, error) {
+	switch s {
+	case "", "filesystem":
+		// A local drive is the overwhelmingly common case; make
+		// `destinations create --name X --location <drive>/vrooli-backups` work
+		// without a mandatory --backend flag.
+		return destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM, nil
+	case "s3":
+		return destinationsv1.BackendKind_BACKEND_KIND_S3, nil
+	case "sftp":
+		return destinationsv1.BackendKind_BACKEND_KIND_SFTP, nil
+	default:
+		return destinationsv1.BackendKind_BACKEND_KIND_UNSPECIFIED,
+			fmt.Errorf("invalid --backend %q: must be one of filesystem, sftp, s3", s)
+	}
+}
+
+// parseCapPolicy maps the --cap-policy flag string to the proto CapPolicy enum.
+// Empty string returns UNSPECIFIED (no cap policy change).
+func parseCapPolicy(s string) (destinationsv1.CapPolicy, error) {
+	switch s {
+	case "":
+		return destinationsv1.CapPolicy_CAP_POLICY_UNSPECIFIED, nil
+	case "alert-block":
+		return destinationsv1.CapPolicy_CAP_POLICY_ALERT_BLOCK, nil
+	case "alert-only":
+		return destinationsv1.CapPolicy_CAP_POLICY_ALERT_ONLY, nil
+	default:
+		return destinationsv1.CapPolicy_CAP_POLICY_UNSPECIFIED,
+			fmt.Errorf("invalid --cap-policy %q: must be one of alert-block, alert-only", s)
+	}
+}
+
+// parseOptionalInt64 parses an optional integer flag; returns 0 for empty.
+func parseOptionalInt64(s string) (int64, error) {
+	if s == "" {
+		return 0, nil
+	}
+	return strconv.ParseInt(s, 10, 64)
+}
+
+func parseOptionalInt32(s string) (int32, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(s, 10, 32)
+	return int32(n), err
+}
+
+func parsePreparationAction(s string) (destinationsv1.PreparationAction, error) {
+	switch s {
+	case "create-subdir":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CREATE_SUBDIR, nil
+	case "relabel":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_RELABEL, nil
+	case "clear-directory":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY, nil
+	case "format":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT, nil
+	case "unmount":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT, nil
+	case "check-filesystem":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM, nil
+	case "repair-filesystem":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM, nil
+	case "mount-read-write":
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE, nil
+	default:
+		return destinationsv1.PreparationAction_PREPARATION_ACTION_UNSPECIFIED,
+			fmt.Errorf("invalid --action %q: must be one of create-subdir, relabel, clear-directory, format, unmount, check-filesystem, repair-filesystem, mount-read-write", s)
+	}
+}
+
+func backendKindLabel(k destinationsv1.BackendKind) string {
+	switch k {
+	case destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM:
+		return "filesystem"
+	case destinationsv1.BackendKind_BACKEND_KIND_S3:
+		return "s3"
+	case destinationsv1.BackendKind_BACKEND_KIND_SFTP:
+		return "sftp"
+	default:
+		return "unspecified"
+	}
+}
+
+func capPolicyLabel(p destinationsv1.CapPolicy) string {
+	switch p {
+	case destinationsv1.CapPolicy_CAP_POLICY_ALERT_BLOCK:
+		return "alert-block"
+	case destinationsv1.CapPolicy_CAP_POLICY_ALERT_ONLY:
+		return "alert-only"
+	default:
+		return "unspecified"
+	}
+}
+
+func usageStateLabel(s destinationsv1.UsageState) string {
+	switch s {
+	case destinationsv1.UsageState_USAGE_STATE_WITHIN:
+		return "within"
+	case destinationsv1.UsageState_USAGE_STATE_NEAR:
+		return "near"
+	case destinationsv1.UsageState_USAGE_STATE_OVER:
+		return "over"
+	default:
+		return "unspecified"
+	}
+}
+
+func readinessSeverityLabel(s destinationsv1.ReadinessSeverity) string {
+	switch s {
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_PASS:
+		return "pass"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING:
+		return "warning"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_FAIL:
+		return "fail"
+	case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_UNKNOWN:
+		return "unknown"
+	default:
+		return "unspecified"
+	}
+}
+
+func preparationActionLabel(a destinationsv1.PreparationAction) string {
+	switch a {
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CREATE_SUBDIR:
+		return "create-subdir"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_RELABEL:
+		return "relabel"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY:
+		return "clear-directory"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_FORMAT:
+		return "format"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT:
+		return "unmount"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM:
+		return "check-filesystem"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM:
+		return "repair-filesystem"
+	case destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE:
+		return "mount-read-write"
+	default:
+		return "unspecified"
+	}
+}
+
+func formatReadinessReport(r *destinationsv1.DestinationReadinessReport) string {
+	if r == nil {
+		return "(nil)"
+	}
+	identity := ""
+	if r.Identity != nil {
+		identity = fmt.Sprintf(" device=%s mount=%s fs=%s size=%d", r.Identity.DevicePath, r.Identity.Mountpoint, r.Identity.Filesystem, r.Identity.TotalBytes)
+	}
+	return fmt.Sprintf("overall=%s recommended_location=%s action=%s%s",
+		readinessSeverityLabel(r.OverallSeverity),
+		r.RecommendedDestinationLocation,
+		r.RecommendedAction,
+		identity)
+}
+
+func formatPreparationPlan(p *destinationsv1.DestinationPreparationPlan) string {
+	if p == nil {
+		return "(nil)"
+	}
+	return fmt.Sprintf("%s action=%s target=%s destructive=%t supported=%t unsupported=%q",
+		p.Id,
+		preparationActionLabel(p.Action),
+		p.TargetPath,
+		p.Destructive,
+		p.Supported,
+		p.UnsupportedReason)
+}
+
+func formatDestination(d *destinationsv1.Destination) string {
+	if d == nil {
+		return "(nil)"
+	}
+	created := ""
+	if d.CreatedAt != nil {
+		created = d.CreatedAt.AsTime().Format(time.RFC3339)
+	}
+	repo := d.RepositoryLocation
+	if repo == "" {
+		repo = d.Location
+	}
+	identity := ""
+	if d.DeviceIdentity != nil {
+		identity = fmt.Sprintf(" device=%s uuid=%s serial=%s fs=%s mount=%s", d.DeviceIdentity.DevicePath, emptyDash(d.DeviceIdentity.Uuid), emptyDash(d.DeviceIdentity.Serial), emptyDash(d.DeviceIdentity.Filesystem), emptyDash(d.DeviceIdentity.Mountpoint))
+	}
+	return fmt.Sprintf("%s — %s [backend=%s bundle_root=%s repository=%s encryption=%s cap=%d policy=%s usage=%d state=%s created=%s%s]",
+		d.Id, d.Name,
+		backendKindLabel(d.BackendKind), d.Location, repo,
+		emptyDash(d.EncryptionAlgorithm),
+		d.CapBytes, capPolicyLabel(d.CapPolicy),
+		d.UsageBytes, usageStateLabel(d.UsageState),
+		created, identity)
+}
+
+// emptyDash renders an empty string as a dash for tidy CLI output.
+func emptyDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+// safeEject flushes every pending write and unmounts a filesystem destination,
+// so an unplug cannot interrupt a write in progress. It is preview-only unless
+// --apply is given, and it is bound to the destination's persisted device
+// identity: a replugged or renumbered disk cannot be ejected by mistake.
+func (h *handlers) safeEject(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	plan, err := h.planPreparation(d, destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT)
+	if err != nil {
+		return err
+	}
+	if !plan.Supported {
+		return fmt.Errorf("cannot eject %q safely: %s", d.Name, plan.UnsupportedReason)
+	}
+	if !ctx.BoolFlag("apply") {
+		return cliapp.RenderProtoList(ctx, plan, cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Preview: %q would be flushed and unmounted. Nothing has changed yet.", d.Name)},
+			ResultsHeading: "Eject plan",
+			Results:        []string{formatPreparationPlan(plan)},
+			RetrievalHints: []string{
+				"re-run with `--apply` to flush, unmount and release the drive",
+				"`destinations safe-mount --id " + d.Id + " --apply` — mount it again",
+			},
+		})
+	}
+	return h.executePreparation(ctx, plan, fmt.Sprintf("Ejected %q. It is safe to unplug.", d.Name))
+}
+
+// safeMount remounts an ejected filesystem destination at its recorded
+// mountpoint, then points the operator at a readiness check.
+func (h *handlers) safeMount(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	if d.DeviceIdentity == nil || strings.TrimSpace(d.DeviceIdentity.Mountpoint) == "" {
+		return fmt.Errorf("destination %q has no recorded mountpoint; mount it with the operating system, then run readiness", d.Id)
+	}
+	plan, err := h.planPreparation(d, destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE)
+	if err != nil {
+		return err
+	}
+	if !plan.Supported {
+		return fmt.Errorf("cannot mount %q safely: %s", d.Name, plan.UnsupportedReason)
+	}
+	if !ctx.BoolFlag("apply") {
+		return cliapp.RenderProtoList(ctx, plan, cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Preview: %q would be mounted read/write at %s. Nothing has changed yet.", d.Name, d.DeviceIdentity.Mountpoint)},
+			ResultsHeading: "Mount plan",
+			Results:        []string{formatPreparationPlan(plan)},
+			RetrievalHints: []string{"re-run with `--apply` to mount it"},
+		})
+	}
+	return h.executePreparation(ctx, plan, fmt.Sprintf("Mounted %q. Run `destinations readiness --location %q` before the next backup.", d.Name, d.Location))
+}
+
+func (h *handlers) filesystemDestination(id string) (*destinationsv1.Destination, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("--id is required")
+	}
+	resp, err := h.client.GetDestination(context.Background(), connect.NewRequest(&destinationsv1.GetDestinationRequest{Id: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("get destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return nil, fmt.Errorf("server returned no destination")
+	}
+	d := resp.Msg.Destination
+	if d.BackendKind != destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		return nil, fmt.Errorf("destination %q is a %s backend; only a local filesystem can be ejected or mounted", id, d.BackendKind.String())
+	}
+	if d.DeviceIdentity == nil || strings.TrimSpace(d.DeviceIdentity.Uuid) == "" && strings.TrimSpace(d.DeviceIdentity.Serial) == "" {
+		return nil, fmt.Errorf("destination %q has no stable device identity (UUID or serial), so the drive cannot be acted on safely; re-import or re-bind its identity first", id)
+	}
+	return d, nil
+}
+
+func (h *handlers) planPreparation(d *destinationsv1.Destination, action destinationsv1.PreparationAction) (*destinationsv1.DestinationPreparationPlan, error) {
+	req := &destinationsv1.PlanDestinationPreparationRequest{
+		Location:         d.Location,
+		Action:           action,
+		ExpectedIdentity: d.DeviceIdentity,
+	}
+	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("plan destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Plan == nil {
+		return nil, fmt.Errorf("server returned no preparation plan")
+	}
+	return resp.Msg.Plan, nil
+}
+
+func (h *handlers) executePreparation(ctx cliapp.RunContext, plan *destinationsv1.DestinationPreparationPlan, result string) error {
+	dryRun := false
+	resp, err := h.client.ExecuteDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.ExecuteDestinationPreparationRequest{
+		Plan:         plan,
+		Confirmation: plan.ConfirmationPhrase,
+		DryRun:       &dryRun,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("execute destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no execution response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{result}})
+}
+
+// repairOptions answers the only question that matters when a drive is damaged:
+// can this host actually repair it, and if not, what is the smallest safe path
+// off it? It is read-only.
+func (h *handlers) repairOptions(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	analysis, err := h.client.AnalyzeDestination(context.Background(), connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{Location: d.Location}))
+	if err != nil {
+		return cliapp.WrapAPIError("analyze destination", err, nil)
+	}
+	if analysis == nil || analysis.Msg == nil || analysis.Msg.Report == nil {
+		return fmt.Errorf("server returned no readiness report")
+	}
+	report := analysis.Msg.Report
+	filesystem := strings.ToLower(strings.TrimSpace(report.Identity.GetFilesystem()))
+
+	// The server owns the repair verdict because the filesystem table lives
+	// there. The CLI only renders it, so the two can never disagree.
+	repair := "unknown"
+	reason := "the readiness report made no repair claim for this filesystem"
+	nextAction := ""
+	for _, check := range report.Checks {
+		if check.Code != "filesystem_repair" {
+			continue
+		}
+		reason = check.Message
+		nextAction = check.NextAction
+		switch check.Severity {
+		case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_PASS:
+			repair = "metadata"
+		case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING, destinationsv1.ReadinessSeverity_READINESS_SEVERITY_UNKNOWN:
+			repair = "limited"
+		}
+	}
+
+	results := []string{
+		fmt.Sprintf("filesystem=%s repair=%s", filesystem, repair),
+		"reason: " + reason,
+	}
+	if nextAction != "" {
+		results = append(results, "next action: "+nextAction)
+	}
+	hints := []string{}
+	switch repair {
+	case "metadata":
+		hints = append(hints,
+			fmt.Sprintf("`destinations prepare-plan --location %q --action check-filesystem` — verify without writing", d.Location),
+			fmt.Sprintf("`destinations prepare-plan --location %q --action repair-filesystem` — plan the repair, then execute it with its confirmation phrase", d.Location),
+		)
+	case "limited":
+		staging := strings.TrimSpace(ctx.Flag("staging"))
+		results = append(results, "A metadata repair is not possible on this host. The durable fix is to move the repository to a filesystem this host can repair (ext4), which replays its journal and has a real repair tool.")
+		stagingCopy := filepath.Join(staging, "vrooli-backups")
+		device := report.Identity.GetDevicePath()
+		mountpoint := report.Identity.GetMountpoint()
+		serial := ""
+		if value := strings.TrimSpace(report.Identity.GetSerial()); value != "" {
+			serial = " --device-serial " + value
+		}
+		hints = append(hints,
+			"`vrooli scenario stop data-backup-manager` — quiesce writes so the copy is consistent (the CLI needs the API again only at the end)",
+			fmt.Sprintf("`sudo rsync -aH --ignore-errors --info=progress2 %q/ %q/` — safety copy while still mounted; unreadable temp files are skipped", d.Location, stagingCopy),
+			fmt.Sprintf("`sudo umount %q` — flush and detach before formatting", mountpoint),
+			fmt.Sprintf("`sudo mkfs.ext4 -m 1 -L %s %s` — operator-only: DBM never formats a drive", d.Name, device),
+			fmt.Sprintf("`sudo mount %s %q`", device, mountpoint),
+			fmt.Sprintf("`sudo rsync -aH %q/ %q/` — restore the repository to the same bundle path", stagingCopy, d.Location),
+			"`vrooli scenario start data-backup-manager`",
+			fmt.Sprintf("`destinations bind-recovery-identity --id %s --device-uuid \"$(sudo blkid -s UUID -o value %s)\" --device-filesystem ext4 --mountpoint %q%s` — re-bind the reformatted volume; the destination id and plans stay unchanged", d.Id, device, mountpoint, serial),
+			fmt.Sprintf("`destinations readiness --location %q` — confirm the repaired drive before the next backup", d.Location),
+			fmt.Sprintf("`destinations safe-eject --id %s --apply` — use this routine command before any future unplug while DBM is running", d.Id),
+		)
+	}
+	if strings.TrimSpace(ctx.Flag("staging")) == "" && repair != "metadata" {
+		hints = append(hints, "pass `--staging /mnt/<second-drive>` to fill in the copy source and destination paths")
+	}
+	return cliapp.RenderProtoList(ctx, analysis.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Repair options for %q: %s.", d.Name, repair)},
+		ResultsHeading: "Repair assessment",
+		Results:        results,
+		RetrievalHints: hints,
+	})
+}

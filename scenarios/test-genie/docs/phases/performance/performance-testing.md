@@ -403,7 +403,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup environment
-        run: ./scripts/manage.sh setup --yes yes --resources none
+        run: vrooli setup --yes yes --resources none
 
       - name: Start scenario
         run: vrooli scenario start my-scenario
@@ -530,7 +530,7 @@ Add comments explaining threshold choices:
 ### Related Guides
 - [Performance Phase](README.md) - Performance phase overview
 - [Lighthouse Integration](lighthouse.md) - Detailed Lighthouse configuration
-- [Phases Overview](../README.md) - Understanding the 11-phase architecture
+- [Phases Overview](../README.md) - Understanding the descriptor-backed phase architecture
 - [Requirements Sync](../business/requirements-sync.md) - Automatic requirement tracking
 
 ### Reference

@@ -1,0 +1,125 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Meta-Optimization Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Meta-Optimization Manager"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション",
+    "mainContentLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "focus": "Focus",
+      "convergence": "Convergence",
+      "trials": "Trials",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`."
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "projectionHeading": "Projections",
+      "coverageLabel": "coverage",
+      "confidenceLabel": "confidence",
+      "cellsLabel": "{{now}}/{{total}} now · {{inReach}} in reach · {{missing}} missing",
+      "trendHeading": "Latest trial trend",
+      "trendValue": "{{rate}}% success · {{tokens}} median tokens",
+      "noTrend": "No trial runs recorded yet.",
+      "unavailableReason": "Unavailable: {{reason}}",
+      "empty": "No projections returned. Is the scenario running?"
+    },
+    "focus": {
+      "title": "Focus & gaps",
+      "description": "The ranked next-best gaps (impact × importance) and the full gaps registry with qualitative context.",
+      "focusHeading": "Ranked next-best gaps",
+      "gapsHeading": "Gaps registry",
+      "conditionHeading": "Condition findings",
+      "conditionEmpty": "No condition findings reported.",
+      "priorityLabel": "priority",
+      "globalBadge": "cross-cutting",
+      "empty": "No gaps surfaced — every cell is covered, or the owners are unreachable."
+    },
+    "convergence": {
+      "title": "Convergence",
+      "description": "Per-template four-lens fitness and gold-star generated-golden health/eligibility.",
+      "methodologyNote": "Lens counts are filesystem proxies (LOC, comment-grep) — structural signals, not semantic analysis.",
+      "templatesHeading": "Template fitness",
+      "referencesHeading": "Reference health",
+      "lensLabel": "per-replica {{cost}} · drift {{drift}} · comment-contracts {{contracts}} · coordinated-edits {{edits}}",
+      "referenceLabel": "stability {{days}}d · breadth {{breadth}}",
+      "cleanBadge": "clean",
+      "empty": "No templates or references found."
+    },
+    "trials": {
+      "title": "Trials",
+      "description": "The empirical local-model gate: success-rate / tokens / wall-time over time, plus Guide-gate coverage.",
+      "coverageHeading": "Guide-gate coverage",
+      "coverageValue": "{{rate}}% ({{withGate}}/{{total}} Guide tasks have a live gate)",
+      "historyHeading": "Trend",
+      "recentHeading": "Recent runs",
+      "historyPoint": "{{date}} — {{rate}}% success · {{tokens}} median tokens · {{runs}} runs",
+      "runMetrics": "{{tokens}} tokens · {{ms}}ms",
+      "empty": "No trial runs recorded yet — trials run on explicit invocation only (`trials run`)."
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

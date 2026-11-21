@@ -15,8 +15,8 @@ _Note:_ The UI currently exposes the time/element options. Navigation waits are 
 
 ## Runtime Behavior
 
-1. The automation compiler (`api/automation/compiler`) keeps the wait params as-authored (`waitType`, `duration`, `selector`, `timeoutMs`) in the contract plan; the executor forwards them without Browserless-specific shaping.
-2. BrowserlessEngine translates the instruction to CDP via `browserless/cdp/actions.go`, sleeping for time waits or polling the DOM/navigation for element/navigation waits.
+1. The automation compiler (`api/automation/compiler`) keeps the wait params as-authored (`waitType`, `duration`, `selector`, `timeoutMs`) in the contract plan; the executor forwards them without driver-specific shaping.
+2. The Playwright driver translates the instruction to CDP, sleeping for time waits or polling the DOM/navigation for element/navigation waits.
 3. Step telemetry still records the effective wait type and duration for the Execution Viewer.
 
 ## Examples

@@ -1,0 +1,10 @@
+import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
+import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { NAV_ITEMS } from "./navItems";
+const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+function ThemeUtility() { const { t } = useTranslation(); const { choice, setTheme } = useTheme(); return <label data-testid={selectors.theme.switcher}><span className="sr-only">{t(strings.theme.switcherLabel)}</span><select value={choice} onChange={(event) => setTheme(event.target.value as ThemeChoice)} data-testid={selectors.theme.select} aria-label={t(strings.theme.switcherLabel)}>{THEME_CHOICES.map((theme) => <option key={theme} value={theme}>{t(strings.theme.choice[theme])}</option>)}</select></label>; }
+export function AppShell() { const { t } = useTranslation(); const { pathname } = useLocation(); const navigate = useNavigate(); return <LibraryAppShell density="sidebar" mobileNav="tabs" mainMode="scroll" brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>} brandHref="/" items={NAV_ITEMS.map((item) => { const Icon = item.icon; return { id: item.key, href: item.path, label: t(item.labelKey), icon: <Icon size={16} aria-hidden />, current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`), testId: selectors.layout.navLink({ key: item.key }) }; })} utility={<ThemeUtility />} renderLink={(item, { href, children, ...props }) => <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end} {...props}>{children}</NavLink>} onNavigate={(item) => navigate(item.href)} navigationLabel="Primary navigation" mobileNavigationLabel="Mobile navigation" sidebarStorageKey="program-runtime.sidebar-width" testId={selectors.layout.shell}><Outlet /></LibraryAppShell>; }

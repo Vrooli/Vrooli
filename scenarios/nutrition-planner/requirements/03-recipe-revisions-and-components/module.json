@@ -1,0 +1,128 @@
+{
+  "_metadata": {
+    "description": "Stable recipe identity, immutable content revisions, reuse-safe components, and reviewed meal families.",
+    "module": "recipe-revisions-and-components",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "REV-001",
+      "title": "Recipes keep a stable identity with immutable revisions",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall separate a recipe's stable logical identity from its immutable content revisions, and every plan, occurrence, and historical reference shall identify the exact revision it uses rather than following the current pointer.",
+      "tags": [
+        "revisions",
+        "identity",
+        "immutability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: saving an edit creates a new immutable revision under the same recipe ID, and existing occurrences remain pinned until an explicit update operation selects them (ACT-012)."
+        }
+      ]
+    },
+    {
+      "id": "REV-002",
+      "title": "Historical intake is pinned to the recorded revision",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "When a consumption event is recorded, the scenario shall snapshot the pinned revision and quantity so later edits to a product, recipe, or serving yield cannot silently change past totals; an intentional correction records a linked correction event.",
+      "tags": [
+        "history",
+        "snapshot",
+        "correction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: FIX-07 step 2 changes a yield from two to four servings while the historical 41.5 g protein and 580 kcal record remains pinned to revision 1 (ACT-053)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a correction previews its impact and links to the original event instead of rewriting it."
+        }
+      ]
+    },
+    {
+      "id": "REV-003",
+      "title": "Components expand acyclically and count ingredients once",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "The scenario shall resolve reusable components recursively using their pinned revisions with cycle and depth checks, expand components into concrete meals, and count an ingredient's nutrients once regardless of how many steps or components reference it.",
+      "tags": [
+        "components",
+        "graph",
+        "acyclic"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a component relationship cycle is rejected, and a shared ingredient referenced through two parent recipes does not double its contribution (ACT-044)."
+        }
+      ]
+    },
+    {
+      "id": "REV-004",
+      "title": "Meal families instantiate to inspectable concrete meals",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "A meal family shall be a reviewed template with typed slots, compatible options, portion ranges, and prepared constraints that instantiates into a concrete, inspectable recipe revision with reproducible quantities and nutrient totals.",
+      "tags": [
+        "meal-family",
+        "template",
+        "reproducible"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: instantiating a protein-plus-grain-plus-vegetable family produces a pinned revision whose nutrient and cost totals can be recomputed from its choices (ACT-044)."
+        }
+      ]
+    },
+    {
+      "id": "REV-005",
+      "title": "Adapting a recipe forks a draft with provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a user adapts a recipe, the scenario shall create a draft fork that links to its source revision, leave the original unchanged, and require a quantified substitution to be re-evaluated for nutrition and rules before updated values or eligibility are shown.",
+      "tags": [
+        "revisions",
+        "adapt",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: adapting with an ingredient substitution yields a new draft revision whose nutrition and rule assessments are recomputed while the source revision is byte-identical (AT-023)."
+        }
+      ]
+    }
+  ]
+}

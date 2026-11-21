@@ -16,11 +16,11 @@ func ProjectToProto(project *database.ProjectIndex) *basprojects.Project {
 		return nil
 	}
 	pb := &basprojects.Project{
-		Id:          project.ID.String(),
-		Name:        project.Name,
-		FolderPath:  project.FolderPath,
-		CreatedAt:   timestamppb.New(project.CreatedAt),
-		UpdatedAt:   timestamppb.New(project.UpdatedAt),
+		Id:         project.ID.String(),
+		Name:       project.Name,
+		FolderPath: project.FolderPath,
+		CreatedAt:  timestamppb.New(project.CreatedAt),
+		UpdatedAt:  timestamppb.New(project.UpdatedAt),
 	}
 	return pb
 }

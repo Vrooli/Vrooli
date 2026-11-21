@@ -1,0 +1,55 @@
+{
+  "edges": [
+    {
+      "id": "edge-wait-scroll",
+      "source": "wait-shell",
+      "target": "scroll-main",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "EXAMPLE perf-capture flow (intent:performance). Assertion-free: it only drives an interaction so performance-health can trace it. Copy + edit the selector for the journey you are auditing, then: test-genie registry build → performance-health audit run \u003cscenario\u003e --workflow perf-example-scroll. NEVER bind a perf flow as a requirement automation case — it must stay out of the functional Playbooks suite.",
+    "execution_mode": "mutating",
+    "labels": {
+      "intent": "performance",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
+    },
+    "name": "perf-example-scroll",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Wait for app shell to mount"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/layout.shell",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-shell"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Scroll the shell (replace with the journey under audit)"
+        },
+        "scroll": {
+          "delta_y": 2000,
+          "selector": "@selector/layout.shell"
+        },
+        "type": "ACTION_TYPE_SCROLL"
+      },
+      "id": "scroll-main"
+    }
+  ],
+  "settings": {
+    "viewport_height": 900,
+    "viewport_width": 1440
+  }
+}

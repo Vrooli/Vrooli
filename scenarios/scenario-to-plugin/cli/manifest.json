@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-plugin",
+  "description": "Agent Plugin delivery ramp CLI.",
+  "groups": [
+    {
+      "name": "readiness",
+      "description": "Inspect publish readiness",
+      "commands": [{"name": "list", "description": "List named readiness blockers", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
+    },
+    {
+      "name": "package",
+      "description": "Compose and inspect packages",
+      "commands": [{"name": "compose", "description": "Compose an Agent Plugin tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write"]}}, {"name": "show", "description": "Show a package record", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
+    },
+    {
+      "name": "publish",
+      "description": "Governed publication operations",
+      "commands": [{"name": "run", "description": "Publish only with a matching release decision", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:external"], "requires_confirmation": true}}]
+    },
+    {
+      "name": "distribution",
+      "description": "Check target CLI distributability",
+      "commands": [{"name": "report", "description": "Report skills satisfied by a target CLI manifest", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": []}}]
+    }
+  ],
+  "omitted": [
+    {"service": "Capabilities", "method": "Describe", "reason": "The capabilities REST health probe is an operational endpoint, not an operator command."},
+    {"service": "DeclarationService", "method": "GetDeclaration", "reason": "The readiness CLI uses the fleet REST projection; per-scenario declaration lookup remains an RPC-only API surface."},
+    {"service": "DeclarationService", "method": "ListReadiness", "reason": "The readiness CLI uses the fleet REST projection."},
+    {"service": "CompositionService", "method": "Compose", "reason": "The package CLI uses the REST operator projection for transport portability."},
+    {"service": "CompositionService", "method": "GetPackage", "reason": "The package CLI uses the REST operator projection for transport portability."},
+    {"service": "ConformanceService", "method": "Check", "reason": "Conformance is invoked by the governed pipeline and is not exposed as an unscoped operator command."},
+    {"service": "AttestationService", "method": "Attest", "reason": "Attestation is invoked by the governed pipeline and is not exposed as an unscoped operator command."},
+    {"service": "RehearsalService", "method": "Run", "reason": "Rehearsal requires workspace-sandbox orchestration and is invoked by the governed pipeline."},
+    {"service": "DistributionService", "method": "Publish", "reason": "Publication requires the governed release handshake and is exposed through the publish command's REST projection."},
+    {"service": "DistributionService", "method": "Revoke", "reason": "Revocation history is controlled by the governed distribution workflow."}
+  ]
+}

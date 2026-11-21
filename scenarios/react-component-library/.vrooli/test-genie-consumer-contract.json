@@ -1,0 +1,70 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "react-component-library",
+  "phase": "consumer-contract",
+  "displayName": "React Consumer Contracts",
+  "description": "Runs the usage-contract fleet lint and downward-only per-contract ratchet across every React UI in the repository.",
+  "source": "validation-provider",
+  "orderHint": 22,
+  "timeout": "600s",
+  "findingSource": "ui",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "dimensions": ["tests"],
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "execution": true,
+    "capabilitySubset": ["consumer_contracts"]
+  },
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This phase validates React consumer UIs and has no control-plane target."
+      }
+    ]
+  },
+  "applicability": {
+    "any": [
+      {"pathGlob": "library/**"},
+      {"pathGlob": "ui/eslint-rules/usage-contracts.js"},
+      {"pathGlob": "ui/scripts/check-usage-contracts.mjs"},
+      {"pathGlob": "ui/usage-contract-ratchet.json"}
+    ],
+    "default": "not_applicable"
+  },
+  "concurrency": {"mode": "parallel-safe"},
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["library/**", "ui/eslint-rules/usage-contracts.js", "ui/scripts/check-usage-contracts.mjs", "ui/usage-contract-ratchet.json", "scenarios/*/ui/src/**"],
+    "reason": "The phase runs the same deterministic fleet checker and ratchet over the versioned contracts, checker, ratchet file, and all React UI sources."
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "none",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {"needsAPI": true},
+  "docs": {"path": "scenarios/test-genie/docs/phases/consumer-contract/README.md"},
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "consumer_contracts",
+        "label": "React Consumer Contracts",
+        "description": "Every React consumer is checked against the published usage contracts, with per-contract violation counts held to a downward-only baseline.",
+        "levels": [
+          {"id": "L0", "name": "Fleet scan failed", "description": "The fleet scan or ratchet cannot be trusted.", "entry_criteria": [], "exit_criteria": []},
+          {"id": "L1", "name": "Fleet ratchet passed", "description": "The full React UI fleet was scanned and every per-contract count stayed at or below its baseline.", "entry_criteria": [], "exit_criteria": []}
+        ]
+      }
+    ],
+    "fallback": {"capability_id": "consumer_contracts", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}
+  }
+}

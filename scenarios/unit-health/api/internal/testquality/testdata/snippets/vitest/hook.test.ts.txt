@@ -1,0 +1,4 @@
+describe("hook", () => {
+  beforeEach(() => expect(1).toBe(1));
+  test("empty", () => {});
+});

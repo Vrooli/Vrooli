@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "offer-desk.attention-triage",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Shortlist offer board rows that deterministically warrant attention, then label only that shortlist with one batched classification call.",
+  "inputs": {
+    "max_items": {
+      "type": "integer",
+      "required": false,
+      "description": "Maximum shortlist size sent for classification, 1 to 40.",
+      "default": 24
+    }
+  },
+  "assumptions": [
+    "The board's status and rank_reason are authoritative; this program does not re-rank.",
+    "gates-proposals returns no selectable rows when there are no open proposals; that is read as zero, not as a failed read."
+  ],
+  "invariants": [
+    "No writes.",
+    "The shortlist is deterministic and is reported whether or not classification succeeds.",
+    "At most one inference call is made, and none when the shortlist is empty.",
+    "An abstained row is reported as abstained; it is never given a default label."
+  ],
+  "bindings": [
+    {
+      "id": "offer-desk/offers/board-show",
+      "effect": "read"
+    },
+    {
+      "id": "offer-desk/offers/gates-proposals",
+      "effect": "read",
+      "note": "Optional: a failed read degrades this program to partial and the shortlist still reports.",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "ai.batch"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "shortlist": "Deterministically selected rows, each naming why_candidate.",
+      "labelled": "One row per shortlist item with its label or abstained true.",
+      "triage_reason": "no_candidate when the board is quiet, classification_unavailable when the batch call failed.",
+      "inference_calls": "0 or 1; never one call per row.",
+      "usage": "The batch call's reported token usage.",
+      "open_proposals": "Count of open promotion proposals, or null when the proposal read genuinely failed."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Board, proposal and inference binding ids."
+  },
+  "budget": {
+    "wall_ms": 180000,
+    "async": true,
+    "async_reason": "One batched classification over up to forty rows can exceed the synchronous submission bound.",
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-max-items",
+      "inputs": {
+        "max_items": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "Out-of-range input is invalid_input, never partial.",
+      "requires": [
+        "offer-desk"
+      ]
+    },
+    {
+      "id": "live",
+      "inputs": {
+        "max_items": 8
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "refused"
+        ]
+      },
+      "note": "Refused when inference spend is withheld; the deterministic shortlist still reports.",
+      "requires": [
+        "offer-desk",
+        "ai-gateway"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "offer-desk"
+}

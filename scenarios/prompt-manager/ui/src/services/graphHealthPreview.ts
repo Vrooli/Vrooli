@@ -16,6 +16,10 @@ type FactorKey =
   | 'agent-context-load'
   | 'team-member-count-balance'
   | 'team-role-coverage'
+  | 'action-contract'
+  | 'action-command'
+  | 'action-examples'
+  | 'action-owner'
 
 type FactorWeights = Record<FactorKey, number>
 
@@ -57,6 +61,10 @@ function scoreAllWithConfig(
       'agent-context-load': agentContextLoadScore(node, metrics),
       'team-member-count-balance': teamMemberCountBalanceScore(node, metrics),
       'team-role-coverage': teamRoleCoverageScore(node, metrics),
+      'action-contract': node.type === 'action' ? 1 : 0,
+      'action-command': node.type === 'action' ? 1 : 0,
+      'action-examples': node.type === 'action' ? 1 : 0,
+      'action-owner': node.type === 'action' ? 1 : 0,
     }
     const baseline = baselineByNodeId.get(node.id)
     if (baseline) {
@@ -86,7 +94,11 @@ function scoreAllWithConfig(
       factors['skill-content-length'] * weights.skillContentLength +
       factors['agent-context-load'] * weights.agentContextLoad +
       factors['team-member-count-balance'] * weights.teamMemberCountBalance +
-      factors['team-role-coverage'] * weights.teamRoleCoverage
+      factors['team-role-coverage'] * weights.teamRoleCoverage +
+      factors['action-contract'] * (weights.actionContract ?? 0) +
+      factors['action-command'] * (weights.actionCommand ?? 0) +
+      factors['action-examples'] * (weights.actionExamples ?? 0) +
+      factors['action-owner'] * (weights.actionOwner ?? 0)
     )
     const weightSum = (
       weights.outgoingEdges +
@@ -96,7 +108,11 @@ function scoreAllWithConfig(
       weights.skillContentLength +
       weights.agentContextLoad +
       weights.teamMemberCountBalance +
-      weights.teamRoleCoverage
+      weights.teamRoleCoverage +
+      (weights.actionContract ?? 0) +
+      (weights.actionCommand ?? 0) +
+      (weights.actionExamples ?? 0) +
+      (weights.actionOwner ?? 0)
     )
 
     const factorWeights = toFactorWeights(weights)
@@ -204,6 +220,7 @@ function applyCLIHealthPolicy(
 function weightsForNode(node: GraphNode, cfg: GraphHealthConfig) {
   if (node.type === 'team') return cfg.team
   if (node.type === 'agent') return cfg.agent
+  if (node.type === 'action') return cfg.action ?? cfg.skill
   return cfg.skill
 }
 
@@ -444,5 +461,9 @@ function toFactorWeights(weights: GraphHealthConfig['team']): FactorWeights {
     'agent-context-load': weights.agentContextLoad,
     'team-member-count-balance': weights.teamMemberCountBalance,
     'team-role-coverage': weights.teamRoleCoverage,
+    'action-contract': weights.actionContract ?? 0,
+    'action-command': weights.actionCommand ?? 0,
+    'action-examples': weights.actionExamples ?? 0,
+    'action-owner': weights.actionOwner ?? 0,
   }
 }

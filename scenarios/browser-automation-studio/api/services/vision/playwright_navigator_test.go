@@ -9,11 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/credits"
-	ws "github.com/vrooli/browser-automation-studio/websocket"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/hubmocks"
 )
 
 // mockHTTPDoer implements HTTPDoer for testing.
@@ -23,80 +20,19 @@ type mockHTTPDoer struct {
 	lastRequest *http.Request
 }
 
+func (m *mockHTTPDoer) RouteSessionRequest(ctx context.Context, sessionID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, _ := http.NewRequestWithContext(ctx, method, "http://driver.test/session/"+sessionID+suffix, reader)
+	req.Header = headers.Clone()
+	return m.Do(req)
+}
+
 func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
 	m.lastRequest = req
 	return m.response, m.err
-}
-
-// mockCreditService implements credits.CreditService for testing.
-type mockCreditService struct {
-	chargeErr   error
-	chargeCount int
-}
-
-func (m *mockCreditService) CanCharge(_ context.Context, _ string, _ credits.OperationType) (bool, int, error) {
-	return true, 100, nil
-}
-
-func (m *mockCreditService) Charge(_ context.Context, _ credits.ChargeRequest) (*credits.ChargeResult, error) {
-	m.chargeCount++
-	return &credits.ChargeResult{}, m.chargeErr
-}
-
-func (m *mockCreditService) ChargeIfAllowed(_ context.Context, _ credits.ChargeRequest) (*credits.ChargeResult, error) {
-	return &credits.ChargeResult{}, nil
-}
-
-func (m *mockCreditService) GetUsage(_ context.Context, _ string) (*credits.UsageSummary, error) {
-	return &credits.UsageSummary{}, nil
-}
-
-func (m *mockCreditService) GetOperationCost(_ credits.OperationType) int {
-	return 1
-}
-
-func (m *mockCreditService) LogFailedOperation(_ context.Context, _ credits.ChargeRequest, _ error) error {
-	return nil
-}
-
-func (m *mockCreditService) GetUsageHistory(_ context.Context, _ string, _, _ int) ([]credits.UsageSummary, bool, error) {
-	return nil, false, nil
-}
-
-func (m *mockCreditService) GetOperationLog(_ context.Context, _, _, _ string, _, _ int) (*credits.OperationLogPage, error) {
-	return &credits.OperationLogPage{}, nil
-}
-
-func (m *mockCreditService) CanPerformAIOperation(_ context.Context, _ string, _ credits.OperationType, _ bool) (bool, string, string, int, error) {
-	return true, "", "", 100, nil
-}
-
-// mockWSHub implements wsHub.HubInterface for testing.
-type mockWSHub struct {
-	broadcastCount int
-	lastEnvelope   any
-}
-
-func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID)                      {}
-func (m *mockWSHub) BroadcastRecordingEntry(_ string, _ *ws.UnifiedTimelineEntry) ws.BroadcastResult {
-	return ws.BroadcastResult{}
-}
-func (m *mockWSHub) BroadcastRecordingFrame(_ string, _ *ws.RecordingFrame) {}
-func (m *mockWSHub) BroadcastBinaryFrame(_ string, _ []byte)                {}
-func (m *mockWSHub) HasRecordingSubscribers(_ string) bool                  { return false }
-func (m *mockWSHub) BroadcastPerfStats(_ string, _ any)                     {}
-func (m *mockWSHub) BroadcastPageEvent(_ string, _ any)                     {}
-func (m *mockWSHub) BroadcastPageSwitch(_, _ string)                        {}
-func (m *mockWSHub) HasExecutionFrameSubscribers(_ string) bool             { return false }
-func (m *mockWSHub) BroadcastExecutionFrame(_ string, _ *ws.ExecutionFrame) {}
-func (m *mockWSHub) BroadcastExportProgress(_ *ws.ExportProgress)           {}
-func (m *mockWSHub) GetClientCount() int                                    { return 0 }
-func (m *mockWSHub) Run()                                                   {}
-func (m *mockWSHub) CloseExecution(_ uuid.UUID)                             {}
-
-func (m *mockWSHub) BroadcastEnvelope(envelope any) {
-	m.broadcastCount++
-	m.lastEnvelope = envelope
 }
 
 func TestNewPlaywrightVisionNavigator(t *testing.T) {
@@ -118,26 +54,20 @@ func TestNewPlaywrightVisionNavigator(t *testing.T) {
 	})
 
 	t.Run("applies options", func(t *testing.T) {
-		httpClient := &mockHTTPDoer{}
-		wsHub := &mockWSHub{}
-		creditSvc := &mockCreditService{}
-
+		broker := &mockHTTPDoer{}
+		wsHub := hubmocks.New()
 		nav := NewPlaywrightVisionNavigator(log,
-			WithPlaywrightHTTPClient(httpClient),
+			WithPlaywrightSessionBroker(broker),
 			WithPlaywrightHub(wsHub),
-			WithPlaywrightCreditService(creditSvc),
 		)
 
 		// Verify options were applied by checking they're not nil
 		// We can't compare interface values directly, so we verify non-nil
-		if nav.httpClient == nil {
-			t.Error("HTTP client option not applied")
+		if nav.sessions == nil {
+			t.Error("session broker option not applied")
 		}
 		if nav.wsHub == nil {
 			t.Error("WebSocket hub option not applied")
-		}
-		if nav.creditService == nil {
-			t.Error("credit service option not applied")
 		}
 	})
 }
@@ -173,14 +103,11 @@ func TestPlaywrightVisionNavigator_CreditPolicy(t *testing.T) {
 	if !policy.RequiresCredits {
 		t.Error("RequiresCredits should be true")
 	}
-	if policy.CreditsPerStep != 2 {
-		t.Errorf("CreditsPerStep = %d, want 2", policy.CreditsPerStep)
+	if policy.CreditsPerStep != 0 {
+		t.Errorf("CreditsPerStep = %d, want 0 because the Gateway determines usage cost", policy.CreditsPerStep)
 	}
 	if !policy.PerStepCharging {
 		t.Error("PerStepCharging should be true")
-	}
-	if len(policy.BypassConditions) != 2 {
-		t.Errorf("BypassConditions length = %d, want 2", len(policy.BypassConditions))
 	}
 }
 
@@ -207,44 +134,29 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	t.Run("missing API key returns error", func(t *testing.T) {
-		nav := NewPlaywrightVisionNavigator(log)
-
-		// Ensure env var is not set
-		t.Setenv("OPENROUTER_API_KEY", "")
-
-		_, err := nav.Navigate(t.Context(), NavigationRequest{
-			SessionID: "session123",
-			Prompt:    "Click button",
-			Model:     "gpt-4o",
-		})
-
-		if err == nil {
-			t.Error("expected error for missing API key")
-		}
-	})
-
 	t.Run("successful navigation start", func(t *testing.T) {
 		mockResp := &http.Response{
 			StatusCode: 200,
 			Body: io.NopCloser(bytes.NewReader([]byte(`{
 				"navigation_id": "nav_test123",
 				"status": "navigating",
-				"model": "gpt-4o",
+				"model": "local_first",
 				"max_steps": 20
 			}`))),
 		}
 
 		httpClient := &mockHTTPDoer{response: mockResp}
-		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHTTPClient(httpClient))
+		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightSessionBroker(httpClient))
 
 		handle, err := nav.Navigate(t.Context(), NavigationRequest{
-			SessionID: "session123",
-			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			SessionID:           "session123",
+			Prompt:              "Click button",
+			Model:               "local_first",
+			RootOperationID:     "0123456789abcdef0123456789abcdef",
+			AccessToken:         "signed-session-token",
+			AISource:            "vrooli-credits",
+			PrivacyConsentGrant: "opaque-signed-consent-receipt",
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}
@@ -253,6 +165,16 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		}
 		if handle.SessionID() != "session123" {
 			t.Errorf("SessionID() = %q, want %q", handle.SessionID(), "session123")
+		}
+		if got := httpClient.lastRequest.Header.Get("Authorization"); got != "Bearer signed-session-token" {
+			t.Errorf("Authorization = %q, want signed-session bearer", got)
+		}
+		var forwarded map[string]any
+		if err := json.NewDecoder(httpClient.lastRequest.Body).Decode(&forwarded); err != nil {
+			t.Fatalf("decode driver request: %v", err)
+		}
+		if forwarded["root_operation_id"] != "0123456789abcdef0123456789abcdef" || forwarded["ai_source"] != "vrooli-credits" || forwarded["privacy_consent_grant"] != "opaque-signed-consent-receipt" {
+			t.Errorf("Gateway identity/source missing from driver request: %#v", forwarded)
 		}
 	})
 
@@ -265,13 +187,12 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		}
 
 		httpClient := &mockHTTPDoer{response: mockResp}
-		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHTTPClient(httpClient))
+		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightSessionBroker(httpClient))
 
 		_, err := nav.Navigate(t.Context(), NavigationRequest{
 			SessionID: "session123",
 			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			Model:     "local_first",
 		})
 
 		if err == nil {
@@ -289,16 +210,14 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		}
 
 		httpClient := &mockHTTPDoer{response: mockResp}
-		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHTTPClient(httpClient))
+		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightSessionBroker(httpClient))
 
 		_, err := nav.Navigate(t.Context(), NavigationRequest{
 			SessionID: "session123",
 			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			Model:     "local_first",
 			MaxSteps:  200, // Over limit
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}
@@ -319,19 +238,16 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	wsHub := &mockWSHub{}
-	creditSvc := &mockCreditService{}
+	wsHub := hubmocks.New()
 	nav := NewPlaywrightVisionNavigator(log,
 		WithPlaywrightHub(wsHub),
-		WithPlaywrightCreditService(creditSvc),
 	)
 
 	// Create a session to track
 	session := &NavigationSession{
 		NavigationID:  "nav_test123",
 		SessionID:     "session123",
-		UserID:        "user123",
-		Model:         "gpt-4o",
+		Model:         "local_first",
 		StartedAt:     time.Now(),
 		Status:        StatusNavigating,
 		NavigatorType: NavigatorPlaywright,
@@ -372,18 +288,13 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 		}
 
 		// Verify WebSocket broadcast
-		if wsHub.broadcastCount != 1 {
-			t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
-		}
-
-		// Verify credit charge
-		if creditSvc.chargeCount != 1 {
-			t.Errorf("chargeCount = %d, want 1", creditSvc.chargeCount)
+		if wsHub.BroadcastEnvelopeCount() != 1 {
+			t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
 		}
 	})
 
 	t.Run("human intervention event", func(t *testing.T) {
-		wsHub.broadcastCount = 0
+		wsHub.ResetBroadcastEnvelopes()
 
 		step := &NavigationStep{
 			NavigationID:  "nav_test123",
@@ -403,8 +314,8 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 		}
 
 		// Should broadcast 2 events: step + human intervention
-		if wsHub.broadcastCount != 2 {
-			t.Errorf("broadcastCount = %d, want 2", wsHub.broadcastCount)
+		if wsHub.BroadcastEnvelopeCount() != 2 {
+			t.Errorf("broadcastCount = %d, want 2", wsHub.BroadcastEnvelopeCount())
 		}
 
 		// Verify session status
@@ -422,7 +333,7 @@ func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	wsHub := &mockWSHub{}
+	wsHub := hubmocks.New()
 	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHub(wsHub))
 
 	// Create a session
@@ -443,6 +354,7 @@ func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {
 		TotalTokens:     750,
 		TotalDurationMs: 15000,
 		FinalURL:        "https://example.com/success",
+		Error:           "",
 		Summary:         "Task completed successfully",
 	}
 
@@ -462,10 +374,147 @@ func TestPlaywrightVisionNavigator_HandleCompleteCallback(t *testing.T) {
 	if s.TotalTokens != 750 {
 		t.Errorf("TotalTokens = %d, want 750", s.TotalTokens)
 	}
+	if s.FinalURL != result.FinalURL || s.Summary != result.Summary || s.Error != result.Error {
+		t.Errorf("completion details = url %q error %q summary %q, want result values", s.FinalURL, s.Error, s.Summary)
+	}
+	if s.TotalDurationMs != result.TotalDurationMs {
+		t.Errorf("TotalDurationMs = %d, want %d", s.TotalDurationMs, result.TotalDurationMs)
+	}
 
 	// Verify broadcast
-	if wsHub.broadcastCount != 1 {
-		t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
+	if wsHub.BroadcastEnvelopeCount() != 1 {
+		t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
+	}
+}
+
+func TestPlaywrightVisionNavigator_DuplicateCompletionPreservesFirstResult(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := hubmocks.New()
+	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHub(wsHub))
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_duplicate"] = &NavigationSession{
+		NavigationID: "nav_duplicate",
+		SessionID:    "session123",
+		Status:       StatusNavigating,
+	}
+	nav.mu.Unlock()
+
+	first := &NavigationResult{
+		NavigationID:    "nav_duplicate",
+		Status:          StatusCompleted,
+		VerifiedSuccess: true,
+		TotalSteps:      3,
+		TotalTokens:     300,
+	}
+	late := &NavigationResult{
+		NavigationID: "nav_duplicate",
+		Status:       StatusFailed,
+		TotalSteps:   99,
+		TotalTokens:  999,
+		Error:        "late retry",
+	}
+
+	if err := nav.HandleCompleteCallback(t.Context(), first); err != nil {
+		t.Fatalf("first HandleCompleteCallback() error = %v", err)
+	}
+	if err := nav.HandleCompleteCallback(t.Context(), late); err != nil {
+		t.Fatalf("duplicate HandleCompleteCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_duplicate"]
+	nav.mu.RUnlock()
+	if session.Status != StatusCompleted || !session.VerifiedSuccess {
+		t.Fatalf("duplicate changed terminal result: status=%v verified=%v", session.Status, session.VerifiedSuccess)
+	}
+	if session.StepCount != 3 || session.TotalTokens != 300 {
+		t.Errorf("duplicate changed totals: steps=%d tokens=%d", session.StepCount, session.TotalTokens)
+	}
+	if wsHub.BroadcastEnvelopeCount() != 1 {
+		t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
+	}
+}
+
+func TestPlaywrightVisionNavigator_LateStepAfterCompletionIsIgnored(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := hubmocks.New()
+	nav := NewPlaywrightVisionNavigator(log,
+		WithPlaywrightHub(wsHub),
+	)
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_late_step"] = &NavigationSession{
+		NavigationID: "nav_late_step",
+		SessionID:    "session123",
+		Status:       StatusCompleted,
+		StepCount:    3,
+		TotalTokens:  300,
+	}
+	nav.mu.Unlock()
+
+	err := nav.HandleStepCallback(t.Context(), &NavigationStep{
+		NavigationID: "nav_late_step",
+		StepNumber:   4,
+		Action:       map[string]interface{}{"type": "click"},
+		TokensUsed: TokenUsage{
+			TotalTokens: 100,
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleStepCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_late_step"]
+	nav.mu.RUnlock()
+	if session.Status != StatusCompleted || session.StepCount != 3 || session.TotalTokens != 300 {
+		t.Errorf("late step changed completed session: status=%v steps=%d tokens=%d", session.Status, session.StepCount, session.TotalTokens)
+	}
+	if wsHub.BroadcastEnvelopeCount() != 0 {
+		t.Errorf("late step broadcastCount = %d, want 0", wsHub.BroadcastEnvelopeCount())
+	}
+}
+
+func TestPlaywrightVisionNavigator_DuplicateActiveStepIsIgnored(t *testing.T) {
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+	wsHub := hubmocks.New()
+	nav := NewPlaywrightVisionNavigator(log,
+		WithPlaywrightHub(wsHub),
+	)
+
+	nav.mu.Lock()
+	nav.activeNavigations["nav_duplicate_step"] = &NavigationSession{
+		NavigationID: "nav_duplicate_step",
+		SessionID:    "session123",
+		Status:       StatusNavigating,
+	}
+	nav.mu.Unlock()
+
+	event := &NavigationStep{
+		NavigationID: "nav_duplicate_step",
+		StepNumber:   1,
+		Action:       map[string]interface{}{"type": "click"},
+		TokensUsed:   TokenUsage{TotalTokens: 100},
+	}
+	if err := nav.HandleStepCallback(t.Context(), event); err != nil {
+		t.Fatalf("first HandleStepCallback() error = %v", err)
+	}
+	if err := nav.HandleStepCallback(t.Context(), event); err != nil {
+		t.Fatalf("duplicate HandleStepCallback() error = %v", err)
+	}
+
+	nav.mu.RLock()
+	session := nav.activeNavigations["nav_duplicate_step"]
+	nav.mu.RUnlock()
+	if len(session.Steps) != 1 || session.StepCount != 1 || session.TotalTokens != 100 {
+		t.Errorf("duplicate changed step state: history=%d steps=%d tokens=%d", len(session.Steps), session.StepCount, session.TotalTokens)
+	}
+	if wsHub.BroadcastEnvelopeCount() != 1 {
+		t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
 	}
 }
 
@@ -521,7 +570,7 @@ func TestPlaywrightVisionNavigator_AbortNavigation(t *testing.T) {
 		}
 
 		httpClient := &mockHTTPDoer{response: mockResp}
-		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHTTPClient(httpClient))
+		nav := NewPlaywrightVisionNavigator(log, WithPlaywrightSessionBroker(httpClient))
 
 		// Create session
 		session := &NavigationSession{
@@ -587,10 +636,10 @@ func TestPlaywrightVisionNavigator_ResumeNavigation(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewReader([]byte(`{}`))),
 		}
 
-		wsHub := &mockWSHub{}
+		wsHub := hubmocks.New()
 		httpClient := &mockHTTPDoer{response: mockResp}
 		nav := NewPlaywrightVisionNavigator(log,
-			WithPlaywrightHTTPClient(httpClient),
+			WithPlaywrightSessionBroker(httpClient),
 			WithPlaywrightHub(wsHub),
 		)
 
@@ -628,8 +677,8 @@ func TestPlaywrightVisionNavigator_ResumeNavigation(t *testing.T) {
 		}
 
 		// Verify broadcast
-		if wsHub.broadcastCount != 1 {
-			t.Errorf("broadcastCount = %d, want 1", wsHub.broadcastCount)
+		if wsHub.BroadcastEnvelopeCount() != 1 {
+			t.Errorf("broadcastCount = %d, want 1", wsHub.BroadcastEnvelopeCount())
 		}
 	})
 }
@@ -647,13 +696,12 @@ func TestPlaywrightNavigationHandle(t *testing.T) {
 	}
 
 	httpClient := &mockHTTPDoer{response: mockResp}
-	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightHTTPClient(httpClient))
+	nav := NewPlaywrightVisionNavigator(log, WithPlaywrightSessionBroker(httpClient))
 
 	handle, err := nav.Navigate(t.Context(), NavigationRequest{
 		SessionID: "session123",
 		Prompt:    "Click",
-		Model:     "gpt-4o",
-		APIKey:    "test-key",
+		Model:     "local_first",
 	})
 	if err != nil {
 		t.Fatalf("Navigate() error = %v", err)

@@ -1,0 +1,166 @@
+{
+  "metadata": {
+    "name": "collection-list-declarative",
+    "description": "Verify declarative collection fields, pointer and keyboard open ports, explicit query filtering, and phone overflow.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "collection-list",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library%3ACollectionList/harness.html?story=interactive",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-collection-key=\"support\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      }
+    },
+    {
+      "id": "content",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const r=document.querySelector('[data-rcl-collection-key=\"support\"]'); if(!r.textContent.includes('Maya:')||!r.textContent.includes('In-app'))throw Error('Declarative fields missing');if(document.documentElement.scrollWidth>window.innerWidth+1)throw Error('Horizontal overflow');for (const v of document.querySelectorAll('[data-rcl-virtual-list-viewport]')) {if(v.scrollWidth>v.clientWidth)throw Error('Nested list overflow '+v.scrollWidth+' > '+v.clientWidth);} return true})()"
+        }
+      }
+    },
+    {
+      "id": "select",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-rcl-collection-key=\"support\"]"
+        }
+      }
+    },
+    {
+      "id": "opened",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 200
+        }
+      }
+    },
+    {
+      "id": "assert-open",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(!document.querySelector('[data-opened]').textContent.includes('Opened Support escalation'))throw Error('Open port not called');const input=document.querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Operations');input.dispatchEvent(new Event('input',{bubbles:true}));return true})()"
+        }
+      }
+    },
+    {
+      "id": "filtered",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 250
+        }
+      }
+    },
+    {
+      "id": "assert-filter",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const rows=[...document.querySelectorAll('[data-rcl-collection-key]')];if(rows.length!==1||rows[0].dataset.rclCollectionKey!=='operations')throw Error('Query did not select the matching row');rows[0].focus();rows[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return true})()"
+        }
+      }
+    },
+    {
+      "id": "keyboard-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 200
+        }
+      }
+    },
+    {
+      "id": "assert-keyboard",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(!document.querySelector('[data-opened]').textContent.includes('Opened Operations handoff'))throw Error('Keyboard open failed');return true})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "0",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "1",
+      "source": "ready",
+      "target": "content"
+    },
+    {
+      "id": "2",
+      "source": "content",
+      "target": "select"
+    },
+    {
+      "id": "3",
+      "source": "select",
+      "target": "opened"
+    },
+    {
+      "id": "4",
+      "source": "opened",
+      "target": "assert-open"
+    },
+    {
+      "id": "5",
+      "source": "assert-open",
+      "target": "filtered"
+    },
+    {
+      "id": "6",
+      "source": "filtered",
+      "target": "assert-filter"
+    },
+    {
+      "id": "7",
+      "source": "assert-filter",
+      "target": "keyboard-settle"
+    },
+    {
+      "id": "8",
+      "source": "keyboard-settle",
+      "target": "assert-keyboard"
+    }
+  ]
+}

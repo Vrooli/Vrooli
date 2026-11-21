@@ -5,8 +5,8 @@
  * that isolates graph traversal logic from React rendering concerns.
  *
  * Traversal rule: each hop must move to a DIFFERENT entity type than any type
- * already visited on that path. With 4 types (team, agent, skill, cli), this
- * naturally caps at 3 hops and prevents lateral spread within the same type.
+ * already visited on that path. With 5 types (team, agent, skill, action, cli),
+ * this naturally caps at 4 hops and prevents lateral spread within the same type.
  */
 
 import type { GraphEdge, GraphNode, NodeType } from '@/lib/schemas'
@@ -16,7 +16,8 @@ const TYPE_BIT: Record<NodeType, number> = {
   team: 1,
   agent: 2,
   skill: 4,
-  cli: 8,
+  action: 8,
+  cli: 16,
 }
 
 /**

@@ -147,3 +147,14 @@
 - PostgreSQL password is hardcoded - should use environment variables for production
 - No API authentication implemented - needed for production deployment
 - Consider rate limiting for production use
+
+## Historical test enhancement follow-up
+
+The issue-494a13ca test report is preserved beneath runtime home at
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/local-info-scout/TEST_ENHANCEMENT_SUMMARY.md`.
+Its coverage percentages and all-passing result are historical observations.
+Unverified follow-up from that report includes Redis hit/miss, TTL and invalidation
+coverage; database persistence, search-log and popular-search coverage; and
+Ollama/SearXNG response isolation. Recheck existing tests before adding work.
+Use scoped Test Genie phases under the project testing guide to obtain current
+evidence. Do not reproduce the report's retired shell-phase runner instructions.

@@ -1,0 +1,164 @@
+{
+  "action": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "discard": "Discard changes"
+  },
+  "unsaved": {
+    "title": "Discard your changes?",
+    "body": "You have changes that aren’t saved yet.",
+    "leave": "Discard",
+    "stay": "Keep editing"
+  },
+  "group": {
+    "reaching": "Reaching you",
+    "app": "This app",
+    "advanced": "Advanced"
+  },
+  "section": {
+    "reach": "Devices and channels",
+    "quietHours": "Quiet hours",
+    "escalation": "Escalation order",
+    "appearance": "Appearance and language",
+    "session": "Session",
+    "sources": "Event sources"
+  },
+  "summary": {
+    "signInToView": "Sign in to view",
+    "unavailable": "Couldn’t load",
+    "noDevices": "No devices yet",
+    "devices_one": "1 device",
+    "devices": "{{count}} devices",
+    "quietOff": "Off",
+    "quietOne": "{{hours}}, {{days}}",
+    "quietMany_one": "1 schedule",
+    "quietMany": "{{count}} schedules",
+    "escalationNone": "Not set up",
+    "then": ", then ",
+    "appearance": "{{theme}} · {{language}}",
+    "signedOut": "Not signed in",
+    "noSources": "None yet",
+    "sources_one": "1 source",
+    "sources": "{{count}} sources"
+  },
+  "days": {
+    "every": "Every day",
+    "weekdays": "Weekdays",
+    "weekends": "Weekends"
+  },
+  "channel": {
+    "webPush": "Push notification",
+    "browser": "Browser alert",
+    "push": "Push",
+    "email": "Email",
+    "webhook": "Webhook",
+    "macNotification": "Mac notification",
+    "imessage": "iMessage",
+    "other": "Other ({{channel}})"
+  },
+  "signedOut": {
+    "title": "You’re not signed in",
+    "body": "Sign in to manage devices, quiet hours and escalation. Appearance and language work without it.",
+    "action": "Sign in"
+  },
+  "sessionEnded": {
+    "title": "Your session ended",
+    "body": "Sign in again to carry on. What you changed here is kept."
+  },
+  "sessionPage": {
+    "description": "Who this browser is signed in as."
+  },
+  "appearance": {
+    "description": "How Chimesail looks and which language it speaks.",
+    "theme": "Theme",
+    "language": "Language",
+    "browserOnly": "These choices apply to this browser only."
+  },
+  "quietHours": {
+    "description": "Chimesail holds notifications during these hours.",
+    "add": "Add quiet hours",
+    "addTitle": "Add quiet hours",
+    "editTitle": "Edit quiet hours",
+    "emptyTitle": "No quiet hours",
+    "emptyDetail": "Notifications can reach you at any time.",
+    "days": "Days",
+    "from": "From",
+    "until": "Until",
+    "timezone": "Time zone",
+    "timezoneHelp": "The hours follow this time zone, wherever you are.",
+    "critical": "Let critical decisions through",
+    "criticalHint": "Critical decisions that arrive in these hours still reach you.",
+    "criticalChip": "Critical allowed",
+    "dayTaken": "This day already belongs to another schedule.",
+    "takenNote": "{{days}} already have their own hours.",
+    "overnightNote": "Overnight hours: they start on each day you choose and end the next morning, at {{end}}.",
+    "issue": {
+      "noDays": "Choose at least one day.",
+      "badTime": "Enter a start and an end time.",
+      "sameTime": "Start and end must be different times.",
+      "badZone": "That time zone isn’t recognised."
+    },
+    "saved": "Quiet hours saved.",
+    "removed": "Quiet hours removed.",
+    "remove": "Remove",
+    "removeTitle": "Remove quiet hours for {{days}}?",
+    "removeBody": "Notifications will reach you at any time on those days.",
+    "removeConfirm": "Remove quiet hours",
+    "loadFailed": "Couldn’t load your quiet hours",
+    "loadFailedDetail": "Nothing was changed.",
+    "stale": "Couldn’t refresh quiet hours. Showing what loaded earlier.",
+    "partialTitle": "Not everything saved",
+    "partialBody": "Couldn’t confirm {{days}}. Your changes are still here; try again.",
+    "partialSaved": "Saved: {{days}}.",
+    "unconfirmedTitle": "Couldn’t confirm the save",
+    "unconfirmedBody": "Chimesail couldn’t read your quiet hours back. Check your connection, then try again. Your changes are still here."
+  },
+  "escalation": {
+    "description": "If a critical decision goes unanswered, Chimesail tries these channels in order. Only critical decisions escalate; others expire when their time is up.",
+    "emptyTitle": "No escalation channels",
+    "emptyDetail": "An unanswered critical decision expires without trying another channel.",
+    "add": "Add a channel",
+    "addTitle": "Add a channel",
+    "addHint": "Chimesail tries it after the channels above.",
+    "nothingToAdd": "Every channel your devices offer is already in the order.",
+    "openDevices": "Open devices and channels",
+    "moveUp": "Move {{channel}} up",
+    "moveDown": "Move {{channel}} down",
+    "remove": "Remove {{channel}}",
+    "notOffered": "No device offers this channel right now.",
+    "timing": "Each step waits 5 minutes for your answer before the next one is tried.",
+    "save": "Save order",
+    "saved": "Escalation order saved.",
+    "notAppliedTitle": "The new order didn’t save",
+    "notAppliedBody": "Chimesail still has: {{order}}. Your changes are still here; try again.",
+    "unconfirmedTitle": "Couldn’t confirm the save",
+    "unconfirmedBody": "Chimesail couldn’t read the order back. Check your connection, then try again. Your changes are still here.",
+    "loadFailed": "Couldn’t load the escalation order",
+    "loadFailedDetail": "Nothing was changed.",
+    "emptyConfirmTitle": "Save an empty order?",
+    "emptyConfirmBody": "Critical decisions you miss will expire without trying another channel.",
+    "emptyConfirm": "Save empty order"
+  },
+  "sources": {
+    "description": "Choose which apps may notify you, and the lowest urgency that gets through.",
+    "readOnly": "You can review these preferences without signing in. Sign in to change them.",
+    "emptyTitle": "No sources yet",
+    "emptyDetail": "When an app starts sending you notifications, it will appear here.",
+    "loadFailed": "Couldn’t load event sources",
+    "loadFailedDetail": "Your preferences are unchanged.",
+    "allow": "Allow {{category}}",
+    "minimumUrgency": "Lowest urgency",
+    "minimumUrgencyFor": "Lowest urgency for {{category}}",
+    "everything": "All notifications",
+    "saveFailed": "Couldn’t save {{name}}",
+    "saveFailedDetail": "It’s back to how it was. Try again.",
+    "urgency": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "critical": "Critical"
+    }
+  }
+}

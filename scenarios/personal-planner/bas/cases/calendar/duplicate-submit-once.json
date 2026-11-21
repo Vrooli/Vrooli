@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "duplicate-submit-once",
+    "description": "Submit one synthetic event twice through the ordinary UI and independently verify exactly one durable event in routed Test Genie storage.",
+    "requirement": "PLAN-P0-002",
+    "version": "1",
+    "labels": { "reset": "none", "safety": "fixture-only", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "mutating"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    { "id": "open-plan", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "personal-planner", "scenario_path": "/plan", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open ordinary Planner UI" } } },
+    { "id": "open-month", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/calendarMonth.monthView" }, "metadata": { "label": "Open native Month view" } } },
+    { "id": "add-event", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/calendarMonth.addFirstInMonth" }, "metadata": { "label": "Open event editor" } } },
+    { "id": "title", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "@selector/calendarMonth.eventTitle", "value": "E1 D2 duplicate synthetic", "clear_first": true }, "metadata": { "label": "Enter synthetic duplicate case" } } },
+    { "id": "double-submit", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const form = document.querySelector('[data-testid=\"calendar-event-editor\"]'); if (!form) throw new Error('event editor missing'); form.requestSubmit(); form.requestSubmit(); return 'two synchronous UI submissions dispatched'; })()" }, "metadata": { "label": "Dispatch duplicate UI submission" } } },
+    { "id": "saved", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/calendarMonth.message", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": { "stringValue": "Saved E1 D2 duplicate synthetic as event" }, "timeout_ms": 15000, "failure_message": "Duplicate submission should resolve to a saved event" }, "metadata": { "label": "Verify UI save result" } } },
+    { "id": "readback-one", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(async () => { const p = new URLSearchParams({start_local_date: '2000-01-01', end_local_date: '2199-12-31'}); const r = await fetch('/api/v1/calendar/events?' + p); if (!r.ok) throw new Error('independent event-list readback failed: ' + r.status); const d = await r.json(); const matches = (d.events || []).filter(e => e.title === 'E1 D2 duplicate synthetic'); if (matches.length !== 1 || matches[0].revision !== 1) throw new Error('expected exactly one durable revision-1 event; found ' + matches.length); return JSON.stringify({count: matches.length, id: matches[0].id, revision: matches[0].revision, title: matches[0].title}); })()" }, "metadata": { "label": "Independent routed durable list readback confirms one event" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-plan", "target": "open-month" }, { "id": "e2", "source": "open-month", "target": "add-event" }, { "id": "e3", "source": "add-event", "target": "title" }, { "id": "e4", "source": "title", "target": "double-submit" }, { "id": "e5", "source": "double-submit", "target": "saved" }, { "id": "e6", "source": "saved", "target": "readback-one" }
+  ]
+}

@@ -24,15 +24,9 @@ export const resolveReplayStyleTokens = (
   const hasFullBleed = !hasDesktop
     || (presentationStyle.background.type === 'theme' && presentationStyle.background.id === 'none');
 
-  // Apply device frame container styling to background (for corner radius, shadow)
-  const backgroundDecor = hasDeviceFrame
-    ? {
-        ...baseBackgroundDecor,
-        containerClass: `${baseBackgroundDecor.containerClass} ${deviceFrameDecorBase.containerClass}`,
-      }
-    : baseBackgroundDecor;
-
-  const needsSquareFrame = hasFullBleed || !style.presentation.showBrowserFrame;
+  // Device hardware surrounds the product window, never the export canvas.
+  const backgroundDecor = baseBackgroundDecor;
+  const needsSquareFrame = hasFullBleed || (!style.presentation.showBrowserFrame && !hasDeviceFrame);
 
   return {
     backgroundDecor: hasFullBleed

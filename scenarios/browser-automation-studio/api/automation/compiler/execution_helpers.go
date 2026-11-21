@@ -94,9 +94,10 @@ func executionSettingsToContext(settings *basworkflows.NodeExecutionSettings) ma
 	if settings.TimeoutMs != nil {
 		ctx["timeoutMs"] = int(*settings.TimeoutMs)
 	}
-	if settings.WaitAfterMs != nil {
-		ctx["waitAfterMs"] = int(*settings.WaitAfterMs)
-	}
+	// wait_after_ms is deliberately not carried. Nothing in the executor or the
+	// driver has ever applied it, so round-tripping it here only made a setting
+	// that does nothing look supported. See NodeExecutionSettings in
+	// workflows/definition.proto.
 	if settings.ContinueOnError != nil {
 		ctx["continueOnError"] = *settings.ContinueOnError
 	}
@@ -205,10 +206,7 @@ func contextToExecutionSettings(ctx map[string]any) *basworkflows.NodeExecutionS
 		settings.TimeoutMs = &tm
 		hasSettings = true
 	}
-	if wa, ok := toInt32(ctx["waitAfterMs"]); ok {
-		settings.WaitAfterMs = &wa
-		hasSettings = true
-	}
+	// No waitAfterMs counterpart: the compile side no longer emits it.
 	if coe, ok := ctx["continueOnError"].(bool); ok {
 		settings.ContinueOnError = &coe
 		hasSettings = true

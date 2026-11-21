@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "coding_agent_shims",
+  "description": "Install PATH shims in ~/.vrooli/bin so coding agents started from any shell carry a Vrooli identity. See package doc for why this replaced the bash-only shell functions.",
+  "handler": "coding_agent_shims",
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "ai-cli",
+  "capability_role": "control",
+  "storage": {
+    "entries": {
+      "shims": {
+        "rung": "owned",
+        "path": {
+          "linux": "~/.vrooli/shims",
+          "macos": "~/.vrooli/shims",
+          "windows": "~/.vrooli/shims"
+        },
+        "kind": "dir",
+        "regenerable": true,
+        "class": "cache",
+        "sensitive": false,
+        "rationale": "Alias links to vrooli-agent-launcher, in a directory this safeguard owns outright. It is deliberately not ~/.vrooli/bin: that is the shared executable install root, and declaring it here made this entry's budget and cache class describe gigabytes of other components' build output rather than five links. Owned rather than pinned because the location is this safeguard's to choose; what must stay fixed is that the directory precedes the agents' own install directories on PATH, which the path_hygiene safeguard maintains. The contents are regenerable -- every alias is reconstructed from the launcher binary, on apply and again on each control-plane start.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "One symlink per supported agent on Unix, costing bytes. On Windows one hard link per agent, which also costs no additional bytes, degrading to a copy of the launcher per agent only where hard links are unavailable -- five copies of a few megabytes, the worst case this ceiling is sized for. Because the directory now holds nothing else, exceeding it means a runaway install loop and nothing else, which is what a budget should be able to say."
+        }
+      }
+    },
+    "rationale": "The shim directory is a host installation artifact owned and rebuilt by this safeguard."
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "restore_absent"
+}

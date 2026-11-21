@@ -1,0 +1,198 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "ready"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "42"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "loading"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Loading"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "loading",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "refreshing"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        }
+      ],
+      "id": "refreshing",
+      "mode": "pinned",
+      "name": "refreshing",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "stale"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Showing stale data"
+        }
+      ],
+      "id": "stale",
+      "mode": "pinned",
+      "name": "stale",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "empty"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "empty",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "partial-error"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Some sections need attention"
+        }
+      ],
+      "id": "partial-error",
+      "mode": "pinned",
+      "name": "partial-error",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "fatal-error"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Unable to load this page"
+        }
+      ],
+      "id": "fatal-error",
+      "mode": "pinned",
+      "name": "fatal-error",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        },
+        "state": "offline"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Offline"
+        }
+      ],
+      "id": "offline",
+      "mode": "pinned",
+      "name": "offline",
+      "role": "boundary"
+    }
+  ],
+  "title": "DashboardPage"
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.conditional-field",
+    "name": "ConditionalField",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The schema-driven field that appears, disables, resets, or reconfigures itself based on a compiled dependency expression rather than ad hoc conditional rendering.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.form-store",
+        "reason": "Values, validation, dirtiness, and submission live in the field-granular store rather than component state."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "error-association",
+    "input-preservation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ],
+  "rationale": "Compiled rather than evaluated per render: a form with fifty conditional fields re-evaluating every predicate on every keystroke is the common performance failure in generated forms."
+}

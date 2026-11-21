@@ -1,0 +1,225 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.project_files;
+
+import "browser-automation-studio/v1/api/service.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/project_files;project_files";
+
+// =============================================================================
+// PROJECT_FILES DOMAIN — read/write/move/delete + resync + OS reveal/open.
+// =============================================================================
+//
+// @stability beta
+//
+// ProjectFilesService is BAS's read/write surface for files living inside a
+// project root directory: the on-disk workflow JSON files, the asset files
+// resolved by the DB index, and the folder structure that holds them.
+//
+// Binary file content (GET /projects/{id}/files/*) is intentionally NOT a
+// Connect RPC. That path streams arbitrary file bytes with MIME types
+// decided by extension, which the browser consumes via <img>, <a download>,
+// and file viewers. It remains a RESTException with RESTReason:
+// third_party_shape and is documented in docs/internal/REST_EXCEPTIONS.md.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/project_files/service.go
+//   - UI:   ui/src/api/projectFiles.ts (file tree, editor, reveal/open)
+//   - CLI:  bas project-files {tree|read|mkdir|write|move|delete|resync
+//                              |reveal|open-folder}
+// =============================================================================
+
+service ProjectFilesService {
+  // GetProjectFileTree returns the merged tree of folders, workflow files,
+  // and asset files for a project. Folders are derived from filesystem +
+  // parent-directories of indexed files.
+  rpc GetProjectFileTree(GetProjectFileTreeRequest) returns (GetProjectFileTreeResponse);
+
+  // ReadProjectFile returns the canonical WorkflowSummary for a workflow
+  // JSON file. Only JSON workflow files are readable through this RPC.
+  rpc ReadProjectFile(ReadProjectFileRequest) returns (ReadProjectFileResponse);
+
+  // MkdirProjectPath creates a directory (with parents) inside the project
+  // root. Path is project-root-relative.
+  rpc MkdirProjectPath(MkdirProjectPathRequest) returns (MkdirProjectPathResponse);
+
+  // WriteProjectWorkflowFile persists a new workflow JSON file (proto-first
+  // protojson WorkflowSummary on disk) and indexes it. Refuses to overwrite
+  // an existing file.
+  rpc WriteProjectWorkflowFile(WriteProjectWorkflowFileRequest) returns (WriteProjectWorkflowFileResponse);
+
+  // MoveProjectFile renames/moves a file or directory inside the project
+  // root and re-indexes.
+  rpc MoveProjectFile(MoveProjectFileRequest) returns (MoveProjectFileResponse);
+
+  // DeleteProjectFile removes a file or directory (recursively) inside the
+  // project root and re-indexes.
+  rpc DeleteProjectFile(DeleteProjectFileRequest) returns (DeleteProjectFileResponse);
+
+  // ResyncProjectFiles forces a full filesystem -> DB index resync for a
+  // project and reports the resulting counts.
+  rpc ResyncProjectFiles(ResyncProjectFilesRequest) returns (ResyncProjectFilesResponse);
+
+  // RevealProjectPath opens the system file manager and reveals (selects)
+  // the target file. For directories the folder is opened directly.
+  rpc RevealProjectPath(RevealProjectPathRequest) returns (RevealProjectPathResponse);
+
+  // OpenProjectFolder opens the project root folder in the system file
+  // manager.
+  rpc OpenProjectFolder(OpenProjectFolderRequest) returns (OpenProjectFolderResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Entry shape
+// ---------------------------------------------------------------------------
+
+// ProjectEntryKind discriminates entries returned by GetProjectFileTree.
+enum ProjectEntryKind {
+  PROJECT_ENTRY_KIND_UNSPECIFIED = 0;
+  PROJECT_ENTRY_KIND_FOLDER = 1;
+  PROJECT_ENTRY_KIND_WORKFLOW_FILE = 2;
+  PROJECT_ENTRY_KIND_ASSET_FILE = 3;
+}
+
+// ProjectEntry is a single row in the project file tree.
+message ProjectEntry {
+  // Synthetic stable id: "folder:<path>" | "wf:<uuid>" | "asset:<path>".
+  string id = 1;
+  // Project the entry belongs to.
+  // @format uuid
+  string project_id = 2;
+  // Project-root-relative path (forward-slash, no leading slash).
+  string path = 3;
+  // Discriminator.
+  ProjectEntryKind kind = 4;
+  // Workflow id when kind = WORKFLOW_FILE.
+  // @format uuid
+  string workflow_id = 5;
+  // Free-shape metadata (folder_path, version for workflows; sizeBytes,
+  // mimeType for assets). Treat as opaque key/value bag.
+  google.protobuf.Struct metadata = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Requests / Responses
+// ---------------------------------------------------------------------------
+
+message GetProjectFileTreeRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetProjectFileTreeResponse {
+  repeated ProjectEntry entries = 1;
+}
+
+message ReadProjectFileRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  // Project-root-relative path of a workflow JSON file.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ReadProjectFileResponse {
+  // WorkflowSummary as reconstructed from the on-disk protojson file.
+  browser_automation_studio.v1.WorkflowSummary workflow = 1;
+}
+
+message MkdirProjectPathRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message MkdirProjectPathResponse {
+  string path = 1;
+  string status = 2;
+}
+
+// ProjectWorkflowFileWrite carries the editable fields of a workflow file
+// at write time. flow_definition / metadata / settings are free-shape so
+// that schema evolution in workflow_definition_v2 doesn't churn this proto.
+message ProjectWorkflowFileWrite {
+  string name = 1;
+  string type = 2;
+  string description = 3;
+  repeated string tags = 4;
+  google.protobuf.Struct flow_definition = 5;
+  google.protobuf.Struct metadata = 6;
+  google.protobuf.Struct settings = 7;
+}
+
+message WriteProjectWorkflowFileRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  // Project-root-relative path; must end with .json.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+  ProjectWorkflowFileWrite workflow = 3;
+}
+
+message WriteProjectWorkflowFileResponse {
+  string path = 1;
+  // @format uuid
+  string workflow_id = 2;
+  repeated string warnings = 3;
+}
+
+message MoveProjectFileRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  string from_path = 2 [(buf.validate.field).string.min_len = 1];
+  string to_path = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message MoveProjectFileResponse {
+  string status = 1;
+}
+
+message DeleteProjectFileRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteProjectFileResponse {
+  string status = 1;
+}
+
+message ResyncProjectFilesRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ResyncProjectFilesResponse {
+  // @format uuid
+  string project_id = 1;
+  string project_root = 2;
+  int32 entries_indexed = 3;
+  int32 workflows_indexed = 4;
+  int32 assets_indexed = 5;
+}
+
+message RevealProjectPathRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message RevealProjectPathResponse {
+  // "revealed" for files, "opened" for directories.
+  string status = 1;
+  // Absolute path that was revealed/opened.
+  string path = 2;
+}
+
+message OpenProjectFolderRequest {
+  // @format uuid
+  string project_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message OpenProjectFolderResponse {
+  string status = 1;
+  string path = 2;
+}

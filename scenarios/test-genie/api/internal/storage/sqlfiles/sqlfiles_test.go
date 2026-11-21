@@ -2,8 +2,11 @@ package sqlfiles
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
+	"test-genie/internal/dbexec"
 	"testing"
 
 	"github.com/vrooli/api-core/database"
@@ -59,5 +62,36 @@ INSERT INTO foo VALUES (1);
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 row, got %d", count)
+	}
+}
+
+type cancelingSQLExecutor struct {
+	dbexec.Executor
+	expected context.Context
+	cancel   context.CancelFunc
+	calls    int
+}
+
+func (e *cancelingSQLExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if ctx != e.expected {
+		return nil, errors.New("statement lost its caller context")
+	}
+	e.calls++
+	e.cancel()
+	return nil, nil
+}
+func TestExecFileContextStopsBeforeFollowingStatement(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "migration.sql")
+	if err := os.WriteFile(path, []byte("SELECT 1; SELECT 2;"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	executor := &cancelingSQLExecutor{expected: ctx, cancel: cancel}
+	if err := ExecFileContext(ctx, executor, path); !errors.Is(err, context.Canceled) || executor.calls != 1 {
+		t.Fatal("canceled migration dispatched another statement", executor.calls, err)
+	}
+	if err := ExecFileContext(ctx, executor, "missing.sql"); !errors.Is(err, context.Canceled) {
+		t.Fatal("canceled migration performed file work", err)
 	}
 }

@@ -1,0 +1,17 @@
+{
+ "question": "Should I build and independently review exact cleanup, then remove the one stored execution containing unrelated conversation text?",
+ "big_picture": "A BAS test saved one execution containing text from an unrelated live terminal conversation. The worker removed its local output and stopped further captures, but that execution remains stored. Current cleanup would also select 6,121 unrelated runs, so I recommend building exact one-execution cleanup, having it independently reviewed, and deleting only this execution if its scope is proven. If you choose hold or do not answer, the execution stays and BAS is not used for this proof; other work continues.",
+ "recommend": "delete",
+ "reason": "It removes the stored conversation text while avoiding the 6,121 unrelated runs selected by current cleanup.",
+ "options": [
+  {
+   "key": "delete",
+   "label": "Build and independently review exact cleanup, then delete only this execution if scope is proven"
+  },
+  {
+   "key": "hold",
+   "label": "Keep the execution and hold this BAS proof until safe cleanup exists"
+  }
+ ],
+ "technical_details": "Source case: Hub ask 16f2442e, 15 Nov 2026. BAS test opened an unrelated live terminal conversation and saved one recorded execution containing its text. The worker deleted local output files and stopped further captures. The execution remains stored. Existing cleanup selectors are age, workflow, or project; the workflow preview would delete 6,121 unrelated runs, and nothing was deleted. Proposed authorized work: implement exact single-execution cleanup, independently review that it deletes only the target execution and files belonging to it alone, then delete that execution only if exact scope is confirmed. Stop without deletion if not confirmed. Deletion is irreversible. No answer means hold."
+}

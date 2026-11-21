@@ -1,0 +1,151 @@
+syntax = "proto3";
+package landing_page_business_suite.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "landing-page-business-suite/v1/shared/content.proto";
+import "landing-page-business-suite/v1/shared/presentation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// Variant owns experiments and selection. Reusable presentation and authored
+// content values live in shared so aggregate and SEO services can consume them.
+message Variant {
+  int64 id = 1;
+  string slug = 2;
+  string name = 3;
+  string description = 4;
+  int32 weight = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  google.protobuf.Timestamp archived_at = 9;
+  map<string, string> axes = 10;
+  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 11;
+  optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 12;
+}
+message AxesSelection {
+  map<string, string> values = 1;
+}
+message VariantSnapshot {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  string status = 5;
+  map<string, string> axes = 6;
+  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 7;
+  optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 8;
+  repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 9;
+}
+message SelectVariantRequest {
+  string visitor_id = 1;
+}
+message GetPublicVariantRequest {
+  string slug = 1;
+}
+message GetVariantRequest {
+  string slug = 1;
+}
+message VariantResponse {
+  Variant variant = 1;
+}
+message ListVariantsRequest {
+  string status_filter = 1;
+}
+message ListVariantsResponse {
+  repeated Variant variants = 1;
+}
+message CreateVariantRequest {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  map<string, string> axes = 5;
+}
+message UpdateVariantRequest {
+  string slug = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional int32 weight = 4;
+  AxesSelection axes = 5;
+  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 6;
+  optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 7;
+}
+message ArchiveVariantRequest {
+  string slug = 1;
+}
+message DeleteVariantRequest {
+  string slug = 1;
+}
+message DeleteVariantResponse {
+  bool deleted = 1;
+}
+message ExportVariantSnapshotRequest {
+  string slug = 1;
+}
+message ExportVariantSnapshotResponse {
+  VariantSnapshot snapshot = 1;
+}
+message ImportVariantSnapshotRequest {
+  string slug = 1;
+  VariantSnapshot snapshot = 2;
+}
+message ImportVariantSnapshotResponse {
+  VariantSnapshot snapshot = 1;
+}
+
+// SyncVariantSnapshotsRequest reloads the persisted variant snapshot files.
+// It is administrative because it changes the in-memory serving configuration.
+message SyncVariantSnapshotsRequest {}
+message SyncVariantSnapshotsResponse {
+  int32 count = 1;
+}
+
+// GetVariantSectionsRequest addresses JSON-backed content by its owning
+// variant slug; section IDs are not globally meaningful in this domain.
+message GetVariantSectionsRequest {
+  string slug = 1;
+}
+message VariantSectionsResponse {
+  repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 1;
+}
+message GetVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+}
+message VariantSectionResponse {
+  vrooli.landing_page_business_suite.v1.shared.ContentSection section = 1;
+}
+message CreateVariantSectionRequest {
+  string slug = 1;
+  vrooli.landing_page_business_suite.v1.shared.ContentSection section = 2;
+}
+message UpdateVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+  optional string section_type = 3;
+  google.protobuf.Struct content = 4;
+  optional int32 order = 5;
+  optional bool enabled = 6;
+}
+message DeleteVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+}
+message DeleteVariantSectionResponse {
+  bool deleted = 1;
+}
+service VariantService {
+  rpc SelectVariant(SelectVariantRequest) returns (VariantResponse);
+  rpc GetPublicVariant(GetPublicVariantRequest) returns (VariantResponse);
+  rpc GetVariant(GetVariantRequest) returns (VariantResponse);
+  rpc ListVariants(ListVariantsRequest) returns (ListVariantsResponse);
+  rpc CreateVariant(CreateVariantRequest) returns (VariantResponse);
+  rpc UpdateVariant(UpdateVariantRequest) returns (VariantResponse);
+  rpc ArchiveVariant(ArchiveVariantRequest) returns (VariantResponse);
+  rpc DeleteVariant(DeleteVariantRequest) returns (DeleteVariantResponse);
+  rpc ExportVariantSnapshot(ExportVariantSnapshotRequest) returns (ExportVariantSnapshotResponse);
+  rpc ImportVariantSnapshot(ImportVariantSnapshotRequest) returns (ImportVariantSnapshotResponse);
+  rpc SyncVariantSnapshots(SyncVariantSnapshotsRequest) returns (SyncVariantSnapshotsResponse);
+}

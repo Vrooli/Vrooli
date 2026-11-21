@@ -9,11 +9,12 @@ import (
 
 // VisualCaptureDeps holds dependencies for visual capture orchestration.
 type VisualCaptureDeps struct {
-	BAS     *BrowserAutomationClient
-	Storage *VisualCaptureStorage
-	FS      FileIO
-	RepoDir string
-	RepoID  int64
+	BAS           *BrowserAutomationClient
+	CaptureBundle func(context.Context, string, string, CapturePreset, string) ([]byte, error)
+	Storage       *VisualCaptureStorage
+	FS            FileIO
+	RepoDir       string
+	RepoID        int64
 }
 
 // resolvePages determines which pages to capture and how they were discovered.
@@ -40,45 +41,17 @@ func capturePageScreenshot(ctx context.Context, deps VisualCaptureDeps, slug str
 	pageCtx, pageCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer pageCancel()
 
-	wfJSON, err := buildScreenshotWorkflow(slug, page, preset)
+	waitSelector := page.WaitForSelector
+	if waitSelector == "" {
+		waitSelector = "#root"
+	}
+	capture := deps.CaptureBundle
+	if capture == nil {
+		capture = deps.BAS.CaptureScenarioBundle
+	}
+	pngData, err := capture(pageCtx, slug, page.Path, preset, waitSelector)
 	if err != nil {
-		log.Printf("WARNING: build workflow failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-
-	execResp, err := deps.BAS.ExecuteAdhocWorkflow(pageCtx, BASExecuteAdhocRequest{
-		FlowDefinition: wfJSON,
-	}, false)
-	if err != nil {
-		log.Printf("WARNING: execute workflow failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-
-	detail, err := deps.BAS.PollExecutionCompletion(pageCtx, execResp.ExecutionID, 500*time.Millisecond)
-	if err != nil {
-		log.Printf("WARNING: poll failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-	if detail.Status != "EXECUTION_STATUS_COMPLETED" {
-		errMsg := fmt.Sprintf("execution %s for %s: %s", detail.Status, label, detail.Error)
-		log.Printf("WARNING: %s", errMsg)
-		return nil, errMsg
-	}
-
-	ssResp, err := deps.BAS.GetScreenshots(pageCtx, execResp.ExecutionID)
-	if err != nil {
-		log.Printf("WARNING: get screenshots failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-	if len(ssResp.Screenshots) == 0 {
-		log.Printf("WARNING: no screenshots returned for %s", label)
-		return nil, "no screenshots returned"
-	}
-
-	lastSS := ssResp.Screenshots[len(ssResp.Screenshots)-1]
-	pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, lastSS.Screenshot.Url)
-	if err != nil {
-		log.Printf("WARNING: fetch screenshot data failed for %s: %v", label, err)
+		log.Printf("WARNING: UX bundle capture failed for %s: %v", label, err)
 		return nil, err.Error()
 	}
 
@@ -87,9 +60,11 @@ func capturePageScreenshot(ctx context.Context, deps VisualCaptureDeps, slug str
 
 // CaptureScenario orchestrates a full capture for one scenario.
 //
-// In baseline mode, all existing snapshots are cleared and the new capture
-// becomes the reference "Before" image. In capture mode (default), any
-// existing capture-role snapshot is replaced while the baseline is preserved.
+// Baseline mode is additive: the new snapshot is pinned (role=baseline) by a
+// BaselineManifest and left untouched by routine captures, so multiple
+// baselines coexist. Capture mode (default) keeps a single loose capture-role
+// snapshot — the "current" view — replacing the previous one and never
+// disturbing baseline-pinned snapshots.
 // captureAllPages runs the BAS workflow for every page+preset combination and
 // returns the collected screenshots, the list of successfully captured page paths,
 // and the last error message (if any).

@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "agent-manager",
+  "key": "agent-manager/investigate-typed",
+  "version": "1.2.0",
+  "description": "Bounded, diagnosis-only investigation for the caller-neutral investigation lifecycle.",
+  "trigger": {"initiators": ["programmatic"], "selfTrigger": {"mode": "deny"}},
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "context": {"type": "string", "minLength": 1, "maxLength": 262144},
+      "depth": {"type": "string", "enum": ["quick", "standard", "deep"]},
+      "runIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
+      "selection": {"type": "object", "additionalProperties": true},
+      "evidenceRefs": {
+        "type": "array", "maxItems": 50,
+        "items": {
+          "type": "object",
+          "properties": {
+            "owner": {"type": "string", "minLength": 1, "maxLength": 128},
+            "kind": {"type": "string", "minLength": 1, "maxLength": 128},
+            "ref": {"type": "string", "minLength": 1, "maxLength": 1024},
+            "revision": {"type": "string", "minLength": 1, "maxLength": 256},
+            "schemaVersion": {"type": "string", "minLength": 1, "maxLength": 256},
+            "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50}
+          },
+          "required": ["owner", "kind", "ref", "revision", "schemaVersion"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["context"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {"findings": {"type": "object", "additionalProperties": true}},
+    "required": ["findings"],
+    "additionalProperties": false
+  },
+  "entryNode": "investigate",
+  "nodes": [
+    {
+      "id": "investigate",
+      "kind": "run",
+      "run": {
+        "profileKey": "agent-manager/investigation",
+        "tag": "agent-manager-typed-investigation",
+        "force": true,
+        "promptRef": {"skillId": "agent-manager-process-investigation"},
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "condition": {"type": "string", "enum": ["progressing", "waiting", "stalled", "blocked", "failed", "complete", "unknown"]},
+              "disposition": {"type": "string", "enum": ["no_intervention", "recommend_action", "inconclusive"]},
+              "rootCause": {"type": "string", "enum": ["not_applicable", "unknown", "mixed"]},
+              "unprovenPredicates": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 512}, "maxItems": 20},
+              "summary": {"type": "string", "minLength": 1, "maxLength": 8192},
+              "primaryCategory": {"type": "string", "minLength": 1, "maxLength": 64},
+              "confidence": {"type": "string", "enum": ["High", "Medium", "Low", "supported"]},
+              "categories": {
+                "type": "array", "minItems": 0, "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
+                    "evidenceRefs": {"type": "array", "maxItems": 50, "items": {"type": "object", "properties": {"owner": {"type": "string", "minLength": 1, "maxLength": 128}, "kind": {"type": "string", "minLength": 1, "maxLength": 128}, "ref": {"type": "string", "minLength": 1, "maxLength": 1024}, "revision": {"type": "string", "minLength": 1, "maxLength": 256}, "schemaVersion": {"type": "string", "minLength": 1, "maxLength": 256}, "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50}}, "required": ["owner", "kind", "ref", "revision", "schemaVersion"], "additionalProperties": false}},
+                    "recommendations": {
+                      "type": "array", "minItems": 0, "maxItems": 50,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "text": {"type": "string", "minLength": 1, "maxLength": 4096},
+                          "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
+                          "evidenceRefs": {"type": "array", "maxItems": 50, "items": {"type": "object", "properties": {"owner": {"type": "string", "minLength": 1, "maxLength": 128}, "kind": {"type": "string", "minLength": 1, "maxLength": 128}, "ref": {"type": "string", "minLength": 1, "maxLength": 1024}, "revision": {"type": "string", "minLength": 1, "maxLength": 256}, "schemaVersion": {"type": "string", "minLength": 1, "maxLength": 256}, "subjectRunIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50}}, "required": ["owner", "kind", "ref", "revision", "schemaVersion"], "additionalProperties": false}},
+                          "severity": {"type": "string", "enum": ["Critical", "Major", "Gap", "Minor"]},
+                          "evidence": {"type": "string", "maxLength": 4096}
+                        },
+                        "required": ["text"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["name", "recommendations"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["summary", "primaryCategory", "categories"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "evidence_refs", "source": "workflow_input", "selector": "$.evidenceRefs", "limit": 1, "maxBytes": 32768, "renderAs": "json", "missingPolicy": "omit"}
+        ],
+        "maxTurns": 12,
+        "timeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "end-completed",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {"name": "findings", "source": "structured_result", "selector": "node=investigate;$.value", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    }
+  ],
+  "edges": [{"from": "investigate", "to": "end-completed"}],
+  "budgets": {
+    "wallTimeSeconds": 1200,
+    "maxTurns": 12,
+    "maxTokens": 500000,
+    "maxChargeMicroUsd": 5000000,
+    "maxNodeAttempts": 2,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 1
+  },
+  "metadata": {"feature": "typed-investigation", "owner": "agent-manager"}
+}

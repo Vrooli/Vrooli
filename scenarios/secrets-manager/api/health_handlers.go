@@ -1,19 +1,20 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type HealthHandlers struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-func NewHealthHandlers(db *sql.DB) *HealthHandlers {
+func NewHealthHandlers(db *database.RoutedDB) *HealthHandlers {
 	return &HealthHandlers{db: db}
 }
 
@@ -64,11 +65,12 @@ func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
 
 	// Build response compliant with health-api.schema.json
 	response := map[string]interface{}{
-		"status":    status,
-		"service":   "secrets-manager-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": readiness,
-		"version":   "1.0.0",
+		"status":         status,
+		"service":        "secrets-manager-api",
+		"timestamp":      time.Now().Format(time.RFC3339),
+		"readiness":      readiness,
+		"version":        "1.0.0",
+		"build_identity": os.Getenv("VROOLI_BUILD_IDENTITY"),
 		"dependencies": map[string]interface{}{
 			"database": map[string]interface{}{
 				"connected":  dbConnected,
@@ -83,5 +85,5 @@ func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

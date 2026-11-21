@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	assistantSchema "vrooli-assistant/internal/assistant"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -75,8 +77,9 @@ func main() {
 	// Initialize database connection
 	initDB()
 
-	// Create tables if they don't exist
-	createTables()
+	if err := applySchema(context.Background(), db); err != nil {
+		log.Fatal("Database schema initialization failed:", err)
+	}
 
 	// Serve embedded web UI assets
 	webFS, err := fs.Sub(embeddedWebUI, "webui")
@@ -210,6 +213,11 @@ func (s spaFileServer) serveIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, info.Name(), info.ModTime(), indexFile)
 }
 
+// applySchema brings the database up to the scenario-owned schema.
+func applySchema(ctx context.Context, db *sql.DB) error {
+	return database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(assistantSchema.Schema))
+}
+
 func initDB() {
 	var err error
 	db, err = database.Connect(context.Background(), database.Config{
@@ -217,43 +225,6 @@ func initDB() {
 	})
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
-	}
-}
-
-func createTables() {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS issues (
-			id UUID PRIMARY KEY,
-			timestamp TIMESTAMP NOT NULL,
-			screenshot_path TEXT,
-			scenario_name VARCHAR(255),
-			url TEXT,
-			description TEXT NOT NULL,
-			context_data JSONB,
-			agent_session_id UUID,
-			status VARCHAR(50) NOT NULL,
-			resolution_notes TEXT,
-			tags TEXT[]
-		)`,
-		`CREATE TABLE IF NOT EXISTS agent_sessions (
-			id UUID PRIMARY KEY,
-			issue_id UUID REFERENCES issues(id),
-			agent_type VARCHAR(50) NOT NULL,
-			start_time TIMESTAMP NOT NULL,
-			end_time TIMESTAMP,
-			status VARCHAR(50) NOT NULL,
-			output TEXT
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_issues_scenario ON issues(scenario_name)`,
-		`CREATE INDEX IF NOT EXISTS idx_agent_sessions_issue ON agent_sessions(issue_id)`,
-	}
-
-	for _, query := range queries {
-		_, err := db.Exec(query)
-		if err != nil {
-			log.Printf("Failed to create table: %v", err)
-		}
 	}
 }
 
@@ -362,7 +333,6 @@ func historyHandler(w http.ResponseWriter, r *http.Request) {
 		FROM issues
 		ORDER BY timestamp DESC
 		LIMIT 50`)
-
 	if err != nil {
 		http.Error(w, "Failed to fetch history", http.StatusInternalServerError)
 		return
@@ -404,7 +374,6 @@ func issueHandler(w http.ResponseWriter, r *http.Request) {
 		&issue.ID, &issue.Timestamp, &issue.ScreenshotPath, &issue.ScenarioName,
 		&issue.URL, &issue.Description, &contextJSON, &issue.AgentSessionID,
 		&issue.Status, &issue.ResolutionNotes)
-
 	if err != nil {
 		http.Error(w, "Issue not found", http.StatusNotFound)
 		return
@@ -468,10 +437,10 @@ _Pending agent assignment_
 
 	// Store task in data directory for now
 	taskDir := "../data/tasks"
-	os.MkdirAll(taskDir, 0755)
+	os.MkdirAll(taskDir, 0o755)
 
 	taskFile := fmt.Sprintf("%s/issue-%s.md", taskDir, issue.ID)
-	if err := os.WriteFile(taskFile, []byte(taskContent), 0644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(taskContent), 0o644); err != nil {
 		log.Printf("Failed to create task file: %v", err)
 	} else {
 		log.Printf("Task created at %s", taskFile)
@@ -487,8 +456,8 @@ Scenario: %s`, req.IssueID, req.Description, req.Screenshot, req.Context["scenar
 
 	// Store context in a file for the agent
 	contextFile := fmt.Sprintf("../data/contexts/%s.txt", session.ID)
-	os.MkdirAll("../data/contexts", 0755)
-	os.WriteFile(contextFile, []byte(context), 0644)
+	os.MkdirAll("../data/contexts", 0o755)
+	os.WriteFile(contextFile, []byte(context), 0o644)
 
 	// Log agent spawn attempt
 	log.Printf("Spawning %s agent for issue %s", req.AgentType, req.IssueID)

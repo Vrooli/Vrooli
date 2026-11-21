@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:SplitPane",
+  "version": "2.0.5",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Resizable",
+      "major": 2,
+      "observed": "2.0.4",
+      "rank": 4
+    }
+  ]
+}

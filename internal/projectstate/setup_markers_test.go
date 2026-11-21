@@ -1,0 +1,169 @@
+package projectstate
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLocatorUsesUserHomeProjectState(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(t.TempDir(), "Vrooli")
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+
+	stateDir := locator.SetupStateDir()
+	if !strings.HasPrefix(stateDir, filepath.Join(home, ".vrooli", "state", "projects")+string(filepath.Separator)) {
+		t.Fatalf("state dir %q is not under user-home project state", stateDir)
+	}
+	if strings.Contains(stateDir, filepath.Join(root, ".vrooli")) {
+		t.Fatalf("state dir %q must not use repo-local .vrooli", stateDir)
+	}
+	if !strings.HasPrefix(locator.ProjectKey(), "Vrooli-") {
+		t.Fatalf("project key = %q, want basename prefix", locator.ProjectKey())
+	}
+}
+
+func TestLocatorProjectKeysAreDeterministicAndRootScoped(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(t.TempDir(), "Vrooli")
+	first, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("first NewLocator: %v", err)
+	}
+	second, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("second NewLocator: %v", err)
+	}
+	other, err := NewLocator(home, filepath.Join(t.TempDir(), "Vrooli"))
+	if err != nil {
+		t.Fatalf("other NewLocator: %v", err)
+	}
+
+	if first.ProjectKey() != second.ProjectKey() {
+		t.Fatalf("project key not deterministic: %q != %q", first.ProjectKey(), second.ProjectKey())
+	}
+	if first.ProjectKey() == other.ProjectKey() {
+		t.Fatalf("different roots produced same project key %q", first.ProjectKey())
+	}
+}
+
+func TestHasBootstrapCompleteIgnoresRepoLocalLegacyMarker(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	legacyDir := filepath.Join(root, ".vrooli", "state", "setup")
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatalf("mkdir legacy state dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, ".setup-complete"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write legacy marker: %v", err)
+	}
+
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	if locator.HasBootstrapComplete() {
+		t.Fatal("legacy repo-local setup marker must not be detected")
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
+		t.Fatalf("mkdir setup state dir: %v", err)
+	}
+	if err := os.WriteFile(locator.BootstrapCompletePath(), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write setup marker: %v", err)
+	}
+	if !locator.HasBootstrapComplete() {
+		t.Fatal("expected user-home setup marker to be detected")
+	}
+}
+
+func TestMigrationLedgerRoundTripAndAtomicPath(t *testing.T) {
+	home := t.TempDir()
+	root := filepath.Join(t.TempDir(), "project")
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	ledger := NewMigrationLedger()
+	ledger.Migrations["runtime-home-ownership"] = MigrationRecord{
+		AppliedThrough: 1,
+		Status:         MigrationInterrupted,
+		Scope:          MigrationScope{Kind: "runtime_home", Classes: []string{"cache", "logs"}},
+		Expected:       MigrationExpectedIdentity{UID: 1000, GID: 1000},
+		Cursors:        map[string]string{"cache": filepath.Join(home, ".vrooli", "cache", "entry-a")},
+		Completed:      []string{"bin"},
+	}
+	if err := SaveMigrationLedger(locator, ledger); err != nil {
+		t.Fatalf("SaveMigrationLedger: %v", err)
+	}
+	got, err := LoadMigrationLedger(locator)
+	if err != nil {
+		t.Fatalf("LoadMigrationLedger: %v", err)
+	}
+	record := got.Migrations["runtime-home-ownership"]
+	if record.Status != MigrationInterrupted {
+		t.Fatalf("migration status = %q, want interrupted", record.Status)
+	}
+	if record.Cursors["cache"] == "" || len(record.Completed) != 1 || record.Completed[0] != "bin" {
+		t.Fatalf("migration progress = %+v, want cursor and completed class", record)
+	}
+	if _, err := os.Stat(locator.MigrationLedgerPath()); err != nil {
+		t.Fatalf("ledger missing: %v", err)
+	}
+	if matches, _ := filepath.Glob(filepath.Join(locator.SetupStateDir(), ".vrooli-owned-*")); len(matches) != 0 {
+		t.Fatalf("atomic temporary files remain: %v", matches)
+	}
+}
+
+func TestMigrationLedgerMissingIsRetryableAndMalformedFailsClosed(t *testing.T) {
+	locator, err := NewLocator(t.TempDir(), filepath.Join(t.TempDir(), "project"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger, err := LoadMigrationLedger(locator)
+	if err != nil || ledger.SchemaVersion != 1 {
+		t.Fatalf("missing ledger = %+v, err=%v", ledger, err)
+	}
+	if _, err := os.Stat(locator.SetupStateDir()); !os.IsNotExist(err) {
+		t.Fatalf("missing ledger read should not create state directory, err=%v", err)
+	}
+	if _, err := os.Stat(locator.SetupStateDir()); err == nil {
+		t.Fatal("state directory unexpectedly created")
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(locator.MigrationLedgerPath(), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMigrationLedger(locator); err == nil || !strings.Contains(err.Error(), "decode migration ledger") {
+		t.Fatalf("malformed ledger error = %v", err)
+	}
+}
+
+func TestHasResourcePopulatedUsesUserHomeMarkers(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		t.Fatalf("NewLocator: %v", err)
+	}
+	if locator.HasResourcePopulated("postgres") {
+		t.Fatal("expected missing resource marker")
+	}
+	if err := os.MkdirAll(locator.SetupStateDir(), 0o755); err != nil {
+		t.Fatalf("mkdir setup state dir: %v", err)
+	}
+	if err := os.WriteFile(locator.ResourcePopulatedPath("postgres"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write resource marker: %v", err)
+	}
+	if !locator.HasResourcePopulated("postgres") {
+		t.Fatal("expected user-home resource marker to be detected")
+	}
+	if strings.Contains(locator.ResourcePopulatedPath("../bad/name"), "..") {
+		t.Fatalf("resource marker path should sanitize traversal: %q", locator.ResourcePopulatedPath("../bad/name"))
+	}
+}

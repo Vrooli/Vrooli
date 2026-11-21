@@ -104,7 +104,9 @@ describe("saveGeneratorAppState", () => {
     saveGeneratorAppState({ selectedScenarioName: "test-scenario" });
 
     expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}") as Record<string, unknown>;
+    const savedData = JSON.parse(
+      mockStorage["std_generator_app_state_v2"] ?? "{}",
+    ) as Record<string, unknown>;
 
     expect(savedData.selectedScenarioName).toBe("test-scenario");
     expect(savedData.version).toBe(2);
@@ -124,7 +126,9 @@ describe("saveGeneratorAppState", () => {
       selectedScenarioName: "second-scenario",
     });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}") as Record<string, unknown>;
+    const savedData = JSON.parse(
+      mockStorage["std_generator_app_state_v2"] ?? "{}",
+    ) as Record<string, unknown>;
     expect(savedData.selectedScenarioName).toBe("second-scenario");
     expect(savedData.activeStep).toBe(1); // preserved from first save
   });
@@ -133,12 +137,14 @@ describe("saveGeneratorAppState", () => {
     const firstTimestamp = new Date().toISOString();
     saveGeneratorAppState({ viewMode: "wizard" });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}") as Record<string, unknown>;
+    const savedData = JSON.parse(
+      mockStorage["std_generator_app_state_v2"] ?? "{}",
+    ) as Record<string, unknown>;
     expect(savedData.version).toBe(2);
     expect(savedData.updatedAt).toBeDefined();
-    expect(new Date(savedData.updatedAt as string).getTime()).toBeGreaterThanOrEqual(
-      new Date(firstTimestamp).getTime() - 1000
-    );
+    expect(
+      new Date(savedData.updatedAt as string).getTime(),
+    ).toBeGreaterThanOrEqual(new Date(firstTimestamp).getTime() - 1000);
   });
 
   it("handles all state properties", () => {
@@ -156,7 +162,9 @@ describe("saveGeneratorAppState", () => {
 
     saveGeneratorAppState(fullState);
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}") as Record<string, unknown>;
+    const savedData = JSON.parse(
+      mockStorage["std_generator_app_state_v2"] ?? "{}",
+    ) as Record<string, unknown>;
     expect(savedData.viewMode).toBe("advanced");
     expect(savedData.selectedTemplate).toBe("custom");
     expect(savedData.selectionSource).toBe("inventory");
@@ -179,7 +187,9 @@ describe("clearGeneratorAppState", () => {
 
     clearGeneratorAppState();
 
-    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith("std_generator_app_state_v2");
+    expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
+      "std_generator_app_state_v2",
+    );
   });
 
   it("handles clearing non-existent state", () => {
@@ -211,7 +221,9 @@ describe("edge cases", () => {
       docPath: null,
     });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}") as Record<string, unknown>;
+    const savedData = JSON.parse(
+      mockStorage["std_generator_app_state_v2"] ?? "{}",
+    ) as Record<string, unknown>;
     expect(savedData.currentBuildId).toBeNull();
     expect(savedData.installerBuildId).toBeNull();
     expect(savedData.selectionSource).toBeNull();

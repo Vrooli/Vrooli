@@ -55,11 +55,19 @@
       "id": "plans",
       "title": "Plans",
       "icon": "map",
+      "documents": []
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
       "documents": [
         {
-          "path": "ux-revamp-plan.md",
-          "title": "UX Revamp Plan",
-          "description": "Planned UI simplifications and workflow upgrades."
+          "path": "perf/2026-05-04-preview-workspace-audit.md",
+          "title": "Preview Workspace Performance Audit",
+          "description": "Profile-mode trace and recommendations for iframe panes, workspace controls, and scenario picker.",
+          "internal": true
         }
       ]
     },
@@ -99,6 +107,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "guides"],
-    "secondary": ["plans", "internal"]
+    "secondary": ["plans", "perf", "internal"]
   }
 }

@@ -1,0 +1,86 @@
+{
+ "scenario": "*",
+ "description": "Remaining platform scenarios: plain requests about knowledge, search, coordination and experience.",
+ "cases": [
+  {
+   "id": "device-mockup",
+   "owner": "device-studio",
+   "query": "make a polished device mockup from an app screenshot"
+  },
+  {
+   "id": "3d-device",
+   "owner": "device-studio",
+   "query": "render a 3D phone presentation of my app"
+  },
+  {
+   "id": "search-everything",
+   "owner": "search-hub",
+   "query": "search everything the project already knows"
+  },
+  {
+   "id": "search-provider-health",
+   "owner": "search-hub",
+   "query": "which search providers are healthy"
+  },
+  {
+   "id": "director-swarm",
+   "owner": "command-center",
+   "query": "what is the director swarm doing across teams"
+  },
+  {
+   "id": "objectives",
+   "owner": "command-center",
+   "query": "show the objectives and each team's instrument"
+  },
+  {
+   "id": "infra-health",
+   "owner": "infrastructure-manager",
+   "query": "check the health of the infrastructure sensors"
+  },
+  {
+   "id": "plant-readings",
+   "owner": "infrastructure-manager",
+   "query": "compare live infrastructure readings with the setpoint"
+  },
+  {
+   "id": "toolchain-check",
+   "owner": "development-toolchain-validator",
+   "query": "validate the development toolchain on a clean scenario"
+  },
+  {
+   "id": "skills-golden",
+   "owner": "development-toolchain-validator",
+   "query": "run skills against a pristine golden scenario"
+  },
+  {
+   "id": "ux-spec",
+   "owner": "experience-manager",
+   "query": "check a scenario's UX spec contract"
+  },
+  {
+   "id": "workshop",
+   "owner": "experience-manager",
+   "query": "author the user experience of a scenario in a workshop"
+  },
+  {
+   "id": "agent-readiness",
+   "owner": "meta-optimization-manager",
+   "query": "how ready is the fleet for local coding agents"
+  },
+  {
+   "id": "coverage-gaps",
+   "owner": "meta-optimization-manager",
+   "query": "which scenarios lack answer, validate or guide coverage"
+  },
+  {
+   "id": "knowledge-health",
+   "owner": "knowledge-observatory",
+   "query": "monitor the health of the semantic knowledge system"
+  },
+  {
+   "id": "docs-search",
+   "owner": "knowledge-observatory",
+   "query": "find documentation about how something works"
+  }
+ ]
+}

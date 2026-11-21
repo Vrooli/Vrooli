@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
+    },
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
+    },
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "desk.themeSelect": {
+      "testId": "page-desk-theme",
+      "selector": "[data-testid=\"page-desk-theme\"]"
+    },
+    "launch.launchButton": {
+      "testId": "launch-button",
+      "selector": "[data-testid=\"launch-button\"]"
+    },
+    "launch.blocker": {
+      "testId": "launch-blocker",
+      "selector": "[data-testid=\"launch-blocker\"]"
+    },
+    "now.status": {
+      "testId": "now-status",
+      "selector": "[data-testid=\"now-status\"]"
+    },
+    "pages.now": {
+      "testId": "page-now",
+      "selector": "[data-testid=\"page-now\"]"
+    },
+    "pages.needsYou": {
+      "testId": "page-needs-you",
+      "selector": "[data-testid=\"page-needs-you\"]"
+    },
+    "pages.topics": {
+      "testId": "page-topics",
+      "selector": "[data-testid=\"page-topics\"]"
+    },
+    "pages.topic": {
+      "testId": "page-topic",
+      "selector": "[data-testid=\"page-topic\"]"
+    },
+    "pages.commissions": {
+      "testId": "page-commissions",
+      "selector": "[data-testid=\"page-commissions\"]"
+    },
+    "pages.commission": {
+      "testId": "page-commission",
+      "selector": "[data-testid=\"page-commission\"]"
+    },
+    "pages.launch": {
+      "testId": "page-launch",
+      "selector": "[data-testid=\"page-launch\"]"
+    },
+    "pages.launchStatus": {
+      "testId": "page-launch-status",
+      "selector": "[data-testid=\"page-launch-status\"]"
+    },
+    "pages.reviews": {
+      "testId": "page-reviews",
+      "selector": "[data-testid=\"page-reviews\"]"
+    },
+    "pages.review": {
+      "testId": "page-review",
+      "selector": "[data-testid=\"page-review\"]"
+    },
+    "pages.file": {
+      "testId": "page-file",
+      "selector": "[data-testid=\"page-file\"]"
+    },
+    "pages.desk": {
+      "testId": "page-desk",
+      "selector": "[data-testid=\"page-desk\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "now",
+            "needsYou",
+            "topics",
+            "commissions",
+            "launch",
+            "reviews",
+            "desk"
+          ]
+        }
+      ]
+    },
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "now",
+            "needsYou",
+            "topics",
+            "commissions",
+            "launch",
+            "reviews",
+            "desk"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "65c22544fe71b2d8711a90b0cd1058f7487c8e1d2e1d9a34f1a5184a338415ac"
+  }
+}

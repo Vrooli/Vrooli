@@ -173,7 +173,7 @@ function ChatbotList() {
               <dl className="chatbot-meta">
                 <div>
                   <dt>Model</dt>
-                  <dd>{(chatbot.model_config?.model as string) || 'llama3.2'}</dd>
+                  <dd>{(chatbot.model_config?.model as string) || 'chat.default'}</dd>
                 </div>
                 <div>
                   <dt>Created</dt>

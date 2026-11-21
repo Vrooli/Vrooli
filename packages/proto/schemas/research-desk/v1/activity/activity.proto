@@ -1,0 +1,459 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.activity;
+
+import "google/protobuf/timestamp.proto";
+import "research-desk/v1/shared/entry.proto";
+import "research-desk/v1/shared/commission.proto";
+import "research-desk/v1/shared/evidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity;activity_v1";
+
+// =============================================================================
+// ACTIVITY DOMAIN — what is moving, read only
+// =============================================================================
+//
+// @stability beta
+//
+// A projection of the research home (~/.vrooli/research) and the Codex session
+// homes Web Console keeps. Nothing here writes; OperatorService.MarkSeen
+// records the operator's look. Rules:
+// scenarios/research-desk/docs/concepts/SYSTEM.md §3 (recognition), §4
+// (states), §8 (changes), §9 (read sets).
+// =============================================================================
+
+service ActivityService {
+  // GetOverview answers "does anything need me, and what is moving".
+  rpc GetOverview(GetOverviewRequest) returns (GetOverviewResponse);
+  // ListCommissions lists every commission folder, newest activity first.
+  rpc ListCommissions(ListCommissionsRequest) returns (ListCommissionsResponse);
+  // GetCommission returns one commission with its sessions, files and read sets.
+  rpc GetCommission(GetCommissionRequest) returns (GetCommissionResponse);
+  // ListTopics lists every topic with its last activity and commissions.
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+  // GetChanges reports what changed in a commission or topic since the
+  // operator last looked (OperatorService.MarkSeen), or since a given time.
+  rpc GetChanges(GetChangesRequest) returns (GetChangesResponse);
+}
+
+// CommissionState is derived on every read (SYSTEM.md §4); never stored.
+enum CommissionState {
+  COMMISSION_STATE_UNSPECIFIED = 0;
+  // Discarded, goal complete, or allowance passed with no supervisor window open.
+  COMMISSION_STATE_ENDED = 1;
+  // A complete packet that no session names.
+  COMMISSION_STATE_PREPARED = 2;
+  // No session names the commission's charter; nothing can be said.
+  COMMISSION_STATE_UNKNOWN = 3;
+  // The supervisor window is closed but the goal is not complete.
+  COMMISSION_STATE_STOPPED = 4;
+  // Supervisor window open, goal active.
+  COMMISSION_STATE_LIVE = 5;
+  // Supervisor window open, goal paused.
+  COMMISSION_STATE_PAUSED = 6;
+  // Supervisor window open, goal usage-limited, budget-limited or blocked.
+  COMMISSION_STATE_LIMITED = 7;
+}
+
+// MatchKind says how strongly a session is tied to a commission.
+enum MatchKind {
+  MATCH_KIND_UNSPECIFIED = 0;
+  // The launch record, a goal objective, or a /goal entry names the charter.
+  MATCH_KIND_EXACT = 1;
+  // Some other prompt names the folder (usually a preparation chat).
+  MATCH_KIND_RELATED = 2;
+}
+
+// SessionMatch ties one Codex thread to a commission.
+message SessionMatch {
+  MatchKind kind = 1;
+  // "launch-record", "goal-objective", "goal-objective-file" (Codex stored a
+  // long objective as an attachment), "goal-history" or "history-mention".
+  string basis = 2;
+  // The Web Console session id (the Codex home folder name).
+  string web_console_session_id = 3;
+  string thread_id = 4;
+  // Codex goal status verbatim ("active", "paused", "blocked",
+  // "usage_limited", "budget_limited", "complete"); empty when unknown.
+  string goal_status = 5;
+  // Goal creation time, or the prompt time for history matches.
+  google.protobuf.Timestamp at = 6;
+  // The file the match was read from.
+  string source = 7;
+  // True when a Codex terminal window for this session is running now.
+  bool window_open = 8;
+}
+
+// TopicRef names one topic a commission covers and the evidence for it.
+message TopicRef {
+  string topic = 1;
+  // "packet" (PACKET.json), "card" (a card links the topic),
+  // "charter-mission-link" (the charter links topics/<topic>/MISSION.md),
+  // "charter-topic-link" (an older charter links topics/<topic>/README.md or
+  // the folder itself) or "run-folder" (topics/<topic>/runs/<commission>/ or
+  // <commission>-<suffix>/ exists).
+  string basis = 2;
+  string source = 3;
+}
+
+// CommissionSummary is one row of the commission list.
+message CommissionSummary {
+  string id = 1;
+  string folder = 2;
+  vrooli.research_desk.v1.shared.DerivedText title = 3;
+  CommissionState state = 4;
+  // The state rule that fired, in words.
+  string state_rule = 5;
+  repeated vrooli.research_desk.v1.shared.Evidence state_evidence = 6;
+  // Live, but nothing was written for longer than the stall window.
+  bool stalled = 7;
+  repeated TopicRef topics = 8;
+  // known=false when no topic evidence exists for this folder.
+  vrooli.research_desk.v1.shared.Evidence topics_evidence = 9;
+  // When the goal of the newest exact session was created.
+  vrooli.research_desk.v1.shared.DerivedTime started = 10;
+  vrooli.research_desk.v1.shared.DerivedTime allowance_end = 11;
+  // The newest write to the commission's files, run folders and transcript
+  // up to the end of its interval; evidence.reason begins "at least" when a
+  // run-folder walk was cut short.
+  vrooli.research_desk.v1.shared.DerivedTime last_write = 12;
+  // The supervisor's own status line, shown as a claim beside the state.
+  vrooli.research_desk.v1.shared.DerivedText claim = 13;
+  // The newest exact session, when there is one.
+  SessionMatch session = 14;
+  // "desk" or "hand" from LAUNCH.json; empty when there is no launch record.
+  string launched_by = 15;
+  // When the commission's interval ended: discarded, goal complete, or
+  // allowance ended, whichever the evidence gives first. Unknown (with the
+  // reason) while it has not ended; for overlaps such a commission runs to
+  // now only while a supervisor window is open, else to its last write.
+  vrooli.research_desk.v1.shared.DerivedTime ended = 16;
+  // The newest write after the interval ended: shown as touched after end,
+  // never as activity, and never placing the commission in an overlap. Unset
+  // value when nothing was written after the end.
+  vrooli.research_desk.v1.shared.DerivedTime touched_after_end = 17;
+  // For an unknown commission: whether the operator may assert it was never
+  // started. Unset for every other state.
+  vrooli.research_desk.v1.shared.NeverStarted never_started = 18;
+  // When a new OPERATOR.md entry will be read.
+  vrooli.research_desk.v1.shared.EntryReading entry_reading = 19;
+  // Evidence-backed historical disposition; it does not change live worker state.
+  HistoricalSettlement historical_settlement = 20;
+}
+
+message HistoricalSettlement {
+  string status = 1;
+  google.protobuf.Timestamp as_of = 2;
+  google.protobuf.Timestamp recorded_at = 3;
+  string reason = 4;
+  // Paths are relative to the research home and name the cited source files.
+  repeated string evidence_paths = 5;
+  string recorded_by = 6;
+  google.protobuf.Timestamp activity_start = 7;
+  google.protobuf.Timestamp activity_end = 8;
+}
+
+// RunFolder is one topic's run folder for a commission: topics/<t>/runs/<id>
+// or <id>-<suffix>, the longest matching commission id owning it.
+message RunFolder {
+  string topic = 1;
+  string path = 2;
+  // The owner checkpoint, when present.
+  vrooli.research_desk.v1.shared.FileFact checkpoint = 4;
+  // The newest file anywhere inside the folder, by a bounded walk; when the
+  // walk is cut short evidence.reason begins "at least".
+  vrooli.research_desk.v1.shared.DerivedTime last_write = 5;
+}
+
+// Overlap is a topic covered by two commissions whose intervals intersect;
+// each intersecting pair is its own overlap.
+message Overlap {
+  string topic = 1;
+  repeated string commission_ids = 2;
+}
+
+// Lens is one optional source the projection reads.
+message Lens {
+  string name = 1;
+  bool available = 2;
+  // What is wrong, in words; never a command.
+  string reason = 3;
+  // A command-line step that would make it available, when there is one:
+  // the CLI prints it, the UI ignores it.
+  string command = 4;
+}
+
+// WebConsoleAccess is how the desk reaches Web Console to start sessions.
+enum WebConsoleAccess {
+  WEB_CONSOLE_ACCESS_UNSPECIFIED = 0;
+  // The desk's own service credential.
+  WEB_CONSOLE_ACCESS_SERVICE_CREDENTIAL = 1;
+  // No desk credential: Web Console's local availability policy decides
+  // what the desk may do.
+  WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY = 2;
+  // The desk could not settle its access (its credential could not be
+  // read), so it does not call Web Console and automatic launch is off.
+  WEB_CONSOLE_ACCESS_UNAVAILABLE = 3;
+}
+
+// StateCount counts commissions in one state.
+message StateCount {
+  CommissionState state = 1;
+  int32 count = 2;
+}
+
+// MissionCheck is the topic summary from the research-coordination skill's
+// mission_check.py (the one MISSION.md parser).
+message MissionCheck {
+  string mode = 1;
+  int32 open = 2;
+  int32 active = 3;
+  int32 waiting_operator = 4;
+  int32 landed = 5;
+  repeated string errors = 6;
+  repeated string warnings = 7;
+  vrooli.research_desk.v1.shared.Evidence evidence = 8;
+  repeated vrooli.research_desk.v1.shared.Workstream workstreams = 9;
+}
+
+// ResearchWrite is the newest write in a topic's run folders.
+message ResearchWrite {
+  // evidence.source is the newest file written.
+  vrooli.research_desk.v1.shared.DerivedTime at = 1;
+  // The commission owning the run folder; empty for an unowned folder.
+  string commission_id = 2;
+  CommissionState commission_state = 3;
+  // Set when the owner is paused or ended, e.g. "written while paused: an
+  // owner may still be running".
+  string note = 4;
+  string topic = 5;
+}
+
+// ReviewTouch is the newest review file that names a topic.
+message ReviewTouch {
+  string review_id = 1;
+  vrooli.research_desk.v1.shared.FileFact file = 2;
+}
+
+// TopicSummary is one row of the topic list.
+message TopicSummary {
+  string topic = 1;
+  vrooli.research_desk.v1.shared.DerivedText title = 2;
+  // Commissions naming this topic, newest last write first.
+  repeated string commission_ids = 4;
+  vrooli.research_desk.v1.shared.FileFact mission = 6;
+  MissionCheck mission_check = 7;
+  // The subsets with a supervisor window open, by state.
+  repeated string live_commission_ids = 8;
+  repeated string paused_commission_ids = 9;
+  repeated string limited_commission_ids = 10;
+  // Other names under topics/ that link to this topic's folder; a link
+  // through one names this topic.
+  repeated string aliases = 11;
+  // The newest write in the topic's run folders; mission edits and review
+  // files are separate (mission, last_review). Topics sort by this.
+  ResearchWrite last_research_write = 12;
+  // The newest review whose REVIEW.md has a section for this topic.
+  ReviewTouch last_review = 13;
+  // Optional current view, tool inventory and feedback record links. The
+  // research files remain authoritative; these are bounded navigation facts.
+  TopicWorkspaceFiles workspace_files = 14;
+}
+
+message TopicOptionalFile {
+  // Absent when the optional file is not present or could not be read; consult
+  // evidence to distinguish known absence from unknown readability.
+  vrooli.research_desk.v1.shared.FileFact file = 1;
+  vrooli.research_desk.v1.shared.Evidence evidence = 2;
+}
+
+message TopicWorkspaceFiles {
+  TopicOptionalFile current_view = 1;
+  TopicOptionalFile tools = 2;
+  repeated vrooli.research_desk.v1.shared.FileFact feedback_files = 3;
+  vrooli.research_desk.v1.shared.Evidence feedback_evidence = 4;
+  bool feedback_truncated = 5;
+  // The topic's skills/ and programs/, by research/<topic>/<name> id.
+  repeated ResearchCapability capabilities = 6;
+  vrooli.research_desk.v1.shared.Evidence capabilities_evidence = 7;
+}
+
+enum CapabilityKind {
+  CAPABILITY_KIND_UNSPECIFIED = 0;
+  CAPABILITY_KIND_SKILL = 1;
+  CAPABILITY_KIND_PROGRAM = 2;
+}
+
+// ResearchCapability is one research skill or program as files: the prefix id
+// Prompt Manager and Program Runtime resolve, the file, and what stops it
+// resolving. Empty problems means it resolves.
+message ResearchCapability {
+  string id = 1;
+  CapabilityKind kind = 2;
+  string path = 3;
+  repeated string problems = 4;
+}
+
+message GetOverviewRequest {}
+
+message GetOverviewResponse {
+  google.protobuf.Timestamp generated_at = 1;
+  string research_home = 2;
+  // One count per state present; live, paused and limited are never summed
+  //.
+  repeated StateCount state_counts = 3;
+  // Commissions with a supervisor window open (live, paused or limited);
+  // each carries its own state.
+  repeated CommissionSummary running = 5;
+  // Every pair of commissions whose intervals intersected on a topic, past
+  // ones included.
+  repeated Overlap overlaps = 6;
+  repeated Lens lenses = 7;
+  // Every file or folder of the research home that exists but cannot be
+  // read: what it holds is unknown, never empty.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 8;
+  // The newest write in any topic's run folders.
+  ResearchWrite latest_research_write = 9;
+  // How the desk reaches Web Console, and the same in a plain
+  // sentence (the "web-console access" lens carries it too).
+  WebConsoleAccess web_console_access_kind = 10;
+  string web_console_access = 11;
+  // Pairs of commissions that both have a supervisor window open now (live,
+  // paused or limited) and share a topic: what overlaps today.
+  repeated Overlap open_overlaps = 12;
+}
+
+message ListCommissionsRequest {
+  // Empty: every state.
+  repeated CommissionState states = 1;
+}
+
+message ListCommissionsResponse {
+  repeated CommissionSummary commissions = 1;
+}
+
+message GetCommissionRequest {
+  string id = 1;
+}
+
+message GetCommissionResponse {
+  CommissionSummary commission = 1;
+  // Exact matches first, newest first.
+  repeated SessionMatch matches = 2;
+  // Top-level files of the commission folder.
+  repeated vrooli.research_desk.v1.shared.FileFact files = 3;
+  repeated RunFolder runs = 4;
+  repeated vrooli.research_desk.v1.shared.ReadSet read_sets = 5;
+  // Where the read-set ceilings came from (limits.json), or why there are none.
+  vrooli.research_desk.v1.shared.Evidence ceilings = 6;
+  // LAUNCH.json or PACKET.json files that exist but cannot be read, with the
+  // reason; the rest of the folder still displays.
+  repeated string record_errors = 7;
+  // OPERATOR.md entries, oldest first.
+  repeated vrooli.research_desk.v1.shared.OperatorEntry operator_entries = 8;
+  // Whether the charter tells the scheduler to read OPERATOR.md;
+  // when false, direction is written but will not be read until steering is
+  // enabled.
+  vrooli.research_desk.v1.shared.DerivedFlag steering = 10;
+  // Whether the charter leaves delivery of its needs-you items to the desk;
+  // when false its scheduler delivers them itself and the courier waits two
+  // hours for a `Delivered:` line before sending.
+  vrooli.research_desk.v1.shared.DerivedFlag decisions = 11;
+  // The folder, STATE.md, OPERATOR.md, the charter or the kernel when they
+  // exist but cannot be read; operator_entries and the
+  // needs-you items are then unknown, not empty, and the courier sends
+  // nothing for this commission.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 12;
+  // limits.json entry_chars_max: the most characters one entry may hold;
+  // 0 when limits.json cannot be read (a write then says why).
+  int32 entry_chars_max = 13;
+  // `### ` lines in OPERATOR.md that do not match the entry grammar, with
+  // their line numbers; their entries are not shown.
+  repeated vrooli.research_desk.v1.shared.UnparsedHeading operator_unparsed_headings = 14;
+}
+
+message ListTopicsRequest {}
+
+message ListTopicsResponse {
+  repeated TopicSummary topics = 1;
+  string research_home = 2;
+  // When this topic snapshot was read from the research home.
+  google.protobuf.Timestamp observed_at = 3;
+  // The research home's own (supervisor) skills and programs, by
+  // research/<name> id.
+  repeated ResearchCapability home_capabilities = 4;
+  vrooli.research_desk.v1.shared.Evidence home_capabilities_evidence = 5;
+}
+
+// ChangeSubject names what a look snapshot is about.
+enum ChangeSubject {
+  CHANGE_SUBJECT_UNSPECIFIED = 0;
+  CHANGE_SUBJECT_COMMISSION = 1;
+  CHANGE_SUBJECT_TOPIC = 2;
+}
+
+message GetChangesRequest {
+  ChangeSubject subject = 1;
+  string id = 2;
+  // Compare with this time instead of the recorded look. Files
+  // and checkpoints are reported; ledger text and workstream status changes
+  // need a recorded look, which holds their earlier sizes and statuses.
+  // Without a time and without a recorded look, the last 24 hours.
+  google.protobuf.Timestamp since = 4;
+}
+
+// Baseline says what GetChangesResponse.since is.
+enum Baseline {
+  BASELINE_UNSPECIFIED = 0;
+  // The look recorded with MarkSeen or MarkAllSeen.
+  BASELINE_LOOK = 1;
+  // The time the request gave.
+  BASELINE_ASKED = 2;
+  // No look recorded: the last 24 hours.
+  BASELINE_LAST_DAY = 3;
+}
+
+// LedgerAddition is text appended to a ledger since the last look.
+message LedgerAddition {
+  string path = 1;
+  // The appended text, capped at 16 KiB (truncated says when it was cut).
+  string text = 2;
+  bool truncated = 3;
+  // True when no recorded look holds the ledger's earlier size, so the text is
+  // the entries whose own dated headings fall after since.
+  bool from_dated_headings = 4;
+}
+
+// StatusChange is one workstream whose status moved since the last look.
+message StatusChange {
+  string topic = 1;
+  string workstream = 2;
+  string before = 3;
+  string after = 4;
+}
+
+message GetChangesResponse {
+  // The time compared with: the request's since, else the recorded look;
+  // unset when there is neither.
+  google.protobuf.Timestamp since = 1;
+  repeated LedgerAddition ledger = 2;
+  repeated vrooli.research_desk.v1.shared.FileFact checkpoints = 3;
+  // Lines of the new ledger text that mention a showcase.
+  repeated string showcase_lines = 4;
+  repeated StatusChange status_changes = 5;
+  // Files under the commission or topic modified since the last look.
+  repeated vrooli.research_desk.v1.shared.FileFact files = 6;
+  // True when the file walk stopped at its cap.
+  bool truncated = 7;
+  // What since is, in words: "the look recorded at …", "since … as asked",
+  // or "no look recorded; the last 24 hours".
+  string baseline = 9;
+  // Ledgers and folders under the subject that exist but could not be read
+  //: changes there are unknown, not none.
+  repeated vrooli.research_desk.v1.shared.Evidence unreadable = 10;
+  Baseline baseline_kind = 11;
+  // What this answer cannot show, in plain sentences: without a recorded
+  // look, workstream status changes, and new text of a ledger that has no
+  // dated headings.
+  repeated string not_shown = 12;
+}

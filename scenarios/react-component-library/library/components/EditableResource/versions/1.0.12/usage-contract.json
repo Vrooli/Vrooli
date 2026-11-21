@@ -1,0 +1,24 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 40,
+      "primaryAction": "not-applicable",
+      "property": "entries",
+      "stableIdField": "id",
+      "typicalCount": 4
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 40,
+      "primaryAction": "not-applicable",
+      "property": "conflictFields",
+      "stableIdField": "id",
+      "typicalCount": 4
+    }
+  ],
+  "componentId": "react-component-library:EditableResource",
+  "version": "1.0.12"
+}

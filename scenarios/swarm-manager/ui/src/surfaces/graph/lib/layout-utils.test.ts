@@ -217,13 +217,13 @@ describe("applyGroupedLayout", () => {
       makeTypedNode("b1", "backlog"),
       makeTypedNode("b2", "backlog"),
       makeTypedNode("s1", "scenario"),
-      makeTypedNode("i1", "initiative"),
+      makeTypedNode("i1", "goal"),
     ];
     const result = applyGroupedLayout(nodes, "TB");
 
     const posOf = (id: string) => posOfNode(result, id);
 
-    // Initiative comes before backlog in lane order, backlog before scenario.
+    // Goal comes before backlog in lane order, backlog before scenario.
     expect(posOf("i1").y).toBeLessThan(posOf("b1").y);
     expect(posOf("b1").y).toBeLessThan(posOf("s1").y);
 
@@ -233,7 +233,7 @@ describe("applyGroupedLayout", () => {
 
   it("swaps axes for LR direction", () => {
     const nodes = [
-      makeTypedNode("i1", "initiative"),
+      makeTypedNode("i1", "goal"),
       makeTypedNode("b1", "backlog"),
     ];
     const resultTB = applyGroupedLayout(nodes, "TB");
@@ -242,14 +242,14 @@ describe("applyGroupedLayout", () => {
     const tbI = posOfNode(resultTB, "i1");
     const lrI = posOfNode(resultLR, "i1");
 
-    // In TB, initiative is at top (small y). In LR, it should be at left (small x).
+    // In TB, goal is at top (small y). In LR, it should be at left (small x).
     // LR swaps x and y, so LR.x should equal TB.y and LR.y should equal TB.x.
     expect(lrI.x).toBe(tbI.y);
     expect(lrI.y).toBe(tbI.x);
   });
 
   it("skips empty lanes without adding extra gaps", () => {
-    // Only backlog and execution — no initiative, scenario, etc.
+    // Only backlog and execution — no goal, scenario, etc.
     const nodes = [
       makeTypedNode("b1", "backlog"),
       makeTypedNode("e1", "execution"),

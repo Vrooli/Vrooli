@@ -1,0 +1,111 @@
+{
+  "name": "WordPress A3 · Local Form Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wordpress-form-intake",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "58aa39b0-a81d-4d08-a900-82af3e2d2f40",
+      "name": "WordPress Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "webhookId": "fbe470e6-30ea-4b51-9fd1-85b61f5a43d7"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $input.first().json;\nconst p = input.body && typeof input.body === 'object' ? input.body : input;\nconst query = input.query && typeof input.query === 'object' ? input.query : {};\nconst trim = value => value == null ? '' : String(value).trim();\nconst textLength = value => Array.from(value).length;\nconst provider = trim(p.provider || query.provider);\nconst fields = {};\nlet formId = trim(p.form_id || query.form_id);\nif (provider === 'contact-form-7') {\n  Object.assign(fields, p.posted_data || {});\n} else if (provider === 'wpforms-lite') {\n  formId = formId || trim(p.form_data && p.form_data.id);\n  if (!Array.isArray(p.fields)) throw new Error('WPForms Lite fields must be an array');\n  for (const field of p.fields) {\n    const key = trim(field && field.name);\n    if (!key || Object.prototype.hasOwnProperty.call(fields, key)) throw new Error('WPForms Lite field name is missing or repeated');\n    fields[key] = field.value;\n  }\n} else if (provider === 'forminator') {\n  Object.assign(fields, p.data && typeof p.data === 'object' ? p.data : p);\n  fields.event_id = fields.event_id || fields['hidden-1'];\n  fields['full-name'] = fields['full-name'] || fields['name-1'];\n  fields.email = fields.email || fields['email-1'];\n  fields.message = fields.message || fields['textarea-1'];\n} else if (provider === 'elementor-shaped-synthetic') {\n  formId = formId || trim(p.form_id);\n  for (const [key, field] of Object.entries(p.fields || {})) fields[key] = field && field.value;\n} else {\n  throw new Error('Unsupported provider; Elementor shape is synthetic compatibility coverage only');\n}\nconst eventId = trim(fields.event_id || p.event_id);\nconst name = trim(fields['full-name'] || fields.name);\nconst email = trim(fields.email).toLowerCase();\nconst message = trim(fields.message);\nif (!formId || !eventId) throw new Error('form_id and hidden event_id are required; entry_id is not a retry key');\nif (!name) throw new Error('missing_name');\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error('invalid_email');\nif (!message) throw new Error('missing_message');\nif (textLength(name) > 200 || textLength(email) > 320 || textLength(message) > 4000) throw new Error('form field exceeds maximum size');\nreturn [{ json: { provider, formId, eventId, name, email, message } }];"
+      },
+      "id": "749b5918-d535-4631-9a81-d5a1552a4377",
+      "name": "Normalize and Validate Submission",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://wordpress/wp-json/vrooli/v1/form-intake",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "8247d089-e1c3-44d7-a756-36af004bf533",
+      "name": "Write to Idempotent Local Destination",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        300
+      ],
+      "notes": "After import, select the locally created WordPress HTTP Basic Auth credential for an administrator's generated Application Password. Never put credentials in this workflow export."
+    }
+  ],
+  "connections": {
+    "WordPress Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize and Validate Submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize and Validate Submission": {
+      "main": [
+        [
+          {
+            "node": "Write to Idempotent Local Destination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
+  },
+  "versionId": "3c09d6b6-bd60-49d7-bcf2-5d0166cf93ad",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

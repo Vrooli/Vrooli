@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "inspect-to-compose",
+    "title": "Inspect an asset and take it into a page",
+    "purpose": "A maintainer finds a component, inspects its fixtures and evidence, then carries the same version and story into the Design studio without losing context.",
+    "prd_refs": ["OT-P0-014", "OT-P0-009"]
+  },
+  "steps": [
+    {
+      "page": "catalog-workspace",
+      "state": "default",
+      "intent": "Find the component for the surface being changed.",
+      "via": "search and catalog"
+    },
+    {
+      "page": "component-preview-workspace",
+      "state": "default",
+      "intent": "Inspect the fixtures, checks and asset data without leaving the component.",
+      "via": "open component"
+    },
+    {
+      "page": "design-workspace",
+      "state": "default",
+      "intent": "Place the same version and story into the scenario page and review the composition.",
+      "via": "take into studio"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-preserves-asset-context",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "The component version, story and evidence context survive the move from the catalog into the design studio.",
+      "rationale": "The D · Nocturne flow is a design target, not a runtime journey executor; this claim records the intended cross-page behavior without pretending it is proven."
+    }
+  ],
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+  }
+}

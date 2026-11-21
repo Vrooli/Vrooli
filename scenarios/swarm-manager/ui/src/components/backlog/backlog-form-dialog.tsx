@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { selectors } from "../../consts/selectors";
 import { sanitizeBacklogName } from "../../lib";
 import type { BacklogFormValues, BacklogKind } from "../../types";
 import { useBacklogFormStore } from "../../stores";
+import { buildBacklogFormValues } from "../../stores/backlog-form-store";
 import { BacklogFormIdentitySection, kindLabelFor } from "./backlog-form-identity-section";
 import { BacklogFormDetailsSection } from "./backlog-form-details-section";
 
@@ -40,15 +41,34 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
+  const { name, title, description, status, priority, kind, tags, milestone, dependsOn, effort, acceptanceAllow, acceptanceDeny, executionMode, executionLimits, continuation, scopePolicy } = values;
 
   const isEditMode = mode === "edit";
 
+  // Compare the store-owned effective values rather than parent object identity.
+  // Limit property insertion order does not represent a changed owner value.
+  const normalizedInitialValues = buildBacklogFormValues(defaultKind, initialValues);
+  const limits = normalizedInitialValues.executionLimits;
+  const initializationKey = JSON.stringify({
+    isEditMode,
+    defaultKind,
+    values: {
+      ...normalizedInitialValues,
+      executionLimits: limits && Object.fromEntries(
+        Object.entries(limits).sort(([left], [right]) => left.localeCompare(right)),
+      ),
+    },
+  });
+  const initialSnapshot = useRef({ key: initializationKey, values: normalizedInitialValues });
+  if (initialSnapshot.current.key !== initializationKey) {
+    initialSnapshot.current = { key: initializationKey, values: normalizedInitialValues };
+  }
+  const stableInitialValues = initialSnapshot.current.values;
   useEffect(() => {
     if (isOpen) {
-      initialize({ isEditMode, defaultKind, initialValues });
+      initialize({ isEditMode, defaultKind, initialValues: stableInitialValues });
     }
-  }, [isOpen, initialValues, isEditMode, defaultKind, initialize]);
+  }, [isOpen, stableInitialValues, isEditMode, defaultKind, initialize]);
 
   const handleTitleChange = (value: string) => {
     setField("title", value);
@@ -78,10 +98,14 @@ export function BacklogFormDialog({
       tags,
       kind,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
-      initiative: initiative?.trim() || undefined,
+      milestone: milestone?.trim() || undefined,
       effort: effort?.trim() || undefined,
       acceptanceAllow: acceptanceAllow && acceptanceAllow.length > 0 ? acceptanceAllow : undefined,
       acceptanceDeny: acceptanceDeny && acceptanceDeny.length > 0 ? acceptanceDeny : undefined,
+      executionMode,
+      executionLimits,
+      continuation,
+      scopePolicy,
     });
   };
 
@@ -93,23 +117,14 @@ export function BacklogFormDialog({
   };
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-xl"
-      isLoading={isSubmitting}
+      title={isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
+      description={isEditMode ? "Update backlog details and lifecycle status." : "Capture a new backlog item and add it to the swarm."}
       testId={selectors.backlogForm.dialog}
     >
-      <h2 className="text-xl font-semibold text-slate-100">
-        {isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
-      </h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {isEditMode
-          ? "Update backlog details and lifecycle status."
-          : "Capture a new backlog item and add it to the swarm."}
-      </p>
-
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4 p-4">
         <BacklogFormIdentitySection
           kind={kind}
           title={title}
@@ -130,11 +145,15 @@ export function BacklogFormDialog({
           status={status}
           priority={priority}
           tagsInput={tagsInput}
-          initiative={initiative}
+          milestone={milestone}
           dependsOn={dependsOn}
           effort={effort}
           acceptanceAllow={acceptanceAllow}
           acceptanceDeny={acceptanceDeny}
+          executionMode={executionMode}
+          executionLimits={executionLimits}
+          continuation={continuation}
+          scopePolicy={scopePolicy}
           isEditMode={isEditMode}
           isSubmitting={isSubmitting}
           onFieldChange={(field, value) => setField(field as keyof BacklogFormValues, value as never)}
@@ -169,6 +188,6 @@ export function BacklogFormDialog({
           {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : `Create ${kindLabel}`}
         </Button>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }
