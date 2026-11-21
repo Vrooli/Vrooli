@@ -501,8 +501,14 @@ func TestReadyProposalRaisesExactlyOneDecision(t *testing.T) {
 	if got := correlation["subject_kind"]; got != AttemptSubjectProposal {
 		t.Fatalf("subject_kind = %v, want %s", got, AttemptSubjectProposal)
 	}
-	if got, _ := event.Payload["question"].(string); !strings.Contains(got, "m1") || !strings.Contains(got, "Quality Gates") {
-		t.Fatalf("question missing mutation id or target: %q", got)
+	if got, _ := event.Payload["question"].(string); strings.Contains(got, "m1") || strings.Contains(got, "[") || !strings.Contains(got, "Quality Gates") || len(got) > 200 {
+		t.Fatalf("question must name the target in under 200 bytes without internal ids: %q", got)
+	}
+	if got, _ := event.Payload["technical_details"].(string); !strings.Contains(got, "m1") {
+		t.Fatalf("technical details lost the mutation id: %q", got)
+	}
+	if problems := operatordecision.PayloadCoverProblems(event.Payload); len(problems) > 0 {
+		t.Fatalf("a cold reader cannot parse the cover: %v", problems)
 	}
 	options, _ := event.Payload["options"].([]any)
 	optionKeys := make(map[string]bool, len(options))
@@ -571,7 +577,7 @@ func TestProposalDecisionTechnicalDetailsCarryReviewableItemContextBoundedly(t *
 		t.Fatalf("decision event context_url = %v", event.Payload["context_url"])
 	}
 	bigPicture, _ := event.Payload["big_picture"].(string)
-	if !strings.Contains(bigPicture, "records 1 proposed backlog item") || !strings.Contains(bigPicture, "does not implement that work") {
+	if !strings.Contains(bigPicture, "proposes 1 backlog item") || !strings.Contains(bigPicture, "does not implement that work") {
 		t.Fatalf("capture add_item purpose/consequence is unclear: %q", bigPicture)
 	}
 	otherEffect := proposal
@@ -579,7 +585,7 @@ func TestProposalDecisionTechnicalDetailsCarryReviewableItemContextBoundedly(t *
 	otherEffect.Target = &ProposalTarget{Ref: "fix/existing", Name: "Existing backlog item"}
 	otherEvent := service.proposalDecisionEvent(context.Background(), "sess-1", otherEffect, time.Now().UTC())
 	otherBigPicture, _ := otherEvent.Payload["big_picture"].(string)
-	if !strings.Contains(otherBigPicture, "applies 1 listed change to Existing backlog item") || strings.Contains(otherBigPicture, "does not implement") {
+	if !strings.Contains(otherBigPicture, "proposes 1 change to “Existing backlog item”") || strings.Contains(otherBigPicture, "does not implement") {
 		t.Fatalf("non-add-item summary overstates its effect: %q", otherBigPicture)
 	}
 	for _, expected := range []string{
@@ -601,8 +607,21 @@ func TestProposalDecisionTechnicalDetailsCarryReviewableItemContextBoundedly(t *
 	if got := utf8.RuneCountInString(details); got > operatordecision.MaxTechnicalDetailsCodePoints {
 		t.Fatalf("technical details have %d code points, limit %d", got, operatordecision.MaxTechnicalDetailsCodePoints)
 	}
-	if question, _ := event.Payload["question"].(string); len(question) > operatordecision.MaxQuestion {
-		t.Fatalf("concise question has %d bytes, limit %d", len(question), operatordecision.MaxQuestion)
+	if question, _ := event.Payload["question"].(string); question != "Add the backlog item “Fence task execution status to its current run” to “Task lifecycle status”?" {
+		t.Fatalf("question = %q, want the item and where it goes", question)
+	}
+	page, _ := event.Payload["explainer_html"].(string)
+	for _, want := range append([]string{
+		"Task status must track the current run", "Add: Fence task execution status to its current run",
+		"Atomically claim each attempt", "Why: Keep task execution status", ">8<", ">L<", "Must not",
+		"Do not treat a completed run as independent human acceptance.", `data-od-answer="request_changes"`, "If you do not answer:",
+	}, criteria...) {
+		if !strings.Contains(page, want) {
+			t.Errorf("page omitted %q", want)
+		}
+	}
+	if len(page) > operatordecision.MaxExplainerBytes {
+		t.Fatalf("page is %d bytes", len(page))
 	}
 
 	malformed := proposal
@@ -1272,5 +1291,30 @@ func assertProposalStatus(t *testing.T, service *Service, sessionID, proposalID 
 	}
 	if proposal.Status != want {
 		t.Fatalf("proposal status = %q, want %q", proposal.Status, want)
+	}
+}
+
+// A capture target is the whole captured note; the question names it by its
+// first line instead of quoting it, as the 2026-11 decision did.
+func TestProposalQuestionNamesAMultiLineCaptureTargetByItsFirstLine(t *testing.T) {
+	proposal := Proposal{
+		Summary:     "Capture classification produced reviewable proposals.",
+		PayloadJSON: `{"mutations":[{"id":"capture-item-1","op":"add_item","item":{"title":"Track the current run"}},{"id":"capture-item-2","op":"add_item","item":{"title":"Keep human approval separate"}}]}`,
+		Target:      &ProposalTarget{Ref: "capture/cap-a5456e585ccb1150", Name: "Task status must track the current run without claiming human approval.\n\nObserved: Flywheel run 7dc5f1 settled the task before acceptance and more context follows here"},
+	}
+	service, _, _ := newProposalDecisionService(t)
+	event := service.proposalDecisionEvent(context.Background(), "sess-1", proposal, time.Now().UTC())
+	question, _ := event.Payload["question"].(string)
+	if question != "Add 2 proposed backlog items to “Task status must track the current run without claiming human approval”?" {
+		t.Fatalf("question = %q", question)
+	}
+	if problems := operatordecision.PayloadCoverProblems(event.Payload); len(problems) > 0 {
+		t.Fatalf("a cold reader cannot parse the cover: %v", problems)
+	}
+	page, _ := event.Payload["explainer_html"].(string)
+	for _, want := range []string{"Add: Track the current run", "Add: Keep human approval separate"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page omitted %q", want)
+		}
 	}
 }

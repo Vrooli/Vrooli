@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/httputil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -190,7 +191,9 @@ func (h *Handler) applyUpdate(change *importChange) error {
 		modified = true
 	}
 	if ud.status != nil {
-		item.Status = BacklogStatus(*ud.status)
+		if err := TransitionStatus(&item, BacklogStatus(*ud.status), backlogstatus.TransitionImport); err != nil {
+			return err
+		}
 		modified = true
 	}
 	if ud.priority != nil {

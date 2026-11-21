@@ -7,26 +7,84 @@
 package goals
 
 import (
+	"fmt"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
 )
 
+// GoalStatus is the durable lifecycle status of a goal.
+type GoalStatus string
+
+// ErrInvalidGoalStatus indicates an unknown status or forbidden lifecycle edge.
+type ErrInvalidGoalStatus struct {
+	Current GoalStatus
+	Next    GoalStatus
+}
+
+func (e ErrInvalidGoalStatus) Error() string {
+	return fmt.Sprintf("invalid goal status transition %q -> %q", e.Current, e.Next)
+}
+
 // Status values for a goal.
 const (
-	StatusActive = "active"
+	StatusActive GoalStatus = "active"
 	// StatusAchieved is an operator-only terminal claim: it means every
 	// non-archived milestone has been independently verified delivered.
-	StatusAchieved = "achieved"
-	StatusArchived = "archived"
+	StatusAchieved GoalStatus = "achieved"
+	StatusArchived GoalStatus = "archived"
 )
+
+// CanTransitionTo reports whether the goal lifecycle can move to next. Same-state
+// writes are allowed so ordinary metadata updates preserve the current state.
+func (s GoalStatus) CanTransitionTo(next GoalStatus) bool {
+	if !s.Valid() || !next.Valid() {
+		return false
+	}
+	if s == next {
+		return true
+	}
+	switch s {
+	case StatusActive:
+		return next == StatusAchieved || next == StatusArchived
+	case StatusAchieved:
+		return next == StatusArchived
+	case StatusArchived:
+		return next == StatusActive
+	default:
+		return false
+	}
+}
+
+// Valid reports whether s is a recognized persisted goal status.
+func (s GoalStatus) Valid() bool {
+	switch s {
+	case StatusActive, StatusAchieved, StatusArchived:
+		return true
+	default:
+		return false
+	}
+}
+
+// TransitionStatus applies one legal goal lifecycle transition.
+func (g *Goal) TransitionStatus(next GoalStatus) error {
+	if g == nil {
+		return ErrInvalidGoalStatus{Current: "<nil>", Next: next}
+	}
+	if !g.Status.CanTransitionTo(next) {
+		return ErrInvalidGoalStatus{Current: g.Status, Next: next}
+	}
+	g.Status = next
+	return nil
+}
 
 // Goal is a first-class scope entity. Targets are end-state refs; the scope is
 // derived (targets + transitive prerequisite closure) rather than stored.
 type Goal struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Status      string `json:"status"`
+	Name        string     `json:"name"`
+	Title       string     `json:"title"`
+	Description string     `json:"description,omitempty"`
+	Status      GoalStatus `json:"status"`
 	// Priority uses the same polarity as backlog priority: lower values are
 	// more urgent and sort first (0 highest, 10 lowest).
 	Priority int `json:"priority,omitempty"`

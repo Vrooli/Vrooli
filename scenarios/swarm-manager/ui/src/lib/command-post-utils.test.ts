@@ -39,7 +39,6 @@ function makeCapture(overrides?: Partial<Capture>): Capture {
     attachments: [],
     created: "2026-04-01T00:00:00Z",
     status: "classifying",
-    classification: null,
     ...overrides,
   };
 }
@@ -98,29 +97,6 @@ describe("groupActionItems", () => {
     const cap = makeCapture({ status: "classifying" });
     const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
     expect(getGroup(groups, "needs-classification").count).toBe(1);
-  });
-
-  it("classifies classified captures with items into needs-classification", () => {
-    const cap = makeCapture({
-      status: "classified",
-      classification: {
-        items: [{ kind: "fix", title: "Fix bug", description: "", priority: 5, tags: [], confidence: 0.9 }],
-        classifiedAt: "2026-04-01T00:00:00Z",
-      },
-    });
-    const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
-    const group = getGroup(groups, "needs-classification");
-    expect(group.count).toBe(1);
-    expect(group.items[0]?.primaryCta).toBe("review");
-  });
-
-  it("excludes classified captures with no items from needs-classification", () => {
-    const cap = makeCapture({
-      status: "classified",
-      classification: { items: [], classifiedAt: "2026-04-01T00:00:00Z" },
-    });
-    const groups = groupActionItems([], [], [cap], EMPTY_FEEDBACK, EMPTY_MATURITY, NO_SNOOZED);
-    expect(getGroup(groups, "needs-classification").count).toBe(0);
   });
 
   it("excludes failed captures from needs-classification (retry via Captures tab)", () => {

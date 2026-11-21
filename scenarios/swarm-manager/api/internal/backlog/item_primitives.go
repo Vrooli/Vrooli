@@ -23,7 +23,6 @@ type ItemAttacher interface {
 type ItemPatch struct {
 	Title              *string
 	Description        *string
-	Status             *string
 	Priority           *int
 	Tags               *[]string
 	DependsOn          *[]string
@@ -36,7 +35,7 @@ type ItemPatch struct {
 	SpawnedFrom        *string
 	PlanRef            *PlanRef
 	PlanRefSet         bool
-	ExecutionMode  *string
+	ExecutionMode      *string
 	ExecutionLimits    *identity.ExecutionLimits
 	ExecutionLimitsSet bool
 	Continuation       *string
@@ -59,9 +58,6 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.Description != nil {
 		item.Description = *patch.Description
-	}
-	if patch.Status != nil {
-		item.Status = BacklogStatus(*patch.Status)
 	}
 	if patch.Priority != nil {
 		item.Priority = *patch.Priority

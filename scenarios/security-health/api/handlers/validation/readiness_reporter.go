@@ -36,21 +36,30 @@ func newReadinessReporter(ctx context.Context) ReadinessReporter {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv(securityHealthReadinessPrefix+"_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
-		if err != nil {
-			return readinessConfigurationError{err: err}
+	if baseURL != "" {
+		return readinessReporterGroup{
+			newReadinessReporterFor(baseURL, "security-secrets-clean", "security-health.validate.scenario"),
+			newReadinessReporterFor(baseURL, "enforcement-paths-gate", "security-health.enforcement.readiness"),
 		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
 	}
 	return readinessReporterGroup{
-		newReadinessReporterFor(baseURL, "security-secrets-clean", "security-health.validate.scenario"),
-		newReadinessReporterFor(baseURL, "enforcement-paths-gate", "security-health.enforcement.readiness"),
+		newReadinessReporterWithResolver("security-secrets-clean", "security-health.validate.scenario"),
+		newReadinessReporterWithResolver("enforcement-paths-gate", "security-health.enforcement.readiness"),
 	}
 }
 
 func newReadinessReporterFor(baseURL, criterion, binding string) ReadinessReporter {
 	reporter, err := readinessreporter.NewFromEnv(securityHealthReadinessPrefix, baseURL, criterion, binding, "security-health")
+	if err != nil {
+		return readinessConfigurationError{err: err}
+	}
+	return reporter
+}
+
+func newReadinessReporterWithResolver(criterion, binding string) ReadinessReporter {
+	reporter, err := readinessreporter.NewFromEnvResolver(securityHealthReadinessPrefix, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+	}, criterion, binding, "security-health")
 	if err != nil {
 		return readinessConfigurationError{err: err}
 	}

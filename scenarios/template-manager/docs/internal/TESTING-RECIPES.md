@@ -1079,7 +1079,7 @@ are unknown, not a successful syntax gate. See [Unit Health's test-quality rules
 - **Seams definition + adding new seams**: scenario-local `docs/internal/SEAMS.md`.
 - **Skill bundle for testing-related work** (load before substantial test changes):
   ```bash
-  prompt-manager skill read seam-discovery-and-enforcement
+  prompt-manager skill read architecture-lenses
   prompt-manager skill read test
   prompt-manager skill read unit-testing-architecture-steer
   ```

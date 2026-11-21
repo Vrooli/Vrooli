@@ -440,14 +440,21 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 	} else if proposal.PreviousDecisionPublication != nil {
 		return validationError("previous decision publication history can only be added by the legacy generation owner operation")
 	}
+	if exists {
+		if err := existing.TransitionStatus(proposal.Status); err != nil {
+			return err
+		}
+	}
+	if proposal.Status == ProposalStatusReady {
+		if err := session.TransitionStatus(StatusProposalReady); err != nil {
+			return err
+		}
+	}
 	if err := storage.WriteJSONAtomic(path, proposal); err != nil {
 		return err
 	}
 	s.recordWrite()
 	session.UpdatedAt = proposal.UpdatedAt
-	if proposal.Status == ProposalStatusReady {
-		session.Status = StatusProposalReady
-	}
 	return s.saveSessionLocked(session)
 }
 
@@ -569,6 +576,9 @@ func (s *FileStore) BeginLegacyProposalDecisionGeneration(sessionID, proposalID,
 	if !strings.EqualFold(strings.TrimSpace(next.DecisionTermsSHA256), termsDigest) {
 		return false, validationError("new legacy decision generation terms binding does not match the current proposal")
 	}
+	if proposal.DecisionPublication.State != ProposalDecisionPublicationLegacyUnresolved || next.State != ProposalDecisionPublicationPending {
+		return false, validationError("legacy decision publication can only transition to a pending generation")
+	}
 	correlation, correlationOK := next.Event.Payload["correlation"].(map[string]any)
 	if next.Version != 1 || next.State != ProposalDecisionPublicationPending || next.EventID == "" ||
 		next.Event.Source != ProposalDecisionSource || next.Event.EventType != ProposalDecisionEventType || operatordecision.EventID(next.Event) != next.EventID || !correlationOK ||
@@ -635,7 +645,10 @@ func (s *FileStore) UpdateProposalDecisionPublication(sessionID, proposalID, exp
 	} else if proposal.DecisionPublication == nil || proposal.DecisionPublication.EventID != expectedEventID || proposal.DecisionPublication.State == ProposalDecisionPublicationLegacyUnresolved {
 		return false, nil
 	} else {
-		current := proposal.DecisionPublication
+		current := *proposal.DecisionPublication
+		if err := current.TransitionState(next.State); err != nil {
+			return false, err
+		}
 		if next.EventID != current.EventID || operatordecision.EventID(next.Event) != current.EventID || operatordecision.EventID(current.Event) != current.EventID {
 			return false, validationError("decision publication event snapshot is immutable")
 		}
@@ -810,14 +823,22 @@ func (s *FileStore) saveSessionLocked(session Session) error {
 	if err := session.ValidateWith(s.kindValidator); err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(s.sessionDir(session.ID), sessionFileName)); err != nil {
+	path := filepath.Join(s.sessionDir(session.ID), sessionFileName)
+	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("%w: %s", ErrNotFound, session.ID)
 		}
 		return err
 	}
+	current, err := s.loadSessionLocked(session.ID)
+	if err != nil {
+		return err
+	}
+	if err := current.TransitionStatus(session.Status); err != nil {
+		return err
+	}
 	s.recordWrite()
-	return storage.WriteJSONAtomic(filepath.Join(s.sessionDir(session.ID), sessionFileName), session)
+	return storage.WriteJSONAtomic(path, session)
 }
 
 func (s *FileStore) loadSessionLocked(sessionID string) (Session, error) {

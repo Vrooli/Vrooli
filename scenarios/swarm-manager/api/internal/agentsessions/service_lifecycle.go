@@ -53,7 +53,9 @@ func (s *Service) Reap(ctx context.Context, now time.Time) ([]Session, error) {
 				return nil, fmt.Errorf("stop expired session %s: %w", session.ID, stopErr)
 			}
 		}
-		session.Status = StatusFailed
+		if err := session.TransitionStatus(StatusFailed); err != nil {
+			return nil, err
+		}
 		session.FailureReason = fmt.Sprintf("running session TTL expired after %s", ttl)
 		session.UpdatedAt = now.UTC().Format(time.RFC3339Nano)
 		if err := store.SaveSession(session); err != nil {

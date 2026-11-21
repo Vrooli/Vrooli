@@ -81,7 +81,9 @@ func (h *Handler) doUpdatePatch(ctx context.Context, kind BacklogKind, name stri
 		update.Effort = &normalized
 	}
 
-	applyUpdateBacklogPatch(&existing, update, fields)
+	if err := applyUpdateBacklogPatch(&existing, update, fields); err != nil {
+		return BacklogItem{}, apierr.BadRequest("%s", err.Error())
+	}
 	existing.Updated = time.Now().UTC().Format(time.RFC3339)
 
 	if fields.Has(updateFieldMilestone) {

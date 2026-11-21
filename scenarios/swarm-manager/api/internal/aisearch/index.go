@@ -187,7 +187,7 @@ func composeGoalText(goal goals.Goal) string {
 	if desc := strings.TrimSpace(goal.Description); desc != "" {
 		parts = append(parts, "Description: "+desc)
 	}
-	if status := strings.TrimSpace(goal.Status); status != "" {
+	if status := strings.TrimSpace(string(goal.Status)); status != "" {
 		parts = append(parts, "Status: "+status)
 	}
 	if len(goal.Targets) > 0 {
@@ -238,7 +238,7 @@ func buildGoalPayload(goal goals.Goal, payloadHash string) map[string]interface{
 	out := map[string]interface{}{
 		"name":     goal.Name,
 		"title":    goal.Title,
-		"status":   goal.Status,
+		"status":   string(goal.Status),
 		"priority": goal.Priority,
 		"archived": goal.ArchivedAt != nil,
 	}

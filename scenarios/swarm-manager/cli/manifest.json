@@ -1315,20 +1315,6 @@
               "network:internal"
             ]
           }
-        },
-        {
-          "name": "experiment-results",
-          "description": "Show experiment results (--id EID or positional) [--json]",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
         }
       ]
     },

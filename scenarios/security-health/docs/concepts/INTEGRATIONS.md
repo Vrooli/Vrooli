@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -45,6 +44,7 @@ cli-health / ui-health AI-search substrate exactly.
 |---|---|---|---|
 | test-genie | downstream consumer | test-genie's `security` phase shells `security-health validate scenario <name> --json`. | CLI `--json` finding shape (see `validation` proto). |
 | ecosystem-manager | downstream consumer | EM consumes `FINDING_SOURCE_SECURITY` at maturity-ladder rung R1. | proto `FindingSource` enum + EM `dimensions.json` map. |
+| Deployment Manager | optional | Receives security readiness evidence when the owner token is configured. | A fixed `SECURITY_HEALTH_DEPLOYMENT_MANAGER_READINESS_URL` may pin a deployment target; otherwise each report resolves the current local peer. |
 
 ## Third-Party Services
 

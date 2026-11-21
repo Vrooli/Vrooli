@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
@@ -629,6 +630,9 @@ func (s *Service) archiveWithOptions(name string, force bool, actor string) (*Go
 	if g.Status == StatusArchived {
 		return g, nil
 	}
+	if !g.Status.CanTransitionTo(StatusArchived) {
+		return nil, ErrInvalidGoalStatus{Current: g.Status, Next: StatusArchived}
+	}
 	items, err := s.backlog.LoadAll(nil)
 	if err != nil {
 		return nil, err
@@ -657,16 +661,20 @@ func (s *Service) archiveWithOptions(name string, force bool, actor string) (*Go
 	}
 	dropped := make([]string, 0, len(open))
 	for _, candidate := range open {
-		candidate.Status = backlog.StatusDropped
+		if err := backlog.TransitionStatus(&candidate, backlog.StatusDropped, backlogstatus.TransitionGoalArchive); err != nil {
+			return nil, fmt.Errorf("drop targeted backlog item %s/%s: %w", candidate.Kind, candidate.Name, err)
+		}
 		if err := s.backlogMutator.SaveItem(candidate); err != nil {
 			return nil, err
 		}
 		dropped = append(dropped, string(candidate.Kind)+"/"+candidate.Name)
 	}
 	sort.Strings(dropped)
-	prev := g.Status
+	prev := string(g.Status)
 	now := nowRFC3339()
-	g.Status = StatusArchived
+	if err := g.TransitionStatus(StatusArchived); err != nil {
+		return nil, err
+	}
 	g.ArchivedAt = &now
 	g.Updated = now
 	g.DroppedItems = dropped
@@ -702,7 +710,9 @@ func (s *Service) CloseOut(name string) (*Goal, error) {
 	if milestone := firstUnverifiedMilestone(g.Milestones); milestone != "" {
 		return nil, validationErr("milestone %q is not verified delivered; review its criterion evidence before close-out", milestone)
 	}
-	g.Status = StatusAchieved
+	if err := g.TransitionStatus(StatusAchieved); err != nil {
+		return nil, err
+	}
 	g.Updated = nowRFC3339()
 	if err := s.store.Save(g); err != nil {
 		return nil, err
@@ -807,7 +817,9 @@ func (s *Service) Unarchive(name string) (*Goal, error) {
 	if g.ArchivedAt != nil {
 		archivedAt = *g.ArchivedAt
 	}
-	g.Status = StatusActive
+	if err := g.TransitionStatus(StatusActive); err != nil {
+		return nil, err
+	}
 	g.ArchivedAt = nil
 	g.Updated = nowRFC3339()
 	if err := s.store.Save(g); err != nil {

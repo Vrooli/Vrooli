@@ -146,6 +146,90 @@ func TestGitleaksScanner_RedactsAndErrors(t *testing.T) {
 	}
 }
 
+type candidateInspectingCommander struct {
+	content string
+	stderr  []byte
+	output  []byte
+	err     error
+}
+
+func (c *candidateInspectingCommander) LookPath(string) (string, error) {
+	return "/usr/bin/gitleaks", nil
+}
+func (c *candidateInspectingCommander) Run(_ context.Context, dir, name string, _ ...string) ([]byte, []byte, int, error) {
+	if name == "git" {
+		return nil, nil, 1, errors.New("git must not be consulted for a caller-owned candidate")
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "config", "candidate.env"))
+	if err != nil {
+		return nil, nil, 1, err
+	}
+	c.content = string(b)
+	return c.output, c.stderr, 1, c.err
+}
+
+func TestGitleaksScanner_ScansExactCandidateBlobs(t *testing.T) {
+	const stagedSecret = "staged-candidate-secret-value"
+	cmd := &candidateInspectingCommander{output: []byte(`[{"Description":"unsafe raw description","StartLine":1,"File":"config/candidate.env","RuleID":"generic-api-key","Secret":"` + stagedSecret + `","Match":"` + stagedSecret + `"}]`)}
+	findings, err := newGitleaksScanner(cmd).ScanCandidate(context.Background(), t.TempDir(), map[string][]byte{
+		"config/candidate.env": []byte("TOKEN=" + stagedSecret + "\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd.content != "TOKEN="+stagedSecret+"\n" {
+		t.Fatalf("scanner received %q, want exact supplied candidate bytes", cmd.content)
+	}
+	if len(findings) != 1 || findings[0].FilePath != "config/candidate.env:1" || findings[0].Severity != SeverityError {
+		t.Fatalf("candidate finding = %+v", findings)
+	}
+	encoded, _ := json.Marshal(findings)
+	if strings.Contains(string(encoded), stagedSecret) || strings.Contains(string(encoded), "unsafe raw description") {
+		t.Fatalf("candidate finding leaked raw scanner content: %s", encoded)
+	}
+}
+
+func TestGitleaksScanner_CandidateOutageIsIncompleteAndRedacted(t *testing.T) {
+	const secret = "scanner-error-secret"
+	cmd := &candidateInspectingCommander{stderr: []byte("failed near " + secret), err: errors.New("child failed")}
+	_, err := newGitleaksScanner(cmd).ScanCandidate(context.Background(), t.TempDir(), map[string][]byte{"config/candidate.env": []byte(secret)})
+	if err == nil || strings.Contains(err.Error(), secret) {
+		t.Fatalf("expected a redacted scanner outage error, got %v", err)
+	}
+}
+
+func TestGitleaksScanner_MissingCandidateBinaryIsUnavailable(t *testing.T) {
+	_, err := newGitleaksScanner(stubCommander{}).ScanCandidate(context.Background(), "/repo", map[string][]byte{"file.env": []byte("candidate")})
+	if !errors.Is(err, ErrCandidateScannerUnavailable) {
+		t.Fatalf("error = %v, want unavailable sentinel", err)
+	}
+}
+
+type canceledCandidateCommander struct{}
+
+func (canceledCandidateCommander) LookPath(string) (string, error) { return "/usr/bin/gitleaks", nil }
+func (canceledCandidateCommander) Run(ctx context.Context, _ string, _ string, _ ...string) ([]byte, []byte, int, error) {
+	return nil, []byte("canceled near candidate-secret"), -1, ctx.Err()
+}
+
+func TestGitleaksScanner_CanceledCandidateIsIncompleteAndRedacted(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := newGitleaksScanner(canceledCandidateCommander{}).ScanCandidate(ctx, "/repo", map[string][]byte{"file.env": []byte("candidate-secret")})
+	if err == nil || strings.Contains(err.Error(), "candidate-secret") {
+		t.Fatalf("canceled scan error = %v", err)
+	}
+}
+
+func TestPrepareCandidateSnapshotRejectsTraversal(t *testing.T) {
+	if _, cleanup, err := prepareCandidateSnapshot(map[string][]byte{"../outside": []byte("x")}); err == nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		t.Fatal("expected traversal candidate path to fail")
+	}
+}
+
 func containsAKIA(s string) bool {
 	for i := 0; i+4 <= len(s); i++ {
 		if s[i:i+4] == "AKIA" {

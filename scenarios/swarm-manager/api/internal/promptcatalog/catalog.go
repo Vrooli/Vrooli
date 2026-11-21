@@ -53,7 +53,6 @@ type Entry struct {
 	OutputPaths       []string   `json:"output_paths,omitempty"`
 	VariableKeys      []string   `json:"variable_keys,omitempty"`
 	ReferenceSkillIDs []string   `json:"reference_skill_ids,omitempty"`
-	ExperimentID      string     `json:"experiment_id,omitempty"`
 }
 
 var staticEntries = []Entry{

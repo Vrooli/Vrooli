@@ -177,13 +177,14 @@ result exactly once. What runs depends on the mode:
   (which clears acceptance), and re-running — never by mutating a running
   execution's plan underneath it.
 
-**Implementation status (2026-09-11).** The Run dialog still offers three
-execution strategies instead of a shape banner and a mode picker. It crashes
-when the first runner in the catalog has no model list, and the edit dialog
-neither loads nor submits the execution fields. Involuntary interruptions are
-not resumed. The
-mapping from today's strategies to the two modes lives in
-[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+**Implementation status (2026-11-16).** The Run dialog offers the `sliced` /
+`goal` mode picker and reads model options from the selected runner; it uses a
+declared default when available and leaves the model unset otherwise. The item
+editor loads and saves the execution fields. Plan-shape display remains
+unavailable because Plan Manager has no shape field. Current implementation
+details and remaining UI gaps are maintained in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status)
+and the [operational targets](../reference/operational-targets.md).
 
 ### 6. Evidence
 

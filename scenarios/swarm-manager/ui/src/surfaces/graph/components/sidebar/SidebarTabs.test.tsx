@@ -42,7 +42,6 @@ function makeCapture(overrides: Partial<Capture> = {}): Capture {
     attachments: [],
     created: "2026-05-01T12:00:00Z",
     status: "classifying",
-    classification: null,
     ...overrides,
   };
 }
@@ -131,19 +130,8 @@ describe("SidebarTabs", () => {
     useCaptureStore.setState({
       captures: [
         makeCapture(),
-        makeCapture({
-          id: "cap-2",
-          status: "classified",
-          classification: {
-            classifiedAt: "2026-05-01T12:05:00Z",
-            items: [{ kind: "fix", title: "Fix it", description: "", priority: 3, tags: [], confidence: 0.9 }],
-          },
-        }),
-        makeCapture({
-          id: "cap-3",
-          status: "classified",
-          classification: { classifiedAt: "2026-05-01T12:06:00Z", items: [] },
-        }),
+        makeCapture({ id: "cap-2", status: "failed" }),
+        makeCapture({ id: "cap-3", status: "classifying" }),
       ],
     });
     useExecutionStore.setState({
@@ -163,7 +151,7 @@ describe("SidebarTabs", () => {
     renderTabs();
 
     expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("2")).toBeInTheDocument();
-    // The classifying capture is machine work; only the one with proposals waits on the operator.
+    // Only the failed capture needs an operator retry.
     expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-executions")).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).getByText("2")).toBeInTheDocument();
@@ -173,11 +161,7 @@ describe("SidebarTabs", () => {
     useCaptureStore.setState({
       captures: [
         makeCapture({
-          status: "classified",
-          classification: {
-            classifiedAt: "2026-05-01T12:05:00Z",
-            items: [{ kind: "fix", title: "Fix it", description: "", priority: 3, tags: [], confidence: 0.9 }],
-          },
+          status: "failed",
         }),
       ],
     });
@@ -186,7 +170,7 @@ describe("SidebarTabs", () => {
     renderTabs();
 
     expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("2 backlog items have a next step for you")).toBeInTheDocument();
-    expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("1 capture has proposals to review")).toBeInTheDocument();
+    expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("1 capture needs a classification retry")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).getByText("2 sessions are waiting on you")).toBeInTheDocument();
   });
 

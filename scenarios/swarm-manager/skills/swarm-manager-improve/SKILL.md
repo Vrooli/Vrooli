@@ -85,7 +85,7 @@ wrong owner and unauthorized terminal mutation.
 | Wrong work shape or next action | `scenario-work-ladder`, Swarm backlog/next-action owner, focused regression |
 | Workflow identity or grant drift | transition runner and Agent Manager workflow contract owner |
 | Missing or invalid receipt | evidence contract and the producer owner; retain unavailable until its resolver is configured |
-| Skill declaration or program drift | `skill-set-authoring`, `skill-validation`, or `program-runtime` at the owning layer |
+| Skill declaration or program drift | `scenario-skill-setup`, `skill-validation`, or `program-runtime` at the owning layer |
 | Repeated friction in a Swarm operation | inspect measured owner usage first; promote a stable join to a bounded program or repair the scenario primitive |
 
 An authorized development campaign may repair several in-scope findings under

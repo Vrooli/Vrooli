@@ -75,7 +75,6 @@ type Dependencies struct {
 	PromptsSkillVersions                   CommandFunc
 	PromptsSkillRevert                     CommandFunc
 	PromptsPreview                         CommandFunc
-	PromptsExperiment                      CommandFunc
 	GoalsList                              CommandFunc
 	GoalsGet                               CommandFunc
 	GoalsCreate                            CommandFunc

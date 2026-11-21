@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -55,7 +56,7 @@ type Correlation struct {
 // DispatchIntent records the original owner lookup before its start RPC. An
 // absent lookup response cannot erase this possibly submitted reservation.
 type DispatchIntent struct {
-	State          string                  `json:"state"`
+	State          DispatchState           `json:"state"`
 	LastError      string                  `json:"last_error,omitempty"`
 	Correlation    Correlation             `json:"correlation"`
 	Owner          string                  `json:"owner"`
@@ -65,6 +66,55 @@ type DispatchIntent struct {
 	GrantDigest    string                  `json:"grant_digest,omitempty"`
 	Grant          *workflowcontract.Grant `json:"grant,omitempty"`
 	CreatedAt      string                  `json:"created_at"`
+}
+
+// DispatchState describes the durable reservation around an owner start RPC.
+// Unknown means the RPC may have been accepted but its acknowledgement was
+// lost; recovery may only join it to that original owner, never resubmit it.
+type DispatchState string
+
+const (
+	DispatchSubmitting   DispatchState = "submitting"
+	DispatchUnknown      DispatchState = "unknown"
+	DispatchAcknowledged DispatchState = "acknowledged"
+)
+
+var ErrInvalidDispatchTransition = errors.New("invalid dispatch intent transition")
+
+// Advance validates and applies one lifecycle edge. The same-state unknown
+// edge is allowed because a later read-only recovery attempt can update its
+// diagnostic without changing the reservation's meaning.
+func (i *DispatchIntent) Advance(next DispatchState, lastError string) error {
+	if i == nil {
+		return fmt.Errorf("%w: nil dispatch intent", ErrInvalidDispatchTransition)
+	}
+	if !validDispatchTransition(i.State, next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidDispatchTransition, i.State, next)
+	}
+	i.State, i.LastError = next, lastError
+	return nil
+}
+
+func validDispatchTransition(from, to DispatchState) bool {
+	switch from {
+	case DispatchSubmitting:
+		return to == DispatchUnknown || to == DispatchAcknowledged
+	case DispatchUnknown:
+		return to == DispatchUnknown || to == DispatchAcknowledged
+	case DispatchAcknowledged:
+		return false
+	default:
+		return false
+	}
+}
+
+func knownDispatchState(state DispatchState) bool {
+	switch state {
+	case DispatchSubmitting, DispatchUnknown, DispatchAcknowledged:
+		return true
+	default:
+		return false
+	}
 }
 
 type DispatchStore interface {
@@ -238,14 +288,59 @@ func (s *FileStore) dispatchPath(transitionKey, subjectRef string) string {
 }
 
 func (s *FileStore) PutDispatch(intent DispatchIntent) error {
-	if intent.Correlation.TransitionKey == "" || intent.Correlation.SubjectRef == "" || intent.IdempotencyKey == "" || intent.InputDigest == "" || intent.Owner == "" || intent.CreatedAt == "" {
-		return errors.New("dispatch intent requires immutable subject, owner, input and idempotency identities")
+	if err := validateDispatchIntent(intent); err != nil {
+		return err
 	}
 	path := s.dispatchPath(intent.Correlation.TransitionKey, intent.Correlation.SubjectRef)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
+	var previous DispatchIntent
+	exists, err := storage.ReadJSON(path, &previous)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		if intent.State != DispatchSubmitting {
+			return fmt.Errorf("%w: first state must be %q", ErrInvalidDispatchTransition, DispatchSubmitting)
+		}
+	} else {
+		if !sameDispatchReservation(previous, intent) {
+			return errors.New("dispatch intent immutable identity changed")
+		}
+		if !validDispatchTransition(previous.State, intent.State) {
+			return fmt.Errorf("%w: %q -> %q", ErrInvalidDispatchTransition, previous.State, intent.State)
+		}
+	}
 	return storage.WriteJSONAtomic(path, intent)
+}
+
+func sameDispatchReservation(previous, next DispatchIntent) bool {
+	previous.State, next.State = "", ""
+	previous.LastError, next.LastError = "", ""
+	// The owner reply binds execution identity and run provenance after the
+	// reservation is written. Those fields are deliberately allowed to arrive
+	// only with the acknowledged edge.
+	previous.Correlation.ExecutionID, next.Correlation.ExecutionID = "", ""
+	previous.Correlation.DefinitionDigest, next.Correlation.DefinitionDigest = "", ""
+	previous.Correlation.Attempts, next.Correlation.Attempts = nil, nil
+	return reflect.DeepEqual(previous, next)
+}
+
+func validateDispatchIntent(intent DispatchIntent) error {
+	if intent.Correlation.TransitionKey == "" || intent.Correlation.SubjectRef == "" || intent.IdempotencyKey == "" || intent.InputDigest == "" || intent.Owner == "" || intent.CreatedAt == "" {
+		return errors.New("dispatch intent requires immutable subject, owner, input and idempotency identities")
+	}
+	if !knownDispatchState(intent.State) {
+		return fmt.Errorf("%w: unknown state %q", ErrInvalidDispatchTransition, intent.State)
+	}
+	if intent.State == DispatchAcknowledged && (intent.Correlation.ExecutionID == "" || intent.Correlation.DefinitionDigest == "") {
+		return fmt.Errorf("%w: acknowledged dispatch must retain its original execution and definition", ErrInvalidDispatchTransition)
+	}
+	if intent.State != DispatchAcknowledged && (intent.Correlation.ExecutionID != "" || intent.Correlation.DefinitionDigest != "") {
+		return fmt.Errorf("%w: unresolved dispatch cannot contain an acknowledged execution", ErrInvalidDispatchTransition)
+	}
+	return nil
 }
 
 func (s *FileStore) GetDispatch(transitionKey, subjectRef string) (DispatchIntent, error) {
@@ -259,6 +354,9 @@ func (s *FileStore) GetDispatch(transitionKey, subjectRef string) (DispatchInten
 	}
 	if intent.Correlation.TransitionKey != transitionKey || intent.Correlation.SubjectRef != subjectRef || intent.IdempotencyKey == "" || intent.InputDigest == "" {
 		return DispatchIntent{}, errors.New("stored dispatch intent identity is invalid")
+	}
+	if err := validateDispatchIntent(intent); err != nil {
+		return DispatchIntent{}, err
 	}
 	return intent, nil
 }
@@ -278,6 +376,9 @@ func (s *FileStore) ListUnresolvedDispatches() ([]DispatchIntent, error) {
 		}
 		var intent DispatchIntent
 		if _, err := storage.ReadJSON(filepath.Join(s.root, "dispatch", entry.Name()), &intent); err != nil {
+			return nil, err
+		}
+		if err := validateDispatchIntent(intent); err != nil {
 			return nil, err
 		}
 		if intent.Correlation.ExecutionID == "" {

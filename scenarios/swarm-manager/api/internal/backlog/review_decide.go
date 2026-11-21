@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/backlogstatus"
+
 	"github.com/vrooli/api-core/authn"
 
 	"swarm-manager/internal/apierr"
@@ -155,7 +157,9 @@ func (h *Handler) DecideReview(ctx context.Context, kind BacklogKind, name strin
 	decidedAt := time.Now().UTC().Format(time.RFC3339)
 	verification := h.verificationAtAccept(kind, name)
 
-	item.Status = targetStatus
+	if err := TransitionStatus(&item, targetStatus, backlogstatus.TransitionReviewDecision); err != nil {
+		return nil, apierr.BadRequest("%s", err.Error())
+	}
 	item.PendingFollowUp = req.FollowUp
 	item.Updated = decidedAt
 	if err := h.store.SaveItem(item); err != nil {

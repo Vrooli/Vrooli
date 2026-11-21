@@ -8,7 +8,6 @@ domain is added, renamed, split, merged, or removed.
 > removed (START-HERE Gate 7) from code, proto, and docs now that the real
 > domains are green. `vrooli scenario orient` passes `example-domain-removed`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

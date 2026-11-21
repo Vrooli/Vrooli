@@ -260,6 +260,16 @@
         "description": "STT (mic input in MessageComposer + QuickCapture) and TTS (assistant message playback in Session Details) flow through audio-tools via the audio-integration UI module and the discovery Connect handler. swarm-manager contains zero audio synthesis/transcription code.",
         "degraded_behavior": "If audio-tools is unreachable, the discovery handler returns available:false; the UI hides the mic button and renders an unavailable banner in the Audio settings tab. The API still boots.",
         "supervision_precedence": "required"
+      },
+      "vrooli-events": {
+        "degraded_behavior": "Manual in-scenario decisions remain available; asynchronous Notification Hub answers may be delayed until Events recovers and subscription reconciliation succeeds.",
+        "description": "Receives durable webhook decision answers for this scenario through Vrooli Events.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The scenario uses the shared api-core eventbus client over runtime HTTP and imports no Vrooli Events package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

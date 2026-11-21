@@ -22,7 +22,7 @@ type gitleaksScanner struct {
 	cmd Commander
 }
 
-func newGitleaksScanner(cmd Commander) Scanner { return &gitleaksScanner{cmd: cmd} }
+func newGitleaksScanner(cmd Commander) *gitleaksScanner { return &gitleaksScanner{cmd: cmd} }
 
 func (g *gitleaksScanner) Name() string   { return "gitleaks" }
 func (g *gitleaksScanner) Binary() string { return "gitleaks" }
@@ -50,11 +50,30 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 		return nil, fmt.Errorf("prepare gitleaks source inventory: %w", err)
 	}
 	defer cleanup()
+	return g.scanDirectory(ctx, sourceDir)
+}
+
+// ScanCandidate scans exactly the supplied candidate paths and bytes. This is
+// the commit gate entry point; it does not inspect the caller's worktree or Git
+// index, so the caller can bind these inputs to its own candidate identity.
+func (g *gitleaksScanner) ScanCandidate(ctx context.Context, _ string, files map[string][]byte) ([]Finding, error) {
+	if _, err := g.cmd.LookPath(g.Binary()); err != nil {
+		return nil, ErrCandidateScannerUnavailable
+	}
+	sourceDir, cleanup, err := prepareCandidateSnapshot(files)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+	return g.scanDirectory(ctx, sourceDir)
+}
+
+func (g *gitleaksScanner) scanDirectory(ctx context.Context, sourceDir string) ([]Finding, error) {
 	// --report-path /dev/stdout streams the JSON report to stdout (which the
 	// Commander captures); --no-git scans the working tree rather than history;
 	// --no-banner keeps stderr clean. gitleaks exits 1 when leaks are found, so
 	// we ignore exitCode and parse stdout directly.
-	stdout, stderr, _, _, err := runCommand(ctx, g.cmd, sourceDir,
+	stdout, stderr, exitCode, _, err := runCommand(ctx, g.cmd, sourceDir,
 		"gitleaks", "detect",
 		"--source", ".",
 		"--no-git",
@@ -63,12 +82,14 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 		"--no-banner",
 	)
 	if err != nil {
-		return nil, fmt.Errorf("gitleaks failed to run: %w", err)
+		// Child output can contain fragments of scanned content. Keep all raw
+		// stdout/stderr out of diagnostics and persisted findings.
+		return nil, fmt.Errorf("gitleaks failed to run")
 	}
 	if len(stdout) == 0 {
-		// No report emitted; treat as clean only when stderr is also quiet.
-		if len(stderr) > 0 {
-			return nil, fmt.Errorf("gitleaks produced no report: %s", truncate(stderr, 200))
+		// An empty report is only clean when the child was also quiet.
+		if len(stderr) > 0 || exitCode != 0 {
+			return nil, fmt.Errorf("gitleaks produced no report (exit %d)", exitCode)
 		}
 		return nil, nil
 	}
@@ -78,10 +99,7 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 	}
 	findings := make([]Finding, 0, len(raw))
 	for _, r := range raw {
-		title := r.Description
-		if title == "" {
-			title = "Potential secret detected"
-		}
+		title := "Potential secret detected"
 		severity := SeverityError // a live credential bound for git gates R1
 		description := fmt.Sprintf(
 			"gitleaks rule %q matched a likely secret. The matched value is redacted; review the file directly.",

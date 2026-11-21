@@ -42,7 +42,7 @@ const BADGES: Record<BadgedTab, { className: string; describe: (count: number) =
   },
   captures: {
     className: "bg-violet-500/30 text-violet-300",
-    describe: (n) => `${n} ${plural(n, "capture has", "captures have")} proposals to review`,
+    describe: (n) => `${n} ${plural(n, "capture needs", "captures need")} a classification retry`,
   },
   executions: {
     className: "bg-orange-500/20 text-orange-300",
@@ -89,10 +89,9 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
     const groups = groupActionItems(backlogItems, executions, captures, EMPTY_FEEDBACK, EMPTY_MATURITY, snoozedKeys);
     const groupById = new Map(groups.map((group) => [group.id, group]));
     return {
-      // Captures still classifying are machine work, not the operator's; only
-      // those with proposals waiting for review count.
-      captures:
-        groupById.get("needs-classification")?.items.filter((item) => item.type === "capture" && item.primaryCta === "review").length ?? 0,
+      // Only failed intake records need an operator retry; successful results
+      // move to the decision stream and the capture record is removed.
+      captures: captures.filter((capture) => capture.status === "failed").length,
       executions: groupById.get("needs-review")?.items.filter((item) => item.type === "execution").length ?? 0,
     };
   }, [backlogItems, captures, executions, snoozedKeys]);

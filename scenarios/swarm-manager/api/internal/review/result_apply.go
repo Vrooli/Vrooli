@@ -22,18 +22,27 @@ type reviewResultEnvelope struct {
 	Handoff json.RawMessage `json:"handoff"`
 }
 
-func FinalizeRoundFromResult(round *Round, result json.RawMessage, outcome string) {
+func FinalizeRoundFromResult(round *Round, result json.RawMessage, outcome string) error {
 	applyReviewHandoff(round, parseReviewHandoff(result))
 	if isReviewSuccessOutcome(outcome) {
-		round.Status = RoundStatusComplete
-		*round = normalizeRound(*round)
+		if err := round.TransitionStatus(RoundStatusComplete); err != nil {
+			return err
+		}
+		normalized, err := normalizeRound(*round)
+		if err != nil {
+			return err
+		}
+		*round = normalized
 	} else {
-		round.Status = RoundStatusFailed
+		if err := round.TransitionStatus(RoundStatusFailed); err != nil {
+			return err
+		}
 		if strings.TrimSpace(round.FailureReason) == "" {
 			round.FailureReason = reviewAbstainReason(outcome)
 		}
 	}
 	round.CurrentRunStatus = ""
+	return nil
 }
 
 func applyReviewHandoff(round *Round, handoff reviewHandoff) {

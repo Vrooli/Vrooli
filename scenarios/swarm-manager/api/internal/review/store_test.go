@@ -2,6 +2,7 @@ package review
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -248,6 +249,32 @@ func TestSaveRound_CreatesDirectory(t *testing.T) {
 	}
 	if loaded.RoundNum != 1 {
 		t.Errorf("expected round 1, got %d", loaded.RoundNum)
+	}
+}
+
+func TestSaveRoundRejectsIllegalPersistedStatusReversal(t *testing.T) {
+	dir := t.TempDir()
+	round := Round{RoundNum: 1, GeneratedAt: "2026-04-02T00:00:00Z", Status: RoundStatusGathering, Evidence: []EvidenceItem{}}
+	if err := SaveRound(dir, round); err != nil {
+		t.Fatalf("SaveRound(gathering) error = %v", err)
+	}
+	if err := round.TransitionStatus(RoundStatusFailed); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveRound(dir, round); err != nil {
+		t.Fatalf("SaveRound(failed) error = %v", err)
+	}
+	round.Status = RoundStatusGathering // direct field write must not bypass persisted transition validation
+	var transitionErr *InvalidRoundTransitionError
+	if err := SaveRound(dir, round); !errors.As(err, &transitionErr) {
+		t.Fatalf("SaveRound(reopened) error = %v, want InvalidRoundTransitionError", err)
+	}
+	stored, err := LoadRound(dir, 1)
+	if err != nil {
+		t.Fatalf("LoadRound() error = %v", err)
+	}
+	if stored == nil || stored.Status != RoundStatusFailed {
+		t.Fatalf("stored round = %+v, want failed", stored)
 	}
 }
 

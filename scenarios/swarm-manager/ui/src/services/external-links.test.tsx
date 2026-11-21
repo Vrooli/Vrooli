@@ -20,6 +20,7 @@ vi.mock("../services", () => ({
 }));
 
 import { embeddedService } from "../services";
+import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 
 function wrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -123,6 +124,14 @@ describe("external-links hooks", () => {
       defaultOptions: { queries: { retry: false } },
     });
     vi.mocked(embeddedService.getExternalUrl).mockReset();
+  });
+
+  it("refreshes external service URLs after a short stale window", () => {
+    queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
+    renderHook(() => useEmbeddedServiceUrl("agent-manager"), { wrapper: wrapper(queryClient) });
+    const query = queryClient.getQueryCache().find({ queryKey: ["embedded-service-url", "agent-manager"] });
+    expect(query?.options.staleTime).toBe(2_000);
+    expect(query?.options.refetchOnWindowFocus).toBe(true);
   });
 
   it("useAgentRunUrl returns the resolved URL once the embedded-service URL loads", async () => {

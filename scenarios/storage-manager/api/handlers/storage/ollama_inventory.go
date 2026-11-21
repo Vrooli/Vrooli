@@ -24,10 +24,10 @@ type storageInventoryResponse struct {
 	OllamaModels *OllamaStorageInventory `json:"ollama_models,omitempty"`
 }
 
-// OllamaStorageInventory is a logical model attribution plus a logical file
-// length cross-check. Model sizes and digests come only from /api/tags; shared
-// Ollama blobs are never guessed into individual model paths. Allocated
-// physical bytes are unknown without an owner measurement of allocated blocks.
+// OllamaStorageInventory keeps per-tag logical sizes separate from the
+// filesystem owner's allocated model-root and content-addressed blob totals.
+// Shared Ollama blobs are counted once in the physical subtotal and are never
+// guessed into independently reclaimable per-tag bytes.
 type OllamaStorageInventory struct {
 	Source                             string               `json:"source"`
 	ModelRoot                          string               `json:"model_root"`
@@ -39,8 +39,18 @@ type OllamaStorageInventory struct {
 	UnattributedLogicalFileLengthBytes int64                `json:"unattributed_logical_file_length_bytes"`
 	UnattributedLogicalFileLengthKnown bool                 `json:"unattributed_logical_file_length_known"`
 	PhysicalBytesKnown                 bool                 `json:"physical_bytes_known"`
-	PhysicalBytes                      *int64               `json:"physical_bytes"`     // nil until an owner measurement exists
-	UnattributedBytes                  *int64               `json:"unattributed_bytes"` // nil until allocated bytes can be attributed
+	PhysicalBytes                      *int64               `json:"physical_bytes"`     // allocated bytes under the owner model root, with hardlinks deduplicated
+	UnattributedBytes                  *int64               `json:"unattributed_bytes"` // allocated bytes not safely attributable to individual model tags
+	UnattributedPhysicalPaths          []string             `json:"unattributed_physical_paths,omitempty"`
+	UniqueBlobCount                    int64                `json:"unique_blob_count"`
+	UniqueBlobCountKnown               bool                 `json:"unique_blob_count_known"`
+	UniqueBlobLogicalBytes             int64                `json:"unique_blob_logical_bytes"`
+	UniqueBlobLogicalBytesKnown        bool                 `json:"unique_blob_logical_bytes_known"`
+	UniqueBlobPhysicalBytes            *int64               `json:"unique_blob_physical_bytes"`
+	UniqueBlobPhysicalBytesKnown       bool                 `json:"unique_blob_physical_bytes_known"`
+	UnaccountedRootPhysicalBytes       *int64               `json:"unaccounted_root_physical_bytes"`
+	UnrecognizedBlobFileCount          int64                `json:"unrecognized_blob_file_count"`
+	UnrecognizedBlobFileCountKnown     bool                 `json:"unrecognized_blob_file_count_known"`
 	UnattributedPaths                  []string             `json:"unattributed_paths,omitempty"`
 	AccountingNote                     string               `json:"accounting_note,omitempty"`
 	InventoryError                     string               `json:"inventory_error,omitempty"`
@@ -213,27 +223,57 @@ func buildOllamaStorageInventory(ctx context.Context, client providers.OllamaMod
 		out.AccountingNote = "model root was not configured; allocated physical bytes are unknown and service-reported model bytes remain logical tag attribution only"
 		return out
 	}
+	physicalBytes, physicalErr := directoryAllocatedBytes(root)
+	if physicalErr != nil {
+		out.InventoryError = joinInventoryError(out.InventoryError, physicalErr.Error())
+		out.AccountingNote = "allocated physical bytes are unknown because the owner model-root allocation walk failed; model tag sizes remain logical only"
+		return out
+	}
+	out.PhysicalBytesKnown = true
+	out.PhysicalBytes = &physicalBytes
+	// Ollama tags share blobs, and the current API does not provide an atomic
+	// tag-to-blob ownership map. Count the owner's allocated bytes once at the
+	// model-root level; do not spread them across tags or call them reclaimable.
+	out.UnattributedBytes = &physicalBytes
+	out.UnattributedPhysicalPaths = []string{root}
+	blobs, blobErr := inspectOllamaBlobs(filepath.Join(root, "blobs"))
+	if blobErr != nil {
+		out.InventoryError = joinInventoryError(out.InventoryError, blobErr.Error())
+	} else {
+		out.UniqueBlobCount = blobs.Count
+		out.UniqueBlobCountKnown = true
+		out.UniqueBlobLogicalBytes = blobs.LogicalBytes
+		out.UniqueBlobLogicalBytesKnown = true
+		out.UnrecognizedBlobFileCount = blobs.UnrecognizedFiles
+		out.UnrecognizedBlobFileCountKnown = true
+		out.UniqueBlobPhysicalBytes = &blobs.PhysicalBytes
+		out.UniqueBlobPhysicalBytesKnown = true
+		if blobs.PhysicalBytes <= physicalBytes {
+			unaccounted := physicalBytes - blobs.PhysicalBytes
+			out.UnaccountedRootPhysicalBytes = &unaccounted
+		}
+	}
 	fileLengths, walkErr := directoryLogicalFileLengthBytes(root)
 	if walkErr != nil {
 		out.InventoryError = joinInventoryError(out.InventoryError, walkErr.Error())
-		out.AccountingNote = "logical file length is unknown because the model-root walk failed; allocated physical bytes and reclaimable bytes are unknown"
+		out.AccountingNote = "logical file length is unknown because the model-root walk failed; allocated physical bytes are measured once for the owner root but tag-level attribution and reclaimable bytes remain unknown"
 		return out
 	}
 	out.LogicalFileLengthBytes = fileLengths
 	out.LogicalFileLengthBytesKnown = true
 	if !out.TotalModelBytesKnown {
-		out.AccountingNote = "model-tag logical byte total is unknown because a reported size was negative or the aggregate overflowed; allocated physical bytes and reclaimable bytes are also unknown"
+		out.AccountingNote = "model-tag logical byte total is unknown because a reported size was negative or the aggregate overflowed; allocated physical bytes are measured once for the owner root but tag-level attribution and reclaimable bytes remain unknown"
 		return out
 	}
 	out.UnattributedLogicalFileLengthKnown = true
 	if fileLengths > out.TotalModelBytes {
 		out.UnattributedLogicalFileLengthBytes = fileLengths - out.TotalModelBytes
 		out.UnattributedPaths = []string{root}
-		out.AccountingNote = "directory walk sums logical file lengths, not allocated blocks; sparse files and hardlinks can make it differ from disk use, so physical allocated bytes and reclaimable bytes remain unknown"
+		out.AccountingNote = "allocated physical bytes are measured from allocated blocks once per filesystem object, with hardlinks deduplicated; unique blob bytes are measured once by content-addressed file; root bytes are not attributed to individual tags because tags can share blobs and the tag-to-blob deletion fence is not proven"
 	} else if fileLengths < out.TotalModelBytes {
-		out.AccountingNote = "logical tag sizes exceed summed file lengths; shared or sparse Ollama blobs may explain the difference, but physical allocated bytes and reclaimable bytes remain unknown"
+		out.AccountingNote = "logical tag sizes exceed summed file lengths; shared or sparse Ollama blobs may explain the difference; allocated physical bytes are measured once for the owner root, while tag-level attribution and reclaimable bytes remain unknown"
 	} else {
-		out.AccountingNote = "directory walk sums logical file lengths, not allocated blocks; physical allocated bytes and reclaimable bytes remain unknown"
+		out.AccountingNote = "allocated physical bytes and unique content-addressed blob bytes are measured once; model-tag sizes remain logical and shared blobs are not counted as separately reclaimable bytes"
 	}
 	return out
 }

@@ -298,7 +298,7 @@ func milestoneFromProto(in *sharedpb.Milestone) Milestone {
 }
 
 func goalToProto(in Goal) *domainpb.Goal {
-	out := &domainpb.Goal{Name: in.Name, Title: in.Title, Description: in.Description, Status: in.Status, Priority: int32(in.Priority), Targets: in.Targets, Created: in.Created, Updated: in.Updated, ArchivedAt: in.ArchivedAt, DroppedItems: in.DroppedItems, ServesDeliverable: in.ServesDeliverable}
+	out := &domainpb.Goal{Name: in.Name, Title: in.Title, Description: in.Description, Status: string(in.Status), Priority: int32(in.Priority), Targets: in.Targets, Created: in.Created, Updated: in.Updated, ArchivedAt: in.ArchivedAt, DroppedItems: in.DroppedItems, ServesDeliverable: in.ServesDeliverable}
 	for _, milestone := range in.Milestones {
 		out.Milestones = append(out.Milestones, &sharedpb.Milestone{Name: milestone.Name, Title: milestone.Title, Description: milestone.Description, Items: milestone.Items, AcceptanceCriteria: milestone.AcceptanceCriteria, DependsOn: milestone.DependsOn, ArchivedAt: milestone.ArchivedAt})
 	}

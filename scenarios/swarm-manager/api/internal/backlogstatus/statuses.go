@@ -20,6 +20,15 @@
 // elsewhere was missed.
 package backlogstatus
 
+import (
+	"errors"
+	"fmt"
+)
+
+// ErrInvalidTransition marks a status edge that the named lifecycle owner
+// does not permit.
+var ErrInvalidTransition = errors.New("invalid backlog status transition")
+
 // Status string values. Kept as untyped constants so callers in either package
 // can interpolate them into typed or untyped strings freely.
 const (
@@ -277,32 +286,75 @@ func IsPlanning(s string) bool {
 	return byValue[s].Phase == PhasePlanning
 }
 
-// IsValidTransition is a centralized safety net over the backlog state
-// machine. It validates that both endpoints of a proposed transition are
-// recognized statuses — it intentionally does NOT encode authorization
-// ("who may do this transition") or policy ("should we allow this
-// revival"). Those concerns live in the callers:
-//
-//   - update_patch.go — user PATCH authorization (IsUserSettable +
-//     review-gate guard).
-//   - review_decide.go — review_pending → terminal with an audit trail.
-//   - execution finalization/polling — writes only into `in_review` or
-//     `review_pending`, never terminal directly.
-//
-// By keeping this predicate narrow (known → known, empty → known) we avoid
-// accidentally blocking legitimate user overrides like the failed →
-// completed manual-accept escape hatch. Callers opt in to stricter rules.
-//
-// Rules:
-//   - An empty `from` is a new item: any valid `to` is allowed.
-//   - Unknown statuses (either side) are rejected.
-//   - Otherwise transitions between known statuses are allowed.
-func IsValidTransition(from, to string) bool {
-	if !IsValid(to) {
+// TransitionOwner names the domain operation that owns a BacklogItem status
+// change. Keeping the actor in the call makes edge permissions reviewable in
+// one place while callers continue to enforce identity, evidence and effects.
+type TransitionOwner string
+
+const (
+	TransitionOperator       TransitionOwner = "operator"
+	TransitionExecution      TransitionOwner = "execution"
+	TransitionReviewDecision TransitionOwner = "review_decision"
+	TransitionRetry          TransitionOwner = "retry"
+	TransitionFollowUp       TransitionOwner = "follow_up"
+	TransitionRecovery       TransitionOwner = "recovery"
+	TransitionArchive        TransitionOwner = "archive"
+	TransitionGoalArchive    TransitionOwner = "goal_archive"
+	TransitionReset          TransitionOwner = "reset"
+	TransitionImport         TransitionOwner = "import"
+)
+
+// CanTransition reports whether the named owner may move from one known
+// status to another. The owner is explicit because the same edge can be valid
+// in one workflow and unsafe in another (for example, a terminal retry is
+// valid only after a new execution has been admitted).
+func CanTransition(from, to string, owner TransitionOwner) bool {
+	if !IsValid(to) || (from != "" && !IsValid(from)) {
 		return false
 	}
-	if from == "" {
+	if from == to && from != "" {
 		return true
 	}
-	return IsValid(from)
+	switch owner {
+	case TransitionOperator:
+		return !IsReview(from) && IsUserSettable(to)
+	case TransitionExecution:
+		return (from == Queued && to == InProgress) ||
+			(from == Queued && (to == Backlog || to == Researching || to == Ready || to == InReview)) ||
+			(from == InProgress && (to == InReview || to == ReviewPending)) ||
+			(from == InProgress && (to == Backlog || to == Researching || to == Ready)) ||
+			(from == InReview && to == ReviewPending) ||
+			(from == ReviewPending && to == Failed) ||
+			(IsTerminal(from) && from != Dropped && to == InReview) ||
+			(from == Dropped && (to == Backlog || to == Researching || to == Ready)) ||
+			(from == Backlog || from == Researching || from == Ready) && to == Queued
+	case TransitionReviewDecision:
+		return from == ReviewPending && (to == Completed || to == Failed || to == NeedsFollowup)
+	case TransitionRetry:
+		return IsTerminal(from) && to == InProgress
+	case TransitionFollowUp:
+		return from == NeedsFollowup && (to == Queued || to == Backlog || to == Completed)
+	case TransitionRecovery:
+		return (from == InReview || from == ReviewPending) && (to == Backlog || to == ReviewPending)
+	case TransitionArchive:
+		return !IsTerminal(from) && to == Dropped
+	case TransitionGoalArchive:
+		return from != "" && !IsResolved(from) && to == Dropped
+	case TransitionReset:
+		return from == Ready && to == Backlog
+	case TransitionImport:
+		return from != ""
+	default:
+		return false
+	}
+}
+
+// Transition is the shared mutation decision used by every BacklogItem
+// persistence adapter. It returns the target value only after the owner graph
+// approves the exact edge.
+func Transition(from, to string, owner TransitionOwner) (string, error) {
+	if !CanTransition(from, to, owner) {
+		return "", fmt.Errorf("%w: %q → %q for %s", ErrInvalidTransition, from, to, owner)
+	}
+	return to, nil
 }

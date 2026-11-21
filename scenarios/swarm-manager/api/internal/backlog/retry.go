@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/storage"
@@ -134,7 +135,9 @@ func (h *Handler) reopenForRetry(ctx context.Context, item *BacklogItem, newReco
 	}
 	priorStatus := item.Status
 	now := time.Now().UTC().Format(time.RFC3339)
-	item.Status = StatusInProgress
+	if err := TransitionStatus(item, StatusInProgress, backlogstatus.TransitionRetry); err != nil {
+		return err
+	}
 	item.Updated = now
 	if err := h.store.SaveItem(*item); err != nil {
 		return err

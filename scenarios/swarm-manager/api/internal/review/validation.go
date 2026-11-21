@@ -14,32 +14,40 @@ var validRoundClassifications = map[string]struct{}{
 	"not_assessable":   {},
 }
 
-func normalizeRound(round Round) Round {
+func normalizeRound(round Round) (Round, error) {
 	if round.Status != RoundStatusComplete {
-		return round
+		return round, nil
 	}
 	if err := validateCompletedRound(round); err != nil {
-		round.Status = RoundStatusFailed
+		if transitionErr := round.TransitionStatus(RoundStatusFailed); transitionErr != nil {
+			return Round{}, transitionErr
+		}
 		round.FailureReason = err.Error()
 	}
-	return round
+	return round, nil
 }
 
-func finalizeRoundFromRunState(round Round, state agentmanager.RunState) Round {
-	switch mapRunStatusToRoundStatus(state.Status) {
+func finalizeRoundFromRunState(round Round, state agentmanager.RunState) (Round, error) {
+	next := mapRunStatusToRoundStatus(state.Status)
+	switch next {
 	case RoundStatusComplete:
 		if err := validateCompletedRound(round); err != nil {
-			round.Status = RoundStatusFailed
+			if transitionErr := round.TransitionStatus(RoundStatusFailed); transitionErr != nil {
+				return Round{}, transitionErr
+			}
 			round.FailureReason = err.Error()
-			return round
+			return round, nil
 		}
-		round.Status = RoundStatusComplete
 		round.FailureReason = ""
 	case RoundStatusFailed:
-		round.Status = RoundStatusFailed
 		round.FailureReason = deriveRoundFailureReason(state)
 	}
-	return round
+	if next != "" {
+		if err := round.TransitionStatus(next); err != nil {
+			return Round{}, err
+		}
+	}
+	return round, nil
 }
 
 func validateCompletedRound(round Round) error {

@@ -14,8 +14,6 @@ export interface PromptTrace {
    */
   synthetic?: boolean;
   captured_at: string;
-  experiment_id?: string;
-  variant_id?: string;
 }
 
 export interface PromptCatalogEntry {
@@ -34,7 +32,6 @@ export interface PromptCatalogEntry {
   output_paths?: string[];
   variable_keys?: string[];
   reference_skill_ids?: string[];
-  experiment_id?: string;
 }
 
 export interface PromptSkillSummary {

@@ -10,7 +10,7 @@
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { Capture, CaptureClassification, CaptureFailureReason } from "../types";
+import type { Capture, CaptureFailureReason } from "../types";
 import { transitionService, type ITransitionService } from "./transition-service";
 
 export interface ClassifyResponse {
@@ -29,12 +29,11 @@ export interface ICaptureService {
   create(text: string, files?: File[]): Promise<CreateCaptureResponse>;
   remove(id: string): Promise<void>;
   classify(id: string): Promise<ClassifyResponse>;
-  applyClassification(id: string, executionId: string): Promise<Capture>;
+  applyClassification(id: string, executionId: string): Promise<void>;
   updateNote(id: string, note: string): Promise<Capture>;
 }
 
 function mapCapture(raw: Record<string, unknown>): Capture {
-  const cls = raw.classification as Record<string, unknown> | null;
   return {
     id: (raw.id as string) ?? "",
     text: (raw.text as string) ?? "",
@@ -46,19 +45,6 @@ function mapCapture(raw: Record<string, unknown>): Capture {
     workflowDefinitionDigest: (raw.workflow_definition_digest as string) || undefined,
     workflowEntityVersion: (raw.workflow_entity_version as string) || undefined,
     note: (raw.note as string) ?? "",
-    classification: cls
-      ? {
-          items: ((cls.items as Record<string, unknown>[]) ?? []).map((item) => ({
-            kind: (item.kind as Capture["classification"] extends infer C ? C extends CaptureClassification ? C["items"][number]["kind"] : never : never) ?? "idea",
-            title: (item.title as string) ?? "",
-            description: (item.description as string) ?? "",
-            priority: (item.priority as number) ?? 5,
-            tags: (item.tags as string[]) ?? [],
-            confidence: (item.confidence as number) ?? 0,
-          })),
-          classifiedAt: (cls.classified_at as string) ?? (cls.classifiedAt as string) ?? "",
-        }
-      : null,
   };
 }
 
@@ -108,10 +94,8 @@ export function createCaptureService(
       };
     },
 
-    async applyClassification(id: string, executionId: string): Promise<Capture> {
+    async applyClassification(_id: string, executionId: string): Promise<void> {
       await transitions.apply("capture.classify", executionId);
-      const data = await apiClient.get<{ capture: Record<string, unknown> }>(API_ENDPOINTS.captureById(id));
-      return mapCapture(data.capture);
     },
 
     async updateNote(id: string, note: string): Promise<Capture> {

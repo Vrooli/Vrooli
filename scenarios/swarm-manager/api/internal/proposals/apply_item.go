@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/backlogstatus"
 )
 
 // ItemFromSpec builds the backlog item an add_item mutation describes. It is
@@ -165,7 +166,9 @@ func (a *Applier) applyChangeStatus(ctx context.Context, ref, status string) err
 	if backlog.IsTerminalStatus(newStatus) {
 		return fmt.Errorf("%w: %s", ErrTerminalStatusWrite, newStatus)
 	}
-	item.Status = newStatus
+	if err := backlog.TransitionStatus(&item, newStatus, backlogstatus.TransitionOperator); err != nil {
+		return err
+	}
 	item.Updated = a.clock().UTC().Format(time.RFC3339)
 	return a.store.SaveItem(item)
 }

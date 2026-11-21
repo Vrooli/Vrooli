@@ -111,17 +111,19 @@ A tracked run record for queued work, with status transitions through
 pending/scheduled/running/completed/failed/canceled.
 
 ## Execution Mode
-How a plan-backed item runs, chosen in the Run dialog for any plan shape:
-`sliced` (the `swarm-manager/phased-plan-drain` workflow, one reviewed slice
-at a time) or `goal` (one Agent Manager run under a harness goal, completed by
-Swarm finalization). Today the code spells this as `execution_strategy` with
-three values; the mapping is in
-[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+How a plan-backed item runs, chosen in the Run dialog: `sliced` (the
+`swarm-manager/phased-plan-drain` workflow, one reviewed slice at a time) or
+`goal` (one Agent Manager run under a harness goal, completed by Swarm
+finalization). Swarm stores this as `execution_mode`; `sliced` is the default.
+See the current
+[implementation status](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ## Plan Shape
-What the work is, as a field on the Plan Manager plan: `phased` (ordered
-phases with steps and acceptance) or `mandate` (a target pointer, sensors and
-setpoint bands, no step lists). Any shape runs under either execution mode.
+What the work is in the planned architecture: `phased` (ordered phases with
+steps and acceptance) or `mandate` (a target pointer, sensors and setpoint bands,
+no step lists). Any shape is intended to run under either execution mode. The
+Plan Manager `shape` field is not implemented; current plans are phased. See
+[Plan Manager's model](../../../plan-manager/docs/concepts/PLAN-MODEL.md#implementation-status).
 
 ## Execution Policy
 Default execution behavior for new queue actions (`manual`, `scheduled`,

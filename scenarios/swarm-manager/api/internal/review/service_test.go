@@ -166,6 +166,7 @@ func TestSettledEvidenceForExecutionCarriesOnlyFulfilledRequestEvidence(t *testi
 	dir := t.TempDir()
 	if err := saveRound(dir, Round{
 		RoundNum:              1,
+		Status:                RoundStatusGathering,
 		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-1"}`),
 		Evidence: []EvidenceItem{
 			{ID: "review-derived", Settlement: "settled"},
@@ -174,7 +175,7 @@ func TestSettledEvidenceForExecutionCarriesOnlyFulfilledRequestEvidence(t *testi
 		},
 		RequestThreads: []RequestThread{{
 			ID:     "thread-1",
-			Status: "fulfilled",
+			Status: RequestThreadStatusPending,
 			Messages: []RequestMessage{{
 				Role:             "assistant",
 				AddedEvidenceIDs: []string{"requested", "unavailable"},
@@ -183,8 +184,19 @@ func TestSettledEvidenceForExecutionCarriesOnlyFulfilledRequestEvidence(t *testi
 	}); err != nil {
 		t.Fatal(err)
 	}
+	fulfilledRound, err := readRound(dir, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fulfilledRound.RequestThreads[0].TransitionStatus(RequestThreadStatusFulfilled); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveRound(dir, *fulfilledRound); err != nil {
+		t.Fatal(err)
+	}
 	if err := saveRound(dir, Round{
 		RoundNum:              2,
+		Status:                RoundStatusGathering,
 		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-2"}`),
 		Evidence:              []EvidenceItem{{ID: "other-execution", Settlement: "settled"}},
 	}); err != nil {

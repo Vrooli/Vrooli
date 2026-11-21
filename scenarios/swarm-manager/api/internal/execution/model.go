@@ -274,10 +274,8 @@ type PromptTrace struct {
 	UsedFallback   bool   `json:"used_fallback"`
 	// Synthetic marks a trace reconstructed for display (caller context),
 	// as opposed to the literal prompt the agent ran with.
-	Synthetic    bool   `json:"synthetic,omitempty"`
-	CapturedAt   string `json:"captured_at"`
-	ExperimentID string `json:"experiment_id,omitempty"`
-	VariantID    string `json:"variant_id,omitempty"`
+	Synthetic  bool   `json:"synthetic,omitempty"`
+	CapturedAt string `json:"captured_at"`
 }
 
 // ReviewResult captures the outcome of a post-execution readiness review.

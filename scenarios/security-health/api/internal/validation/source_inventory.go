@@ -87,6 +87,40 @@ func prepareCommitEligibleSnapshot(ctx context.Context, cmd Commander, scenarioD
 	return snapshot, cleanup, nil
 }
 
+// prepareCandidateSnapshot materializes caller-owned candidate bytes in a
+// temporary tree for scanners such as Gitleaks. Paths are repository-relative;
+// rejecting traversal here keeps both output paths and scanner inputs bounded
+// to the supplied candidate.
+func prepareCandidateSnapshot(files map[string][]byte) (string, func(), error) {
+	snapshot, err := os.MkdirTemp("", "security-health-candidate-")
+	if err != nil {
+		return "", nil, fmt.Errorf("create candidate snapshot: %w", err)
+	}
+	cleanup := func() { _ = os.RemoveAll(snapshot) }
+	paths := make([]string, 0, len(files))
+	for path := range files {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, raw := range paths {
+		path := filepath.Clean(filepath.FromSlash(raw))
+		if raw == "" || filepath.IsAbs(path) || path == "." || path == ".." || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+			cleanup()
+			return "", nil, fmt.Errorf("invalid candidate path")
+		}
+		destination := filepath.Join(snapshot, path)
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("create candidate snapshot directory: %w", err)
+		}
+		if err := os.WriteFile(destination, files[raw], 0o600); err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("write candidate snapshot file: %w", err)
+		}
+	}
+	return snapshot, cleanup, nil
+}
+
 func copySnapshotFile(source, destination string, mode os.FileMode) error {
 	in, err := os.Open(source)
 	if err != nil {

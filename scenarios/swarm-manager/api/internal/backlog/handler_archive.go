@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/httputil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -138,7 +139,9 @@ func (h *Handler) archiveLoadedItem(ctx context.Context, item BacklogItem, expec
 	priorStatus := item.Status
 	statusChanged := false
 	if !IsTerminalStatus(priorStatus) {
-		item.Status = StatusDropped
+		if err := TransitionStatus(&item, StatusDropped, backlogstatus.TransitionArchive); err != nil {
+			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
+		}
 		statusChanged = true
 	}
 	item.ArchivedAt = &now

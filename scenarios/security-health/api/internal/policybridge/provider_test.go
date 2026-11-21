@@ -25,6 +25,17 @@ func TestBuildSnapshotPreservesFindingStateAndProvenance(t *testing.T) {
 	if got["provenance"].(map[string]any)["finding_count"] != "1" {
 		t.Fatalf("provenance = %+v", got["provenance"])
 	}
+	rules, ok := got["rules"].([]any)
+	wantIDs := []string{"security-health:dependency-addition", "security-health:dependency-upgrade", "security-health:lifecycle-execution", "security-health:unknown-risk"}
+	if !ok || len(rules) != len(wantIDs) {
+		t.Fatalf("rules = %#v", got["rules"])
+	}
+	for i, raw := range rules {
+		rule, ok := raw.(map[string]any)
+		if !ok || rule["evaluator_id"] != wantIDs[i] || rule["action"] != "allow" {
+			t.Errorf("rule[%d] = %#v, want stable ID %q and unchanged allow action", i, raw, wantIDs[i])
+		}
+	}
 	if err := Publish(context.Background(), nil, validation.Report{}, now); err == nil {
 		t.Fatal("nil sink must be rejected")
 	}

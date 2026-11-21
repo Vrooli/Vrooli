@@ -2,8 +2,11 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var ErrCandidateScannerUnavailable = errors.New("candidate scanner unavailable")
 
 // Scanner is one pluggable security tool. The Service resolves each scanner's
 // binary, asks whether it Applies to the detected substrate, and — when both
@@ -31,6 +34,13 @@ type Scanner interface {
 	// that into an INFO observation, never a hard failure, so one flaky
 	// scanner can't gate a scenario spuriously.
 	Scan(ctx context.Context, scenarioDir string, sub Substrate) ([]Finding, error)
+}
+
+// CandidateScanner scans caller-supplied candidate blobs. The caller owns
+// candidate identity and must provide the exact bytes and repository-relative
+// paths that will enter the operation (for example, Git index blobs).
+type CandidateScanner interface {
+	ScanCandidate(ctx context.Context, repositoryRoot string, files map[string][]byte) ([]Finding, error)
 }
 
 // DOC: docs/internal/PERFORMANCE.md#incremental-validation-model

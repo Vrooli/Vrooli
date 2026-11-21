@@ -147,7 +147,7 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
           label: truncate(capture.text || raw.id, 72),
           id: capture.id,
           text: capture.text,
-          status: capture.status as "classifying" | "classified" | "failed",
+          status: capture.status as "classifying" | "failed",
         },
       };
     }

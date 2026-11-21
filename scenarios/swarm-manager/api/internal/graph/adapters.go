@@ -81,7 +81,7 @@ func (a *goalAdapter) List() ([]GoalEntry, error) {
 		result = append(result, GoalEntry{
 			Name:       item.Goal.Name,
 			Title:      item.Goal.Title,
-			Status:     item.Goal.Status,
+			Status:     string(item.Goal.Status),
 			Items:      append([]string(nil), item.Scope.Closure...),
 			ArchivedAt: item.Goal.ArchivedAt,
 		})

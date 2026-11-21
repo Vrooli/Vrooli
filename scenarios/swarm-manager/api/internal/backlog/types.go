@@ -100,14 +100,6 @@ func IsArchived(item BacklogItem) bool {
 	return item.ArchivedAt != nil && strings.TrimSpace(*item.ArchivedAt) != ""
 }
 
-// IsValidTransition is a permissive safety net over the backlog state
-// machine: it rejects nonsensical transitions regardless of caller (e.g.,
-// Completed → Ready). Individual handlers stack tighter rules on top.
-// See backlogstatus.IsValidTransition for the full rule set.
-func IsValidTransition(from, to BacklogStatus) bool {
-	return backlogstatus.IsValidTransition(string(from), string(to))
-}
-
 // BacklogKind represents a category of backlog work.
 type BacklogKind string
 

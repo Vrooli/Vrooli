@@ -10,7 +10,7 @@ import (
 	"swarm-manager/internal/overview"
 )
 
-func goalWithScope(name string, priority int, status string, scope goals.Scope) goals.GoalWithScope {
+func goalWithScope(name string, priority int, status goals.GoalStatus, scope goals.Scope) goals.GoalWithScope {
 	return goals.GoalWithScope{Goal: goals.Goal{Name: name, Title: name + " title", Priority: priority, Status: status}, Scope: scope}
 }
 

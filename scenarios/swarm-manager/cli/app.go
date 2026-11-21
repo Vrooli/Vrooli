@@ -141,7 +141,6 @@ func (a *App) dependencies() support.Dependencies {
 		PromptsSkillVersions:                   a.cmdPromptsSkillVersions,
 		PromptsSkillRevert:                     a.cmdPromptsSkillRevert,
 		PromptsPreview:                         a.cmdPromptsPreview,
-		PromptsExperiment:                      a.cmdPromptsExperimentResults,
 		GoalsList:                              a.cmdGoalsList,
 		GoalsGet:                               a.cmdGoalsGet,
 		GoalsCreate:                            a.cmdGoalsCreate,

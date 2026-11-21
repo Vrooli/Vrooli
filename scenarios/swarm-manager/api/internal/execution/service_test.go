@@ -1306,7 +1306,7 @@ func TestBuildExecutionPrompt_SuggestedSkills(t *testing.T) {
 		RunType:            "process",
 		DeliverablePath:    "plan-manager:refactor-api",
 		DeliverableContent: "# Plan\nRefactor.",
-		SuggestedSkills:    []string{"refactor", "screaming-architecture-audit"},
+		SuggestedSkills:    []string{"refactor", "architecture-lenses"},
 	})
 
 	if !strings.Contains(prompt, "<suggested-skills>") || !strings.Contains(prompt, "</suggested-skills>") {
@@ -1315,8 +1315,8 @@ func TestBuildExecutionPrompt_SuggestedSkills(t *testing.T) {
 	if !strings.Contains(prompt, "prompt-manager skill read refactor") {
 		t.Error("missing refactor skill in suggested-skills")
 	}
-	if !strings.Contains(prompt, "prompt-manager skill read screaming-architecture-audit") {
-		t.Error("missing screaming-architecture-audit skill in suggested-skills")
+	if !strings.Contains(prompt, "prompt-manager skill read architecture-lenses") {
+		t.Error("missing architecture-lenses skill in suggested-skills")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/followup"
 	"swarm-manager/internal/httputil"
 )
@@ -90,16 +91,22 @@ func (h *Handler) DispatchPendingFollowUp(ctx context.Context, kind BacklogKind,
 		if err := h.followUpDispatcher.DispatchFollowUp(ctx, kind, name, instruction.Steering); err != nil {
 			return BacklogItem{}, FollowUp{}, apierr.BadRequest("could not start follow-up: %s", err)
 		}
-		item.Status = StatusQueued
+		if err := TransitionStatus(&item, StatusQueued, backlogstatus.TransitionFollowUp); err != nil {
+			return BacklogItem{}, FollowUp{}, err
+		}
 	case FollowUpReplan:
-		item.Status = StatusBacklog
+		if err := TransitionStatus(&item, StatusBacklog, backlogstatus.TransitionFollowUp); err != nil {
+			return BacklogItem{}, FollowUp{}, err
+		}
 		item.PlanAcceptance = nil
 		item.Note = appendNote(item.Note, "Follow-up replan: "+strings.TrimSpace(instruction.Steering))
 	case FollowUpNewItems:
 		if err := h.createFollowUpItems(ctx, item, instruction.Items); err != nil {
 			return BacklogItem{}, FollowUp{}, apierr.BadRequest("could not create follow-up items: %s", err)
 		}
-		item.Status = StatusCompleted
+		if err := TransitionStatus(&item, StatusCompleted, backlogstatus.TransitionFollowUp); err != nil {
+			return BacklogItem{}, FollowUp{}, err
+		}
 	default:
 		return BacklogItem{}, FollowUp{}, apierr.BadRequest("unknown follow-up disposition")
 	}

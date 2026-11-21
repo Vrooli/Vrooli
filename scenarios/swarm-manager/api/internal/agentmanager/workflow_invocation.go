@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -122,23 +120,18 @@ func (s *WorkflowService) GetWorkflowExecutionByIdempotencyKey(ctx context.Conte
 	if key == "" {
 		return WorkflowStart{}, fmt.Errorf("%w: idempotency key is required", ErrRequestFailed)
 	}
-	requestURL := "/api/v1/workflow-executions?idempotency_key=" + url.QueryEscape(key) + "&limit=1"
-	resp, err := s.client.doRequest(ctx, http.MethodGet, requestURL, nil)
+	a, err := s.client.connectClient(ctx)
 	if err != nil {
 		return WorkflowStart{}, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return WorkflowStart{}, readErrorResponse(resp)
+	page, err := a.ListWorkflowExecutions(ctx, connect.NewRequest(&apipb.ListWorkflowExecutionsRequest{Owner: "swarm-manager", IdempotencyKey: key, Limit: 1}))
+	if err != nil {
+		return WorkflowStart{}, connectError(err)
 	}
-	var result apipb.ListWorkflowExecutionsResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return WorkflowStart{}, err
-	}
-	if len(result.Executions) == 0 || result.Executions[0] == nil || strings.TrimSpace(result.Executions[0].Id) == "" {
+	if len(page.Msg.Executions) == 0 || page.Msg.Executions[0] == nil || strings.TrimSpace(page.Msg.Executions[0].Id) == "" {
 		return WorkflowStart{}, ErrWorkflowNotFound
 	}
-	execution := result.Executions[0]
+	execution := page.Msg.Executions[0]
 	return WorkflowStart{ExecutionID: execution.Id, WorkflowDigest: execution.DefinitionDigest, DefinitionDigest: execution.DefinitionDigest, ApprovalDigest: execution.ApprovalDigest, GrantDigest: execution.GrantDigest, Status: execution.Status}, nil
 }
 
@@ -197,13 +190,21 @@ func (s *WorkflowService) CollectWorkflow(ctx context.Context, executionID strin
 }
 
 func (s *WorkflowService) SignalWorkflow(ctx context.Context, executionID, signal string, payload *structpb.Value, idempotencyKey string) error {
-	_, err := s.client.workflowOperationPost(ctx, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/signals", &apipb.SignalWorkflowExecutionRequest{ExecutionId: executionID, Signal: signal, Payload: payload, IdempotencyKey: idempotencyKey})
-	return err
+	a, err := s.client.connectClient(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = a.SignalWorkflowExecution(ctx, connect.NewRequest(&apipb.SignalWorkflowExecutionRequest{ExecutionId: executionID, Signal: signal, Payload: payload, IdempotencyKey: idempotencyKey}))
+	return connectError(err)
 }
 
 func (s *WorkflowService) CancelWorkflow(ctx context.Context, executionID, idempotencyKey, reason string) error {
-	_, err := s.client.workflowOperationPost(ctx, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/cancel", &apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: idempotencyKey, Reason: reason})
-	return err
+	a, err := s.client.connectClient(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = a.CancelWorkflowExecution(ctx, connect.NewRequest(&apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: idempotencyKey, Reason: reason}))
+	return connectError(err)
 }
 
 func terminalWorkflowStatus(status domainpb.WorkflowExecutionStatus) bool {
@@ -218,26 +219,6 @@ func terminalWorkflowStatus(status domainpb.WorkflowExecutionStatus) bool {
 	default:
 		return false
 	}
-}
-
-func (c *HTTPClient) workflowOperationPost(ctx context.Context, path string, req proto.Message) (*apipb.WorkflowExecutionOperationResponse, error) {
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.doRequest(ctx, http.MethodPost, path, body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.WorkflowExecutionOperationResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
 }
 
 // ReviewWorkflowSnapshot reads the terminal owner graph into a bounded immutable

@@ -146,7 +146,7 @@ func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
 					addItemRollup(&rollup, item)
 				}
 				if rollup.Total > 0 {
-					ctx.Goals = append(ctx.Goals, ScenarioGoal{Name: goal.Goal.Name, Title: goal.Goal.Title, Status: goal.Goal.Status, Priority: goal.Goal.Priority, Scope: rollup})
+					ctx.Goals = append(ctx.Goals, ScenarioGoal{Name: goal.Goal.Name, Title: goal.Goal.Title, Status: string(goal.Goal.Status), Priority: goal.Goal.Priority, Scope: rollup})
 					addRollup(&ctx.Rollup, rollup)
 				}
 			}

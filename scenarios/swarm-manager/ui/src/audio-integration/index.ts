@@ -7,11 +7,11 @@
 // scenario-specific RPC adapters; capture orchestration remains package-owned.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
-import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";
+import { openVoiceStream, transcribeAudioWithRetry } from "./api/voice";
 
 export function registerScenarioVoiceTransport(): void {
   registerBrowserVoiceTransport({
-    buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
+    openStream: (start, handlers) => openVoiceStream(start, handlers),
     transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
   });
 }
@@ -72,7 +72,7 @@ export {
 export type { TTSConfig, TTSSummarizeConfig, TTSSummarizeModel, TTSPlaybackEvent } from "./api/tts";
 
 export {
-  buildVoiceStreamWsUrl,
+  openVoiceStream,
   transcribeAudio,
   transcribeAudioBypassFilter,
   transcribeAudioWithRetry,

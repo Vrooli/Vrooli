@@ -79,6 +79,11 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
+		if err := s.updateScenarioHealthState(executionID, scenarioName, HealthCheckResult{
+			Status: FinalizationStatusRunning,
+		}); err != nil {
+			return err
+		}
 		healthSnapshot, healthErr := s.waitForScenarioHealth(ctx, target)
 		if healthErr == nil {
 			return s.updateScenarioHealthState(executionID, scenarioName, HealthCheckResult{

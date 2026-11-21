@@ -70,8 +70,11 @@ type measureBudget struct {
 	deadline time.Time
 }
 
-func defaultBudget(now time.Time) *measureBudget {
-	return &measureBudget{entries: 400_000, deadline: now.Add(8 * time.Second)}
+func defaultBudget() *measureBudget {
+	// The request clock may be a caller seam (tests, replay). It may not decide
+	// how long real I/O runs: a clock behind wall time would end the walk before
+	// the first entry and report every path as an empty floor.
+	return &measureBudget{entries: 400_000, deadline: time.Now().Add(8 * time.Second)}
 }
 
 func (b *measureBudget) spend() bool {

@@ -76,7 +76,15 @@ func TestServiceReapExpiresRunningSessionAndRecordsFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session.Status = StatusRunning
+	if err := session.TransitionStatus(StatusStarting); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.store.(*FileStore).SaveSession(session); err != nil {
+		t.Fatal(err)
+	}
+	if err := session.TransitionStatus(StatusRunning); err != nil {
+		t.Fatal(err)
+	}
 	session.RunID = "run-stale"
 	session.UpdatedAt = "2026-08-30T10:00:00Z"
 	if err := svc.store.(*FileStore).SaveSession(session); err != nil {
@@ -918,6 +926,24 @@ func TestServiceRefreshAndCancelUpdateLifecycle(t *testing.T) {
 	}
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("status after cancel = %q, want canceled", canceled.Status)
+	}
+}
+
+func TestServiceRefreshDoesNotOverwriteProposalReviewStatus(t *testing.T) {
+	spawner := &fakeSessionSpawner{runState: agentmanager.RunState{Status: "complete"}}
+	svc := newTestService(t, spawner)
+	session := createStartedSession(t, svc, KindMetaOrchestration, "Plan", "Plan.")
+	if _, err := svc.RecordProposal(context.Background(), session.ID, Proposal{
+		Kind: ProposalBacklogBatchImport, Status: ProposalStatusReady, Summary: "Review items", PayloadJSON: `{"items":[]}`,
+	}); err != nil {
+		t.Fatalf("RecordProposal() error = %v", err)
+	}
+	refreshed, err := svc.Refresh(context.Background(), session.ID)
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if refreshed.Status != StatusProposalReady {
+		t.Fatalf("status after stale completed run refresh = %q, want proposal_ready", refreshed.Status)
 	}
 }
 

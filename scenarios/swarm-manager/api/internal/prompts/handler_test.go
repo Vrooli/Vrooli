@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
+
+	"github.com/gorilla/mux"
 )
 
 // slowSkillClient answers each skill read after a fixed delay and records the
@@ -44,10 +47,6 @@ func (errStatus404) Error() string { return "prompt-manager returned status 404"
 
 func (c *slowSkillClient) ReadSkill(context.Context, string, map[string]string, bool) (string, error) {
 	return "", nil
-}
-
-func (c *slowSkillClient) ReadSkillWithExperiment(context.Context, string, map[string]string, bool, string) (promptmanager.ReadSkillResult, error) {
-	return promptmanager.ReadSkillResult{}, nil
 }
 
 func (c *slowSkillClient) ListSkills(context.Context, string) ([]promptmanager.PromptSkill, error) {
@@ -126,5 +125,20 @@ func TestListSkillsSurfacesAFailedRead(t *testing.T) {
 
 	if recorder.Code == http.StatusOK {
 		t.Fatalf("a failed skill read produced a 200 response: %s", recorder.Body.String())
+	}
+}
+
+func TestExperimentResultsRouteAnswersRetiredNotFound(t *testing.T) {
+	router := mux.NewRouter()
+	NewHandler(t.TempDir(), &promptmanager.MockClient{}).RegisterRoutes(router)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/prompts/experiments/exp-1/results", nil))
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "retired") {
+		t.Fatalf("body %q does not say experiments are retired", recorder.Body.String())
 	}
 }

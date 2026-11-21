@@ -108,14 +108,20 @@ func (s *Service) emitProposalDecisionRequested(ctx context.Context, sessionID s
 			"session", sessionID, "proposal", proposal.ID, "err", err)
 		return &publication
 	}
-	publication.State = ProposalDecisionPublicationPublished
+	if err := publication.TransitionState(ProposalDecisionPublicationPublished); err != nil {
+		slog.Warn("agentsessions: invalid proposal decision publication transition", "session", sessionID, "proposal", proposal.ID, "err", err)
+		return &publication
+	}
 	publication.PublishedAt = nowRFC3339()
 	publication.LastError = ""
 	recorded, receiptErr := receipts.UpdateProposalDecisionPublication(sessionID, proposal.ID, publication.EventID, publication)
 	if receiptErr != nil || !recorded {
 		slog.Warn("agentsessions: proposal decision published receipt failed", "session", sessionID, "proposal", proposal.ID, "err", receiptErr)
-		publication.State = ProposalDecisionPublicationPending
-		publication.PublishedAt = ""
+		// The in-memory view is only a projection for the caller. The persisted
+		// owner rejected the receipt, so retain pending recovery semantics here.
+		publication = *proposal.DecisionPublication
+		publication.Attempts++
+		publication.LastAttemptAt = nowRFC3339()
 		publication.LastError = "event publish succeeded but the durable success receipt was not confirmed"
 	}
 	return &publication
@@ -172,18 +178,19 @@ func (s *Service) proposalDecisionEvent(ctx context.Context, sessionID string, p
 	}
 	contextURL := proposalDecisionContextURL(ctx, s.proposalNoticeBaseResolver, sessionID)
 	mutations, mutationErr := decodeProposalMutations(proposal.PayloadJSON)
+	cover := newProposalCover(proposal, target, mutations, mutationErr)
 	facts := operatordecision.Facts{
-		Subject:          "Mutation proposal for " + target + " needs review",
-		Question:         proposalDecisionQuestion(mutations, target),
-		BigPicture:       proposalDecisionBigPicture(mutations, target, mutationErr),
-		TechnicalDetails: proposalDecisionTechnicalDetails(proposal, target, contextURL, mutations, mutationErr),
-		ContextURL:       contextURL,
-		Options: []operatordecision.Option{
-			{Key: "approve", Label: "Apply the proposed mutations"},
-			{Key: "reject", Label: "Reject & discard"},
-			{Key: "request_changes", Label: "Request changes"},
-		},
-		Recommended: "approve",
+		Subject:              cover.subject,
+		Question:             cover.question,
+		BigPicture:           cover.bigPicture,
+		TechnicalDetails:     proposalDecisionTechnicalDetails(proposal, target, contextURL, mutations, mutationErr),
+		ContextURL:           contextURL,
+		Options:              cover.options,
+		Recommended:          "approve",
+		RecommendationReason: cover.reason,
+		// One open decision per proposal: the hub keeps at most one, and the
+		// reconciler withdraws it when the proposal leaves review.
+		SubjectKey: proposalDecisionSubjectKey(sessionID, proposal.ID),
 		// reversible=true: a rejected or revised proposal can be re-raised, and the
 		// graph change is itself a reviewable mutation. No DefaultAnswer is set, so
 		// nothing is applied without an explicit operator answer.
@@ -192,6 +199,7 @@ func (s *Service) proposalDecisionEvent(ctx context.Context, sessionID string, p
 		Note:        proposalDecisionNote(proposal),
 		Correlation: proposalDecisionCorrelation(sessionID, proposal),
 	}
+	facts.Explainer = cover.page(facts, proposal, mutations)
 
 	return operatordecision.BuildEvent(ProposalDecisionSource, ProposalDecisionKind, occurred, facts)
 }
@@ -229,31 +237,6 @@ func proposalDecisionCorrelation(sessionID string, proposal Proposal) map[string
 		"proposal_id":   strings.TrimSpace(proposal.ID),
 		"proposal_kind": string(proposal.Kind),
 	}
-}
-
-// proposalDecisionQuestion renders the operator prompt: the target, a mutation
-// count, and a short per-mutation line (op + target + rationale) for each
-// candidate mutation, bounded so the prompt stays within the Facts question
-// limit. A no-mutation (keep-as-is) envelope never reaches here — it raises no
-// decision — so an empty mutation list is only a defensive case.
-func proposalDecisionQuestion(mutations []mutationSummary, target string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Apply %s to %s?", pluralizeMutations(len(mutations)), target)
-	for i, mutation := range mutations {
-		line := mutationSummaryLine(mutation)
-		if line == "" {
-			continue
-		}
-		// Keep the prompt inside operatordecision.MaxQuestion; truncate the list
-		// rather than overflow. The full payload is on the review surface.
-		if b.Len()+len(line)+2 > operatordecision.MaxQuestion-20 {
-			fmt.Fprintf(&b, "\n…and %d more.", len(mutations)-i)
-			break
-		}
-		b.WriteString("\n- ")
-		b.WriteString(line)
-	}
-	return b.String()
 }
 
 // mutationSummary mirrors only the operator-relevant proposal fields and keeps
@@ -304,33 +287,6 @@ func mutationSummaryLine(mutation mutationSummary) string {
 		parts = append(parts, "— "+rationale)
 	}
 	return strings.Join(parts, " ")
-}
-
-func proposalDecisionBigPicture(mutations []mutationSummary, target string, parseErr error) string {
-	if parseErr == nil && len(mutations) > 0 {
-		addItems := 0
-		allAddItems := true
-		for _, mutation := range mutations {
-			if strings.EqualFold(strings.TrimSpace(mutation.Op), "add_item") {
-				addItems++
-			} else {
-				allAddItems = false
-			}
-		}
-		if allAddItems {
-			itemLabel := "backlog items"
-			if addItems == 1 {
-				itemLabel = "backlog item"
-			}
-			return truncateRunes(fmt.Sprintf("Approving records %d proposed %s under %s for later implementation; it does not implement that work.", addItems, itemLabel, target), operatordecision.MaxBigPictureCodePoints)
-		}
-		changeLabel := "changes"
-		if len(mutations) == 1 {
-			changeLabel = "change"
-		}
-		return truncateRunes(fmt.Sprintf("Approving applies %d listed %s to %s; see technical details for their specific effects.", len(mutations), changeLabel, target), operatordecision.MaxBigPictureCodePoints)
-	}
-	return truncateRunes(fmt.Sprintf("Review the proposed changes to %s. The exact effects are listed in the technical details.", target), operatordecision.MaxBigPictureCodePoints)
 }
 
 func proposalDecisionTechnicalDetails(proposal Proposal, target, contextURL string, mutations []mutationSummary, parseErr error) string {
@@ -418,13 +374,6 @@ func proposalDecisionNote(proposal Proposal) string {
 		note = note + "; " + reason
 	}
 	return note
-}
-
-func pluralizeMutations(n int) string {
-	if n == 1 {
-		return "1 mutation"
-	}
-	return fmt.Sprintf("%d mutations", n)
 }
 
 // ProposalDecisionEffect applies a notification-hub ask resolution that answers a

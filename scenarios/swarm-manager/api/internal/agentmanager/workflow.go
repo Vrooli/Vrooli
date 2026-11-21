@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"net/http"
-	"net/url"
 	"time"
 
+	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/proto"
 )
 
 type WorkflowStart struct {
@@ -166,81 +164,52 @@ func NewWorkflowServiceWithClient(client *HTTPClient) *WorkflowService {
 }
 
 func (c *HTTPClient) StartWorkflowExecution(ctx context.Context, req *apipb.StartWorkflowExecutionRequest) (*apipb.WorkflowExecutionResponse, error) {
-	return c.workflowPost(ctx, "/api/v1/workflow-executions", req)
+	a, err := c.connectClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := a.StartWorkflowExecution(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return v.Msg, nil
 }
 
 // WaitWorkflowExecution long-polls agent-manager until the execution is
 // terminal or timeoutSeconds elapses server-side. Canceling this call (ctx) or
 // the wait timing out never cancels the execution.
 func (c *HTTPClient) WaitWorkflowExecution(ctx context.Context, executionID string, timeoutSeconds int32) (*apipb.WaitWorkflowExecutionResponse, error) {
-	req := &apipb.WaitWorkflowExecutionRequest{ExecutionId: executionID, TimeoutSeconds: timeoutSeconds}
-	body, err := protoJSONMarshal.Marshal(req)
+	a, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/wait", body)
+	v, err := a.WaitWorkflowExecution(ctx, connect.NewRequest(&apipb.WaitWorkflowExecutionRequest{ExecutionId: executionID, TimeoutSeconds: timeoutSeconds}))
 	if err != nil {
-		return nil, err
+		return nil, connectError(err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.WaitWorkflowExecutionResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
 
 func (c *HTTPClient) GetWorkflowExecutionResult(ctx context.Context, executionID string) (*apipb.WorkflowExecutionResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/result?explicitly_authorized=true", nil)
+	a, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
+	v, err := a.GetWorkflowExecutionResult(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionResultRequest{ExecutionId: executionID, ExplicitlyAuthorized: true}))
+	if err != nil {
+		return nil, connectError(err)
 	}
-	var result apipb.WorkflowExecutionResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
 
 func (c *HTTPClient) GetWorkflowExecutionTrace(ctx context.Context, executionID string) (*apipb.GetWorkflowExecutionTraceResponse, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/workflow-executions/"+url.PathEscape(executionID)+"/trace", nil)
+	a, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.GetWorkflowExecutionTraceResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-func (c *HTTPClient) workflowPost(ctx context.Context, path string, req proto.Message) (*apipb.WorkflowExecutionResponse, error) {
-	body, err := protoJSONMarshal.Marshal(req)
+	v, err := a.GetWorkflowExecutionTrace(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionTraceRequest{ExecutionId: executionID}))
 	if err != nil {
-		return nil, err
+		return nil, connectError(err)
 	}
-	resp, err := c.doRequest(ctx, http.MethodPost, path, body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.WorkflowExecutionResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }

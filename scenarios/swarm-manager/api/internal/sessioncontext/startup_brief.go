@@ -346,7 +346,7 @@ func (r *Resolver) portfolioStartupBrief(limits agentsessions.ContextLimits) (ag
 	}
 	goalStatusCounts := map[string]int{}
 	for _, item := range goalList {
-		goalStatusCounts[item.Goal.Status]++
+		goalStatusCounts[string(item.Goal.Status)]++
 	}
 
 	sort.Slice(goalList, func(i, j int) bool {
@@ -538,7 +538,7 @@ func (r *Resolver) systemGoalCandidates() ([]goals.Goal, error) {
 	}
 	var candidates []goals.Goal
 	for _, entry := range goalList {
-		if entry.Goal.Status == "archived" {
+		if entry.Goal.Status == goals.StatusArchived {
 			continue
 		}
 		if strings.HasPrefix(entry.Goal.Name, "swarm-manager-") {

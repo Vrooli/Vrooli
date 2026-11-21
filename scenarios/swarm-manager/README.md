@@ -169,11 +169,11 @@ its panel) is retired; see
 [Retired route: contract-development](docs/concepts/ARCHITECTURE.md#retired-route-contract-development)
 for what still exists in code today.
 
-Implementation status (2026-09-11): the CLI and API still spell the mode as
-`execution_strategy` with three values, and there is no `operator_note` field;
-the operator note travels in the description for now. The mapping to the two
-modes lives in
-[SCENARIO_DEVELOPMENT.md](../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+Implementation status (2026-11-16): Swarm persists `execution_mode` (`sliced`
+or `goal`) and `operator_note` on plan-backed items. `sliced` is the default;
+`goal` starts one Agent Manager goal run. Plan Manager's `shape` field remains
+unimplemented, so current plans are phased. See the current
+[implementation status](../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ```bash
 swarm-manager backlog list --kind idea,research,fix,execute

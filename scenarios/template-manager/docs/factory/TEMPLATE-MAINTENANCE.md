@@ -249,8 +249,8 @@ if yes-and-it-requires-edits-not-just-additions, it is major.
 The changelog entry format is documented at the top of `CHANGELOG.md`.
 Each entry's **Migration** block is the single most important section —
 it must be a concrete, verifiable checklist that points at the skill
-that owns each detail (e.g. screaming-architecture-audit,
-temporal-flow-audit). The changelog routes; the skills authoritatively
+that owns each detail (e.g. architecture-lenses,
+resilience-lenses). The changelog routes; the skills authoritatively
 describe.
 
 If you are uncertain whether your change qualifies, default to writing

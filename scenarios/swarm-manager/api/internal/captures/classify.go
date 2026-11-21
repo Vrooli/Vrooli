@@ -49,19 +49,29 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cap.Status, cap.FailureReason = "classifying", ""
+	if err := cap.TransitionStatus(CaptureStatusClassifying); err != nil {
+		apierr.MapError(w, "[captures] classify", apierr.Conflict("capture cannot be classified from its current status"))
+		return
+	}
+	cap.FailureReason = ""
 	if err := h.writeCapture(cap); err != nil {
 		apierr.MapError(w, "[captures] classify", apierr.Internal("failed to update capture"))
 		return
 	}
 	if h.transitionRunner == nil {
+		if err := h.failCapture(cap, FailDependencyUnavailable); err != nil {
+			apierr.MapError(w, "[captures] classify", apierr.Internal("failed to record classification unavailability"))
+			return
+		}
 		apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available — try again once it's running"))
 		return
 	}
 	correlation, err := h.transitionRunner.Start(r.Context(), "capture.classify", cap.ID)
 	if err != nil {
-		cap.Status, cap.FailureReason = "failed", classifyFailureReason(err)
-		_ = h.writeCapture(cap)
+		if writeErr := h.failCapture(cap, classifyFailureReason(err)); writeErr != nil {
+			apierr.MapError(w, "[captures] classify", apierr.Internal("failed to record classification failure"))
+			return
+		}
 		if errors.Is(err, agentmanager.ErrNotAvailable) {
 			apierr.MapError(w, "[captures] classify", apierr.Unavailable("agent-manager is not available — try again once it's running"))
 			return

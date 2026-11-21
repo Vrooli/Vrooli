@@ -59,8 +59,14 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 			continue
 		}
 		previous := round.Status
-		*round = finalizeRoundFromRunState(*round, state)
-		_ = saveRound(itemDir, *round)
+		updated, transitionErr := finalizeRoundFromRunState(*round, state)
+		if transitionErr != nil {
+			return rounds, fmt.Errorf("finalize review round %d: %w", round.RoundNum, transitionErr)
+		}
+		*round = updated
+		if err := saveRound(itemDir, *round); err != nil {
+			return rounds, fmt.Errorf("persist finalized review round %d: %w", round.RoundNum, err)
+		}
 		// Emit exactly once per transition. Reaching here requires the prior
 		// status to be gathering, and the guard above skips this block on every
 		// later poll, so a terminal round is never re-announced.
@@ -152,7 +158,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 	thread := RequestThread{
 		ID:         threadID,
 		EvidenceID: evidenceID,
-		Status:     "pending",
+		Status:     RequestThreadStatusPending,
 		Messages: []RequestMessage{
 			{
 				Role:      "user",
@@ -241,7 +247,10 @@ func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name s
 		if err != nil {
 			return Round{}, false, fmt.Errorf("find evidence-request transition correlation: %w", err)
 		}
-		alreadyApplied := thread.Status != "pending"
+		if err := thread.ValidateStatus(); err != nil {
+			return Round{}, false, err
+		}
+		alreadyApplied := !thread.IsPending()
 		if _, err := s.transitionRunner.ApplyExecution(ctx, correlation.ExecutionID); err != nil {
 			return Round{}, false, err
 		}
@@ -298,7 +307,9 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 	found := false
 	for i := range round.RequestThreads {
 		if round.RequestThreads[i].ID == threadID {
-			round.RequestThreads[i].Status = "dismissed"
+			if err := round.RequestThreads[i].TransitionStatus(RequestThreadStatusDismissed); err != nil {
+				return err
+			}
 			found = true
 			break
 		}

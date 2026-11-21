@@ -191,14 +191,28 @@ func (s *Service) StartReview(ctx context.Context, id string) (Session, ReviewRu
 		return Session{}, ReviewRun{}, err
 	}
 	if version != session.SubjectVersion || hash != session.PlanContentHash {
-		return session, ReviewRun{State: ReviewStale, Error: "subject or canonical plan changed; reopen the Plan Workshop before reviewing"}, nil
+		stale := ReviewRun{State: ReviewPending, Error: "subject or canonical plan changed; reopen the Plan Workshop before reviewing"}
+		if err := stale.Transition(ReviewStale); err != nil {
+			return Session{}, ReviewRun{}, err
+		}
+		return session, stale, nil
 	}
 	if s.startReview == nil {
 		return Session{}, ReviewRun{}, fmt.Errorf("plan workshop review is not configured")
 	}
 	// Durable pending state prevents a transport retry from creating a second
 	// workflow. The starter uses the workshop ID and version as its own key.
-	pending := ReviewRun{State: ReviewPending}
+	pending := ReviewRun{}
+	if session.Review != nil {
+		pending = *session.Review
+	}
+	if err := pending.Transition(ReviewPending); err != nil {
+		return Session{}, ReviewRun{}, err
+	}
+	pending.Workflow = WorkflowProvenance{}
+	pending.AgentSessionID = ""
+	pending.Error = ""
+	pending.AppliedAt = ""
 	session.Review = &pending
 	session.UpdatedAt = s.now().UTC().Format(time.RFC3339Nano)
 	if err := s.store.Save(session); err != nil {
@@ -206,7 +220,10 @@ func (s *Service) StartReview(ctx context.Context, id string) (Session, ReviewRu
 	}
 	workflow, err := s.startReview(ctx, session)
 	if err != nil {
-		pending.State, pending.Error = ReviewFailed, err.Error()
+		if transitionErr := pending.Transition(ReviewFailed); transitionErr != nil {
+			return Session{}, ReviewRun{}, transitionErr
+		}
+		pending.Error = err.Error()
 		session.Review = &pending
 		session.UpdatedAt = s.now().UTC().Format(time.RFC3339Nano)
 		if saveErr := s.store.Save(session); saveErr != nil {
@@ -214,7 +231,11 @@ func (s *Service) StartReview(ctx context.Context, id string) (Session, ReviewRu
 		}
 		return session, pending, nil
 	}
-	run := ReviewRun{State: ReviewRunning, Workflow: workflow}
+	run := pending
+	if err := run.Transition(ReviewRunning); err != nil {
+		return Session{}, ReviewRun{}, err
+	}
+	run.Workflow = workflow
 	session.Review = &run
 	session.UpdatedAt = s.now().UTC().Format(time.RFC3339Nano)
 	if err := s.store.Save(session); err != nil {
@@ -258,7 +279,9 @@ func (s *Service) ApplyReview(ctx context.Context, id string) (Session, ReviewRu
 		return Session{}, ReviewRun{}, err
 	}
 	if version != session.SubjectVersion || hash != session.PlanContentHash {
-		session.Review.State = ReviewStale
+		if err := session.Review.Transition(ReviewStale); err != nil {
+			return Session{}, ReviewRun{}, err
+		}
 		session.Review.Error = "subject or canonical plan changed while review was running"
 		session.UpdatedAt = s.now().UTC().Format(time.RFC3339Nano)
 		if err := s.store.Save(session); err != nil {
@@ -295,7 +318,10 @@ func (s *Service) ApplyReviewResult(ctx context.Context, id string, result Revie
 		return Session{}, ReviewRun{}, err
 	}
 	if version != session.SubjectVersion || hash != session.PlanContentHash {
-		session.Review.State, session.Review.Error, session.UpdatedAt = ReviewStale, "subject or canonical plan changed while review was running", s.now().UTC().Format(time.RFC3339Nano)
+		if err := session.Review.Transition(ReviewStale); err != nil {
+			return Session{}, ReviewRun{}, err
+		}
+		session.Review.Error, session.UpdatedAt = "subject or canonical plan changed while review was running", s.now().UTC().Format(time.RFC3339Nano)
 		if err := s.store.Save(session); err != nil {
 			return Session{}, ReviewRun{}, err
 		}
@@ -322,7 +348,10 @@ func (s *Service) ApplyReviewResult(ctx context.Context, id string, result Revie
 	now := s.now().UTC().Format(time.RFC3339Nano)
 	session.Packet = packet
 	session.PacketHistory = append(session.PacketHistory, ReviewPacketVersion{ID: packetID(session.ID, len(session.PacketHistory)+1), SubjectVersion: session.SubjectVersion, PlanContentHash: session.PlanContentHash, CreatedAt: now, Packet: packet})
-	session.Review.State, session.Review.AppliedAt, session.Review.Error = ReviewApplied, now, ""
+	if err := session.Review.Transition(ReviewApplied); err != nil {
+		return Session{}, ReviewRun{}, err
+	}
+	session.Review.AppliedAt, session.Review.Error = now, ""
 	session.UpdatedAt = now
 	if err := s.store.Save(session); err != nil {
 		return Session{}, ReviewRun{}, err

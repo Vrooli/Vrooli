@@ -10,6 +10,7 @@ package review
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"swarm-manager/internal/attempt"
 )
@@ -35,6 +36,38 @@ const (
 	RoundStatusComplete  RoundStatus = "complete"
 	RoundStatusFailed    RoundStatus = "failed"
 )
+
+var roundStatusTransitions = map[RoundStatus]map[RoundStatus]struct{}{
+	RoundStatusPending:   roundStatusEdges(RoundStatusGathering, RoundStatusFailed),
+	RoundStatusGathering: roundStatusEdges(RoundStatusComplete, RoundStatusFailed),
+	RoundStatusComplete:  roundStatusEdges(RoundStatusFailed), // invalid completed evidence is downgraded during normalization
+	RoundStatusFailed:    roundStatusEdges(),
+}
+
+func roundStatusEdges(next ...RoundStatus) map[RoundStatus]struct{} {
+	edges := make(map[RoundStatus]struct{}, len(next))
+	for _, status := range next {
+		edges[status] = struct{}{}
+	}
+	return edges
+}
+
+// IsKnownRoundStatus reports whether status belongs to the persisted review
+// round lifecycle.
+func IsKnownRoundStatus(status RoundStatus) bool {
+	_, ok := roundStatusTransitions[status]
+	return ok
+}
+
+// InvalidRoundTransitionError identifies a rejected review round lifecycle edge.
+type InvalidRoundTransitionError struct {
+	From RoundStatus
+	To   RoundStatus
+}
+
+func (e *InvalidRoundTransitionError) Error() string {
+	return fmt.Sprintf("illegal review round status transition %q -> %q", e.From, e.To)
+}
 
 // Round captures one pass of evidence gathering by the review agent.
 type Round struct {
@@ -69,6 +102,24 @@ type Round struct {
 	// It is populated at read time so the UI can distinguish "still gathering"
 	// from "waiting in needs_review for manual approval".
 	CurrentRunStatus string `json:"current_run_status,omitempty"`
+}
+
+// TransitionStatus is the single mutation owner for a persisted review round.
+func (r *Round) TransitionStatus(next RoundStatus) error {
+	if r == nil {
+		return &InvalidRoundTransitionError{To: next}
+	}
+	if !IsKnownRoundStatus(r.Status) || !IsKnownRoundStatus(next) {
+		return &InvalidRoundTransitionError{From: r.Status, To: next}
+	}
+	if r.Status == next {
+		return nil
+	}
+	if _, ok := roundStatusTransitions[r.Status][next]; !ok {
+		return &InvalidRoundTransitionError{From: r.Status, To: next}
+	}
+	r.Status = next
+	return nil
 }
 
 func (r Round) RoundNumber() int { return r.RoundNum }
@@ -141,11 +192,11 @@ type EvidenceTestResult struct {
 
 // RequestThread is a multi-turn conversation about needing more evidence.
 type RequestThread struct {
-	ID         string           `json:"id"`
-	EvidenceID string           `json:"evidence_id,omitempty"`
-	Status     string           `json:"status"` // pending, fulfilled, dismissed
-	Messages   []RequestMessage `json:"messages"`
-	CreatedAt  string           `json:"created_at"`
+	ID         string              `json:"id"`
+	EvidenceID string              `json:"evidence_id,omitempty"`
+	Status     RequestThreadStatus `json:"status"`
+	Messages   []RequestMessage    `json:"messages"`
+	CreatedAt  string              `json:"created_at"`
 	// RunID is the agent-manager run ID for the targeted evidence request.
 	RunID string `json:"run_id,omitempty"`
 }

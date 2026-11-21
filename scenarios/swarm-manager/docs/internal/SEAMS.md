@@ -10,7 +10,15 @@ append-only execution journal.
 
 The only Swarm-to-Agent-Manager programmatic boundary is
 `internal/transitionrunner`, which owns the `internal/agentmanager.WorkflowService`
-transport. Workflow choice is declared in
+transport. Every application request from the Swarm API uses the generated
+`AgentManagerService` Connect client and protobuf messages, including profile
+reconciliation reads, run creation/control and the workflow lifecycle. CreateRun
+authorization remains an owneridentity precondition; its proof is carried only
+in request headers, and typed `AuthorizationApprovalPending` details remain a
+typed caller error. Start reconciliation uses the exact indexed idempotency-key
+filter; the owner applies that filter before list pagination. `GET /health` is
+the sole REST exception because it is the lifecycle health probe. UI links to
+Agent Manager are navigation, not API calls. Workflow choice is declared in
 [the transition registry](../../.vrooli/swarm-transitions/registry.json); the
 registry selects `session`, `workflow`, or `deterministic` behavior and
 cannot contain prompts or execution mechanics. Its declared workflow and

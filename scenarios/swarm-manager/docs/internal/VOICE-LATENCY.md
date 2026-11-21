@@ -5,7 +5,6 @@ input stack. The voice code under `ui/src/audio-integration/hooks/**` carries
 `// DOC:` markers pointing at the section anchors below; this document is the
 target those markers reference.
 
-## Purpose Of This Document
 
 Pressing the mic button and starting to speak should feel instantaneous. A
 naive implementation pays several serial costs on the critical start path:

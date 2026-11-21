@@ -59,7 +59,9 @@ func (s *Service) RecordWorkflowMutationProposals(ctx context.Context, title, su
 	if err != nil {
 		return Session{}, nil, err
 	}
-	session.Status = StatusProposalReady
+	if err := session.TransitionStatus(StatusProposalReady); err != nil {
+		return Session{}, nil, err
+	}
 	session.UpdatedAt = nowRFC3339()
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
@@ -113,7 +115,9 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 		return Session{}, nil, err
 	}
 
-	session.Status = StatusApplying
+	if err := session.TransitionStatus(StatusApplying); err != nil {
+		return Session{}, nil, err
+	}
 	session.UpdatedAt = nowRFC3339()
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
@@ -125,9 +129,13 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 		return Session{}, nil, err
 	}
 
-	proposal.Status = ProposalStatusApplied
+	if err := proposal.TransitionStatus(ProposalStatusApplied); err != nil {
+		return Session{}, nil, err
+	}
 	proposal.UpdatedAt = nowRFC3339()
-	session.Status = StatusWaitingForUser
+	if err := session.TransitionStatus(StatusWaitingForUser); err != nil {
+		return Session{}, nil, err
+	}
 	session.FailureReason = ""
 	session.UpdatedAt = proposal.UpdatedAt
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
@@ -308,9 +316,13 @@ func splitDeclaredSubjectRef(subjectRef, declaredSubject string) (string, bool) 
 // proposal_ready, best-effort persisting both, and returns applyErr unchanged so
 // callers can `return ..., s.failProposalApply(...)`.
 func (s *Service) failProposalApply(ctx context.Context, session *Session, proposal *Proposal, applyErr error) error {
-	proposal.Status = ProposalStatusFailed
+	if err := proposal.TransitionStatus(ProposalStatusFailed); err != nil {
+		return err
+	}
 	proposal.UpdatedAt = nowRFC3339()
-	session.Status = StatusProposalReady
+	if err := session.TransitionStatus(StatusProposalReady); err != nil {
+		return err
+	}
 	session.FailureReason = applyErr.Error()
 	session.UpdatedAt = proposal.UpdatedAt
 	if err := s.saveProposal(ctx, session.ID, *proposal); err != nil {

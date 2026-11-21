@@ -266,7 +266,9 @@ func (r *Runner) bindDispatch(intent transitionrun.DispatchIntent, correlation t
 		return transitionrun.Correlation{}, err
 	}
 	intent.Correlation = correlation
-	intent.State, intent.LastError = "acknowledged", ""
+	if err := intent.Advance(transitionrun.DispatchAcknowledged, ""); err != nil {
+		return transitionrun.Correlation{}, err
+	}
 	if err := r.store.(transitionrun.DispatchStore).PutDispatch(intent); err != nil {
 		return transitionrun.Correlation{}, err
 	}
@@ -289,7 +291,9 @@ func (r *Runner) RecoverDispatches(ctx context.Context) error {
 			return ctx.Err()
 		}
 		if _, err := r.ResolveDispatch(ctx, intent.Correlation.TransitionKey, intent.Correlation.SubjectRef); err != nil {
-			intent.State, intent.LastError = "unknown", err.Error()
+			if advanceErr := intent.Advance(transitionrun.DispatchUnknown, err.Error()); advanceErr != nil {
+				return advanceErr
+			}
 			if err := store.PutDispatch(intent); err != nil {
 				return err
 			}
@@ -429,7 +433,7 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 		if !ok {
 			return transitionrun.Correlation{}, fmt.Errorf("ordinary execution requires durable dispatch intent storage")
 		}
-		intent := transitionrun.DispatchIntent{State: "submitting", Correlation: transitionrun.Correlation{TransitionKey: definition.Key, SubjectKind: definition.Subject, SubjectRef: subjectRef, WorkflowKey: workflow.Key, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest, ApplyState: transitionrun.ApplyStateClaimed, DeclaredOutcomes: append([]string(nil), definition.TerminalOutcomes...)}, Owner: workflow.Owner, IdempotencyKey: idempotencyKey, InputDigest: workflowInputDigest(prepared.Input), ApprovalDigest: invocation.ApprovalDigest, GrantDigest: invocation.GrantDigest, Grant: prepared.Grant, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		intent := transitionrun.DispatchIntent{State: transitionrun.DispatchSubmitting, Correlation: transitionrun.Correlation{TransitionKey: definition.Key, SubjectKind: definition.Subject, SubjectRef: subjectRef, WorkflowKey: workflow.Key, EntityVersion: prepared.EntityVersion, FrontierDigest: prepared.FrontierDigest, ApplyState: transitionrun.ApplyStateClaimed, DeclaredOutcomes: append([]string(nil), definition.TerminalOutcomes...)}, Owner: workflow.Owner, IdempotencyKey: idempotencyKey, InputDigest: workflowInputDigest(prepared.Input), ApprovalDigest: invocation.ApprovalDigest, GrantDigest: invocation.GrantDigest, Grant: prepared.Grant, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 		if existing, err := store.GetDispatch(definition.Key, subjectRef); err == nil {
 			if existing.IdempotencyKey != intent.IdempotencyKey || existing.InputDigest != intent.InputDigest || existing.Owner != intent.Owner || existing.Correlation.WorkflowKey != intent.Correlation.WorkflowKey || existing.Correlation.EntityVersion != intent.Correlation.EntityVersion || existing.Correlation.FrontierDigest != intent.Correlation.FrontierDigest || existing.ApprovalDigest != intent.ApprovalDigest || existing.GrantDigest != intent.GrantDigest {
 				return transitionrun.Correlation{}, fmt.Errorf("execution already has a different immutable dispatch intent")
@@ -455,7 +459,9 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 	}
 	if err != nil {
 		if dispatch != nil {
-			dispatch.State, dispatch.LastError = "unknown", err.Error()
+			if advanceErr := dispatch.Advance(transitionrun.DispatchUnknown, err.Error()); advanceErr != nil {
+				return transitionrun.Correlation{}, errors.Join(err, advanceErr)
+			}
 			if saveErr := r.store.(transitionrun.DispatchStore).PutDispatch(*dispatch); saveErr != nil {
 				return transitionrun.Correlation{}, errors.Join(err, saveErr)
 			}

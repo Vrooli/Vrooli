@@ -91,7 +91,7 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 
 const BACKLOG_STATUSES = ["suggested", "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
-const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
+const CAPTURE_STATUSES = ["classifying", "failed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;
 const EXECUTION_MODES = ["manual", "yolo"] as const;
 const SESSION_STATUSES = ["starting", "running", "waiting_for_user", "proposal_ready", "applying", "complete", "failed", "canceled"] as const;

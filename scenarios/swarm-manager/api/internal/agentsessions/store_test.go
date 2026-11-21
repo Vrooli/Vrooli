@@ -36,6 +36,55 @@ func TestFileStoreAcceptsRegistryDeclaredSessionKind(t *testing.T) {
 	}
 }
 
+func TestFileStoreRejectsIllegalSessionStatusWrite(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	session := validStoredSession("sess_invalid_status_edge")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	session.Status = StatusDraft // direct field assignment must not bypass the lifecycle owner
+	if err := store.SaveSession(session); !errors.Is(err, ErrValidation) {
+		t.Fatalf("SaveSession() error = %v, want ErrValidation", err)
+	}
+	stored, err := store.LoadSession(session.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if stored.Status != StatusRunning {
+		t.Fatalf("persisted status = %q, want unchanged running", stored.Status)
+	}
+}
+
+func TestFileStoreRejectsIllegalProposalStatusWriteWithoutMutation(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	session := validStoredSession("sess_invalid_proposal_edge")
+	if err := store.CreateSession(session); err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	proposal := validSession().Proposals[0]
+	proposal.ID = "prop_status_edge"
+	if err := store.SaveProposal(session.ID, proposal); err != nil {
+		t.Fatalf("SaveProposal(ready) error = %v", err)
+	}
+	if err := proposal.TransitionStatus(ProposalStatusApplied); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveProposal(session.ID, proposal); err != nil {
+		t.Fatalf("SaveProposal(applied) error = %v", err)
+	}
+	proposal.Status = ProposalStatusReady // bypass attempt must be rejected by the store owner
+	if err := store.SaveProposal(session.ID, proposal); !errors.Is(err, ErrValidation) {
+		t.Fatalf("SaveProposal(reopened) error = %v, want ErrValidation", err)
+	}
+	stored, err := store.LoadSession(session.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if len(stored.Proposals) != 1 || stored.Proposals[0].Status != ProposalStatusApplied {
+		t.Fatalf("stored proposal after rejected write = %+v", stored.Proposals)
+	}
+}
+
 func TestRoutedFileStoreUsesLeasedDataRoot(t *testing.T) {
 	primary := t.TempDir()
 	leased := t.TempDir()

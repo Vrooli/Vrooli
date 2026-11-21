@@ -10,6 +10,9 @@ import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
+import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { STTService, TranscribeStreamRequestSchema, type TranscribeStreamEvent, type TranscribeStreamRequest } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { openConnectVoiceStream, type VoiceConnectCodec, type VoiceStreamConnection, type VoiceStreamHandlers, type VoiceStreamStart } from "@vrooli/audio-capture-browser";
 import { API_BASE } from "../../lib/api-client";
 
 // Same-origin Connect-Web transport. Swarm-manager's AudioAdminService +
@@ -54,6 +57,60 @@ import type {
 // overlapCommitRuns) are the authoritative source for client-side VAD
 // timing — the mic-button ring and segment-boundary emission must derive
 // from vadSilenceMs, not from any local default.
+const sttClient = createConnectClient(STTService, transport);
+
+interface VoiceSegmentOrdinals { byID: Map<string, number>; next: number; }
+const voiceSegmentOrdinals = new Map<string, VoiceSegmentOrdinals>();
+const connectVoiceCodec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeStreamEvent> = {
+  start: (start) => create(TranscribeStreamRequestSchema, { payload: { case: "start", value: {
+    language: start.language,
+    initialPrompt: start.initialPrompt ?? "",
+    skipSpeakerVerification: start.skipSpeakerVerification ?? false,
+    inputFormat: AudioFormat.PCM_S16LE,
+    inputSampleRateHz: start.sampleRateHz,
+    protocolVersion: start.protocolVersion,
+    sessionId: start.sessionId,
+    generation: start.generation,
+    resumeToken: start.resumeToken,
+  } } }),
+  audio: (chunk) => create(TranscribeStreamRequestSchema, { payload: { case: "audioChunk", value: chunk } }),
+  end: () => create(TranscribeStreamRequestSchema, { payload: { case: "end", value: {} } }),
+  isStart: (request) => request.payload.case === "start",
+  event: (event, start) => {
+    const ordinalKey = `${start.sessionId}:${start.generation}`;
+    const ordinal = voiceSegmentOrdinals.get(ordinalKey) ?? { byID: new Map<string, number>(), next: 0 };
+    voiceSegmentOrdinals.set(ordinalKey, ordinal);
+    switch (event.event.case) {
+      case "partial": return { type: "partial", text: event.event.value.text };
+      case "segment": {
+        const segment = event.event.value;
+        const segmentId = segment.segmentId || `${segment.startSample}:${segment.endSample}`;
+        let segmentIndex = ordinal.byID.get(segmentId);
+        if (segmentIndex === undefined) { segmentIndex = ordinal.next++; ordinal.byID.set(segmentId, segmentIndex); }
+        return { type: "segment-final", text: segment.text, segmentId, segmentIndex, speakerPolicy: segment.speakerPolicy };
+      }
+      case "speakerRejection": return { type: "segment-rejected", score: event.event.value.score, threshold: event.event.value.threshold, segmentIndex: ordinal.next };
+      case "error": return { type: "error", code: event.event.value.code, text: event.event.value.message };
+      case "vadState": return { type: "vad-state", voiced: event.event.value.voiced, silenceElapsedMs: Number(event.event.value.silenceElapsedMs), silenceTimeoutMs: Number(event.event.value.silenceTimeoutMs), tickSeq: Number(event.event.value.tickSeq), silenceTimedOut: event.event.value.silenceTimedOut };
+      case "acknowledgement": {
+        const sequence = event.event.value.processedSequence;
+        return { type: "status", code: "processed_acknowledgement", ...(sequence >= 0n && sequence <= BigInt(Number.MAX_SAFE_INTEGER) ? { processedSequence: Number(sequence) } : {}) };
+      }
+      case "sessionStatus": return { type: "status", code: `session_${event.event.value.state}`, text: event.event.value.recoveryGuidance };
+      case "done": {
+        voiceSegmentOrdinals.delete(ordinalKey);
+        return { type: "final", text: event.event.value.finalText, providerId: event.event.value.providerId, modelId: event.event.value.modelId };
+      }
+      case "wakeWord": return null;
+      default: return null;
+    }
+  },
+};
+
+export function openVoiceStream(start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection {
+  return openConnectVoiceStream(sttClient, connectVoiceCodec, start, handlers);
+}
+
 export interface VoiceStreamConfig {
   flushIntervalMs: number;
   minDeltaBytes: number;
@@ -242,35 +299,6 @@ function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
     enrollment_audio_seconds: p.enrollmentAudioSeconds,
     notes: p.notes,
   };
-}
-
-function apiBaseToWsBase(apiBase: string): string {
-  // The scenario UI server owns the browser-side upgrade under `/ws`; it
-  // transforms the voice suffix to the API's `/api/v1/voice/stream` route.
-  // Keep this same-origin so hosted/proxied deployments do not need to expose
-  // the scenario API port to the browser.
-  const root = apiBase.replace(/\/+$/, "").replace(/\/api\/v\d+$/i, "");
-  if (root.startsWith("https://")) return `wss://${root.slice("https://".length)}`;
-  if (root.startsWith("http://")) return `ws://${root.slice("http://".length)}`;
-  return root;
-}
-
-/**
- * Build the WebSocket URL for voice streaming. Same-origin — points at
- * web-console's API, which proxies the upstream WebSocket to audio-tools
- * server-side (Phase E of the UI↔own-API migration).
- */
-export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
-  const wsBase = apiBaseToWsBase(API_BASE.replace(/\/$/, ""));
-  const url = `${wsBase}/ws/voice/stream`;
-  // Legacy callers keep WebM. The canonical PCM provider supplies a durable
-  // session identity and is therefore explicitly negotiated as protocol v2.
-  const params = new URLSearchParams({ format: sessionId ? "pcm_s16le" : "webm" });
-  if (language) params.set("language", language);
-  if (sessionId) params.set("protocol_version", "2");
-  if (sessionId) params.set("session_id", sessionId);
-  if (resumeToken) params.set("resume_token", resumeToken);
-  return `${url}?${params.toString()}`;
 }
 
 export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {

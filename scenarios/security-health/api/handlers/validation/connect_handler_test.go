@@ -2,10 +2,12 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"runtime"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -16,6 +18,12 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
+
+type snapshotSinkFunc func(context.Context, []byte) error
+
+func (f snapshotSinkFunc) PublishProviderSnapshot(ctx context.Context, data []byte) error {
+	return f(ctx, data)
+}
 
 type stubValidator struct {
 	report validation.Report
@@ -103,6 +111,49 @@ func TestValidateScenario_MapsReport(t *testing.T) {
 	}
 	if ma.GetFindings()[0].GetMaturity().GetGlobalImpact() != commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER {
 		t.Fatalf("finding maturity impact wrong: %+v", ma.GetFindings()[0].GetMaturity())
+	}
+}
+
+func TestValidateScenarioPublishesTheObservedReportBestEffort(t *testing.T) {
+	report := validation.Report{
+		Scenario:        "demo",
+		Findings:        []validation.Finding{{RuleID: "gitleaks.test", Severity: validation.SeverityError}},
+		SkippedScanners: []string{"osv-scanner"},
+		PolicyMode:      validation.RolloutGuided,
+	}
+	var published []byte
+	h := NewConnectHandler(Deps{
+		Validator:    stubValidator{report: report},
+		MaturitySpec: testMaturitySpec(),
+		PolicyPublisher: snapshotSinkFunc(func(_ context.Context, data []byte) error {
+			published = append([]byte(nil), data...)
+			return nil
+		}),
+	})
+	if _, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"})); err != nil {
+		t.Fatalf("validation failed after successful publication: %v", err)
+	}
+	var snapshot struct {
+		ProviderID string            `json:"provider_id"`
+		Evidence   string            `json:"evidence_state"`
+		CapturedAt time.Time         `json:"captured_at"`
+		Provenance map[string]string `json:"provenance"`
+	}
+	if err := json.Unmarshal(published, &snapshot); err != nil {
+		t.Fatalf("decode published snapshot: %v", err)
+	}
+	if snapshot.ProviderID != "security-health" || snapshot.Evidence != "unknown" || snapshot.CapturedAt.IsZero() || snapshot.Provenance["scenario"] != "demo" || snapshot.Provenance["finding_count"] != "1" {
+		t.Fatalf("published snapshot did not retain report evidence: %+v", snapshot)
+	}
+
+	h = NewConnectHandler(Deps{
+		Logger:          log.New(log.Writer(), "", 0),
+		Validator:       stubValidator{report: report},
+		MaturitySpec:    testMaturitySpec(),
+		PolicyPublisher: snapshotSinkFunc(func(context.Context, []byte) error { return errors.New("runner unavailable") }),
+	})
+	if _, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"})); err != nil {
+		t.Fatalf("publication outage changed validation result: %v", err)
 	}
 }
 

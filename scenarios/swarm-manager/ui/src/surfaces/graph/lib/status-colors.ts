@@ -77,7 +77,6 @@ const STATUS_TO_GROUP: Record<string, StatusGroup> = {
   // Done
   completed: "done",
   complete: "done",
-  classified: "done",
   // Error
   failed: "error",
   error: "error",
@@ -115,7 +114,7 @@ export const STATUS_GROUP_INFO: { group: StatusGroup; label: string; exampleStat
   { group: "neutral", label: "Pending", exampleStatuses: ["pending", "backlog", "stopped"], classes: STATUS_GROUP_COLORS.neutral },
   { group: "active", label: "Active", exampleStatuses: ["in_progress", "running", "starting"], classes: STATUS_GROUP_COLORS.active },
   { group: "waiting", label: "Waiting", exampleStatuses: ["queued", "needs_review", "ready"], classes: STATUS_GROUP_COLORS.waiting },
-  { group: "done", label: "Done", exampleStatuses: ["completed", "classified"], classes: STATUS_GROUP_COLORS.done },
+  { group: "done", label: "Done", exampleStatuses: ["completed"], classes: STATUS_GROUP_COLORS.done },
   { group: "error", label: "Error", exampleStatuses: ["failed", "error"], classes: STATUS_GROUP_COLORS.error },
   { group: "terminal", label: "Archived", exampleStatuses: ["archived", "cancelled"], classes: STATUS_GROUP_COLORS.terminal },
 ];

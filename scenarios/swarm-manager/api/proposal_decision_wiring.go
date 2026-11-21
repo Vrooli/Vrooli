@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -17,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/hubidentity"
 )
 
 const (
@@ -91,16 +90,28 @@ func (s *Server) wireProposalDecisionRail() {
 		return
 	}
 	effect := agentsessions.NewProposalDecisionEffect(s.attemptDecisions, s.agentSessionSvc)
-	s.router.Handle(decisionEventWebhookPath, operatordecision.Webhook(secret, effect)).Methods(http.MethodPost)
+	s.router.Handle(decisionEventWebhookPath, operatordecision.NewWebhook(hubidentity.WebhookConfig(operatordecision.WebhookConfig{
+		Secret: operatordecision.StaticSecret(secret), Source: agentsessions.ProposalDecisionSource,
+		Effects: []operatordecision.DomainEffect{effect},
+	}))).Methods(http.MethodPost)
 
 	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+			go func() {
+				select {
+				case <-s.proposalDecisionStop:
+					cancel()
+				case <-ctx.Done():
+				}
+			}()
 			target := "http://127.0.0.1:" + port + decisionEventWebhookPath
-			if err := reconcileDecisionEventSubscription(ctx, target); err != nil {
-				slog.Warn("proposal decision answer subscription reconciliation failed", "err", err)
-			}
+			eventbus.RunSubscriptionReconciler(ctx, eventbus.SubscriptionReconcilerConfig{
+				Interval: 30 * time.Second, AttemptTimeout: 15 * time.Second, Attempts: 1,
+			}, func(ctx context.Context) error { return reconcileDecisionEventSubscription(ctx, target) }, func(err error) {
+				slog.Warn("proposal decision answer subscription reconciliation failed; retry scheduled", "err", err)
+			})
 		}()
 	}
 }
@@ -114,73 +125,19 @@ func reconcileDecisionEventSubscription(ctx context.Context, target string) erro
 	if err != nil {
 		return err
 	}
-	base = strings.TrimRight(base, "/")
-	client := &http.Client{Timeout: 10 * time.Second}
-	const owner = "swarm-manager"
-	const name = "swarm-manager-decision-answers"
-	var existing []struct {
-		ID             int64  `json:"id"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner="+owner, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
-		return err
-	}
-	payload := map[string]any{"name": name, "owner_scenario": owner, "event_pattern": askResolvedEventPattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == askResolvedEventPattern {
-			return nil
-		}
-		if item.Enabled && item.DeliveryTarget == target {
-			return putDecisionSubscription(ctx, client, base, item.ID, body)
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", resp.Status)
-	}
-	return nil
+	return reconcileDecisionEventSubscriptionAt(ctx, base, target)
 }
 
-func putDecisionSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, id), bytes.NewReader(body))
+func reconcileDecisionEventSubscriptionAt(ctx context.Context, base, target string) error {
+	client, err := eventbus.NewSubscriptionClient(base, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
+	const owner = "swarm-manager"
+	const name = "swarm-manager-decision-answers"
+	payload := eventbus.Subscription{
+		Name: name, OwnerScenario: owner, EventPattern: askResolvedEventPattern,
+		DeliveryType: "webhook", DeliveryTarget: target, Enabled: true,
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("update event subscription returned %s", resp.Status)
-	}
-	return nil
+	return client.EnsureNamedSubscription(ctx, payload)
 }

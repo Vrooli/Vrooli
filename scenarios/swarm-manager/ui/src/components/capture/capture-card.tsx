@@ -53,8 +53,6 @@ export function CaptureCard({ capture }: CaptureCardProps) {
   const removeCapture = useCaptureStore((s) => s.removeCapture);
   const updateCapture = useCaptureStore((s) => s.updateCapture);
 
-  const items = capture.classification?.items ?? [];
-
   const handleDismissCapture = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
     await captureService.remove(capture.id);
@@ -66,7 +64,7 @@ export function CaptureCard({ capture }: CaptureCardProps) {
     setIsRetrying(true);
     try {
       await captureService.classify(capture.id);
-      updateCapture(capture.id, { status: "classifying", classification: null });
+      updateCapture(capture.id, { status: "classifying" });
     } catch {
       // Keep failed state.
     } finally {
@@ -76,9 +74,7 @@ export function CaptureCard({ capture }: CaptureCardProps) {
 
   const statusDotColor =
     capture.status === "classifying" ? "bg-cyan-400" :
-    capture.status === "failed" ? "bg-red-400" :
-    capture.status === "classified" && items.length > 0 ? "bg-emerald-400" :
-    "bg-slate-500";
+    "bg-red-400";
 
   return (
     <div data-testid={selectors.captures.card}>
@@ -138,23 +134,6 @@ export function CaptureCard({ capture }: CaptureCardProps) {
         );
       })()}
 
-      {/* No-op: nothing actionable */}
-      {capture.status === "classified" && items.length === 0 && (
-        <div className="mt-1 flex items-center justify-between">
-          <span className="text-xs text-slate-500 italic">Nothing actionable detected</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDismissCapture(); }}
-            className="text-xs text-slate-500 hover:text-slate-300"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Classification is reviewed on the proposal decision rail. */}
-      {capture.status === "classified" && items.length > 0 && (
-        <p className="mt-1.5 text-xs text-violet-300">Proposals sent to Decide</p>
-      )}
     </div>
   );
 }

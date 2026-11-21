@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"swarm-manager/internal/agentmanager"
@@ -18,6 +19,74 @@ const (
 	FinalizationStatusSkipped   FinalizationStatus = "skipped"
 	FinalizationStatusFailed    FinalizationStatus = "failed"
 )
+
+var ErrInvalidFinalizationStatusTransition = fmt.Errorf("invalid finalization status transition")
+
+var finalizationStatusTransitions = map[FinalizationStatus]map[FinalizationStatus]struct{}{
+	FinalizationStatusPending: {
+		FinalizationStatusRunning: {}, FinalizationStatusSkipped: {}, FinalizationStatusFailed: {},
+	},
+	FinalizationStatusRunning: {
+		FinalizationStatusCompleted: {}, FinalizationStatusSkipped: {}, FinalizationStatusFailed: {},
+	},
+}
+
+var scenarioRestartStatusTransitions = map[FinalizationStatus]map[FinalizationStatus]struct{}{
+	FinalizationStatusPending: {FinalizationStatusRunning: {}, FinalizationStatusSkipped: {}, FinalizationStatusFailed: {}},
+	FinalizationStatusRunning: {FinalizationStatusCompleted: {}, FinalizationStatusFailed: {}},
+	FinalizationStatusFailed:  {FinalizationStatusRunning: {}},
+}
+
+var scenarioHealthStatusTransitions = map[FinalizationStatus]map[FinalizationStatus]struct{}{
+	FinalizationStatusPending: {FinalizationStatusRunning: {}, FinalizationStatusSkipped: {}, FinalizationStatusFailed: {}},
+	FinalizationStatusRunning: {FinalizationStatusCompleted: {}, FinalizationStatusFailed: {}},
+	FinalizationStatusFailed:  {FinalizationStatusRunning: {}},
+}
+
+var scenarioReviewStatusTransitions = map[FinalizationStatus]map[FinalizationStatus]struct{}{
+	FinalizationStatusPending: {FinalizationStatusRunning: {}, FinalizationStatusSkipped: {}, FinalizationStatusFailed: {}},
+	FinalizationStatusRunning: {FinalizationStatusCompleted: {}, FinalizationStatusFailed: {}},
+}
+
+// Valid reports whether status belongs to the persisted finalization lifecycle.
+func (status FinalizationStatus) Valid() bool {
+	switch status {
+	case FinalizationStatusPending, FinalizationStatusRunning, FinalizationStatusCompleted, FinalizationStatusSkipped, FinalizationStatusFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionTo reports whether the finalization lifecycle allows next.
+func (status FinalizationStatus) CanTransitionTo(next FinalizationStatus) bool {
+	if status == next {
+		return status.Valid()
+	}
+	_, allowed := finalizationStatusTransitions[status][next]
+	return allowed
+}
+
+// TransitionStatus is the sole mutation owner for an existing Finalization.
+// Starting a new finalization (including an explicit review rerun) initializes
+// a fresh value at Pending; recovery and ordinary progress use this method.
+func (finalization *Finalization) TransitionStatus(next FinalizationStatus) error {
+	if finalization == nil || !finalization.Status.Valid() || !next.Valid() {
+		current := FinalizationStatus("<nil>")
+		if finalization != nil {
+			current = finalization.Status
+		}
+		return fmt.Errorf("%w: unknown state %q -> %q", ErrInvalidFinalizationStatusTransition, current, next)
+	}
+	if finalization.Status == next {
+		return nil
+	}
+	if !finalization.Status.CanTransitionTo(next) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidFinalizationStatusTransition, finalization.Status, next)
+	}
+	finalization.Status = next
+	return nil
+}
 
 const (
 	FinalizationPhaseScopeDetection    = "scope_detection"
@@ -135,6 +204,14 @@ type RestartResult struct {
 	FinishedAt string             `json:"finished_at,omitempty"`
 }
 
+// TransitionStatus owns the durable per-scenario restart attempt lifecycle.
+func (restart *RestartResult) TransitionStatus(next FinalizationStatus) error {
+	if restart == nil {
+		return transitionScenarioStepStatus("restart", nil, next, nil)
+	}
+	return transitionScenarioStepStatus("restart", &restart.Status, next, scenarioRestartStatusTransitions)
+}
+
 // HealthCheckResult captures the structured health outcome for one scenario.
 type HealthCheckResult struct {
 	Status         FinalizationStatus `json:"status,omitempty"`
@@ -145,12 +222,46 @@ type HealthCheckResult struct {
 	CheckedAt      string             `json:"checked_at,omitempty"`
 }
 
+// TransitionStatus owns the durable per-scenario health-check lifecycle.
+func (health *HealthCheckResult) TransitionStatus(next FinalizationStatus) error {
+	if health == nil {
+		return transitionScenarioStepStatus("health", nil, next, nil)
+	}
+	return transitionScenarioStepStatus("health", &health.Status, next, scenarioHealthStatusTransitions)
+}
+
 // ScenarioReviewStep captures one scenario's review job and result.
 type ScenarioReviewStep struct {
 	Status     FinalizationStatus `json:"status,omitempty"`
 	JobID      string             `json:"job_id,omitempty"`
 	SkipReason string             `json:"skip_reason,omitempty"`
 	Result     *ReviewResult      `json:"result,omitempty"`
+}
+
+// TransitionStatus owns the durable per-scenario review lifecycle.
+func (review *ScenarioReviewStep) TransitionStatus(next FinalizationStatus) error {
+	if review == nil {
+		return transitionScenarioStepStatus("review", nil, next, nil)
+	}
+	return transitionScenarioStepStatus("review", &review.Status, next, scenarioReviewStatusTransitions)
+}
+
+func transitionScenarioStepStatus(name string, current *FinalizationStatus, next FinalizationStatus, allowed map[FinalizationStatus]map[FinalizationStatus]struct{}) error {
+	if current == nil || !current.Valid() || !next.Valid() {
+		from := FinalizationStatus("<nil>")
+		if current != nil {
+			from = *current
+		}
+		return fmt.Errorf("%w: %s unknown state %q -> %q", ErrInvalidFinalizationStatusTransition, name, from, next)
+	}
+	if *current == next {
+		return nil
+	}
+	if _, ok := allowed[*current][next]; !ok {
+		return fmt.Errorf("%w: %s %q -> %q", ErrInvalidFinalizationStatusTransition, name, *current, next)
+	}
+	*current = next
+	return nil
 }
 
 type finalizationScope struct {

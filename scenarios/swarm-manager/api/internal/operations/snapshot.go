@@ -151,7 +151,7 @@ func rankGoals(goalList []goals.GoalWithScope) []RankedGoal {
 	ranked := make([]RankedGoal, 0, len(goalList))
 	for _, goal := range goalList {
 		ranked = append(ranked, RankedGoal{
-			Name: goal.Goal.Name, Title: goal.Goal.Title, Status: goal.Goal.Status,
+			Name: goal.Goal.Name, Title: goal.Goal.Title, Status: string(goal.Goal.Status),
 			Priority: goal.Goal.Priority, Readiness: classifyGoalReadiness(goal),
 			BlockedMemberItems: nilIfEmpty(goal.Scope.Blocked), Scope: goal.Scope,
 		})

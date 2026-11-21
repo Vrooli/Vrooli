@@ -197,7 +197,7 @@ describe("graphService", () => {
             capture: {
               id: "cap-1",
               text: "This is a deliberately long capture body that should be shortened in the graph label",
-              status: "classified",
+              status: "failed",
             },
           },
         },

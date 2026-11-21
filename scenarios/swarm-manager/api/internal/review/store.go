@@ -2,9 +2,13 @@ package review
 
 import (
 	"encoding/json"
+	"fmt"
+	"sync"
 
 	"swarm-manager/internal/attemptstore"
 )
+
+var roundSaveMu sync.Mutex
 
 // readRounds reads all review/round-*.json files from the item directory,
 // sorted by round number ascending. Durable I/O itself is owned by
@@ -15,7 +19,11 @@ func readRounds(itemDir string) ([]Round, error) {
 		return nil, err
 	}
 	for i := range rounds {
-		rounds[i] = normalizeRound(rounds[i])
+		normalized, normalizeErr := normalizeRound(rounds[i])
+		if normalizeErr != nil {
+			return nil, fmt.Errorf("normalize review round %d: %w", rounds[i].RoundNum, normalizeErr)
+		}
+		rounds[i] = normalized
 	}
 	return rounds, nil
 }
@@ -38,7 +46,10 @@ func readRound(itemDir string, roundNum int) (*Round, error) {
 	if err != nil || round == nil {
 		return round, err
 	}
-	normalized := normalizeRound(*round)
+	normalized, err := normalizeRound(*round)
+	if err != nil {
+		return nil, fmt.Errorf("normalize review round %d: %w", round.RoundNum, err)
+	}
 	return &normalized, nil
 }
 
@@ -48,6 +59,22 @@ func ReadRound(itemDir string, roundNum int) (*Round, error) { return readRound(
 
 // saveRound persists a review projection through the shared attempt store.
 func saveRound(itemDir string, round Round) error {
+	roundSaveMu.Lock()
+	defer roundSaveMu.Unlock()
+	current, err := attemptstore.LoadRound(itemDir, "review", round.RoundNum, decodeRound)
+	if err != nil {
+		return err
+	}
+	if current != nil {
+		if err := current.TransitionStatus(round.Status); err != nil {
+			return err
+		}
+		if err := validateRequestThreadSave(current.RequestThreads, round.RequestThreads); err != nil {
+			return fmt.Errorf("validate review request thread transitions: %w", err)
+		}
+	} else if err := validateRequestThreadSave(nil, round.RequestThreads); err != nil {
+		return fmt.Errorf("validate new review request threads: %w", err)
+	}
 	return attemptstore.SaveRound(itemDir, "review", round)
 }
 

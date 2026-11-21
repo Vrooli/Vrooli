@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { SkillsPanel } from "../components/prompts/SkillsPanel";
 import { PromptCatalog } from "../components/prompts/PromptCatalog";
 import { PromptEditor } from "../components/prompts/PromptEditor";
-import { ExperimentResults } from "../components/prompts/ExperimentResults";
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions } from "../lib";
 import { promptService } from "../services";
@@ -25,7 +24,7 @@ const GROUP_LABELS: Record<(typeof GROUP_ORDER)[number], string> = {
 };
 
 type PromptGroup = (typeof GROUP_ORDER)[number];
-type PromptTab = "catalog" | "viewer" | "experiments";
+type PromptTab = "catalog" | "viewer";
 
 const MIN_SKILLS_PANEL_WIDTH = 260;
 const MAX_SKILLS_PANEL_WIDTH = 460;
@@ -70,7 +69,6 @@ export function PromptsPage() {
     adjacentMin: MIN_EDITOR_WIDTH,
     panelName: "Skills",
   });
-  const [selectedExperimentId, setSelectedExperimentId] = useState("");
 	const [showMobileSkills, setShowMobileSkills] = useState(false);
 
   // --- Queries ---
@@ -164,14 +162,6 @@ export function PromptsPage() {
     }));
   }, [catalogQuery.data]);
 
-  const experimentIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const entry of catalogQuery.data ?? []) {
-      if (entry.experiment_id) ids.add(entry.experiment_id);
-    }
-    return Array.from(ids);
-  }, [catalogQuery.data]);
-
   // --- Handlers ---
   const openInViewer = (skillID?: string) => {
     if (!skillID) return;
@@ -205,9 +195,6 @@ export function PromptsPage() {
         <TabsList data-testid={selectors.prompts.tabs}>
           <TabsTrigger value="catalog" data-testid={selectors.prompts.tabMap}>Prompt Catalog</TabsTrigger>
           <TabsTrigger value="viewer" data-testid={selectors.prompts.tabViewer}>Skills Viewer</TabsTrigger>
-          {experimentIds.length > 0 && (
-            <TabsTrigger value="experiments">Experiments</TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="catalog" data-testid={selectors.prompts.mapPanel}>
@@ -251,33 +238,6 @@ export function PromptsPage() {
             diffLines={diffLines}
           />
         </TabsContent>
-        {experimentIds.length > 0 && (
-          <TabsContent value="experiments">
-            <div className="space-y-4">
-              {experimentIds.length > 1 && (
-                <div className="flex gap-2 flex-wrap">
-                  {experimentIds.map((eid) => (
-                    <button
-                      key={eid}
-                      type="button"
-                      onClick={() => setSelectedExperimentId(eid)}
-                      className={`rounded-md px-3 py-1.5 text-sm border transition-colors ${
-                        selectedExperimentId === eid
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-muted border-border hover:bg-accent"
-                      }`}
-                    >
-                      {eid}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <ExperimentResults
-                experimentId={selectedExperimentId || experimentIds[0] || ""}
-              />
-            </div>
-          </TabsContent>
-        )}
       </Tabs>
 
       <BottomSheet

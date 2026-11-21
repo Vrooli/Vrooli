@@ -161,7 +161,7 @@ func backlogEntity(i backlog.BacklogItem, reasons ...string) Entity {
 }
 
 func goalEntity(g goals.GoalWithScope, reasons ...string) Entity {
-	return Entity{EntityGoal, g.Goal.Name, g.Goal.Title, g.Goal.Status, g.Goal.ArchivedAt != nil && strings.TrimSpace(*g.Goal.ArchivedAt) != "", reasons, 0}
+	return Entity{EntityGoal, g.Goal.Name, g.Goal.Title, string(g.Goal.Status), g.Goal.ArchivedAt != nil && strings.TrimSpace(*g.Goal.ArchivedAt) != "", reasons, 0}
 }
 
 func recordEntity(r records.Record, reasons ...string) Entity {

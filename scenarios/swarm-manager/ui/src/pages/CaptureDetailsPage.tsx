@@ -63,7 +63,7 @@ export function CaptureDetailsPage() {
     setIsRetrying(true);
     try {
       await captureService.classify(captureId);
-      updateCapture(captureId, { status: "classifying", classification: null });
+      updateCapture(captureId, { status: "classifying" });
     } catch {
       // Keep failed state.
     } finally {
@@ -124,12 +124,7 @@ export function CaptureDetailsPage() {
     );
   }
 
-  const items = capture.classification?.items ?? [];
-  const statusLabel =
-    capture.status === "classifying" ? "Classifying" :
-    capture.status === "failed" ? "Failed" :
-    capture.status === "classified" && items.length > 0 ? "Classified" :
-    "No action";
+  const statusLabel = capture.status === "classifying" ? "Classifying" : "Failed";
 
   const primaryAction = capture.status === "failed" ? (
     <Button
@@ -238,19 +233,6 @@ export function CaptureDetailsPage() {
           </section>
         )}
 
-        {capture.status === "classified" && items.length === 0 && (
-          <section>
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <span className="text-sm italic text-slate-500">Nothing actionable detected</span>
-            </div>
-          </section>
-        )}
-
-        {/* Classification is reviewed on the proposal decision rail. */}
-        {capture.status === "classified" && items.length > 0 && (
-          <p className="text-sm text-violet-300">Proposals sent to the Decide stream.</p>
-        )}
-
         {/* Metadata */}
         <section>
           <h2 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">Metadata</h2>
@@ -262,12 +244,6 @@ export function CaptureDetailsPage() {
               <dd className="text-slate-300">{new Date(capture.created).toLocaleString()}</dd>
               <dt className="text-slate-500">Status</dt>
               <dd className="text-slate-300">{capture.status}</dd>
-              {capture.classification?.classifiedAt && (
-                <>
-                  <dt className="text-slate-500">Classified at</dt>
-                  <dd className="text-slate-300">{new Date(capture.classification.classifiedAt).toLocaleString()}</dd>
-                </>
-              )}
             </dl>
           </div>
         </section>

@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/experiment"
-	"swarm-manager/internal/promptmanager"
 )
 
 func (s *Service) processFinalization(ctx context.Context, executionID string) error {
@@ -250,7 +248,10 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 
-	finalization.Status = FinalizationStatusCompleted
+	if err := finalization.TransitionStatus(FinalizationStatusCompleted); err != nil {
+		s.mu.Unlock()
+		return err
+	}
 	finalization.Phase = FinalizationPhaseCompleted
 	finalization.CompletedAt = nowRFC3339()
 	classification, summary, hasActionableFailure := summarizeFinalization(*finalization, s.finalizationCfg.BaselineRegressionGateEnabled)
@@ -333,9 +334,6 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 
 	s.dispatchStatusAndLog(*record, prevStatus)
 
-	// Fire-and-forget: record experiment outcome if this execution was part of an experiment.
-	s.recordExperimentOutcome(record)
-
 	// Baseline Modes engagements are NOT closed here (plan P-c). Finalization is
 	// the agent's verdict, not the user's: the owner's engagement set is held
 	// across finalization into review_pending and promoted/abandoned as a whole
@@ -347,61 +345,6 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 		s.spawnFixupRun(context.Background(), record, item)
 	}
 	return nil
-}
-
-// recordExperimentOutcome posts an outcome to prompt-manager if the execution
-// was part of an A/B experiment. Failures are logged but never block finalization.
-func (s *Service) recordExperimentOutcome(record *Record) {
-	if record.PromptTrace == nil || strings.TrimSpace(record.PromptTrace.ExperimentID) == "" {
-		return
-	}
-	if s.experimentClient == nil {
-		slog.Warn("experiment outcome skipped: no experiment client configured",
-			"execution_id", record.ExecutionID,
-			"experiment_id", record.PromptTrace.ExperimentID,
-		)
-		return
-	}
-
-	classification := ""
-	if record.Finalization != nil {
-		classification = record.Finalization.AggregateClassification
-	}
-
-	data := experiment.OutcomeDataV1{
-		ExecutionID:    record.ExecutionID,
-		Classification: classification,
-		BacklogKind:    record.BacklogKind,
-		BacklogName:    record.BacklogName,
-		Purpose:        record.PromptTrace.Purpose,
-		HadFixup:       record.FixupAttempt > 0,
-		DurationSecs:   executionDuration(*record),
-	}
-	dataJSON, err := json.Marshal(data)
-	if err != nil {
-		slog.Warn("experiment outcome marshal failed",
-			"execution_id", record.ExecutionID,
-			"err", err,
-		)
-		return
-	}
-
-	outcome := promptmanager.ExperimentOutcomeRequest{
-		VariantID:     record.PromptTrace.VariantID,
-		Source:        "swarm-manager",
-		SchemaVersion: experiment.OutcomeSchemaVersion,
-		Data:          dataJSON,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := s.experimentClient.RecordExperimentOutcome(ctx, record.PromptTrace.ExperimentID, outcome); err != nil {
-		slog.Warn("experiment outcome recording failed",
-			"execution_id", record.ExecutionID,
-			"experiment_id", record.PromptTrace.ExperimentID,
-			"err", err,
-		)
-	}
 }
 
 // checkReviewAgentEnabled checks the execution policy for the review_agent_enabled flag.

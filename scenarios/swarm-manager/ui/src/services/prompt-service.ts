@@ -15,22 +15,6 @@ export interface PromptPreviewResponse {
   prompt: string;
 }
 
-export interface ExperimentResultsData {
-  experimentId: string;
-  skillId?: string;
-  status?: string;
-  variants: {
-    variantId: string;
-    totalRuns: number;
-    readyCount: number;
-    needsWorkCount: number;
-    fixupRate: number;
-    avgDurationSecs?: number;
-  }[];
-  totalOutcomes: number;
-  analyzedAt: string;
-}
-
 export interface IPromptService {
   listCatalog(): Promise<PromptCatalogEntry[]>;
   listSkills(): Promise<PromptSkillSummary[]>;
@@ -49,7 +33,6 @@ export interface IPromptService {
   revertSkillVersion(skillId: string, version: number): Promise<PromptSkillSummary>;
   preview(skillId: string, variables: Record<string, string>, withScope?: boolean): Promise<PromptPreviewResponse>;
   getExecutionPromptTrace(executionId: string): Promise<PromptTrace>;
-  getExperimentResults(experimentId: string): Promise<ExperimentResultsData>;
 }
 
 export function createPromptService(apiClient: IApiClient = defaultApiClient): IPromptService {
@@ -124,9 +107,6 @@ export function createPromptService(apiClient: IApiClient = defaultApiClient): I
       return data.trace;
     },
 
-    async getExperimentResults(experimentId: string): Promise<ExperimentResultsData> {
-      return apiClient.get<ExperimentResultsData>(API_ENDPOINTS.promptExperimentResults(experimentId));
-    },
 
   };
 }

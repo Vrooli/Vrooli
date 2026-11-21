@@ -52,7 +52,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Text:        text,
 		Attachments: []string{},
 		Created:     now,
-		Status:      "classifying",
+		Status:      string(CaptureStatusClassifying),
 	}
 
 	dir := h.captureDir(id)
@@ -119,6 +119,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// applied separately, so the workflow never receives filesystem authority.
 	resp := map[string]any{"capture": cap}
 	if h.transitionRunner == nil {
+		if err := h.failCapture(&cap, FailDependencyUnavailable); err != nil {
+			apierr.MapError(w, "[captures] create", apierr.Internal("failed to record classification unavailability"))
+			return
+		}
+		resp["capture"] = cap
 		apierr.MapError(w, "[captures] create", apierr.Unavailable("agent-manager is not available — try again once it's running"))
 		return
 	}
@@ -126,14 +131,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Classification failed to start, but capture was created. Mark as failed
 		// with a categorized reason so the UI can show actionable guidance.
-		cap.Status = "failed"
-		cap.FailureReason = classifyFailureReason(err)
 		slog.Error("classification spawn failed",
 			"capture_id", cap.ID,
-			"failure_reason", cap.FailureReason,
+			"failure_reason", classifyFailureReason(err),
 			"error", err,
 		)
-		if writeErr := h.writeCapture(&cap); writeErr != nil {
+		if writeErr := h.failCapture(&cap, classifyFailureReason(err)); writeErr != nil {
 			slog.Warn("captures: persist failed-status capture failed", "err", writeErr, "capture_id", cap.ID)
 		}
 		resp["capture"] = cap

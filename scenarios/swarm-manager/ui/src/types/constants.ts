@@ -175,7 +175,7 @@ export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
 // Capture Status Display
 // ============================================================================
 
-export const CAPTURE_STATUSES: CaptureStatus[] = ["classifying", "classified", "failed"];
+export const CAPTURE_STATUSES: CaptureStatus[] = ["classifying", "failed"];
 
 // ============================================================================
 // Scenario Status Display

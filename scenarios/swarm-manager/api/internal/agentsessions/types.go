@@ -231,6 +231,39 @@ type Proposal struct {
 	PreviousDecisionPublication *ProposalDecisionPublication `json:"previous_decision_publication,omitempty"`
 }
 
+var proposalStatusTransitions = map[ProposalStatus]map[ProposalStatus]struct{}{
+	ProposalStatusDraft:         proposalStatusEdges(ProposalStatusReady, ProposalStatusNeedsRevision, ProposalStatusFailed, ProposalStatusSuperseded),
+	ProposalStatusReady:         proposalStatusEdges(ProposalStatusApplied, ProposalStatusRejected, ProposalStatusSuperseded, ProposalStatusFailed, ProposalStatusNeedsRevision),
+	ProposalStatusNeedsRevision: proposalStatusEdges(ProposalStatusReady, ProposalStatusFailed, ProposalStatusSuperseded),
+	ProposalStatusFailed:        proposalStatusEdges(ProposalStatusReady, ProposalStatusNeedsRevision, ProposalStatusSuperseded),
+	ProposalStatusSuperseded:    proposalStatusEdges(),
+	ProposalStatusApplied:       proposalStatusEdges(),
+	ProposalStatusRejected:      proposalStatusEdges(),
+}
+
+func proposalStatusEdges(next ...ProposalStatus) map[ProposalStatus]struct{} {
+	edges := make(map[ProposalStatus]struct{}, len(next))
+	for _, status := range next {
+		edges[status] = struct{}{}
+	}
+	return edges
+}
+
+// TransitionStatus owns persisted proposal-review state changes.
+func (p *Proposal) TransitionStatus(next ProposalStatus) error {
+	if p == nil || !IsKnownProposalStatus(p.Status) || !IsKnownProposalStatus(next) {
+		return validationError("proposal status transition uses an unknown state")
+	}
+	if p.Status == next {
+		return nil
+	}
+	if _, ok := proposalStatusTransitions[p.Status][next]; !ok {
+		return validationError(fmt.Sprintf("illegal proposal status transition %s -> %s", p.Status, next))
+	}
+	p.Status = next
+	return nil
+}
+
 // ProposalDecisionPublication is the immutable event snapshot and publication
 // receipt for a proposal's operator decision. The proposal remains the single
 // durable owner; this is deliberately not a second pending-ask registry.
@@ -248,6 +281,14 @@ type ProposalDecisionPublication struct {
 	LastAttemptAt       string `json:"last_attempt_at,omitempty"`
 	PublishedAt         string `json:"published_at,omitempty"`
 	LastError           string `json:"last_error,omitempty"`
+	// WithdrawnAt is when the withdrawal of this decision was published: the
+	// proposal left review (applied, rejected, superseded, sent back for
+	// revision), so the operator's open decision was closed. Empty while the
+	// proposal is still in review. WithdrawalAttempts and WithdrawalError record
+	// failed attempts, which the reconciler retries.
+	WithdrawnAt        string `json:"withdrawn_at,omitempty"`
+	WithdrawalAttempts int    `json:"withdrawal_attempts,omitempty"`
+	WithdrawalError    string `json:"withdrawal_error,omitempty"`
 }
 
 const (
@@ -255,6 +296,36 @@ const (
 	ProposalDecisionPublicationPublished        = "published"
 	ProposalDecisionPublicationLegacyUnresolved = "legacy_unresolved"
 )
+
+// TransitionState owns the publication lifecycle edges. A pending snapshot may
+// be retried while retaining its state, or recorded as published; an unresolved
+// legacy marker may only be reissued as a new pending generation by its store
+// owner. Published receipts and legacy markers are terminal in-place.
+func (p *ProposalDecisionPublication) TransitionState(next string) error {
+	if p == nil {
+		return validationError("decision publication transition requires a current value")
+	}
+	if !knownProposalDecisionPublicationState(p.State) || !knownProposalDecisionPublicationState(next) {
+		return validationError("decision publication transition uses an unknown state")
+	}
+	if p.State == next {
+		return nil
+	}
+	if p.State != ProposalDecisionPublicationPending || next != ProposalDecisionPublicationPublished {
+		return validationError(fmt.Sprintf("illegal decision publication transition %s -> %s", p.State, next))
+	}
+	p.State = next
+	return nil
+}
+
+func knownProposalDecisionPublicationState(state string) bool {
+	switch state {
+	case ProposalDecisionPublicationPending, ProposalDecisionPublicationPublished, ProposalDecisionPublicationLegacyUnresolved:
+		return true
+	default:
+		return false
+	}
+}
 
 // ProposalTarget is the entity against which a proposal session reasons. A
 // backlog target is resolved to its owning milestone before validation and
@@ -333,6 +404,45 @@ type Session struct {
 	ProposalTarget    *ProposalTarget `json:"proposal_target,omitempty"`
 	StarterJob        string          `json:"starter_job,omitempty"`
 	StagedContext     []ContextRef    `json:"staged_context_refs,omitempty"`
+}
+
+// sessionStatusTransitions is the sole lifecycle policy for durable session
+// status. Run execution and proposal review share this legacy field, so the
+// legal edges intentionally include the handoff between those two phases.
+var sessionStatusTransitions = map[Status]map[Status]struct{}{
+	StatusDraft:          statusEdges(StatusStarting, StatusProposalReady, StatusCanceled),
+	StatusStarting:       statusEdges(StatusRunning, StatusFailed, StatusCanceled),
+	StatusRunning:        statusEdges(StatusRunning, StatusWaitingForUser, StatusProposalReady, StatusApplying, StatusComplete, StatusFailed, StatusCanceled),
+	StatusWaitingForUser: statusEdges(StatusRunning, StatusWaitingForUser, StatusProposalReady, StatusApplying, StatusComplete, StatusFailed, StatusCanceled),
+	StatusProposalReady:  statusEdges(StatusRunning, StatusWaitingForUser, StatusProposalReady, StatusApplying, StatusFailed, StatusCanceled),
+	StatusApplying:       statusEdges(StatusProposalReady, StatusWaitingForUser, StatusFailed, StatusCanceled),
+	StatusComplete:       statusEdges(StatusRunning, StatusProposalReady, StatusCanceled),
+	StatusFailed:         statusEdges(StatusRunning, StatusProposalReady, StatusCanceled),
+	StatusCanceled:       statusEdges(),
+}
+
+func statusEdges(next ...Status) map[Status]struct{} {
+	edges := make(map[Status]struct{}, len(next))
+	for _, status := range next {
+		edges[status] = struct{}{}
+	}
+	return edges
+}
+
+// TransitionStatus applies the session lifecycle's only legal status change.
+// Stores call it against the persisted prior state before committing writes.
+func (s *Session) TransitionStatus(next Status) error {
+	if s == nil || !IsKnownStatus(s.Status) || !IsKnownStatus(next) {
+		return validationError("session status transition uses an unknown state")
+	}
+	if s.Status == next {
+		return nil
+	}
+	if _, ok := sessionStatusTransitions[s.Status][next]; !ok {
+		return validationError(fmt.Sprintf("illegal session status transition %s -> %s", s.Status, next))
+	}
+	s.Status = next
+	return nil
 }
 
 func (s Session) Validate() error {
@@ -520,8 +630,13 @@ func (p Proposal) Validate() error {
 		default:
 			return validationError("decision_publication state is invalid")
 		}
-		if publication.Attempts < 0 {
+		if publication.Attempts < 0 || publication.WithdrawalAttempts < 0 {
 			return validationError("decision_publication attempts cannot be negative")
+		}
+		if publication.WithdrawnAt != "" {
+			if err := validateRFC3339("decision_publication.withdrawn_at", publication.WithdrawnAt); err != nil {
+				return err
+			}
 		}
 	}
 	if prior := p.PreviousDecisionPublication; prior != nil {

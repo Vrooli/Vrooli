@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"security-health/internal/policybridge"
 	"security-health/internal/validation"
 
 	"github.com/vrooli/api-core/metrics"
@@ -50,6 +51,7 @@ type Deps struct {
 	// backfills os/arch/num_cpu from the stdlib.
 	Environment       *commonv1.CaptureEnvironment
 	ReadinessReporter ReadinessReporter
+	PolicyPublisher   policybridge.SnapshotSink
 }
 
 type connectHandler struct {
@@ -68,6 +70,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.ReadinessReporter == nil {
 		d.ReadinessReporter = newReadinessReporter(context.Background())
 	}
+	if d.PolicyPublisher == nil && policybridge.PublicationEnabled() {
+		d.PolicyPublisher = policybridge.RunnerSink{}
+	}
 	return &connectHandler{deps: d}
 }
 
@@ -80,6 +85,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if h.deps.PolicyPublisher != nil {
+		if err := policybridge.Publish(ctx, h.deps.PolicyPublisher, report, time.Now().UTC()); err != nil {
+			h.deps.Logger.Printf("agent-policy security-health snapshot not published: %v", err)
+		}
 	}
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {

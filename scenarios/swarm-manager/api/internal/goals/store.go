@@ -1,6 +1,7 @@
 package goals
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -88,8 +89,23 @@ func (s *Store) LoadAll() ([]Goal, error) {
 
 // Save writes a goal to disk atomically.
 func (s *Store) Save(g *Goal) error {
+	if g == nil {
+		return errors.New("save goal: nil goal")
+	}
 	if strings.TrimSpace(g.Name) == "" {
 		return fmt.Errorf("goal name is required")
+	}
+	if !g.Status.Valid() {
+		return ErrInvalidGoalStatus{Next: g.Status}
+	}
+	if s.Exists(g.Name) {
+		previous, err := s.Load(g.Name)
+		if err != nil {
+			return err
+		}
+		if !previous.Status.CanTransitionTo(g.Status) {
+			return ErrInvalidGoalStatus{Current: previous.Status, Next: g.Status}
+		}
 	}
 	return storage.WriteJSONAtomic(s.filePath(g.Name), g)
 }

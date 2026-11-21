@@ -412,6 +412,9 @@ func (s Session) Validate() error {
 	if strings.TrimSpace(s.SubjectVersion) == "" {
 		return fmt.Errorf("workshop subject_version is required")
 	}
+	if s.Review != nil && !s.Review.State.Valid() {
+		return fmt.Errorf("workshop review has unknown state %q", s.Review.State)
+	}
 	for _, resolution := range s.Resolutions {
 		if strings.TrimSpace(resolution.ResponseID) == "" {
 			return fmt.Errorf("workshop resolution response_id is required")

@@ -105,7 +105,7 @@ export function makeCaptureNode(
     rawType: "Capture",
     id: captureId,
     text,
-    status: overrides.status ?? ("classified" as CaptureStatus),
+    status: overrides.status ?? ("classifying" as CaptureStatus),
     pulsing: overrides.pulsing,
     ...overrides,
   };

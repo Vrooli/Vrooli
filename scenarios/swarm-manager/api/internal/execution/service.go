@@ -116,7 +116,6 @@ type ServiceConfig struct {
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
-	ExperimentClient         promptmanager.ExperimentClient
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
 	BaselineClient           BaselineClient
@@ -148,7 +147,6 @@ type Service struct {
 	goalRunCreator           GoalRunCreator
 	goalRunReader            GoalRunReader
 	promptClient             promptmanager.Client
-	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
 	reviewClient             ReviewClient
 	baselineClient           BaselineClient
@@ -261,7 +259,6 @@ func NewService(cfg ServiceConfig) *Service {
 		goalRunCreator:           cfg.GoalRunCreator,
 		goalRunReader:            cfg.GoalRunReader,
 		promptClient:             pc,
-		experimentClient:         cfg.ExperimentClient,
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
 		baselineClient:           cfg.BaselineClient,

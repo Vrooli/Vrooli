@@ -211,7 +211,7 @@ describe("GraphCanvas", () => {
         makeCaptureNode("capture/c-1", {
           label: "Capture",
           text: "Capture",
-          status: "classified",
+          status: "classifying",
         }),
         makeBacklogNode("backlog-item/execute/task-a", {
           label: "Task A",

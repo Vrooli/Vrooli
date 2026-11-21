@@ -55,10 +55,11 @@ type readiness struct {
 }
 
 type rule struct {
-	Risk     string `json:"risk"`
-	Action   string `json:"action"`
-	Reason   string `json:"reason"`
-	Evidence []struct {
+	EvaluatorID string `json:"evaluator_id"`
+	Risk        string `json:"risk"`
+	Action      string `json:"action"`
+	Reason      string `json:"reason"`
+	Evidence    []struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 		Source  string `json:"source"`
@@ -92,7 +93,7 @@ func BuildSnapshot(report validation.Report, now time.Time) ([]byte, error) {
 		Evidence:   evidence,
 		CapturedAt: now.UTC(),
 		ExpiresAt:  now.UTC().Add(time.Hour),
-		Rules:      []rule{{Risk: "dependency_addition", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {Risk: "dependency_upgrade", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {Risk: "lifecycle_execution", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {Risk: "unknown", Action: "allow", Reason: "Unknown risk remains visible to the central evaluator"}},
+		Rules:      []rule{{EvaluatorID: "security-health:dependency-addition", Risk: "dependency_addition", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {EvaluatorID: "security-health:dependency-upgrade", Risk: "dependency_upgrade", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {EvaluatorID: "security-health:lifecycle-execution", Risk: "lifecycle_execution", Action: "allow", Reason: "Security Health provider evidence is evaluated centrally by the selected rollout profile"}, {EvaluatorID: "security-health:unknown-risk", Risk: "unknown", Action: "allow", Reason: "Unknown risk remains visible to the central evaluator"}},
 		Provenance: map[string]string{"scenario": report.Scenario, "policy_mode": string(report.PolicyMode), "finding_count": fmt.Sprint(len(report.Findings))},
 	}
 	return json.MarshalIndent(out, "", "  ")

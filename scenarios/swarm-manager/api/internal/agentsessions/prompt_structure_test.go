@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/sourceledger"
 )
 
@@ -202,10 +201,6 @@ type fakePromptClient struct {
 
 func (f fakePromptClient) ReadSkill(context.Context, string, map[string]string, bool) (string, error) {
 	return f.content, f.err
-}
-
-func (f fakePromptClient) ReadSkillWithExperiment(context.Context, string, map[string]string, bool, string) (promptmanager.ReadSkillResult, error) {
-	return promptmanager.ReadSkillResult{Content: f.content}, f.err
 }
 
 func (f fakePromptLedger) Wake(context.Context, string, int) (sourceledger.WakeResult, error) {

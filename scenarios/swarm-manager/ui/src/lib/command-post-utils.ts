@@ -136,15 +136,6 @@ export function groupActionItems(
         reasons: [],
         primaryCta: null,
       });
-    } else if (cap.status === "classified" && (cap.classification?.items.length ?? 0) > 0) {
-      groups.get("needs-classification")?.push({
-        type: "capture",
-        key,
-        title,
-        captureId: cap.id,
-        reasons: [],
-        primaryCta: "review",
-      });
     }
   }
 

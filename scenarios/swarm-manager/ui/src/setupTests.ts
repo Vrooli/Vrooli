@@ -7,6 +7,24 @@ import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ToastProvider } from "./components/ui/toast-provider";
 import { registerScenarioVoiceTransport } from "./audio-integration";
 
+// Vitest's jsdom AbortSignal is a different realm from Node's native Request.
+// Transport tests construct Requests inside mocked fetch handlers, where the
+// production signal is only observed, never sent to a network transport. Keep
+// that exact signal visible to assertions while omitting it from undici's
+// constructor, which otherwise rejects the cross-realm instance.
+const NativeRequest = globalThis.Request;
+if (typeof NativeRequest === "function") {
+  globalThis.Request = class TestRequest extends NativeRequest {
+    constructor(input: RequestInfo | URL, init?: RequestInit) {
+      const signal = init?.signal;
+      super(input, init ? { ...init, signal: undefined } : undefined);
+      if (signal) {
+        Object.defineProperty(this, "signal", { configurable: true, value: signal });
+      }
+    }
+  } as typeof Request;
+}
+
 // Each test gets the real application controller; jsdom does not compute visibility.
 beforeEach(() => {
   registerScenarioVoiceTransport();

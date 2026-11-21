@@ -36,6 +36,9 @@ func (s *Service) ReconcileProposalDecisionPage(ctx context.Context, after Propo
 	}
 	for _, candidate := range page.Candidates {
 		proposal := candidate.Proposal
+		if s.withdrawClosedProposalDecision(ctx, owner, candidate.SessionID, proposal) {
+			continue
+		}
 		if !eligibleProposalDecision(proposal) {
 			continue
 		}

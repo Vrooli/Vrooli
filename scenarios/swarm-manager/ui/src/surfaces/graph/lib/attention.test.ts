@@ -115,11 +115,6 @@ describe("computeNodeAttention", () => {
     expect(result.reasons).toContain("needs-classification");
   });
 
-  it("does not flag classified capture", () => {
-    const result = computeNodeAttention(makeCapture("classified"));
-    expect(result.needsAttention).toBe(false);
-  });
-
   it("respects snoozed keys", () => {
     const snoozed = new Set(["backlog:execute/test"]);
     const result = computeNodeAttention(makeBacklog("ready"), undefined, snoozed);

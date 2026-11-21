@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"connectrpc.com/connect"
 	"security-health/internal/module"
 	"security-health/internal/validation"
 	"security-health/internal/validationcache"
@@ -20,6 +21,7 @@ import (
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	securityhealthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/securityhealthv1connect"
 )
 
 // ProtoFile exposes the shared validation proto FileDescriptor so the global
@@ -95,10 +97,14 @@ func Module(deps ModuleDeps) module.Module {
 		MaturitySpec:    spec,
 		Environment:     environment,
 	}), describer.WithFixes(true)))
+	// Candidate blobs are request-owned data and can include credentials. Keep
+	// transport memory bounded; oversized candidates fail as incomplete scans.
+	candidatePath, candidateHandler := securityhealthconnect.NewCandidateScannerServiceHandler(newCandidateConnectHandler(validator), connect.WithReadMaxBytes(24<<20))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: candidatePath, Handler: candidateHandler})
 		},
 		Endpoints: Endpoints,
 	}

@@ -110,7 +110,18 @@
     }
   },
   "dependencies": {
-    "scenarios": {},
+    "scenarios": {
+      "deployment-manager": {
+        "degraded_behavior": "Security checks remain available; when reporting is enabled an unreachable peer returns an explicit error.",
+        "description": "Optional readiness evidence sink when the owner token is configured.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Security Health uses the generated readiness reporter contract at runtime and imports no Deployment Manager package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      }
+    },
     "resources": {
       "qdrant": {
         "type": "qdrant",

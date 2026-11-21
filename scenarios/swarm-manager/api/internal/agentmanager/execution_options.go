@@ -3,10 +3,9 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 
+	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
 
@@ -14,26 +13,18 @@ import (
 // Agent Manager. Swarm uses it only for goal-session admission; it does not
 // copy runner configuration into its own declarations.
 func (c *HTTPClient) ListExecutionOptions(ctx context.Context, role string) ([]*apipb.ExecutionOption, error) {
-	path := "/api/v1/execution-options"
-	if role = strings.TrimSpace(role); role != "" {
-		path += "?" + url.Values{"role": []string{role}}.Encode()
-	}
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	a, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
+	response, err := a.ListExecutionOptions(ctx, connect.NewRequest(&apipb.ListExecutionOptionsRequest{RoleRef: strings.TrimSpace(role)}))
+	if err != nil {
+		return nil, connectError(err)
 	}
-	var result apipb.ListExecutionOptionsResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	if result.Options == nil {
+	if response.Msg.Options == nil {
 		return nil, fmt.Errorf("%w: execution options response omitted options", ErrRequestFailed)
 	}
-	return result.Options, nil
+	return response.Msg.Options, nil
 }
 
 // ListExecutionOptions exposes Agent Manager's catalog through Swarm's

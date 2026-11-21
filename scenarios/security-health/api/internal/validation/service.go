@@ -110,6 +110,21 @@ func DefaultScanners(cmd Commander) []Scanner {
 	return defaultScanners(cmd, nil, nil)
 }
 
+// ScanCandidate runs only the existing candidate-capable scanner against the
+// exact caller-supplied paths and bytes. It does not run substrate scanners or
+// inspect the provider checkout. Scanner errors are returned so API adapters
+// can mark coverage incomplete instead of treating an outage as a clean scan.
+func (s *Service) ScanCandidate(ctx context.Context, files map[string][]byte) ([]Finding, error) {
+	for _, scanner := range s.scanners {
+		candidateScanner, ok := scanner.(CandidateScanner)
+		if !ok {
+			continue
+		}
+		return candidateScanner.ScanCandidate(ctx, s.repoRoot, files)
+	}
+	return nil, ErrCandidateScannerUnavailable
+}
+
 func defaultScanners(cmd Commander, osvCache OSVReportCache, clock func() time.Time) []Scanner {
 	return []Scanner{
 		newGitleaksScanner(cmd),

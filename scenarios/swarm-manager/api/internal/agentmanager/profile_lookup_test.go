@@ -3,7 +3,6 @@ package agentmanager
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,163 +10,137 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-func TestInitializeResolvesExistingOwnerProfileWithReadOnlyGet(t *testing.T) {
-	posts := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			posts++
-			t.Errorf("profile initialization must not POST to Agent Manager: %s", r.URL.Path)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.String())
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if r.URL.Query().Get("limit") != "128" || r.URL.Query().Get("offset") != "" {
-			t.Errorf("profile read bounds = %v, want limit=128 and no offset", r.URL.Query())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(w, `{"profiles":[{"id":"default-id","profileKey":"swarm-manager/default","ownerScenario":"swarm-manager","sourcePath":".vrooli/agent-manager/default.json","sourceHash":"same","lastAppliedHash":"same"},{"id":"analysis-id","profileKey":"swarm-manager/analysis","ownerScenario":"swarm-manager"}],"total":2}`)
-	}))
-	defer server.Close()
+type profileListHandler struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	profiles  []*domainpb.AgentProfile
+	listCalls int
+}
 
+func (h *profileListHandler) ListProfiles(_ context.Context, r *connect.Request[api.ListProfilesRequest]) (*connect.Response[api.ListProfilesResponse], error) {
+	h.listCalls++
+	limit, offset := int(r.Msg.GetLimit()), int(r.Msg.GetOffset())
+	if limit == 0 {
+		limit = 50
+	}
+	if offset > len(h.profiles) {
+		offset = len(h.profiles)
+	}
+	end := offset + limit
+	if end > len(h.profiles) {
+		end = len(h.profiles)
+	}
+	items := append([]*domainpb.AgentProfile(nil), h.profiles[offset:end]...)
+	return connect.NewResponse(&api.ListProfilesResponse{Profiles: items, Total: int32(len(h.profiles)), HasMore: end < len(h.profiles)}), nil
+}
+
+func profileServer(t *testing.T, handler *profileListHandler) *httptest.Server {
+	t.Helper()
+	path, connectHandler := apiconnect.NewAgentManagerServiceHandler(handler)
+	mux := http.NewServeMux()
+	mux.Handle(path, connectHandler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func ownerProfile(id, key, owner string) *domainpb.AgentProfile {
+	return &domainpb.AgentProfile{Id: id, Name: key, ProfileKey: key, OwnerScenario: owner}
+}
+
+func TestInitializeResolvesExistingOwnerProfileWithoutDeclarationMutation(t *testing.T) {
+	h := &profileListHandler{profiles: []*domainpb.AgentProfile{
+		ownerProfile("default-id", "swarm-manager/default", "swarm-manager"),
+		ownerProfile("analysis-id", "swarm-manager/analysis", "swarm-manager"),
+	}}
+	server := profileServer(t, h)
 	svc := NewAgentService(AgentServiceConfig{ProfileKey: "swarm-manager/default", Enabled: true, Timeout: time.Second})
 	svc.client = NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	if err := svc.Initialize(context.Background()); err != nil {
 		t.Fatalf("Initialize: %v", err)
 	}
 	if got := svc.GetProfileID(); got != "default-id" {
-		t.Fatalf("resolved profile ID = %q, want default-id", got)
+		t.Fatalf("profile ID=%q", got)
 	}
 	if _, err := svc.profileRefFor("swarm-manager/analysis"); err != nil {
-		t.Fatalf("same-owner profile key was not retained for run admission: %v", err)
+		t.Fatalf("same-owner profile not retained: %v", err)
 	}
-	if posts != 0 {
-		t.Fatalf("profile initialization made %d POST requests", posts)
+	if h.listCalls != 1 {
+		t.Fatalf("ListProfiles calls=%d, want one read", h.listCalls)
 	}
 }
 
 func TestInitializeDoesNotAcceptForeignOwnerOrCreateMissingProfile(t *testing.T) {
-	posts := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			posts++
-			t.Errorf("profile initialization must not POST to Agent Manager: %s", r.URL.Path)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(w, `{"profiles":[{"id":"foreign-id","profileKey":"swarm-manager/default","ownerScenario":"another-scenario"}],"total":1}`)
-	}))
-	defer server.Close()
-
+	h := &profileListHandler{profiles: []*domainpb.AgentProfile{ownerProfile("foreign-id", "swarm-manager/default", "another-scenario")}}
+	server := profileServer(t, h)
 	svc := NewAgentService(AgentServiceConfig{ProfileKey: "swarm-manager/default", Enabled: true, Timeout: time.Second})
 	svc.client = NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	err := svc.Initialize(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "required profile") || !strings.Contains(err.Error(), "declaration owner") {
-		t.Fatalf("Initialize error = %v, want explicit unresolved registration routed to declaration owner", err)
+		t.Fatalf("Initialize error=%v", err)
 	}
-	if posts != 0 {
-		t.Fatalf("unresolved profile read made %d POST requests", posts)
+	if h.listCalls != 1 {
+		t.Fatalf("ListProfiles calls=%d", h.listCalls)
 	}
 }
 
-
-
-func TestInitializeRejectsBlankIDForOwnedProfileWithoutPosting(t *testing.T) {
-	posts := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			posts++
-			t.Errorf("profile initialization must not POST to Agent Manager: %s", r.URL.Path)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(w, `{"profiles":[{"id":"","profileKey":"swarm-manager/default","ownerScenario":"swarm-manager"}],"total":1}`)
-	}))
-	defer server.Close()
-
+func TestInitializeRejectsBlankIDForOwnedProfile(t *testing.T) {
+	h := &profileListHandler{profiles: []*domainpb.AgentProfile{ownerProfile("", "swarm-manager/default", "swarm-manager")}}
+	server := profileServer(t, h)
 	svc := NewAgentService(AgentServiceConfig{ProfileKey: "swarm-manager/default", Enabled: true, Timeout: time.Second})
 	svc.client = NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
-	err := svc.Initialize(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "invalid profile identity") {
-		t.Fatalf("Initialize error = %v, want invalid owner profile identity", err)
-	}
-	if posts != 0 {
-		t.Fatalf("invalid owner profile read made %d POST requests", posts)
+	if err := svc.Initialize(context.Background()); err == nil || !strings.Contains(err.Error(), "invalid profile identity") {
+		t.Fatalf("Initialize error=%v", err)
 	}
 }
 
 func TestInitializeWarnsWhenResolvedOwnerProfileHasDeclarationDrift(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.String())
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(w, `{"profiles":[{"id":"default-id","profileKey":"swarm-manager/default","ownerScenario":"swarm-manager","sourcePath":".vrooli/agent-manager/default.json","sourceHash":"declared","lastAppliedHash":"applied","localOverride":true}],"total":1}`)
-	}))
-	defer server.Close()
-
+	p := ownerProfile("default-id", "swarm-manager/default", "swarm-manager")
+	p.SourcePath = ".vrooli/agent-manager/default.json"
+	p.SourceHash = "declared"
+	p.LastAppliedHash = "applied"
+	p.LocalOverride = true
+	h := &profileListHandler{profiles: []*domainpb.AgentProfile{p}}
+	server := profileServer(t, h)
 	var output bytes.Buffer
-	previousLogger := slog.Default()
+	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
-	defer slog.SetDefault(previousLogger)
-
+	defer slog.SetDefault(previous)
 	svc := NewAgentService(AgentServiceConfig{ProfileKey: "swarm-manager/default", Enabled: true, Timeout: time.Second})
 	svc.client = NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	if err := svc.Initialize(context.Background()); err != nil {
-		t.Fatalf("Initialize should use the resolved owner profile while leaving reconciliation to its owner: %v", err)
+		t.Fatalf("Initialize: %v", err)
 	}
 	if !strings.Contains(output.String(), "agent-manager profile has declaration drift metadata") || !strings.Contains(output.String(), "swarm-manager/default") {
-		t.Fatalf("drift diagnostic missing from logs: %s", output.String())
+		t.Fatalf("drift diagnostic missing: %s", output.String())
 	}
 }
 
-func TestInitializeAcceptsRequiredOwnerMatchWithPartialBoundedCoverage(t *testing.T) {
+func TestInitializeAcceptsRequiredOwnerMatchWithinBoundedPageCoverage(t *testing.T) {
 	const pageSize = 128
 	const pageCount = 8
-	allProfiles := make([]map[string]string, pageSize*pageCount)
-	allProfiles[0] = map[string]string{"id": "default-id", "profileKey": "swarm-manager/default", "ownerScenario": "swarm-manager"}
-	for i := 1; i < len(allProfiles); i++ {
-		allProfiles[i] = map[string]string{"id": fmt.Sprintf("id-%d", i), "profileKey": fmt.Sprintf("swarm-manager/profile-%d", i), "ownerScenario": "swarm-manager"}
+	profiles := make([]*domainpb.AgentProfile, pageSize*pageCount)
+	profiles[0] = ownerProfile("default-id", "swarm-manager/default", "swarm-manager")
+	for i := 1; i < len(profiles); i++ {
+		profiles[i] = ownerProfile(fmt.Sprintf("id-%d", i), fmt.Sprintf("swarm-manager/profile-%d", i), "swarm-manager")
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.String())
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		offset := 0
-		if raw := r.URL.Query().Get("offset"); raw != "" {
-			if _, err := fmt.Sscanf(raw, "%d", &offset); err != nil {
-				t.Errorf("invalid offset %q: %v", raw, err)
-			}
-		}
-		end := offset + pageSize
-		if end > len(allProfiles) {
-			end = len(allProfiles)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"profiles": allProfiles[offset:end], "total": pageSize})
-	}))
-	defer server.Close()
-
+	h := &profileListHandler{profiles: profiles}
+	server := profileServer(t, h)
 	svc := NewAgentService(AgentServiceConfig{ProfileKey: "swarm-manager/default", Enabled: true, Timeout: time.Second})
 	svc.client = NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	if err := svc.Initialize(context.Background()); err != nil {
-		t.Fatalf("known required owner/key match should resolve despite bounded global coverage: %v", err)
+		t.Fatalf("Initialize: %v", err)
 	}
 	if got := svc.GetProfileID(); got != "default-id" {
-		t.Fatalf("resolved profile ID = %q, want default-id", got)
+		t.Fatalf("profile ID=%q", got)
 	}
 	if _, err := svc.profileRefFor("swarm-manager/profile-1024"); err == nil {
-		t.Fatal("profile key outside observed pages should not be admitted from partial coverage")
+		t.Fatal("profile outside observed page bound was admitted")
 	}
 }

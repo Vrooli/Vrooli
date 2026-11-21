@@ -38,7 +38,7 @@ describe("getStatusColorClasses", () => {
     },
   );
 
-  it.each(["completed", "complete", "classified"])(
+  it.each(["completed", "complete"])(
     "returns done (emerald) colors for %s",
     (status) => {
       const colors = getStatusColorClasses(status);

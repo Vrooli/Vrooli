@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "aba73b86a8b231a475ace6babc27b42f2f61020b0efa9420a8788d98ac7cf459",
+  "manifest_hash": "3d2481a4d4c29757339339adc9ad233aae91d3b1b7104f50df89247e556bf8b4",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -681,12 +681,6 @@
       "path": "prompts catalog",
       "group": "prompts",
       "command": "catalog",
-      "binding": "."
-    },
-    {
-      "path": "prompts experiment-results",
-      "group": "prompts",
-      "command": "experiment-results",
       "binding": "."
     },
     {

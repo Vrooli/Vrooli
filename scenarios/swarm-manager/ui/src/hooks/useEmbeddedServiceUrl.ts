@@ -1,8 +1,9 @@
 /**
  * Hook to fetch the external URL for an embedded service.
  *
- * Uses React Query with staleTime: Infinity since embedded service URLs
- * don't change during a session. Silently returns null on failure
+ * Uses React Query with a short stale window because the peer's port can
+ * change after a restart. React Query refreshes stale values when the window
+ * regains focus. Silently returns null on failure
  * (the service may not be available).
  */
 
@@ -18,8 +19,9 @@ export function useEmbeddedServiceUrl(serviceName: string): UseEmbeddedServiceUr
   const { data, isLoading } = useQuery<string | null>({
     queryKey: ["embedded-service-url", serviceName],
     queryFn: () => embeddedService.getExternalUrl(serviceName),
-    staleTime: Infinity,
+    staleTime: 2_000,
     gcTime: Infinity,
+    refetchOnWindowFocus: true,
     retry: false,
     // Silently return null on error — the embedded service may not be available
     placeholderData: null,

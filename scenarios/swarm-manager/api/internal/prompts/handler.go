@@ -20,9 +20,8 @@ import (
 )
 
 type Handler struct {
-	rootDir          string
-	client           promptmanager.AdminClient
-	experimentClient promptmanager.ExperimentClient
+	rootDir string
+	client  promptmanager.AdminClient
 }
 
 func NewHandler(rootDir string, client promptmanager.AdminClient) *Handler {
@@ -32,20 +31,10 @@ func NewHandler(rootDir string, client promptmanager.AdminClient) *Handler {
 	if client == nil {
 		client = promptmanager.NewHTTPClient()
 	}
-	h := &Handler{
+	return &Handler{
 		rootDir: rootDir,
 		client:  client,
 	}
-	// If the admin client also implements ExperimentClient, use it.
-	if ec, ok := client.(promptmanager.ExperimentClient); ok {
-		h.experimentClient = ec
-	}
-	return h
-}
-
-// SetExperimentClient injects an experiment client for outcome and analysis operations.
-func (h *Handler) SetExperimentClient(ec promptmanager.ExperimentClient) {
-	h.experimentClient = ec
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
@@ -57,9 +46,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/prompts/skills/{id}/revert/{version}", h.RevertSkillVersion).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/prompts/preview", h.Preview).Methods(http.MethodPost)
 
-	// Experiment results (uses the same prompt-manager client as an ExperimentClient).
-	expHandler := NewExperimentHandler(h.experimentClient)
-	expHandler.RegisterRoutes(r)
+	// Experiments were retired with prompt-manager's experiment subsystem; the
+	// old results route answers with an explicit not-found instead of an empty analysis.
+	r.HandleFunc("/api/v1/prompts/experiments/{id}/results", h.ExperimentsRetired).Methods(http.MethodGet)
 }
 
 type PromptSkillSummary struct {

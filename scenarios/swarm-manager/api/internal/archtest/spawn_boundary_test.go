@@ -28,7 +28,7 @@ import (
 // (internal/archtest).
 var guardedPackages = []string{
 	"../backlog",
-	"../workshop",
+	"../planworkshop",
 	"../execution",
 	"../review",
 }

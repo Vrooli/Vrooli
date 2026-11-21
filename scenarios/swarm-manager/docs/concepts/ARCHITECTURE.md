@@ -3,7 +3,7 @@
 ## Work-shape routing
 
 Not every Swarm work item is plan-backed. The shared work-shape decision in
-`docs/agent-system/SWARM_MANAGER_WORK.md` may route a request to a discovered
+`docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes` may route a request to a discovered
 Action, bounded task, or read-only investigation/review. Those shapes use a
 harness goal and their owning operation; they do not acquire Plan Manager
 family overhead just because the parent effort is large.
@@ -82,9 +82,9 @@ run narrow its slice allowance. Bulk launch keeps each item's own settings.
 | Field | Values | Notes |
 | --- | --- | --- |
 | `plan_ref`, `plan_acceptance` | A Plan Manager plan; acceptance pins the content hash. | The approval digest. |
-| `execution_mode` | `sliced` \| `goal` | Default from the plan shape. A mandate recommends `goal`. |
+| `execution_mode` | `sliced` \| `goal` | `sliced` is the default. Plan shape is not implemented, so no shape-based mode recommendation is available. |
 | `execution_limits` | `max_slices` (sliced only), `max_tokens`, `max_wall_seconds`, `max_turns`, `max_charge_micro_usd`, `max_children`, `max_node_attempts`, `max_retries` | One aggregate allowance across resumes. |
-| `continuation` | `manual` \| `until-allowance` | Resume policy for involuntary interruptions only. |
+| `continuation` | `manual` \| `until-allowance` | Continue eligible interruptions or bounded `budget_exhausted` runs when aggregate allowance remains. |
 | `scope_policy` | `fixed` \| `extend-with-record` | See Scope policy. |
 | `acceptance_allow`, `acceptance_deny` | Path globs | Narrow to the target scenario, its packages, protos and docs. Use `extend-with-record` for the rest. |
 | `operator_note` | Free text | Reaches the agent verbatim in the goal message and in the slice prompt: intent, reminders, authority to fix shared packages with a record. A run may add its own note. |
@@ -117,32 +117,37 @@ work.
 
 ### Continuation
 
-Every stop belongs to one of two classes:
+Stops fall into three classes:
 
 | Stop class | Outcomes | What Swarm does |
 | --- | --- | --- |
 | Agent-decided verdict | `complete`, `blocked`, `abstained` | Finalization. The verdict is final. Nothing resumes it. |
-| Involuntary interruption | Usage window, timeout, crash, or session lost, with no terminal result. | Resume only under `continuation: until-allowance`. |
+| Involuntary interruption | Usage window, timeout, crash, or session lost, with no terminal result. | Under `continuation: until-allowance`, create a fresh child when allowance remains; same-session resume is target-only. |
+| Bounded execution stop | `budget_exhausted` after a permitted slice/session cap. | Start one fresh child only under `continuation: until-allowance` and while aggregate allowance remains. |
 
 Under `continuation: manual` every stop is a stop. The operator starts the next
 run.
 
-Under `continuation: until-allowance` Swarm resumes an involuntary interruption:
+Under `continuation: until-allowance` Swarm can continue an involuntary
+interruption or a bounded run that ends as `budget_exhausted`:
 
 1. Confirm that allowance remains on every aggregate dimension, that the
    acceptance digest and the effective scope are still valid, and that no halt
    flag is set.
 2. Derive the remaining allowance from settled usage under the same approval
    digest. Unknown usage blocks the resume.
-3. Prefer resuming the same session. Start a fresh run with the last handoff
-   only when the session is dead.
+3. **Target:** prefer resuming the same session; start a fresh run with the last
+   handoff only when the session is dead. **Current implementation:** the
+   sweeper creates a fresh child run for both eligible interruption and
+   `budget_exhausted` records; same-session resume is not implemented.
 4. Copy the parent's mode and execution preferences. Create one pending resume
    at a time.
 5. Halt the item for an operator after three resumes with no observed Plan
    Manager progress. Record `no_progress` as `continuation_stopped_reason`.
 
-An exhausted dimension (`tokens`, `charge`, `wall`, `slices`, or another
-aggregate limit) is recorded as `continuation_stopped_reason`. Operators can
+An exhausted aggregate dimension (`tokens`, `charge`, `wall`, `slices`, or
+another limit) is recorded as `continuation_stopped_reason`; no child starts
+without remaining allowance. Operators can
 halt or resume an item without cancelling a running execution. Parent and child
 IDs and the halt/stop state are projected in execution and backlog responses.
 Operational continuation fields never change the accepted item digest.
@@ -163,18 +168,12 @@ product outcome passed or authorize publication. Final review must inspect the
 approved outcome denominator and actual receipts, including unavailable, stale
 and failed evidence.
 
-**Implementation status (2026-09-11).** The code still stores
-`execution_strategy` with three values: `phased-plan-drain`,
-`adaptive-improvement`, and `goal-session`. The first two run the
-`swarm-manager/phased-plan-drain` workflow. The third runs an interim
-`swarm-manager/goal-session-drain` workflow that goal mode supersedes and that
-will be removed. The generated [transition catalog](../reference/transition-catalog.md)
-shows `plan.execute` bound to that one workflow key, while the registry behind it
-still declares the three strategies. Plans have no `shape` field and items have
-no `operator_note` field. Continuation keys on a `budget_exhausted` workflow
-status that the typed apply never accepts, so involuntary interruptions are not
-resumed today. The strategy-to-mode mapping lives in
-[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+**Implementation status (2026-11-16).** Swarm persists `execution_mode`
+(`sliced` by default or `goal`) and `operator_note` on plan-backed items. Goal
+mode starts one Agent Manager goal run. Plan Manager has no `shape` field yet,
+so every current plan is phased. See the canonical
+[implementation status](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status)
+and [Plan Manager model](../../../plan-manager/docs/concepts/PLAN-MODEL.md#implementation-status).
 
 ## Retired route: contract-development
 

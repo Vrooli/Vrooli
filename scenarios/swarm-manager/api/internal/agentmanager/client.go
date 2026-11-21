@@ -1,532 +1,343 @@
-// Package agentmanager provides a small HTTP client for agent-manager integration.
-//
-// DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
-// DOC: docs/internal/SEAMS.md
-// DOC: docs/internal/SEAMS.md#inter-scenario-contracts-and-intentional-exceptions
+// Package agentmanager provides Swarm Manager's generated Connect client for
+// Agent Manager. Only the plain /health probe remains REST.
 package agentmanager
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/owneridentity"
-
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
-// HTTPClient implements Client using HTTP calls to agent-manager.
 type HTTPClient struct {
 	baseURLResolver BaseURLResolver
 	httpClient      HTTPDoer
 }
 
-// BaseURLResolver resolves the base URL for agent-manager.
-type BaseURLResolver func(ctx context.Context) (string, error)
-
-// HTTPDoer allows injecting HTTP client for tests.
+type BaseURLResolver func(context.Context) (string, error)
 type HTTPDoer interface {
-	Do(req *http.Request) (*http.Response, error)
+	Do(*http.Request) (*http.Response, error)
 }
 
-// NewHTTPClient creates a new agent-manager HTTP client.
-func NewHTTPClient() *HTTPClient {
-	return NewHTTPClientWithTimeout(20 * time.Second)
-}
-
-// NewHTTPClientWithTimeout creates a new agent-manager HTTP client with custom timeout.
+func NewHTTPClient() *HTTPClient { return NewHTTPClientWithTimeout(20 * time.Second) }
 func NewHTTPClientWithTimeout(timeout time.Duration) *HTTPClient {
 	if timeout <= 0 {
 		timeout = 20 * time.Second
 	}
-	return &HTTPClient{
-		baseURLResolver: resolveAgentManagerBaseURL,
-		httpClient:      &http.Client{Timeout: timeout},
-	}
+	h := &http.Client{Timeout: timeout, Transport: provenance.ForwardingTransport{}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return NewHTTPClientWithResolver(resolveAgentManagerBaseURL, h)
 }
-
-// NewHTTPClientWithResolver creates a client with custom resolver (for tests).
-func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *HTTPClient {
+func NewHTTPClientWithResolver(resolver BaseURLResolver, doer HTTPDoer) *HTTPClient {
 	if resolver == nil {
 		resolver = resolveAgentManagerBaseURL
 	}
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 20 * time.Second}
+	if doer == nil {
+		doer = &http.Client{Timeout: 20 * time.Second, Transport: provenance.ForwardingTransport{}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	} else if client, ok := doer.(*http.Client); ok {
+		copy := *client
+		copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+		if copy.Transport == nil {
+			copy.Transport = provenance.ForwardingTransport{}
+		}
+		doer = &copy
 	}
-	return &HTTPClient{
-		baseURLResolver: resolver,
-		httpClient:      httpClient,
+	return &HTTPClient{baseURLResolver: resolver, httpClient: doer}
+}
+
+var (
+	ErrNotAvailable     = errors.New("agent-manager not available")
+	ErrRequestFailed    = errors.New("agent-manager request failed")
+	ErrWorkflowNotFound = errors.New("agent-manager workflow not found")
+	ErrWorkflowNotReady = errors.New("agent-manager workflow result not ready")
+)
+
+// ApprovalPendingError keeps the owner's typed approval outcome available to
+// callers, while retaining the raw generated detail for future fields.
+type ApprovalPendingError struct {
+	Detail *apipb.AuthorizationApprovalPending
+}
+
+func (e *ApprovalPendingError) Error() string {
+	if e == nil || e.Detail == nil {
+		return "agent-manager authorization approval pending"
 	}
+	return "agent-manager authorization approval pending: " + e.Detail.GetDetail()
 }
 
-// ErrNotAvailable is returned when agent-manager cannot be reached.
-var ErrNotAvailable = errors.New("agent-manager not available")
-
-// ErrRequestFailed is returned when agent-manager returns a non-2xx response.
-var ErrRequestFailed = errors.New("agent-manager request failed")
-
-// ErrWorkflowNotFound is returned when a start reconciliation key has no
-// durable owner execution yet. It is distinct from transport unavailability.
-var ErrWorkflowNotFound = errors.New("agent-manager workflow not found")
-
-// ErrWorkflowNotReady is returned when a workflow execution is healthy but
-// has not reached a terminal state yet. Callers may safely retry collection.
-var ErrWorkflowNotReady = errors.New("agent-manager workflow result not ready")
-
-var protoJSONMarshal = protojson.MarshalOptions{
-	UseProtoNames: false, // match existing clients (lowerCamelCase)
+func (c *HTTPClient) ResolveURL(ctx context.Context) (string, error) { return c.baseURLResolver(ctx) }
+func (c *HTTPClient) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
+	u, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrNotAvailable, err)
+	}
+	return apiconnect.NewAgentManagerServiceClient(c.httpClient, strings.TrimRight(u, "/")), nil
+}
+func req[T any](msg *T) *connect.Request[T] { return connect.NewRequest(msg) }
+func connectError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var ce *connect.Error
+	if errors.As(err, &ce) {
+		if ce.Code() == connect.CodeUnavailable || ce.Code() == connect.CodeDeadlineExceeded {
+			return fmt.Errorf("%w: %w", ErrNotAvailable, err)
+		}
+		return fmt.Errorf("%w: %w", ErrRequestFailed, err)
+	}
+	return err
 }
 
-var protoJSONUnmarshal = protojson.UnmarshalOptions{
-	DiscardUnknown: false,
-}
-
-// ResolveURL returns the base URL for agent-manager.
-func (c *HTTPClient) ResolveURL(ctx context.Context) (string, error) {
-	return c.baseURLResolver(ctx)
-}
-
-// Health checks agent-manager availability.
+// Health is a REST exception because it is the scenario lifecycle probe, not
+// an application RPC. All application calls below use the generated client.
 func (c *HTTPClient) Health(ctx context.Context) (bool, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, "/health", nil)
+	u, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrNotAvailable, err)
+	}
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(u, "/")+"/health", nil)
 	if err != nil {
 		return false, err
 	}
+	resp, err := c.httpClient.Do(r)
+	if err != nil {
+		return false, fmt.Errorf("%w: %w", ErrNotAvailable, err)
+	}
 	defer resp.Body.Close()
-
 	return resp.StatusCode == http.StatusOK, nil
 }
-
-// ListProfiles reads a bounded page of existing Agent Manager profiles. It is
-// intentionally read-only: callers must not use this path to register or update
-// declaration-owned profiles.
 func (c *HTTPClient) ListProfiles(ctx context.Context, limit, offset int) (*apipb.ListProfilesResponse, error) {
 	if limit <= 0 || limit > 5000 || offset < 0 {
 		return nil, fmt.Errorf("%w: invalid profile list bounds", ErrRequestFailed)
 	}
-	query := url.Values{}
-	query.Set("limit", fmt.Sprintf("%d", limit))
-	if offset > 0 {
-		query.Set("offset", fmt.Sprintf("%d", offset))
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/profiles?"+query.Encode(), nil)
-	if err != nil {
-		return nil, err
+	l, o := int32(limit), int32(offset)
+	v, e := a.ListProfiles(ctx, req(&apipb.ListProfilesRequest{Limit: &l, Offset: &o}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.ListProfilesResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
-
-// EnsureProfile resolves or creates a profile by key.
-func (c *HTTPClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return nil, err
+func (c *HTTPClient) EnsureProfile(ctx context.Context, r *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/ensure", body)
-	if err != nil {
-		return nil, err
+	v, e := a.EnsureProfile(ctx, req(r))
+	if e != nil {
+		return nil, connectError(e)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, readErrorResponse(resp)
-	}
-
-	var result apipb.EnsureProfileResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
-
-// ReconcileScenarioProfiles reconciles profile files declared by the calling scenario.
 func (c *HTTPClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
-	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/reconcile-scenario", body)
-	if err != nil {
-		return nil, err
+	v, e := a.ReconcileScenarioProfiles(ctx, req(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
-	}
-
-	var result apipb.ReconcileScenarioProfilesResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
-
-// CreateTask creates a new task using proto JSON payloads.
 func (c *HTTPClient) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
-	req := &apipb.CreateTaskRequest{Task: task}
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tasks", body)
-	if err != nil {
-		return nil, err
+	v, e := a.CreateTask(ctx, req(&apipb.CreateTaskRequest{Task: task}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, readErrorResponse(resp)
-	}
-
-	var result apipb.CreateTaskResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	if result.Task == nil || strings.TrimSpace(result.Task.Id) == "" {
+	if v.Msg.GetTask() == nil || strings.TrimSpace(v.Msg.GetTask().GetId()) == "" {
 		return nil, fmt.Errorf("%w: missing task id", ErrRequestFailed)
 	}
-	return result.Task, nil
+	return v.Msg.Task, nil
 }
-
-// CreateRun creates a new run using proto JSON payloads.
-func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
-		return nil, err
+func (c *HTTPClient) CreateRun(ctx context.Context, r *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	if e := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); e != nil {
+		return nil, e
 	}
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs", body)
-	if err != nil {
-		return nil, err
+	q := req(r)
+	proof, e := owneridentity.CreateRunRequestHeaders(ctx, time.Now())
+	if e != nil {
+		return nil, e
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("%s", owneridentity.RedactCreateRunCaller(ctx, readErrorResponse(resp).Error()))
+	for k, vs := range proof {
+		for _, v := range vs {
+			q.Header().Add(k, v)
+		}
 	}
-
-	var result apipb.CreateRunResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
+	v, e := a.CreateRun(ctx, q)
+	if e != nil {
+		var ce *connect.Error
+		if errors.As(e, &ce) {
+			for _, d := range ce.Details() {
+				value, decodeErr := d.Value()
+				if detail, ok := value.(*apipb.AuthorizationApprovalPending); decodeErr == nil && ok {
+					return nil, &ApprovalPendingError{Detail: detail}
+				}
+			}
+		}
+		return nil, connectError(e)
 	}
-	if result.Run == nil || strings.TrimSpace(result.Run.Id) == "" {
+	if v.Msg.GetRun() == nil || strings.TrimSpace(v.Msg.GetRun().GetId()) == "" {
 		return nil, fmt.Errorf("%w: missing run id", ErrRequestFailed)
 	}
-	return result.Run, nil
+	return v.Msg.Run, nil
 }
-
-// GetRun retrieves a run by ID.
-func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) GetRun(ctx context.Context, id string) (*domainpb.Run, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed), nil)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
+	v, e := a.GetRun(ctx, req(&apipb.GetRunRequest{RunId: id}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-
-	var result apipb.GetRunResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	if result.Run == nil || strings.TrimSpace(result.Run.Id) == "" {
+	if v.Msg.GetRun() == nil || strings.TrimSpace(v.Msg.GetRun().GetId()) == "" {
 		return nil, fmt.Errorf("%w: missing run id", ErrRequestFailed)
 	}
-	return result.Run, nil
+	return v.Msg.Run, nil
 }
-
-// GetRunAccounting reads one run's metered usage from the owner. The owner
-// reports unknown usage as unknown; this client never fills a default.
-func (c *HTTPClient) GetRunAccounting(ctx context.Context, runID string) (*apipb.RunAccounting, error) {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) GetRunAccounting(ctx context.Context, id string) (*apipb.RunAccounting, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed)+"/accounting", nil)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
+	v, e := a.GetRunAccounting(ctx, req(&apipb.GetRunAccountingRequest{RunId: id}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-
-	var result apipb.RunAccounting
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
+	if strings.TrimSpace(v.Msg.GetRunId()) != id {
+		return nil, fmt.Errorf("%w: accounting for run %q answered run %q", ErrRequestFailed, id, v.Msg.GetRunId())
 	}
-	if strings.TrimSpace(result.GetRunId()) != trimmed {
-		return nil, fmt.Errorf("%w: accounting for run %q answered run %q", ErrRequestFailed, trimmed, result.GetRunId())
-	}
-	return &result, nil
+	return v.Msg, nil
 }
-
-func (c *HTTPClient) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) (*apipb.GetRunEventsResponse, error) {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) GetRunEvents(ctx context.Context, id string, o RunEventsOptions) (*apipb.GetRunEventsResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	values := url.Values{}
-	if opts.AfterSequence > 0 {
-		values.Set("after_sequence", fmt.Sprintf("%d", opts.AfterSequence))
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-	if opts.Limit > 0 {
-		values.Set("limit", fmt.Sprintf("%d", opts.Limit))
+	r := &apipb.GetRunEventsRequest{RunId: id}
+	if o.AfterSequence > 0 {
+		x := o.AfterSequence
+		r.AfterSequence = &x
 	}
-	path := "/api/v1/runs/" + url.PathEscape(trimmed) + "/events"
-	if encoded := values.Encode(); encoded != "" {
-		path += "?" + encoded
+	if o.Limit > 0 {
+		x := o.Limit
+		r.Limit = &x
 	}
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
+	v, e := a.GetRunEvents(ctx, req(r))
+	if e != nil {
+		return nil, connectError(e)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
-	}
-	var result apipb.GetRunEventsResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return v.Msg, nil
 }
-
-// GetRunDiff retrieves the diff for a sandboxed run.
-func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) GetRunDiff(ctx context.Context, id string) (*domainpb.RunDiff, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(trimmed)+"/diff", nil)
-	if err != nil {
-		return nil, err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return nil, e
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, readErrorResponse(resp)
+	v, e := a.GetRunDiff(ctx, req(&apipb.GetRunDiffRequest{RunId: id}))
+	if e != nil {
+		return nil, connectError(e)
 	}
-
-	var result apipb.GetRunDiffResponse
-	if err := decodeProtoResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	if result.Diff == nil {
+	if v.Msg.GetDiff() == nil {
 		return nil, fmt.Errorf("%w: missing run diff", ErrRequestFailed)
 	}
-	return result.Diff, nil
+	return v.Msg.Diff, nil
 }
-
-// ApproveRun releases a run that is held at needs_review, merging its sandbox
-// overlay into the working tree. Used by the pre-merge engagement hold: the
-// caller opens the Baseline Modes restore point (capturing the clean working
-// tree) BEFORE calling this, so the merge lands the candidate on top of a
-// captured baseline.
-func (c *HTTPClient) ApproveRun(ctx context.Context, runID, actor, commitMsg string) error {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) ApproveRun(ctx context.Context, id, actor, msg string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	req := &apipb.ApproveRunRequest{RunId: trimmed}
-	if a := strings.TrimSpace(actor); a != "" {
-		req.Actor = &a
+	r := &apipb.ApproveRunRequest{RunId: id}
+	if x := strings.TrimSpace(actor); x != "" {
+		r.Actor = &x
 	}
-	if m := strings.TrimSpace(commitMsg); m != "" {
-		req.CommitMsg = &m
+	if x := strings.TrimSpace(msg); x != "" {
+		r.CommitMsg = &x
 	}
-	body, err := protoJSONMarshal.Marshal(req)
-	if err != nil {
-		return err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return e
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/approve", body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return readErrorResponse(resp)
-	}
-
-	return nil
+	_, e = a.ApproveRun(ctx, req(r))
+	return connectError(e)
 }
-
-// ContinueRun sends a follow-up message to an existing run's conversation.
-func (c *HTTPClient) ContinueRun(ctx context.Context, runID string, message string) error {
-	return c.continueRun(ctx, runID, message, "")
+func (c *HTTPClient) ContinueRun(ctx context.Context, id, msg string) error {
+	return c.continueRun(ctx, id, msg, "")
 }
-
-// ContinueRunWithIdempotencyKey retries the same owner continuation safely
-// after a caller loses the response to an accepted request.
-func (c *HTTPClient) ContinueRunWithIdempotencyKey(ctx context.Context, runID, message, idempotencyKey string) error {
-	if strings.TrimSpace(idempotencyKey) == "" {
+func (c *HTTPClient) ContinueRunWithIdempotencyKey(ctx context.Context, id, msg, key string) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
 		return fmt.Errorf("%w: idempotency key is required", ErrRequestFailed)
 	}
-	return c.continueRun(ctx, runID, message, strings.TrimSpace(idempotencyKey))
+	return c.continueRun(ctx, id, msg, key)
 }
-
-func (c *HTTPClient) continueRun(ctx context.Context, runID string, message string, idempotencyKey string) error {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) continueRun(ctx context.Context, id, msg, key string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	request := map[string]string{"runId": trimmed, "message": message}
-	if idempotencyKey != "" {
-		request["idempotencyKey"] = idempotencyKey
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return e
 	}
-	body, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("marshal continue request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/continue", body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return readErrorResponse(resp)
-	}
-
-	return nil
+	_, e = a.ContinueRun(ctx, req(&domainpb.ContinueRunRequest{RunId: id, Message: msg, IdempotencyKey: key}))
+	return connectError(e)
 }
-
-// StopRun stops a running run by ID.
-func (c *HTTPClient) StopRun(ctx context.Context, runID string) error {
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
+func (c *HTTPClient) StopRun(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
 		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/stop", nil)
-	if err != nil {
-		return err
+	a, e := c.connectClient(ctx)
+	if e != nil {
+		return e
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return readErrorResponse(resp)
-	}
-
-	return nil
-}
-
-func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
-	baseURL, err := c.baseURLResolver(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, method, baseURL+path, reader)
-	if err != nil {
-		return nil, err
-	}
-	if body != nil {
-		request.Header.Set("Content-Type", "application/json")
-	}
-
-	doer := c.httpClient
-	if method == http.MethodPost && path == "/api/v1/runs" {
-		proof, err := owneridentity.CreateRunRequestHeaders(ctx, time.Now())
-		if err != nil {
-			return nil, err
-		}
-		for name, values := range proof {
-			request.Header[name] = append([]string(nil), values...)
-		}
-		// Production uses *http.Client; injected non-client transports are fixture seams.
-		if client, ok := doer.(*http.Client); ok {
-			copy := *client
-			copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-			doer = &copy
-		}
-	}
-	resp, err := doer.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrNotAvailable, err)
-	}
-	return resp, nil
-}
-
-// maxErrorBodyBytes limits how much of an error response body to read.
-const maxErrorBodyBytes = 1024
-
-// readErrorResponse builds an ErrRequestFailed error that includes the
-// status code and (truncated) response body so callers can diagnose
-// upstream validation failures.
-func readErrorResponse(resp *http.Response) error {
-	detail := ""
-	if resp.Body != nil {
-		limited := io.LimitReader(resp.Body, maxErrorBodyBytes)
-		raw, _ := io.ReadAll(limited)
-		detail = strings.TrimSpace(string(raw))
-	}
-	if detail != "" {
-		return fmt.Errorf("%w: status %d: %s", ErrRequestFailed, resp.StatusCode, detail)
-	}
-	return fmt.Errorf("%w: status %d", ErrRequestFailed, resp.StatusCode)
-}
-
-func decodeProtoResponse(resp *http.Response, msg proto.Message) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	return protoJSONUnmarshal.Unmarshal(body, msg)
+	_, e = a.StopRun(ctx, req(&apipb.StopRunRequest{RunId: id}))
+	return connectError(e)
 }
 
 func resolveAgentManagerBaseURL(ctx context.Context) (string, error) {
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrNotAvailable, err)
+	u, e := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	if e != nil {
+		return "", fmt.Errorf("%w: %w", ErrNotAvailable, e)
 	}
-	return baseURL, nil
+	return u, nil
 }

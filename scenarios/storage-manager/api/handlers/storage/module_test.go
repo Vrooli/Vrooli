@@ -195,8 +195,12 @@ func TestInventoryEndpointAttributesOllamaModelsAndLogicalFileRemainder(t *testi
 	if !strings.Contains(out.OllamaModels.Models[1].RegenerableReason, "same-artifact restoration and retention authorization are not proven") {
 		t.Fatalf("matched provenance overclaimed regenerability: %+v", out.OllamaModels.Models[1])
 	}
-	if out.OllamaModels.PhysicalBytesKnown || out.OllamaModels.PhysicalBytes != nil || out.OllamaModels.UnattributedBytes != nil {
-		t.Fatalf("inventory claimed an allocated-byte measurement: %+v", out.OllamaModels)
+	wantPhysical, err := directoryAllocatedBytes(modelRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.OllamaModels.PhysicalBytesKnown || out.OllamaModels.PhysicalBytes == nil || *out.OllamaModels.PhysicalBytes != wantPhysical || out.OllamaModels.UnattributedBytes == nil || *out.OllamaModels.UnattributedBytes != wantPhysical || len(out.OllamaModels.UnattributedPhysicalPaths) != 1 || out.OllamaModels.UnattributedPhysicalPaths[0] != modelRoot {
+		t.Fatalf("inventory physical owner total/unattributed bytes = known:%v physical:%v unattributed:%v paths:%v, want %d at %s", out.OllamaModels.PhysicalBytesKnown, out.OllamaModels.PhysicalBytes, out.OllamaModels.UnattributedBytes, out.OllamaModels.UnattributedPhysicalPaths, wantPhysical, modelRoot)
 	}
 	if !out.OllamaModels.LogicalFileLengthBytesKnown || !out.OllamaModels.UnattributedLogicalFileLengthKnown || out.OllamaModels.LogicalFileLengthBytes != int64(len("physical-remainder")) || out.OllamaModels.UnattributedLogicalFileLengthBytes != int64(len("physical-remainder"))-12 || len(out.OllamaModels.UnattributedPaths) != 1 {
 		t.Fatalf("logical file-length remainder = %+v", out.OllamaModels)
@@ -315,6 +319,32 @@ func TestOllamaInventoryLogicalTotalsRejectNegativeAndOverflow(t *testing.T) {
 	}
 	if unknownRoot.PhysicalBytesKnown || unknownRoot.PhysicalBytes != nil {
 		t.Fatalf("unreadable root exposed physical bytes: %+v", unknownRoot)
+	}
+}
+
+func TestOllamaBlobInventoryDeduplicatesHardlinksAndSeparatesUnknownFiles(t *testing.T) {
+	root := t.TempDir()
+	firstDigest := "sha256-" + strings.Repeat("a", 64)
+	secondDigest := "sha256-" + strings.Repeat("b", 64)
+	first := filepath.Join(root, firstDigest)
+	if err := os.WriteFile(first, []byte("shared blob"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(first, filepath.Join(root, secondDigest)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "index.json"), []byte("metadata"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := inspectOllamaBlobs(root)
+	if err != nil {
+		if strings.Contains(err.Error(), "unsupported on this platform") {
+			t.Skip(err.Error())
+		}
+		t.Fatal(err)
+	}
+	if got.Count != 2 || got.LogicalBytes != 2*int64(len("shared blob")) || got.PhysicalBytes <= 0 || got.UnrecognizedFiles != 1 {
+		t.Fatalf("blob inventory = %+v; want two logical digests, one physical inode, and one unknown file", got)
 	}
 }
 

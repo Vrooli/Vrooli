@@ -2,321 +2,113 @@ package agentmanager
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
-	"strings"
+	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-type mockHTTPDoer struct {
-	doFunc func(req *http.Request) (*http.Response, error)
+type getRunHandler struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
 }
 
-func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
-	return m.doFunc(req)
+func (getRunHandler) GetRun(context.Context, *connect.Request[apipb.GetRunRequest]) (*connect.Response[apipb.GetRunResponse], error) {
+	return connect.NewResponse(&apipb.GetRunResponse{Run: &domainpb.Run{Id: "run-1"}}), nil
 }
 
-func makeResponse(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
+type createRunHandler struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	authorization, identity string
+	err                     error
+}
+
+func (h *createRunHandler) CreateRun(_ context.Context, r *connect.Request[apipb.CreateRunRequest]) (*connect.Response[apipb.CreateRunResponse], error) {
+	h.authorization = r.Header().Get("Authorization")
+	h.identity = r.Header().Get("X-Agent-Identity-Token")
+	if h.err != nil {
+		return nil, h.err
 	}
+	return connect.NewResponse(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "run-1"}}), nil
 }
 
-func TestNewHTTPClient_Defaults(t *testing.T) {
-	client := NewHTTPClient()
-	if client == nil {
-		t.Fatalf("expected client")
-	}
-	if client.baseURLResolver == nil {
-		t.Fatalf("expected baseURLResolver")
-	}
-	if client.httpClient == nil {
-		t.Fatalf("expected httpClient")
-	}
-}
-
-func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
-	client := NewHTTPClientWithResolver(nil, nil)
-	if client.baseURLResolver == nil {
-		t.Fatalf("expected default resolver")
-	}
-	if client.httpClient == nil {
-		t.Fatalf("expected default http client")
-	}
-}
-
-func TestHTTPClientContinueRunWithIdempotencyKeySendsKey(t *testing.T) {
-	var gotPath, gotRunID, gotMessage, gotKey string
-	client := NewHTTPClientWithResolver(
-		func(_ context.Context) (string, error) { return "http://agent-manager.local", nil },
-		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-			gotPath = req.URL.Path
-			var body map[string]string
-			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-				return nil, err
-			}
-			gotRunID, gotMessage, gotKey = body["runId"], body["message"], body["idempotencyKey"]
-			return makeResponse(http.StatusOK, `{}`), nil
-		}},
-	)
-
-	if err := client.ContinueRunWithIdempotencyKey(context.Background(), "run-1", "review note", "ask-key"); err != nil {
-		t.Fatalf("ContinueRunWithIdempotencyKey: %v", err)
-	}
-	if gotPath != "/api/v1/runs/run-1/continue" || gotRunID != "run-1" || gotMessage != "review note" || gotKey != "ask-key" {
-		t.Fatalf("continue request = path %q run %q message %q key %q", gotPath, gotRunID, gotMessage, gotKey)
-	}
-}
-
-func TestHTTPClient_Health(t *testing.T) {
-	t.Run("healthy", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != "/health" {
-					return makeResponse(http.StatusNotFound, ""), nil
-				}
-				return makeResponse(http.StatusOK, `{}`), nil
-			}},
-		)
-		ok, err := client.Health(context.Background())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !ok {
-			t.Error("expected healthy")
-		}
-	})
-
-	t.Run("unhealthy", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				return makeResponse(http.StatusServiceUnavailable, ""), nil
-			}},
-		)
-		ok, err := client.Health(context.Background())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if ok {
-			t.Error("expected unhealthy")
-		}
-	})
-
-	t.Run("resolver error", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "", ErrNotAvailable },
-			&mockHTTPDoer{},
-		)
-		_, err := client.Health(context.Background())
-		if !errors.Is(err, ErrNotAvailable) {
-			t.Fatalf("expected ErrNotAvailable, got %v", err)
-		}
-	})
-}
-
-func TestHTTPClient_CreateTask_Proto(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		var capturedBody string
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				bodyBytes, _ := io.ReadAll(req.Body)
-				capturedBody = string(bodyBytes)
-				return makeResponse(http.StatusCreated, `{"task":{"id":"task-proto-1","title":"test"}}`), nil
-			}},
-		)
-
-		task, err := client.CreateTask(context.Background(), buildTestTask("Test Proto Task"))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if task.Id != "task-proto-1" {
-			t.Errorf("got task ID %q, want %q", task.Id, "task-proto-1")
-		}
-		if capturedBody == "" {
-			t.Fatal("expected non-empty request body")
-		}
-	})
-
-	t.Run("server error", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				return makeResponse(http.StatusInternalServerError, `{}`), nil
-			}},
-		)
-		_, err := client.CreateTask(context.Background(), buildTestTask("fail"))
-		if err == nil {
-			t.Fatal("expected error")
-		}
-		if !errors.Is(err, ErrRequestFailed) {
-			t.Errorf("expected ErrRequestFailed, got %v", err)
-		}
-	})
-}
-
-func TestHTTPClient_GetRun(t *testing.T) {
-	t.Run("empty id", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{},
-		)
-		_, err := client.GetRun(context.Background(), "")
-		if err == nil {
-			t.Fatal("expected error for empty run ID")
-		}
-	})
-
-	t.Run("success", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				return makeResponse(http.StatusOK, `{"run":{"id":"run-1","taskId":"task-1","status":"RUN_STATUS_RUNNING"}}`), nil
-			}},
-		)
-		run, err := client.GetRun(context.Background(), "run-1")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if run.Id != "run-1" {
-			t.Errorf("got run ID %q, want %q", run.Id, "run-1")
-		}
-	})
-}
-
-func TestAgentServiceGetRunMessagesPagesAndPreservesEventIdentity(t *testing.T) {
-	var requests int
-	client := NewHTTPClientWithResolver(
-		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-			requests++
-			if req.URL.Path != "/api/v1/runs/run-paged/events" {
-				t.Fatalf("path = %q", req.URL.Path)
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("limit = %q, want 200", req.URL.Query().Get("limit"))
-			}
-			switch requests {
-			case 1:
-				if got := req.URL.Query().Get("after_sequence"); got != "" {
-					t.Fatalf("first after_sequence = %q, want empty", got)
-				}
-				return makeResponse(http.StatusOK, `{
-				  "events": [
-				    {"id":"event-final","runId":"run-paged","sequence":"10","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"assistant","content":"{\"operating_mode_result\":{\"verdict\":\"accepted\"}}"}},
-				    {"id":"event-user","runId":"run-paged","sequence":"11","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"user","content":"ignored"}}
-				  ],
-				  "hasMore": true
-				}`), nil
-			case 2:
-				if got := req.URL.Query().Get("after_sequence"); got != "11" {
-					t.Fatalf("second after_sequence = %q, want 11", got)
-				}
-				return makeResponse(http.StatusOK, `{
-				  "events": [
-				    {"id":"event-trailing","runId":"run-paged","sequence":"20","eventType":"RUN_EVENT_TYPE_MESSAGE","message":{"role":"assistant","content":"trailing subagent noise"}}
-				  ],
-				  "hasMore": false
-				}`), nil
-			default:
-				t.Fatalf("unexpected request %d", requests)
-				return nil, nil
-			}
-		}},
-	)
-	service := &AgentService{client: client, enabled: true}
-	messages, err := service.GetRunMessages(context.Background(), "run-paged")
+func TestAgentManagerClientUsesGeneratedConnectProcedure(t *testing.T) {
+	path, handler := apiconnect.NewAgentManagerServiceHandler(getRunHandler{})
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
+	run, err := client.GetRun(context.Background(), "run-1")
 	if err != nil {
-		t.Fatalf("GetRunMessages: %v", err)
+		t.Fatal(err)
 	}
-	if requests != 2 {
-		t.Fatalf("requests = %d, want 2", requests)
-	}
-	if len(messages) != 2 {
-		t.Fatalf("messages = %#v, want two assistant messages", messages)
-	}
-	if messages[0].EventID != "event-final" || messages[0].Sequence != 10 || messages[1].EventID != "event-trailing" || messages[1].Sequence != 20 {
-		t.Fatalf("messages = %#v, want stable identities across pages", messages)
+	if run.GetId() != "run-1" {
+		t.Fatalf("run id = %q", run.GetId())
 	}
 }
 
-func TestHTTPClient_StopRun(t *testing.T) {
-	t.Run("empty id", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{},
-		)
-		err := client.StopRun(context.Background(), "  ")
-		if err == nil {
-			t.Fatal("expected error for empty run ID")
-		}
-	})
-
-	t.Run("success", func(t *testing.T) {
-		client := NewHTTPClientWithResolver(
-			func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-			&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-				return makeResponse(http.StatusOK, `{}`), nil
-			}},
-		)
-		err := client.StopRun(context.Background(), "run-1")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-}
-
-func TestResolveAgentManagerBaseURL(t *testing.T) {
-	url, err := resolveAgentManagerBaseURL(context.Background())
+func TestCreateRunPreservesTypedAuthorizationApprovalDetail(t *testing.T) {
+	detail := &apipb.AuthorizationApprovalPending{Subject: "swarm-manager", Detail: "standing approval required"}
+	connectDetail, err := connect.NewErrorDetail(detail)
 	if err != nil {
-		t.Skipf("agent-manager not available: %v", err)
+		t.Fatal(err)
 	}
-	if !strings.HasPrefix(url, "http") {
-		t.Fatalf("expected base URL to be http(s), got %q", url)
-	}
-}
-
-func TestReadErrorResponse_IncludesBody(t *testing.T) {
-	resp := makeResponse(http.StatusBadRequest, `{"code":"VALIDATION_FIELD","message":"description must be 16384 characters or less"}`)
-	err := readErrorResponse(resp)
-	if !errors.Is(err, ErrRequestFailed) {
-		t.Fatalf("expected ErrRequestFailed, got %v", err)
-	}
-	msg := err.Error()
-	if !strings.Contains(msg, "status 400") {
-		t.Errorf("expected status 400 in error, got %q", msg)
-	}
-	if !strings.Contains(msg, "VALIDATION_FIELD") {
-		t.Errorf("expected response body in error, got %q", msg)
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("approval pending"))
+	connectErr.AddDetail(connectDetail)
+	h := &createRunHandler{err: connectErr}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
+	_, err = client.CreateRun(auth01FixtureCaller(t, context.Background()), &apipb.CreateRunRequest{TaskId: "fixture-task"})
+	var pending *ApprovalPendingError
+	if !errors.As(err, &pending) || pending.Detail.GetSubject() != detail.Subject || pending.Detail.GetDetail() != detail.Detail {
+		t.Fatalf("typed approval error = %#v (%v)", pending, err)
 	}
 }
 
-func TestReadErrorResponse_EmptyBody(t *testing.T) {
-	resp := makeResponse(http.StatusInternalServerError, "")
-	err := readErrorResponse(resp)
-	if !errors.Is(err, ErrRequestFailed) {
-		t.Fatalf("expected ErrRequestFailed, got %v", err)
+func TestCreateRunUsesGeneratedConnectAndCarriesOnlyCallerProofHeaders(t *testing.T) {
+	h := &createRunHandler{}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(h)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
+	run, err := client.CreateRun(auth01FixtureCaller(t, context.Background()), &apipb.CreateRunRequest{TaskId: "fixture-task"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "status 500") {
-		t.Errorf("expected status 500 in error, got %q", msg)
+	if run.GetId() != "run-1" {
+		t.Fatalf("run id = %q", run.GetId())
 	}
-	// Should not have trailing colon or body text
-	if strings.HasSuffix(msg, ": ") {
-		t.Errorf("should not have trailing colon for empty body: %q", msg)
+	if h.authorization != "Bearer fixture-owner" || h.identity != "" {
+		t.Fatalf("proof headers authorization=%q identity=%q", h.authorization, h.identity)
 	}
 }
 
-// buildTestTask creates a proto Task for testing.
-func buildTestTask(title string) *domainpb.Task {
-	return &domainpb.Task{
-		Title: title,
+func TestAgentManagerConnectErrorsAreClassified(t *testing.T) {
+	err := connectError(connect.NewError(connect.CodeUnavailable, context.DeadlineExceeded))
+	if err == nil || !errors.Is(err, ErrNotAvailable) {
+		t.Fatalf("unavailable error = %v", err)
+	}
+	err = connectError(connect.NewError(connect.CodeInvalidArgument, context.Canceled))
+	if err == nil || !errors.Is(err, ErrRequestFailed) {
+		t.Fatalf("request error = %v", err)
+	}
+}
+
+func TestContinueRunWithIdempotencyKeyRequiresKey(t *testing.T) {
+	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return "http://unused", nil }, nil)
+	err := client.ContinueRunWithIdempotencyKey(context.Background(), "run-1", "continue", " ")
+	if err == nil || !errors.Is(err, ErrRequestFailed) {
+		t.Fatalf("error = %v", err)
 	}
 }

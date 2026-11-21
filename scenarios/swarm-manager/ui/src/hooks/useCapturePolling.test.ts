@@ -11,7 +11,6 @@ function makeCapture(overrides: Partial<Capture> = {}): Capture {
     attachments: [],
     created: new Date().toISOString(),
     status: "classifying",
-    classification: null,
     ...overrides,
   };
 }
@@ -41,7 +40,7 @@ describe("useCapturePolling", () => {
 
   it("does not poll when no captures are classifying", () => {
     const fetchCaptures = resetStore([
-      makeCapture({ status: "classified" }),
+      makeCapture({ status: "failed" }),
     ]);
 
     renderHook(() => useCapturePolling());

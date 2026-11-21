@@ -10,6 +10,8 @@ import (
 
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/retention"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // pageRows caps the per-item table; the rest are summed in one line.
@@ -187,11 +189,13 @@ func (r request) size() string {
 func (r request) where() string {
 	parent := r.parent()
 	home := r.in.home
-	switch {
-	case home != "" && within(parent, filepath.Join(home, ".vrooli")):
-		return "in Vrooli's runtime folder"
-	case home != "" && within(parent, home):
-		return "in your home folder"
+	if home != "" {
+		if runtimeHome, err := repocontract.VrooliUserRoot(home); err == nil && within(parent, runtimeHome) {
+			return "in Vrooli's runtime folder"
+		}
+		if within(parent, home) {
+			return "in your home folder"
+		}
 	}
 	return "outside your home folder"
 }

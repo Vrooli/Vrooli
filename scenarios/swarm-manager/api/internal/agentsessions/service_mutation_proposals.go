@@ -154,7 +154,9 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 		var applyErr error
 		application, applyErr = s.mutationProposalProcessor.Apply(ctx, *proposal.Target, proposal.PayloadJSON, acceptedMutationIDs, MutationProposalSource{SessionID: session.ID, RunID: session.RunID, DecidedAt: nowRFC3339()})
 		if applyErr != nil {
-			proposal.Status = ProposalStatusNeedsRevision
+			if err := proposal.TransitionStatus(ProposalStatusNeedsRevision); err != nil {
+				return Session{}, err
+			}
 			proposal.NeedsRevision = true
 			proposal.ValidationErrors = []string{applyErr.Error()}
 			proposal.UpdatedAt = nowRFC3339()
@@ -164,13 +166,16 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 			return s.loadSession(ctx, session.ID)
 		}
 	}
-	proposal.Status = ProposalStatusApplied
 	decisionKind := "apply"
 	resolutionDecision := "applied"
+	nextProposalStatus := ProposalStatusApplied
 	if rejected {
-		proposal.Status = ProposalStatusRejected
+		nextProposalStatus = ProposalStatusRejected
 		decisionKind = "reject"
 		resolutionDecision = "rejected"
+	}
+	if err := proposal.TransitionStatus(nextProposalStatus); err != nil {
+		return Session{}, err
 	}
 	proposal.NeedsRevision = false
 	proposal.UpdatedAt = nowRFC3339()
@@ -207,7 +212,9 @@ func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, p
 	if err := s.mutationProposalProcessor.AcceptNoChange(ctx, *proposal.Target, proposal.PayloadJSON, source); err != nil {
 		return Session{}, err
 	}
-	proposal.Status = ProposalStatusApplied
+	if err := proposal.TransitionStatus(ProposalStatusApplied); err != nil {
+		return Session{}, err
+	}
 	proposal.UpdatedAt = source.DecidedAt
 	proposal.Decisions = append(proposal.Decisions, ProposalDecision{Kind: "accept_keep", Note: strings.TrimSpace(note), DecidedAt: source.DecidedAt})
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
@@ -312,7 +319,9 @@ func (s *Service) requestMutationProposalRevision(ctx context.Context, sessionID
 		continuationRunID = strings.TrimSpace(session.RunID)
 		prompt = revisionPrompt(proposal, note)
 		messageID = proposalDecisionMessageID(askID)
-		proposal.Status = ProposalStatusSuperseded
+		if err := proposal.TransitionStatus(ProposalStatusSuperseded); err != nil {
+			return Session{}, err
+		}
 		proposal.UpdatedAt = nowRFC3339()
 		decisionAt = proposal.UpdatedAt
 		proposal.Decisions = append(proposal.Decisions, ProposalDecision{
@@ -348,7 +357,10 @@ func (s *Service) requestMutationProposalRevision(ctx context.Context, sessionID
 	// the frozen receiver, updates session status. A later run must not be marked
 	// running on behalf of an earlier Ask.
 	if strings.TrimSpace(session.RunID) == continuationRunID {
-		session.Status, session.UpdatedAt, session.FailureReason = StatusRunning, nowRFC3339(), ""
+		if err := session.TransitionStatus(StatusRunning); err != nil {
+			return Session{}, err
+		}
+		session.UpdatedAt, session.FailureReason = nowRFC3339(), ""
 		if err := store.SaveSession(session); err != nil {
 			return Session{}, err
 		}
@@ -395,11 +407,17 @@ func (s *Service) requestMutationProposalRevisionLegacy(ctx context.Context, ses
 	if err := store.AppendMessage(session.ID, message); err != nil {
 		return Session{}, err
 	}
-	proposal.Status, proposal.UpdatedAt = ProposalStatusSuperseded, now
+	if err := proposal.TransitionStatus(ProposalStatusSuperseded); err != nil {
+		return Session{}, err
+	}
+	proposal.UpdatedAt = now
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, err
 	}
-	session.Status, session.UpdatedAt, session.FailureReason = StatusRunning, now, ""
+	if err := session.TransitionStatus(StatusRunning); err != nil {
+		return Session{}, err
+	}
+	session.UpdatedAt, session.FailureReason = now, ""
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
@@ -430,7 +448,9 @@ func (s *Service) MarkProposalWaiting(ctx context.Context, sessionID, proposalID
 		return Session{}, apierr.Conflict("proposal must be ready before it can be marked waiting")
 	}
 	now := nowRFC3339()
-	proposal.Status = ProposalStatusNeedsRevision
+	if err := proposal.TransitionStatus(ProposalStatusNeedsRevision); err != nil {
+		return Session{}, err
+	}
 	proposal.NeedsRevision = true
 	proposal.UpdatedAt = now
 	proposal.Decisions = append(proposal.Decisions, ProposalDecision{Kind: "waiting", Note: strings.TrimSpace(note), DecidedAt: now})

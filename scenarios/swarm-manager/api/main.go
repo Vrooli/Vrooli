@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	"log"
 	"log/slog"
 	"net/http"
@@ -25,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
 
 	"github.com/vrooli/api-core/authn"
 
@@ -552,8 +555,7 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) registerCapabilityRoutes() {
-	checker := capabilities.ScenarioChecker{Slug: "audio-tools"}
-	capabilities.NewHandler(capabilities.NewRegistry(checker)).RegisterRoutes(s.router)
+	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
 }
 
 // registerAISearchRoutes constructs the aisearch service from environment
@@ -630,9 +632,8 @@ func (s *Server) registerDiscoveryRoutes() {
 }
 
 // registerAudioRoutes mounts the swarm-manager-owned AudioAdminService +
-// AudioRuntimeService Connect handlers (delegating to internal/audioports
-// which proxy to audio-tools), plus the raw WebSocket proxy for streaming
-// STT at /api/v1/voice/stream.
+// AudioRuntimeService Connect handlers (delegating to internal/audioports)
+// plus a same-origin Connect bidi proxy for streaming STT.
 func (s *Server) registerAudioRoutes() {
 	audio_admin.RegisterRoutes(s.router, audio_admin.Deps{
 		StreamConfig:    s.streamConfigAdmin,
@@ -648,7 +649,7 @@ func (s *Server) registerAudioRoutes() {
 		Summ:     s.summarizer,
 	})
 	if s.audioToolsResolver != nil {
-		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver)).Methods(http.MethodGet)
+		s.router.Handle(sttconnect.STTServiceTranscribeStreamProcedure, newVoiceConnectProxy(s.audioToolsResolver))
 	}
 }
 
@@ -1222,6 +1223,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+	eventpublishing.Register()
 	// Preflight precedes graph initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "swarm-manager",

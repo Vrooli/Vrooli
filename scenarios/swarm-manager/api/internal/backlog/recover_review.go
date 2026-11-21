@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/storage"
 )
@@ -190,7 +191,9 @@ func (h *Handler) RecoverOrphanedReview(ctx context.Context, kind, name, reason 
 // and emits the status-changed event. target must be review_pending or backlog.
 func (h *Handler) recoverReviewTo(ctx context.Context, item *BacklogItem, target BacklogStatus, reason, decidedBy, recoveredAt string) error {
 	priorStatus := item.Status
-	item.Status = target
+	if err := TransitionStatus(item, target, backlogstatus.TransitionRecovery); err != nil {
+		return err
+	}
 	item.Updated = recoveredAt
 	if err := h.store.SaveItem(*item); err != nil {
 		return err

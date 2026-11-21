@@ -29,6 +29,22 @@ Scope: <https://claude.ai/code/artifact/9343ee6a-89c7-4d3f-ab0f-57d801b46e73>.
   continuation, scope policy); it shows defaults and relies on sparse patch
   semantics to leave the stored values untouched.
 
+Current disposition (2026-11-16; the audit above is retained as historical
+context): the three-strategy workflow model is superseded by plan-backed modes,
+and the old workflow/prompt identifiers remain only in retained Swarm and
+Agent Manager problem history; no active source artifact was found to retire.
+The typed-apply gap is fixed: `plan.execute` applies `budget_exhausted`, and
+the `until-allowance` sweeper creates at most one child after allowance and
+progress checks. The Run
+dialog reads model options for the selected runner and tolerates a missing model
+list; the item editor loads and submits execution mode, limits, continuation,
+and scope policy. Plan-shape display is still open because Plan Manager has no
+shape field. Continuation currently starts a fresh child run; same-session
+resume remains open. Source references: `api/internal/execution/phased_plan_workflow.go`,
+`api/internal/execution/continuation.go`, `ui/src/components/backlog/run-sheet.tsx`,
+and `ui/src/components/backlog/backlog-form-dialog.tsx`. Existing owner tests
+cover these paths; they were not run in this source-only continuation.
+
 ### Owner-grant boundary — 2026-09-09
 
 - Agent Manager now accepts and durably stores `WorkflowEngagementGrant` on a
@@ -314,6 +330,14 @@ migration evidence is kept under
 [operations/migration](../operations/migration/).
 
 ## Work ladder
+
+### 2026-11-14 stale spawn-boundary directory
+
+- Rung: W3 (implementation)
+- Evidence: Swarm Manager Test Genie unit run `20261114-091842-72142b1b` failed because `internal/archtest/TestNoDirectAgentSpawnInDomainPackages` still read `api/internal/workshop`, while the owning package is `api/internal/planworkshop`. No contract or requirement changed.
+- Outcome: The architecture guard now scans `../planworkshop`, the existing owner path.
+- Blocker: Re-run the focused architecture test and owner Test Genie unit phase.
+- Measured: 2026-11-14
 
 ### 2026-09-10 run-sheet clarity
 

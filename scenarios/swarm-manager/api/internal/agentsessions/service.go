@@ -306,7 +306,9 @@ func (s *Service) Disposition(ctx context.Context, sessionID string, disposition
 	session.Disposition = disposition
 	session.DispositionReason = strings.TrimSpace(reason)
 	if disposition == DispositionDropped {
-		session.Status = StatusCanceled
+		if err := session.TransitionStatus(StatusCanceled); err != nil {
+			return Session{}, err
+		}
 	}
 	session.UpdatedAt = nowRFC3339()
 	if err := store.SaveSession(session); err != nil {
@@ -546,7 +548,9 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if err := store.AppendMessage(session.ID, userMessage); err != nil {
 		return Session{}, err
 	}
-	session.Status = StatusStarting
+	if err := session.TransitionStatus(StatusStarting); err != nil {
+		return Session{}, err
+	}
 	session.UpdatedAt = now
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
@@ -568,7 +572,9 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	run, err := s.spawner.SpawnSession(activityCtx, spawnReq)
 	if err != nil {
 		failed := session
-		failed.Status = StatusFailed
+		if transitionErr := failed.TransitionStatus(StatusFailed); transitionErr != nil {
+			return Session{}, transitionErr
+		}
 		failed.FailureReason = err.Error()
 		failed.UpdatedAt = nowRFC3339()
 		if err := store.SaveSession(failed); err != nil {
@@ -580,7 +586,9 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 
 	session.TaskID = strings.TrimSpace(run.TaskID)
 	session.RunID = strings.TrimSpace(run.RunID)
-	session.Status = StatusRunning
+	if err := session.TransitionStatus(StatusRunning); err != nil {
+		return Session{}, err
+	}
 	session.UpdatedAt = nowRFC3339()
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
@@ -703,7 +711,9 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 	if err := store.AppendMessage(session.ID, message); err != nil {
 		return Session{}, err
 	}
-	session.Status = StatusRunning
+	if err := session.TransitionStatus(StatusRunning); err != nil {
+		return Session{}, err
+	}
 	session.UpdatedAt = now
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
@@ -711,7 +721,9 @@ func (s *Service) Continue(ctx context.Context, req ContinueRequest) (Session, e
 
 	activityCtx := agentactivity.WithSpec(ctx, sessionActivitySpec(session, agentactivity.InteractionContinue))
 	if err := s.spawner.ContinueRun(activityCtx, session.RunID, buildContinuationPrompt(message, sessionAttachmentsByID(session, req.AttachmentIDs))); err != nil {
-		session.Status = StatusFailed
+		if transitionErr := session.TransitionStatus(StatusFailed); transitionErr != nil {
+			return Session{}, transitionErr
+		}
 		session.FailureReason = err.Error()
 		session.UpdatedAt = nowRFC3339()
 		if err := store.SaveSession(session); err != nil {
@@ -743,8 +755,14 @@ func (s *Service) Refresh(ctx context.Context, sessionID string) (Session, error
 	changed := false
 	now := nowRFC3339()
 	next := sessionStatusFromRunState(state.Status)
+	if session.Status == StatusProposalReady || session.Status == StatusApplying {
+		// The stored run snapshot cannot overwrite the operator decision phase.
+		next = ""
+	}
 	if next != "" && next != session.Status {
-		session.Status = next
+		if err := session.TransitionStatus(next); err != nil {
+			return Session{}, err
+		}
 		session.UpdatedAt = now
 		if state.ErrorMsg != "" {
 			session.FailureReason = state.ErrorMsg
@@ -816,7 +834,9 @@ func (s *Service) Cancel(ctx context.Context, sessionID string) (Session, error)
 			return Session{}, mapSpawnError(err)
 		}
 	}
-	session.Status = StatusCanceled
+	if err := session.TransitionStatus(StatusCanceled); err != nil {
+		return Session{}, err
+	}
 	session.UpdatedAt = nowRFC3339()
 	if err := store.SaveSession(session); err != nil {
 		return Session{}, err

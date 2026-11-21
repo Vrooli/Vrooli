@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"swarm-manager/internal/backlogstatus"
 )
 
 // ResetArtifactScope is the service-owned representation of a derived
@@ -79,7 +81,9 @@ func (s *Service) ResetArtifacts(ctx context.Context, kind BacklogKind, name str
 		}
 	}
 	if item.Status == StatusReady {
-		item.Status = StatusBacklog
+		if err := TransitionStatus(&item, StatusBacklog, backlogstatus.TransitionReset); err != nil {
+			return ResetArtifactsResult{}, err
+		}
 		result.StatusReverted = true
 	}
 	_, planUnbound := seen[ResetScopePlanUnbind]

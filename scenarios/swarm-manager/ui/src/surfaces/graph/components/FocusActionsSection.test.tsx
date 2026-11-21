@@ -255,15 +255,6 @@ describe("FocusActionsSection", () => {
       expect(screen.getByTestId("focus-classify-button")).toHaveTextContent("Classify");
     });
 
-    it("does not render action for classified capture", () => {
-      renderFocusActions(
-        <FocusActionsSection
-          nodeData={makeCaptureNode("classified")}
-          nodeId="capture:cap-1"
-        />,
-      );
-      expect(screen.queryByTestId("focus-classify-button")).not.toBeInTheDocument();
-    });
   });
 
   describe("non-actionable entities", () => {

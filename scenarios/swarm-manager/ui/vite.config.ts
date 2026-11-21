@@ -1,5 +1,6 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config so a regular `vite build` ships the lean prod artifact and
 // `vite build --mode profile` produces a perf-build channel. The perf build is
@@ -63,7 +64,7 @@ export default defineConfig(({ mode }): UserConfig => {
           keepNames: true,
         }
       : undefined,
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     test: {
       globals: true,
       environment: "jsdom",

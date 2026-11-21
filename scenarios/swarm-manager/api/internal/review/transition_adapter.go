@@ -178,7 +178,7 @@ func settledEvidenceForExecution(itemDir, executionID string) ([]EvidenceItem, e
 		}
 		requested := make(map[string]struct{})
 		for _, thread := range round.RequestThreads {
-			if thread.Status != "fulfilled" {
+			if !thread.IsFulfilled() {
 				continue
 			}
 			for _, message := range thread.Messages {
@@ -240,7 +240,9 @@ func (s *Service) applyReviewOutcome(ctx context.Context, subject string, outcom
 	if err != nil || round == nil {
 		return fmt.Errorf("load review round: %w", err)
 	}
-	FinalizeRoundFromResult(round, outcome.Result, outcome.Name)
+	if err := FinalizeRoundFromResult(round, outcome.Result, outcome.Name); err != nil {
+		return fmt.Errorf("transition review round status: %w", err)
+	}
 	criteria, err := criteriaFromReviewSnapshot(round.AgentWorkflowSnapshot)
 	if err != nil {
 		return err
@@ -374,7 +376,9 @@ func (s *Service) applyEvidenceRequestOutcome(_ context.Context, subject string,
 			}
 			thread.Messages = append(thread.Messages, RequestMessage{Role: "assistant", Content: result.Summary, Timestamp: s.now().Format(time.RFC3339), AddedEvidenceIDs: ids})
 			if outcome.Name == "fulfilled" {
-				thread.Status = "fulfilled"
+				if err := thread.TransitionStatus(RequestThreadStatusFulfilled); err != nil {
+					return fmt.Errorf("fulfill review evidence request: %w", err)
+				}
 			}
 			return saveRound(itemDir, *round)
 		}

@@ -39,10 +39,10 @@ References:
 - [CODE: api/internal/execution/preflight.go]
 
 ### OT-P0-005 - Mode-selectable execution
-Status: In progress — the Run dialog still offers three `execution_strategy`
-values from the strategy registry instead of a plan-shape banner and a
-sliced/goal mode picker. Sliced mode is served by `phased-plan-drain`; goal
-mode as one run is not built. The strategy-to-mode mapping lives in
+Status: Partial — the Run dialog now supports the `sliced` / `goal`
+`execution_mode` picker, and goal mode starts one Agent Manager run. A plan-shape
+banner remains pending because Plan Manager does not yet store a shape field.
+Current status and source links are in
 `docs/agent-system/SCENARIO_DEVELOPMENT.md` §Implementation status.
 References:
 - [DOC: docs/concepts/ARCHITECTURE.md] (Plan-backed execution)
@@ -119,11 +119,13 @@ References:
 - [CODE: api/internal/agentmanager/workflow.go]
 
 ### OT-P0-015 - Plan-backed continuity
-Status: Partial — aggregate limits, halt/resume state and a continuation
-sweeper exist, but the sweeper keys on a `budget_exhausted` workflow status
-that the typed apply never accepts, so no execution is resumed today. The
-accounting core was built for the retired contract-development route
-(`internal/development`) and is not yet bound to plan-backed execution.
+Status: Partial — plan execution applies `budget_exhausted` terminal results,
+and the continuation sweeper can create one bounded child for eligible
+`until-allowance` items. It also handles involuntary interruptions, validates
+remaining allowance, and records halt/no-progress brakes. End-to-end owner
+qualification and production evidence remain open; children currently use a
+fresh run, while same-session resume remains unimplemented. This status does
+not certify a live continuation.
 References:
 - [DOC: docs/concepts/ARCHITECTURE.md] (Continuation)
 - [CODE: api/internal/execution/continuation.go]
@@ -139,9 +141,11 @@ References:
 - [CODE: api/internal/review/workflow_apply.go]
 
 ### OT-P0-017 - Run review surface
-Status: Partial — the run sheet shows limits, continuation and scope policy;
-there is no plan-shape banner, no `operator_note` field, and no composed goal
-message. The Development contract panel belongs to the retired route.
+Status: Partial — the run sheet supports `sliced` / `goal` and shows limits,
+continuation and scope policy. The plan-shape banner waits for Plan Manager's
+unimplemented `shape` field. Swarm persists `operator_note`, but the run sheet
+has no dedicated note input or composed goal-message preview. The Development
+contract panel belongs to the retired route.
 References:
 - [CODE: ui/src/components/backlog/run-sheet.tsx]
 - [CODE: ui/src/components/backlog/backlog-form-details-section.tsx]
@@ -177,7 +181,9 @@ References:
 - [CODE: api/internal/agentsessions/service.go]
 
 ### OT-P1-005 - Goal execution mode
-Status: Not implemented — an interim workflow-based `goal-session` strategy exists and is superseded; see docs/concepts/ARCHITECTURE.md §Plan-backed execution.
+Status: Implemented — `goal` mode starts exactly one Agent Manager goal run and
+Swarm finalizes its terminal result. See `api/internal/execution/service_control.go`
+and docs/concepts/ARCHITECTURE.md §Plan-backed execution.
 References:
 - [CODE: api/internal/execution/service_queue.go]
 

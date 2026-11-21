@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/storage"
 )
@@ -98,7 +99,11 @@ func (s *Service) loadBacklogItemByRecord(record *Record) (backlogItem, error) {
 }
 
 func (s *Service) updateBacklogStatus(item backlogItem, status string) error {
-	item.Status = status
+	next, err := backlogstatus.Transition(item.Status, status, backlogstatus.TransitionExecution)
+	if err != nil {
+		return err
+	}
+	item.Status = next
 	item.Updated = nowRFC3339()
 	specPath := filepath.Join(s.itemDir(item.Kind, item.Name), "spec.json")
 	merged := map[string]any{}
