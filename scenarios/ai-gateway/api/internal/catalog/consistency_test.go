@@ -305,3 +305,94 @@ func sortedKeys[V any](values map[string]V) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// decide.candidates is the bake-off role: a model pinned for evaluation must be
+// reachable through declared data, so every local Ollaya role the resource
+// serves is a candidate of it. Production tiers are reordered only from
+// measured results, so a role added for evaluation must not leak into them.
+func TestBakeoffRoleDeclaresEveryLocalOllayaRoleAndProductionTiersAreSeparate(t *testing.T) {
+	root := repositoryRoot(t)
+	roleCatalog, err := rolecatalog.LoadCatalog(filepath.Join(root, "scenarios", "ai-gateway", "config", "inference-role-catalog.json"))
+	if err != nil {
+		t.Fatalf("load role catalog: %v", err)
+	}
+	bakeoff, ok := roleCatalog.Roles["decide.candidates"]
+	if !ok || !bakeoff.IsDecision() {
+		t.Fatalf("decide.candidates must be a declared decision role, got %+v", bakeoff)
+	}
+	declared := map[string]struct{}{}
+	for _, candidate := range bakeoff.Candidates {
+		declared[candidate.ResourceRole] = struct{}{}
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "resources", "ollaya", "model-policy.json"))
+	if err != nil {
+		t.Fatalf("read ollaya policy: %v", err)
+	}
+	var policy struct {
+		Upstreams map[string]struct {
+			Locality string `json:"locality"`
+		} `json:"upstreams"`
+		Roles map[string]struct {
+			Upstream string `json:"upstream"`
+		} `json:"roles"`
+	}
+	if err := json.Unmarshal(data, &policy); err != nil {
+		t.Fatalf("parse ollaya policy: %v", err)
+	}
+	localRoles := map[string]struct{}{}
+	for name, role := range policy.Roles {
+		if policy.Upstreams[role.Upstream].Locality != "local" {
+			continue
+		}
+		localRoles[name] = struct{}{}
+		if _, ok := declared[name]; !ok {
+			t.Errorf("local ollaya role %q is not a candidate of decide.candidates, so it cannot be pinned for a bake-off", name)
+		}
+	}
+
+	production := map[string]struct{}{}
+	for _, tier := range []string{"decide.fast", "decide.accurate", "browser.decide"} {
+		for _, candidate := range roleCatalog.Roles[tier].Candidates {
+			production[candidate.ResourceRole] = struct{}{}
+		}
+	}
+	for name := range localRoles {
+		if _, inProduction := production[name]; inProduction && name != "decide.local" && name != "decide.local.accurate" {
+			t.Errorf("bake-off-only role %q is already in a production decision tier; promote it only from measured results", name)
+		}
+	}
+}
+
+// decide.short serves callers whose states fit a 512-token model, and
+// decide.short.accurate is its escalation. Escalating to the model that already
+// answered would repeat the call, so the two tiers must start on different
+// roles, and both must stay on local Ollaya roles the bake-off role can pin.
+func TestShortStateTiersEscalateToADifferentModelAndStayLocal(t *testing.T) {
+	root := repositoryRoot(t)
+	roleCatalog, err := rolecatalog.LoadCatalog(filepath.Join(root, "scenarios", "ai-gateway", "config", "inference-role-catalog.json"))
+	if err != nil {
+		t.Fatalf("load role catalog: %v", err)
+	}
+	short, accurate := roleCatalog.Roles["decide.short"], roleCatalog.Roles["decide.short.accurate"]
+	if !short.IsDecision() || !accurate.IsDecision() {
+		t.Fatalf("decide.short and decide.short.accurate must be decision roles, got %+v and %+v", short, accurate)
+	}
+	if short.Candidates[0].ResourceRole == accurate.Candidates[0].ResourceRole {
+		t.Errorf("both short tiers start on %q, so an escalation would re-ask the same model", short.Candidates[0].ResourceRole)
+	}
+	bakeoff := map[string]struct{}{}
+	for _, candidate := range roleCatalog.Roles["decide.candidates"].Candidates {
+		bakeoff[candidate.ResourceRole] = struct{}{}
+	}
+	for name, role := range map[string]rolecatalog.InferenceRole{"decide.short": short, "decide.short.accurate": accurate} {
+		for _, candidate := range role.Candidates {
+			if candidate.Provider != "ollaya" {
+				t.Errorf("%s candidate %q is not a local Ollaya role", name, candidate.ResourceRole)
+			}
+			if _, ok := bakeoff[candidate.ResourceRole]; !ok {
+				t.Errorf("%s candidate %q is not declared in decide.candidates", name, candidate.ResourceRole)
+			}
+		}
+	}
+}

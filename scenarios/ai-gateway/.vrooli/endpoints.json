@@ -348,6 +348,7 @@
       "request": {
         "type": "DecideRequest",
         "properties": {
+          "pin_resource_role": "string",
           "privacy_class": "PrivacyClass",
           "profile": "Profile",
           "questions": "DecisionQuestion[]",
@@ -390,6 +391,7 @@
         "type": "DecideBatchRequest",
         "properties": {
           "items": "DecideBatchItem[]",
+          "pin_resource_role": "string",
           "privacy_class": "PrivacyClass",
           "profile": "Profile",
           "questions": "DecisionQuestion[]",

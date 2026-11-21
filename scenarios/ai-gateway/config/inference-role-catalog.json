@@ -127,6 +127,122 @@
         }
       ]
     },
+    "decide.short": {
+      "description": "Decisions about short states (a message or a few lines, about 250 characters of evidence): the 512-token Coba models. Not for long digests: a state past the model's context returns context_overflow. Declared per label by callers that know their state is short, so the general tiers keep their order.",
+      "kind": "decision",
+      "timeout_ms": 30000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.coba-400m",
+          "reason": "Measured bake-off 2026-11-20 on operator-mood gold: best of the cleared-rights models up to 1.9 GiB on all three mood labels at the same warm latency as Laya (about 0.24 s for three questions). Clears no gate by itself."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "reason": "Local Laya answers when Coba 400M cannot be admitted; measured below it on every mood label."
+        }
+      ]
+    },
+    "decide.short.accurate": {
+      "description": "Escalation for decide.short: a different, larger model re-asks the answers the first tier was unsure of. Same short-state limit.",
+      "kind": "decision",
+      "timeout_ms": 120000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.coba-1b",
+          "reason": "Measured bake-off 2026-11-20: the only measured cleared-rights model larger than Coba 400M (3.5 GiB, about 6 s warm for three questions); its gain over the 400M is within a few gold rows."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "reason": "Local Laya keeps escalation available when Coba 1B cannot be admitted."
+        }
+      ]
+    },
+    "decide.candidates": {
+      "description": "Bake-off role: every local decision model under evaluation, reachable only by pinning one with pin_resource_role. A pinned request is answered by exactly that candidate or refused with its typed reason, never by another; locality, privacy and rights rules still apply. Production callers use decide.fast or decide.accurate, never this role.",
+      "kind": "decision",
+      "timeout_ms": 120000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "reason": "Laya router, the current decide.fast model: the baseline every candidate is measured against."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.accurate",
+          "reason": "Winnow-E4B, the current decide.accurate model: the accuracy baseline."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.typed",
+          "reason": "Laya fine-tuned on the typed-decisions workflows (421M, 1024-token context)."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.coba-400m",
+          "reason": "Coba 400M, Ollaya's own Laya-network model distilled from pplx-decider."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.coba-1b",
+          "reason": "Coba 1B, the most accurate Coba size."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.largha",
+          "reason": "Largha 150M, the smallest multilingual decision encoder under evaluation."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.decima-clean",
+          "reason": "Decima-base-clean, a late-interaction scorer trained without non-commercial data."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.decima-agent",
+          "reason": "Decima-agent, tuned for coding-agent decisions with an 8192-token state; rights unknown until the operator decides."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.decima-small",
+          "reason": "Decima-small, the fastest CPU model under evaluation; rights unknown until the operator decides."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.nli-modernbert",
+          "reason": "ModernBERT-large zero-shot NLI baseline; rights unknown until the operator decides."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.nli-deberta",
+          "reason": "DeBERTa-v3-large zero-shot NLI baseline; rights unknown until the operator decides."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.pplx",
+          "reason": "Perplexity pplx-decider-flash (Qwen3.5-4B), the strongest open decider under evaluation; GPU only."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.kev",
+          "reason": "Kev 4B (LoRA plus pointer head on Qwen3.5-4B-Base); GPU only."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.credence",
+          "reason": "Credence v1 E4B calibrated (Winnow refinement with validation-fitted temperature); GPU only, rights unknown until the operator decides."
+        },
+        {
+          "provider": "ai-gateway",
+          "resource_role": "classify.fast",
+          "reason": "The enum-constrained LLM path, as a no-probability baseline for choice questions."
+        }
+      ]
+    },
     "classify.fast": {
       "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
       "timeout_ms": 45000,

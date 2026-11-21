@@ -39,7 +39,34 @@ const (
 	// CodeContextOverflow is a request the provider would have to truncate to
 	// answer; the provider refused rather than answer on partial input.
 	CodeContextOverflow = "context_overflow"
+	// CodeInsufficientVRAM and CodeInsufficientMemory are a local model that
+	// cannot be loaded because the accelerator or host memory it declares does
+	// not fit right now. Nothing was loaded; the walk continues.
+	CodeInsufficientVRAM   = "insufficient_vram"
+	CodeInsufficientMemory = "insufficient_memory"
+	// CodeLimitsExceeded is a request outside the bounds a model declares
+	// (more options than it can read).
+	CodeLimitsExceeded = "limits_exceeded"
 )
+
+// DecisionLimits are the hard bounds a decision model declares in its
+// resource's policy, so a request can be sized from data. A zero field means
+// the model declares no bound of that kind.
+type DecisionLimits struct {
+	ContextTokens int32 `json:"context_tokens"`
+	MaxOptions    int32 `json:"max_options"`
+	// ScoreLevels is set only for a model that serves exactly that many levels.
+	ScoreLevels  int32 `json:"score_levels"`
+	MaxQuestions int32 `json:"max_questions"`
+}
+
+// ModelPlacement is where a local model runs and what it holds there.
+type ModelPlacement struct {
+	// Device is "gpu" (accelerator only), "cpu" (host memory only) or "any".
+	Device    string `json:"device"`
+	VRAMBytes int64  `json:"vram_bytes"`
+	RAMBytes  int64  `json:"ram_bytes"`
+}
 
 type Adapter struct {
 	Provider    string
@@ -56,6 +83,8 @@ type Role struct {
 	Provider              string
 	Role                  string
 	Model                 string
+	Limits                *DecisionLimits
+	Placement             *ModelPlacement
 	Rights                *sharedpolicy.ArtifactRights
 	RuntimeIdentity       *sharedpolicy.RuntimeArtifactIdentity
 	ObservedRuntimeDigest string
@@ -132,6 +161,8 @@ type ResolvedRole struct {
 	Role                  string
 	Model                 string
 	CanonicalModel        string
+	Limits                *DecisionLimits
+	Placement             *ModelPlacement
 	Rights                *sharedpolicy.ArtifactRights
 	RuntimeIdentity       *sharedpolicy.RuntimeArtifactIdentity
 	ObservedRuntimeDigest string
@@ -214,6 +245,8 @@ type rolePolicyEntry struct {
 	PolicySHA256         string                                `json:"policy_sha256"`
 	Role                 string                                `json:"role"`
 	Model                string                                `json:"model"`
+	Limits               *DecisionLimits                       `json:"limits"`
+	Placement            *ModelPlacement                       `json:"placement"`
 	Rights               *sharedpolicy.ArtifactRights          `json:"rights"`
 	RuntimeIdentity      *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
 	RequiredCapabilities []string                              `json:"required_capabilities"`

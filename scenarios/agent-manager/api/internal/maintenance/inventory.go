@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
+	"slices"
+	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
@@ -48,6 +51,9 @@ type ExecutorEvidence struct {
 	Alive       bool  `json:"alive"`
 	HasChildren bool  `json:"hasChildren"`
 	PIDs        []int `json:"pids,omitempty"`
+	// OpenTranscripts lists requested transcript paths this live executor's
+	// processes hold open (positive evidence only).
+	OpenTranscripts []string `json:"openTranscripts,omitempty"`
 }
 
 type InventoryDatabase interface {
@@ -58,7 +64,11 @@ type InventoryReader struct {
 	db            InventoryDatabase
 	physical      func(context.Context, ExecutorRef) (ExecutorEvidence, error)
 	batchPhysical func(context.Context, []ExecutorRef) ([]ExecutorEvidence, error)
-	now           func() time.Time
+	// transcriptPhysical is batchPhysical that also asks which of the given
+	// transcript paths the present executors hold open. Activity reads use it
+	// to observe live imported (transcript-only) runs.
+	transcriptPhysical func(context.Context, []ExecutorRef, []string) ([]ExecutorEvidence, error)
+	now                func() time.Time
 }
 
 func NewInventory(db InventoryDatabase, physical func(context.Context, ExecutorRef) (ExecutorEvidence, error)) *InventoryReader {
@@ -120,11 +130,9 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 	state := Inventory{Work: []WorkRef{}, Executors: []ExecutorEvidence{}, Unknown: []string{}, ControlPlaneGap: "AM admission drain is not host lifecycle authorization. A runner or descendant can restart another scenario whose dependencies include AM or Plan Manager. The control plane must own dependency-impact exclusion and complete executor-scope evidence; this handler never stops or repairs host processes."}
 	// Start-of-observation time is conservative across the bounded SQL/host
 	// read. It is a source stamp, not a later consumer HTTP receipt timestamp.
-	if activity {
-		state.ObservedAt = time.Now().UTC()
-		if r != nil && r.now != nil {
-			state.ObservedAt = r.now().UTC()
-		}
+	state.ObservedAt = time.Now().UTC()
+	if r != nil && r.now != nil {
+		state.ObservedAt = r.now().UTC()
 	}
 	// Executor-scope owns a bounded 20s host proof. The inventory needs a small
 	// response margin to preserve its exact per-run report or classify timeout.
@@ -235,10 +243,25 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 	// Keep the complete SQL inventory for one root-owner request. The root CLI
 	// pages internally against one host snapshot; truncating retained physical
 	// history or splitting it into separate host observations would weaken proof.
+	// Activity also asks which live imported runs' transcripts a present
+	// executor holds open; see liveImportedTranscripts.
+	var importedTranscripts map[string]string
+	if activity && len(physicalRefs) > 0 && r.transcriptPhysical != nil {
+		// Optional positive evidence: a failed read only forgoes the claim and
+		// never changes executor coverage.
+		importedTranscripts, _ = liveImportedTranscripts(ctx, r.db)
+	}
 	if len(physicalRefs) > 0 {
 		var evidence []ExecutorEvidence
 		var err error
-		if r.batchPhysical != nil {
+		if len(importedTranscripts) > 0 {
+			paths := make([]string, 0, len(importedTranscripts))
+			for path := range importedTranscripts {
+				paths = append(paths, path)
+			}
+			slices.Sort(paths)
+			evidence, err = r.transcriptPhysical(ctx, physicalRefs, paths)
+		} else if r.batchPhysical != nil {
 			evidence, err = r.batchPhysical(ctx, physicalRefs)
 		} else {
 			// Isolated single-ref observer seam; production always uses one batch.
@@ -251,6 +274,7 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 				}
 			}
 		}
+		observedImported := map[string]bool{}
 		batch := map[string]ExecutorEvidence{}
 		for _, item := range evidence {
 			batch[item.ID] = item
@@ -263,6 +287,15 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 					state.ObservedExecutors++
 					if ref.Kind == "run" {
 						state.PhysicalRunIDs = append(state.PhysicalRunIDs, ref.ID)
+					}
+					// A transcript-only run whose transcript this executor
+					// holds open is live inside it. It is physical presence
+					// for usage exposure, not an additional executor.
+					for _, path := range item.OpenTranscripts {
+						if id, ok := importedTranscripts[path]; ok && !observedImported[id] {
+							observedImported[id] = true
+							state.PhysicalRunIDs = append(state.PhysicalRunIDs, id)
+						}
 					}
 				}
 				if !logicalRefs[ref.ID] {
@@ -292,4 +325,39 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 	state.PhysicalComplete = activity
 	state.Remaining = &count
 	return state, nil
+}
+
+// maxLiveImportedTranscripts mirrors the control plane's transcript bound.
+const maxLiveImportedTranscripts = 4096
+
+// liveImportedTranscripts maps the transcript path of each live (non-terminal)
+// imported run to its run ID. Imported runs are transcript projections with no
+// process identity of their own; a coding agent holds its transcript open for
+// the life of the conversation, so an observed executor holding the file is
+// positive evidence the run is live inside it. Terminal imports are excluded:
+// the agent also keeps finished sub-thread transcripts open, and those threads
+// no longer burn. Paths that are not clean absolute paths are skipped so one
+// malformed row cannot make the owner refuse the whole request.
+func liveImportedTranscripts(ctx context.Context, db InventoryDatabase) (map[string]string, error) {
+	rows, err := db.QueryContext(ctx, `SELECT id, transcript_path FROM runs
+		WHERE status IN ('pending','starting','running') AND execution_mode = 'imported' AND COALESCE(transcript_path,'') <> ''
+		ORDER BY id LIMIT ?`, maxLiveImportedTranscripts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	transcripts := map[string]string{}
+	for rows.Next() {
+		var id, transcript string
+		if err := rows.Scan(&id, &transcript); err != nil {
+			return nil, err
+		}
+		if transcript == "" || len(transcript) > 4096 || !path.IsAbs(transcript) || path.Clean(transcript) != transcript || strings.ContainsAny(transcript, "\x00\r\n") {
+			continue
+		}
+		if _, duplicate := transcripts[transcript]; !duplicate {
+			transcripts[transcript] = id
+		}
+	}
+	return transcripts, rows.Err()
 }

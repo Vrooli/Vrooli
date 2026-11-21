@@ -311,13 +311,10 @@ func (e *RunExecutor) WithStoreOwnerID(ownerID string) *RunExecutor {
 func workflowIdentityMeta(env map[string]string) map[string]string {
 	meta := make(map[string]string, 8)
 	for envKey, claimKey := range map[string]string{
-		workflowExecutionEnv:  "workflowExecutionId",
-		workflowNodeEnv:       "workflowNodeId",
-		workflowAttemptEnv:    "workflowAttemptId",
-		workflowExperimentEnv: "workflowExperimentId",
-		workflowVariantEnv:    "workflowVariantId",
-		workflowPromptHashEnv: "workflowPromptHash",
-		personaIDEnv:          "persona_id",
+		workflowExecutionEnv: "workflowExecutionId",
+		workflowNodeEnv:      "workflowNodeId",
+		workflowAttemptEnv:   "workflowAttemptId",
+		personaIDEnv:         "persona_id",
 	} {
 		if value := strings.TrimSpace(env[envKey]); value != "" {
 			meta[claimKey] = value
@@ -484,13 +481,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 				e.failWithError(execCtx, fmt.Errorf("profile skill pack cannot reach the run: %w", scopeErr))
 				return
 			}
-			var projectErr error
-			if e.run.ResolvedConfig.SkillExperimentID != "" {
-				_, projectErr = ProjectProfileSkillsAssigned(execCtx, e.runStateRoot, e.run.ID, skillsDir, e.run.ResolvedConfig.SkillExperimentID, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
-			} else {
-				_, projectErr = ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, skillsDir, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
-			}
-			if projectErr != nil {
+			if _, projectErr := ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, skillsDir, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling); projectErr != nil {
 				e.failWithError(execCtx, projectErr)
 				return
 			}

@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -93,7 +92,7 @@ func (a *App) modeClient(operator bool) measureconnect.MeasuresServiceClient {
 		return modeClientOverride(operator)
 	}
 	h, base := cliapp.NewConnectHTTPClient(a.core)
-	if operator && strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) == "" {
+	if operator && strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) == "" {
 		if owner, err := localOwnerAPIForResource(a.services.Maintenance.api, standingGrantResource); err == nil {
 			return measureconnect.NewMeasuresServiceClient(ownerHTTPClient{inner: &http.Client{Timeout: 30 * time.Second}, headers: owner.AuthHeaders()}, base)
 		}

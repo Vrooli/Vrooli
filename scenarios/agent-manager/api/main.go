@@ -315,13 +315,9 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 	// this surface instead of refusing API startup. Routes mount only when the
 	// service exists; the CLI and health surfaces then report it unavailable.
 	annotationService, annotationErr := func() (*runannotations.Service, error) {
-		packPath, err := runannotations.DefaultPackPath()
-		if err != nil {
-			return nil, err
-		}
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		return runannotations.NewDefaultService(initCtx, db, packPath, nil)
+		return wiring.NewRunAnnotations(initCtx, db, os.Getenv, deps.TranscriptParsers)
 	}()
 	if annotationErr != nil {
 		// The annotation vocabulary is optional relative to the run plane. A

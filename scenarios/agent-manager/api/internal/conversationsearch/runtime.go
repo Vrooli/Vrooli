@@ -9,8 +9,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	ollamapolicy "github.com/vrooli/ai-go/ollama/policy"
 	aisearch "github.com/vrooli/ai-go/search"
 	corestorage "github.com/vrooli/api-core/storage"
 )
@@ -24,10 +26,8 @@ const (
 	// transient Qdrant/host stall does not hide coverage for a full minute.
 	semanticStatusErrorTTL       = 15 * time.Second
 	semanticStatusRefreshTimeout = 20 * time.Second
-	// The eligible-count scan touches every visible catalog row (1.24M rows, ~85s
-	// under load on 2026-11-19), so it runs detached with a generous budget.
-	semanticEligibleTimeout  = 5 * time.Minute
-	semanticEligibleCacheTTL = 10 * time.Minute
+	// The eligible count is an indexed read; this only bounds a wedged writer.
+	semanticEligibleTimeout = 5 * time.Second
 )
 
 type SemanticRuntimeOptions struct {
@@ -36,6 +36,14 @@ type SemanticRuntimeOptions struct {
 	Projection        ProjectionRepository
 	Admission         *aisearch.WeightedAdmission
 	GenerationCatalog aisearch.GenerationCatalog
+	// Resolver resolves the embedding policy; the zero value runs the
+	// resource-ollama CLI. Tests inject a fake runner.
+	Resolver ollamapolicy.Resolver
+	// Lifecycle ends background recovery of a start that could not finish
+	// (default: the process lifetime).
+	Lifecycle context.Context
+	// RecoveryBackoff spaces those retries (default: defaultRecoveryBackoff).
+	RecoveryBackoff func(attempt int) time.Duration
 }
 
 func loadActiveRecipeRecord(ctx context.Context, catalog aisearch.GenerationCatalog, collection string) (*aisearch.GenerationRecord, error) {
@@ -129,30 +137,40 @@ func verifyGenerationRecipe(metadata aisearch.GenerationMetadata) error {
 }
 
 // resolveSemanticEngine builds the serving engine from the authoritative
-// embedding policy. Policy resolution shells out to the ollama resource and has
-// been killed under host contention, which used to disable semantic search for
-// the whole process lifetime; a short bounded retry keeps a transient resolver
-// failure from taking the semantic leg down with it.
-func resolveSemanticEngine(ctx context.Context, tuning aisearch.TuningConfig, deps aisearch.EngineDeps) (aisearch.TunedEngine, error) {
+// embedding policy and returns the policy it resolved, whose runtime artifact
+// identity is what a recipe is minted from. Policy resolution shells out to the
+// ollama resource and has been killed under host contention, which used to
+// disable semantic search for the whole process lifetime; a short bounded retry
+// keeps a transient resolver failure from taking the semantic leg down with it.
+func resolveSemanticEngine(ctx context.Context, resolver ollamapolicy.Resolver, tuning aisearch.TuningConfig, deps aisearch.EngineDeps) (aisearch.TunedEngine, ollamapolicy.ResolvedRole, error) {
+	role := strings.TrimSpace(deps.EmbedRole)
+	if role == "" {
+		role = aisearch.DefaultEmbedRole
+	}
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
-		var engine aisearch.TunedEngine
-		engine, err = aisearch.NewServiceForTuningResolved(ctx, tuning, deps)
+		var resolved ollamapolicy.ResolvedRole
+		resolved, err = resolver.ResolveRole(ctx, role)
 		if err == nil {
-			return engine, nil
+			var cfg aisearch.Config
+			if cfg, err = aisearch.ConfigWithResolvedEmbedding(aisearch.Config{EmbedRole: role}, resolved); err == nil {
+				deps.EmbedRole, deps.EmbedModel = cfg.EmbedRole, cfg.EmbedModel
+				deps.EmbedDimensions, deps.EmbedPolicySchemaVersion = cfg.EmbedDimensions, cfg.EmbedPolicySchemaVersion
+				return aisearch.NewServiceForTuning(tuning, deps), resolved, nil
+			}
 		}
 		if ctx.Err() != nil {
-			return aisearch.TunedEngine{}, err
+			return aisearch.TunedEngine{}, ollamapolicy.ResolvedRole{}, err
 		}
 		if attempt < 2 {
 			select {
 			case <-ctx.Done():
-				return aisearch.TunedEngine{}, err
+				return aisearch.TunedEngine{}, ollamapolicy.ResolvedRole{}, err
 			case <-time.After(time.Duration(attempt+1) * 500 * time.Millisecond):
 			}
 		}
 	}
-	return aisearch.TunedEngine{}, err
+	return aisearch.TunedEngine{}, ollamapolicy.ResolvedRole{}, err
 }
 
 func tuningForGenerationRecipe(tuning aisearch.TuningConfig, metadata aisearch.GenerationMetadata) aisearch.TuningConfig {
@@ -236,19 +254,26 @@ type SemanticRuntime struct {
 	// the only external evidence of which physical collection serves, so it
 	// settles a catalog with divergent complete recipes instead of guessing.
 	servingCollection string
-	healthMu          sync.Mutex
-	health            SemanticGenerationHealth
-	healthObservedAt  time.Time
-	coverageMu        sync.Mutex
-	eligibleCached    uint64
-	eligibleUntil     time.Time
-	eligibleRefresh   bool
-	statusMu          sync.Mutex
-	statusCached      uint64
-	statusUntil       time.Time
-	statusErr         error
-	statusObserved    bool
-	statusRefresh     chan struct{}
+	// recipeAdoptionNote says why a recipe-less serving generation was not
+	// stamped with an immutable recipe at startup; empty once it carries one.
+	recipeAdoptionNote string
+	healthMu           sync.Mutex
+	health             SemanticGenerationHealth
+	// start is what a bind attempt needs; recovering keeps one retry loop.
+	start            semanticStart
+	recovering       atomic.Bool
+	healthObservedAt time.Time
+	statusMu         sync.Mutex
+	statusCached     uint64
+	statusUntil      time.Time
+	statusErr        error
+	// statusKnown is true once one point-count probe has succeeded for the
+	// current vector store. A failed or in-flight first probe leaves it false,
+	// and coverage is then unknown rather than zero.
+	statusKnown   bool
+	statusRefresh chan struct{}
+	// countStore counts vectors while the engine is not wired.
+	countStore aisearch.VectorStore
 }
 
 // BuildSemanticRuntime validates authoritative config before wiring optional
@@ -299,101 +324,31 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	}
 	runtime.QdrantBaseURL, runtime.QdrantAPIKey = operational.QdrantURL, operational.QdrantAPIKey
 	runtime.RerankerURL, runtime.RerankerModel, runtime.RerankRole = operational.RerankerURL, operational.RerankerModel, operational.RerankRole
-	// Repair the generation catalog before anything reads it. The Qdrant alias
-	// target is authoritative evidence of what actually serves, so resolve it
-	// first and pass it into reconciliation; an unreachable Qdrant simply leaves
-	// the choice to the durable catalog.
-	runtime.servingCollection = resolveServingAliasCollection(ctx, runtime.QdrantBaseURL, runtime.QdrantAPIKey, collection)
-	reconcileReport, reconcileSupported, reconcileErr := reconcileGenerationCatalog(ctx, options.GenerationCatalog, collection, GenerationReconcileOptions{
-		AuthoritativeCollection: runtime.servingCollection,
-		Reason:                  "runtime-startup",
-	})
-	runtime.recordGenerationHealth(reconcileReport, reconcileSupported, reconcileErr, nil)
 	engineDeps := aisearch.EngineDeps{
 		QdrantURL: operational.QdrantURL, QdrantAPIKey: operational.QdrantAPIKey, Collection: collection,
 		EmbedRole: operational.EmbedRole, RerankerURL: operational.RerankerURL,
 		RerankerModel: operational.RerankerModel, RerankRole: operational.RerankRole,
 	}
-	engine, engineErr := resolveSemanticEngine(ctx, tuning, engineDeps)
-	activeRecord, activeErr := loadActiveRecipeRecord(ctx, options.GenerationCatalog, collection)
-	if activeErr == nil && activeRecord != nil {
-		hasCanonicalRecipe := activeRecord.Metadata.RecipeID != "" || activeRecord.Metadata.RecipeCanonical != ""
-		if hasCanonicalRecipe {
-			if verifyErr := verifyGenerationRecipe(activeRecord.Metadata); verifyErr != nil {
-				activeErr = fmt.Errorf("active conversation generation has invalid immutable recipe identity: %w", verifyErr)
-			} else if !completeGenerationRecipe(activeRecord.Metadata) {
-				activeErr = errors.New("active conversation generation has incomplete embedding recipe metadata")
-			} else {
-				engine, tuning = engineFromGenerationRecipe(tuning, engineDeps, activeRecord.Metadata), tuningForGenerationRecipe(tuning, activeRecord.Metadata)
-				engineErr = nil
-			}
-		} else if engineErr == nil {
-			// Existing active generations predate recipe identity columns. Their
-			// serving recipe was the configured role, so persist that known identity
-			// once instead of losing semantic search after upgrade.
-			activeRecord.Metadata.Model = engine.Spec.Model
-			activeRecord.Metadata.ChunkPolicy = DefaultRecipeVersion
-			activeRecord.Metadata.EmbeddingRole = engine.Spec.Role
-			activeRecord.Metadata.EmbeddingDimensions = engine.Spec.DenseSize
-			activeRecord.Metadata.PolicySchemaVersion = engine.Spec.PolicySchemaVersion
-			activeRecord.Metadata.EmbeddingTaskPrefix = tuning.EmbedTaskPrefix
-			activeRecord.UpdatedAt = time.Now().UTC()
-			if saveErr := options.GenerationCatalog.SaveGenerationRecord(ctx, *activeRecord); saveErr != nil {
-				activeErr = fmt.Errorf("persist configured identity for active conversation generation: %w", saveErr)
-			}
-		} else {
-			activeErr = errors.New("active conversation generation has no recipe identity and configured embedding policy is unavailable")
-		}
+	lifecycle := options.Lifecycle
+	if lifecycle == nil {
+		lifecycle = context.Background()
 	}
-	if activeErr != nil {
-		engineErr = errors.Join(engineErr, activeErr)
+	backoff := options.RecoveryBackoff
+	if backoff == nil {
+		backoff = defaultRecoveryBackoff
 	}
-	if reconcileErr != nil {
-		engineErr = errors.Join(engineErr, reconcileErr)
+	runtime.start = semanticStart{
+		tuning: tuning, deps: engineDeps, admission: admission, resolver: options.Resolver,
+		lifecycle: lifecycle, backoff: backoff,
 	}
-	if engineErr != nil {
-		runtime.InitializationError = errors.Join(ErrEmbeddingUnavailable, engineErr)
-		runtime.recordGenerationHealth(reconcileReport, reconcileSupported, reconcileErr, activeRecord)
-		runtime.swapRetriever.replace(unavailableSemanticRetriever{err: runtime.InitializationError})
-		return runtime, nil
+	// A start that cannot finish (the policy resolver was killed under host
+	// load, Qdrant was not up yet) used to freeze the semantic leg for the whole
+	// process lifetime, so every later generation failed with "embedding
+	// unavailable" until someone restarted the API. The failure is recorded and
+	// the bind is retried in the background instead.
+	if err := runtime.bind(ctx, "runtime-startup"); err != nil {
+		runtime.scheduleRecovery()
 	}
-	runtime.Engine = engine
-	runtime.Tuning = tuning
-	runtime.EmbeddingModel = engine.Spec.Model
-	if activeRecord != nil && completeGenerationRecipe(activeRecord.Metadata) {
-		runtime.EmbeddingRecipeID = activeRecord.Metadata.RecipeID
-		runtime.EmbeddingRecipeJSON = activeRecord.Metadata.RecipeCanonical
-	}
-	runtime.recordGenerationHealth(reconcileReport, reconcileSupported, reconcileErr, activeRecord)
-	runtime.Binding = aisearch.NewHybridBinding("conversation", "", engine.VectorStore, runtime.Source, aisearch.NewIdentityChunker(), conversationEmbeddingComposer{}, engine.SparseEncoder)
-	// Do not freeze the runtime in lexical-only mode based on a startup probe.
-	// Qdrant is an optional dependency and may become available after this API
-	// starts. Keep the live retriever and indexing pipeline wired; their normal
-	// operations report transient Qdrant failures and can recover on later calls.
-	aliasBoundary, _ := options.GenerationCatalog.(aisearch.FleetAliasMutationBoundary)
-	runtime.AliasBoundary = aliasBoundary
-	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{
-		BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection,
-		Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID,
-		Catalog: options.GenerationCatalog, AliasBoundary: aliasBoundary, Spec: engine.Spec,
-	})
-	if err != nil {
-		return nil, err
-	}
-	runtime.GenerationStore = generationStore
-	runtime.StreamingBinding = aisearch.StreamingBinding{
-		Kind: "conversation", Store: generationStore, Source: runtime.Source,
-		Chunker: aisearch.NewIdentityChunker(), Composer: conversationEmbeddingComposer{}, Sparse: engine.SparseEncoder,
-		PageSize: defaultIndexPageSize, Admission: admission, EmbedWeight: 2, EmbedConcurrency: 4,
-	}
-	runtime.StreamingReconciler = aisearch.NewStreamingReconciler(engine.Embedder)
-	retriever, err := runtime.sharedRetrieverFor(engine)
-	if err != nil {
-		return nil, err
-	}
-	runtime.swapRetriever.replace(retriever)
-	runtime.Retriever = runtime.swapRetriever
-	runtime.resumePublishedSemanticGeneration(ctx)
 	return runtime, nil
 }
 
@@ -625,48 +580,82 @@ func (r *SemanticRuntime) SemanticStatus(ctx context.Context) (uint64, string, s
 		layout = "dense+sparse"
 	}
 	collection, model, initErr, vectorStore := r.Collection, r.EmbeddingModel, r.InitializationError, r.Engine.VectorStore
+	baseURL, apiKey := r.QdrantBaseURL, r.QdrantAPIKey
 	r.recipeMu.RUnlock()
-	if initErr != nil {
-		healthErr := r.maintainGenerationHealth(ctx)
-		return 0, collection, layout, model, errors.Join(initErr, healthErr)
+	// A semantic leg that is not wired (embedding policy unresolved) is a
+	// degradation to report, but it does not make the vectors Qdrant already
+	// holds unknowable: count them through a bare client on the alias.
+	var configErr error
+	switch {
+	case initErr != nil:
+		configErr = initErr
+	case vectorStore == nil:
+		configErr = ErrSemanticUnavailable
+	}
+	if vectorStore == nil {
+		vectorStore = r.fallbackCountStore(baseURL, apiKey, collection)
 	}
 	if vectorStore == nil {
 		healthErr := r.maintainGenerationHealth(ctx)
-		return 0, collection, layout, model, errors.Join(ErrSemanticUnavailable, healthErr)
+		return 0, collection, layout, model, errors.Join(ErrSemanticCoverageUnknown, configErr, healthErr)
 	}
 	// Read the cheap vector count before the generation reconciliation. A
 	// healthy catalog still has to prove itself, and that proof can outlast the
 	// status budget under writer contention; it must not turn a serving 98.8%
 	// index into a reported zero.
-	count, probeErr := r.semanticPointCount(ctx, vectorStore)
+	count, known, probeErr := r.semanticPointCount(ctx, vectorStore)
 	healthErr := r.maintainGenerationHealth(ctx)
-	err := probeErr
-	if err == nil && count == 0 {
+	var err error
+	switch {
+	case !known:
+		// No probe has ever completed for this vector store: coverage is
+		// unknown, which is neither zero nor healthy. The cause (in flight,
+		// timed out, store down) rides along for the operator.
+		cause := probeErr
+		if cause == nil {
+			cause = errors.New("the first vector count has not completed")
+		}
+		err = fmt.Errorf("%w: collection %s: %w", ErrSemanticCoverageUnknown, collection, cause)
+	case probeErr != nil:
+		// A later probe failed; the last observed count is still reported.
+		err = probeErr
+	case count == 0:
 		// Empty is never healthy. A generation can be structurally valid and still
 		// hold no vectors (an interrupted embed, a fresh promotion); say so instead
 		// of reporting a clean status with 0% semantic coverage.
 		err = fmt.Errorf("%w: collection %s holds no semantic vectors; the active generation has not been embedded", ErrSemanticUnavailable, collection)
 	}
-	// Only a failed probe preserves the previous count; a successful empty read
-	// is real zero coverage.
-	r.recordSemanticCoverage(ctx, count, probeErr)
-	return count, collection, layout, model, errors.Join(err, healthErr)
+	r.recordSemanticCoverage(ctx, count, known)
+	return count, collection, layout, model, errors.Join(configErr, err, healthErr)
+}
+
+// fallbackCountStore is a bare vector-store client on the serving alias, used
+// only to count vectors while the embedding engine is not wired.
+func (r *SemanticRuntime) fallbackCountStore(baseURL, apiKey, collection string) aisearch.VectorStore {
+	if strings.TrimSpace(baseURL) == "" || strings.TrimSpace(collection) == "" {
+		return nil
+	}
+	r.statusMu.Lock()
+	defer r.statusMu.Unlock()
+	if r.countStore == nil {
+		r.countStore = aisearch.NewVectorStore(baseURL, apiKey, collection)
+	}
+	return r.countStore
 }
 
 // recordSemanticCoverage publishes what the semantic leg actually covers
 // against the chunks it is supposed to embed, so status never reports a
-// catalog-wide ratio as if tool payloads were embeddable.
-func (r *SemanticRuntime) recordSemanticCoverage(ctx context.Context, embedded uint64, probeErr error) {
+// catalog-wide ratio as if tool payloads were embeddable. An unknown count
+// (no probe has completed) leaves the published value untouched; a known zero
+// is a genuinely empty collection and is recorded as such.
+func (r *SemanticRuntime) recordSemanticCoverage(ctx context.Context, embedded uint64, known bool) {
 	if r == nil {
 		return
 	}
 	eligible := r.semanticEligibleDocuments(ctx)
 	r.healthMu.Lock()
-	// A failed probe carries the last good count, but the very first failed probe
-	// has none. Keep the previous health value rather than publishing a zero that
-	// contradicts what the collection actually serves.
-	if probeErr == nil || embedded > 0 || r.health.EmbeddedDocuments == 0 {
-		r.health.EmbeddedDocuments = embedded
+	if known {
+		r.health.EmbeddedDocuments, r.health.EmbeddedObserved = embedded, true
 	}
 	if eligible > 0 {
 		r.health.EligibleDocuments = eligible
@@ -674,36 +663,23 @@ func (r *SemanticRuntime) recordSemanticCoverage(ctx context.Context, embedded u
 	r.healthMu.Unlock()
 }
 
-// semanticEligibleDocuments caches the eligible denominator. Counting eligible
-// chunks scans the 1.2M-row catalog, so it must never sit on the status path:
-// the last observation is returned immediately and a detached goroutine
-// refreshes it.
+// semanticEligibleDocuments counts the chunks the semantic leg is supposed to
+// embed. The count rides the content-class covering index (about 20ms over the
+// 1.2M-row catalog); it used to be cached behind a detached refresh because it
+// once scanned every row. A failed or timed-out count returns 0 and the caller
+// keeps the last denominator.
 func (r *SemanticRuntime) semanticEligibleDocuments(ctx context.Context) uint64 {
 	repository, ok := r.Projection.(*SQLiteRepository)
 	if !ok {
 		return 0
 	}
-	r.coverageMu.Lock()
-	cached := r.eligibleCached
-	stale := !time.Now().Before(r.eligibleUntil)
-	if stale && !r.eligibleRefresh {
-		r.eligibleRefresh = true
-		go func() {
-			countCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), semanticEligibleTimeout)
-			defer cancel()
-			eligible, err := repository.CountSemanticEligible(countCtx)
-			r.coverageMu.Lock()
-			defer r.coverageMu.Unlock()
-			r.eligibleRefresh = false
-			if err != nil {
-				return
-			}
-			r.eligibleCached = eligible
-			r.eligibleUntil = time.Now().Add(semanticEligibleCacheTTL)
-		}()
+	countCtx, cancel := context.WithTimeout(ctx, semanticEligibleTimeout)
+	defer cancel()
+	eligible, err := repository.CountSemanticEligible(countCtx)
+	if err != nil {
+		return 0
 	}
-	r.coverageMu.Unlock()
-	return cached
+	return eligible
 }
 
 // semanticLegUnavailable is the typed reason an un-wired semantic leg refuses
@@ -778,6 +754,9 @@ func (r *SemanticRuntime) recordGenerationHealth(report ActiveGenerationReconcil
 		health.RecipeValid = false
 		health.State = GenerationHealthRecovered
 		health.Detail = fmt.Sprintf("serving %s by its recorded identity; the generation predates immutable recipe identity and none was invented", activeRecord.Metadata.ID)
+		if note := r.adoptionNote(); note != "" {
+			health.Detail += "; " + note
+		}
 	} else if activeRecord != nil {
 		health.State = GenerationHealthMissingRecipe
 		health.Detail = fmt.Sprintf("active generation %s has no usable embedding identity", activeRecord.Metadata.ID)
@@ -798,6 +777,9 @@ func (r *SemanticRuntime) recordGenerationHealth(report ActiveGenerationReconcil
 		health.Detail = r.health.Detail
 		health.RetiredDuplicates = r.health.RetiredDuplicates
 	}
+	// Coverage is measured separately from catalog health; a reconciliation pass
+	// must not erase the last observed counts.
+	health.EmbeddedDocuments, health.EmbeddedObserved, health.EligibleDocuments = r.health.EmbeddedDocuments, r.health.EmbeddedObserved, r.health.EligibleDocuments
 	r.health = health
 	r.healthObservedAt = time.Now().UTC()
 	r.healthMu.Unlock()
@@ -869,13 +851,17 @@ func (r *SemanticRuntime) maintainGenerationHealth(ctx context.Context) error {
 	return nil
 }
 
-func (r *SemanticRuntime) semanticPointCount(ctx context.Context, vectorStore aisearch.VectorStore) (uint64, error) {
+// semanticPointCount returns the cached vector count. known reports whether a
+// probe has ever succeeded for this vector store; while it is false the count
+// is meaningless and callers must treat coverage as unknown. After a first
+// success, a failed refresh keeps the last good count and reports its error.
+func (r *SemanticRuntime) semanticPointCount(ctx context.Context, vectorStore aisearch.VectorStore) (count uint64, known bool, err error) {
 	for {
 		r.statusMu.Lock()
 		if !r.statusUntil.IsZero() && time.Now().Before(r.statusUntil) {
-			count, err := r.statusCached, r.statusErr
+			count, known, err = r.statusCached, r.statusKnown, r.statusErr
 			r.statusMu.Unlock()
-			return count, err
+			return count, known, err
 		}
 		refresh := r.statusRefresh
 		if refresh == nil {
@@ -888,16 +874,13 @@ func (r *SemanticRuntime) semanticPointCount(ctx context.Context, vectorStore ai
 		case <-refresh:
 			continue
 		case <-ctx.Done():
-			// A status budget that expires mid-probe is unknown, not zero. If a
-			// previous probe observed a count, report that last good value with
-			// the error so coverage never flips a serving index to 0%.
+			// A status budget that expires mid-probe is unknown, not zero. A
+			// previous success is reported as the last good value with the
+			// error so coverage never flips a serving index to 0%.
 			r.statusMu.Lock()
-			cached, observed := r.statusCached, r.statusObserved
+			count, known = r.statusCached, r.statusKnown
 			r.statusMu.Unlock()
-			if observed {
-				return cached, ctx.Err()
-			}
-			return 0, ctx.Err()
+			return count, known, ctx.Err()
 		}
 	}
 }
@@ -906,32 +889,33 @@ func (r *SemanticRuntime) refreshSemanticPointCount(parent context.Context, done
 	refreshCtx, cancel := context.WithTimeout(parent, semanticStatusRefreshTimeout)
 	defer cancel()
 	count, err := vectorStore.CountPoints(refreshCtx)
-	if count < 0 {
+	if err == nil && count < 0 {
 		count = 0
 	}
 	r.recipeMu.RLock()
-	currentStore := vectorStore == r.Engine.VectorStore
+	engineStore := r.Engine.VectorStore
 	r.recipeMu.RUnlock()
 	r.statusMu.Lock()
+	// The probed store still serves if it is the wired engine's, or the bare
+	// fallback client while no engine is wired.
+	currentStore := vectorStore == engineStore || (engineStore == nil && vectorStore == r.countStore)
 	if currentStore {
-		// A failed probe must not overwrite a previously observed count with a
-		// fake zero: unknown is reported through statusErr while the last good
-		// number stays visible.
-		switch {
-		case err == nil:
-			r.statusCached, r.statusErr = uint64(count), nil
+		if err == nil {
+			r.statusCached, r.statusKnown, r.statusErr = uint64(count), true, nil
 			r.statusUntil = time.Now().Add(semanticStatusCacheTTL)
-		case r.statusObserved:
+		} else {
+			// A failed probe never overwrites an observed count with a fake
+			// zero; statusKnown stays as it was and the error is retried
+			// sooner than a good observation.
 			r.statusErr = err
 			r.statusUntil = time.Now().Add(semanticStatusErrorTTL)
-		default:
-			r.statusCached, r.statusErr = 0, err
-			r.statusUntil = time.Now().Add(semanticStatusErrorTTL)
 		}
-		r.statusObserved = true
 	} else {
+		// The serving store was replaced mid-probe; the result describes a
+		// collection that no longer serves.
 		r.statusUntil = time.Time{}
-		r.statusObserved = false
+		r.statusKnown = false
+		r.statusCached, r.statusErr = 0, nil
 	}
 	r.statusRefresh = nil
 	close(done)

@@ -44,7 +44,7 @@ func usageCommand(name, description, help string, flags []cliapp.Flag, call func
 func burnersCommand(newClient clientFor) cliapp.Command {
 	return usageCommand("burners", "What is using each subscription window? [--by session|run|profile|workload|model|runner|modality|tool_kind] [--json]",
 		"Splits each current window's observed used-percent increase across the usage that ran in it, recalibrating tokens to points per window, with an explicit unattributed (off-disk) remainder. Points are estimates.",
-		[]cliapp.Flag{providerFlag, {Name: "by", Description: "Group by dimension (default session)"}, {Name: "since", Description: "RFC 3339: attribute only the increase after it"}, runFlag, limitFlag},
+		[]cliapp.Flag{providerFlag, {Name: "by", Description: "Group by dimension (default session)"}, {Name: "since", Description: "Attribute only the increase after it: RFC 3339, YYYY-MM-DD or an age such as 24h"}, runFlag, limitFlag},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			limit, err := parseLimit(op)
 			if err != nil {
@@ -248,7 +248,7 @@ func evidenceSummary(refs []*measurepb.UsageEvidenceRef) string {
 func coverageCommand(newClient clientFor) cliapp.Command {
 	return usageCommand("coverage", "Can I trust this? Transcript capture coverage against the disk [--since RFC3339] [--json]",
 		"Walks transcript roots and compares files modified since --since (default 7 days) with index checkpoints, listing up to 50 issues per root.",
-		[]cliapp.Flag{{Name: "since", Description: "RFC 3339 (default 7 days ago)"}},
+		[]cliapp.Flag{{Name: "since", Description: "RFC 3339, YYYY-MM-DD or an age such as 7d (default 7 days ago)"}},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			response, err := newClient(op.Core()).UsageCoverage(context.Background(), connect.NewRequest(&measurepb.UsageCoverageRequest{Since: strings.TrimSpace(op.Flag("since"))}))
 			if err != nil {

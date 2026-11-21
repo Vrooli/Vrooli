@@ -56,9 +56,9 @@ func parseOptionalTime(field, value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil
 	}
-	at, err := time.Parse(time.RFC3339, value)
+	at, err := usageattribution.ParseWindowBound(field, value, time.Now())
 	if err != nil {
-		return time.Time{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s must be RFC 3339: %w", field, err))
+		return time.Time{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return at, nil
 }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -465,12 +464,12 @@ func (a *App) runPark(args []string) error {
 		return fmt.Errorf("--timeout must be positive")
 	}
 	if *timeout > 0 {
-		*deadlineUnix = time.Now().Add(*timeout).Unix()
+		*deadlineUnix = ambient.Now().Add(*timeout).Unix()
 	}
 
 	token := *identityToken
 	if token == "" {
-		token = os.Getenv(cliutil.EnvIdentityToken)
+		token = ambient.Getenv(cliutil.EnvIdentityToken)
 	}
 	if token == "" {
 		return fmt.Errorf("no identity token: set --identity-token or run inside an agent-manager run ($%s)", cliutil.EnvIdentityToken)

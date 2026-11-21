@@ -23,8 +23,9 @@ describe every option; negations and implications are where they go wrong.
 
 Request (`DecideRequest`): `role` (default `decide.fast` on the CLI), exactly one
 of `state` (text) or `state_json` (a JSON object or array whose structure carries
-meaning, such as `{"assistant": "...", "operator": "..."}`), `questions`, and an
-optional `profile`.
+meaning, such as `{"assistant": "...", "operator": "..."}`), `questions`, an
+optional `profile`, and an optional `pin_resource_role` (see
+[Pinning one candidate](#pinning-one-candidate)).
 
 | Question type | Declares | Answer |
 |---|---|---|
@@ -35,6 +36,16 @@ optional `profile`.
 Limits: 1–64 questions per request (the intersection of every candidate's
 limits, so no candidate refuses what another accepts); ids are 1–100 of
 `[A-Za-z0-9_.-]`; state at most 256 KiB; batches at most 256 states.
+
+Each local model also declares its own bounds, owned by the resource's policy
+and read through `ai-gateway inventory roles` (`limits`: `context_tokens`,
+`max_options`, `score_levels` when fixed, `max_questions` when bounded;
+`placement`: `device`, `vram_bytes`, `ram_bytes`). Size digests and batches from
+those fields rather than from model names. The gateway skips a candidate whose
+declared question or option bound the request exceeds (`limits_exceeded`)
+without dispatching; the state's token length is the model's own refusal
+(`context_overflow`), because the gateway has no tokenizer and an estimate would
+skip candidates that could have answered.
 
 Response (`DecideResponse`): `answers` in question order; `method`
 (`DECISION_MODEL`, or `LLM_ENUM` for the fallback); `provider`, `model` (the model
@@ -74,11 +85,32 @@ A candidate is **skipped**, not failed, when:
 | `unreachable` | the daemon or host is down | `vrooli resource status ollaya` |
 | `locality_forbidden` | `profile=PROFILE_LOCAL_ONLY` and the candidate is hosted (or the reverse) | intended |
 | `unsupported_question_types` | the LLM fallback only answers choice questions | restore a decision model |
+| `limits_exceeded` | the request has more options, questions or score levels than the model declares it serves | intended; the next candidate may accept it |
+| `insufficient_vram` / `insufficient_memory` | the model's declared footprint does not fit the free accelerator or host memory right now; nothing was loaded | free capacity, or wait: the ladder continues without paying a load |
 
 The `ai-gateway/classify.fast` candidate runs the typed classify path (schema
 gate, its own local-first walk, local validation and one repair) with an
 object-of-enums schema. Its answers carry the choice only: an LLM label is not a
 calibrated distribution, so no `confidence` or `probabilities` are invented.
+
+### Pinning one candidate
+
+`pin_resource_role` (`--pin-resource-role` on the CLI) restricts the walk to
+exactly one of the role's **declared** candidates, so a bake-off can measure one
+model. The pinned candidate answers or the request is refused with its typed
+reason; nothing falls back, including the enum path. Locality, privacy and
+rights rules apply unchanged: a pin never lifts a gate. A value that is not a
+declared candidate of the role is `INVALID_REQUEST` (`pin_resource_role`),
+and the message names what the role does declare.
+
+| Role | Candidates |
+|---|---|
+| `decide.candidates` | every local Ollaya role under evaluation, plus `ai-gateway/classify.fast` as the no-probability baseline. Bake-off only: always pin. Production callers use `decide.fast` or `decide.accurate`, whose order changes only from measured results. |
+
+```bash
+ai-gateway inference decide --role decide.candidates --pin-resource-role decide.local.kev \
+  --questions questions.json --privacy-provenance docs.reference --state "No, stop."
+```
 
 Terminal errors: `INVALID_REQUEST` (the request, naming the construct),
 `CONTEXT_OVERFLOW` (every dispatched candidate would have truncated the state;

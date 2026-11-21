@@ -22,7 +22,7 @@ func body(t *testing.T, rows ...map[string]string) []byte {
 func runOpportunities(t *testing.T, response []byte, args ...string) (string, map[string]string) {
 	t.Helper()
 	var sent map[string]string
-	cmd := opportunitiesCommand(func(_ cliapp.RunContext, params map[string]string) ([]byte, error) {
+	cmd := opportunitiesCommand(func(_ cliapp.RunContext, _ string, params map[string]string) ([]byte, error) {
 		sent = params
 		return response, nil
 	})

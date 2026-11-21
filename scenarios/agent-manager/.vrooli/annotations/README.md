@@ -52,15 +52,28 @@ caches.
 
 ## Gates and honesty
 
-Every label has a gate. `measured` is absent until a hold-out measurement exists;
-absent means **unmeasured**, not proven. Only `proven` gates may produce a rate.
+Every label has a gate. `measurements` is empty until a hold-out measurement exists;
+empty means **unmeasured**, not proven. A measurement is for one
+`(definition_hash, model, resource_role)` and only a `split: "holdout"` entry can
+prove it, for that model alone; only proven observations may enter a rate. Record the
+entry `annotations benchmark` prints (see `docs/concepts/RUN-ANNOTATIONS.md`). Labels
+may also declare `role` / `escalate_role` (default: `runtime`), `population:
+"human_operator"`, and `scope: "message"` for one answer per human operator message.
 Coverage is always reported separately. An empty window means unknown coverage,
 not "no friction".
 
-`operator.emotion` is `optional: true` and sampled at 0.2. It is skipped unless
-`--include-optional` / `include_optional` is passed, and its six-way accuracy is
-not claimed. `operator.valence` (-2..+2), `operator.frustration` and
-`operator.satisfaction` are the primary affect labels.
+Mood is a message-scope series, not a run score: `operator.dissatisfied` (mild pushback counts, not only anger: it was named `operator.frustrated` until most gold positives proved to be mild),
+`operator.pleased` and `operator.impatient` each answer one noul question per human
+operator message (`require: human_message_count > 0`, `population: "human_operator"`).
+`runtime.provenance` decides whose words count: workflow, scheduled, interactive and
+ad hoc runs are driven by agents and briefs, so only imported transcripts of a person
+speaking are mood subjects. Everything else is derived and stored, never asked:
+`operator.valence` is a message-scope composite (pleased minus dissatisfied), and the
+run-scope `operator.dissatisfied_run`, `operator.pleased_run` and `operator.impatient_run`
+are composites over `message_labels` (the run's own message observations), so run mood
+flows through facets, friction and the digest like any other label. A label that cannot reach a gold hold-out (too rare, or
+not observable from the digest) is deleted or marked `optional: true`
+(`agent.discovery_slow`, `work.blocked_by_tool`), never left to produce an unproven rate.
 
 ## Budgets and sampling
 

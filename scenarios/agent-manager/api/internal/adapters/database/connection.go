@@ -518,7 +518,6 @@ var agentProfileColumnMigrations = []columnMigration{
 	{column: "effort", ddl: "ALTER TABLE agent_profiles ADD COLUMN effort TEXT NOT NULL DEFAULT ''"},
 	{column: "declared_scopes", ddl: "ALTER TABLE agent_profiles ADD COLUMN declared_scopes TEXT DEFAULT '[]'"},
 	{column: "skill_pack", ddl: "ALTER TABLE agent_profiles ADD COLUMN skill_pack TEXT DEFAULT '[]'"},
-	{column: "skill_experiment_id", ddl: "ALTER TABLE agent_profiles ADD COLUMN skill_experiment_id TEXT DEFAULT ''"},
 	{column: "spawn_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN spawn_policy TEXT DEFAULT '{}'"},
 	{column: "max_weighted_tokens", ddl: "ALTER TABLE agent_profiles ADD COLUMN max_weighted_tokens INTEGER NOT NULL DEFAULT 0"},
 }
@@ -536,9 +535,6 @@ var workflowNodeAttemptColumnMigrations = []columnMigration{
 	{column: "child_execution_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN child_execution_id TEXT"},
 	{column: "raw_output", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN raw_output TEXT"},
 	{column: "validation_error", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN validation_error TEXT"},
-	{column: "experiment_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN experiment_id TEXT"},
-	{column: "variant_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN variant_id TEXT"},
-	{column: "prompt_hash", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN prompt_hash TEXT"},
 }
 
 var invocationReadModelRunColumnMigrations = []columnMigration{

@@ -46,43 +46,6 @@ func packPathForTest(t *testing.T, labels string) string {
 	return writePack(t, packWithLabels(labels))
 }
 
-func TestDefaultPackLoadsAndCompiles(t *testing.T) {
-	path := filepath.Join("..", "..", "..", ".vrooli", "annotations", "default.json")
-	pack, err := LoadCompiled(path)
-	if err != nil {
-		t.Fatalf("load default pack: %v", err)
-	}
-	if pack.Pack.Name != "default" || pack.Pack.Version == "" {
-		t.Fatalf("identity = %s %s", pack.Pack.Name, pack.Pack.Version)
-	}
-	if pack.Pack.Runtime.ModelAffinity == "" {
-		t.Fatal("default pack declares no scheduler model affinity")
-	}
-	if got := len(pack.Pack.Labels); got != 12 {
-		t.Fatalf("labels = %d, want 12", got)
-	}
-	seen := map[string]bool{}
-	for _, label := range pack.Pack.Labels {
-		hash := pack.LabelHashes[label.ID]
-		if len(hash) != 64 {
-			t.Fatalf("%s hash = %q", label.ID, hash)
-		}
-		if seen[hash] {
-			t.Fatalf("duplicate hash %s", hash)
-		}
-		seen[hash] = true
-		if label.Gate.MinGold < 1 {
-			t.Fatalf("%s has no gate", label.ID)
-		}
-		if strings.TrimSpace(label.Search.Facet) == "" {
-			t.Fatalf("%s has no search facet", label.ID)
-		}
-	}
-	if len(pack.PackHash) != 64 {
-		t.Fatalf("pack hash = %q", pack.PackHash)
-	}
-}
-
 func TestLabelDefinitionHashIgnoresReportingFields(t *testing.T) {
 	pack, err := ParsePack([]byte(minimalPack))
 	if err != nil {
@@ -170,8 +133,12 @@ func TestPackValidationRejectsAmbiguousDefinitions(t *testing.T) {
 	}
 }
 
+// testBriefWorkloads is the authorship policy engine fixtures run under:
+// workflow and scheduled prompts are system briefs, an ad hoc run's seed is one.
+const testBriefWorkloads = `"brief_workloads":["workflow_node","scheduled"],"seed_brief_workloads":["adhoc"]`
+
 func packWithLabels(labels string) string {
-	return `{"pack":{"name":"test","version":"1","labels":` + labels + `}}`
+	return `{"pack":{"name":"test","version":"1","runtime":{"mode":"passive","provenance":{` + testBriefWorkloads + `}},"labels":` + labels + `}}`
 }
 
 func TestParsePackAcceptsBareObject(t *testing.T) {
@@ -195,7 +162,7 @@ func labelJSON(id string) string {
 
 func floatPointer(value float64) *float64 { return &value }
 
-func TestGateMeasurementMustNameItsDefinitionRevision(t *testing.T) {
+func TestLegacyMeasuredBlockIsMigratedAndNeverProves(t *testing.T) {
 	plain, err := ParsePack([]byte(minimalPack))
 	if err != nil {
 		t.Fatal(err)
@@ -204,41 +171,48 @@ func TestGateMeasurementMustNameItsDefinitionRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	withMeasurement := func(measuredHash string) string {
-		measured := fmt.Sprintf(`"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10, "measured": {"precision": 0.95, "recall": 0.95, "gold": 50, "definition_hash": %q}}`, measuredHash)
-		return strings.Replace(minimalPack, `"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10}`, measured, 1)
+	legacy := fmt.Sprintf(`"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10, "measured": {"precision": 0.95, "recall": 0.95, "gold": 50, "definition_hash": %q}}`, hash)
+	body := strings.Replace(minimalPack, `"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10}`, legacy, 1)
+	pack, err := ParsePack([]byte(body))
+	if err != nil {
+		t.Fatal(err)
 	}
+	gate := pack.Labels[0].Gate
+	if gate.Measured != nil || len(gate.Measurements) != 1 || gate.Measurements[0].Split != SplitLegacy {
+		t.Fatalf("legacy block was not migrated into a visible legacy measurement: %+v", gate)
+	}
+	for _, model := range []string{"", "laya:en", RuleModel} {
+		if gate.Proven(hash, model, "") {
+			t.Fatalf("a legacy measurement proved model %q", model)
+		}
+	}
+	status := gate.Status(hash, "laya:en", "decide.local")
+	if status.State != GateLegacy || !strings.Contains(status.Reason, "model is unknown") {
+		t.Fatalf("status = %+v, want the legacy state explained", status)
+	}
+}
+
+func TestMeasurementsValidateTheirShape(t *testing.T) {
+	plain, err := ParsePack([]byte(minimalPack))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, _ := LabelDefinitionHash(plain.Labels[0])
 	for _, tc := range []struct {
-		name       string
-		measured   string
-		wantProven bool
-		wantReason string
+		name        string
+		measurement string
+		want        string
 	}{
-		{name: "matching revision", measured: hash, wantProven: true},
-		{name: "stale revision", measured: "old-definition", wantReason: "different definition"},
-		{name: "unnamed revision", measured: "", wantReason: "different definition"},
+		{"missing model", fmt.Sprintf(`{"definition_hash":%q,"model":"","split":"holdout","gold":10,"positives":2}`, hash), "model is required"},
+		{"unknown split", fmt.Sprintf(`{"definition_hash":%q,"model":"m","split":"dev","gold":10}`, hash), "split"},
+		{"positives exceed gold", fmt.Sprintf(`{"definition_hash":%q,"model":"m","split":"holdout","gold":2,"positives":3}`, hash), "out of range"},
+		{"bad hash", `{"definition_hash":"abc","model":"m","split":"holdout","gold":2}`, "definition_hash"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			compiled, err := ParsePack([]byte(withMeasurement(tc.measured)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			pack, err := compiled.Compile()
-			if err != nil {
-				t.Fatal(err)
-			}
-			label, ok := pack.Label("run.type")
-			if !ok {
-				t.Fatal("label missing")
-			}
-			if got := label.label.Gate.Proven(); got != tc.wantProven {
-				t.Fatalf("proven = %v, want %v (state %s)", got, tc.wantProven, label.label.Gate.State())
-			}
-			if tc.wantReason != "" {
-				status := gateStatus(label.label.Gate)
-				if status.State != "unmeasured" || !strings.Contains(status.Reason, tc.wantReason) {
-					t.Fatalf("gate status = %+v, want the stale-measurement reason", status)
-				}
+			body := strings.Replace(minimalPack, `"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10}`,
+				`"gate": {"precision": 0.9, "recall": 0.9, "min_gold": 10, "measurements": [`+tc.measurement+`]}`, 1)
+			if _, err := ParsePack([]byte(body)); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want %q", err, tc.want)
 			}
 		})
 	}

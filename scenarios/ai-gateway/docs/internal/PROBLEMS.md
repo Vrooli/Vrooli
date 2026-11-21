@@ -371,7 +371,7 @@ warning.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

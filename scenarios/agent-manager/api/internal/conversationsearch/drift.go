@@ -53,7 +53,7 @@ func (i *Indexer) checkDrift(ctx context.Context) {
 		return
 	}
 	if degraded {
-		i.launchRepair(ctx)
+		i.launchRepair(ctx, "drift check: serving projection is degraded")
 		return
 	}
 	before, err := i.repository.LatestChangeSequence(ctx)
@@ -77,7 +77,7 @@ func (i *Indexer) checkDrift(ctx context.Context) {
 	if err != nil || after != before || i.busy() || source.equal(catalog) {
 		return
 	}
-	i.launchRepair(ctx)
+	i.launchRepair(ctx, "drift check: source and serving catalog disagree")
 }
 
 func (i *Indexer) busy() bool {

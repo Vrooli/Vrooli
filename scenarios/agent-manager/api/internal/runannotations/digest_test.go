@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/toolfacts"
 )
 
 func TestBuildDigestIsValidBoundedJSON(t *testing.T) {
@@ -20,8 +22,8 @@ func TestBuildDigestIsValidBoundedJSON(t *testing.T) {
 			{EventID: "a1", At: time.Unix(1, 0), Text: strings.Repeat("agent ", 1000)},
 			{EventID: "a2", At: time.Unix(2, 0), Text: strings.Repeat("agent ", 1000)},
 		},
-		ToolSummary: ToolSummaryFacts{
-			Calls: 50, Failures: 7, FailedCommands: 3, RepeatedPaths: 21,
+		ToolSummary: toolfacts.Facts{
+			ToolCalls: 50, ToolFailures: 7, FailedCommands: 3, RepeatedPaths: 21,
 			FailedTools: []string{"bash", "read", "bash", "read", "bash"},
 			LastError:   strings.Repeat("error ", 400),
 		},
@@ -66,7 +68,7 @@ func TestBuildDigestShrinksToAConfiguredLimit(t *testing.T) {
 		AgentText: []MessageFact{{EventID: "a1", Text: strings.Repeat("z", 5000)}},
 	}
 	for _, limit := range []int{1200, 800, 500, 300} {
-		digest, err := BuildDigestBounded(facts, limit)
+		digest, err := BuildDigestBounded(facts, limit, nil)
 		if err != nil {
 			t.Fatalf("limit %d: %v", limit, err)
 		}
@@ -93,7 +95,7 @@ func TestReviewDigestCarriesMoreEvidenceThanTheModelDigest(t *testing.T) {
 	facts := longRunFact("run-review")
 	facts.ToolSummary.FailedCommands = 3
 	facts.ToolSummary.LastError = strings.Repeat("tool error detail ", 60)
-	model, err := BuildDigestBounded(facts, DefaultDigestLimit)
+	model, err := BuildDigestBounded(facts, DefaultDigestLimit, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

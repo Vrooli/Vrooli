@@ -154,6 +154,14 @@ type MessageEventData struct {
 	// Read it through MessageSource, which derives it for events stored before
 	// the field existed.
 	Source string `json:"source,omitempty"`
+
+	// Sender says who delivered a user-role message through the API: a person
+	// or an agent (MessageSender* constants). SenderID is the delivering
+	// principal's subject. Both are empty for text no authenticated caller
+	// sent (an imported transcript, a wake, a harness-produced message); the
+	// authorship policy then falls back to the run's lineage.
+	Sender   string `json:"sender,omitempty"`
+	SenderID string `json:"senderId,omitempty"`
 }
 
 // MessageAttachmentInfo stores metadata about attachments included with a message.
@@ -837,7 +845,7 @@ type PolicyRules struct {
 // IDEMPOTENCY & REPLAY SAFETY
 // =============================================================================
 // These types enable safe retries, resumption, and replay of operations.
-// See: idempotency-replay-safety-hardening.md
+// See: resilience-lenses (skill)
 
 // IdempotencyRecord tracks whether an operation has been performed.
 // This prevents duplicate work when operations are retried.
@@ -882,7 +890,7 @@ const (
 // PROGRESS & CHECKPOINT TRACKING
 // =============================================================================
 // These types enable safe interruption and resumption of runs.
-// See: progress-continuity-interruption-resilience.md
+// See: resilience-lenses (skill)
 
 // RunPhase represents the current phase of run execution.
 // This enables resumption from the correct point after interruption.
@@ -1039,7 +1047,7 @@ func (c *RunCheckpoint) IncrementRetry() *RunCheckpoint {
 // TEMPORAL FLOW & HEARTBEAT
 // =============================================================================
 // These types support time-based coordination and health monitoring.
-// See: temporal-flow-audit.md
+// See: resilience-lenses (skill)
 
 // HeartbeatConfig defines heartbeat behavior for long-running operations.
 type HeartbeatConfig struct {

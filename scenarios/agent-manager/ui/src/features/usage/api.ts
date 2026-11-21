@@ -3,14 +3,15 @@
 // the numbers agree wherever they are shown.
 
 import { createClient } from "@connectrpc/connect";
-import { createScenarioConnectTransport } from "@vrooli/api-base";
+import { buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { CohortSelectorSchema, type CohortSelector } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { TimeWindowSchema, TimeWindowToken, type TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
 import { FrictionService } from "@vrooli/proto-types/agent-manager/v1/domain/friction_pb";
-import { REQUEST_DEADLINE_MS, resolveAgentManagerApiBase } from "../../lib/api";
+import { REQUEST_DEADLINE_MS, fetchWithDeadline, resolveAgentManagerApiBase } from "../../lib/api";
+import { parseGate, type GateCells } from "./annotationGate";
 import { measuresClient } from "./measuresClient";
 
 export const USAGE_GROUP_BY = ["session", "run", "profile", "workload", "model", "runner", "modality", "tool_kind"] as const;
@@ -260,30 +261,65 @@ export function useExperimentActions() {
   return { start, propose };
 }
 
+/** The windows the annotation views read, in the API's own window syntax. */
+export const ANNOTATION_WINDOWS = [
+  { id: "7d", label: "7 days" },
+  { id: "30d", label: "30 days" },
+] as const;
+export type AnnotationWindow = (typeof ANNOTATION_WINDOWS)[number]["id"];
 
-/** The inferred-annotation coverage row for one label; a rate exists only for a proven gate. */
-export interface AnnotationCoverageLabel {
-  id: string;
-  group: string;
-  state: string;
-  observed: number;
-  eligible: number;
-  rate?: number | null;
-  baseline?: number | null;
-  ratio?: number | null;
-  gate: { state: string; precision: number; recall: number; gold: number; min_gold: number; target_precision: number; target_recall: number };
-  search_facet?: string;
-  min_probability?: number;
-  friction?: { enabled?: boolean; min_probability?: number; cost_unit?: string; importance?: string };
+async function readJson<T>(url: string, subject: string): Promise<T> {
+  const response = await fetchWithDeadline(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+  if (!response.ok) throw new Error(`${subject}: ${(await response.text()).trim() || response.status}`);
+  return (await response.json()) as T;
 }
 
-export interface AnnotationCoverage {
-  window: { since?: string; until?: string };
-  pack: { name: string; version: string };
-  eligible_runs: number;
-  observed_runs: number;
-  coverage: number;
-  weighting?: { mode?: string; sample_rate?: number };
-  labels: AnnotationCoverageLabel[];
+function annotationUrl(path: string, query: Record<string, string>): string {
+  return buildApiUrl(`/annotations/${path}?${new URLSearchParams(query).toString()}`, { baseUrl: resolveAgentManagerApiBase(true) });
 }
 
+/**
+ * The annotation gate: which labels are proven, for which model, and the rate
+ * of those that are. The rows are the `usage.annotation_gate` measure's, served
+ * by the same projection `usage annotations` reads, so a rate is never shown
+ * without its gate.
+ */
+export function useAnnotationGate(window: AnnotationWindow) {
+  return useQuery({
+    queryKey: ["usage", "annotation-gate", window] as const,
+    queryFn: async () => parseGate((await readJson<{ fields?: GateCells[] }>(annotationUrl("gate", { window }), "Annotation gate")).fields ?? []),
+    refetchInterval: 5 * REFRESH_MS,
+    retry: false,
+  });
+}
+
+/** One time bucket of a per-message label; means are over the calibrated value of each human message. */
+export interface MoodPoint {
+  start: string;
+  messages: number;
+  proven_messages: number;
+  /** Mean over every message in the bucket: evidence of mood, not a measurement, until all of them are proven. */
+  mean?: number | null;
+  /** Mean over messages whose own model's hold-out clears the label's targets. */
+  proven_mean?: number | null;
+}
+
+export interface MoodSeries {
+  label: string;
+  bucket: string;
+  window?: { since?: string; until?: string };
+  messages: number;
+  proven_messages: number;
+  points: MoodPoint[];
+  note?: string;
+}
+
+/** A per-message label over human-written messages only, from `annotations series`. */
+export function useAnnotationSeries(label: string, window: AnnotationWindow, bucket: "day" | "week" = "day") {
+  return useQuery({
+    queryKey: ["usage", "annotation-series", label, window, bucket] as const,
+    queryFn: () => readJson<MoodSeries>(annotationUrl("series", { label, window, bucket }), "Mood series"),
+    refetchInterval: 5 * REFRESH_MS,
+    retry: false,
+  });
+}

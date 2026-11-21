@@ -441,7 +441,7 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 	}
 	if o.events != nil {
-		if aerr := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewMessageEvent(run.ID, "user", message)); aerr != nil {
+		if aerr := o.appendAndBroadcastEvents(ctx, run.ID, newUserMessage(ctx, run.ID, message, nil)); aerr != nil {
 			_ = aerr
 		}
 	}

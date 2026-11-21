@@ -379,7 +379,7 @@
         "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "advisory",
         "recommended_skill_ids": [
-          "control-surface-tunable-levers-design"
+          "architecture-lenses"
         ],
         "fix_class": "manual",
         "reason": "Context budget migration depends on operation semantics."

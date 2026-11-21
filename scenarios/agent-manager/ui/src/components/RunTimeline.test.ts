@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { fromJson } from "@bufbuild/protobuf";
-import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb.js";
+import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";

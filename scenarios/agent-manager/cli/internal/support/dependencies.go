@@ -1,5 +1,7 @@
 package support
 
+import "time"
+
 import "github.com/vrooli/cli-core/cliapp"
 import domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
@@ -19,6 +21,7 @@ type Dependencies struct {
 	RunCommands      []cliapp.Command
 	UsageCommands    []cliapp.Command
 	UsageRunningRuns func() ([]*domainpb.Run, error)
+	Now              func() time.Time
 	Runner           CommandFunc
 	Policy           CommandFunc
 	PermissionPolicy CommandFunc

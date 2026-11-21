@@ -18,8 +18,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/cel-go/cel"
 )
@@ -72,6 +74,10 @@ const (
 	maximumCandidateExprSize = 4000
 )
 
+// PopulationHumanOperator is the coverage population of runs and messages a
+// person wrote, as opposed to workflow briefs and harness text.
+const PopulationHumanOperator = "human_operator"
+
 // Pack is one versioned vocabulary of labels.
 type Pack struct {
 	Name    string  `json:"name"`
@@ -84,16 +90,32 @@ type Pack struct {
 // reporting plus admission policy; it never changes a label's definition hash.
 type Runtime struct {
 	Mode string `json:"mode"`
-	// ModelAffinity names the decision-model family the scheduler groups this
-	// pack's work under. It is data, not a code default: moving the pack to
-	// another decision provider must not silently keep the old affinity.
-	ModelAffinity       string     `json:"model_affinity,omitempty"`
-	DefaultRole         string     `json:"default_role"`
-	EscalateRole        string     `json:"escalate_role"`
-	Escalation          Escalation `json:"escalation"`
-	Batch               Batch      `json:"batch"`
-	BackfillHorizonDays int        `json:"backfill_horizon_days"`
-	Budgets             Budgets    `json:"budgets"`
+	// DefaultRole and EscalateRole are the decision roles a label uses unless it
+	// declares its own role or escalate_role. The scheduler derives its model
+	// affinity from the roles labels actually resolve to, never from a separate
+	// pack-wide setting that could drift from them.
+	DefaultRole  string     `json:"default_role"`
+	EscalateRole string     `json:"escalate_role"`
+	Escalation   Escalation `json:"escalation"`
+	// BakeoffRole is the decision role a pinned (bake-off) evaluation walks when
+	// the caller names none: a role whose candidates include the models under
+	// test. Empty means the label's own role.
+	BakeoffRole string `json:"bakeoff_role,omitempty"`
+	// GoldRoot is the private directory gold files live in: reference rows
+	// carry the operator's own words, so they never belong in a tracked path.
+	// Empty selects "gold" under the scenario's durable state root (beside its
+	// database); a relative value resolves against that root, an absolute one
+	// is used as written. gate.measurements[].gold_file and the CLI's --gold,
+	// --fit-from and --runs-from resolve against it.
+	GoldRoot            string  `json:"gold_root,omitempty"`
+	Batch               Batch   `json:"batch"`
+	BackfillHorizonDays int     `json:"backfill_horizon_days"`
+	Budgets             Budgets `json:"budgets"`
+	// Provenance declares which operator text is a person speaking and which is
+	// a workflow brief or harness text. It is entirely data: an empty policy
+	// treats every operator-source message as a person's. A change to it makes
+	// every stored provenance row stale (see Provenance.Hash).
+	Provenance Provenance `json:"provenance"`
 	// DigestChars bounds the state JSON sent to a decision model. It is pack
 	// data because the right value follows the model's context window, not the
 	// engine: a large local model can read more evidence than a small one.
@@ -102,11 +124,66 @@ type Runtime struct {
 	DigestChars int `json:"digest_chars,omitempty"`
 }
 
-// Escalation raises low-confidence states to a stronger role once.
+// Escalation raises low-confidence states to a stronger role once. It never
+// re-asks the same model: when the escalation role resolves to the model that
+// already answered, the call is skipped and that fact is remembered for
+// SameModelTTL.
 type Escalation struct {
 	Enabled       bool    `json:"enabled"`
 	MinConfidence float64 `json:"min_confidence"`
 	MaxLabels     int     `json:"max_labels"`
+	// SameModelTTL is a Go duration ("10m"). How long a learned "this escalation
+	// role answers with the same model as the first pass" stays trusted before
+	// the engine asks the gateway again, so a model change is noticed.
+	SameModelTTL string `json:"same_model_ttl,omitempty"`
+}
+
+// DefaultSameModelTTL is how long a futile escalation is remembered when the
+// pack declares escalation without a TTL.
+const DefaultSameModelTTL = 10 * time.Minute
+
+// SameModelDuration resolves SameModelTTL. A pack validates it at load, so an
+// unparseable value cannot reach here; it falls back to the default.
+func (e Escalation) SameModelDuration() time.Duration {
+	if parsed, err := time.ParseDuration(strings.TrimSpace(e.SameModelTTL)); err == nil && parsed > 0 {
+		return parsed
+	}
+	return DefaultSameModelTTL
+}
+
+// Provenance classifies operator-source text. A message that a person did not
+// write must never be read as that person's mood.
+type Provenance struct {
+	// BriefWorkloads are workload kinds whose operator-source text is always a
+	// brief: workflow nodes and scheduled runs are prompted by the system.
+	BriefWorkloads []string `json:"brief_workloads,omitempty"`
+	// SeedBriefWorkloads are workload kinds whose first operator-source message
+	// is a brief but whose later messages are a person steering the run (an
+	// ad hoc run is usually opened by an agent or script and then steered).
+	SeedBriefWorkloads []string `json:"seed_brief_workloads,omitempty"`
+	// DelegatedByLineage makes every operator-source message of a run that
+	// another run spawned a delegation, not a person's words.
+	DelegatedByLineage bool `json:"delegated_by_lineage,omitempty"`
+	// AgentMarkers are regular expressions over operator-source text that only
+	// an agent or a supervisor writes (an epoch heading, a lineage prefix). They
+	// catch steering in runs whose lineage does not say so.
+	AgentMarkers []string `json:"agent_markers,omitempty"`
+	// DelegatingOpenings are regular expressions over the first operator-source
+	// message of a run: a run opened that way was launched by an agent, so every
+	// operator-source message in it is delegated.
+	DelegatingOpenings []string `json:"delegating_openings,omitempty"`
+	agentMarkers       []*regexp.Regexp
+	delegatingOpenings []*regexp.Regexp
+}
+
+func compilePatterns(patterns []string) []*regexp.Regexp {
+	var out []*regexp.Regexp
+	for _, pattern := range patterns {
+		if compiled, err := regexp.Compile(pattern); err == nil {
+			out = append(out, compiled)
+		}
+	}
+	return out
 }
 
 // Batch bounds one DecideBatch call. The gateway also caps these.
@@ -123,6 +200,9 @@ type Budgets struct {
 	// DefaultSecondsPerPass. Runs are persisted group by group, so a pass that
 	// reaches the budget returns what it finished and reports the remainder.
 	MaxSecondsPerPass int `json:"max_seconds_per_pass,omitempty"`
+	// MaxMessagesPerRun bounds the human messages of one run that message-scope
+	// labels answer in a pass. Zero selects DefaultMessagesPerRun.
+	MaxMessagesPerRun int `json:"max_messages_per_run,omitempty"`
 }
 
 // Label declares one thing to observe.
@@ -148,6 +228,18 @@ type Label struct {
 	// Fallback names the evaluator used when a deterministic rule cannot decide.
 	// The only supported fallback in this slice is "decision".
 	Fallback Method `json:"fallback,omitempty"`
+
+	// Role is the decision role this label asks; empty uses runtime.default_role.
+	// EscalateRole is the stronger role asked once when the answer is not
+	// confident; empty uses runtime.escalate_role. Neither is part of the
+	// definition hash: the model that answered is recorded on each observation
+	// and proven separately.
+	Role         string `json:"role,omitempty"`
+	EscalateRole string `json:"escalate_role,omitempty"`
+	// Population names the denominator a coverage row reports for this label.
+	// Empty means every annotated run; "human_operator" means runs (or, for a
+	// message-scope label, messages) a person wrote. It is reporting only.
+	Population string `json:"population,omitempty"`
 
 	Evidence   []EvidenceSelector `json:"evidence"`
 	Candidates string             `json:"candidates,omitempty"`
@@ -202,50 +294,6 @@ type Sampling struct {
 	Stratum string   `json:"stratum,omitempty"`
 }
 
-// Gate holds the measured-quality thresholds a label must clear before any
-// consumer may report a rate. Measured is deliberately explicit: absent means
-// unmeasured, never proven.
-type Gate struct {
-	Precision float64          `json:"precision"`
-	Recall    float64          `json:"recall"`
-	MinGold   int              `json:"min_gold"`
-	Measured  *GateMeasurement `json:"measured,omitempty"`
-	// staleMeasurement explains a measurement dropped at compile time because
-	// it belonged to a different definition. Reporting-only; never serialized.
-	staleMeasurement string
-}
-
-// GateMeasurement is a measured hold-out result. It is bound to the exact
-// label definition it measured: a measurement left over from an earlier
-// definition must never prove a changed one.
-type GateMeasurement struct {
-	Precision float64 `json:"precision"`
-	Recall    float64 `json:"recall"`
-	Gold      int     `json:"gold"`
-	// Threshold is the probability at which precision and recall were
-	// measured. A measurement without it cannot be reproduced or compared with
-	// the threshold search and friction actually consume.
-	Threshold      float64 `json:"threshold,omitempty"`
-	DefinitionHash string  `json:"definition_hash,omitempty"`
-}
-
-// GateState is a human/JSON state for reporting.
-func (g Gate) State() string {
-	if g.Measured == nil {
-		return "unmeasured"
-	}
-	if g.Measured.Gold < g.MinGold {
-		return "insufficient_gold"
-	}
-	if g.Measured.Precision < g.Precision || g.Measured.Recall < g.Recall {
-		return "below_threshold"
-	}
-	return "proven"
-}
-
-// Proven reports whether the measured gate clears every threshold.
-func (g Gate) Proven() bool { return g.State() == "proven" }
-
 // Search declares the search facet and threshold that tags a run.
 type Search struct {
 	Facet          string   `json:"facet"`
@@ -260,7 +308,7 @@ type Friction struct {
 	// below this value (operator.valence -1 = frustrated).
 	MaxScore *float64 `json:"max_score,omitempty"`
 	// MinScore makes a high-is-bad score a friction positive only at or above
-	// this value (agent.spinning 2 = noticeable repetition). Exactly one of
+	// this value (agent.stalled 2 = noticeable repetition). Exactly one of
 	// MinScore/MaxScore is required for an enabled score label: without a
 	// direction even a mild score would count as friction when confident.
 	MinScore   *float64 `json:"min_score,omitempty"`
@@ -296,7 +344,13 @@ type compiledLabel struct {
 	rule       cel.Program
 	prior      cel.Program
 	composite  cel.Program
+	// refs are the labels a composite rule reads; a composite with any is
+	// derived: its proof comes from its inputs.
+	refs compositeRefs
 }
+
+// derived reports whether the label is a composite over other labels.
+func (c *compiledLabel) derived() bool { return c.label.Method == MethodComposite && c.refs.any() }
 
 // packEnvelope accepts both {"pack": {...}} and a bare pack object.
 type packEnvelope struct {
@@ -378,8 +432,12 @@ func (p *Pack) normalize() {
 	if p.Runtime.Escalation.MaxLabels <= 0 {
 		p.Runtime.Escalation.MaxLabels = DefaultBatchQuestions
 	}
+	// An invalid pattern is reported by Validate; skip it here.
+	p.Runtime.Provenance.agentMarkers = compilePatterns(p.Runtime.Provenance.AgentMarkers)
+	p.Runtime.Provenance.delegatingOpenings = compilePatterns(p.Runtime.Provenance.DelegatingOpenings)
 	for i := range p.Labels {
 		label := &p.Labels[i]
+		label.Gate.migrateLegacy()
 		if label.Sampling.Rate == nil {
 			rate := 1.0
 			label.Sampling.Rate = &rate
@@ -411,6 +469,23 @@ func (p *Pack) Validate() error {
 	if p.Runtime.Escalation.MinConfidence < 0 || p.Runtime.Escalation.MinConfidence > 1 {
 		add("runtime escalation min_confidence must be in [0,1]")
 	}
+	if root := p.Runtime.GoldRoot; root != "" && strings.TrimSpace(root) != root {
+		add("runtime gold_root %q has leading or trailing space", root)
+	}
+	if ttl := strings.TrimSpace(p.Runtime.Escalation.SameModelTTL); ttl != "" {
+		if parsed, err := time.ParseDuration(ttl); err != nil || parsed <= 0 {
+			add("runtime escalation same_model_ttl %q must be a positive duration such as 10m", ttl)
+		}
+	}
+	for field, patterns := range map[string][]string{
+		"agent_markers": p.Runtime.Provenance.AgentMarkers, "delegating_openings": p.Runtime.Provenance.DelegatingOpenings,
+	} {
+		for _, pattern := range patterns {
+			if _, err := regexp.Compile(pattern); err != nil {
+				add("runtime provenance %s %q does not compile: %v", field, pattern, err)
+			}
+		}
+	}
 	if len(p.Labels) == 0 {
 		add("pack declares no labels")
 	}
@@ -425,6 +500,9 @@ func (p *Pack) Validate() error {
 			add("duplicate label id %q", label.ID)
 		}
 		seen[label.ID] = true
+	}
+	if envErr == nil && compositeErr == nil {
+		p.validateComposites(compositeEnv, add)
 	}
 	if len(problems) > 0 {
 		return fmt.Errorf("invalid pack: %s", strings.Join(problems, "; "))
@@ -452,6 +530,14 @@ func (l Label) validate(env, compositeEnv *cel.Env, envErr, compositeErr error, 
 	case MethodDeterministic, MethodSignal, MethodDecision, MethodExtract, MethodComposite:
 	default:
 		add("%s: method %q is not supported", id, l.Method)
+	}
+	switch l.Population {
+	case "", PopulationHumanOperator:
+	default:
+		add("%s: population %q must be empty or %q", id, l.Population, PopulationHumanOperator)
+	}
+	if l.Scope == ScopeMessage && l.Method != MethodDecision && l.Method != MethodDeterministic && l.Method != MethodComposite {
+		add("%s: a message-scope label must be a decision, deterministic or composite label", id)
 	}
 	if l.Method == MethodDecision || l.Fallback == MethodDecision {
 		if l.Question == nil {
@@ -495,15 +581,7 @@ func (l Label) validate(env, compositeEnv *cel.Env, envErr, compositeErr error, 
 	if l.Gate.MinGold < 1 {
 		add("%s: gate min_gold must be at least 1 (an unproven gate cannot produce a rate)", id)
 	}
-	if l.Gate.Measured != nil {
-		g := l.Gate.Measured
-		if g.Precision < 0 || g.Precision > 1 || g.Recall < 0 || g.Recall > 1 || g.Gold < 0 {
-			add("%s: measured gate values are out of range", id)
-		}
-		if g.Threshold < 0 || g.Threshold > 1 {
-			add("%s: measured gate threshold must be in [0,1]", id)
-		}
-	}
+	l.Gate.validate(id, add)
 	if strings.TrimSpace(l.Search.Facet) == "" {
 		add("%s: search facet is required", id)
 	}
@@ -694,12 +772,6 @@ func (p *Pack) CompileWithCostLimit(costLimit uint64) (*CompiledPack, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s: hash: %w", label.ID, err)
 		}
-		if label.Gate.Measured != nil && label.Gate.Measured.DefinitionHash != hash {
-			// A hold-out result proves only the definition it measured. Dropping
-			// it keeps a changed label unproven instead of inheriting a gate.
-			label.Gate.staleMeasurement = "measurement was for a different definition revision; re-run the benchmark"
-			label.Gate.Measured = nil
-		}
 		cl := &compiledLabel{label: *label, hash: hash}
 		if label.Candidates != "" {
 			if cl.candidates, err = compileProgram(env, label.Candidates, costLimit); err != nil {
@@ -727,6 +799,9 @@ func (p *Pack) CompileWithCostLimit(costLimit uint64) (*CompiledPack, error) {
 		}
 		if label.Method == MethodComposite {
 			cl.composite = cl.rule
+			if cl.refs, err = analyzeComposite(composite, label.Rule); err != nil {
+				return nil, fmt.Errorf("%s: rule: %w", label.ID, err)
+			}
 		}
 		cp.labels[label.ID] = cl
 		cp.LabelHashes[label.ID] = hash
@@ -765,7 +840,13 @@ type labelSemantic struct {
 	PriorRule     string             `json:"prior_rule,omitempty"`
 	Fallback      Method             `json:"fallback,omitempty"`
 	Evidence      []evidenceSemantic `json:"evidence,omitempty"`
-	Candidates    string             `json:"candidates,omitempty"`
+	// DigestFormat and DigestPriority identify the state a model reads for a
+	// run-scope decision: how the digest is rendered (digestFormat) and which
+	// sections the label ranks first (its evidence order). Either changing
+	// changes what the model is asked, so it changes the hash.
+	DigestFormat   int      `json:"digest_format,omitempty"`
+	DigestPriority []string `json:"digest_priority,omitempty"`
+	Candidates     string   `json:"candidates,omitempty"`
 	// Require is a CEL predicate over the same activation as candidates. It
 	// declares when a label has enough evidence to be asked at all, so a run
 	// with no messages and no tool calls never receives a model guess. This is
@@ -789,6 +870,13 @@ type evidenceSemantic struct {
 	Source string `json:"source"`
 	Field  string `json:"field"`
 	Label  string `json:"label,omitempty"`
+}
+
+// readsRunDigest reports whether a model answers the label from a run's digest:
+// a run-scope decision, or a rule that falls back to one. Message labels read
+// their own message digest, which this format does not shape.
+func (l Label) readsRunDigest() bool {
+	return l.Scope == ScopeRun && (l.Method == MethodDecision || l.Fallback == MethodDecision)
 }
 
 // LabelDefinitionHash is the canonical sha256 of a label's semantic definition.
@@ -815,6 +903,10 @@ func LabelDefinitionHash(label Label) (string, error) {
 			TrueDescription:  strings.TrimSpace(label.Question.TrueDescription),
 			FalseDescription: strings.TrimSpace(label.Question.FalseDescription),
 		}
+	}
+	if label.readsRunDigest() {
+		semantic.DigestFormat = digestFormat
+		semantic.DigestPriority = DigestPriority(label.Evidence)
 	}
 	for _, selector := range label.Evidence {
 		semantic.Evidence = append(semantic.Evidence, evidenceSemantic{Source: selector.Source, Field: selector.Field, Label: selector.Label})
@@ -884,6 +976,9 @@ type PackSummary struct {
 	Labels      int               `json:"labels"`
 	Mode        string            `json:"mode"`
 	LabelHashes map[string]string `json:"label_hashes"`
+	// GoldRoot is the resolved absolute directory gold files are read from and
+	// written to; empty when the service was composed without a state root.
+	GoldRoot string `json:"gold_root,omitempty"`
 }
 
 // Summary returns the pack identity.

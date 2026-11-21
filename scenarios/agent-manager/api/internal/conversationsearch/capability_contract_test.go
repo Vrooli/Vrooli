@@ -13,7 +13,8 @@ import (
 func TestConversationRecallCapabilityLayers(t *testing.T) {
 	t.Parallel()
 	scenarioRoot := filepath.Join("..", "..", "..")
-	usage := readCapabilityFile(t, filepath.Join(scenarioRoot, "skills", "agent-manager", "SKILL.md"))
+	// The skill's guidance spans SKILL.md and the references it loads on demand.
+	usage := readSkillWithReferences(t, filepath.Join(scenarioRoot, "skills", "agent-manager"))
 	for _, expected := range []string{
 		"unknown run id", "agent-manager conversation search", "agent-manager conversation context",
 		"copied text", "provenance", "agent-manager.conversation-recall", "do not paste snippets",
@@ -63,6 +64,17 @@ func TestConversationRecallCapabilityLayers(t *testing.T) {
 	}
 	require.Contains(t, strings.Join(contract.Invariants, "\n"), "raw clues are never echoed")
 	require.Contains(t, strings.Join(contract.Invariants, "\n"), "three context calls")
+}
+
+func readSkillWithReferences(t *testing.T, skillDir string) string {
+	t.Helper()
+	parts := []string{readCapabilityFile(t, filepath.Join(skillDir, "SKILL.md"))}
+	references, err := filepath.Glob(filepath.Join(skillDir, "references", "*.md"))
+	require.NoError(t, err)
+	for _, reference := range references {
+		parts = append(parts, readCapabilityFile(t, reference))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func readCapabilityFile(t *testing.T, path string) string {

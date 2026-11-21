@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/identity"
 )
@@ -161,5 +162,36 @@ func TestAdmissionFenceViewFailsClosedWhenDurableStateUnavailable(t *testing.T) 
 	h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, AdmissionPath+"?view=fence", nil))
 	if response.Code != http.StatusServiceUnavailable || strings.Contains(response.Body.String(), `"closed":false`) {
 		t.Fatalf("unavailable fence became permission: %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestInformationalStatusPollsShareBoundedInventoryButFreshProjectionDoesNot(t *testing.T) {
+	gate, _ := openGate(t, filepath.Join(t.TempDir(), "gate.db"))
+	calls := 0
+	at := time.Date(2026, 11, 20, 20, 0, 0, 0, time.UTC)
+	h, err := NewHandler(gate, func(context.Context) (Inventory, error) {
+		calls++
+		count := 0
+		return Inventory{Remaining: &count, Work: []WorkRef{}, Executors: []ExecutorEvidence{}, Unknown: []string{}, ObservedAt: at}, nil
+	}, ownerVerifier{}, testInterlock(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(path string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		return response
+	}
+	first := get(AdmissionPath)
+	second := get(AdmissionPath)
+	if first.Code != http.StatusOK || second.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("status polling launched %d observations, codes=%d/%d", calls, first.Code, second.Code)
+	}
+	if first.Header().Get("X-Inventory-Observed-At") != at.Format(time.RFC3339Nano) || second.Header().Get("X-Inventory-Observed-At") == "" {
+		t.Fatalf("status omitted source observation time: %v %v", first.Header(), second.Header())
+	}
+	fresh := get(AdmissionPath + "?view=fresh")
+	if fresh.Code != http.StatusOK || calls != 2 {
+		t.Fatalf("fresh lifecycle projection reused informational cache: calls=%d code=%d", calls, fresh.Code)
 	}
 }

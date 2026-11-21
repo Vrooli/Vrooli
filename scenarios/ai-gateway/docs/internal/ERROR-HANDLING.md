@@ -74,6 +74,15 @@ never recorded against provider health: the provider failed nothing, and
 tripping a circuit breaker over a policy mismatch would suppress a healthy
 route.
 
+A capacity refusal is handled the same way. A resource that declines a candidate
+because it does not fit right now (`insufficient_vram`, `insufficient_memory`) or
+because the request is outside the model's declared bounds (`limits_exceeded`)
+writes the typed marker, the gateway keeps the exact code, and routing reports
+`failure_class=capacity_refused`, moves to the next candidate, and never records
+the refusal against provider health. A breaker or cooldown here would keep a
+model hidden after the memory frees up. None of the three is retried on the same
+candidate: the walk and the route each try a candidate once.
+
 ## E6b private plan, execute, and receipt
 
 A missing registered feature is refused before policy evaluation. A policy

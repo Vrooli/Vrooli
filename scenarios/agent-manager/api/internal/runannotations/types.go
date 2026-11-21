@@ -3,40 +3,36 @@ package runannotations
 import "time"
 
 type LabelView struct {
-	ID             string        `json:"id"`
-	Group          string        `json:"group"`
-	Description    string        `json:"description"`
-	Scope          Scope         `json:"scope"`
-	Method         Method        `json:"method"`
-	Optional       bool          `json:"optional"`
-	DefinitionHash string        `json:"definition_hash"`
-	Gate           Gate          `json:"gate"`
-	GateState      string        `json:"gate_state"`
-	Proven         bool          `json:"proven"`
-	Search         Search        `json:"search"`
-	Friction       Friction      `json:"friction"`
-	Compatibility  Compatibility `json:"compatibility"`
-	Coverage       StateCounts   `json:"coverage"`
-	HasData        bool          `json:"has_data"`
-}
-
-// GateStatus is the contract gate object: measured precision/recall/gold plus
-// the pack's targets and an explicit state.
-type GateStatus struct {
-	State           string  `json:"state"`
-	Precision       float64 `json:"precision"`
-	Recall          float64 `json:"recall"`
-	Gold            int     `json:"gold"`
-	MinGold         int     `json:"min_gold"`
-	Reason          string  `json:"reason"`
-	TargetPrecision float64 `json:"target_precision"`
-	TargetRecall    float64 `json:"target_recall"`
+	ID             string `json:"id"`
+	Group          string `json:"group"`
+	Description    string `json:"description"`
+	Scope          Scope  `json:"scope"`
+	Method         Method `json:"method"`
+	Optional       bool   `json:"optional"`
+	Role           string `json:"role"`
+	EscalateRole   string `json:"escalate_role,omitempty"`
+	DefinitionHash string `json:"definition_hash"`
+	Gate           Gate   `json:"gate"`
+	// GateState and Proven summarize the label across the models it was
+	// observed with (or measured for): proven when any model's hold-out clears
+	// the targets. GateStatus is that summary's measurement; the per-model
+	// measurements are in Gate.Measurements.
+	GateState     string        `json:"gate_state"`
+	Proven        bool          `json:"proven"`
+	GateStatus    GateStatus    `json:"gate_status"`
+	Search        Search        `json:"search"`
+	Friction      Friction      `json:"friction"`
+	Compatibility Compatibility `json:"compatibility"`
+	Coverage      StateCounts   `json:"coverage"`
+	HasData       bool          `json:"has_data"`
 }
 
 // CoverageLabel is one contract coverage row. Rate is set only for a proven
 // gate; baseline/ratio are omitted until a random-sample baseline is measured.
 type CoverageLabel struct {
-	ID        string     `json:"id"`
+	ID string `json:"id"`
+	// Scope is what the label is about: run, message or episode.
+	Scope     Scope      `json:"scope"`
 	Group     string     `json:"group"`
 	State     string     `json:"state"`
 	Gate      GateStatus `json:"gate"`
@@ -54,6 +50,32 @@ type CoverageLabel struct {
 	SearchFacet    string   `json:"search_facet"`
 	MinProbability *float64 `json:"min_probability,omitempty"`
 	Friction       Friction `json:"friction"`
+	// Models is the label's observations split by the (model, resource role) that
+	// produced them, each with its own proof. Rate counts only ProvenObserved.
+	Models          []ModelCoverage `json:"models,omitempty"`
+	ProvenObserved  int             `json:"proven_observed,omitempty"`
+	ProvenPositives int             `json:"proven_positives,omitempty"`
+	// Population is set when the label declares whose text it is about; Eligible
+	// is then that population's size rather than the rows evaluated.
+	Population *Population `json:"population,omitempty"`
+}
+
+// ModelCoverage is one model's share of a label's observations and the proof
+// that model's answers carry.
+type ModelCoverage struct {
+	Model        string     `json:"model"`
+	ResourceRole string     `json:"resource_role"`
+	Observed     int        `json:"observed"`
+	Positives    int        `json:"positives"`
+	Proven       bool       `json:"proven"`
+	Gate         GateStatus `json:"gate"`
+}
+
+// Population is the denominator a label's coverage is reported against.
+type Population struct {
+	Basis    string `json:"basis"`
+	Unit     string `json:"unit"`
+	Eligible int    `json:"eligible"`
 }
 
 // WindowRange is the RFC3339 coverage window. An unbounded side is empty.
@@ -89,7 +111,11 @@ type CoverageResponse struct {
 	Weighting     Weighting       `json:"weighting"`
 	Labels        []CoverageLabel `json:"labels"`
 	Summary       StateCounts     `json:"summary"`
-	Notes         []string        `json:"notes,omitempty"`
+	// Provenance splits the annotated runs by whose operator text they carried:
+	// a person, or a workflow brief or harness. Affect labels are read against
+	// the human share.
+	Provenance *ProvenanceSummary `json:"provenance,omitempty"`
+	Notes      []string           `json:"notes,omitempty"`
 }
 
 // AnnotationView is the contract label result plus gate state.
@@ -102,6 +128,8 @@ type AnnotationView struct {
 	Probability      *float64   `json:"probability,omitempty"`
 	Confidence       *float64   `json:"confidence,omitempty"`
 	Model            string     `json:"model,omitempty"`
+	ResourceRole     string     `json:"resource_role,omitempty"`
+	RequestedRole    string     `json:"requested_role,omitempty"`
 	Provider         string     `json:"provider,omitempty"`
 	DefinitionHash   string     `json:"definition_hash"`
 	ObservedAt       time.Time  `json:"observed_at"`
@@ -120,6 +148,17 @@ type AnnotationView struct {
 	// which is structurally small on a multi-level scale. It is omitted when
 	// the observation carries no level distribution.
 	FrictionProbability *float64 `json:"friction_probability,omitempty"`
+	// CalibratedProbability is the stored vector's score (noul probability, top
+	// class, or friction-region mass) read at the temperature measured for this
+	// observation's model; Temperature is that temperature when it is not 1.
+	// The stored Probability and Value are never rewritten.
+	CalibratedProbability *float64 `json:"calibrated_probability,omitempty"`
+	Temperature           float64  `json:"temperature,omitempty"`
+	// FrictionPositive says whether this observation is a friction event under
+	// its own model's calibration and threshold; absent for a label that is not
+	// friction or an observation with nothing to score.
+	FrictionPositive *bool      `json:"friction_positive,omitempty"`
+	OccurredAt       *time.Time `json:"occurred_at,omitempty"`
 }
 
 // SkippedLabel explains why a label produced no row for one run.
@@ -146,7 +185,10 @@ type RunView struct {
 	Counts   StateCounts      `json:"counts"`
 	Missing  []string         `json:"missing,omitempty"`
 	Skipped  []SkippedLabel   `json:"skipped,omitempty"`
-	Notes    []string         `json:"notes,omitempty"`
+	// Messages are the message-scope labels of the run's human messages, oldest
+	// message first.
+	Messages []MessageView `json:"messages,omitempty"`
+	Notes    []string      `json:"notes,omitempty"`
 }
 
 // AnnotateOptions bounds one run's evaluation.
@@ -156,6 +198,16 @@ type AnnotateOptions struct {
 	Labels          []string
 	MaxLabels       int
 	DryRun          bool
+	// PinResourceRole restricts every decision to one declared candidate and
+	// stores the answers in the trials table, so a bake-off measures a model
+	// without touching production observations. Role is the decision role walked
+	// for it; empty uses runtime.bakeoff_role, then the label's own role.
+	PinResourceRole string
+	Role            string
+	// MessageIDs, when set, restricts message-scope labels to the named human
+	// messages (a gold set judges particular messages); empty answers the
+	// newest messages of each run up to the pack's bound.
+	MessageIDs []string
 }
 
 // EvaluateOptions bounds a batch.
@@ -168,6 +220,10 @@ type EvaluateOptions struct {
 	IncludeOptional bool
 	Force           bool
 	DryRun          bool
+	PinResourceRole string
+	Role            string
+	// MessageIDs restricts message-scope labels to the named messages.
+	MessageIDs []string
 	// TimeBudget optionally overrides the pack's per-pass wall-clock budget.
 	// Zero uses the pack value; a negative value disables the budget (used by
 	// single-run callers and tests that must not be time sensitive).
@@ -189,13 +245,20 @@ type EvaluateResult struct {
 	// Remaining counts selected runs a bounded pass did not reach. Truncated
 	// says the pass stopped at its wall-clock budget rather than exhausting
 	// the selection, so the caller can continue with another pass.
-	Remaining   int             `json:"remaining"`
-	Truncated   bool            `json:"truncated"`
-	Observed    int             `json:"observed"`
-	Unavailable int             `json:"unavailable"`
-	Coverage    float64         `json:"coverage"`
-	Labels      []CoverageLabel `json:"labels"`
-	Runs        []RunView       `json:"runs,omitempty"`
-	Errors      []RunError      `json:"errors,omitempty"`
-	Counts      StateCounts     `json:"counts"`
+	Remaining int  `json:"remaining"`
+	Truncated bool `json:"truncated"`
+	// RemainingRunIDs lists explicitly named runs the pass did not reach, so the
+	// caller can continue until every one is answered.
+	RemainingRunIDs []string `json:"remaining_run_ids,omitempty"`
+	// Pinned is the resource role a bake-off pass was restricted to.
+	Pinned string `json:"pinned,omitempty"`
+	// Escalation reports what escalation spent and saved in this pass.
+	Escalation  *EscalationStats `json:"escalation,omitempty"`
+	Observed    int              `json:"observed"`
+	Unavailable int              `json:"unavailable"`
+	Coverage    float64          `json:"coverage"`
+	Labels      []CoverageLabel  `json:"labels"`
+	Runs        []RunView        `json:"runs,omitempty"`
+	Errors      []RunError       `json:"errors,omitempty"`
+	Counts      StateCounts      `json:"counts"`
 }

@@ -730,6 +730,32 @@
           }
         },
         {
+          "name": "evidence-profile",
+          "description": "Summarize recent metadata-only route latency by task role, model, provider, and outcome",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Optional caller scenario filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum recent events to summarize (API maximum 100)",
+              "default": "100"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "evidence-profile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "evidence-show",
           "description": "Show one route evidence event",
           "positionals": [
@@ -1318,6 +1344,10 @@
               "description": "Non-sensitive source and basis for the caller privacy classification"
             },
             {
+              "name": "pin-resource-role",
+              "description": "Answer with exactly this declared candidate of the role (for example decide.local.kev on decide.candidates) or refuse with its typed reason; never falls back. For bake-offs, not production"
+            },
+            {
               "name": "state",
               "description": "Plain-text state the questions are about; use --state-json for structured state"
             },
@@ -1377,6 +1407,10 @@
               "name": "privacy-provenance",
               "required": true,
               "description": "Non-sensitive source and basis for the caller privacy classification"
+            },
+            {
+              "name": "pin-resource-role",
+              "description": "Answer with exactly this declared candidate of the role (for example decide.local.kev on decide.candidates) or refuse with its typed reason; never falls back. For bake-offs, not production"
             },
             {
               "name": "questions",

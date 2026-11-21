@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -345,6 +346,9 @@ func (s *Service) Decide(ctx context.Context, request DecisionRequest) *inferenc
 	if err := validatePrivacyProvenance(request.PrivacyProvenance); err != nil {
 		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")
 	}
+	if err := validatePinResourceRole(request.PinResourceRole); err != nil {
+		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), constructPinnedRole)
+	}
 	if err := ValidateQuestions(request.Questions); err != nil {
 		return decisionRefusal(err)
 	}
@@ -383,6 +387,10 @@ func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, ite
 		response.Results = []*inferencev1.DecideResponse{decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")}
 		return response
 	}
+	if err := validatePinResourceRole(template.PinResourceRole); err != nil {
+		response.Results = []*inferencev1.DecideResponse{decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), constructPinnedRole)}
+		return response
+	}
 	if len(items) == 0 {
 		return response
 	}
@@ -416,6 +424,21 @@ func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, ite
 	finalizeUsage(response.Usage)
 	response.Results = results
 	return response
+}
+
+// pinResourceRolePattern is the shape of a resource role name. The catalog, not
+// the pattern, decides which names a role may reach; the pattern only keeps an
+// arbitrary caller string out of messages and rows.
+var pinResourceRolePattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,100}$`)
+
+func validatePinResourceRole(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if !pinResourceRolePattern.MatchString(strings.TrimSpace(value)) {
+		return errors.New("pin_resource_role must be a resource role name of at most 100 letters, digits, '_', '.', ':' or '-'")
+	}
+	return nil
 }
 
 func validatePrivacyProvenance(value string) error {

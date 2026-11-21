@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -422,4 +423,54 @@ type overflowingSourceRepository struct{ documents []Document }
 
 func (s overflowingSourceRepository) LoadSourcePage(context.Context, *SourceCursor, int) (SourcePage, error) {
 	return SourcePage{Documents: s.documents}, nil
+}
+
+// A long natural-language question rarely has one document that contains every
+// word, so the strict lexical query is empty. The 2026-11-20 live suite found
+// the target run for 13 of 14 such questions in lexical-only search and for
+// 8 of 14 through hybrid search.
+func TestHybridLexicalLegWidensToAnyTermWhenAllTermsMatchTooFew(t *testing.T) {
+	t.Parallel()
+	_, repository := searchFixtureService(t)
+	insertSearchDocument(t, repository, "doc-rating", "I rate the Aquila video eight out of ten", ContentClassProse, fixtureTimeValue(1))
+	insertSearchDocument(t, repository, "doc-other", "unrelated scheduling notes", ContentClassProse, fixtureTimeValue(2))
+	service, err := NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"))
+	require.NoError(t, err)
+
+	response, err := service.SearchHybrid(context.Background(), TextSearchRequest{Query: "where did I rate the Aquila launch video eight out of ten", PageSize: 10})
+	require.NoError(t, err)
+	require.Len(t, response.Hits, 1)
+	require.Equal(t, "doc-rating", response.Hits[0].Document.DocumentID)
+	require.False(t, response.Hits[0].Weak, "seven of nine terms match, so this is not weak evidence")
+}
+
+func TestHybridLexicalLegKeepsOnlyAllTermMatchesWhenThereAreEnough(t *testing.T) {
+	t.Parallel()
+	_, repository := searchFixtureService(t)
+	for i := 0; i < lexicalBackoffThreshold; i++ {
+		insertSearchDocument(t, repository, fmt.Sprintf("doc-full-%d", i), "adaptive phase scheduling correction", ContentClassProse, fixtureTimeValue(i+1))
+	}
+	insertSearchDocument(t, repository, "doc-partial", "adaptive notes only", ContentClassProse, fixtureTimeValue(20))
+	service, err := NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"))
+	require.NoError(t, err)
+
+	response, err := service.SearchHybrid(context.Background(), TextSearchRequest{Query: "adaptive phase scheduling correction", PageSize: 20})
+	require.NoError(t, err)
+	require.Len(t, response.Hits, lexicalBackoffThreshold)
+	for _, hit := range response.Hits {
+		require.NotEqual(t, "doc-partial", hit.Document.DocumentID)
+	}
+}
+
+func TestHybridLexicalBackoffHitsStayWeakWhenQueryBarelyOverlaps(t *testing.T) {
+	t.Parallel()
+	_, repository := searchFixtureService(t)
+	insertSearchDocument(t, repository, "doc-bread", "we discussed bread at lunch", ContentClassProse, fixtureTimeValue(1))
+	service, err := NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"))
+	require.NoError(t, err)
+
+	response, err := service.SearchHybrid(context.Background(), TextSearchRequest{Query: "sourdough bread hydration and proofing times", PageSize: 10})
+	require.NoError(t, err)
+	require.Len(t, response.Hits, 1)
+	require.True(t, response.Hits[0].Weak, "one shared word out of five must read as weak, so a junk query never looks strong")
 }

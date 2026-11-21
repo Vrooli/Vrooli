@@ -41,6 +41,9 @@ func (h *connectHandler) ListProviderRoles(ctx context.Context, req *connect.Req
 			Locality:            role.Locality,
 			Status:              role.Status,
 			PolicySchemaVersion: role.PolicySchemaVersion,
+			Model:               role.Model,
+			Limits:              projectLimits(role.Limits),
+			Placement:           projectPlacement(role.Placement),
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -66,4 +69,21 @@ func safeInt32(value int) int32 {
 		return math.MinInt32
 	}
 	return int32(value)
+}
+
+func projectLimits(limits *providers.DecisionLimits) *inventoryv1.DecisionLimits {
+	if limits == nil {
+		return nil
+	}
+	return &inventoryv1.DecisionLimits{
+		ContextTokens: limits.ContextTokens, MaxOptions: limits.MaxOptions,
+		ScoreLevels: limits.ScoreLevels, MaxQuestions: limits.MaxQuestions,
+	}
+}
+
+func projectPlacement(placement *providers.ModelPlacement) *inventoryv1.ModelPlacement {
+	if placement == nil {
+		return nil
+	}
+	return &inventoryv1.ModelPlacement{Device: placement.Device, VramBytes: placement.VRAMBytes, RamBytes: placement.RAMBytes}
 }

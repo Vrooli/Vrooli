@@ -78,6 +78,7 @@ func (a Adapter) inventoryRole(entry rolePolicyEntry, currentDigests map[string]
 	model := strings.TrimSpace(entry.Model)
 	return &Role{
 		Provider: a.Provider, Role: roleName, Model: model,
+		Limits: entry.Limits, Placement: entry.Placement,
 		Rights: entry.Rights, RuntimeIdentity: entry.RuntimeIdentity,
 		ObservedRuntimeDigest: currentDigests[model],
 		Capabilities:          sortedUnique(capabilities), InputModalities: parseModalities(entry.Modalities.Input),

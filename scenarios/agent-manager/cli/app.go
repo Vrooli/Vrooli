@@ -134,6 +134,7 @@ func (a *App) dependencies() support.Dependencies {
 		RunCommands:      a.runCommands(),
 		UsageCommands:    a.usageCommands(),
 		UsageRunningRuns: a.usageRunningRuns,
+		Now:              ambient.Now,
 		Runner:           a.cmdRunner,
 		Policy:           a.cmdPolicy,
 		PermissionPolicy: a.cmdPermissionPolicy,
@@ -169,7 +170,7 @@ func (a *App) usageRunningRuns() ([]*domainpb.Run, error) {
 				return nil, fmt.Errorf("decode running %s capacity census: %w", origin, err)
 			}
 			for _, run := range runs {
-				if origin == "operator_sessions" && !freshIndexedSession(run, time.Now().UTC()) {
+				if origin == "operator_sessions" && !freshIndexedSession(run, ambient.Now().UTC()) {
 					continue
 				}
 				all = append(all, run)

@@ -10,8 +10,8 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
 
-func TestValidateExperimentEvaluatorAndParallelDiagnostics(t *testing.T) {
-	t.Run("armed prompt requires evaluator", func(t *testing.T) {
+func TestValidateRetiredExperimentsAndParallelDiagnostics(t *testing.T) {
+	t.Run("armed prompt is refused as retired", func(t *testing.T) {
 		d := validDefinition()
 		d.Nodes[0].Run.PromptTemplate = ""
 		d.Nodes[0].Run.PromptRef = &domain.WorkflowPromptRef{ExperimentID: "experiment", SkillID: "skill"}
@@ -19,7 +19,7 @@ func TestValidateExperimentEvaluatorAndParallelDiagnostics(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !hasDiagnostic(result.Diagnostics, "experiment_evaluator_required") {
+		if !hasDiagnostic(result.Diagnostics, "skill_experiments_retired") {
 			t.Fatalf("diagnostics = %#v", result.Diagnostics)
 		}
 	})

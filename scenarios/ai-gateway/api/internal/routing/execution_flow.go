@@ -18,34 +18,48 @@ type executionState struct {
 	capacityRejection           *CapacityEvaluation
 	resolvedProfileRejection    bool
 	providerExecutionDispatched bool
+	preparationDurationNS       int64
+	routePlanDurationNS         int64
+	roleResolutionDurationNS    int64
+	eligibilityDurationNS       int64
+	capacityAdmissionDurationNS int64
+	providerExecutionDurationNS int64
 }
 
 type candidateAttempt struct {
-	result           *providers.ExecutionResult
-	role             providers.ResolvedRole
-	temperature      *float64
-	capacity         CapacityEvaluation
-	capacitySeen     bool
-	capacityRejected bool
-	failureReason    string
-	failureClass     FailureClass
-	profileRejected  bool
-	dispatched       bool
-	stop             bool
+	result                      *providers.ExecutionResult
+	role                        providers.ResolvedRole
+	temperature                 *float64
+	capacity                    CapacityEvaluation
+	capacitySeen                bool
+	capacityRejected            bool
+	failureReason               string
+	failureClass                FailureClass
+	profileRejected             bool
+	dispatched                  bool
+	stop                        bool
+	roleResolutionDurationNS    int64
+	eligibilityDurationNS       int64
+	capacityAdmissionDurationNS int64
+	providerExecutionDurationNS int64
 }
 
 func (s *Service) execute(ctx context.Context, req *sharedv1.GatewayRequest, input string) (*routingv1.ExecuteRouteResponse, error) {
 	started := s.now()
+	state := executionState{}
+	phaseStarted := s.now()
 	validated, issues := s.prepareExecution(ctx, req, input)
+	state.preparationDurationNS = durationNS(phaseStarted, s.now())
 	if len(issues) > 0 {
 		return &routingv1.ExecuteRouteResponse{Valid: false, Issues: issues}, nil
 	}
 	req = validated
+	phaseStarted = s.now()
 	plan := s.plan(ctx, req)
+	state.routePlanDurationNS = durationNS(phaseStarted, s.now())
 	if plan.selectedProvider == "" {
-		return s.persistBlockedExecution(ctx, req, plan, started)
+		return s.persistBlockedExecution(ctx, req, plan, started, state)
 	}
-	state := executionState{}
 	for i, candidate := range s.executionAttempts(plan) {
 		attempt := s.tryCandidate(ctx, req, input, plan, candidate, i)
 		state.absorb(attempt)
@@ -74,8 +88,9 @@ func (s *Service) prepareExecution(ctx context.Context, req *sharedv1.GatewayReq
 	return resolved, s.validator.Validate(resolved)
 }
 
-func (s *Service) persistBlockedExecution(ctx context.Context, req *sharedv1.GatewayRequest, plan routePlan, started time.Time) (*routingv1.ExecuteRouteResponse, error) {
+func (s *Service) persistBlockedExecution(ctx context.Context, req *sharedv1.GatewayRequest, plan routePlan, started time.Time, state executionState) (*routingv1.ExecuteRouteResponse, error) {
 	ev := s.evidence(req, plan, "blocked", s.now().Sub(started), false, []string{failureReasonNoProvider})
+	applyExecutionTimings(ev, state)
 	ev.RejectionReason, ev.CapacityVerdict = blockedReason(plan), blockedCapacityVerdict(plan)
 	if err := s.repo.Create(ctx, ev); err != nil {
 		return nil, fmt.Errorf("persist blocked route evidence: %w", err)
@@ -90,25 +105,40 @@ func (s *Service) tryCandidate(ctx context.Context, req *sharedv1.GatewayRequest
 	}
 	ctxExec, cancel := executionContext(ctx, req)
 	defer cancel()
+	attempt := candidateAttempt{}
+	phaseStarted := s.now()
 	role, err := adapter.ResolveRole(ctxExec, candidate.GetRole())
+	attempt.roleResolutionDurationNS = durationNS(phaseStarted, s.now())
 	if err != nil {
 		failure := ClassifyProviderFailure(err)
 		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
-		return candidateAttempt{failureReason: failureReasonRoleResolve, failureClass: failure.Class, stop: stopAfterPrimary(index, plan)}
+		attempt.failureReason, attempt.failureClass, attempt.stop = failureReasonRoleResolve, failure.Class, stopAfterPrimary(index, plan)
+		return attempt
 	}
+	phaseStarted = s.now()
 	admission := s.admitResolvedCandidate(ctxExec, req, plan, candidate, role)
+	attempt.eligibilityDurationNS = durationNS(phaseStarted, s.now())
 	if admission.failureReason != "" {
 		admission.stop = stopAfterPrimary(index, plan)
+		admission.roleResolutionDurationNS = attempt.roleResolutionDurationNS
+		admission.eligibilityDurationNS = attempt.eligibilityDurationNS
 		return admission
 	}
+	phaseStarted = s.now()
 	capacity := s.admitExecutionCapacity(ctxExec, req, candidate)
+	capacity.capacityAdmissionDurationNS = durationNS(phaseStarted, s.now())
 	if capacity.failureReason != "" {
 		capacity.stop = stopAfterPrimary(index, plan)
+		capacity.roleResolutionDurationNS = attempt.roleResolutionDurationNS
+		capacity.eligibilityDurationNS = attempt.eligibilityDurationNS
 		return capacity
 	}
-	attempt := s.dispatchCandidate(ctxExec, req, input, plan, candidate, role, admission.temperature, capacity.capacity)
-	attempt.capacitySeen = capacity.capacitySeen
-	return attempt
+	dispatched := s.dispatchCandidate(ctxExec, req, input, plan, candidate, role, admission.temperature, capacity.capacity)
+	dispatched.roleResolutionDurationNS = attempt.roleResolutionDurationNS
+	dispatched.eligibilityDurationNS = attempt.eligibilityDurationNS
+	dispatched.capacityAdmissionDurationNS = capacity.capacityAdmissionDurationNS
+	dispatched.capacitySeen = capacity.capacitySeen
+	return dispatched
 }
 
 func executionContext(ctx context.Context, req *sharedv1.GatewayRequest) (context.Context, context.CancelFunc) {
@@ -161,6 +191,7 @@ func (s *Service) admitExecutionCapacity(ctx context.Context, req *sharedv1.Gate
 func (s *Service) dispatchCandidate(ctx context.Context, req *sharedv1.GatewayRequest, input string, plan routePlan, candidate *routingv1.RouteCandidate, role providers.ResolvedRole, temperature *float64, capacity CapacityEvaluation) candidateAttempt {
 	key := candidateKey(candidate.GetProvider(), candidate.GetRole())
 	rights := plan.rights[key]
+	started := s.now()
 	result, err := s.adapters[candidate.GetProvider()].Execute(ctx, providers.ExecutionRequest{
 		Kind: req.GetKind(), Role: req.GetRole(), ExpectedModel: role.Model, ExpectedArtifactDigest: rights.runtimeDigest,
 		ExpectedRightsDecisionSHA256: rights.decision.DecisionSHA256, ExpectedRightsEvaluatedAt: rights.decision.EvaluatedAt,
@@ -168,18 +199,20 @@ func (s *Service) dispatchCandidate(ctx context.Context, req *sharedv1.GatewayRe
 		Profile: req.GetProfile(), InputText: input, MaxOutputTokens: req.GetMaxOutputTokens(), Timeout: timeoutDuration(req.GetTimeoutMs()),
 		Temperature: temperature, Attachments: req.GetAttachments(), ExpectedWorkerDigest: strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
 	})
+	providerDurationNS := durationNS(started, s.now())
 	s.releaseCapacity(ctx, capacity)
 	if err != nil {
 		failure := ClassifyProviderFailure(err)
 		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
-		return candidateAttempt{capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, failureReason: failureReasonExecute, failureClass: failure.Class, dispatched: true}
+		return candidateAttempt{capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, failureReason: failureReasonExecute, failureClass: failure.Class, dispatched: true, providerExecutionDurationNS: providerDurationNS}
 	}
 	s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), ProviderFailure{}, true)
-	return candidateAttempt{result: &result, role: role, temperature: temperature, capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, dispatched: true}
+	return candidateAttempt{result: &result, role: role, temperature: temperature, capacity: capacity, capacitySeen: capacity.RequiredBytes > 0, dispatched: true, providerExecutionDurationNS: providerDurationNS}
 }
 
 func (s *Service) persistSuccessfulExecution(ctx context.Context, req *sharedv1.GatewayRequest, plan routePlan, candidate *routingv1.RouteCandidate, attempt candidateAttempt, state executionState, started time.Time, fallbackUsed bool) (*routingv1.ExecuteRouteResponse, error) {
 	ev := s.evidence(req, plan, "succeeded", s.now().Sub(started), fallbackUsed, state.failures)
+	applyExecutionTimings(ev, state)
 	ev.SelectedProvider, ev.SelectedLocality, ev.SelectedModel = candidate.GetProvider(), candidate.GetLocality(), attempt.role.Model
 	ev.TaskRole = strings.TrimSpace(req.GetTaskRole())
 	if ev.TaskRole == "" {
@@ -208,6 +241,7 @@ func (s *Service) persistFailedExecution(ctx context.Context, req *sharedv1.Gate
 		status = "blocked"
 	}
 	ev := s.evidence(req, plan, status, s.now().Sub(started), len(state.failures) > 1, state.failures)
+	applyExecutionTimings(ev, state)
 	ev.FailureClass = string(state.lastFailureClass)
 	if state.resolvedProfileRejection {
 		ev.RejectionReason = "locality_forbidden"
@@ -246,4 +280,25 @@ func (s *executionState) absorb(attempt candidateAttempt) {
 	}
 	s.resolvedProfileRejection = s.resolvedProfileRejection || attempt.profileRejected
 	s.providerExecutionDispatched = s.providerExecutionDispatched || attempt.dispatched
+	s.roleResolutionDurationNS += attempt.roleResolutionDurationNS
+	s.eligibilityDurationNS += attempt.eligibilityDurationNS
+	s.capacityAdmissionDurationNS += attempt.capacityAdmissionDurationNS
+	s.providerExecutionDurationNS += attempt.providerExecutionDurationNS
+}
+
+func applyExecutionTimings(ev *routingv1.RouteEvidence, state executionState) {
+	ev.PreparationDurationNs = state.preparationDurationNS
+	ev.RoutePlanDurationNs = state.routePlanDurationNS
+	ev.RoleResolutionDurationNs = state.roleResolutionDurationNS
+	ev.EligibilityDurationNs = state.eligibilityDurationNS
+	ev.CapacityAdmissionDurationNs = state.capacityAdmissionDurationNS
+	ev.ProviderExecutionDurationNs = state.providerExecutionDurationNS
+}
+
+func durationNS(started, ended time.Time) int64 {
+	duration := ended.Sub(started)
+	if duration < 0 {
+		return 0
+	}
+	return int64(duration)
 }

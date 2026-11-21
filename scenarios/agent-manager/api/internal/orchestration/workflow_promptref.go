@@ -11,23 +11,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/promptmanager"
-	"agent-manager/internal/workflowruntime"
 )
-
-type workflowPromptResolver struct {
-	source promptmanager.AssignmentClient
-}
-
-func (r workflowPromptResolver) Resolve(ctx context.Context, ref *domain.WorkflowPromptRef, identity workflowruntime.PromptAssignmentIdentity) (workflowruntime.PromptResolution, error) {
-	if r.source == nil || ref == nil || strings.TrimSpace(ref.ExperimentID) == "" {
-		return workflowruntime.PromptResolution{}, fmt.Errorf("armed prompt resolution requires a source and experiment")
-	}
-	snap, err := r.source.AssignExperimentPrompt(ctx, promptmanager.AssignmentRequest{ExperimentID: ref.ExperimentID, SkillID: ref.SkillID, ExecutionID: identity.ExecutionID.String(), NodeID: identity.NodeID, AttemptKey: identity.AttemptKey, IdempotencyKey: identity.IdempotencyKey, Variables: ref.Variables, WithScope: ref.WithScope})
-	if err != nil {
-		return workflowruntime.PromptResolution{}, err
-	}
-	return workflowruntime.PromptResolution{Content: snap.Content, ExperimentID: snap.ExperimentID, VariantID: snap.VariantID, ContentHash: snap.ContentHash}, nil
-}
 
 // resolveWorkflowPromptRefs embeds prompt-manager skill content into any run or
 // continue node that authored a promptRef, returning the definition bytes the
@@ -53,9 +37,7 @@ func (o *Orchestrator) resolveWorkflowPromptRefs(ctx context.Context, data []byt
 		n := &def.Nodes[i]
 		if n.Run != nil && n.Run.PromptRef != nil {
 			if n.Run.PromptRef.ExperimentID != "" {
-				// Armed nodes are deliberately resolved by the workflow engine at
-				// attempt creation. Reconciliation must not choose treatment.
-				continue
+				return nil, fmt.Errorf("nodes[%d].run.promptRef: %w", i, domain.ErrSkillExperimentsRetired)
 			}
 			if source == nil {
 				var ok bool
@@ -71,7 +53,7 @@ func (o *Orchestrator) resolveWorkflowPromptRefs(ctx context.Context, data []byt
 		}
 		if n.Continue != nil && n.Continue.PromptRef != nil {
 			if n.Continue.PromptRef.ExperimentID != "" {
-				continue
+				return nil, fmt.Errorf("nodes[%d].continue.promptRef: %w", i, domain.ErrSkillExperimentsRetired)
 			}
 			if source == nil {
 				var ok bool
@@ -104,7 +86,7 @@ func resolvePromptRef(ctx context.Context, source promptmanager.SourceClient, tm
 	if strings.TrimSpace(*tmpl) != "" {
 		return fmt.Errorf("promptRef and promptTemplate are mutually exclusive")
 	}
-	snap, err := source.ReadSkillSource(ctx, ref.SkillID, ref.ExperimentID, ref.Variables, ref.WithScope)
+	snap, err := source.ReadSkillSource(ctx, ref.SkillID, ref.Variables, ref.WithScope)
 	if err != nil {
 		return err
 	}
@@ -113,13 +95,12 @@ func resolvePromptRef(ctx context.Context, source promptmanager.SourceClient, tm
 	}
 	*tmpl = snap.Content
 	*provPtr = &domain.WorkflowPromptSource{
-		SkillID:      snap.SkillID,
-		Revision:     snap.Revision,
-		VariantID:    snap.VariantID,
-		ExperimentID: snap.ExperimentID,
-		ContentHash:  snap.ContentHash,
-		Variables:    clonePromptVariables(ref.Variables),
-		WithScope:    ref.WithScope,
+		SkillID:     snap.SkillID,
+		Revision:    snap.Revision,
+		VariantID:   snap.VariantID,
+		ContentHash: snap.ContentHash,
+		Variables:   clonePromptVariables(ref.Variables),
+		WithScope:   ref.WithScope,
 	}
 	*refPtr = nil
 	return nil
@@ -157,7 +138,7 @@ func workflowPromptStale(ctx context.Context, source promptmanager.SourceClient,
 		if provenance == nil {
 			continue
 		}
-		snapshot, err := source.ReadSkillSource(ctx, provenance.SkillID, provenance.ExperimentID, provenance.Variables, provenance.WithScope)
+		snapshot, err := source.ReadSkillSource(ctx, provenance.SkillID, provenance.Variables, provenance.WithScope)
 		if err != nil {
 			if errors.Is(err, promptmanager.ErrSkillSourceMissing) {
 				return true, nil

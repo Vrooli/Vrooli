@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -14,39 +13,181 @@ func (s *Service) Labels(ctx context.Context, window string) ([]LabelView, error
 	if err != nil {
 		return nil, err
 	}
-	counts, err := s.store.CoverageWindowFor(ctx, since, until, s.pack.LabelHashes)
+	accumulated, err := s.accumulateStored(ctx, since, until)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]LabelView, 0, len(s.pack.Pack.Labels))
 	for _, declaration := range s.pack.Pack.Labels {
-		coverage := counts[declaration.ID]
+		acc := accumulated[declaration.ID]
+		hash := s.pack.LabelHashes[declaration.ID]
+		compiled, _ := s.pack.Label(declaration.ID)
+		best := s.pack.LabelStatusFor(compiled, acc.keys())
 		out = append(out, LabelView{
 			ID: declaration.ID, Group: declaration.Group, Description: declaration.Description,
 			Scope: declaration.Scope, Method: declaration.Method, Optional: declaration.Optional,
-			DefinitionHash: s.pack.LabelHashes[declaration.ID], Gate: declaration.Gate,
-			GateState: declaration.Gate.State(), Proven: declaration.Gate.Proven(),
+			Role: s.labelRole(declaration), EscalateRole: s.labelEscalateRole(declaration),
+			DefinitionHash: hash, Gate: declaration.Gate,
+			GateState: best.State, Proven: best.State == GateProven, GateStatus: best,
 			Search: declaration.Search, Friction: declaration.Friction,
-			Compatibility: declaration.Compatibility, Coverage: coverage, HasData: coverage.Total() > 0,
+			Compatibility: declaration.Compatibility, Coverage: acc.counts, HasData: acc.counts.Total() > 0,
 		})
 	}
 	return out, nil
 }
 
+// labelAccumulator is one label's coverage while the latest rows are read:
+// state counts for the current definition, and per (model, resource role) the
+// observations and friction positives, so a proof is applied to exactly the
+// observations it measured.
+type labelAccumulator struct {
+	counts StateCounts
+	models map[ModelKey]*modelAccumulator
+}
+
+type modelAccumulator struct {
+	observed  int
+	positives int
+	// proven and provenPositives are the observations whose own proof clears the
+	// gate. They are counted one by one: a composite over labels is proven
+	// per observation, by the inputs that observation read.
+	proven          int
+	provenPositives int
+}
+
+func (a *labelAccumulator) keys() []ModelKey {
+	if a == nil {
+		return nil
+	}
+	keys := make([]ModelKey, 0, len(a.models))
+	for key := range a.models {
+		keys = append(keys, key)
+	}
+	sortModelKeys(keys)
+	return keys
+}
+
+// accumulate folds one latest row into its label's coverage. A row from another
+// definition revision is stale evidence of earlier work, never an observation of
+// the current label.
+func (s *Service) accumulate(acc map[string]*labelAccumulator, row Annotation) {
+	compiled, ok := s.pack.Label(row.LabelID)
+	if !ok {
+		return
+	}
+	entry := acc[row.LabelID]
+	if entry == nil {
+		entry = &labelAccumulator{models: map[ModelKey]*modelAccumulator{}}
+		acc[row.LabelID] = entry
+	}
+	if row.DefinitionHash != compiled.hash {
+		entry.counts.Stale++
+		return
+	}
+	addCount(&entry.counts, row.State)
+	if row.State != StateObserved && row.State != StateCompatible {
+		return
+	}
+	model, role := ProofKey(row)
+	key := ModelKey{Model: model, ResourceRole: role}
+	group := entry.models[key]
+	if group == nil {
+		group = &modelAccumulator{}
+		entry.models[key] = group
+	}
+	group.observed++
+	proven := s.pack.StatusFor(compiled, row).State == GateProven
+	if proven {
+		group.proven++
+	}
+	if compiled.label.Friction.Enabled && s.frictionPositive(compiled.label, row) {
+		group.positives++
+		if proven {
+			group.provenPositives++
+		}
+	}
+}
+
+// accumulateStored reads the latest row per (scope, label) in the window once and
+// folds it into every label's coverage. Only labels that report friction, and
+// composites over labels, have their stored values decoded.
+func (s *Service) accumulateStored(ctx context.Context, since, until time.Time) (map[string]*labelAccumulator, error) {
+	acc := map[string]*labelAccumulator{}
+	want := func(labelID string) bool {
+		compiled, ok := s.pack.Label(labelID)
+		// A friction label's vector is scored; a derived composite's input
+		// proof keys decide whether each observation is proven.
+		return ok && (compiled.label.Friction.Enabled || compiled.derived())
+	}
+	err := s.store.ForEachLatest(ctx, since, until, want, func(row Annotation) error {
+		s.accumulate(acc, row)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, declaration := range s.pack.Pack.Labels {
+		if acc[declaration.ID] == nil {
+			acc[declaration.ID] = &labelAccumulator{models: map[ModelKey]*modelAccumulator{}}
+		}
+	}
+	return acc, nil
+}
+
+// frictionPositive reports whether an observation is a friction event under the
+// calibration of the model that produced it: the stored vector is tempered with
+// that model's temperature and compared with that model's measured threshold.
+// An observation with nothing to score is neither positive nor negative here.
+func (s *Service) frictionPositive(label Label, row Annotation) bool {
+	compiled, ok := s.pack.Label(label.ID)
+	if !ok || !label.Friction.Enabled {
+		return false
+	}
+	model, role := ProofKey(row)
+	temperature, measured := label.Gate.Calibration(compiled.hash, model, role)
+	return isFrictionPositive(label, row, temperature, measured)
+}
+
+// isFrictionPositive is the one definition of a friction positive: the
+// calibrated score reaches the threshold. The threshold is the one measured for
+// the model when there is one, else the label's declared one.
+func isFrictionPositive(label Label, row Annotation, temperature, measuredThreshold float64) bool {
+	if !label.Friction.Enabled {
+		return false
+	}
+	threshold := measuredThreshold
+	if threshold <= 0 {
+		declared := probabilityThreshold(label)
+		if declared == nil {
+			return false
+		}
+		threshold = *declared
+	}
+	sample, ok := sampleFor(label, row)
+	if !ok {
+		return false
+	}
+	return sample.Score(temperature) >= threshold
+}
+
 // Coverage returns the contract coverage surface. An empty store is a 200 with
 // explicit not_observed label states and coverage 0, never an error. A rate is
-// reported only for a proven gate; baseline/ratio stay omitted until a random
-// sample baseline is measured.
+// reported only over observations whose own model's hold-out proof clears the
+// gate; baseline/ratio stay omitted until a random sample baseline is measured.
 func (s *Service) Coverage(ctx context.Context, window string) (CoverageResponse, error) {
 	since, until, _, err := ParseWindowRange(window, s.now())
 	if err != nil {
 		return CoverageResponse{}, err
 	}
-	counts, err := s.store.CoverageWindowFor(ctx, since, until, s.pack.LabelHashes)
+	accumulated, err := s.accumulateStored(ctx, since, until)
 	if err != nil {
 		return CoverageResponse{}, err
 	}
 	eligibleRuns, observedRuns, err := s.store.RunCoverageFor(ctx, since, until, s.pack.LabelHashes)
+	if err != nil {
+		return CoverageResponse{}, err
+	}
+	provenance, err := s.store.ProvenanceSummary(ctx, since, until, s.pack.Pack.Runtime.Provenance.Hash())
 	if err != nil {
 		return CoverageResponse{}, err
 	}
@@ -69,33 +210,24 @@ func (s *Service) Coverage(ctx context.Context, window string) (CoverageResponse
 		CoverageBasis: basis,
 		Weighting:     s.weighting(),
 	}
+	if provenance.RunsAnnotated > 0 {
+		response.Provenance = &provenance
+	}
 	if eligibleRuns > 0 {
 		response.Coverage = float64(observedRuns) / float64(eligibleRuns)
 	}
 	for _, declaration := range s.pack.Pack.Labels {
-		coverage := counts[declaration.ID]
-		positives := 0
-		threshold := probabilityThreshold(declaration)
-		// Positives exist only for a friction label. A classification label
-		// (run.type, operator.emotion) has a probability but no friction
-		// event, and counting its winning answer as one would invent a rate.
-		if declaration.Friction.Enabled && threshold != nil && coverage.Total() > 0 {
-			bound, above, directional := frictionScoreBound(declaration)
-			selector := FrictionSelector{Threshold: *threshold, LevelBound: levelBound(bound, directional), LevelAtLeast: above}
-			if directional {
-				selector.ScoreBound = frictionScoreLimit(declaration)
-			}
-			positives, err = s.store.PositivesFor(ctx, since, until, declaration.ID, s.pack.LabelHashes[declaration.ID], selector)
-			if err != nil {
-				return CoverageResponse{}, err
-			}
+		acc := accumulated[declaration.ID]
+		row := s.coverageLabel(declaration, acc)
+		if declaration.Population == PopulationHumanOperator && response.Provenance != nil {
+			applyPopulation(&row, declaration, provenance)
 		}
-		response.Labels = append(response.Labels, coverageLabel(declaration, coverage, positives))
-		response.Summary.Observed += coverage.Observed
-		response.Summary.Compatible += coverage.Compatible
-		response.Summary.NotObserved += coverage.NotObserved
-		response.Summary.Unavailable += coverage.Unavailable
-		response.Summary.Stale += coverage.Stale
+		response.Labels = append(response.Labels, row)
+		response.Summary.Observed += acc.counts.Observed
+		response.Summary.Compatible += acc.counts.Compatible
+		response.Summary.NotObserved += acc.counts.NotObserved
+		response.Summary.Unavailable += acc.counts.Unavailable
+		response.Summary.Stale += acc.counts.Stale
 	}
 	if response.Summary.Total() == 0 {
 		response.Labels = []CoverageLabel{}
@@ -104,149 +236,101 @@ func (s *Service) Coverage(ctx context.Context, window string) (CoverageResponse
 	return response, nil
 }
 
+// applyPopulation reports the label's coverage against the people it is about:
+// the runs (or messages) a person wrote, not every annotated run. A mood label's
+// denominator is human text; workflow briefs are not a population it describes.
+func applyPopulation(row *CoverageLabel, label Label, provenance ProvenanceSummary) {
+	population := &Population{Basis: PopulationHumanOperator, Unit: "run", Eligible: provenance.RunsHumanText}
+	if label.Scope == ScopeMessage {
+		population.Unit, population.Eligible = "message", provenance.HumanMessages
+	}
+	row.Population = population
+	row.Eligible = population.Eligible
+}
+
 // coverageFromViews aggregates per-label rows for an evaluate response,
 // including dry runs that never wrote to the store.
 func (s *Service) coverageFromViews(views []RunView) []CoverageLabel {
-	type aggregate struct {
-		counts    StateCounts
-		positives int
-	}
-	byLabel := map[string]*aggregate{}
+	acc := map[string]*labelAccumulator{}
 	for _, view := range views {
 		for _, annotation := range view.Labels {
-			entry := byLabel[annotation.ID]
-			if entry == nil {
-				entry = &aggregate{}
-				byLabel[annotation.ID] = entry
-			}
-			switch annotation.State {
-			case StateObserved:
-				entry.counts.Observed++
-			case StateCompatible:
-				entry.counts.Compatible++
-			case StateNotObserved:
-				entry.counts.NotObserved++
-			case StateUnavailable:
-				entry.counts.Unavailable++
-			}
-			if compiled, ok := s.pack.Label(annotation.ID); ok && compiled.label.Friction.Enabled {
-				if annotationIsPositive(compiled.label, annotation) {
-					entry.positives++
-				}
+			s.accumulate(acc, s.annotationFromView(annotation, ScopeRun))
+		}
+		for _, message := range view.Messages {
+			for _, annotation := range message.Labels {
+				s.accumulate(acc, s.annotationFromView(annotation, ScopeMessage))
 			}
 		}
 	}
 	out := make([]CoverageLabel, 0, len(s.pack.Pack.Labels))
 	for _, declaration := range s.pack.Pack.Labels {
-		entry := byLabel[declaration.ID]
+		entry := acc[declaration.ID]
 		if entry == nil {
-			entry = &aggregate{}
+			entry = &labelAccumulator{models: map[ModelKey]*modelAccumulator{}}
 		}
-		out = append(out, coverageLabel(declaration, entry.counts, entry.positives))
+		out = append(out, s.coverageLabel(declaration, entry))
 	}
 	return out
 }
 
-func coverageLabel(declaration Label, counts StateCounts, positives int) CoverageLabel {
-	state := labelCoverageState(declaration, counts)
-	observed := counts.Observed + counts.Compatible
+// coverageLabel renders one label's coverage. Every proof is per model: the
+// rate is the friction rate over observations whose own (model, resource role)
+// has a hold-out measurement clearing the gate, so an unproven model's answers
+// never enter a proven rate and a proven model's never vouch for another.
+func (s *Service) coverageLabel(declaration Label, acc *labelAccumulator) CoverageLabel {
+	hash := s.pack.LabelHashes[declaration.ID]
+	observed := acc.counts.Observed + acc.counts.Compatible
 	row := CoverageLabel{
-		ID: declaration.ID, Group: declaration.Group, State: state,
-		Gate: gateStatus(declaration.Gate), Observed: observed, Eligible: counts.Total(),
-		Evaluated: counts.Total(), Positives: positives, SearchFacet: declaration.Search.Facet,
-		MinProbability: declaration.Search.MinProbability, Friction: declaration.Friction,
-		BaselineState: "not_measured",
+		ID: declaration.ID, Scope: declaration.Scope, Group: declaration.Group,
+		Observed: observed, Eligible: acc.counts.Total(), Evaluated: acc.counts.Total(),
+		SearchFacet: declaration.Search.Facet, MinProbability: declaration.Search.MinProbability,
+		Friction: declaration.Friction, BaselineState: "not_measured",
 	}
-	// A rate is positives among the observed population, and only for a proven
-	// label. A label observed below its threshold is still observed; it is not a
-	// negative and it is not a rate.
-	if declaration.Friction.Enabled && declaration.Gate.Proven() && observed > 0 {
-		rate := float64(positives) / float64(observed)
+	compiled, ok := s.pack.Label(declaration.ID)
+	if !ok {
+		compiled = &compiledLabel{label: declaration, hash: hash}
+	}
+	keys := acc.keys()
+	for _, key := range keys {
+		group := acc.models[key]
+		status := declaration.Gate.Status(hash, key.Model, key.ResourceRole)
+		if compiled.derived() {
+			status = s.pack.LabelStatusFor(compiled, nil)
+		}
+		row.Models = append(row.Models, ModelCoverage{
+			Model: key.Model, ResourceRole: key.ResourceRole, Observed: group.observed,
+			Positives: group.positives, Gate: status, Proven: group.observed > 0 && group.proven == group.observed,
+		})
+		row.Positives += group.positives
+		row.ProvenObserved += group.proven
+		row.ProvenPositives += group.provenPositives
+	}
+	row.Gate = s.pack.LabelStatusFor(compiled, keys)
+	row.State = labelCoverageState(acc.counts, row.ProvenObserved, observed)
+	// A rate is positives among the proven observed population. An observation
+	// below its threshold is observed, not a negative of anything else.
+	if declaration.Friction.Enabled && row.ProvenObserved > 0 {
+		rate := float64(row.ProvenPositives) / float64(row.ProvenObserved)
 		row.Rate = &rate
 	}
 	return row
 }
 
-func labelCoverageState(declaration Label, counts StateCounts) string {
+func labelCoverageState(counts StateCounts, provenObserved, observed int) string {
 	switch {
 	case counts.Total() == 0:
 		return "not_observed"
-	case counts.Observed+counts.Compatible > 0:
-		if declaration.Gate.Proven() {
-			return "proven"
-		}
+	case observed > 0 && provenObserved == observed:
+		return "proven"
+	case observed > 0 && provenObserved > 0:
+		return "partial"
+	case observed > 0:
 		return "unproven"
 	case counts.Unavailable > 0 && counts.NotObserved == 0:
 		return "unavailable"
 	default:
 		return "not_observed"
 	}
-}
-
-func gateStatus(gate Gate) GateStatus {
-	state := gate.State()
-	reason := ""
-	switch state {
-	case "unmeasured":
-		reason = "no measured hold-out"
-		if gate.staleMeasurement != "" {
-			reason = gate.staleMeasurement
-		}
-	case "insufficient_gold":
-		reason = "gold set below min_gold"
-	case "below_threshold":
-		state = "unproven"
-		reason = "measured precision or recall below target"
-	}
-	status := GateStatus{
-		State: state, MinGold: gate.MinGold, Reason: reason,
-		TargetPrecision: gate.Precision, TargetRecall: gate.Recall,
-	}
-	if gate.Measured != nil {
-		status.Precision = gate.Measured.Precision
-		status.Recall = gate.Measured.Recall
-		status.Gold = gate.Measured.Gold
-	}
-	return status
-}
-
-// annotationIsPositive applies the same friction selector as the store. A
-// score label is judged by the probability mass in its declared friction
-// region, not by the winning level's probability: on a five-level scale the
-// top level is almost never above 0.6 even when the model is sure the score is
-// in the friction direction. Choice and noul labels keep the top probability.
-func annotationIsPositive(label Label, annotation AnnotationView) bool {
-	if !label.Friction.Enabled {
-		return false
-	}
-	threshold := probabilityThreshold(label)
-	if threshold == nil {
-		return false
-	}
-	if bound, above, ok := frictionScoreBound(label); ok {
-		// The observed level must be in the declared direction; the threshold
-		// then asks whether the model gives that direction enough mass.
-		if annotation.Value.Score == nil || !scoreInRegion(*annotation.Value.Score, label) {
-			return false
-		}
-		if mass, usable := scoreRegionMass(annotation.Value, bound, above); usable {
-			return mass >= *threshold
-		}
-		// Legacy rows stored a score without its level distribution. Judge
-		// them by their top probability.
-		return annotation.Probability != nil && *annotation.Probability >= *threshold
-	}
-	if label.Friction.MinScore != nil || label.Friction.MaxScore != nil {
-		// A label without level metadata keeps the score-plus-confidence rule.
-		if annotation.Value.Score == nil || annotation.Probability == nil || *annotation.Probability < *threshold {
-			return false
-		}
-		return scoreInRegion(*annotation.Value.Score, label)
-	}
-	if annotation.Probability == nil || *annotation.Probability < *threshold {
-		return false
-	}
-	return true
 }
 
 // frictionScoreBound converts the declared score ceiling/floor into an
@@ -284,28 +368,6 @@ func frictionScoreBound(label Label) (bound int, atLeast, ok bool) {
 	return 0, false, false
 }
 
-// scoreRegionMass sums the stored level probabilities inside a friction
-// region. It reports false when the observation carries no level distribution,
-// so an uncalibrated answer stays unknown instead of counting as a negative.
-func scoreRegionMass(value Value, bound int, atLeast bool) (float64, bool) {
-	if len(value.Probabilities) == 0 {
-		return 0, false
-	}
-	mass := 0.0
-	found := false
-	for key, probability := range value.Probabilities {
-		index, err := strconv.Atoi(strings.TrimSpace(key))
-		if err != nil {
-			continue
-		}
-		found = true
-		if (atLeast && index >= bound) || (!atLeast && index <= bound) {
-			mass += probability
-		}
-	}
-	return mass, found
-}
-
 // scoreInRegion reports a raw score in the declared friction direction.
 func scoreInRegion(score float64, label Label) bool {
 	if label.Friction.MaxScore != nil {
@@ -315,23 +377,6 @@ func scoreInRegion(score float64, label Label) bool {
 		return score >= *label.Friction.MinScore
 	}
 	return false
-}
-
-// frictionScoreLimit returns the raw score bound for a legacy fallback.
-func frictionScoreLimit(label Label) *float64 {
-	if label.Friction.MaxScore != nil {
-		return label.Friction.MaxScore
-	}
-	return label.Friction.MinScore
-}
-
-// levelBound turns the (bound, directional) pair into the optional selector
-// field. A non-directional label carries no bound.
-func levelBound(bound int, directional bool) *int {
-	if !directional {
-		return nil
-	}
-	return &bound
 }
 
 func probabilityThreshold(label Label) *float64 {
@@ -437,10 +482,12 @@ type GoldDraft struct {
 	Runs    []GoldDraftRun `json:"runs"`
 }
 
-// GoldDraftRun is one run to judge.
+// GoldDraftRun is one subject to judge: a run, or for a message-scope label one
+// message of it (ScopeID is its event id and the digest is that message).
 type GoldDraftRun struct {
-	RunID  string `json:"run_id"`
-	Digest string `json:"digest"`
+	RunID   string `json:"run_id"`
+	ScopeID string `json:"scope_id,omitempty"`
+	Digest  string `json:"digest"`
 }
 
 // GoldDraft builds review packets for runs already observed under the current
@@ -466,7 +513,7 @@ func (s *Service) GoldDraft(ctx context.Context, labelID, window string, limit i
 	if err != nil {
 		return GoldDraft{}, err
 	}
-	scopes, err := s.store.ObservedScopes(ctx, since, until, labelID, compiled.hash, limit)
+	scopes, err := s.store.ObservedScopes(ctx, compiled.label.Scope, since, until, labelID, compiled.hash, limit)
 	if err != nil {
 		return GoldDraft{}, err
 	}
@@ -475,23 +522,44 @@ func (s *Service) GoldDraft(ctx context.Context, labelID, window string, limit i
 		Window: windowLabel, MinGold: compiled.label.Gate.MinGold, Limit: limit,
 		Runs: make([]GoldDraftRun, 0, len(scopes)),
 	}
-	for _, runID := range scopes {
-		facts, err := s.features.Facts(ctx, ScopeRun, runID)
-		if err != nil {
+	read := map[string]*RunFacts{}
+	for _, scope := range scopes {
+		facts, ok := read[scope.RunID]
+		if !ok {
+			loaded, err := s.features.Facts(ctx, ScopeRun, scope.RunID)
+			if err == nil {
+				if loaded.RunID == "" {
+					loaded.RunID = scope.RunID
+				}
+				s.pack.Pack.Runtime.Provenance.Apply(&loaded)
+				facts = &loaded
+			}
+			read[scope.RunID] = facts
+		}
+		if facts == nil {
 			// A deleted or unreadable run cannot be labelled; skip it rather
 			// than emit a packet without evidence.
 			continue
 		}
-		if facts.RunID == "" {
-			facts.RunID = runID
-		}
 		// The reviewer sees a wider bounded state than the model. A label can
 		// only be measured when a person can actually judge it from the packet.
-		digest, err := BuildReviewDigest(facts, DefaultReviewDigestLimit)
-		if err != nil {
+		var digest string
+		if compiled.label.Scope == ScopeMessage {
+			digest = s.messageReviewDigest(*facts, scope.ScopeID)
+		} else {
+			digest, err = BuildReviewDigest(*facts, DefaultReviewDigestLimit)
+			if err != nil {
+				digest = ""
+			}
+		}
+		if digest == "" {
 			continue
 		}
-		draft.Runs = append(draft.Runs, GoldDraftRun{RunID: runID, Digest: digest})
+		run := GoldDraftRun{RunID: scope.RunID, Digest: digest}
+		if compiled.label.Scope == ScopeMessage {
+			run.ScopeID = scope.ScopeID
+		}
+		draft.Runs = append(draft.Runs, run)
 	}
 	return draft, nil
 }

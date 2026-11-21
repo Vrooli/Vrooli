@@ -3,8 +3,10 @@ package routing
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"connectrpc.com/connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -218,6 +220,183 @@ func (h *handlers) evidenceList(ctx cliapp.RunContext) error {
 		Results:        results,
 		RetrievalHints: []string{"`routing evidence show <event-id>` — inspect one event"},
 	})
+}
+
+// evidenceProfile summarizes the bounded recent route-evidence window by
+// resolved task role and model. It deliberately reports end-to-end latency
+// only; provider load/prefill/decode phases and queue/TTFT are not in this
+// evidence contract.
+func (h *handlers) evidenceProfile(ctx cliapp.RunContext) error {
+	limit, err := parseLimit(ctx.Flag("limit"))
+	if err != nil {
+		return err
+	}
+	if limit < 1 || limit > 100 {
+		return fmt.Errorf("--limit must be between 1 and 100; the route-evidence API has a 100-row maximum")
+	}
+	resp, err := h.client.ListRouteEvidence(context.Background(), connect.NewRequest(&routingv1.ListRouteEvidenceRequest{
+		Limit:    limit,
+		Scenario: ctx.Flag("scenario"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("profile route evidence", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no route evidence profile")
+	}
+	rows := profileEvidence(resp.Msg.GetEvents())
+	window := fmt.Sprintf("latest %d route events", len(resp.Msg.GetEvents()))
+	if len(resp.Msg.GetEvents()) == int(limit) {
+		window += " (possibly truncated at requested limit)"
+	}
+	if scenario := strings.TrimSpace(ctx.Flag("scenario")); scenario != "" {
+		window += " for scenario " + shortLabel(scenario)
+	}
+	if len(rows) == 0 {
+		return ctx.RenderList(cliapp.ListReport{
+			Summary:        []string{"No route evidence in " + window + "."},
+			ResultsHeading: "Per-role latency profile",
+			RetrievalHints: []string{"This profile includes end-to-end route latency only; it cannot attribute provider phases or queue wait."},
+		})
+	}
+	return ctx.RenderList(cliapp.ListReport{
+		Summary:        []string{"Per-role end-to-end latency for " + window + ". Nearest-rank p50/p95 are descriptive of this recent sample."},
+		ResultsHeading: "Role and model latency",
+		Results:        rows,
+		RetrievalHints: []string{"This is a bounded read of metadata-only route evidence, not a fixed quality-suite comparison. Queue, TTFT, load, prefill, decode, context and host/device peaks are unavailable."},
+	})
+}
+
+type evidenceProfileKey struct {
+	role, model, provider string
+}
+
+type evidenceProfileBucket struct {
+	latencies                  []int64
+	stageNS                    map[string][]int64
+	stageMissing               map[string]int
+	succeeded, failed, blocked int
+	firstAt, lastAt            string
+}
+
+func profileEvidence(events []*routingv1.RouteEvidence) []string {
+	buckets := map[evidenceProfileKey]*evidenceProfileBucket{}
+	for _, ev := range events {
+		if ev == nil {
+			continue
+		}
+		role := ev.GetTaskRole()
+		if strings.TrimSpace(role) == "" {
+			role = ev.GetRole()
+		}
+		key := evidenceProfileKey{role: shortLabel(role), model: shortLabel(ev.GetSelectedModel()), provider: shortLabel(ev.GetSelectedProvider())}
+		bucket := buckets[key]
+		if bucket == nil {
+			bucket = &evidenceProfileBucket{stageNS: map[string][]int64{}, stageMissing: map[string]int{}}
+			buckets[key] = bucket
+		}
+		bucket.latencies = append(bucket.latencies, ev.GetLatencyMs())
+		for name, value := range map[string]int64{
+			"prepare": ev.GetPreparationDurationNs(), "plan": ev.GetRoutePlanDurationNs(),
+			"role": ev.GetRoleResolutionDurationNs(), "eligibility": ev.GetEligibilityDurationNs(),
+			"capacity": ev.GetCapacityAdmissionDurationNs(), "provider": ev.GetProviderExecutionDurationNs(),
+		} {
+			if value > 0 {
+				bucket.stageNS[name] = append(bucket.stageNS[name], value)
+			} else {
+				bucket.stageMissing[name]++
+			}
+		}
+		switch strings.ToLower(ev.GetStatus()) {
+		case "succeeded":
+			bucket.succeeded++
+		case "failed":
+			bucket.failed++
+		case "blocked", "refused":
+			bucket.blocked++
+		}
+		createdAt := ev.GetCreatedAt()
+		if bucket.firstAt == "" || createdAt < bucket.firstAt {
+			bucket.firstAt = createdAt
+		}
+		if createdAt > bucket.lastAt {
+			bucket.lastAt = createdAt
+		}
+	}
+	keys := make([]evidenceProfileKey, 0, len(buckets))
+	for key := range buckets {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].role != keys[j].role {
+			return keys[i].role < keys[j].role
+		}
+		if keys[i].model != keys[j].model {
+			return keys[i].model < keys[j].model
+		}
+		return keys[i].provider < keys[j].provider
+	})
+	lines := make([]string, 0, len(keys))
+	for _, key := range keys {
+		b := buckets[key]
+		values := append([]int64(nil), b.latencies...)
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+		lines = append(lines, fmt.Sprintf("role=%s model=%s provider=%s n=%d succeeded=%d failed=%d blocked=%d latency_ms[p50=%d p95=%d min=%d max=%d] stages_ns[%s] span=%s..%s",
+			labelOrUnknown(key.role), labelOrUnknown(key.model), labelOrUnknown(key.provider), len(values), b.succeeded, b.failed, b.blocked,
+			nearestRank(values, 50), nearestRank(values, 95), values[0], values[len(values)-1], formatStageProfile(b), b.firstAt, b.lastAt))
+	}
+	return lines
+}
+
+func formatStageProfile(bucket *evidenceProfileBucket) string {
+	names := []string{"prepare", "plan", "role", "eligibility", "capacity", "provider"}
+	parts := make([]string, 0, len(names))
+	for _, name := range names {
+		values := append([]int64(nil), bucket.stageNS[name]...)
+		if len(values) == 0 {
+			parts = append(parts, fmt.Sprintf("%s=unavailable(%d/%d)", name, bucket.stageMissing[name], bucket.stageMissing[name]))
+			continue
+		}
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+		parts = append(parts, fmt.Sprintf("%s[p50=%d p95=%d n=%d missing=%d]", name, nearestRank(values, 50), nearestRank(values, 95), len(values), bucket.stageMissing[name]))
+	}
+	return strings.Join(parts, ",")
+}
+
+func nearestRank(sortedValues []int64, percentile int) int64 {
+	if len(sortedValues) == 0 {
+		return 0
+	}
+	index := (len(sortedValues)*percentile+99)/100 - 1
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(sortedValues) {
+		index = len(sortedValues) - 1
+	}
+	return sortedValues[index]
+}
+
+func shortLabel(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, strings.TrimSpace(value))
+	value = strings.Join(strings.Fields(value), " ")
+	runes := []rune(value)
+	if len(runes) > 80 {
+		return string(runes[:80])
+	}
+	return string(runes)
+}
+
+func labelOrUnknown(value string) string {
+	if value == "" {
+		return "unknown"
+	}
+	return value
 }
 
 func (h *handlers) evidenceShow(ctx cliapp.RunContext) error {

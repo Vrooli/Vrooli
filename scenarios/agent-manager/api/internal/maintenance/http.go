@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/authn"
@@ -16,11 +17,18 @@ import (
 
 const AdmissionPath = "/api/v1/maintenance/admission"
 
+const statusCacheTTL = 30 * time.Second
+
 type Handler struct {
-	gate      *Gate
-	observe   func(context.Context) (Inventory, error)
-	owners    authn.TokenVerifier
-	interlock *ScenarioInterlock
+	gate       *Gate
+	observe    func(context.Context) (Inventory, error)
+	owners     authn.TokenVerifier
+	interlock  *ScenarioInterlock
+	statusMu   sync.Mutex
+	statusAt   time.Time
+	status     Standing
+	statusErr  error
+	statusDone chan struct{}
 }
 
 // NewHandler must be mounted only after every orchestration admission path uses
@@ -85,6 +93,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				Revision          int64 `json:"revision"`
 				InventoryObserved bool  `json:"inventoryObserved"`
 			}{Closed: state.Closed, Revision: state.Revision}, nil)
+			return
+		}
+		if req.URL.Query().Get("view") != "fresh" {
+			state, err := h.cachedStatus(req.Context())
+			if state.Inventory != nil && !state.Inventory.ObservedAt.IsZero() {
+				w.Header().Set("X-Inventory-Observed-At", state.Inventory.ObservedAt.UTC().Format(time.RFC3339Nano))
+			}
+			h.respond(w, state, err)
 			return
 		}
 		state, err := h.standing(req.Context())
@@ -161,6 +177,62 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		state.LifecycleInterlock = ScenarioLockV1
 		h.respond(w, state, err)
 	}
+}
+
+// cachedStatus bounds repeated human/CLI status polling. The default is an
+// informational projection; safety-sensitive lifecycle clients request view=fresh.
+func (h *Handler) cachedStatus(ctx context.Context) (Standing, error) {
+	for {
+		h.statusMu.Lock()
+		now := time.Now()
+		if !h.statusAt.IsZero() && now.Sub(h.statusAt) < statusCacheTTL {
+			state, err := cloneStanding(h.status), h.statusErr
+			h.statusMu.Unlock()
+			return state, err
+		}
+		if done := h.statusDone; done != nil {
+			h.statusMu.Unlock()
+			select {
+			case <-done:
+				if err := ctx.Err(); err != nil {
+					return Standing{}, err
+				}
+				continue
+			case <-ctx.Done():
+				return Standing{}, ctx.Err()
+			}
+		}
+		done := make(chan struct{})
+		h.statusDone = done
+		h.statusMu.Unlock()
+		state, err := h.standing(ctx)
+		h.statusMu.Lock()
+		h.status, h.statusErr, h.statusAt = cloneStanding(state), err, time.Now()
+		h.statusDone = nil
+		close(done)
+		h.statusMu.Unlock()
+		return state, err
+	}
+}
+
+func cloneStanding(state Standing) Standing {
+	if state.Remaining != nil {
+		remaining := *state.Remaining
+		state.Remaining = &remaining
+	}
+	if state.Inventory != nil {
+		inventory := *state.Inventory
+		inventory.Work = append([]WorkRef(nil), inventory.Work...)
+		inventory.Executors = append([]ExecutorEvidence(nil), inventory.Executors...)
+		for i := range inventory.Executors {
+			inventory.Executors[i].PIDs = append([]int(nil), inventory.Executors[i].PIDs...)
+			inventory.Executors[i].OpenTranscripts = append([]string(nil), inventory.Executors[i].OpenTranscripts...)
+		}
+		inventory.Unknown = append([]string(nil), inventory.Unknown...)
+		inventory.PhysicalRunIDs = append([]string(nil), inventory.PhysicalRunIDs...)
+		state.Inventory = &inventory
+	}
+	return state
 }
 
 // Observe is the owner's fence-and-inventory projection that status reports.

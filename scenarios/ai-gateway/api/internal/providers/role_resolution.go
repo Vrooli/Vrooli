@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
@@ -44,12 +45,14 @@ type roleResolutionResponse struct {
 	Role                 string            `json:"role"`
 	Model                string            `json:"model"`
 	Canonical            string            `json:"canonical_model"`
+	Limits               *DecisionLimits   `json:"limits"`
+	Placement            *ModelPlacement   `json:"placement"`
 	Capabilities         []string          `json:"capabilities"`
 	CoordinateConvention string            `json:"coordinate_convention"`
 	SamplingSupport      map[string]string `json:"sampling_support"`
-	MaxTokens            *int32            `json:"max_tokens"`
+	MaxTokens            *policyInt32      `json:"max_tokens"`
 	RequestDefaults      *struct {
-		MaxTokens *int32 `json:"max_tokens"`
+		MaxTokens *policyInt32 `json:"max_tokens"`
 	} `json:"request_defaults"`
 	ContextWindow          *int32                                `json:"context_window"`
 	Locality               string                                `json:"locality"`
@@ -59,6 +62,28 @@ type roleResolutionResponse struct {
 	RuntimeIdentity        *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
 	ObservedRuntimeDigest  string                                `json:"observed_runtime_digest"`
 	ExpectedArtifactDigest string                                `json:"expected_artifact_digest"`
+}
+
+// policyInt32 accepts both JSON numbers and decimal strings. Resource policy
+// contracts have emitted both forms across CLI versions; normalize them at
+// this adapter boundary while still rejecting malformed and out-of-range caps.
+type policyInt32 int32
+
+func (n *policyInt32) UnmarshalJSON(raw []byte) error {
+	value := strings.TrimSpace(string(raw))
+	if len(value) > 0 && value[0] == '"' {
+		var text string
+		if err := json.Unmarshal(raw, &text); err != nil {
+			return err
+		}
+		value = strings.TrimSpace(text)
+	}
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil {
+		return fmt.Errorf("max_tokens must be a 32-bit integer or decimal string: %w", err)
+	}
+	*n = policyInt32(parsed)
+	return nil
 }
 
 func decodeRoleResolution(a Adapter, result Result) (roleResolutionResponse, error) {
@@ -80,13 +105,13 @@ func (a Adapter) resolvedRole(ctx context.Context, role string, result Result, r
 	var maxOutputTokens int32
 	switch {
 	case response.MaxTokens != nil:
-		maxOutputTokens = *response.MaxTokens
+		maxOutputTokens = int32(*response.MaxTokens)
 	case response.RequestDefaults != nil && response.RequestDefaults.MaxTokens != nil:
-		maxOutputTokens = *response.RequestDefaults.MaxTokens
+		maxOutputTokens = int32(*response.RequestDefaults.MaxTokens)
 	}
 	return ResolvedRole{
 		Provider: a.Provider, Role: role, Model: response.Model, CanonicalModel: response.Canonical,
-		Rights: response.Rights, RuntimeIdentity: response.RuntimeIdentity, ObservedRuntimeDigest: observedRuntimeDigest,
+		Limits: response.Limits, Placement: response.Placement, Rights: response.Rights, RuntimeIdentity: response.RuntimeIdentity, ObservedRuntimeDigest: observedRuntimeDigest,
 		Capabilities: sortedUnique(response.Capabilities), CoordinateConvention: strings.TrimSpace(response.CoordinateConvention),
 		SamplingSupport: parseSamplingSupport(response.SamplingSupport), MaxOutputTokens: maxOutputTokens,
 		ContextWindow: valueOrZero(response.ContextWindow), Locality: firstNonEmpty(response.Locality, a.Locality),

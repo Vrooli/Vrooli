@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-11-18T00:00:00Z"
   requires:
     scenarios: ["agent-manager"]
-    commands: ["agent-manager usage friction", "agent-manager usage runtime-friction", "agent-manager usage annotations", "agent-manager measures get", "agent-manager run report", "agent-manager run events", "agent-manager run messages", "agent-manager conversation search", "agent-manager conversation context", "agent-manager annotations coverage", "agent-manager annotations show", "agent-manager annotations run", "agent-manager usage friction-report"]
+    commands: ["agent-manager usage friction", "agent-manager usage runtime-friction", "agent-manager usage annotations", "agent-manager measures get", "agent-manager run report", "agent-manager run events", "agent-manager run messages", "agent-manager conversation search", "agent-manager conversation context", "agent-manager annotations coverage", "agent-manager annotations show", "agent-manager annotations run", "agent-manager annotations series", "agent-manager usage friction-report"]
   origin:
     kind: "authored"
 ---
@@ -31,7 +31,7 @@ Friction has four lenses. Each proves something different; none proves a cause b
 | Tool | A command path failed, guessed its shape, printed too much, was polled, was slow, or was bypassed | Why the agent chose it, or whether the work mattered | `usage friction`, `measures get tool-profiles` |
 | Runtime | Where measured run time went: blocked checks, validation waits, rework, sandbox, agent-manager failures | Whether the time was necessary | `usage runtime-friction` |
 | Operator | What the operator reported or corrected, in their words | The operator's actual mood; a label is a text signal | `usage friction` operator section |
-| Inferred | Gated labels such as spinning, discovery-slow, objective-lost, scope drift, run type, affect | A verdict; an unproven label is evidence, not a rate | `usage annotations`, `annotations coverage`, `annotations show` |
+| Inferred | Gated labels such as blocked-by-tool, discovery-slow, run type, and what the operator wrote (dissatisfied, pleased, impatient) | A verdict; an unproven label is evidence, not a rate | `usage annotations`, `annotations coverage`, `annotations show` |
 
 ### Method
 
@@ -43,10 +43,11 @@ Friction has four lenses. Each proves something different; none proves a cause b
 3. **Add annotations only for the residual.** Use `annotations show <run-id>` to see the
    labels and probabilities for the evidence runs. If the deterministic lens already
    explains the waste, stop; do not decorate it with AI labels.
-4. **Check the gate and coverage before quoting a label.** `usage annotations` and
-   `annotations coverage` name which labels are proven, their precision/recall, and how many
-   runs were observed. An unproven label is a lead. It is never a rate and never a finding on
-   its own.
+4. **Check the gate and coverage before quoting a label.** `usage annotations` names, per
+   label, whether it is proven, partial or unproven, which model and role the proof is for,
+   whether its probabilities are calibrated or raw, the hold-out precision, recall and ECE,
+   and how many runs were observed. A proof is per model: another model's answers are not
+   covered. An unproven label is a lead. It is never a rate and never a finding on its own.
 5. **Corroborate before concluding.** A recurring pattern needs at least three independent
    runs, a baseline, and either a deterministic finding or a proven label. Prefer two
    independent lenses over one strong-sounding label.
@@ -56,22 +57,23 @@ Friction has four lenses. Each proves something different; none proves a cause b
 7. **Record what remains unknown.** Missing events, older fact versions, unclassified
    messages, and unproven labels are unknowns. State them; never map them to zero.
 
-### Reading the affect labels
+### Reading mood
 
-- `operator.valence`, `operator.frustration` and `operator.satisfaction` are text signals
-  about the operator's message, not a measurement of the person.
-- A mood series is built from valence over time, with explicit frustration/satisfaction as
-  markers. Use it for correlation and review, never as a performance verdict on an agent or
-  a person.
-- Six-way `operator.emotion` is optional and usually unproven; small local decision models
-  are weak at it. Do not present it as a rate until its gate passes.
+- `operator.dissatisfied`, `operator.pleased` and `operator.impatient` are asked once per
+  human-written message; a label is a text signal about that message, not a measurement
+  of the person. Workflow and delegation briefs are never a person's words, so the
+  population is the human messages, and `usage annotations` prints how many there are.
+- The mood series (`annotations series --label <id>`, or Usage, Friction, Operator mood)
+  has a proven line and an all-messages line. Quote only the proven line; the other is
+  evidence. If no model is proven yet, say so instead of quoting either.
+- Use it for correlation and review, never as a performance verdict on an agent or a person.
 
 ### Anti-patterns
 
 - Quoting an unproven label as "the agent was confused".
 - Treating a single run's label as a pattern.
 - Inferring a cause from a correlation between a finding and a label without a baseline.
-- Using operator frustration as proof that the agent was wrong.
+- Using operator dissatisfaction as proof that the agent was wrong.
 - Reporting an empty annotation section as "no friction".
 - Tuning a label's threshold on the same window being reported.
 

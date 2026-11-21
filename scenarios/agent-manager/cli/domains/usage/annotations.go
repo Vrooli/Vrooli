@@ -1,13 +1,10 @@
 package usage
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -15,185 +12,201 @@ import (
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 )
 
-const annotationsCoveragePath = "/api/v1/annotations/coverage"
+// annotationGateMeasure is the registry measure every annotation reader shares:
+// the Usage page, `usage annotations` and the friction digest quote a rate only
+// from it, so the gate that licenses a rate travels with the rate.
+const annotationGateMeasure = "usage.annotation_gate"
 
-// annotationsCommand is the fourth friction lens: gated inferred labels over a
-// bounded run window. It is separate from `usage friction` because the
-// annotation vocabulary is data and its gate state must be read before any rate
-// is quoted.
-func annotationsCommand(newHTTP paceHTTPFor) cliapp.Command {
+var annotationWindows = []string{"this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"}
+
+// annotationsCommand is the inferred-annotation friction lens: gated labels over
+// a bounded window, each with the model its proof is for.
+func annotationsCommand(fetch measureFetch) cliapp.Command {
 	return cliapp.Command{
 		Name:        "annotations",
 		NeedsAPI:    true,
-		Description: "What inferred labels does the run window carry, and which are proven? [--window 7d] [--json]",
-		Usage:       "agent-manager usage annotations [--window 7d] [--json]",
-		HelpText:    "Reads the annotation pack's per-label coverage for the window: observed and eligible runs, the gate state and measured precision/recall, and a rate only for a proven label. An unproven label is evidence, never a rate. An empty window is unknown coverage, not zero friction. Run `agent-manager annotations run <run-id>` for one run's labels and evidence.",
+		Description: "Which inferred labels are proven, for which model, and what do they say? [--window last_7d] [--json]",
+		Usage:       "agent-manager usage annotations [--window last_7d] [--json]",
+		HelpText:    "Reads `usage.annotation_gate`: per label whether it is proven, partial or unproven, the model and resource role the proof is for, whether its probabilities are calibrated or raw, the hold-out precision, recall, calibration error and gold size, and a rate only over observations from a proven model. An unproven label is evidence, never a rate. Labels about what a person wrote count human-written messages only. An empty window is unknown coverage, not zero friction. `agent-manager annotations show <run-id>` prints one run's labels and evidence.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
-			{Name: "window", Description: "Window such as 7d, 24h or 30d (default 7d)"},
+			{Name: "window", Description: "Window token (default last_7d)", Values: annotationWindows},
 		}},
 		RunCtx: func(ctx cliapp.RunContext) error {
 			window := strings.TrimSpace(ctx.Flag("window"))
 			if window == "" {
-				window = "7d"
+				window = "last_7d"
 			}
-			client, base := newHTTP(ctx.Core())
-			endpoint := strings.TrimRight(base, "/") + annotationsCoveragePath + "?window=" + url.QueryEscape(window)
-			request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, nil)
+			body, err := fetch(ctx, annotationGateMeasure, map[string]string{"window": window})
 			if err != nil {
-				return err
-			}
-			response, err := client.Do(request)
-			if err != nil {
-				return fmt.Errorf("annotation coverage: %w", err)
-			}
-			defer response.Body.Close()
-			raw, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
-			if err != nil {
-				return err
-			}
-			if response.StatusCode != http.StatusOK {
-				return fmt.Errorf("annotation coverage failed (%d): %s", response.StatusCode, strings.TrimSpace(string(raw)))
+				return fmt.Errorf("annotation gate: %w", err)
 			}
 			if ctx.JSON() {
-				var pretty bytes.Buffer
-				if err := json.Indent(&pretty, raw, "", "  "); err != nil {
-					return err
-				}
-				_, err := fmt.Fprintln(ctx.Stdout(), pretty.String())
+				_, err = ctx.Stdout().Write(append(body, '\n'))
 				return err
 			}
-			var report annotationCoverage
-			if err := json.Unmarshal(raw, &report); err != nil {
-				return fmt.Errorf("decode annotation coverage: %w", err)
+			var result struct {
+				Fields []gateRow `json:"fields"`
 			}
-			renderAnnotationCoverage(ctx.Stdout(), report)
+			if err := json.Unmarshal(body, &result); err != nil {
+				return fmt.Errorf("decode annotation gate: %w", err)
+			}
+			renderAnnotationGate(ctx.Stdout(), result.Fields, window)
 			return nil
 		},
 	}
 }
 
-type annotationCoverage struct {
-	Window struct {
-		Since string `json:"since"`
-		Until string `json:"until"`
-	} `json:"window"`
-	Pack struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-	} `json:"pack"`
-	EligibleRuns int     `json:"eligible_runs"`
-	ObservedRuns int     `json:"observed_runs"`
-	Coverage     float64 `json:"coverage"`
-	Weighting    struct {
-		Mode       string  `json:"mode"`
-		SampleRate float64 `json:"sample_rate"`
-	} `json:"weighting"`
-	Labels []annotationLabel `json:"labels"`
+// gateRow is one row of usage.annotation_gate; every cell is a string on the wire.
+type gateRow map[string]string
+
+func (r gateRow) int(key string) int {
+	n, _ := strconv.Atoi(r[key])
+	return n
 }
 
-type annotationLabel struct {
-	ID             string   `json:"id"`
-	Group          string   `json:"group"`
-	State          string   `json:"state"`
-	Observed       int      `json:"observed"`
-	Eligible       int      `json:"eligible"`
-	Rate           *float64 `json:"rate"`
-	Baseline       *float64 `json:"baseline"`
-	Ratio          *float64 `json:"ratio"`
-	BaselineState  string   `json:"baseline_state"`
-	SearchFacet    string   `json:"search_facet"`
-	MinProbability float64  `json:"min_probability"`
-	Gate           struct {
-		State           string  `json:"state"`
-		Precision       float64 `json:"precision"`
-		Recall          float64 `json:"recall"`
-		Gold            int     `json:"gold"`
-		MinGold         int     `json:"min_gold"`
-		TargetPrecision float64 `json:"target_precision"`
-		TargetRecall    float64 `json:"target_recall"`
-		Reason          string  `json:"reason"`
-	} `json:"gate"`
-	Friction struct {
-		Enabled bool `json:"enabled"`
-	} `json:"friction"`
+func (r gateRow) float(key string) float64 {
+	f, _ := strconv.ParseFloat(r[key], 64)
+	return f
 }
 
-func renderAnnotationCoverage(out io.Writer, report annotationCoverage) {
-	pack := strings.TrimSpace(report.Pack.Name)
+// gateLabel is a label row with the model rows that belong to it.
+type gateLabel struct {
+	gateRow
+	models []gateRow
+}
+
+// groupGate splits the measure's rows into its coverage row and its labels.
+func groupGate(rows []gateRow) (coverage gateRow, labels []*gateLabel) {
+	byID := map[string]*gateLabel{}
+	for _, row := range rows {
+		switch row["kind"] {
+		case "coverage":
+			coverage = row
+		case "label":
+			label := &gateLabel{gateRow: row}
+			byID[row["label"]] = label
+			labels = append(labels, label)
+		case "model":
+			if label := byID[row["label"]]; label != nil {
+				label.models = append(label.models, row)
+			}
+		}
+	}
+	return coverage, labels
+}
+
+func modelName(row gateRow) string {
+	if row["resource_role"] == "" {
+		return row["model"]
+	}
+	return row["model"] + "@" + row["resource_role"]
+}
+
+// proof is the sentence a rate rests on: the model, how its probabilities are
+// read, and what its hold-out measured.
+func (l *gateLabel) proof() string {
+	name := l.gateRow["gate_model"]
+	if role := l.gateRow["gate_role"]; role != "" {
+		name += "@" + role
+	}
+	how := l.gateRow["calibration"]
+	if how == "calibrated" {
+		how += " T=" + l.gateRow["temperature"]
+	}
+	line := fmt.Sprintf("%s, %s · hold-out precision %.2f recall %.2f", name, how, l.float("precision"), l.float("recall"))
+	if l.gateRow["ece"] != "" && l.gateRow["calibration"] != "rule" {
+		line += fmt.Sprintf(" ECE %.3f", l.float("ece"))
+	}
+	return line + fmt.Sprintf(" · gold %d (%d positive)", l.int("gold"), l.int("gold_positives"))
+}
+
+// why says in words what keeps a label from being proven.
+func (l *gateLabel) why() string {
+	switch l.gateRow["gate_state"] {
+	case "tuning_only":
+		return fmt.Sprintf("%s measured on its tuning rows only; no hold-out", l.gateRow["gate_model"])
+	case "insufficient_gold":
+		return fmt.Sprintf("hold-out gold %d/%d, needs more labelled rows", l.int("gold"), l.int("min_gold"))
+	case "unproven":
+		return fmt.Sprintf("hold-out precision %.2f / recall %.2f below target %.2f / %.2f", l.float("precision"), l.float("recall"), l.float("target_precision"), l.float("target_recall"))
+	case "legacy_unattributed":
+		return "measured before gates were per model; the model is unknown"
+	default:
+		return fmt.Sprintf("no hold-out measurement (target %.2f / %.2f)", l.float("target_precision"), l.float("target_recall"))
+	}
+}
+
+func (l *gateLabel) unit() string {
+	if unit := l.gateRow["population_unit"]; unit != "" {
+		return unit + "s"
+	}
+	if l.gateRow["scope"] == "message" {
+		return "messages"
+	}
+	return "runs"
+}
+
+func renderAnnotationGate(out io.Writer, rows []gateRow, window string) {
+	coverage, labels := groupGate(rows)
+	pack := strings.TrimSpace(coverage["pack"] + " " + coverage["pack_version"])
 	if pack == "" {
 		pack = "unknown"
 	}
-	window := "unknown window"
-	if report.Window.Since != "" || report.Window.Until != "" {
-		window = report.Window.Since + " to " + report.Window.Until
+	fmt.Fprintf(out, "Inferred annotations: pack %s · %s\n", pack, window)
+	fmt.Fprintf(out, "Coverage: %.0f%% (%d of %d runs observed)\n", 100*gateRow(coverage).float("coverage"), gateRow(coverage).int("observed_runs"), gateRow(coverage).int("eligible_runs"))
+	if coverage["human_messages"] != "" {
+		fmt.Fprintf(out, "Human-written operator text: %d runs, %d messages; workflow and delegation briefs are not counted as a person's words\n", gateRow(coverage).int("human_text_runs"), gateRow(coverage).int("human_messages"))
 	}
-	fmt.Fprintf(out, "Inferred annotations: pack %s %s\n", pack, report.Pack.Version)
-	fmt.Fprintf(out, "Window: %s\n", window)
-	fmt.Fprintf(out, "Coverage: %.0f%% (%d of %d runs observed", 100*report.Coverage, report.ObservedRuns, report.EligibleRuns)
-	if report.Weighting.Mode != "" {
-		fmt.Fprintf(out, "; weighting %s", report.Weighting.Mode)
-		if report.Weighting.SampleRate > 0 {
-			fmt.Fprintf(out, " sample %.2f", report.Weighting.SampleRate)
-		}
+	if stale := gateRow(coverage).int("stale_runs"); stale > 0 {
+		fmt.Fprintf(out, "%d runs not yet classified for operator text; the counts above leave them out until the recompute finishes\n", stale)
 	}
-	fmt.Fprintln(out, ")")
-	if len(report.Labels) == 0 {
-		fmt.Fprintln(out, "No annotations in this window. Coverage is zero; this is unknown, not zero friction.")
-		return
-	}
-	fmt.Fprintln(out, "Labels:")
 	shown, silent := 0, 0
-	for _, label := range report.Labels {
-		if label.Observed == 0 && label.State != "proven" {
+	for _, label := range labels {
+		if label.int("observed") == 0 && label.gateRow["state"] != "proven" {
 			silent++
 			continue
 		}
-		gate := label.Gate.State
-		if gate == "" {
-			gate = label.State
+		if shown == 0 {
+			fmt.Fprintln(out, "Labels (proven: a hold-out cleared the targets for that model; a rate counts only that model's answers):")
 		}
-		line := fmt.Sprintf("  [%s] %s", gate, label.ID)
-		if label.Observed > 0 {
-			line += fmt.Sprintf(" · observed %d/%d", label.Observed, label.Eligible)
-		}
-		if label.Rate != nil {
-			line += fmt.Sprintf(" · rate %.1f%%", 100*(*label.Rate))
-			if label.Baseline != nil {
-				line += fmt.Sprintf(" · baseline %.1f%%", 100*(*label.Baseline))
-			}
-			if label.Ratio != nil {
-				line += fmt.Sprintf(" · %.2fx", *label.Ratio)
-			}
-		} else {
-			switch label.Gate.State {
-			case "unproven":
-				line += fmt.Sprintf(" · unproven (precision %.2f / recall %.2f, gold %d/%d)",
-					label.Gate.Precision, label.Gate.Recall, label.Gate.Gold, label.Gate.MinGold)
-			case "insufficient_gold":
-				line += fmt.Sprintf(" · gold %d/%d, needs more labelled rows", label.Gate.Gold, label.Gate.MinGold)
-			default:
-				line += fmt.Sprintf(" · unmeasured (target %.2f / %.2f, no hold-out)", label.Gate.TargetPrecision, label.Gate.TargetRecall)
-			}
-		}
-		if label.SearchFacet != "" {
-			line += " · facet " + label.SearchFacet
+		shown++
+		state := label.gateRow["state"]
+		line := fmt.Sprintf("  [%s] %s · observed %d/%d %s", state, label.gateRow["label"], label.int("observed"), label.int("eligible"), label.unit())
+		if state == "partial" {
+			line += fmt.Sprintf(" · %d from a proven model", label.int("proven_observed"))
 		}
 		fmt.Fprintln(out, line)
-		shown++
+		if label.gateRow["gate_state"] == "proven" {
+			fmt.Fprintln(out, "      proof: "+label.proof())
+		}
+		if rate := label.gateRow["rate"]; rate != "" {
+			fmt.Fprintf(out, "      rate %.1f%% of %d proven observations\n", 100*label.float("rate"), label.int("proven_observed"))
+		} else {
+			fmt.Fprintln(out, "      no rate: "+label.why())
+		}
+		if len(label.models) > 1 || (len(label.models) == 1 && label.models[0]["proven"] != "true") {
+			for _, model := range label.models {
+				fmt.Fprintf(out, "      %s · %d observed · %s\n", modelName(model), model.int("observed"), model["gate_state"])
+			}
+		}
 	}
-	if shown == 0 {
-		fmt.Fprintln(out, "  no label has an observation in this window; unknown, not zero friction.")
+	switch {
+	case len(labels) == 0:
+		fmt.Fprintln(out, "No annotations in this window: coverage is unknown, not zero friction.")
+	case shown == 0:
+		fmt.Fprintln(out, "No label has an observation in this window; unknown, not zero friction.")
 	}
 	if silent > 0 {
 		fmt.Fprintf(out, "  %d label(s) have no observation in this window (unknown, not zero).\n", silent)
 	}
-	fmt.Fprintln(out, "Hints: agent-manager annotations run <run-id>  # one run's labels and evidence")
-	fmt.Fprintln(out, "       agent-manager annotations evaluate --since <RFC3339> --limit 10  # run a bounded pass")
+	fmt.Fprintln(out, "Hints: agent-manager annotations show <run-id>  # one run's labels and evidence")
+	fmt.Fprintln(out, "       agent-manager annotations series --label <message-label>  # a mood label over time")
 }
 
 // inferredAnnotationLines renders the gated labels the friction read already
 // carries. Reading them from the response keeps one authoritative source and
-// avoids a second network call that could disagree with the finding list.
+// avoids a second network call that could disagree with the finding list. A rate
+// is quoted only for a proven gate; every other label is named without one.
 func inferredAnnotationLines(section *measurepb.UsageInferredAnnotations) []string {
 	header := fmt.Sprintf("Inferred annotations: coverage %.0f%% (%d of %d runs observed)",
 		100*section.GetCoverage(), section.GetObservedRuns(), section.GetEligibleRuns())
@@ -207,7 +220,8 @@ func inferredAnnotationLines(section *measurepb.UsageInferredAnnotations) []stri
 	if len(section.GetLabels()) == 0 {
 		return append(lines, "   no observations in this window; unknown, not zero friction")
 	}
-	shown, silent := 0, 0
+	var unproven []string
+	quoted, silent := 0, 0
 	for _, label := range section.GetLabels() {
 		if !label.GetFriction() {
 			// The friction lens reports friction labels only; run.type and
@@ -218,24 +232,43 @@ func inferredAnnotationLines(section *measurepb.UsageInferredAnnotations) []stri
 			silent++
 			continue
 		}
-		line := fmt.Sprintf("   [%s] %s", label.GetGateState(), label.GetId())
-		if rate := label.GetRate(); label.Rate != nil {
-			line += fmt.Sprintf(" · %.1f%% of observed runs", 100*rate)
-		} else {
-			line += fmt.Sprintf(" · no rate (target %.2f / %.2f, gold %d)",
-				label.GetTargetPrecision(), label.GetTargetRecall(), label.GetGold())
+		if label.Rate == nil {
+			unproven = append(unproven, fmt.Sprintf("%s (%s)", label.GetId(), label.GetGateState()))
+			continue
 		}
-		if label.GetObserved() > 0 {
-			line += fmt.Sprintf(" · observed %d/%d", label.GetObserved(), label.GetEligible())
-		}
-		lines = append(lines, line)
-		shown++
+		quoted++
+		lines = append(lines, fmt.Sprintf("   [proven] %s · %.1f%% of %d proven observations (of %d/%d observed) · %s",
+			label.GetId(), 100*label.GetRate(), label.GetProvenObserved(), label.GetObserved(), label.GetEligible(), protoProof(label)))
 	}
-	if shown == 0 && silent == 0 {
+	if len(unproven) > 0 {
+		lines = append(lines, "   no rate (unproven): "+strings.Join(unproven, ", "))
+	}
+	if quoted == 0 && len(unproven) == 0 && silent == 0 {
 		lines = append(lines, "   no friction label has an observation in this window; unknown, not zero friction")
 	}
 	if silent > 0 {
 		lines = append(lines, fmt.Sprintf("   %d label(s) have no observation in this window (unknown, not zero).", silent))
 	}
-	return append(lines, "   Hints: agent-manager annotations gold --label <id> --out gold.jsonl  ·  agent-manager annotations benchmark --gold gold.jsonl --label <id>")
+	return append(lines, "   Every model's answers per label: agent-manager usage annotations")
+}
+
+// protoProof names the model a proven label's rate rests on, how its probabilities
+// are read and its calibration error, from the friction read's own fields.
+func protoProof(label *measurepb.UsageInferredAnnotation) string {
+	name := label.GetGateModel()
+	if role := label.GetGateRole(); role != "" {
+		name += "@" + role
+	}
+	if name == "" {
+		name = "model unknown"
+	}
+	how := label.GetCalibration()
+	if how == "calibrated" {
+		how += fmt.Sprintf(" T=%g", label.GetTemperature())
+	}
+	proof := name + ", " + how
+	if label.GetCalibration() != "rule" {
+		proof += fmt.Sprintf(", ECE %.3f", label.GetEce())
+	}
+	return proof
 }

@@ -44,7 +44,7 @@ const unreachableGrace = 2 * time.Minute
 var waitClock = struct {
 	now   func() time.Time
 	sleep func(time.Duration)
-}{now: time.Now, sleep: time.Sleep}
+}{now: func() time.Time { return ambient.Now() }, sleep: time.Sleep}
 
 // agentManagerUnreachable reports a transport failure or a gateway or
 // availability status: the API did not serve the request.

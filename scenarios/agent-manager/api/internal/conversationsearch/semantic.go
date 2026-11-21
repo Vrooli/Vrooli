@@ -15,11 +15,15 @@ import (
 const semanticLegTimeout = 1200 * time.Millisecond
 
 var (
-	ErrSemanticUnavailable    = errors.New("semantic retrieval unavailable")
-	ErrEmbeddingUnavailable   = errors.New("embedding unavailable")
-	ErrVectorStoreUnavailable = errors.New("vector store unavailable")
-	ErrIndexLayoutMismatch    = errors.New("semantic index layout mismatch")
-	ErrRerankUnavailable      = errors.New("reranker unavailable")
+	ErrSemanticUnavailable = errors.New("semantic retrieval unavailable")
+	// ErrSemanticCoverageUnknown means no vector count has been observed yet:
+	// the first probe is in flight or failed. It is distinct from a collection
+	// that is genuinely empty, which reports zero coverage.
+	ErrSemanticCoverageUnknown = errors.New("semantic coverage unknown")
+	ErrEmbeddingUnavailable    = errors.New("embedding unavailable")
+	ErrVectorStoreUnavailable  = errors.New("vector store unavailable")
+	ErrIndexLayoutMismatch     = errors.New("semantic index layout mismatch")
+	ErrRerankUnavailable       = errors.New("reranker unavailable")
 )
 
 type SemanticSearchRequest struct {
@@ -236,18 +240,49 @@ type conversationLexicalLeg struct {
 	request TextSearchRequest
 }
 
+// lexicalBackoffThreshold is how many all-terms matches the lexical leg needs
+// before it stops there. A long natural-language question rarely has one
+// document containing every word, so the strict query is empty and the leg
+// contributes nothing; below the threshold the leg widens to any-term matching.
+const lexicalBackoffThreshold = 5
+
+// SearchLexical returns documents that contain every searchable term first and,
+// when those are too few, appends any-term matches in BM25 order. Appended hits
+// carry their own weak-coverage mark, so a query that only shares a word or two
+// with a document (a junk query) still reads as weak.
 func (l *conversationLexicalLeg) SearchLexical(ctx context.Context, _ aisearch.SearchQuery) ([]aisearch.SearchResult, error) {
+	results, err := l.search(ctx, true)
+	if err != nil || len(results) >= lexicalBackoffThreshold {
+		return results, err
+	}
+	wider, err := l.search(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(results))
+	for _, result := range results {
+		seen[result.ID] = struct{}{}
+	}
+	for _, result := range wider {
+		if _, duplicate := seen[result.ID]; !duplicate {
+			results = append(results, result)
+		}
+	}
+	return results, nil
+}
+
+func (l *conversationLexicalLeg) search(ctx context.Context, matchAllTerms bool) ([]aisearch.SearchResult, error) {
 	request := l.request
 	request.PageSize = maximumSearchPageSize
 	request.Cursor = ""
-	request.matchAllTerms = true
+	request.matchAllTerms = matchAllTerms
 	response, err := l.service.SearchText(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 	results := make([]aisearch.SearchResult, 0, len(response.Hits))
 	for _, hit := range response.Hits {
-		results = append(results, aisearch.SearchResult{ID: hit.Document.DocumentID, Score: hit.Score, SourceID: hit.Document.DocumentID, Payload: map[string]any{"conversation_hit": hit}})
+		results = append(results, aisearch.SearchResult{ID: hit.Document.DocumentID, Score: hit.Score, SourceID: hit.Document.DocumentID, Weak: hit.Weak, Payload: map[string]any{"conversation_hit": hit}})
 	}
 	return results, nil
 }

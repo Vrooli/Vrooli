@@ -266,9 +266,6 @@ type WorkflowNodeAttempt struct {
 	PromptSnapshot string                  `json:"promptSnapshot"`
 	// Experiment provenance is captured before a dispatch_pending attempt can
 	// transition to dispatched. It survives retry and recovery with the attempt.
-	ExperimentID     string     `json:"experimentId,omitempty"`
-	VariantID        string     `json:"variantId,omitempty"`
-	PromptHash       string     `json:"promptHash,omitempty"`
 	RunID            *uuid.UUID `json:"runId,omitempty"`
 	ConversationID   string     `json:"conversationId,omitempty"`
 	SourceAttemptID  *uuid.UUID `json:"sourceAttemptId,omitempty"`

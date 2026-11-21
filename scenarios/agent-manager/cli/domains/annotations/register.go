@@ -32,7 +32,10 @@ func Register() cliapp.SubcommandGroup {
 			evaluateCommand(),
 			schedulerCommand(),
 			benchmarkCommand(),
+			calibrationCommand(),
 			goldCommand(),
+			provenanceCommand(),
+			seriesCommand(),
 		},
 	}
 }
@@ -96,6 +99,42 @@ type gateStatus struct {
 	Gold      int     `json:"gold"`
 	MinGold   int     `json:"min_gold"`
 	Reason    string  `json:"reason"`
+	// Model and ResourceRole say who the status is for; a label-level summary
+	// names the strongest model.
+	Model        string  `json:"model,omitempty"`
+	ResourceRole string  `json:"resource_role,omitempty"`
+	Split        string  `json:"split,omitempty"`
+	Threshold    float64 `json:"threshold,omitempty"`
+	Temperature  float64 `json:"temperature,omitempty"`
+	ECE          float64 `json:"ece,omitempty"`
+	Brier        float64 `json:"brier,omitempty"`
+}
+
+// modelCoverage is one (model, resource role)'s share of a label's observations
+// and the proof its answers carry.
+type modelCoverage struct {
+	Model        string     `json:"model"`
+	ResourceRole string     `json:"resource_role"`
+	Observed     int        `json:"observed"`
+	Positives    int        `json:"positives"`
+	Proven       bool       `json:"proven"`
+	Gate         gateStatus `json:"gate"`
+}
+
+type population struct {
+	Basis    string `json:"basis"`
+	Unit     string `json:"unit"`
+	Eligible int    `json:"eligible"`
+}
+
+type provenanceSummary struct {
+	RunsAnnotated      int `json:"runs_annotated"`
+	RunsHumanText      int `json:"runs_human_text"`
+	RunsBriefOnly      int `json:"runs_brief_only"`
+	RunsNoOperatorText int `json:"runs_no_operator_text"`
+	HumanMessages      int `json:"human_messages"`
+	BriefMessages      int `json:"brief_messages"`
+	RunsStale          int `json:"runs_stale,omitempty"`
 }
 
 type coverageLabel struct {
@@ -113,6 +152,13 @@ type coverageLabel struct {
 	SearchFacet    string     `json:"search_facet"`
 	MinProbability *float64   `json:"min_probability,omitempty"`
 	Friction       friction   `json:"friction"`
+	Positives      int        `json:"positives,omitempty"`
+	// Models splits the observations by the model that produced them, each with
+	// its own proof; the rate counts only the proven ones.
+	Models          []modelCoverage `json:"models,omitempty"`
+	ProvenObserved  int             `json:"proven_observed,omitempty"`
+	ProvenPositives int             `json:"proven_positives,omitempty"`
+	Population      *population     `json:"population,omitempty"`
 }
 
 type friction struct {
@@ -143,16 +189,17 @@ type weighting struct {
 }
 
 type coverageResponse struct {
-	Window        windowRange     `json:"window"`
-	Pack          packRef         `json:"pack"`
-	EligibleRuns  int             `json:"eligible_runs"`
-	ObservedRuns  int             `json:"observed_runs"`
-	Coverage      float64         `json:"coverage"`
-	CoverageBasis string          `json:"coverage_basis"`
-	Weighting     weighting       `json:"weighting"`
-	Labels        []coverageLabel `json:"labels"`
-	Summary       stateCounts     `json:"summary"`
-	Notes         []string        `json:"notes,omitempty"`
+	Window        windowRange        `json:"window"`
+	Pack          packRef            `json:"pack"`
+	EligibleRuns  int                `json:"eligible_runs"`
+	ObservedRuns  int                `json:"observed_runs"`
+	Coverage      float64            `json:"coverage"`
+	CoverageBasis string             `json:"coverage_basis"`
+	Weighting     weighting          `json:"weighting"`
+	Labels        []coverageLabel    `json:"labels"`
+	Summary       stateCounts        `json:"summary"`
+	Provenance    *provenanceSummary `json:"provenance,omitempty"`
+	Notes         []string           `json:"notes,omitempty"`
 }
 
 type value struct {
@@ -176,17 +223,22 @@ type annotationView struct {
 	Confidence      *float64 `json:"confidence,omitempty"`
 	// FrictionProbability is the calibrated mass in the declared friction
 	// region, which is the right confidence for a multi-level score.
-	FrictionProbability *float64   `json:"friction_probability,omitempty"`
-	DefinitionHash      string     `json:"definition_hash"`
-	Model               string     `json:"model,omitempty"`
-	Provider            string     `json:"provider,omitempty"`
-	EvidenceEventIDs    []string   `json:"evidence_event_ids,omitempty"`
-	ObservedAt          string     `json:"observed_at"`
-	Reason              string     `json:"reason,omitempty"`
-	Gate                gateStatus `json:"gate"`
-	GateState           string     `json:"gate_state"`
-	Proven              bool       `json:"proven"`
-	Friction            friction   `json:"friction"`
+	FrictionProbability   *float64   `json:"friction_probability,omitempty"`
+	DefinitionHash        string     `json:"definition_hash"`
+	Model                 string     `json:"model,omitempty"`
+	ResourceRole          string     `json:"resource_role,omitempty"`
+	CalibratedProbability *float64   `json:"calibrated_probability,omitempty"`
+	Temperature           float64    `json:"temperature,omitempty"`
+	FrictionPositive      *bool      `json:"friction_positive,omitempty"`
+	OccurredAt            string     `json:"occurred_at,omitempty"`
+	Provider              string     `json:"provider,omitempty"`
+	EvidenceEventIDs      []string   `json:"evidence_event_ids,omitempty"`
+	ObservedAt            string     `json:"observed_at"`
+	Reason                string     `json:"reason,omitempty"`
+	Gate                  gateStatus `json:"gate"`
+	GateState             string     `json:"gate_state"`
+	Proven                bool       `json:"proven"`
+	Friction              friction   `json:"friction"`
 }
 
 type skippedLabel struct {
@@ -209,7 +261,26 @@ type runView struct {
 	Counts   stateCounts      `json:"counts"`
 	Missing  []string         `json:"missing,omitempty"`
 	Skipped  []skippedLabel   `json:"skipped,omitempty"`
+	Messages []messageView    `json:"messages,omitempty"`
 	Notes    []string         `json:"notes,omitempty"`
+}
+
+// messageView is one human message's labels, reported under its run.
+type messageView struct {
+	MessageID string           `json:"message_id"`
+	At        string           `json:"at,omitempty"`
+	Labels    []annotationView `json:"labels"`
+}
+
+type escalationStats struct {
+	EligibleStates   int     `json:"eligible_states"`
+	Calls            int     `json:"calls"`
+	StatesAsked      int     `json:"states_asked"`
+	SkippedStates    int     `json:"skipped_states"`
+	SkippedCalls     int     `json:"skipped_calls"`
+	SameModelAnswers int     `json:"same_model_answers"`
+	Adopted          int     `json:"adopted"`
+	CallSeconds      float64 `json:"call_seconds"`
 }
 
 type runError struct {
@@ -230,6 +301,10 @@ type evaluateResult struct {
 	Errors      []runError      `json:"errors,omitempty"`
 	Counts      stateCounts     `json:"counts"`
 	Passes      int             `json:"passes,omitempty"`
+	// RemainingRunIDs are explicitly named runs a pass did not reach.
+	RemainingRunIDs []string         `json:"remaining_run_ids,omitempty"`
+	Pinned          string           `json:"pinned,omitempty"`
+	Escalation      *escalationStats `json:"escalation,omitempty"`
 }
 
 func packsCommand() cliapp.Command {
@@ -322,13 +397,19 @@ func showCommand() cliapp.Command {
 	return cliapp.Command{
 		Name: "show", NeedsAPI: true,
 		Description: "Show the latest annotations and evidence refs for a run",
-		Usage:       "agent-manager annotations show <run-id> [--json]",
+		Usage:       "agent-manager annotations show <run-id> [--pinned] [--json]",
 		Args: cliapp.ArgSchema{
 			Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "Run id"}},
-			Flags:       []cliapp.Flag{},
+			Flags: []cliapp.Flag{
+				{Name: "pinned", Bool: true, LocalOnly: true, Description: "Show the answers a pinned bake-off stored for this run instead of production"},
+			},
 		},
 		RunCtx: func(ctx cliapp.RunContext) error {
-			body, err := ctx.Core().Request("GET", "annotations/run/"+url.PathEscape(ctx.Positional("run-id")), nil, nil)
+			var query url.Values
+			if ctx.BoolFlag("pinned") {
+				query = url.Values{"source": []string{"pinned"}}
+			}
+			body, err := ctx.Core().Request("GET", "annotations/run/"+url.PathEscape(ctx.Positional("run-id")), query, nil)
 			if err != nil {
 				return err
 			}
@@ -355,7 +436,7 @@ func runCommand() cliapp.Command {
 			Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "Run id"}},
 			Flags: []cliapp.Flag{
 				{Name: "force", Bool: true, LocalOnly: true, Description: "Re-evaluate even when a cached observation exists"},
-				{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include optional labels such as operator.emotion"},
+				{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include optional labels such as agent.discovery_slow"},
 				{Name: "labels", Description: "Comma-separated label ids (default: every active label)"},
 				{Name: "max-labels", Description: "Maximum labels to evaluate"},
 			},
@@ -395,12 +476,20 @@ func runCommand() cliapp.Command {
 func evaluateCommand() cliapp.Command {
 	return cliapp.Command{
 		Name: "evaluate", NeedsAPI: true,
-		Description: "Run the annotation batch over a bounded run set",
-		Usage:       "agent-manager annotations evaluate [--since RFC3339] [--limit N] [--run-id ID]... [--json]",
+		Description: "Run the annotation batch over a bounded run set, or re-annotate gold runs with one pinned candidate",
+		Usage:       "agent-manager annotations evaluate [--since RFC3339] [--limit N] [--run-id ID]... [--runs-from <gold file>]... [--pin-resource-role R [--role ROLE]] [--labels a,b] [--json]",
+		HelpText: "Annotates a bounded run set with the pack. With --pin-resource-role the decision gateway answers every question with exactly that declared candidate (or refuses), " +
+			"and the answers are stored apart from production, keyed by the answering model and resource role, so a bake-off never overwrites or mixes with production observations. " +
+			"--runs-from takes a gold file so exactly its runs are answered, and for a message-scope label exactly its messages (rows carry a scope_id); unless --labels is given, only the labels the file judges are answered. Measure the result with `annotations benchmark --pinned --resource-role R`. " +
+			"--role names the decision role walked for a pinned pass (a role whose candidates include the model under test); the pack's runtime.bakeoff_role is the default.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "since", Description: "Only runs started at or after this RFC3339 time"},
 			{Name: "limit", Default: "20", Description: "Maximum runs (capped by the pack budget)"},
 			{Name: "run-id", Repeated: true, Description: "Explicit run id (repeatable); skips selection"},
+			{Name: "runs-from", Repeated: true, Description: "Gold file (relative to the gold root) whose run ids are evaluated (repeatable); skips selection"},
+			{Name: "pin-resource-role", Description: "Answer with exactly this declared candidate and store the answers apart from production"},
+			{Name: "role", Description: "Decision role walked for a pinned evaluation (default: the pack's runtime.bakeoff_role, then each label's role)"},
+			{Name: "labels", Description: "Comma-separated label ids (default: every active label)"},
 			{Name: "include-optional", Bool: true, LocalOnly: true, Description: "Include optional labels"},
 			{Name: "force", Bool: true, LocalOnly: true, Description: "Ignore cached observations"},
 		}},
@@ -409,36 +498,42 @@ func evaluateCommand() cliapp.Command {
 			if err != nil {
 				return err
 			}
-			explicit := ctx.FlagValues("run-id")
-			// A pass stops at its wall-clock budget and persists what it
-			// finished. Continue with the remainder here so one command still
-			// backfills the requested number of runs without holding a single
-			// HTTP request open past a gateway timeout. Explicit run ids cannot
-			// be re-selected, so they stay one pass.
-			result := evaluateResult{}
-			remaining := limit
-			for pass := 1; pass <= maxEvaluatePasses && remaining > 0; pass++ {
-				body, err := evaluateBody(ctx.Flag("since"), remaining, explicit, ctx.BoolFlag("include-optional"), ctx.BoolFlag("force"))
-				if err != nil {
-					return err
-				}
-				response, err := ctx.Core().Request("POST", "annotations/evaluate", nil, body)
-				if err != nil {
-					return err
-				}
-				var current evaluateResult
-				if err := json.Unmarshal(response, &current); err != nil {
-					return err
-				}
-				accumulateEvaluate(&result, current)
-				result.Passes = pass
-				if len(explicit) > 0 || !current.Truncated || current.Remaining == 0 || current.Submitted == 0 {
-					break
-				}
-				remaining = current.Remaining
+			params := evaluateParams{
+				Since: ctx.Flag("since"), Labels: parseLabels(ctx.Flag("labels")),
+				IncludeOptional: ctx.BoolFlag("include-optional"), Force: ctx.BoolFlag("force"),
+				PinResourceRole: strings.TrimSpace(ctx.Flag("pin-resource-role")), Role: strings.TrimSpace(ctx.Flag("role")),
+			}
+			if params.Role != "" && params.PinResourceRole == "" {
+				return fmt.Errorf("--role names the role a pinned evaluation walks; it needs --pin-resource-role")
+			}
+			root, err := fetchGoldRoot(ctx)
+			if err != nil {
+				return err
+			}
+			subjects, err := explicitSubjects(root, ctx.FlagValues("run-id"), ctx.FlagValues("runs-from"))
+			if err != nil {
+				return err
+			}
+			explicit := subjects.RunIDs
+			params.MessageIDs = subjects.MessageIDs
+			if len(params.Labels) == 0 && len(ctx.FlagValues("runs-from")) > 0 {
+				// Answer what the gold files judge: a bake-off of a run label
+				// must not also answer every message of its runs.
+				params.Labels = subjects.Labels
+			}
+			progress := func(message string) {
 				if !ctx.JSON() {
-					fmt.Fprintf(ctx.Stderr(), "pass %d saved %d run(s); %d still queued\n", pass, current.Submitted, current.Remaining)
+					fmt.Fprintln(ctx.Stderr(), message)
 				}
+			}
+			var result evaluateResult
+			if len(explicit) > 0 {
+				result, err = evaluateExplicit(ctx, params, explicit, progress)
+			} else {
+				result, err = evaluateSelected(ctx, params, limit, progress)
+			}
+			if err != nil {
+				return err
 			}
 			if ctx.JSON() {
 				encoded, err := json.Marshal(result)
@@ -452,6 +547,125 @@ func evaluateCommand() cliapp.Command {
 			return nil
 		},
 	}
+}
+
+// evaluateSelected backfills the requested number of selected runs. A pass stops
+// at its wall-clock budget and persists what it finished; continue here so one
+// command still reaches the requested count without holding a single HTTP
+// request open past a gateway timeout.
+func evaluateSelected(ctx cliapp.RunContext, params evaluateParams, limit int, progress func(string)) (evaluateResult, error) {
+	result := evaluateResult{}
+	remaining := limit
+	for pass := 1; pass <= maxEvaluatePasses && remaining > 0; pass++ {
+		current, err := postEvaluate(ctx, params, remaining, nil)
+		if err != nil {
+			return result, err
+		}
+		accumulateEvaluate(&result, current)
+		result.Passes = pass
+		if !current.Truncated || current.Remaining == 0 || current.Submitted == 0 {
+			break
+		}
+		remaining = current.Remaining
+		progress(fmt.Sprintf("pass %d saved %d run(s); %d still queued", pass, current.Submitted, current.Remaining))
+	}
+	return result, nil
+}
+
+// explicitChunk keeps one request of named runs inside the pack's per-pass run
+// budget, so no run is silently dropped and the continuation is the client's.
+const explicitChunk = 40
+
+// evaluateExplicit answers every named run, chunk by chunk, continuing with the
+// runs a pass did not reach until none remain or a pass makes no progress.
+func evaluateExplicit(ctx cliapp.RunContext, params evaluateParams, ids []string, progress func(string)) (evaluateResult, error) {
+	result := evaluateResult{}
+	pending := append([]string(nil), ids...)
+	for pass := 1; len(pending) > 0 && pass <= len(ids)/explicitChunk+maxEvaluatePasses; pass++ {
+		size := min(explicitChunk, len(pending))
+		chunk := pending[:size]
+		current, err := postEvaluate(ctx, params, size, chunk)
+		if err != nil {
+			return result, err
+		}
+		accumulateEvaluate(&result, current)
+		result.Passes = pass
+		pending = append(append([]string(nil), current.RemainingRunIDs...), pending[size:]...)
+		if current.Submitted == 0 && len(current.Errors) == 0 {
+			progress(fmt.Sprintf("pass %d made no progress; %d run(s) not answered", pass, len(pending)))
+			break
+		}
+		if len(pending) > 0 {
+			progress(fmt.Sprintf("pass %d answered %d run(s); %d still queued", pass, current.Submitted, len(pending)))
+		}
+	}
+	result.RemainingRunIDs = pending
+	result.Remaining = len(pending)
+	result.Truncated = len(pending) > 0
+	return result, nil
+}
+
+func postEvaluate(ctx cliapp.RunContext, params evaluateParams, limit int, runIDs []string) (evaluateResult, error) {
+	params.Limit, params.RunIDs = limit, runIDs
+	body, err := evaluateBody(params)
+	if err != nil {
+		return evaluateResult{}, err
+	}
+	response, err := ctx.Core().Request("POST", "annotations/evaluate", nil, body)
+	if err != nil {
+		return evaluateResult{}, err
+	}
+	var current evaluateResult
+	if err := json.Unmarshal(response, &current); err != nil {
+		return evaluateResult{}, err
+	}
+	return current, nil
+}
+
+// evaluateSubjects are the runs, messages and labels an evaluation names.
+type evaluateSubjects struct {
+	RunIDs     []string
+	MessageIDs []string
+	// Labels are the labels the gold files judge, so a gold-driven evaluation
+	// answers what is being measured and nothing else.
+	Labels []string
+}
+
+// explicitSubjects gathers what an evaluation names: repeated --run-id, then
+// every run, message and label of each --runs-from gold file, each
+// de-duplicated in first-seen order.
+func explicitSubjects(root goldRoot, named, goldFiles []string) (evaluateSubjects, error) {
+	var subjects evaluateSubjects
+	seen := map[string]bool{}
+	add := func(kind string, into *[]string, id string) {
+		if id = strings.TrimSpace(id); id != "" && !seen[kind+id] {
+			seen[kind+id] = true
+			*into = append(*into, id)
+		}
+	}
+	for _, id := range named {
+		add("run", &subjects.RunIDs, id)
+	}
+	for _, path := range goldFiles {
+		rows, err := root.readRows(path)
+		if err != nil {
+			return evaluateSubjects{}, fmt.Errorf("--runs-from %s: %w", path, err)
+		}
+		for _, row := range rows {
+			add("run", &subjects.RunIDs, row.RunID)
+			add("message", &subjects.MessageIDs, row.ScopeID)
+			add("label", &subjects.Labels, row.Label)
+			labels := make([]string, 0, len(row.Labels))
+			for label := range row.Labels {
+				labels = append(labels, label)
+			}
+			sort.Strings(labels)
+			for _, label := range labels {
+				add("label", &subjects.Labels, label)
+			}
+		}
+	}
+	return subjects, nil
 }
 
 // maxEvaluatePasses bounds the client-side continuation of a truncated pass.
@@ -469,33 +683,72 @@ func accumulateEvaluate(total *evaluateResult, pass evaluateResult) {
 	total.Remaining = pass.Remaining
 	total.Truncated = pass.Truncated
 	total.Labels = pass.Labels
+	total.Pinned = pass.Pinned
 	total.Runs = append(total.Runs, pass.Runs...)
 	total.Errors = append(total.Errors, pass.Errors...)
 	total.Counts.Observed += pass.Counts.Observed
 	total.Counts.Compatible += pass.Counts.Compatible
 	total.Counts.NotObserved += pass.Counts.NotObserved
 	total.Counts.Unavailable += pass.Counts.Unavailable
+	if pass.Escalation != nil {
+		if total.Escalation == nil {
+			total.Escalation = &escalationStats{}
+		}
+		total.Escalation.EligibleStates += pass.Escalation.EligibleStates
+		total.Escalation.Calls += pass.Escalation.Calls
+		total.Escalation.StatesAsked += pass.Escalation.StatesAsked
+		total.Escalation.SkippedStates += pass.Escalation.SkippedStates
+		total.Escalation.SkippedCalls += pass.Escalation.SkippedCalls
+		total.Escalation.SameModelAnswers += pass.Escalation.SameModelAnswers
+		total.Escalation.Adopted += pass.Escalation.Adopted
+		total.Escalation.CallSeconds += pass.Escalation.CallSeconds
+	}
 	if total.Submitted > 0 {
 		total.Coverage = float64(total.Observed) / float64(total.Submitted)
 	}
 }
 
+// evaluateParams is everything one evaluate request carries.
+type evaluateParams struct {
+	Since           string
+	Limit           int
+	RunIDs          []string
+	Labels          []string
+	IncludeOptional bool
+	Force           bool
+	PinResourceRole string
+	Role            string
+	MessageIDs      []string
+}
+
 // evaluateBody is pure so the CLI parser can be tested without an API.
-func evaluateBody(since string, limit int, runIDs []string, includeOptional, force bool) (map[string]any, error) {
-	since = strings.TrimSpace(since)
+func evaluateBody(params evaluateParams) (map[string]any, error) {
+	since := strings.TrimSpace(params.Since)
 	if since != "" {
 		if _, err := time.Parse(time.RFC3339, since); err != nil {
 			return nil, fmt.Errorf("--since must be RFC3339: %w", err)
 		}
 	}
 	body := map[string]any{
-		"limit": limit, "include_optional": includeOptional, "force": force,
+		"limit": params.Limit, "include_optional": params.IncludeOptional, "force": params.Force,
 	}
 	if since != "" {
 		body["since"] = since
 	}
-	if len(runIDs) > 0 {
-		body["run_ids"] = append([]string(nil), runIDs...)
+	if len(params.RunIDs) > 0 {
+		body["run_ids"] = append([]string(nil), params.RunIDs...)
+	}
+	if len(params.Labels) > 0 {
+		body["labels"] = append([]string(nil), params.Labels...)
+	}
+	if len(params.MessageIDs) > 0 {
+		body["message_ids"] = append([]string(nil), params.MessageIDs...)
+	}
+	if params.PinResourceRole != "" {
+		body["pin_resource_role"] = params.PinResourceRole
+	}
+	if params.Role != "" {
+		body["role"] = params.Role
 	}
 	return body, nil
 }
@@ -528,6 +781,13 @@ func renderCoverage(out interface{ Write([]byte) (int, error) }, response covera
 		response.Pack.Name, response.Pack.Version, emptyAs(response.Window.Since, "start"),
 		emptyAs(response.Window.Until, "now"), emptyAs(response.CoverageBasis, "annotated_population"),
 		response.Weighting.Mode, response.Weighting.SampleRate)
+	if p := response.Provenance; p != nil {
+		fmt.Fprintf(out, "Operator text: %d of %d annotated run(s) carry a person's words (%d message(s)); %d are workflow briefs only (%d message(s)); %d have no operator text\n",
+			p.RunsHumanText, p.RunsAnnotated, p.HumanMessages, p.RunsBriefOnly, p.BriefMessages, p.RunsNoOperatorText)
+		if p.RunsStale > 0 {
+			fmt.Fprintf(out, "  %d run(s) were classified under an older provenance policy and are in no bucket yet: run `agent-manager annotations provenance`\n", p.RunsStale)
+		}
+	}
 	for _, label := range response.Labels {
 		renderCoverageLabel(out, label)
 	}
@@ -554,8 +814,28 @@ func renderCoverageLabel(out interface{ Write([]byte) (int, error) }, label cove
 	fmt.Fprintf(out, "%-30s %-11s gate=%-15s observed=%d/%d rate=%s friction=%s baseline=%s\n",
 		label.ID, label.State, gateState(label.Gate.State), label.Observed, label.Eligible,
 		rate, friction, emptyAs(label.BaselineState, "not_measured"))
+	if label.Population != nil {
+		fmt.Fprintf(out, "  %-28s against %d %s(s) a person wrote\n", "", label.Population.Eligible, label.Population.Unit)
+	}
+	for _, model := range label.Models {
+		fmt.Fprintf(out, "  %-28s %s @ %s: observed=%d positives=%d gate=%s%s\n", "",
+			emptyAs(model.Model, "(no model)"), emptyAs(model.ResourceRole, "-"), model.Observed, model.Positives,
+			gateState(model.Gate.State), provenNote(model))
+	}
 	if label.Eligible == 0 {
 		fmt.Fprintf(out, "  %-28s no rows in the window (unknown, not zero)\n", "")
+	}
+}
+
+// provenNote says why a model's answers are or are not in the label's rate.
+func provenNote(model modelCoverage) string {
+	switch {
+	case model.Proven:
+		return fmt.Sprintf(" (hold-out %d gold, precision %.2f recall %.2f, counted in the rate)", model.Gate.Gold, model.Gate.Precision, model.Gate.Recall)
+	case model.Gate.Reason != "":
+		return " (not counted in the rate: " + model.Gate.Reason + ")"
+	default:
+		return " (not counted in the rate)"
 	}
 }
 
@@ -569,6 +849,9 @@ func renderRun(out interface{ Write([]byte) (int, error) }, view runView) {
 	for _, annotation := range view.Labels {
 		fmt.Fprintf(out, "  %-30s %-11s method=%-14s %s gate=%s\n",
 			annotation.ID, annotation.State, annotation.Method, annotationValue(annotation), gateState(annotation.GateState))
+		if annotation.Model != "" {
+			fmt.Fprintf(out, "    answered by %s @ %s%s\n", annotation.Model, emptyAs(annotation.ResourceRole, "-"), calibratedNote(annotation))
+		}
 		if annotation.Reason != "" {
 			fmt.Fprintf(out, "    reason: %s\n", annotation.Reason)
 		}
@@ -578,6 +861,12 @@ func renderRun(out interface{ Write([]byte) (int, error) }, view runView) {
 	}
 	fmt.Fprintf(out, "Counts: observed=%d compatible=%d not_observed=%d unavailable=%d\n",
 		view.Counts.Observed, view.Counts.Compatible, view.Counts.NotObserved, view.Counts.Unavailable)
+	for _, message := range view.Messages {
+		fmt.Fprintf(out, "  message %s  %s\n", message.MessageID, emptyAs(message.At, "(no timestamp)"))
+		for _, annotation := range message.Labels {
+			fmt.Fprintf(out, "    %-28s %-11s %s gate=%s\n", annotation.ID, annotation.State, annotationValue(annotation), gateState(annotation.GateState))
+		}
+	}
 	if len(view.Missing) > 0 {
 		fmt.Fprintf(out, "No observation for: %s (unknown, not absent)\n", strings.Join(view.Missing, ", "))
 	}
@@ -608,6 +897,13 @@ func renderEvaluate(out interface{ Write([]byte) (int, error) }, result evaluate
 	}
 	if result.Submitted == 0 {
 		fmt.Fprintln(out, "No runs were selected: coverage is unknown, not zero friction.")
+	}
+	if result.Pinned != "" {
+		fmt.Fprintf(out, "Pinned to %s: the answers are stored apart from production; measure them with `annotations benchmark --pinned --resource-role %s`.\n", result.Pinned, result.Pinned)
+	}
+	if e := result.Escalation; e != nil {
+		fmt.Fprintf(out, "Escalation: %d state(s) below the confidence floor; %d call(s) made (%d state(s), %.1fs); %d call(s) skipped for %d state(s) because the escalation role answers with the same model; %d adopted\n",
+			e.EligibleStates, e.Calls, e.StatesAsked, e.CallSeconds, e.SkippedCalls, e.SkippedStates, e.Adopted)
 	}
 	if result.Truncated && result.Remaining > 0 {
 		fmt.Fprintf(out, "Stopped at the pass budget with %d run(s) still queued; run the command again to continue.\n", result.Remaining)
@@ -640,6 +936,15 @@ func annotationValue(annotation annotationView) string {
 	default:
 		return "value=unknown"
 	}
+}
+
+// calibratedNote shows the score a model's stored vector reads as at its own
+// measured temperature, when that differs from the stored one.
+func calibratedNote(annotation annotationView) string {
+	if annotation.CalibratedProbability == nil || annotation.Temperature == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" · calibrated p=%.2f at T=%.2f", *annotation.CalibratedProbability, annotation.Temperature)
 }
 
 func gateState(state string) string {

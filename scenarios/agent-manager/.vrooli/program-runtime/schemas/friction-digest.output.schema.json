@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "vrooli://agent-manager/friction-digest/output/v5",
+  "$id": "vrooli://agent-manager/friction-digest/output/v7",
   "title": "Agent Manager Friction Digest Envelope",
   "type": "object",
   "additionalProperties": false,
@@ -19,7 +19,7 @@
       "const": "agent-manager.friction-digest"
     },
     "version": {
-      "const": "5"
+      "const": "7"
     },
     "status": {
       "enum": [
@@ -292,7 +292,8 @@
             "coverage",
             "eligible_runs",
             "observed_runs",
-            "labels",
+            "proven",
+            "unproven",
             "label_count",
             "unproven_count",
             "note"
@@ -332,9 +333,102 @@
               ],
               "maxLength": 400
             },
-            "labels": {
+            "proven": {
               "type": "array",
               "maxItems": 24,
+              "description": "Friction labels with a rate: a model's hold-out proved them, and the rate counts that model's answers alone.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "group",
+                  "observed",
+                  "eligible",
+                  "coverage",
+                  "rate",
+                  "gate_state",
+                  "gold",
+                  "precision",
+                  "recall",
+                  "proven_observed",
+                  "model",
+                  "resource_role",
+                  "calibration",
+                  "ece"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "group": {
+                    "type": "string"
+                  },
+                  "observed": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "eligible": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "gate_state": {
+                    "type": "string"
+                  },
+                  "gold": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "coverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "precision": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "recall": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "proven_observed": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "resource_role": {
+                    "type": "string"
+                  },
+                  "calibration": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "raw",
+                      "calibrated",
+                      "rule"
+                    ]
+                  },
+                  "ece": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "unproven": {
+              "type": "array",
+              "maxItems": 24,
+              "description": "Friction labels with no rate: evidence only, named with their gate state.",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -344,8 +438,6 @@
                   "state",
                   "observed",
                   "eligible",
-                  "coverage",
-                  "rate",
                   "gate_state",
                   "gold",
                   "target_precision",
@@ -358,9 +450,6 @@
                   "group": {
                     "type": "string"
                   },
-                  "state": {
-                    "type": "string"
-                  },
                   "observed": {
                     "type": "integer",
                     "minimum": 0
@@ -369,25 +458,15 @@
                     "type": "integer",
                     "minimum": 0
                   },
-                  "coverage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "rate": {
-                    "type": [
-                      "number",
-                      "null"
-                    ],
-                    "minimum": 0,
-                    "maximum": 1
-                  },
                   "gate_state": {
                     "type": "string"
                   },
                   "gold": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "state": {
+                    "type": "string"
                   },
                   "target_precision": {
                     "type": "number"

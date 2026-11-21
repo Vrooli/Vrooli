@@ -20,8 +20,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/teamattribution"
-	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
-	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
@@ -93,68 +91,18 @@ type Client interface {
 // content plus the metadata that pins which skill revision produced it, so a
 // promptRef resolution can be recorded in a digest-deterministic way.
 type SkillSourceSnapshot struct {
-	SkillID      string
-	Description  string
-	Revision     int
-	VariantID    string
-	ExperimentID string
-	Content      string
-	ContentHash  string
+	SkillID     string
+	Description string
+	Revision    int
+	VariantID   string
+	Content     string
+	ContentHash string
 }
 
 // SourceClient exposes immutable source metadata for consumers that must pin
-// prompt interpretation into a durable revision. A non-empty experimentID arms
-// the read against that experiment; an empty experimentID pins the read so a
-// running experiment never silently varies the resolved prompt.
+// prompt interpretation into a durable revision.
 type SourceClient interface {
-	ReadSkillSource(ctx context.Context, skillID, experimentID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
-}
-
-// AssignmentRequest identifies the exact workflow dispatch that must receive a
-// stable experimental treatment.
-type AssignmentRequest struct {
-	ExperimentID   string
-	SkillID        string
-	ExecutionID    string
-	NodeID         string
-	AttemptKey     string
-	IdempotencyKey string
-	Variables      map[string]string
-	WithScope      bool
-}
-
-type AssignmentClient interface {
-	AssignExperimentPrompt(ctx context.Context, request AssignmentRequest) (SkillSourceSnapshot, error)
-}
-
-// ExperimentOutcome is the attribution payload posted back to prompt-manager
-// when a served variant reaches a run outcome.
-type ExperimentOutcome struct {
-	IdempotencyKey string                       `json:"idempotencyKey,omitempty"`
-	VariantID      string                       `json:"variantId"`
-	Source         string                       `json:"source"`
-	Data           json.RawMessage              `json:"data,omitempty"`
-	Controlled     *ControlledExperimentOutcome `json:"controlled,omitempty"`
-}
-
-type ControlledExperimentOutcome struct {
-	AssignmentID         string `json:"assignmentId"`
-	ExecutionID          string `json:"executionId"`
-	EvaluatorAttemptID   string `json:"evaluatorAttemptId"`
-	EvaluatorRunID       string `json:"evaluatorRunId"`
-	Verdict              string `json:"verdict,omitempty"`
-	Success              *bool  `json:"success,omitempty"`
-	OutcomeStatus        string `json:"outcomeStatus"`
-	RubricHash           string `json:"rubricHash"`
-	EvaluatorPromptHash  string `json:"evaluatorPromptHash"`
-	StructuredSchemaHash string `json:"structuredSchemaHash"`
-	EvidenceHash         string `json:"evidenceHash,omitempty"`
-}
-
-// OutcomeClient reports experiment outcomes to prompt-manager, attributing a
-// served variant to its run result.
-type OutcomeClient interface {
-	RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error
+	ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error)
 }
 
 // PromptSkill represents prompt-manager skill metadata and optional content.
@@ -253,15 +201,8 @@ func (c *HTTPClient) ReadSkill(ctx context.Context, skillID string, variables ma
 
 // ReadSkillSource resolves a skill and returns its content alongside the
 // immutable revision metadata used to pin a promptRef into a workflow revision.
-func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error) {
-	reqBody := &skillsv1.ReadSkillsRequest{Identifiers: []string{skillID}, Variables: variables, Output: "both", WithScope: withScope}
-	// An empty experimentID pins the read so a running experiment never silently
-	// arms this resolution; a non-empty one deliberately selects that experiment.
-	if experimentID == "" {
-		reqBody.VariantPolicy = "pinned"
-	} else {
-		reqBody.ExperimentId = experimentID
-	}
+func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID string, variables map[string]string, withScope bool) (SkillSourceSnapshot, error) {
+	reqBody := &skillsv1.ReadSkillsRequest{Identifiers: []string{skillID}, Variables: variables, Output: "both", WithScope: withScope, VariantPolicy: "pinned"}
 	readResp, err := c.readSkills(ctx, reqBody)
 	if err != nil {
 		return SkillSourceSnapshot{}, err
@@ -275,76 +216,13 @@ func (c *HTTPClient) ReadSkillSource(ctx context.Context, skillID, experimentID 
 		variant = "control"
 	}
 	return SkillSourceSnapshot{
-		SkillID:      skill.GetId(),
-		Description:  skill.GetDescription(),
-		Revision:     int(skill.GetRevision()),
-		VariantID:    variant,
-		ExperimentID: strings.TrimSpace(readResp.GetExperimentId()),
-		Content:      readResp.GetCombined(),
-		ContentHash:  readResp.GetCombinedHash(),
+		SkillID:     skill.GetId(),
+		Description: skill.GetDescription(),
+		Revision:    int(skill.GetRevision()),
+		VariantID:   variant,
+		Content:     readResp.GetCombined(),
+		ContentHash: readResp.GetCombinedHash(),
 	}, nil
-}
-
-func (c *HTTPClient) AssignExperimentPrompt(ctx context.Context, assignment AssignmentRequest) (SkillSourceSnapshot, error) {
-	if assignment.ExperimentID == "" || assignment.SkillID == "" || assignment.ExecutionID == "" || assignment.NodeID == "" || assignment.AttemptKey == "" || assignment.IdempotencyKey == "" {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: complete workflow assignment identity is required")
-	}
-	client, err := c.experimentsClient(ctx)
-	if err != nil {
-		return SkillSourceSnapshot{}, err
-	}
-	resp, err := client.AssignExperiment(ctx, connect.NewRequest(&experimentsv1.AssignExperimentRequest{
-		ExperimentId: assignment.ExperimentID, ExecutionId: assignment.ExecutionID,
-		NodeId: assignment.NodeID, AttemptKey: assignment.AttemptKey,
-		IdempotencyKey: assignment.IdempotencyKey, Variables: assignment.Variables, WithScope: assignment.WithScope,
-	}))
-	if err != nil {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: assign experiment: %w", err)
-	}
-	assigned := resp.Msg
-	if assigned.GetExperimentId() != assignment.ExperimentID || assigned.GetSkillId() != assignment.SkillID || assigned.GetVariantId() == "" || strings.TrimSpace(assigned.GetContent()) == "" || assigned.GetContentHash() == "" {
-		return SkillSourceSnapshot{}, fmt.Errorf("promptmanager: assignment response is incomplete or mismatched")
-	}
-	return SkillSourceSnapshot{SkillID: assigned.GetSkillId(), ExperimentID: assigned.GetExperimentId(), VariantID: assigned.GetVariantId(), Content: assigned.GetContent(), ContentHash: assigned.GetContentHash()}, nil
-}
-
-// RecordExperimentOutcome posts an outcome to a running experiment, attributing
-// a served variant to its run result.
-func (c *HTTPClient) RecordExperimentOutcome(ctx context.Context, experimentID string, outcome ExperimentOutcome) error {
-	if strings.TrimSpace(experimentID) == "" {
-		return fmt.Errorf("promptmanager: experimentID is required")
-	}
-	client, err := c.experimentsClient(ctx)
-	if err != nil {
-		return err
-	}
-	data, err := rawJSONValue(outcome.Data)
-	if err != nil {
-		return fmt.Errorf("promptmanager: encode outcome data: %w", err)
-	}
-	var controlled *structpb.Struct
-	if outcome.Controlled != nil {
-		raw, marshalErr := json.Marshal(outcome.Controlled)
-		if marshalErr != nil {
-			return fmt.Errorf("promptmanager: encode controlled outcome: %w", marshalErr)
-		}
-		var object map[string]any
-		if unmarshalErr := json.Unmarshal(raw, &object); unmarshalErr != nil {
-			return fmt.Errorf("promptmanager: encode controlled outcome: %w", unmarshalErr)
-		}
-		controlled, err = structpb.NewStruct(object)
-		if err != nil {
-			return fmt.Errorf("promptmanager: encode controlled outcome: %w", err)
-		}
-	}
-	_, err = client.RecordOutcome(ctx, connect.NewRequest(&experimentsv1.RecordOutcomeRequest{
-		ExperimentId: experimentID, IdempotencyKey: outcome.IdempotencyKey,
-		VariantId: outcome.VariantID, Source: outcome.Source, Data: data, Controlled: controlled,
-	}))
-	if err != nil {
-		return fmt.Errorf("promptmanager: record experiment outcome: %w", err)
-	}
-	return nil
 }
 
 // PublishFriction writes one investigation observation to the existing
@@ -582,25 +460,6 @@ func (c *HTTPClient) skillsClient(ctx context.Context) (skillsconnect.SkillsServ
 		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
 	}
 	return skillsconnect.NewSkillsServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
-}
-
-func (c *HTTPClient) experimentsClient(ctx context.Context) (experimentsconnect.ExperimentsServiceClient, error) {
-	baseURL, err := c.baseURLResolver(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("promptmanager: resolve URL: %w", err)
-	}
-	return experimentsconnect.NewExperimentsServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
-}
-
-func rawJSONValue(raw json.RawMessage) (*structpb.Value, error) {
-	if len(raw) == 0 {
-		return nil, nil
-	}
-	var value any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return nil, err
-	}
-	return structpb.NewValue(value)
 }
 
 func (c *HTTPClient) readSkills(ctx context.Context, req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {

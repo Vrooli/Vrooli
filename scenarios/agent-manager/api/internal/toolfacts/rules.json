@@ -1,0 +1,81 @@
+{
+  "unchanged_window": 64,
+  "chunk_min_events": 64,
+  "chunk_max_events": 4096,
+  "max_line_bytes": 10485760,
+  "result_head_bytes": 65536,
+  "result_tail_bytes": 16384,
+  "path_keys": [
+    "file_path",
+    "path",
+    "filePath",
+    "notebook_path"
+  ],
+  "normalize": [
+    {
+      "id": "codex-wall-time",
+      "applies": "result",
+      "hint": "Wall time",
+      "pattern": "Wall time[: ]+[0-9.]+ ?(seconds|s)",
+      "replace": "Wall time"
+    },
+    {
+      "id": "clock-time",
+      "applies": "result",
+      "hint": ":",
+      "pattern": "\\b\\d{1,2}:\\d{2}:\\d{2}(\\.\\d+)?",
+      "replace": "<time>"
+    }
+  ],
+  "tail_calls": [
+    64,
+    200
+  ],
+  "wait_commands": [
+    {
+      "id": "sleep",
+      "pattern": "^(sleep|timeout|wait)\\b"
+    },
+    {
+      "id": "wait-or-status-subcommand",
+      "pattern": "^\\S+ (?:[^ -]\\S* )?(?:wait|await|await-result|status|poll|watch)\\b",
+      "exclude": "--help|-h( |$)|^git "
+    },
+    {
+      "id": "run-and-effort-queries",
+      "pattern": "^agent-manager (?:run (?:get|list|result|messages)|effort (?:board|signals|lint))\\b",
+      "exclude": "--help|-h( |$)"
+    },
+    {
+      "id": "health-probe",
+      "pattern": "^curl\\b.*/(?:health|healthz|ready|status)\\b"
+    }
+  ],
+  "park_commands": [
+    {
+      "id": "run-park",
+      "pattern": "^agent-manager run park\\b",
+      "exclude": "--help|-h( |$)",
+      "key": "--key[ =](\\S+)|^agent-manager run park (\\S+)"
+    },
+    {
+      "id": "effort-park",
+      "pattern": "^agent-manager effort park\\b",
+      "exclude": "--help|-h( |$)",
+      "key": "^agent-manager effort park (\\S+)"
+    }
+  ],
+  "goal_update": {
+    "tool": "update_goal",
+    "status_key": "status",
+    "code_pattern": "tools\\.update_goal\\(\\s*(?:\\{[^{}]*?status\\s*:\\s*[\"']([a-z_]+)[\"'])?",
+    "statuses": [
+      "blocked",
+      "paused",
+      "complete",
+      "active",
+      "usage_limited",
+      "budget_limited"
+    ]
+  }
+}

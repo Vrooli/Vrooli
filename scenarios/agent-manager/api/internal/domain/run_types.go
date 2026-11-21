@@ -926,7 +926,6 @@ type RunConfig struct {
 	// downgrading to a host launcher when the workspace boundary is absent.
 	RequireEffectContainment bool     `json:"requireEffectContainment,omitempty"`
 	SkillPack                []string `json:"skillPack,omitempty"`
-	SkillExperimentID        string   `json:"skillExperimentId,omitempty"`
 
 	// Admission records the requested-versus-effective configuration proven
 	// for this admitted run. Nil on historical rows created before adoption.
@@ -974,7 +973,6 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
 	c.SkillPack = append([]string(nil), profile.SkillPack...)
-	c.SkillExperimentID = profile.SkillExperimentID
 }
 
 // DefaultRunConfig returns sensible defaults for run configuration.

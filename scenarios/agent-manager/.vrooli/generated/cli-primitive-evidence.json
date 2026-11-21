@@ -12,6 +12,11 @@
       "command": "benchmark"
     },
     {
+      "path": "annotations calibration",
+      "group": "annotations",
+      "command": "calibration"
+    },
+    {
       "path": "annotations coverage",
       "group": "annotations",
       "command": "coverage"
@@ -37,6 +42,11 @@
       "command": "packs"
     },
     {
+      "path": "annotations provenance",
+      "group": "annotations",
+      "command": "provenance"
+    },
+    {
       "path": "annotations run",
       "group": "annotations",
       "command": "run"
@@ -45,6 +55,11 @@
       "path": "annotations scheduler",
       "group": "annotations",
       "command": "scheduler"
+    },
+    {
+      "path": "annotations series",
+      "group": "annotations",
+      "command": "series"
     },
     {
       "path": "annotations show",

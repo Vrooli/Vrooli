@@ -278,3 +278,45 @@ func TestConversationHumanTextStripsTerminalControls(t *testing.T) {
 		t.Fatalf("sanitized text=%q", got)
 	}
 }
+
+func TestConversationIndexStatusPrintsUnknownInsteadOfZeroSemanticCoverage(t *testing.T) {
+	for _, test := range []struct {
+		name, body string
+		want       []string
+		notWant    string
+	}{
+		{
+			name: "unobserved probe",
+			body: `{"state":"CONVERSATION_INDEX_STATE_DEGRADED","activeGeneration":"gen-1","degradedDependencies":["semantic-coverage: unknown: probe timed out"],"coverage":{"lexicalDocuments":"5","catalogDocuments":"5","lexicalRatio":1}}`,
+			want: []string{"semantic=unknown", "semantic-coverage: unknown: probe timed out"}, notWant: "semantic=0",
+		},
+		{
+			name: "observed empty collection",
+			body: `{"state":"CONVERSATION_INDEX_STATE_DEGRADED","activeGeneration":"gen-1","degradedDependencies":["semantic: semantic retrieval unavailable: collection holds no semantic vectors"],"coverage":{"lexicalDocuments":"5","catalogDocuments":"5","lexicalRatio":1}}`,
+			want: []string{"semantic=0", "semantic=0.0%"}, notWant: "semantic=unknown",
+		},
+		{
+			name: "observed coverage",
+			body: `{"state":"CONVERSATION_INDEX_STATE_READY","activeGeneration":"gen-1","coverage":{"lexicalDocuments":"5","catalogDocuments":"5","semanticDocuments":"4","semanticRatio":0.8,"lexicalRatio":1}}`,
+			want: []string{"semantic=4", "semantic=80.0%"}, notWant: "semantic=unknown",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, _ := newConversationTestApp(t, func(path string) (int, string) {
+				if path == "/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus" {
+					return http.StatusOK, test.body
+				}
+				return http.StatusNotFound, `{}`
+			})
+			output := captureStdout(t, func() error { return app.conversationIndexStatus(nil) })
+			for _, want := range test.want {
+				if !strings.Contains(output, want) {
+					t.Fatalf("output missing %q:\n%s", want, output)
+				}
+			}
+			if strings.Contains(output, test.notWant) {
+				t.Fatalf("output must not contain %q:\n%s", test.notWant, output)
+			}
+		})
+	}
+}

@@ -1,4 +1,4 @@
-"""agent-manager.friction-digest v5 — the owner-level tool friction of one owning scenario.
+"""agent-manager.friction-digest v7 — the owner-level tool friction of one owning scenario.
 
 Contract: friction-digest.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager §4 (the [S3] leaf), agent-manager-improve §3 (the fleet friction sensor),
@@ -23,10 +23,11 @@ policy_version = str(inputs.get("policy_version", "")).strip()
 outcome_limit = int(inputs.get("outcome_limit", 100))
 MAX_TOP_N = 10
 MAX_DESCRIPTION_CHARS = 280
+MAX_LABELS = 24
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.friction-digest", "version": "5",
+    "program": "agent-manager.friction-digest", "version": "7",
     "status": "failed", "phase": "validate",
     "inputs": {"scenario": scenario, "window_days": window_days, "top_n": top_n},
     "signals": {
@@ -42,7 +43,7 @@ envelope = {
         "supervision_outcome_coverage": None, "supervision_coverage_reason": "pending_telemetry",
         "inferred_annotations": {
             "pack": None, "coverage": 0.0, "eligible_runs": 0, "observed_runs": 0,
-            "labels": [], "label_count": 0, "unproven_count": 0, "note": None,
+            "proven": [], "unproven": [], "label_count": 0, "unproven_count": 0, "note": None,
         },
     },
     "errors": [], "evidence": [],
@@ -142,9 +143,11 @@ def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
             "cost_share": float(finding.get("costShare") or 0.0), "status": finding.get("status"),
         })
     # Inferred annotations ride the same friction read. Coverage is always
-    # stated; a rate exists only for a measured gate, and an unproven label is
-    # evidence, never a rate. Only friction-lens labels are carried because this
-    # digest is about friction, not the whole vocabulary.
+    # stated. A label is listed with a rate only when a model's hold-out proved
+    # it (the rate counts that model's answers alone); every other friction label
+    # is named with its gate state and no rate: unproven is evidence, never a
+    # rate. Only friction-lens labels are carried because this digest is about
+    # friction, not the whole vocabulary.
     inferred = record.get("inferredAnnotations") or {}
     annotations = sig["inferred_annotations"]
     if inferred.get("packName") or inferred.get("packVersion"):
@@ -157,22 +160,23 @@ def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
         if not row.get("friction"):
             continue
         annotations["label_count"] += 1
-        if row.get("gateState") != "proven":
-            annotations["unproven_count"] += 1
-        if len(annotations["labels"]) >= 24:
-            continue
+        identity = {"id": str(row.get("id") or ""), "group": str(row.get("group") or ""),
+                    "observed": int(row.get("observed") or 0), "eligible": int(row.get("eligible") or 0),
+                    "gate_state": str(row.get("gateState") or ""), "gold": int(row.get("gold") or 0)}
         rate = row.get("rate")
-        annotations["labels"].append({
-            "id": str(row.get("id") or ""), "group": str(row.get("group") or ""),
-            "state": str(row.get("state") or ""),
-            "observed": int(row.get("observed") or 0), "eligible": int(row.get("eligible") or 0),
-            "coverage": float(row.get("coverage") or 0.0),
-            "rate": float(rate) if rate is not None else None,
-            "gate_state": str(row.get("gateState") or ""),
-            "gold": int(row.get("gold") or 0),
-            "target_precision": float(row.get("targetPrecision") or 0.0),
-            "target_recall": float(row.get("targetRecall") or 0.0),
-        })
+        if rate is not None:
+            if len(annotations["proven"]) < MAX_LABELS:
+                annotations["proven"].append({**identity, "coverage": float(row.get("coverage") or 0.0), "rate": float(rate),
+                                              "proven_observed": int(row.get("provenObserved") or 0),
+                                              "model": str(row.get("gateModel") or ""), "resource_role": str(row.get("gateRole") or ""),
+                                              "calibration": str(row.get("calibration") or ""), "ece": float(row.get("ece") or 0.0),
+                                              "precision": float(row.get("precision") or 0.0), "recall": float(row.get("recall") or 0.0)})
+            continue
+        annotations["unproven_count"] += 1
+        if len(annotations["unproven"]) < MAX_LABELS:
+            annotations["unproven"].append({**identity, "state": str(row.get("state") or ""),
+                                            "target_precision": float(row.get("targetPrecision") or 0.0),
+                                            "target_recall": float(row.get("targetRecall") or 0.0)})
     if sig["below_floor_for_scenario"] or sig["beyond_limit_for_scenario"]:
         envelope["status"] = "partial"
         envelope["errors"].append({

@@ -12,12 +12,12 @@ import (
 // opportunitiesMeasure is the registry measure `usage opportunities` reads.
 const opportunitiesMeasure = "usage.opportunities"
 
-// opportunitiesFetch executes the measure with the given parameters and
+// measureFetch executes a registry measure with the given parameters and
 // returns the registry's JSON body; tests replace it.
-type opportunitiesFetch func(cliapp.RunContext, map[string]string) ([]byte, error)
+type measureFetch func(cliapp.RunContext, string, map[string]string) ([]byte, error)
 
-func registryFetch(ctx cliapp.RunContext, params map[string]string) ([]byte, error) {
-	return ctx.Core().RequestRoot("POST", "measures/execute", nil, map[string]any{"measure": opportunitiesMeasure, "params": params})
+func registryFetch(ctx cliapp.RunContext, measure string, params map[string]string) ([]byte, error) {
+	return ctx.Core().RequestRoot("POST", "measures/execute", nil, map[string]any{"measure": measure, "params": params})
 }
 
 // opportunityRow is one row of the measure: the coverage row (kind
@@ -36,19 +36,19 @@ func (r opportunityRow) lines(key string) []string {
 	return strings.Split(r[key], "\n")
 }
 
-func opportunitiesCommand(fetch opportunitiesFetch) cliapp.Command {
+func opportunitiesCommand(fetch measureFetch) cliapp.Command {
 	return cliapp.Command{
 		Name: "opportunities", NeedsAPI: true,
 		Description: "What should become a program, CLI command, flag or smaller skill? [--since RFC3339|YYYY-MM-DD] [--json]",
 		Usage:       "agent-manager usage opportunities [--since RFC3339|YYYY-MM-DD] [--json]",
 		HelpText:    "Lists, grouped by the owner who can act (owners in the order of their best-ranked opportunity) and ranked by calls saved, what agents repeatedly do by hand in the window (default the last 7 days): Vrooli command sequences seen in three or more sessions, matched against the program library (adopt an existing program, or write one); direct sqlite3, HTTP or state-directory reads of a scenario's internals that want a CLI command or RPC; JSON fields agents cut out with jq that want a focused flag; skills read again while still in context. Each names its evidence runs, example commands and the check that shows the change worked. The coverage line says what was read: an empty list means nothing only beside it. Candidates are records for the owner, never built automatically. --json prints the measure rows (`measures get usage.opportunities`).",
-		Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "since", Description: "RFC 3339 or YYYY-MM-DD start of the window (default 7 days ago)"}}},
+		Args:        cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "since", Description: "Start of the window: RFC 3339, YYYY-MM-DD or an age such as 7d (default 7 days ago)"}}},
 		RunCtx: func(ctx cliapp.RunContext) error {
 			params := map[string]string{}
 			if since := strings.TrimSpace(ctx.Flag("since")); since != "" {
 				params["since"] = since
 			}
-			body, err := fetch(ctx, params)
+			body, err := fetch(ctx, opportunitiesMeasure, params)
 			if err != nil {
 				return err
 			}

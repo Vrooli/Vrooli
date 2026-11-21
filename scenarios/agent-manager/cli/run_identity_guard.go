@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -18,7 +17,7 @@ import (
 // admits an approved run-deletion or agent.manage grant (stop-all: one covering
 // every run) and otherwise answers with the `vrooli agent authorize` command.
 func rejectRunIdentityLifecycleCommand(subcommand string) error {
-	token, _ := os.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
+	token, _ := ambient.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
 	if strings.TrimSpace(token) == "" {
 		return nil
 	}

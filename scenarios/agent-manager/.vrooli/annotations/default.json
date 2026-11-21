@@ -1,7 +1,7 @@
 {
   "pack": {
     "name": "default",
-    "version": "2026-11-20.6",
+    "version": "2026-11-21.1",
     "runtime": {
       "mode": "passive",
       "default_role": "decide.fast",
@@ -9,20 +9,34 @@
       "escalation": {
         "enabled": true,
         "min_confidence": 0.55,
-        "max_labels": 16
+        "max_labels": 16,
+        "same_model_ttl": "10m"
       },
       "batch": {
         "max_states": 8,
         "max_questions": 4
       },
-      "backfill_horizon_days": 30,
+      "backfill_horizon_days": 45,
       "budgets": {
         "max_runs_per_pass": 50,
         "max_decision_states_per_pass": 64,
-        "max_seconds_per_pass": 90
+        "max_seconds_per_pass": 90,
+        "max_messages_per_run": 48
       },
-      "model_affinity": "laya",
-      "digest_chars": 1200
+      "digest_chars": 1200,
+      "provenance": {
+        "brief_workloads": ["workflow_node", "scheduled"],
+        "seed_brief_workloads": ["adhoc"],
+        "delegated_by_lineage": true,
+        "delegating_openings": ["(?i)^\\s*agent manager lineage:"],
+        "agent_markers": [
+          "^\\s*# E\\d+\\b",
+          "\\bRead E\\d+ D\\d+\\b",
+          "FEEDBACK\\.md",
+          "(?i)^\\s*(supervisor directive|directive f\\d+|coordination\\b|urgent\\b)",
+          "(?i)\\b(root owner window|transition checkpoint)\\b"
+        ]
+      }
     },
     "labels": [
       {
@@ -168,21 +182,22 @@
         }
       },
       {
-        "id": "agent.spinning",
+        "id": "agent.discovery_slow",
         "group": "agent",
-        "description": "The agent repeated work without making progress: re-reading the same paths, retrying failed commands, or burning turns with no new evidence.",
+        "description": "The agent lost significant time finding how or where to act. Optional: about 2 percent of candidate runs in the gold reading, too rare to gate.",
         "scope": "run",
         "method": "decision",
+        "optional": true,
         "question": {
           "type": "noul",
-          "instructions": "The state is a bounded digest of one coding-agent run. Decide whether the agent repeated work without making progress: it re-read the same file, re-ran the same command, or retried the same failing operation enough times to cost meaningful time. The tool block reports repeated_paths (the same path touched again), repeated_commands (the same command issued again), failed_commands and the number of distinct failures. Many *different* failures while the run keeps producing new results is normal debugging, not spinning.",
-          "true_description": "The same path or command was repeated at least ten times, or the same failing operation was retried repeatedly while the run stalled without new results.",
-          "false_description": "There is no evidence of substantial repeated work: failures were distinct, were worked around, or repetition stayed incidental to progress."
+          "instructions": "Did the agent lose significant time finding the right file, command or syntax before it could act?",
+          "true_description": "Significant time lost discovering the right file, command or contract.",
+          "false_description": "Acted without notable delay in finding the target."
         },
         "evidence": [
           {
             "source": "timings",
-            "field": "duration_min"
+            "field": "time_to_first_tool_min"
           },
           {
             "source": "tool_summary",
@@ -193,83 +208,12 @@
             "field": "repeated_paths"
           },
           {
-            "source": "operator_messages",
-            "field": "last_text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
-          }
-        ],
-        "candidates": "duration_min >= 8 || failed_commands >= 2 || repeated_paths >= 3 || repeated_commands >= 3",
-        "sampling": {
-          "rate": 0.35,
-          "stratum": "candidate"
-        },
-        "gate": {
-          "precision": 0.8,
-          "recall": 0.7,
-          "min_gold": 40,
-          "measured": {
-            "precision": 0.13,
-            "recall": 0.75,
-            "gold": 47,
-            "threshold": 0.6,
-            "definition_hash": "065f9b82eacc8d39165818e839dfe9994d433bec26856365eac5fa7affb41fd9"
-          }
-        },
-        "search": {
-          "facet": "label:agent.spinning",
-          "min_probability": 0.6
-        },
-        "friction": {
-          "enabled": true,
-          "min_probability": 0.6,
-          "cost_unit": "run",
-          "importance": "high"
-        },
-        "compatibility": {
-          "change": "breaking",
-          "compatible_with": []
-        },
-        "require": "agent_text_count > 0 || tool_calls > 0"
-      },
-      {
-        "id": "agent.discovery_slow",
-        "group": "agent",
-        "description": "The agent took too long to find the right file, command or contract before it could act.",
-        "scope": "run",
-        "method": "decision",
-        "question": {
-          "type": "score",
-          "instructions": "The state is a bounded digest of one coding-agent run. Score how much time the agent lost discovering where or how to act: repeated failed commands, retried tools, repeated path reads and a long time before the first tool call. 0 means discovery was quick and direct; 4 means discovery dominated the run.",
-          "levels": [
-            "0: found the target immediately",
-            "1: minor searching, no material delay",
-            "2: noticeable discovery cost",
-            "3: most of the run was spent discovering the target",
-            "4: discovery dominated and the run barely progressed"
-          ]
-        },
-        "evidence": [
-          {
-            "source": "timings",
-            "field": "time_to_first_tool_min"
-          },
-          {
             "source": "tool_summary",
-            "field": "failures"
-          },
-          {
-            "source": "tool_summary",
-            "field": "repeated_paths"
-          },
-          {
-            "source": "tool_summary",
-            "field": "failed_tools"
+            "field": "last_error"
           }
         ],
         "candidates": "duration_min >= 15 || tool_failures >= 3 || repeated_paths >= 2",
+        "require": "tool_calls > 0",
         "sampling": {
           "rate": 0.35,
           "stratum": "candidate"
@@ -287,140 +231,26 @@
           "enabled": true,
           "min_probability": 0.6,
           "cost_unit": "run",
-          "importance": "medium",
-          "min_score": 2
-        },
-        "compatibility": {
-          "change": "breaking",
-          "compatible_with": []
-        },
-        "require": "tool_calls > 0"
-      },
-      {
-        "id": "agent.objective_lost",
-        "group": "agent",
-        "description": "The run kept working after its objective was no longer present. A deterministic step-back trigger is the prior; the decision model answers the residual.",
-        "scope": "run",
-        "method": "decision",
-        "prior_rule": "'objective-lost' in stepback_triggers",
-        "question": {
-          "type": "noul",
-          "instructions": "The state is a bounded digest of one coding-agent run. Does the evidence show that the agent lost the original objective: work continued on a stale or different goal, or a compaction omitted the objective and the turn kept going?",
-          "true_description": "The run's work no longer matches the stated objective, or a step-back trigger shows the objective was lost.",
-          "false_description": "The run stayed on its objective, or the evidence cannot establish that it was lost."
-        },
-        "evidence": [
-          {
-            "source": "deterministic_flags",
-            "field": "stepback_triggers"
-          },
-          {
-            "source": "deterministic_flags",
-            "field": "compaction_count"
-          },
-          {
-            "source": "operator_messages",
-            "field": "text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
-          }
-        ],
-        "candidates": "compaction_count > 0 || duration_min >= 30",
-        "sampling": {
-          "rate": 0.5,
-          "stratum": "candidate"
-        },
-        "gate": {
-          "precision": 0.8,
-          "recall": 0.7,
-          "min_gold": 30
-        },
-        "search": {
-          "facet": "label:agent.objective_lost",
-          "min_probability": 0.6
-        },
-        "friction": {
-          "enabled": true,
-          "min_probability": 0.6,
-          "cost_unit": "run",
-          "importance": "high"
-        },
-        "compatibility": {
-          "change": "breaking",
-          "compatible_with": []
-        },
-        "require": "operator_message_count > 0 || agent_text_count > 0"
-      },
-      {
-        "id": "agent.scope_drift",
-        "group": "agent",
-        "description": "The run did work outside the requested scope: touching unrelated files, changing unrelated modules, or expanding the task without being asked.",
-        "scope": "run",
-        "method": "decision",
-        "question": {
-          "type": "noul",
-          "instructions": "The state is a bounded digest of one coding-agent run. Does the evidence show scope drift: work on files or modules outside the requested task, or an unrequested expansion of the work?",
-          "true_description": "The run changed or investigated work outside the stated scope without an operator request.",
-          "false_description": "The run stayed within the requested scope, or the evidence cannot establish drift."
-        },
-        "evidence": [
-          {
-            "source": "operator_messages",
-            "field": "text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
-          },
-          {
-            "source": "tool_summary",
-            "field": "repeated_paths"
-          },
-          {
-            "source": "terminal",
-            "field": "status"
-          }
-        ],
-        "candidates": "operator_message_count >= 3 && duration_min >= 10",
-        "sampling": {
-          "rate": 0.4,
-          "stratum": "candidate"
-        },
-        "gate": {
-          "precision": 0.8,
-          "recall": 0.7,
-          "min_gold": 30
-        },
-        "search": {
-          "facet": "label:agent.scope_drift",
-          "min_probability": 0.6
-        },
-        "friction": {
-          "enabled": true,
-          "min_probability": 0.6,
-          "cost_unit": "run",
           "importance": "medium"
         },
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
-        },
-        "require": "operator_message_count > 0 && agent_text_count > 0"
+        }
       },
       {
         "id": "work.blocked_by_tool",
         "group": "work",
-        "description": "The work was blocked by a tool failure or a broken tool contract. Existing tool findings are the prior.",
+        "description": "A tool, command or service error, refusal, rate limit or outage stopped the agent from finishing or verifying a required step. A test or review that correctly reports a defect does not count. Existing tool findings are the prior. Optional (skipped unless asked for) since the bake-off: every measured model of 512 to 1024 tokens answers at chance on the hold-out (fitted temperature at its cap of 20, hold-out precision 0.33 at best), the 8192-token models could not be loaded, and a rule over the failure counters scored precision 0.75 and recall 0.27 on the hold-out. Re-enable after a model with the context to read the agent's text, or a digest that keeps it, is measured (notes/J2-bakeoff.md).",
+        "optional": true,
         "scope": "run",
         "method": "decision",
         "prior_rule": "size(tool_findings) > 0",
         "question": {
           "type": "noul",
-          "instructions": "The state is a bounded digest of one coding-agent run. Was the work blocked by a tool: a command that failed and could not be worked around, a missing tool, or a broken tool contract?",
-          "true_description": "A tool failure prevented or materially delayed the requested work.",
-          "false_description": "Tools worked, or a failure was worked around without blocking the work."
+          "instructions": "Did a tool, command or service error, refusal, rate limit or outage stop the agent from finishing or verifying a required step?",
+          "true_description": "Blocked: an error, refusal, rate limit or outage stopped a required step.",
+          "false_description": "Not blocked: a test or review that correctly reports a defect is not a tool failure."
         },
         "evidence": [
           {
@@ -436,11 +266,16 @@
             "field": "last_error"
           },
           {
+            "source": "agent_text",
+            "field": "last_text"
+          },
+          {
             "source": "deterministic_flags",
             "field": "tool_findings"
           }
         ],
         "candidates": "tool_failures >= 2 || failed_commands >= 1",
+        "require": "tool_failures > 0 || failed_commands > 0 || size(tool_findings) > 0",
         "sampling": {
           "rate": 0.6,
           "stratum": "candidate"
@@ -448,7 +283,297 @@
         "gate": {
           "precision": 0.8,
           "recall": 0.7,
-          "min_gold": 30
+          "min_gold": 30,
+          "measurements": [
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.1852,
+              "recall": 1,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.498601,
+              "temperature": 20,
+              "ece": 0.3619,
+              "brier": 0.2506,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-20T21:16:01Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.2326,
+              "recall": 1,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.498601,
+              "temperature": 20,
+              "ece": 0.2924,
+              "brier": 0.2498,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-20T21:16:02Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.4,
+              "recall": 0.4,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.509166,
+              "temperature": 20,
+              "ece": 0.3634,
+              "brier": 0.2518,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-20T23:13:03Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.2,
+              "recall": 0.1,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.509166,
+              "temperature": 20,
+              "ece": 0.2937,
+              "brier": 0.2505,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-20T23:13:04Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.2308,
+              "recall": 0.6,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.505655,
+              "temperature": 20,
+              "ece": 0.3659,
+              "brier": 0.2536,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-20T23:22:07Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.2,
+              "recall": 0.3,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.505655,
+              "temperature": 20,
+              "ece": 0.2964,
+              "brier": 0.2527,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-20T23:22:09Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.2308,
+              "recall": 0.6,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.559658,
+              "temperature": 20,
+              "ece": 0.4142,
+              "brier": 0.2907,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-20T23:41:26Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.2143,
+              "recall": 0.3,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.559658,
+              "temperature": 20,
+              "ece": 0.3409,
+              "brier": 0.2795,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-20T23:41:27Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.2105,
+              "recall": 0.8,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.510564,
+              "temperature": 20,
+              "ece": 0.3726,
+              "brier": 0.2586,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-20T23:48:44Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.3333,
+              "recall": 0.8,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.510564,
+              "temperature": 20,
+              "ece": 0.302,
+              "brier": 0.255,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-20T23:48:45Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.2273,
+              "recall": 1,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.527966,
+              "temperature": 20,
+              "ece": 0.3888,
+              "brier": 0.2701,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-21T00:26:56Z"
+            },
+            {
+              "definition_hash": "08905bea85726626e548b04f5706c92d34a082b26d9f5f618be257f25cd3ba26",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.2381,
+              "recall": 0.5,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.527966,
+              "temperature": 20,
+              "ece": 0.3169,
+              "brier": 0.2652,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-21T00:26:57Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.3333,
+              "recall": 0.8,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.557252,
+              "temperature": 20,
+              "ece": 0.4077,
+              "brier": 0.2836,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-21T04:10:02Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.375,
+              "recall": 0.3,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.557252,
+              "temperature": 20,
+              "ece": 0.3361,
+              "brier": 0.2775,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-21T04:10:15Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.25,
+              "recall": 0.6,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.504716,
+              "temperature": 20,
+              "ece": 0.3635,
+              "brier": 0.2521,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-21T04:16:46Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.2143,
+              "recall": 0.3,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.504716,
+              "temperature": 20,
+              "ece": 0.2929,
+              "brier": 0.2506,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-21T04:16:53Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.4,
+              "recall": 0.4,
+              "gold": 36,
+              "positives": 5,
+              "threshold": 0.533704,
+              "temperature": 20,
+              "ece": 0.3884,
+              "brier": 0.2697,
+              "split": "tuning",
+              "gold_file": "work.blocked_by_tool.tuning.jsonl",
+              "measured_at": "2026-11-21T04:33:09Z"
+            },
+            {
+              "definition_hash": "73382614d50313026e88cacc0f26db5f0d162650e388a10b0996f1557552c094",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0,
+              "recall": 0,
+              "gold": 48,
+              "positives": 10,
+              "threshold": 0.533704,
+              "temperature": 20,
+              "ece": 0.3148,
+              "brier": 0.2634,
+              "split": "holdout",
+              "gold_file": "work.blocked_by_tool.holdout.jsonl",
+              "measured_at": "2026-11-21T04:33:23Z"
+            }
+          ]
         },
         "search": {
           "facet": "label:work.blocked_by_tool",
@@ -463,153 +588,830 @@
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
-        },
-        "require": "tool_failures > 0 || failed_commands > 0 || size(tool_findings) > 0"
+        }
       },
       {
-        "id": "interaction.misunderstanding",
-        "group": "interaction",
-        "description": "Operator and agent misread each other: the operator had to correct what the agent thought was meant. Existing correction signals are the prior.",
-        "scope": "run",
+        "id": "operator.dissatisfied",
+        "group": "operator",
+        "description": "The operator's own message shows dissatisfaction with, or pushback on, the agent's work, pace or progress, mildly or strongly. Mild pushback is most of what operators write (34 of 49 gold positives; 7 are plain anger), so the label is named for it. A specific defect report, a design preference, a plain question or praise with a small note is not dissatisfaction. One answer per human message.",
+        "scope": "message",
         "method": "decision",
-        "prior_rule": "'correction' in existing_signals && existing_signals['correction'] >= 0.6",
+        "population": "human_operator",
+        "role": "decide.short",
+        "escalate_role": "decide.short.accurate",
         "question": {
           "type": "noul",
-          "instructions": "The state is a bounded digest of one coding-agent run. Did the operator and agent misunderstand each other: the operator corrected the agent's interpretation, restated the request, or rejected the agent's reading of the task?",
-          "true_description": "The exchange shows a misunderstanding that required correction.",
-          "false_description": "The exchange shows agreement, a new request, or no evidence of misunderstanding."
+          "instructions": "Is the operator dissatisfied with the agent's work or pace?",
+          "true_description": "Dissatisfied: criticises or pushes back on the work, mildly or strongly.",
+          "false_description": "Not dissatisfied: neutral, thanks or instructing."
         },
         "evidence": [
           {
-            "source": "existing_signals",
-            "field": "probability",
-            "label": "correction"
-          },
-          {
             "source": "operator_messages",
             "field": "text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
           }
         ],
-        "candidates": "operator_message_count >= 2",
+        "require": "human_message_count > 0 && size(message_text) >= 3 && !message_text.startsWith('<image') && !message_text.startsWith('Agent Manager lineage')",
         "sampling": {
-          "rate": 0.4,
+          "rate": 1.0,
           "stratum": "candidate"
         },
         "gate": {
           "precision": 0.8,
           "recall": 0.7,
-          "min_gold": 30
+          "min_gold": 40,
+          "measurements": [
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.6364,
+              "recall": 0.5,
+              "gold": 131,
+              "positives": 14,
+              "threshold": 0.270876,
+              "temperature": 0.570278,
+              "ece": 0.0387,
+              "brier": 0.0721,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-20T21:15:54Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.5,
+              "recall": 0.3333,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.270876,
+              "temperature": 0.570278,
+              "ece": 0.0468,
+              "brier": 0.0838,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-20T21:15:55Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.5455,
+              "recall": 0.4286,
+              "gold": 133,
+              "positives": 14,
+              "threshold": 0.708086,
+              "temperature": 0.481226,
+              "ece": 0.1824,
+              "brier": 0.1455,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-20T23:12:54Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.5714,
+              "recall": 0.2667,
+              "gold": 125,
+              "positives": 15,
+              "threshold": 0.708086,
+              "temperature": 0.481226,
+              "ece": 0.1328,
+              "brier": 0.1268,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-20T23:12:56Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.4545,
+              "recall": 0.7143,
+              "gold": 133,
+              "positives": 14,
+              "threshold": 0.256461,
+              "temperature": 0.417433,
+              "ece": 0.0528,
+              "brier": 0.073,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-21T00:01:10Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.381,
+              "recall": 0.5333,
+              "gold": 125,
+              "positives": 15,
+              "threshold": 0.256461,
+              "temperature": 0.417433,
+              "ece": 0.0676,
+              "brier": 0.0857,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-21T00:01:13Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.875,
+              "recall": 0.5,
+              "gold": 133,
+              "positives": 14,
+              "threshold": 0.581625,
+              "temperature": 1.247434,
+              "ece": 0.0333,
+              "brier": 0.058,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-20T23:41:19Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 1,
+              "recall": 0.5333,
+              "gold": 125,
+              "positives": 15,
+              "threshold": 0.581625,
+              "temperature": 1.247434,
+              "ece": 0.0278,
+              "brier": 0.0541,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-20T23:41:20Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.3448,
+              "recall": 0.7143,
+              "gold": 133,
+              "positives": 14,
+              "threshold": 0.143264,
+              "temperature": 0.939321,
+              "ece": 0.0606,
+              "brier": 0.0782,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-20T23:48:37Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.3478,
+              "recall": 0.5333,
+              "gold": 125,
+              "positives": 15,
+              "threshold": 0.143264,
+              "temperature": 0.939321,
+              "ece": 0.0387,
+              "brier": 0.0829,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-20T23:48:39Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.7143,
+              "recall": 0.7143,
+              "gold": 133,
+              "positives": 14,
+              "threshold": 0.594173,
+              "temperature": 0.613527,
+              "ece": 0.0654,
+              "brier": 0.0614,
+              "split": "tuning",
+              "gold_file": "operator.frustrated.tuning.jsonl.superseded",
+              "measured_at": "2026-11-21T00:26:49Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.5714,
+              "recall": 0.5333,
+              "gold": 125,
+              "positives": 15,
+              "threshold": 0.594173,
+              "temperature": 0.613527,
+              "ece": 0.0797,
+              "brier": 0.0862,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout.jsonl.superseded",
+              "measured_at": "2026-11-21T00:26:50Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.5455,
+              "recall": 0.3,
+              "gold": 93,
+              "positives": 20,
+              "threshold": 0.581625,
+              "temperature": 1.247434,
+              "ece": 0.1508,
+              "brier": 0.1713,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout2.jsonl.superseded",
+              "measured_at": "2026-11-21T05:01:16Z"
+            },
+            {
+              "definition_hash": "bacfb2e87dd9d6d766b487a9912ecc87bf16c5efd137753c4c81e3df31374514",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.3333,
+              "recall": 0.35,
+              "gold": 93,
+              "positives": 20,
+              "threshold": 0.594173,
+              "temperature": 0.613527,
+              "ece": 0.2167,
+              "brier": 0.2267,
+              "split": "holdout",
+              "gold_file": "operator.frustrated.holdout2.jsonl.superseded",
+              "measured_at": "2026-11-21T05:01:20Z"
+            }
+          ]
         },
         "search": {
-          "facet": "label:interaction.misunderstanding",
+          "facet": "label:operator.dissatisfied",
           "min_probability": 0.6
         },
         "friction": {
-          "enabled": true,
-          "min_probability": 0.6,
-          "cost_unit": "run",
-          "importance": "medium"
+          "enabled": false
         },
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
+        }
+      },
+      {
+        "id": "operator.pleased",
+        "group": "operator",
+        "description": "The operator's own message shows satisfaction, praise or approval of the agent's work. One answer per human message.",
+        "scope": "message",
+        "method": "decision",
+        "population": "human_operator",
+        "role": "decide.short",
+        "escalate_role": "decide.short.accurate",
+        "question": {
+          "type": "noul",
+          "instructions": "Does the operator praise the work or say they are pleased?",
+          "true_description": "Pleased: praise, approval or satisfaction.",
+          "false_description": "Not pleased: neutral, critical or instructing."
         },
-        "require": "operator_message_count > 0 && agent_text_count > 0"
+        "evidence": [
+          {
+            "source": "operator_messages",
+            "field": "text"
+          }
+        ],
+        "require": "human_message_count > 0 && size(message_text) >= 3 && !message_text.startsWith('<image') && !message_text.startsWith('Agent Manager lineage')",
+        "sampling": {
+          "rate": 1.0,
+          "stratum": "candidate"
+        },
+        "gate": {
+          "precision": 0.8,
+          "recall": 0.7,
+          "min_gold": 40,
+          "measurements": [
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.5882,
+              "recall": 0.6667,
+              "gold": 121,
+              "positives": 15,
+              "threshold": 0.614997,
+              "temperature": 0.374125,
+              "ece": 0.114,
+              "brier": 0.0938,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-20T21:15:56Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.5789,
+              "recall": 0.7333,
+              "gold": 132,
+              "positives": 15,
+              "threshold": 0.614997,
+              "temperature": 0.374125,
+              "ece": 0.1195,
+              "brier": 0.0861,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-20T21:15:58Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.5455,
+              "recall": 0.4,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.580904,
+              "temperature": 3.279799,
+              "ece": 0.389,
+              "brier": 0.2476,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-20T23:12:57Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.25,
+              "recall": 0.1875,
+              "gold": 134,
+              "positives": 16,
+              "threshold": 0.580904,
+              "temperature": 3.279799,
+              "ece": 0.3903,
+              "brier": 0.2538,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-20T23:12:59Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.8333,
+              "recall": 0.3333,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.839387,
+              "temperature": 0.336133,
+              "ece": 0.1245,
+              "brier": 0.1117,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-21T00:01:19Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.5,
+              "recall": 0.125,
+              "gold": 134,
+              "positives": 16,
+              "threshold": 0.839387,
+              "temperature": 0.336133,
+              "ece": 0.1307,
+              "brier": 0.1307,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-21T00:01:23Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.9375,
+              "recall": 1,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.872219,
+              "temperature": 0.829927,
+              "ece": 0.0445,
+              "brier": 0.0223,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-20T23:41:21Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.8462,
+              "recall": 0.6875,
+              "gold": 134,
+              "positives": 16,
+              "threshold": 0.872219,
+              "temperature": 0.829927,
+              "ece": 0.0468,
+              "brier": 0.0481,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-20T23:41:22Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.625,
+              "recall": 0.6667,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.694787,
+              "temperature": 0.61363,
+              "ece": 0.1526,
+              "brier": 0.1028,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-20T23:48:40Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.5455,
+              "recall": 0.75,
+              "gold": 134,
+              "positives": 16,
+              "threshold": 0.694787,
+              "temperature": 0.61363,
+              "ece": 0.1664,
+              "brier": 0.1181,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-20T23:48:41Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.8824,
+              "recall": 1,
+              "gold": 123,
+              "positives": 15,
+              "threshold": 0.567238,
+              "temperature": 0.752718,
+              "ece": 0.059,
+              "brier": 0.0248,
+              "split": "tuning",
+              "gold_file": "operator.pleased.tuning.jsonl",
+              "measured_at": "2026-11-21T00:26:51Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.7647,
+              "recall": 0.8125,
+              "gold": 134,
+              "positives": 16,
+              "threshold": 0.567238,
+              "temperature": 0.752718,
+              "ece": 0.0392,
+              "brier": 0.0473,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout.jsonl",
+              "measured_at": "2026-11-21T00:26:52Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.5714,
+              "recall": 0.6316,
+              "gold": 100,
+              "positives": 19,
+              "threshold": 0.872219,
+              "temperature": 0.829927,
+              "ece": 0.195,
+              "brier": 0.1837,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout2.jsonl",
+              "measured_at": "2026-11-21T05:01:17Z"
+            },
+            {
+              "definition_hash": "5d279a59cc7376da96602c3a3aa27ce1ff31aa23a7347f69f90ae1871a16fb78",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.6316,
+              "recall": 0.6316,
+              "gold": 100,
+              "positives": 19,
+              "threshold": 0.567238,
+              "temperature": 0.752718,
+              "ece": 0.1184,
+              "brier": 0.1158,
+              "split": "holdout",
+              "gold_file": "operator.pleased.holdout2.jsonl",
+              "measured_at": "2026-11-21T05:01:21Z"
+            }
+          ]
+        },
+        "search": {
+          "facet": "label:operator.pleased",
+          "min_probability": 0.6
+        },
+        "friction": {
+          "enabled": false
+        },
+        "compatibility": {
+          "change": "breaking",
+          "compatible_with": []
+        }
+      },
+      {
+        "id": "operator.impatient",
+        "group": "operator",
+        "description": "The operator's own message pushes the agent to hurry, wrap up or stop stalling. One answer per human message.",
+        "scope": "message",
+        "method": "decision",
+        "population": "human_operator",
+        "role": "decide.short",
+        "escalate_role": "decide.short.accurate",
+        "question": {
+          "type": "noul",
+          "instructions": "Is the operator pressing the agent to hurry, wrap up or stop stalling?",
+          "true_description": "Impatient: hurry, wrap up, or stop stalling.",
+          "false_description": "Not impatient: ordinary request, plain continue or feedback."
+        },
+        "evidence": [
+          {
+            "source": "operator_messages",
+            "field": "text"
+          }
+        ],
+        "require": "human_message_count > 0 && size(message_text) >= 3 && !message_text.startsWith('<image') && !message_text.startsWith('Agent Manager lineage')",
+        "sampling": {
+          "rate": 1.0,
+          "stratum": "candidate"
+        },
+        "gate": {
+          "precision": 0.8,
+          "recall": 0.7,
+          "min_gold": 40,
+          "measurements": [
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.2,
+              "recall": 0.2857,
+              "gold": 139,
+              "positives": 7,
+              "threshold": 0.281219,
+              "temperature": 0.234176,
+              "ece": 0.0532,
+              "brier": 0.0662,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-20T21:15:59Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "laya:en",
+              "resource_role": "decide.local",
+              "precision": 0.3125,
+              "recall": 0.5556,
+              "gold": 142,
+              "positives": 9,
+              "threshold": 0.281219,
+              "temperature": 0.234176,
+              "ece": 0.0513,
+              "brier": 0.0504,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-20T21:16:00Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.0638,
+              "recall": 0.8571,
+              "gold": 141,
+              "positives": 7,
+              "threshold": 0.174773,
+              "temperature": 0.626321,
+              "ece": 0.283,
+              "brier": 0.1756,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-20T23:13:01Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "largha:150m@sha256:d5727855d1b4f8eb43180058b038c34560971c1833098bbe7d9140c27a142c5d",
+              "resource_role": "decide.local.largha",
+              "precision": 0.0568,
+              "recall": 0.5556,
+              "gold": 144,
+              "positives": 9,
+              "threshold": 0.174773,
+              "temperature": 0.626321,
+              "ece": 0.2375,
+              "brier": 0.1549,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-20T23:13:02Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.1667,
+              "recall": 0.1429,
+              "gold": 141,
+              "positives": 7,
+              "threshold": 0.549258,
+              "temperature": 0.323856,
+              "ece": 0.078,
+              "brier": 0.0734,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-20T23:22:01Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "laya:typed-decisions@sha256:6d17e5fbcbb8215a74f2efd0dcc0ffdbd472e9b25ccb07867f9f146a791673ba",
+              "resource_role": "decide.local.typed",
+              "precision": 0.375,
+              "recall": 0.3333,
+              "gold": 144,
+              "positives": 9,
+              "threshold": 0.549258,
+              "temperature": 0.323856,
+              "ece": 0.0895,
+              "brier": 0.0696,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-20T23:22:04Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.6667,
+              "recall": 0.5714,
+              "gold": 141,
+              "positives": 7,
+              "threshold": 0.894679,
+              "temperature": 0.763079,
+              "ece": 0.0929,
+              "brier": 0.0618,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-20T23:41:23Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0.5556,
+              "recall": 0.5556,
+              "gold": 144,
+              "positives": 9,
+              "threshold": 0.894679,
+              "temperature": 0.763079,
+              "ece": 0.1148,
+              "brier": 0.0968,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-20T23:41:25Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 0.75,
+              "recall": 0.4286,
+              "gold": 141,
+              "positives": 7,
+              "threshold": 0.870872,
+              "temperature": 1.294824,
+              "ece": 0.3821,
+              "brier": 0.2025,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-20T23:48:42Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "decima:base-clean@sha256:b3d4c59e951d30fef560f8a2ed6d2b2c1355cfae84b4b538dbefdea2fbcf289c",
+              "resource_role": "decide.local.decima-clean",
+              "precision": 1,
+              "recall": 0.2222,
+              "gold": 144,
+              "positives": 9,
+              "threshold": 0.870872,
+              "temperature": 1.294824,
+              "ece": 0.3586,
+              "brier": 0.1863,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-20T23:48:43Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.5714,
+              "recall": 0.5714,
+              "gold": 141,
+              "positives": 7,
+              "threshold": 0.879425,
+              "temperature": 1.058539,
+              "ece": 0.2298,
+              "brier": 0.1298,
+              "split": "tuning",
+              "gold_file": "operator.impatient.tuning.jsonl",
+              "measured_at": "2026-11-21T00:26:54Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0.7143,
+              "recall": 0.5556,
+              "gold": 144,
+              "positives": 9,
+              "threshold": 0.879425,
+              "temperature": 1.058539,
+              "ece": 0.2061,
+              "brier": 0.1097,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout.jsonl",
+              "measured_at": "2026-11-21T00:26:55Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:400m@sha256:99c4f5b9e23aef32e9ea990a192a6990f5679a9b095ffde4dd7889839405b9e6",
+              "resource_role": "decide.local.coba-400m",
+              "precision": 0,
+              "recall": 0,
+              "gold": 71,
+              "positives": 3,
+              "threshold": 0.894679,
+              "temperature": 0.763079,
+              "ece": 0.0764,
+              "brier": 0.0645,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout2.jsonl",
+              "measured_at": "2026-11-21T05:01:19Z"
+            },
+            {
+              "definition_hash": "1b2ac32a3dda0a426768a3938a1ec2569ea968fce03a8e878c19793c1463aceb",
+              "model": "coba:1b@sha256:7aaf4eaed0da754d7766714cd5b661c33f5f22476001f7e8fb0bd11f12eeacde",
+              "resource_role": "decide.local.coba-1b",
+              "precision": 0,
+              "recall": 0,
+              "gold": 71,
+              "positives": 3,
+              "threshold": 0.879425,
+              "temperature": 1.058539,
+              "ece": 0.1514,
+              "brier": 0.0877,
+              "split": "holdout",
+              "gold_file": "operator.impatient.holdout2.jsonl",
+              "measured_at": "2026-11-21T05:01:22Z"
+            }
+          ]
+        },
+        "search": {
+          "facet": "label:operator.impatient",
+          "min_probability": 0.6
+        },
+        "friction": {
+          "enabled": false
+        },
+        "compatibility": {
+          "change": "breaking",
+          "compatible_with": []
+        }
       },
       {
         "id": "operator.valence",
         "group": "operator",
-        "description": "The operator's affect toward the run on a -2..+2 scale. This is the primary affect label; a coarse ordinal score is more robust on small local models than six-way emotion.",
-        "scope": "run",
-        "method": "decision",
-        "question": {
-          "type": "score",
-          "instructions": "The state is a bounded digest of one coding-agent run, including the operator's messages and the agent text they responded to. Score the operator's affect toward the run from -2 (strongly negative) to +2 (strongly positive). Judge only what the operator's own messages show; do not infer a mood from the agent's text.",
-          "levels": [
-            "-2: strongly negative: angry, exasperated, or harshly critical",
-            "-1: negative: frustrated or dissatisfied",
-            "0: neutral or no affect",
-            "+1: positive: satisfied or pleased",
-            "+2: strongly positive: delighted or emphatic praise"
-          ],
-          "offset": -2
-        },
+        "description": "How the operator's own message leans: pleased minus dissatisfied, from the two message labels. Derived, never asked; positive is pleased, negative is dissatisfied.",
+        "scope": "message",
+        "method": "composite",
+        "population": "human_operator",
+        "rule": "labels['operator.pleased'] - labels['operator.dissatisfied']",
         "evidence": [
           {
             "source": "operator_messages",
             "field": "text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
-          },
-          {
-            "source": "existing_signals",
-            "field": "probability",
-            "label": "frustration"
-          },
-          {
-            "source": "existing_signals",
-            "field": "probability",
-            "label": "satisfaction"
           }
         ],
-        "candidates": "operator_message_count >= 1",
-        "sampling": {
-          "rate": 0.5,
-          "stratum": "candidate"
-        },
-        "gate": {
-          "precision": 0.8,
-          "recall": 0.7,
-          "min_gold": 40
-        },
-        "search": {
-          "facet": "label:operator.valence",
-          "min_probability": 0.6
-        },
-        "friction": {
-          "enabled": true,
-          "min_probability": 0.6,
-          "cost_unit": "run",
-          "importance": "high",
-          "max_score": -1
-        },
-        "compatibility": {
-          "change": "breaking",
-          "compatible_with": []
-        },
-        "require": "operator_message_count > 0 && workload_kind != 'workflow_node'"
-      },
-      {
-        "id": "operator.frustration",
-        "group": "operator",
-        "description": "The operator expressed frustration. Reads the existing operator signal first; absence of a signal is unavailable, never 'not frustrated'.",
-        "scope": "run",
-        "method": "signal",
-        "source": "frustration",
-        "question": {
-          "type": "noul",
-          "instructions": "Does the operator's own message express frustration with the agent or the work?",
-          "true_description": "The operator expressed explicit frustration or exasperation.",
-          "false_description": "The operator's message did not express frustration."
-        },
-        "evidence": [
-          {
-            "source": "existing_signals",
-            "field": "probability",
-            "label": "frustration"
-          },
-          {
-            "source": "operator_messages",
-            "field": "last_text"
-          }
-        ],
-        "candidates": "operator_message_count >= 1",
+        "require": "human_message_count > 0 && size(message_text) >= 3 && !message_text.startsWith('<image') && !message_text.startsWith('Agent Manager lineage')",
         "sampling": {
           "rate": 1.0,
           "stratum": "candidate"
@@ -620,47 +1422,82 @@
           "min_gold": 40
         },
         "search": {
-          "facet": "label:operator.frustration",
-          "min_probability": 0.6
+          "facet": "label:operator.valence"
+        },
+        "friction": {
+          "enabled": false
+        },
+        "compatibility": {
+          "change": "breaking",
+          "compatible_with": []
+        }
+      },
+      {
+        "id": "operator.dissatisfied_run",
+        "group": "operator",
+        "description": "The share of the run's human messages that showed dissatisfaction: the mean calibrated probability over the run's dissatisfied messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.dissatisfied, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (11 percent).",
+        "scope": "run",
+        "method": "composite",
+        "population": "human_operator",
+        "rule": "message_labels['operator.dissatisfied'].mean",
+        "question": {
+          "type": "noul",
+          "instructions": "What share of the operator's messages in this run showed dissatisfaction?",
+          "true_description": "A large share of the messages were dissatisfied.",
+          "false_description": "Few or none of the messages were dissatisfied."
+        },
+        "evidence": [
+          {
+            "source": "operator_messages",
+            "field": "count"
+          }
+        ],
+        "require": "human_message_count > 0",
+        "sampling": {
+          "rate": 1.0,
+          "stratum": "candidate"
+        },
+        "gate": {
+          "precision": 0.8,
+          "recall": 0.7,
+          "min_gold": 40
+        },
+        "search": {
+          "facet": "label:operator.dissatisfied_run",
+          "min_probability": 0.2
         },
         "friction": {
           "enabled": true,
-          "min_probability": 0.6,
+          "min_probability": 0.2,
           "cost_unit": "run",
           "importance": "high"
         },
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
-        },
-        "fallback": "decision",
-        "require": "operator_message_count > 0 && workload_kind != 'workflow_node'"
+        }
       },
       {
-        "id": "operator.satisfaction",
+        "id": "operator.pleased_run",
         "group": "operator",
-        "description": "The operator expressed satisfaction. Reads the existing operator signal first; absence of a signal is unavailable, never 'not satisfied'.",
+        "description": "The share of the run's human messages that showed praise or satisfaction: the mean calibrated probability over the run's pleased messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.pleased, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (12 percent).",
         "scope": "run",
-        "method": "signal",
-        "source": "satisfaction",
+        "method": "composite",
+        "population": "human_operator",
+        "rule": "message_labels['operator.pleased'].mean",
         "question": {
           "type": "noul",
-          "instructions": "Does the operator's own message express satisfaction with the agent or the work?",
-          "true_description": "The operator expressed explicit satisfaction, praise or confirmation.",
-          "false_description": "The operator's message did not express satisfaction."
+          "instructions": "What share of the operator's messages in this run showed praise or satisfaction?",
+          "true_description": "A large share of the messages were pleased.",
+          "false_description": "Few or none of the messages were pleased."
         },
         "evidence": [
           {
-            "source": "existing_signals",
-            "field": "probability",
-            "label": "satisfaction"
-          },
-          {
             "source": "operator_messages",
-            "field": "last_text"
+            "field": "count"
           }
         ],
-        "candidates": "operator_message_count >= 1",
+        "require": "human_message_count > 0",
         "sampling": {
           "rate": 1.0,
           "stratum": "candidate"
@@ -671,92 +1508,61 @@
           "min_gold": 40
         },
         "search": {
-          "facet": "label:operator.satisfaction",
-          "min_probability": 0.6
+          "facet": "label:operator.pleased_run",
+          "min_probability": 0.2
         },
         "friction": {
-          "enabled": false,
-          "cost_unit": "run",
-          "importance": "low"
+          "enabled": false
         },
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
-        },
-        "fallback": "decision",
-        "require": "operator_message_count > 0 && workload_kind != 'workflow_node'"
+        }
       },
       {
-        "id": "operator.emotion",
+        "id": "operator.impatient_run",
         "group": "operator",
-        "description": "Optional six-way emotion. Unproven until a measured gate clears; it is skipped by default so the vocabulary exists without producing an unproven rate.",
+        "description": "The share of the run's human messages that showed impatience: the mean calibrated probability over the run's impatient messages, so it does not rise with how many messages the run has (a maximum did: 0 of 6 runs with two messages or fewer scored positive against 15 of 19 with three or more). Derived from operator.impatient, never asked. The search and friction thresholds are declared, not measured: about twice the message-level base rate in gold (6 percent).",
         "scope": "run",
-        "method": "decision",
-        "optional": true,
+        "method": "composite",
+        "population": "human_operator",
+        "rule": "message_labels['operator.impatient'].mean",
         "question": {
-          "type": "choice",
-          "instructions": "The state is a bounded digest of one coding-agent run. Classify the operator's dominant emotion toward the run from their own messages. Choose the single best class.",
-          "options": [
-            {
-              "label": "joy",
-              "description": "Happy, pleased, delighted."
-            },
-            {
-              "label": "gratitude",
-              "description": "Thankful or appreciative."
-            },
-            {
-              "label": "frustration",
-              "description": "Annoyed, exasperated or impatient."
-            },
-            {
-              "label": "anger",
-              "description": "Angry, harsh or hostile."
-            },
-            {
-              "label": "sadness",
-              "description": "Disappointed, deflated or resigned."
-            },
-            {
-              "label": "neutral",
-              "description": "No strong emotion; ordinary instruction or status."
-            }
-          ]
+          "type": "noul",
+          "instructions": "What share of the operator's messages in this run showed impatience?",
+          "true_description": "A large share of the messages were impatient.",
+          "false_description": "Few or none of the messages were impatient."
         },
         "evidence": [
           {
             "source": "operator_messages",
-            "field": "text"
-          },
-          {
-            "source": "agent_text",
-            "field": "last_text"
+            "field": "count"
           }
         ],
-        "candidates": "operator_message_count >= 1",
+        "require": "human_message_count > 0",
         "sampling": {
-          "rate": 0.2,
+          "rate": 1.0,
           "stratum": "candidate"
         },
         "gate": {
           "precision": 0.8,
           "recall": 0.7,
-          "min_gold": 100
+          "min_gold": 40
         },
         "search": {
-          "facet": "label:operator.emotion",
-          "min_probability": 0.6
+          "facet": "label:operator.impatient_run",
+          "min_probability": 0.1
         },
         "friction": {
-          "enabled": false,
+          "enabled": true,
+          "min_probability": 0.1,
           "cost_unit": "run",
-          "importance": "low"
+          "importance": "medium"
         },
         "compatibility": {
           "change": "breaking",
           "compatible_with": []
-        },
-        "require": "operator_message_count > 0 && workload_kind != 'workflow_node'"
+        }
       }
     ]
   }

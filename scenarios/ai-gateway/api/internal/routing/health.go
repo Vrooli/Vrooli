@@ -77,6 +77,13 @@ const (
 	// never recorded against provider health: the provider failed nothing, and
 	// tripping a breaker over a policy mismatch would suppress a healthy route.
 	FailureUnsupportedSampling FailureClass = "unsupported_sampling"
+	// FailureCapacityRefused means a healthy provider declined this candidate
+	// because it does not fit right now (insufficient_vram, insufficient_memory)
+	// or the request is outside the model's declared limits (limits_exceeded).
+	// The route moves to the next candidate, and the refusal is never recorded
+	// against provider health: a breaker or cooldown here would keep the model
+	// hidden after the memory frees up.
+	FailureCapacityRefused FailureClass = "capacity_refused"
 )
 
 // ProviderFailure is the typed, provider-neutral classification of a provider
@@ -164,6 +171,8 @@ func classifyProviderCommandCode(code string) FailureClass {
 		return FailurePolicyError
 	case "unavailable", "empty_inventory", "unreachable", "unconfigured":
 		return FailureUnavailable
+	case "insufficient_vram", "insufficient_memory", "limits_exceeded":
+		return FailureCapacityRefused
 	case "insufficient_credits":
 		return FailureInsufficientCredits
 	case "rate_limited":

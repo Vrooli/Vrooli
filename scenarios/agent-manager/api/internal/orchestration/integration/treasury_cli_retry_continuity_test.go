@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -45,16 +46,36 @@ type cf1OverCapRetryContinuityEvidence struct {
 
 func parseCF1SettledRetryCharge(data []byte, authorizationID, settlementID, instrumentID string, amountMinor int64) (cf1SettledRetryCharge, error) {
 	var response struct {
-		Settlement cf1SettledRetryCharge `json:"settlement"`
+		Settlement struct {
+			ID               string          `json:"id"`
+			AuthorizationID  string          `json:"authorization_id"`
+			InstrumentID     string          `json:"instrument_id"`
+			AmountMinor      json.RawMessage `json:"amount_minor"`
+			Currency         string          `json:"currency"`
+			Outcome          string          `json:"outcome"`
+			ExternalID       string          `json:"external_id"`
+			ReceiptReference string          `json:"receipt_reference"`
+		} `json:"settlement"`
 	}
 	if err := json.Unmarshal(data, &response); err != nil {
 		return cf1SettledRetryCharge{}, fmt.Errorf("decode settled Treasury charge: %w", err)
 	}
-	settlement := response.Settlement
+	parsedAmount := int64(0)
+	amountText := strings.Trim(string(response.Settlement.AmountMinor), `"`)
+	parsedAmount, amountErr := strconv.ParseInt(amountText, 10, 64)
+	if amountErr != nil {
+		return cf1SettledRetryCharge{}, fmt.Errorf("decode settled Treasury amount_minor: %w", amountErr)
+	}
+	settlement := cf1SettledRetryCharge{
+		ID: response.Settlement.ID, AuthorizationID: response.Settlement.AuthorizationID,
+		InstrumentID: response.Settlement.InstrumentID, AmountMinor: parsedAmount,
+		Currency: response.Settlement.Currency, Outcome: response.Settlement.Outcome,
+		ExternalID: response.Settlement.ExternalID, ReceiptReference: response.Settlement.ReceiptReference,
+	}
 	if settlement.ID != settlementID || settlement.AuthorizationID != authorizationID || settlement.InstrumentID != instrumentID {
 		return cf1SettledRetryCharge{}, errors.New("settled Treasury charge did not preserve authorization, settlement, and instrument identity")
 	}
-	if settlement.Outcome != "CHARGE_OUTCOME_SETTLED" || settlement.AmountMinor != amountMinor || amountMinor <= 0 || settlement.Currency != "USD" {
+	if settlement.Outcome != "CHARGE_OUTCOME_SETTLED" || parsedAmount != amountMinor || amountMinor <= 0 || settlement.Currency != "USD" {
 		return cf1SettledRetryCharge{}, errors.New("Treasury charge is not settled for the exact expected USD amount")
 	}
 	if !cf1HexIdentity(settlement.ExternalID, 32) || strings.TrimSpace(settlement.ReceiptReference) == "" {

@@ -343,7 +343,7 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 		// idempotency reservation: retrying could submit the same directive twice.
 		return true, fmt.Errorf("interactive input transport outcome unknown; reconcile the session before retrying the same key: %w", err)
 	}
-	if aerr := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewMessageEvent(run.ID, "user", req.Message)); aerr != nil {
+	if aerr := o.appendAndBroadcastEvents(ctx, run.ID, newUserMessage(ctx, run.ID, req.Message, nil)); aerr != nil {
 		obs.Component("interactive").Warn("continuation message event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, aerr.Error())
 	}
 	if !submission.Verified {
@@ -588,12 +588,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 				}
 			}
 		}
-		var userEvent *domain.RunEvent
-		if len(attInfo) > 0 {
-			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", message, attInfo)
-		} else {
-			userEvent = domain.NewMessageEvent(run.ID, "user", message)
-		}
+		userEvent := newUserMessage(ctx, run.ID, message, attInfo)
 		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
 			obs.Component("orchestrator").Warn("failed to append continuation user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
 		}
@@ -756,13 +751,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		if !ok || source == nil {
 			return nil, fmt.Errorf("continuation profile skill pack requires prompt-manager source")
 		}
-		var projectErr error
-		if run.ResolvedConfig.SkillExperimentID != "" {
-			_, projectErr = ProjectProfileSkillsAssigned(ctx, runStateRoot, run.ID, skillsDir, run.ResolvedConfig.SkillExperimentID, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
-		} else {
-			_, projectErr = ProjectProfileSkills(ctx, runStateRoot, run.ID, skillsDir, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling)
-		}
-		if projectErr != nil {
+		if _, projectErr := ProjectProfileSkills(ctx, runStateRoot, run.ID, skillsDir, run.ResolvedConfig.SkillPack, source, defaultProfileSkillTokenCeiling); projectErr != nil {
 			return nil, projectErr
 		}
 	}

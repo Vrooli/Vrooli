@@ -113,6 +113,21 @@ func TestSearchEvalCorpusLabelsOnlyRetainedDeterministicFixtureRuns(t *testing.T
 	if !ok {
 		t.Fatal("agent-manager.runs provider missing")
 	}
+	// Hits are conversation chunks (id_field stableHitId) while labels name runs, so a
+	// label can only match through a mapped metadata key. Without
+	// expected_identity_field Search Hub can never match a fixture run to a hit and
+	// reports every positive as inconclusive.
+	var mapping struct {
+		IDField        string            `json:"id_field"`
+		MetadataFields map[string]string `json:"metadata_fields"`
+	}
+	if err := json.Unmarshal(provider.ResultMapping, &mapping); err != nil {
+		t.Fatalf("decode result_mapping: %v", err)
+	}
+	const runIdentityField = "run_id"
+	if mapping.IDField == "" || mapping.MetadataFields[runIdentityField] == "" {
+		t.Fatalf("result_mapping must map %q to the hit's run id (id_field=%q)", runIdentityField, mapping.IDField)
+	}
 	positive, negative := 0, 0
 	caseIDs := map[string]bool{}
 	for _, testCase := range provider.Tests.Cases {
@@ -124,6 +139,9 @@ func TestSearchEvalCorpusLabelsOnlyRetainedDeterministicFixtureRuns(t *testing.T
 		positive++
 		if !containsString(testCase.Tags, "reviewed") {
 			t.Errorf("positive case %q is not reviewed", testCase.ID)
+		}
+		if testCase.ExpectedIdentityField != runIdentityField {
+			t.Errorf("positive case %q labels run ids but expected_identity_field is %q, want %q", testCase.ID, testCase.ExpectedIdentityField, runIdentityField)
 		}
 		for _, expectedID := range testCase.ExpectIDs {
 			if !retainedRuns[expectedID] {

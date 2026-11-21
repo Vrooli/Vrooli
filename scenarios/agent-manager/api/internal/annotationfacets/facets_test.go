@@ -9,7 +9,7 @@ import (
 func ptr(v float64) *float64 { return &v }
 
 func TestCrossesSearchThresholdNeverTreatsMissingProbabilityAsCertain(t *testing.T) {
-	label := runannotations.Label{Search: runannotations.Search{Facet: "label:agent.spinning", MinProbability: ptr(0.6)}}
+	label := runannotations.Label{Search: runannotations.Search{Facet: "label:agent.stalled", MinProbability: ptr(0.6)}}
 	if crossesSearchThreshold(label, runannotations.AnnotationView{State: runannotations.StateObserved}) {
 		t.Fatal("an observed label without a probability crossed a positive threshold")
 	}

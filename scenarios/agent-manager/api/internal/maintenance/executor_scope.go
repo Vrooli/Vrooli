@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,15 +41,20 @@ type executorScopeRef struct {
 }
 
 type executorScopeReport struct {
-	SchemaVersion   string `json:"schemaVersion"`
-	IdentityVersion string `json:"identityVersion,omitempty"`
-	Complete        bool   `json:"complete"`
-	Executors       []struct {
-		RunID   string   `json:"runId"`
-		State   string   `json:"state"`
-		PIDs    []int    `json:"pids"`
-		Reasons []string `json:"reasons"`
-	} `json:"executors"`
+	SchemaVersion   string                 `json:"schemaVersion"`
+	IdentityVersion string                 `json:"identityVersion,omitempty"`
+	Complete        bool                   `json:"complete"`
+	Executors       []executorScopeVerdict `json:"executors"`
+}
+
+type executorScopeVerdict struct {
+	RunID   string   `json:"runId"`
+	State   string   `json:"state"`
+	PIDs    []int    `json:"pids"`
+	Reasons []string `json:"reasons"`
+	// OpenTranscripts is positive-only: requested transcript paths held open
+	// by this present executor's processes. Older owners never send it.
+	OpenTranscripts []string `json:"openTranscripts,omitempty"`
 }
 
 // ControlPlaneObserver delegates all process identity, PID reuse, group and
@@ -69,7 +75,9 @@ type attachedBindingRequest struct {
 // historical PID. SQL ownership supplies the existing timestamp decoder.
 func NewControlPlaneInventoryBatch(db InventoryDatabase, lookup func(context.Context, []ExecutorRef) ([]*domain.Run, error)) *InventoryReader {
 	owner := &ControlPlaneObserver{lookupBatch: lookup, read: readExecutorScope}
-	return NewBatchedInventory(db, owner.Observe)
+	reader := NewBatchedInventory(db, owner.Observe)
+	reader.transcriptPhysical = owner.ObserveTranscripts
+	return reader
 }
 
 // ExcludeExecutor returns nil only when the control plane completely excludes
@@ -106,6 +114,14 @@ func excludeExecutor(ctx context.Context, run *domain.Run, read func(context.Con
 }
 
 func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
+	return o.ObserveTranscripts(ctx, refs, nil)
+}
+
+// ObserveTranscripts is Observe plus the positive open-transcript question:
+// each present executor's evidence lists the requested transcript paths its
+// processes hold open. An owner without that support answers none, which is
+// no claim rather than a negative.
+func (o *ControlPlaneObserver) ObserveTranscripts(ctx context.Context, refs []ExecutorRef, transcripts []string) ([]ExecutorEvidence, error) {
 	if (o.lookup == nil && o.lookupBatch == nil) || o.read == nil || len(refs) < 1 {
 		return nil, fmt.Errorf("executor-scope requires an owner reader and at least one reference")
 	}
@@ -122,7 +138,7 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 		}
 		seen[ref.ID] = struct{}{}
 	}
-	return o.observeBoundedSnapshot(ctx, refs)
+	return o.observeBoundedSnapshot(ctx, refs, transcripts)
 }
 
 // observeBoundedSnapshot sends one full inventory request whenever it fits the
@@ -130,17 +146,17 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 // against one process/birth snapshot. If the request itself exceeds the byte
 // limit, split it before reading; multiple root calls are useful evidence but
 // cannot establish one atomic complete inventory.
-func (o *ControlPlaneObserver) observeBoundedSnapshot(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
-	evidence, err := o.observePage(ctx, refs)
+func (o *ControlPlaneObserver) observeBoundedSnapshot(ctx context.Context, refs []ExecutorRef, transcripts []string) ([]ExecutorEvidence, error) {
+	evidence, err := o.observePage(ctx, refs, transcripts)
 	if (!errors.Is(err, errExecutorScopeRequestTooLarge) && !errors.Is(err, errExecutorScopeReferenceLimit)) || len(refs) == 1 {
 		return evidence, err
 	}
 	middle := len(refs) / 2
-	left, leftErr := o.observeBoundedSnapshot(ctx, refs[:middle])
+	left, leftErr := o.observeBoundedSnapshot(ctx, refs[:middle], transcripts)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return left, ctxErr
 	}
-	right, rightErr := o.observeBoundedSnapshot(ctx, refs[middle:])
+	right, rightErr := o.observeBoundedSnapshot(ctx, refs[middle:], transcripts)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return append(left, right...), ctxErr
 	}
@@ -150,13 +166,14 @@ func (o *ControlPlaneObserver) observeBoundedSnapshot(ctx context.Context, refs 
 	return append(left, right...), errors.Join(errExecutorScopeInventoryNonAtomic, err)
 }
 
-func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorRef) ([]ExecutorEvidence, error) {
+func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorRef, transcripts []string) ([]ExecutorEvidence, error) {
 	if len(refs) < 1 {
 		return nil, fmt.Errorf("executor-scope request requires at least one reference")
 	}
 	request := struct {
-		Executors []executorScopeRef `json:"executors"`
-	}{}
+		Executors   []executorScopeRef `json:"executors"`
+		Transcripts []string           `json:"transcripts,omitempty"`
+	}{Transcripts: transcripts}
 	attachedIdentityRefs := map[string]bool{}
 	attachedIdentityReady := map[string]bool{}
 	attachedIdentityFailure := map[string]string{}
@@ -307,6 +324,13 @@ func (o *ControlPlaneObserver) observePage(ctx context.Context, refs []ExecutorR
 			value.Alive = true
 			value.PIDs = item.PIDs
 			value.HasChildren = len(item.PIDs) > 1 || item.PIDs[0] != effectivePIDs[item.RunID]
+			// Keep only paths this request asked about; anything else is not
+			// evidence this caller can attribute.
+			for _, path := range item.OpenTranscripts {
+				if slices.Contains(transcripts, path) && !slices.Contains(value.OpenTranscripts, path) {
+					value.OpenTranscripts = append(value.OpenTranscripts, path)
+				}
+			}
 		case "absent":
 			if len(item.PIDs) > 0 || len(item.Reasons) > 0 {
 				incomplete = fmt.Errorf("contradictory executor exclusion evidence")
@@ -386,12 +410,7 @@ func reattachedSessionDuplicates(runs []*domain.Run) map[string]bool {
 	return out
 }
 
-func validateExecutorScopeVerdict(item struct {
-	RunID   string   `json:"runId"`
-	State   string   `json:"state"`
-	PIDs    []int    `json:"pids"`
-	Reasons []string `json:"reasons"`
-}) error {
+func validateExecutorScopeVerdict(item executorScopeVerdict) error {
 	switch item.State {
 	case "present":
 		if len(item.PIDs) == 0 {

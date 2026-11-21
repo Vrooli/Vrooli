@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 )
+
+// ambient is the process's real clock and environment (see ambientSeam).
+var ambient = ambientSeam{Now: time.Now, Getenv: os.Getenv, LookupEnv: os.LookupEnv}
 
 func main() {
 	app, err := NewApp()

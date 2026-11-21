@@ -60,22 +60,22 @@ consumers, not a reuse mechanism.
     },
     "labels": [
       {
-        "id": "agent.spinning",
-        "group": "agent",
+        "id": "work.blocked_by_tool",
+        "group": "work",
         "description": "…",
         "scope": "run",
         "method": "decision",
         "question": {
-          "type": "score",
+          "type": "noul",
           "instructions": "…",
-          "levels": ["0: …", "4: …"],
-          "offset": 0
+          "true_description": "Blocked: …",
+          "false_description": "Not blocked: …"
         },
-        "evidence": [{"source": "tool_summary", "field": "repeated_paths"}],
-        "candidates": "duration_min >= 8 || failed_commands >= 2 || repeated_paths >= 3",
+        "evidence": [{"source": "tool_summary"}, {"source": "agent_text"}],
+        "candidates": "tool_failures >= 2 || failed_commands >= 1",
         "sampling": {"rate": 0.35, "stratum": "candidate"},
         "gate": {"precision": 0.80, "recall": 0.70, "min_gold": 40},
-        "search": {"facet": "label:agent.spinning", "min_probability": 0.6},
+        "search": {"facet": "label:work.blocked_by_tool", "min_probability": 0.6},
         "friction": {"enabled": true, "min_probability": 0.6, "cost_unit": "run", "importance": "high"},
         "compatibility": {"change": "breaking", "compatible_with": []}
       }
@@ -103,7 +103,12 @@ consumers, not a reuse mechanism.
   `DecideBatch` under `PROFILE_LOCAL_ONLY` and
   `PRIVACY_CLASS_CONFIDENTIAL`.
 - `composite` — CEL over `labels` (map<string,double>) and `present`
-  (map<string,bool>), evaluated after other labels. Numeric result.
+  (map<string,bool>) of its own scope, and for a run composite `message_labels`
+  (map<string,map<string,double>>: per message label, `count`, `positives`,
+  `max`, `mean`), evaluated after the labels and composites it reads. Numeric
+  result. Each input is named as a literal key; the pack refuses unknown,
+  wrong-scope, computed and cyclic references. A composite over labels is
+  `derived` for the gate: proven when every observation it read is proven.
 - `extract` — declared but returns `unavailable` (`extract_not_implemented_in_slice`).
   Generative extraction is deliberately not implemented in this slice.
 
@@ -121,7 +126,7 @@ evaluator. A true prior is stored as an observation with method
 |---|---|
 | `operator_messages` | `text`, `count`, `last_text` |
 | `agent_text` | `text`, `count`, `last_text` |
-| `tool_summary` | `calls`, `failures`, `failed_commands`, `repeated_paths`, `failed_tools`, `last_error` |
+| `tool_summary` | `calls`, `failures`, `failed_commands`, `repeated_paths`, `repeated_commands`, `failed_tools`, `last_error` |
 | `timings` | `duration_min`, `time_to_first_tool_min` |
 | `deterministic_flags` | `stepback_triggers`, `tool_findings`, `compaction_count` |
 | `existing_signals` | `label`, `probability` (requires `label`) |
@@ -135,11 +140,32 @@ the last few message event ids to the observation as evidence refs.
 
 `run_id`, `workload_kind`, `workload_key`, `harness_kind`, `run_mode`, `status`,
 `terminal_class`, `stop_reason`, `exit_code` (int), `duration_min` (double),
-`compaction_count`, `operator_message_count`, `agent_text_count`, `tool_calls`,
-`tool_failures`, `failed_commands`, `repeated_paths` (all int),
+`compaction_count`, `operator_message_count`, `human_message_count`,
+`brief_message_count`, `agent_text_count`, `tool_calls`,
+`tool_failures`, `failed_commands`, `repeated_paths`, `repeated_commands`,
+`unchanged_repeats`, `longest_unchanged_run` (all int), `tool_source` (string),
+`spawned_by_run`, `imported_session` (bool),
 `stepback_triggers` (list<string>), `tool_findings` (list<string>),
 `existing_signals` (map<string,double>), `last_operator_message`,
 `last_agent_text`, `last_tool_error`.
+
+Every tool fact covers the whole run. The `internal/toolfacts` package owns the
+computation: it streams the run's `run_events` tool rows, or, when a run kept no
+events (an imported session whose recall layer was never retained), the
+transcript file the run names, read with the harness's own parser. `tool_source`
+says which (`run_events`, `transcript`, `none`); `none` means nothing was
+observable, so a rule that must not fire on missing evidence reads
+`tool_source != 'none'`. Commands come from `runsignal.CallPipelines` and
+per-command outcomes from `runsignal.DeriveInvocationFacts`, so a native run, an
+imported Codex session and a Codex code-mode run (commands inside
+`tools.exec_command({cmd:...})` JavaScript) mean the same. `failed_commands`
+counts command segments that failed with an exit code (an empty `rg`/`grep` is
+`no-match`, not a failure). `unchanged_repeats` counts calls whose command and
+result both equal an earlier call's within the rules' window; `longest_unchanged_run`
+is the longest chain of such repeats of one call (0 none, 19 a call made twenty
+times), so a polling loop interleaved with other calls still shows. Normalisation
+of volatile text (wall time, clock times, sleep lengths) is data in
+`toolfacts/rules.json`.
 
 Cross-type numeric comparison is enabled, so `duration_min >= 8` works.
 Evaluation is cost-limited (default 10,000). Test packs can compile with a lower
@@ -189,7 +215,7 @@ when the method reports no calibrated distribution (`deterministic`, `LLM_ENUM`)
 Candidate rules and sampling bound expensive work. `sampling.rate` is applied
 deterministically from `sha256(run_id|label_id)` so a replay selects the same
 runs. Labels with `optional: true` are skipped unless the caller asks for them
-(`operator.emotion` is the first such label).
+(`agent.discovery_slow` is the first such label).
 
 ## HTTP
 
@@ -212,8 +238,8 @@ Coverage rows are:
 
 ```json
 {
-  "id": "agent.spinning",
-  "group": "agent",
+  "id": "work.blocked_by_tool",
+  "group": "work",
   "state": "proven|unproven|not_observed|unavailable",
   "gate": {"state":"proven|unproven|insufficient_gold|unmeasured",
            "precision":0.82,"recall":0.74,"gold":31,"min_gold":25,"reason":"",
@@ -223,7 +249,7 @@ Coverage rows are:
   "evaluated": 818,
   "rate": 0.174,
   "baseline_state": "not_measured",
-  "search_facet": "label:agent.spinning",
+  "search_facet": "label:work.blocked_by_tool",
   "min_probability": 0.6,
   "friction": {"enabled":true,"min_probability":0.6,"cost_unit":"run","importance":"high"}
 }
@@ -301,12 +327,15 @@ renderers.
    `wiring/routes.go` already mounts the handlers when `deps.Annotations != nil`.
 2. The repository feature source leaves `DeterministicFlags.StepbackTriggers`
    empty. The existing `internal/stepback` projection (or an orchestrator
-   adapter) can populate it; until then `agent.objective_lost` falls through to
-   its decision evaluator on candidate runs.
+   adapter) can populate it for a label that wants it as a prior; no default
+   label does today.
 3. WS-C scheduler jobs should call `Service.Evaluate` with a bounded
    `since`/`limit`/`run_ids` set. The pack's `runtime.budgets` cap the work.
-4. WS-E consumers should read `Coverage` and gate state, and may use
+4. Consumers read `Coverage` through the `usage.annotation_gate` measure (the one
+   projection of coverage, gate, proven model and rate), and may use
    `search.facet`/`min_probability` to tag catalog rows. This package does not
    mutate the conversation search catalog.
-5. Gold measurement is not implemented here: `gate.measured` is pack data. An
-   unmeasured or insufficient gate must not produce a rate.
+5. Gates are per model: `gate.measurements[]` (see `gate.go`) is pack data written
+   from `annotations benchmark`, and an observation is proven only by a hold-out
+   measurement for its own `(definition_hash, model, resource_role)`. An unmeasured
+   or insufficient gate must not produce a rate.

@@ -3,6 +3,7 @@ package runannotations
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
 )
 
 func sqliteFixture(t *testing.T) *sqlx.DB {
@@ -20,7 +24,7 @@ func sqliteFixture(t *testing.T) *sqlx.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	for _, statement := range []string{
-		`CREATE TABLE runs (id TEXT PRIMARY KEY, workload_kind TEXT, workload_key TEXT, harness_kind TEXT, run_mode TEXT, status TEXT, terminal_class TEXT, stop_reason TEXT, started_at TEXT, ended_at TEXT, exit_code INTEGER)`,
+		`CREATE TABLE runs (id TEXT PRIMARY KEY, workload_kind TEXT, workload_key TEXT, harness_kind TEXT, run_mode TEXT, status TEXT, terminal_class TEXT, stop_reason TEXT, started_at TEXT, ended_at TEXT, exit_code INTEGER, parent_run_id TEXT, import_source_harness TEXT, depth INTEGER, transcript_path TEXT, resolved_config TEXT)`,
 		`CREATE TABLE run_events (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, sequence INTEGER NOT NULL, event_type TEXT NOT NULL, timestamp TEXT, schema_version INTEGER NOT NULL DEFAULT 1, data TEXT NOT NULL)`,
 		`CREATE TABLE operator_signals (event_id TEXT, signal_version TEXT, run_id TEXT, occurred_at TEXT, status TEXT, label TEXT, probability REAL, recorded_at TEXT)`,
 	} {
@@ -35,7 +39,7 @@ func TestSQLiteFeatureSourceReadsBoundedFacts(t *testing.T) {
 	db := sqliteFixture(t)
 	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
 	ended := started.Add(45 * time.Minute)
-	if _, err := db.Exec(`INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, workload_key, harness_kind, run_mode, status, terminal_class, stop_reason, started_at, ended_at, exit_code) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		"run-1", "workflow_node", "classify", "codex", "codex_pipe", "completed", "goal_complete", "",
 		started.Format(time.RFC3339Nano), ended.Format(time.RFC3339Nano), 0); err != nil {
 		t.Fatal(err)
@@ -69,7 +73,7 @@ func TestSQLiteFeatureSourceReadsBoundedFacts(t *testing.T) {
 	if len(facts.OperatorMessages) != 1 || len(facts.AgentText) != 1 {
 		t.Fatalf("messages = %d/%d", len(facts.OperatorMessages), len(facts.AgentText))
 	}
-	if facts.ToolSummary.Calls != 2 || facts.ToolSummary.Failures != 1 || facts.ToolSummary.FailedCommands != 1 {
+	if facts.ToolSummary.ToolCalls != 2 || facts.ToolSummary.ToolFailures != 1 || facts.ToolSummary.FailedCommands != 1 {
 		t.Fatalf("tool summary = %+v", facts.ToolSummary)
 	}
 	if facts.ToolSummary.RepeatedPaths != 1 {
@@ -115,7 +119,7 @@ func TestSQLiteFeatureSourceReadsBoundedFacts(t *testing.T) {
 
 func TestSQLiteFeatureSourceUnknownRunIsNotFound(t *testing.T) {
 	db := sqliteFixture(t)
-	_, err := NewSQLiteFeatureSource(db).Facts(context.Background(), ScopeRun, "missing")
+	_, err := NewSQLiteFeatureSource(db, nil).Facts(context.Background(), ScopeRun, "missing")
 	if err != ErrScopeNotFound {
 		t.Fatalf("err = %v", err)
 	}
@@ -128,7 +132,7 @@ func TestSQLiteFeatureSourceFindsOperatorMessagesBeyondTheRecentTail(t *testing.
 	db := sqliteFixture(t)
 	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
 	ended := started.Add(30 * time.Minute)
-	if _, err := db.Exec(`INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, workload_key, harness_kind, run_mode, status, terminal_class, stop_reason, started_at, ended_at, exit_code) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		"run-1", "interactive", "fix", "claude-code", "interactive", "completed", "goal_complete", "",
 		started.Format(time.RFC3339Nano), ended.Format(time.RFC3339Nano), 0); err != nil {
 		t.Fatal(err)
@@ -176,7 +180,7 @@ func TestHarnessOnlySkillBlockIsNotOperatorText(t *testing.T) {
 	db := sqliteFixture(t)
 	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
 	ended := started.Add(10 * time.Minute)
-	if _, err := db.Exec(`INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, workload_key, harness_kind, run_mode, status, terminal_class, stop_reason, started_at, ended_at, exit_code) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		"run-skills", "workflow_node", "draft", "codex", "sandboxed", "completed", "goal_complete", "",
 		started.Format(time.RFC3339Nano), ended.Format(time.RFC3339Nano), 0); err != nil {
 		t.Fatal(err)
@@ -214,7 +218,7 @@ func TestToolSummarySeesRepeatedShellCommands(t *testing.T) {
 	db := sqliteFixture(t)
 	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
 	ended := started.Add(20 * time.Minute)
-	if _, err := db.Exec(`INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, workload_key, harness_kind, run_mode, status, terminal_class, stop_reason, started_at, ended_at, exit_code) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		"run-shell", "adhoc", "fix", "codex", "in_place", "completed", "goal_complete", "",
 		started.Format(time.RFC3339Nano), ended.Format(time.RFC3339Nano), 0); err != nil {
 		t.Fatal(err)
@@ -244,5 +248,140 @@ func TestToolSummarySeesRepeatedShellCommands(t *testing.T) {
 	// token itself must never count, or every command would look repeated.
 	if facts.ToolSummary.RepeatedPaths != 2 {
 		t.Fatalf("repeated paths = %d, want the two repeated targets", facts.ToolSummary.RepeatedPaths)
+	}
+}
+
+func TestSQLiteFeatureSourceReadsLineageAndTheRunsOpening(t *testing.T) {
+	db := sqliteFixture(t)
+	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
+	insert := func(id, parent, harness string, depth int) {
+		if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, started_at, parent_run_id, import_source_harness, depth) VALUES (?,?,?,?,?,?)`,
+			id, "interactive", started.Format(time.RFC3339Nano), parent, harness, depth); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := json.Marshal(map[string]any{"role": "user", "content": "Agent Manager lineage: you are run " + id, "source": "operator"})
+		if _, err := db.Exec(`INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data) VALUES (?,?,?,?,?,?)`,
+			id+"-m1", id, 1, "message", started.Format(time.RFC3339Nano), string(data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert("child", "parent-run", "", 1)
+	insert("root", "", "", 0)
+	insert("imported-child", "parent-run", "codex", 1)
+	source := &SQLiteFeatureSource{DB: db, Now: func() time.Time { return started.Add(time.Hour) }}
+	for id, want := range map[string]struct {
+		spawned, imported bool
+		depth             int
+	}{"child": {true, false, 1}, "root": {false, false, 0}, "imported-child": {false, true, 1}} {
+		facts, err := source.Facts(context.Background(), ScopeRun, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if facts.Lineage.Spawned() != want.spawned || facts.Lineage.Imported != want.imported || facts.Lineage.Depth != want.depth {
+			t.Fatalf("%s lineage = %+v, want spawned %v imported %v depth %d", id, facts.Lineage, want.spawned, want.imported, want.depth)
+		}
+		if facts.Lineage.Opening == "" || len(facts.Lineage.Opening) > maxOpeningChars {
+			t.Fatalf("%s opening = %q, want the bounded first message", id, facts.Lineage.Opening)
+		}
+	}
+}
+
+// An imported session that kept only its transcript file has no tool_call
+// rows. Its tool facts come from that file, read with the harness's own parser,
+// so a rule over them reaches the ~12k runs the engine used to see as idle.
+func TestSQLiteFeatureSourceReadsToolFactsOfATranscriptOnlyRun(t *testing.T) {
+	db := sqliteFixture(t)
+	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
+	capture, err := filepath.Abs("../adapters/runner/codecs/testdata/corpus/poll-loop.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, started_at, import_source_harness, transcript_path) VALUES (?,?,?,?,?)`,
+		"imported", "interactive", started.Format(time.RFC3339Nano), "codex", capture); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, started_at) VALUES (?,?,?)`,
+		"bare", "interactive", started.Format(time.RFC3339Nano)); err != nil {
+		t.Fatal(err)
+	}
+	source := &SQLiteFeatureSource{DB: db, Parsers: codecParsers, Now: func() time.Time { return started.Add(time.Hour) }}
+	facts, err := source.Facts(context.Background(), ScopeRun, "imported")
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := facts.ToolSummary
+	if summary.Source != "transcript" || summary.ToolCalls != 3 || summary.RepeatedCommands != 2 || summary.UnchangedRepeats != 2 || summary.LongestUnchangedRun != 2 {
+		t.Fatalf("transcript-only tool summary = %+v, want the polling loop of the capture read from the file", summary)
+	}
+	features := FeaturesFromFacts(facts)
+	if features.Tools["tool_source"] != "transcript" || features.Tools["longest_unchanged_run"] != int64(2) || features.Tools["tool_calls"] != int64(3) {
+		t.Fatalf("features = %+v", features)
+	}
+	// A run with neither events nor a transcript is unobserved, not idle.
+	bare, err := source.Facts(context.Background(), ScopeRun, "bare")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bare.ToolSummary.Source != "none" || bare.ToolSummary.ToolCalls != 0 {
+		t.Fatalf("bare run summary = %+v, want source none", bare.ToolSummary)
+	}
+	// Without a parser resolver the same run is source none too.
+	blind := &SQLiteFeatureSource{DB: db, Now: source.Now}
+	facts, err = blind.Facts(context.Background(), ScopeRun, "imported")
+	if err != nil || facts.ToolSummary.Source != "none" {
+		t.Fatalf("without parsers: %+v, %v; want source none", facts.ToolSummary, err)
+	}
+}
+
+// codecParsers resolves the real per-harness transcript parsers, the codecs the
+// importer and the Transcript Indexer read with.
+func codecParsers(harness string) (runner.TranscriptParser, error) {
+	var parser runner.TranscriptParser
+	switch harness {
+	case "codex":
+		parser = codecs.NewCodexForTest().NewTranscriptParser()
+	case "claude-code":
+		parser = codecs.NewClaudeForTest().NewTranscriptParser()
+	case "opencode":
+		parser = codecs.NewOpenCodeForTest().NewTranscriptParser()
+	case "grok":
+		parser = codecs.NewGrokForTest().NewTranscriptParser()
+	default:
+		return nil, fmt.Errorf("no parser for %q", harness)
+	}
+	if setter, ok := parser.(runner.TranscriptRetentionSetter); ok {
+		setter.SetTranscriptRetention(true)
+	}
+	return parser, nil
+}
+
+// The sender the orchestrator stamped on a message reaches the facts, so a
+// person typing into a run an agent spawned is read as a person end to end.
+func TestSQLiteFeatureSourceReadsTheStampedSender(t *testing.T) {
+	db := sqliteFixture(t)
+	started := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
+	if _, err := db.Exec(`INSERT INTO runs (id, workload_kind, started_at, parent_run_id, depth) VALUES (?,?,?,?,?)`,
+		"child", "interactive", started.Format(time.RFC3339Nano), "parent-run", 1); err != nil {
+		t.Fatal(err)
+	}
+	for sequence, message := range []struct{ content, sender string }{
+		{"Agent Manager lineage: you are run child.", ""},
+		{"no, that is the wrong file", "person"},
+		{"also run the tests", "agent"},
+	} {
+		data, _ := json.Marshal(map[string]any{"role": "user", "content": message.content, "source": "operator", "sender": message.sender})
+		if _, err := db.Exec(`INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data) VALUES (?,?,?,?,?,?)`,
+			"m"+strconv.Itoa(sequence), "child", sequence+1, "message", started.Add(time.Duration(sequence)*time.Minute).Format(time.RFC3339Nano), string(data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	source := &SQLiteFeatureSource{DB: db, Now: func() time.Time { return started.Add(time.Hour) }}
+	facts, err := source.Facts(context.Background(), ScopeRun, "child")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorshipPolicy(t).Apply(&facts)
+	if len(facts.HumanMessages) != 1 || facts.HumanMessages[0].Text != "no, that is the wrong file" || facts.BriefMessages != 2 {
+		t.Fatalf("human %+v brief %d, want only the person's message of a spawned run", facts.HumanMessages, facts.BriefMessages)
 	}
 }

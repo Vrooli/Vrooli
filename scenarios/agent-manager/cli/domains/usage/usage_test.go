@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -142,7 +143,7 @@ func TestUsageForecastBacktestReportsErrorAgainstLinearBaseline(t *testing.T) {
 }
 
 func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
-	group := Register()
+	group := Register(nil, time.Now)
 	var names []string
 	for _, cmd := range group.Subcommands {
 		names = append(names, cmd.Name)

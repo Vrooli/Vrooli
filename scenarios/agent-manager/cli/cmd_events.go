@@ -92,7 +92,7 @@ func (a *App) streamEvents(runID string) error {
 		case <-interrupt:
 			fmt.Println("\nDisconnecting...")
 			// Send close message
-			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), ambient.Now().Add(time.Second))
 			return nil
 
 		case err := <-errChan:
@@ -141,7 +141,7 @@ func (a *App) handleWSMessage(msg *domainpb.AgentManagerWsMessage, targetRunID s
 		return nil
 	}
 
-	timestamp := time.Now().Format("15:04:05")
+	timestamp := ambient.Now().Format("15:04:05")
 
 	switch msg.GetType() {
 	case domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED:

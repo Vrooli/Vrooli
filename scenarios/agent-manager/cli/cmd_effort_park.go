@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
 	"agent-manager/internal/goalhome"
 
@@ -39,7 +37,7 @@ func (a *App) effortPark(args []string) error {
 	}
 	token := *identityToken
 	if token == "" {
-		token = os.Getenv(cliutil.EnvIdentityToken)
+		token = ambient.Getenv(cliutil.EnvIdentityToken)
 	}
 	if token == "" {
 		return fmt.Errorf("no identity token: set --identity-token or run inside an agent-manager run ($%s)", cliutil.EnvIdentityToken)
@@ -110,7 +108,7 @@ func (a *App) effortPark(args []string) error {
 		RunId:         runID,
 		Producer:      "children",
 		Key:           runID,
-		DeadlineUnix:  time.Now().Add(decision.Timeout).Unix(),
+		DeadlineUnix:  ambient.Now().Add(decision.Timeout).Unix(),
 		IdentityToken: token,
 	})
 	if err != nil {

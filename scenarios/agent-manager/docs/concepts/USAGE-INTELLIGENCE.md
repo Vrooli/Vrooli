@@ -799,7 +799,12 @@ them to one scenario (`agent-manager.friction-digest` reads it per scenario).
 Inferred run annotations (data-driven labels, evaluator packs, per-label gates and the
 shared capacity-aware scheduler) are documented in
 [RUN-ANNOTATIONS.md](RUN-ANNOTATIONS.md). The deterministic tool and runtime lenses remain
-the backbone; an inferred label produces a rate only after its gate passes.
+the backbone; an inferred label produces a rate only after its gate passes, for the model that
+answered. The `usage.annotation_gate` measure is the one projection of that gate (proven, partial or
+unproven; the proven model and role; hold-out precision, recall, ECE and gold size; calibrated or raw);
+`usage annotations`, the Friction tab's Inferred annotations card and the friction digest all quote
+rates from it. The Friction tab's Operator mood card draws the per-message mood labels over time from
+human-written messages only, with the proven line apart from the all-messages line.
 
 `UsageFriction` (`agent-manager usage friction`) lists the tool findings of
 its window, each with its owner, a plain sentence, counts, cost, evidence runs

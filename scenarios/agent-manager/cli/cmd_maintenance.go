@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -89,6 +88,7 @@ func (a *App) maintenanceAdmission(operation string, args []string) error {
 	var payload []byte
 	if operation != "status" {
 		method = "POST"
+		path = "/api/v1/maintenance/admission"
 		input := map[string]any{}
 		switch operation {
 		case "begin":
@@ -177,7 +177,7 @@ func (a *App) maintenanceAdmission(operation string, args []string) error {
 // localOwnerAPI exchanges explicit local human authority for an owner token.
 // It is refused inside an identified agent run so an agent cannot elevate.
 func localOwnerAPI(api *cliutil.APIClient) (*cliutil.APIClient, error) {
-	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+	if strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != "" {
 		return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -21,7 +21,10 @@ type celEvaluator struct {
 }
 
 func featureEnv() (*cel.Env, error) {
-	return cel.NewEnv(
+	if toolRulesErr != nil {
+		return nil, toolRulesErr
+	}
+	options := []cel.EnvOption{
 		cel.CrossTypeNumericComparisons(true),
 		cel.Variable("run_id", cel.StringType),
 		cel.Variable("workload_kind", cel.StringType),
@@ -35,19 +38,23 @@ func featureEnv() (*cel.Env, error) {
 		cel.Variable("duration_min", cel.DoubleType),
 		cel.Variable("compaction_count", cel.IntType),
 		cel.Variable("operator_message_count", cel.IntType),
+		cel.Variable("human_message_count", cel.IntType),
+		cel.Variable("brief_message_count", cel.IntType),
+		cel.Variable("spawned_by_run", cel.BoolType),
+		cel.Variable("imported_session", cel.BoolType),
 		cel.Variable("agent_text_count", cel.IntType),
-		cel.Variable("tool_calls", cel.IntType),
-		cel.Variable("tool_failures", cel.IntType),
-		cel.Variable("failed_commands", cel.IntType),
-		cel.Variable("repeated_paths", cel.IntType),
-		cel.Variable("repeated_commands", cel.IntType),
 		cel.Variable("stepback_triggers", cel.ListType(cel.StringType)),
 		cel.Variable("tool_findings", cel.ListType(cel.StringType)),
 		cel.Variable("existing_signals", cel.MapType(cel.StringType, cel.DoubleType)),
 		cel.Variable("last_operator_message", cel.StringType),
+		cel.Variable("last_human_message", cel.StringType),
+		cel.Variable("message_text", cel.StringType),
+		cel.Variable("message_index", cel.IntType),
+		cel.Variable("message_count", cel.IntType),
 		cel.Variable("last_agent_text", cel.StringType),
 		cel.Variable("last_tool_error", cel.StringType),
-	)
+	}
+	return cel.NewEnv(append(options, toolVariables()...)...)
 }
 
 func compositeEnvFor(base *cel.Env) (*cel.Env, error) {
@@ -57,6 +64,9 @@ func compositeEnvFor(base *cel.Env) (*cel.Env, error) {
 	return base.Extend(
 		cel.Variable("labels", cel.MapType(cel.StringType, cel.DoubleType)),
 		cel.Variable("present", cel.MapType(cel.StringType, cel.BoolType)),
+		// message_labels summarizes a run's message-scope labels: for each label
+		// id, count, positives, max and mean over the run's human messages.
+		cel.Variable("message_labels", cel.MapType(cel.StringType, cel.MapType(cel.StringType, cel.DoubleType))),
 	)
 }
 

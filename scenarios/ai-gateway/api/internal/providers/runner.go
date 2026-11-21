@@ -177,6 +177,7 @@ var (
 	secretishPattern            = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)(["'=:\s]+)(bearer\s+)?[^,\s"]+`)
 	secretFieldPattern          = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)`)
 	credentialIdentifierPattern = regexp.MustCompile(`^[A-Z0-9_]*(API[_-]?KEY|TOKEN|SECRET|AUTHORIZATION)$`)
+	tokenCountFieldPattern      = regexp.MustCompile(`(?i)^[a-z0-9_]*_tokens$|^tokens$`)
 )
 
 func redact(s string) string {
@@ -197,7 +198,7 @@ func redactOutput(s string) string {
 }
 
 func redactJSONValue(value any, field string) any {
-	if secretFieldPattern.MatchString(field) {
+	if isSecretField(field) && !isTokenCount(field, value) {
 		return "[redacted]"
 	}
 	switch typed := value.(type) {
@@ -219,6 +220,23 @@ func redactJSONValue(value any, field string) any {
 		return redact(typed)
 	}
 	return value
+}
+
+func isSecretField(field string) bool {
+	return secretFieldPattern.MatchString(field)
+}
+
+// isTokenCount reports a numeric usage or limit field such as input_tokens,
+// output_tokens or max_tokens. These are ordinary metadata, not credentials: a
+// substring match would redact them into strings and make otherwise valid
+// resource JSON (a decision's usage block, a role's token cap) impossible for
+// downstream adapters to decode. A credential is a string, and the singular
+// "token" field stays secret.
+func isTokenCount(field string, value any) bool {
+	if _, numeric := value.(float64); !numeric {
+		return false
+	}
+	return tokenCountFieldPattern.MatchString(field)
 }
 
 func isCredentialIdentifier(value any) bool {

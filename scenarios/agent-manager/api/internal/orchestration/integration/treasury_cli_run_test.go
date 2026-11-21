@@ -426,11 +426,15 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 				ID          string `json:"id"`
 				Outcome     string `json:"outcome"`
 				ExternalID  string `json:"external_id"`
-				AmountMinor int64  `json:"amount_minor"`
+				AmountMinor string `json:"amount_minor"`
 			} `json:"settlement"`
 		}
-		if err := json.Unmarshal(inCapSettlementOutput, &inCapSettlement); err != nil || inCapSettlement.Settlement.ID != config.InCapSettlement || inCapSettlement.Settlement.Outcome != "CHARGE_OUTCOME_SETTLED" || inCapSettlement.Settlement.AmountMinor != config.InCapAmountMinor || !cf1HexIdentity(inCapSettlement.Settlement.ExternalID, 32) {
-			return nil, fmt.Errorf("ordinary-run in-cap spend lacks a settled chain transaction identity: settlement=%+v decode=%v", inCapSettlement.Settlement, err)
+		if err := json.Unmarshal(inCapSettlementOutput, &inCapSettlement); err != nil {
+			return nil, fmt.Errorf("decode ordinary-run in-cap settlement: %w", err)
+		}
+		amountMinor, amountErr := strconv.ParseInt(inCapSettlement.Settlement.AmountMinor, 10, 64)
+		if amountErr != nil || inCapSettlement.Settlement.ID != config.InCapSettlement || inCapSettlement.Settlement.Outcome != "CHARGE_OUTCOME_SETTLED" || amountMinor != config.InCapAmountMinor || !cf1HexIdentity(inCapSettlement.Settlement.ExternalID, 32) {
+			return nil, fmt.Errorf("ordinary-run in-cap spend lacks a settled chain transaction identity: settlement=%+v amount_decode=%v", inCapSettlement.Settlement, amountErr)
 		}
 		if err := write("in-cap-settled.json", map[string]any{"authorization_id": config.InCapAuthorization, "settlement_id": config.InCapSettlement}); err != nil {
 			return nil, err
@@ -587,6 +591,9 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 			return nil, err
 		}
 		if err := readHeadroom("budget-headroom-after-over-cap", config.InCapAmountMinor+config.OverCapAmountMinor, 1000-config.InCapAmountMinor-config.OverCapAmountMinor); err != nil {
+			return nil, err
+		}
+		if err := write("over-cap-headroom-before-restart.json", map[string]any{"authorization_id": config.OverCapAuthorization, "validated": true}); err != nil {
 			return nil, err
 		}
 		if err := waitForFile(execCtx, filepath.Join(coord, "over-cap-retry-release"), nil); err != nil {
@@ -1026,6 +1033,10 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		}
 		return
 	}
+	config, err := readCF1RunConfig(coord)
+	if err != nil {
+		t.Fatalf("wait for Treasury local-fork setup: %v", err)
+	}
 	budgetTarget := "treasury:budget/" + os.Getenv("TREASURY_CF1_BUDGET_ID")
 	mandateID := strings.TrimSpace(os.Getenv("TREASURY_CF1_MANDATE_ID"))
 	counterparty := strings.TrimSpace(os.Getenv("TREASURY_CF1_COUNTERPARTY"))
@@ -1035,6 +1046,9 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	readTargets := []string{budgetTarget, "treasury:authorization/" + inCapAuthorizationID}
 	if isolationBudgetID != "" {
 		readTargets = append(readTargets, "treasury:budget/"+isolationBudgetID)
+	}
+	if foreignBudgetID := strings.TrimSpace(config.ForeignBudgetID); foreignBudgetID != "" && foreignBudgetID != isolationBudgetID {
+		readTargets = append(readTargets, "treasury:budget/"+foreignBudgetID)
 	}
 	inCapTarget, inCapSettlementTarget := (cliutil.TreasurySpendIntent{
 		AuthorizationID: inCapAuthorizationID, MandateID: mandateID, AmountMinor: 30, Currency: "USD", Counterparty: counterparty,
@@ -1068,10 +1082,6 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		"spend_targets": []string{inCapTarget, inCapSettlementTarget}, "read_targets": readTargets, "approved_at": approved.ApprovedAt,
 	}); err != nil {
 		t.Fatal(err)
-	}
-	config, err := readCF1RunConfig(coord)
-	if err != nil {
-		t.Fatalf("wait for Treasury local-fork setup: %v", err)
 	}
 	config.InCapGrantID = grant.ID.String()
 	configPath := filepath.Join(coord, "treasury-config.json")

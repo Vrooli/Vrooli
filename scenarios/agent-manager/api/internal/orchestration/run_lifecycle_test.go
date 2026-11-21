@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	coreidentity "github.com/vrooli/api-core/identity"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
@@ -733,7 +734,8 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 		t.Fatal(err)
 	}
 
-	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+	person := coreidentity.WithPrincipal(ctx, coreidentity.Principal{Kind: coreidentity.ActorHuman, Subject: "operator", Verified: true})
+	if _, err := svc.ContinueRun(person, orchestration.ContinueRunRequest{
 		RunID:   runID,
 		Message: "please continue in protected mode",
 	}); err != nil {
@@ -780,6 +782,20 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 	}
 	if len(messageEvents) != 2 {
 		t.Fatalf("expected user and assistant message events, got %d", len(messageEvents))
+	}
+	// The continuation was delivered by a verified person, and the message
+	// records it so authorship does not have to be guessed from lineage.
+	var sawUser bool
+	for _, event := range messageEvents {
+		if data, ok := event.Data.(*domain.MessageEventData); ok && data.Role == "user" {
+			sawUser = true
+			if data.Sender != domain.MessageSenderPerson || data.SenderID != "operator" {
+				t.Fatalf("continuation user message sender = %q/%q, want person/operator", data.Sender, data.SenderID)
+			}
+		}
+	}
+	if !sawUser {
+		t.Fatal("no user message event was recorded for the continuation")
 	}
 }
 

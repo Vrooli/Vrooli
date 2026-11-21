@@ -421,6 +421,22 @@ func TestAdapterResolveRoleDecodesSamplingSupportAndCap(t *testing.T) { // [REQ:
 			wantCap:     16384,
 		},
 		{
+			name:        "ollama policy string cap",
+			provider:    ProviderOllama,
+			commandName: "resource-ollama",
+			stdout:      `{"role":"write.default","model":"gemma4:12b","max_tokens":"8192"}`,
+			wantSupport: SamplingUnknown,
+			wantCap:     8192,
+		},
+		{
+			name:        "request defaults string cap",
+			provider:    ProviderOpenRouter,
+			commandName: "resource-openrouter",
+			stdout:      `{"role":"write.default","model":"vendor/model","request_defaults":{"max_tokens":"16384"}}`,
+			wantSupport: SamplingUnknown,
+			wantCap:     16384,
+		},
+		{
 			name:        "absent declaration is unknown, absent cap is zero",
 			provider:    ProviderOllama,
 			commandName: "resource-ollama",
@@ -543,5 +559,32 @@ func TestNonOpenRouterProvidersRejectSpendCaps(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected unsupported spend cap")
+	}
+}
+
+// A local decision role's declared bounds ride the resource's resolve and roles
+// output into the gateway, which sizes requests from them.
+func TestAdapterDecodesDecisionLimitsAndPlacementFromResolveAndRoles(t *testing.T) {
+	const bounds = `"limits":{"context_tokens":8192,"max_options":255,"max_questions":256},"placement":{"device":"gpu","vram_bytes":6442450944,"ram_bytes":0}`
+	runner := &fakeRunner{results: map[string]Result{
+		"resource-ollaya policy resolve --role decide.local.kev --json": {Stdout: `{"role":"decide.local.kev","model":"kev:4b","locality":"local",` + bounds + `}`},
+		"resource-ollaya policy roles --json":                           {Stdout: `{"roles":[{"role":"decide.local.kev","model":"kev:4b","locality":"local","required_capabilities":["decide"],` + bounds + `}]}`},
+	}}
+	adapter := Adapter{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Family: FamilyDecision, Runner: runner}
+	want := DecisionLimits{ContextTokens: 8192, MaxOptions: 255, MaxQuestions: 256}
+
+	resolved, err := adapter.ResolveRole(context.Background(), "decide.local.kev")
+	if err != nil {
+		t.Fatalf("ResolveRole() error = %v", err)
+	}
+	if resolved.Limits == nil || *resolved.Limits != want || resolved.Placement == nil || resolved.Placement.Device != "gpu" || resolved.Placement.VRAMBytes != 6442450944 {
+		t.Fatalf("resolved = %+v / %+v, want the declared limits and placement", resolved.Limits, resolved.Placement)
+	}
+	inventory, err := adapter.ListRoles(context.Background())
+	if err != nil {
+		t.Fatalf("ListRoles() error = %v", err)
+	}
+	if got := inventory.Roles[0]; got.Limits == nil || *got.Limits != want || got.Placement == nil || got.Placement.Device != "gpu" || got.Model != "kev:4b" {
+		t.Fatalf("inventory role = %+v, want the declared limits and placement", got)
 	}
 }

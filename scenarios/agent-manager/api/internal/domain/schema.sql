@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     denied_paths TEXT DEFAULT '[]',
     declared_scopes TEXT DEFAULT '[]',
     skill_pack TEXT DEFAULT '[]',
-    skill_experiment_id TEXT DEFAULT '',
     created_by TEXT,
     owner_scenario TEXT DEFAULT '',
     source_path TEXT DEFAULT '',

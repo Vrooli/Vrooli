@@ -149,7 +149,7 @@ func (a *App) cmdEffort(args []string) error {
 func (a *App) effortService(localOwner bool, request proto.Message) (*WatchService, error) {
 	service := a.services.Watches
 	if localOwner {
-		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+		if strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != "" {
 			return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use this operation's supported owner or granted-agent path")
 		}
 		if scoped, ok := request.(interface{ GetAuthority() pb.WatchAuthority }); ok && scoped.GetAuthority() != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {

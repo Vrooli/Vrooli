@@ -346,7 +346,7 @@ func TestIndexerAppliesQueuedRunChangeIncrementally(t *testing.T) {
 	indexer, err := NewIndexer(IndexerOptions{Source: source, Repository: repository})
 	require.NoError(t, err)
 	require.NoError(t, repository.EnqueueChange(context.Background(), ChangeUpsertRun, old.SourceRunID, "", time.Now().UTC()))
-	job, err := indexer.reindex(context.Background(), 0, "incremental-test", false, true)
+	job, err := indexer.reindex(context.Background(), 0, "incremental-test", false, true, "test")
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { current, ok := indexer.Status(job.ID); return ok && current.State == ReindexComplete }, time.Second, time.Millisecond)
 	require.Empty(t, ftsIDs(t, db, "old"))
@@ -377,7 +377,7 @@ func TestIndexerIncrementalSemanticFailureKeepsLexicalProjectionAndAdvancesQueue
 	require.NoError(t, err)
 	require.NoError(t, repository.EnqueueChange(context.Background(), ChangeUpsertRun, old.SourceRunID, "", time.Now().UTC()))
 
-	job, err := indexer.reindex(context.Background(), 0, "incremental-semantic-failure", false, true)
+	job, err := indexer.reindex(context.Background(), 0, "incremental-semantic-failure", false, true, "test")
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		current, ok := indexer.Status(job.ID)
@@ -415,7 +415,7 @@ func TestIndexerIncrementalSemanticFailureLeavesNewerDeletionQueued(t *testing.T
 	require.NoError(t, err)
 	require.NoError(t, repository.EnqueueChange(context.Background(), ChangeUpsertRun, old.SourceRunID, "", time.Now().UTC()))
 
-	job, err := indexer.reindex(context.Background(), 0, "incremental-newer-delete", false, true)
+	job, err := indexer.reindex(context.Background(), 0, "incremental-newer-delete", false, true, "test")
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		current, ok := indexer.Status(job.ID)
@@ -440,7 +440,7 @@ func TestIndexerCancellationLeavesServingProjectionReadable(t *testing.T) {
 	source := &blockingProjectionSource{started: make(chan struct{})}
 	indexer, err := NewIndexer(IndexerOptions{Source: source, Repository: repository})
 	require.NoError(t, err)
-	job, err := indexer.reindex(context.Background(), 0, "cancel-test", false, false)
+	job, err := indexer.reindex(context.Background(), 0, "cancel-test", false, false, "test")
 	require.NoError(t, err)
 	<-source.started
 	require.True(t, indexer.Cancel(job.ID))
@@ -463,7 +463,7 @@ func TestIndexerRestartRollsBackInterruptedShadowBeforeRepair(t *testing.T) {
 	indexer.recoverInterrupted(context.Background())
 	recovered, err := repository.LoadGeneration(context.Background(), generation.GenerationID)
 	require.NoError(t, err)
-	require.Equal(t, "failed", recovered.State)
+	require.Equal(t, "cancelled", recovered.State, "a generation interrupted by a restart is cancelled, not failed")
 	count, err := repository.CountStagedGeneration(context.Background(), generation.GenerationID)
 	require.NoError(t, err)
 	require.Zero(t, count)
@@ -598,7 +598,7 @@ func TestIndexerRecoveryFailurePausesAdmissionAndCanRetry(t *testing.T) {
 			generation, err := repository.LoadGeneration(t.Context(), "abandoned")
 			require.NoError(t, err)
 			if test.cleaned {
-				require.Equal(t, "failed", generation.State)
+				require.Equal(t, "cancelled", generation.State)
 			} else {
 				require.Equal(t, "building", generation.State, "unfinished cleanup must remain discoverable")
 			}
@@ -1217,4 +1217,21 @@ func TestCountSemanticEligibleStagedIgnoresToolPayloads(t *testing.T) {
 	if total != 3 {
 		t.Fatalf("total = %d, want 3", total)
 	}
+}
+
+// The first status after a restart must wait for the coverage count instead of
+// publishing the cold cache's zeros as if the index were empty.
+func TestProjectionStatusReadsCoverageInsteadOfTheColdCacheZero(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	require.NoError(t, repository.UpsertDocument(t.Context(), testDocument()))
+	repository.invalidateCoverage()
+
+	status, err := repository.ProjectionStatus(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), status.CatalogDocuments)
+	require.Equal(t, uint64(1), status.LexicalDocuments)
+	require.Equal(t, uint64(1), status.CanonicalMessages)
 }

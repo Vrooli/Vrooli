@@ -192,12 +192,12 @@ func (a *App) storageCompact(args []string) error {
 		}
 		return nil
 	}
-	deadline := time.Now().Add(*timeout)
+	deadline := ambient.Now().Add(*timeout)
 	for {
 		time.Sleep(storagePollInterval)
 		raw, view, err := a.storageHealth()
 		if err != nil {
-			if time.Now().After(deadline) {
+			if ambient.Now().After(deadline) {
 				return fmt.Errorf("compaction result unobserved before timeout: %w", err)
 			}
 			continue
@@ -220,7 +220,7 @@ func (a *App) storageCompact(args []string) error {
 			}
 			return fmt.Errorf("compaction failed: %s", view.Compaction.Error)
 		}
-		if time.Now().After(deadline) {
+		if ambient.Now().After(deadline) {
 			return fmt.Errorf("compaction still %s after %s; follow it with agent-manager storage status", view.Compaction.State, *timeout)
 		}
 	}

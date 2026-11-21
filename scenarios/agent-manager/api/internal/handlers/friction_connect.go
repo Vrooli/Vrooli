@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -53,8 +52,8 @@ func (h *Handler) frictionTarget(fingerprint, since string) (string, time.Time, 
 	var start time.Time
 	if since = strings.TrimSpace(since); since != "" {
 		var err error
-		if start, err = time.Parse(time.RFC3339, since); err != nil {
-			return "", time.Time{}, time.Time{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("since must be RFC 3339: %w", err))
+		if start, err = usageattribution.ParseWindowBound("since", since, now); err != nil {
+			return "", time.Time{}, time.Time{}, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 	}
 	start, err := usageattribution.ToolWindowStart(start, now)

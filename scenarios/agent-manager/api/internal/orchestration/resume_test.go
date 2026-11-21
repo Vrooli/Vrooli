@@ -34,14 +34,12 @@ func TestResumeFromFailedRunPreservesTaskPinsEnvironmentAndReplay(t *testing.T) 
 	prior.ResolvedConfig.MaxTurns = 7
 	prior.ResolvedConfig.Timeout = 2 * time.Minute
 	prior.ResolvedConfig.SkillPack = []string{"scientific-debugging"}
-	prior.ResolvedConfig.SkillExperimentID = "pinned-experiment"
 	prior.ResolvedConfig.ToolRestrictionPolicy = domain.ToolRestrictionPolicyAdvisory
 	prior.ResolvedConfig.DeniedPaths = []string{"private"}
 	prior.ResolvedConfig.NetworkAccess = domain.NetworkAccessNone
 	// The mutable profile has drifted. Recovery must not import its new
 	// capabilities or silently replace the original experiment/permission policy.
 	profile.SkillPack = []string{"different-skill"}
-	profile.SkillExperimentID = "different-experiment"
 	profile.ToolRestrictionPolicy = domain.ToolRestrictionPolicyEnforced
 	if err := repos.Profiles.Update(t.Context(), profile); err != nil {
 		t.Fatal(err)
@@ -66,7 +64,7 @@ func TestResumeFromFailedRunPreservesTaskPinsEnvironmentAndReplay(t *testing.T) 
 	if got.ResolvedConfig.Model != "mock-model" || got.ResolvedConfig.MaxTurns != 7 || got.ResolvedConfig.Timeout != 2*time.Minute {
 		t.Errorf("fresh recovery lost pins: %+v", got.ResolvedConfig)
 	}
-	if !reflect.DeepEqual(got.ResolvedConfig.SkillPack, prior.ResolvedConfig.SkillPack) || got.ResolvedConfig.SkillExperimentID != prior.ResolvedConfig.SkillExperimentID || got.ResolvedConfig.ToolRestrictionPolicy != prior.ResolvedConfig.ToolRestrictionPolicy || !reflect.DeepEqual(got.ResolvedConfig.DeniedPaths, prior.ResolvedConfig.DeniedPaths) || got.ResolvedConfig.NetworkAccess != prior.ResolvedConfig.NetworkAccess {
+	if !reflect.DeepEqual(got.ResolvedConfig.SkillPack, prior.ResolvedConfig.SkillPack) || got.ResolvedConfig.ToolRestrictionPolicy != prior.ResolvedConfig.ToolRestrictionPolicy || !reflect.DeepEqual(got.ResolvedConfig.DeniedPaths, prior.ResolvedConfig.DeniedPaths) || got.ResolvedConfig.NetworkAccess != prior.ResolvedConfig.NetworkAccess {
 		t.Fatalf("fresh recovery changed immutable policy: %+v", got.ResolvedConfig)
 	}
 	replay, err := svc.ResumeFromFailedRun(t.Context(), request)

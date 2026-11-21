@@ -422,7 +422,7 @@ func suiteFromProto(value *evalv1.EvalSuite) aisearch.TestSuite {
 		suite.SuiteID = ""
 	}
 	for _, c := range value.GetCases() {
-		suite.Cases = append(suite.Cases, aisearch.TestCase{ID: c.GetCaseId(), Query: c.GetQuery(), Scope: c.GetScope(), Status: c.GetStatus(), Tags: append([]string(nil), c.GetTags()...), ExpectIDs: append([]string(nil), c.GetExpectIds()...), ExpectWithinTopK: int(c.GetExpectWithinTopK()), ExpectMinScore: c.GetExpectMinScore(), ExpectMaxScore: c.GetExpectMaxScore(), ExpectNoStrongHit: c.GetExpectNoStrongHit(), Note: c.GetNote()})
+		suite.Cases = append(suite.Cases, aisearch.TestCase{ID: c.GetCaseId(), Query: c.GetQuery(), Scope: c.GetScope(), Status: c.GetStatus(), Tags: append([]string(nil), c.GetTags()...), ExpectIDs: append([]string(nil), c.GetExpectIds()...), ExpectedIdentityField: c.GetExpectedIdentityField(), ExpectWithinTopK: int(c.GetExpectWithinTopK()), ExpectMinScore: c.GetExpectMinScore(), ExpectMaxScore: c.GetExpectMaxScore(), ExpectNoStrongHit: c.GetExpectNoStrongHit(), Note: c.GetNote()})
 	}
 	return suite
 }
@@ -430,7 +430,7 @@ func suiteFromProto(value *evalv1.EvalSuite) aisearch.TestSuite {
 func suiteToProto(providerID string, value aisearch.TestSuite) *evalv1.EvalSuite {
 	suite := &evalv1.EvalSuite{SuiteId: value.ResolvedSuiteID(providerID), ProviderId: providerID, Name: value.Name, Description: value.Description, State: "active"}
 	for _, c := range value.Cases {
-		suite.Cases = append(suite.Cases, &evalv1.EvalCase{CaseId: c.ID, Query: c.Query, Scope: c.Scope, Status: c.Status, Tags: append([]string(nil), c.Tags...), ExpectIds: append([]string(nil), c.ExpectIDs...), ExpectWithinTopK: int32(c.ExpectWithinTopK), ExpectMinScore: c.ExpectMinScore, ExpectMaxScore: c.ExpectMaxScore, ExpectNoStrongHit: c.ExpectNoStrongHit, Note: c.Note})
+		suite.Cases = append(suite.Cases, &evalv1.EvalCase{CaseId: c.ID, Query: c.Query, Scope: c.Scope, Status: c.Status, Tags: append([]string(nil), c.Tags...), ExpectIds: append([]string(nil), c.ExpectIDs...), ExpectedIdentityField: c.ExpectedIdentityField, ExpectWithinTopK: int32(c.ExpectWithinTopK), ExpectMinScore: c.ExpectMinScore, ExpectMaxScore: c.ExpectMaxScore, ExpectNoStrongHit: c.ExpectNoStrongHit, Note: c.Note})
 	}
 	return suite
 }

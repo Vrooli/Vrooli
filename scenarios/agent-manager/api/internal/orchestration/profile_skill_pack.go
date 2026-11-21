@@ -47,7 +47,7 @@ func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, ski
 		if !profileSkillIDPattern.MatchString(id) {
 			return 0, fmt.Errorf("invalid profile skill identifier %q", id)
 		}
-		snapshot, err := source.ReadSkillSource(ctx, id, "", nil, false)
+		snapshot, err := source.ReadSkillSource(ctx, id, nil, false)
 		if err != nil {
 			return 0, fmt.Errorf("resolve profile skill %q: %w", id, err)
 		}
@@ -96,38 +96,6 @@ func ProjectProfileSkills(ctx context.Context, root string, runID uuid.UUID, ski
 		}
 	}
 	return resident, nil
-}
-
-// ProjectProfileSkillsAssigned composes a profile through the durable
-// assignment surface when an experiment is configured. Each skill receives a
-// stable idempotency key for this run; retries read the frozen assignment
-// rather than selecting a new arm. Without an experiment it preserves the
-// observational source-read behavior of ProjectProfileSkills.
-func ProjectProfileSkillsAssigned(ctx context.Context, root string, runID uuid.UUID, skillsDir, experimentID string, skillIDs []string, source promptmanager.SourceClient, maxTokens int) (int, error) {
-	if strings.TrimSpace(experimentID) == "" {
-		return ProjectProfileSkills(ctx, root, runID, skillsDir, skillIDs, source, maxTokens)
-	}
-	assigner, ok := source.(promptmanager.AssignmentClient)
-	if !ok {
-		return 0, fmt.Errorf("skill experiment %q requires an assignment-capable prompt-manager source", experimentID)
-	}
-	assigned := &assignedSkillSource{ctx: ctx, source: source, assigner: assigner, experimentID: experimentID, runID: runID}
-	return ProjectProfileSkills(ctx, root, runID, skillsDir, skillIDs, assigned, maxTokens)
-}
-
-type assignedSkillSource struct {
-	ctx          context.Context
-	source       promptmanager.SourceClient
-	assigner     promptmanager.AssignmentClient
-	experimentID string
-	runID        uuid.UUID
-}
-
-func (s *assignedSkillSource) ReadSkillSource(ctx context.Context, skillID, _ string, variables map[string]string, withScope bool) (promptmanager.SkillSourceSnapshot, error) {
-	return s.assigner.AssignExperimentPrompt(ctx, promptmanager.AssignmentRequest{
-		ExperimentID: s.experimentID, SkillID: skillID, ExecutionID: s.runID.String(), NodeID: "profile", AttemptKey: "1",
-		IdempotencyKey: "skill-profile/" + s.runID.String() + "/" + skillID, Variables: variables, WithScope: withScope,
-	})
 }
 
 func uniqueProfileSkillIDs(ids []string) []string {

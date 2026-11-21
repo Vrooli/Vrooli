@@ -295,6 +295,12 @@ func TestRouteEvidenceRoleColumnsReconcileOnExistingLedger(t *testing.T) {
 	db := testdb.NewSQLite(t)
 	oldSchema := strings.Replace(routing.Schema(), "  task_role TEXT NOT NULL DEFAULT '',\n", "", 1)
 	oldSchema = strings.Replace(oldSchema, "  selected_resource_role TEXT NOT NULL DEFAULT '',\n", "", 1)
+	for _, column := range []string{
+		"preparation_duration_ns", "route_plan_duration_ns", "role_resolution_duration_ns",
+		"eligibility_duration_ns", "capacity_admission_duration_ns", "provider_execution_duration_ns",
+	} {
+		oldSchema = strings.Replace(oldSchema, "  "+column+" INTEGER NOT NULL DEFAULT 0,\n", "", 1)
+	}
 	legacy := database.SchemaProviderFunc(func() string { return oldSchema })
 	current := database.SchemaProviderFunc(routing.Schema)
 	require.NoError(t, database.EnsureSchemas(context.Background(), db, legacy))
@@ -305,12 +311,20 @@ func TestRouteEvidenceRoleColumnsReconcileOnExistingLedger(t *testing.T) {
 		EventId: "role-provenance-upgrade", RequestId: "request-role-upgrade",
 		Role: "chat.default", TaskRole: "extract.structured", SelectedResourceRole: "chat.default",
 		Status: "succeeded", CreatedAt: "2026-11-14T16:00:00Z",
+		PreparationDurationNs: 110, RoutePlanDurationNs: 220, RoleResolutionDurationNs: 330,
+		EligibilityDurationNs: 440, CapacityAdmissionDurationNs: 550, ProviderExecutionDurationNs: 660,
 	}
 	require.NoError(t, repo.Create(context.Background(), event))
 	got, err := repo.Get(context.Background(), event.GetEventId())
 	require.NoError(t, err)
 	require.Equal(t, event.GetTaskRole(), got.GetTaskRole())
 	require.Equal(t, event.GetSelectedResourceRole(), got.GetSelectedResourceRole())
+	require.Equal(t, event.GetPreparationDurationNs(), got.GetPreparationDurationNs())
+	require.Equal(t, event.GetRoutePlanDurationNs(), got.GetRoutePlanDurationNs())
+	require.Equal(t, event.GetRoleResolutionDurationNs(), got.GetRoleResolutionDurationNs())
+	require.Equal(t, event.GetEligibilityDurationNs(), got.GetEligibilityDurationNs())
+	require.Equal(t, event.GetCapacityAdmissionDurationNs(), got.GetCapacityAdmissionDurationNs())
+	require.Equal(t, event.GetProviderExecutionDurationNs(), got.GetProviderExecutionDurationNs())
 }
 
 func TestMissingCatalogRightsBlocksLocalCandidateAtPlanning(t *testing.T) {
@@ -456,6 +470,11 @@ func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testi
 	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
 	require.Equal(t, "ollama", resp.GetEvidence().GetSelectedProvider())
 	require.Equal(t, "qwen3.5:9b", resp.GetEvidence().GetSelectedModel())
+	require.Positive(t, resp.GetEvidence().GetPreparationDurationNs())
+	require.Positive(t, resp.GetEvidence().GetRoutePlanDurationNs())
+	require.Positive(t, resp.GetEvidence().GetRoleResolutionDurationNs())
+	require.Positive(t, resp.GetEvidence().GetEligibilityDurationNs())
+	require.Positive(t, resp.GetEvidence().GetProviderExecutionDurationNs())
 	// A TEXT_GENERATION request runs no PII-detection pass, so the redacted-
 	// evidence seam reports false (it is meaningful now, not unconditionally
 	// true). The real privacy guarantee is below: the input never appears in the

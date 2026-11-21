@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-11-18T00:00:00Z"
   requires:
     scenarios: ["agent-manager"]
-    commands: ["agent-manager annotations packs", "agent-manager annotations labels", "agent-manager annotations coverage", "agent-manager annotations show", "agent-manager annotations run", "agent-manager annotations evaluate", "agent-manager annotations scheduler", "agent-manager annotations benchmark", "agent-manager annotations gold", "agent-manager usage annotations", "agent-manager measures get", "vrooli-memory journal note"]
+    commands: ["agent-manager annotations packs", "agent-manager annotations labels", "agent-manager annotations coverage", "agent-manager annotations show", "agent-manager annotations run", "agent-manager annotations evaluate", "agent-manager annotations scheduler", "agent-manager annotations benchmark", "agent-manager annotations gold", "agent-manager annotations calibration", "agent-manager annotations provenance", "agent-manager annotations series", "agent-manager usage annotations", "agent-manager measures get", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -55,49 +55,52 @@ Prefer deterministic. Do not add an AI label for something a rule can answer.
 - `require` states when the run has evidence at all, for example
   `agent_text_count > 0 || tool_calls > 0`. Without it an empty digest still produces a
   confident-looking model answer. A failed `require` is skipped as `insufficient_evidence`.
-- Affect labels must judge a person, not a workflow: add
-  `workload_kind != 'workflow_node'`, because a workflow node's user-role message is its task
-  brief. Check what the operator text really is before trusting an operator-derived label.
+- Mood labels must judge a person, not a workflow: use `scope: "message"`, `population:
+  "human_operator"` and `require: human_message_count > 0`. A workflow node's, a scheduled
+  run's and an agent's delegation message are briefs (`runtime.provenance`); check what the
+  operator text really is before trusting an operator-derived label.
 - Sampling is data: full for candidate runs, a small random rate for the baseline.
 
 ### 4. Gate before showing
 
-A label surfaces as a rate or finding only after it meets its gate on a gold set that is
-disjoint from the tuning set:
+A label surfaces as a rate or finding only after a **hold-out** measurement clears its gate
+for the model that answered:
 
 - precision ≥ 0.80, recall ≥ 0.70, at least the declared `min_gold` rows;
-- a fresh validation set, not the tuning set;
-- the gate is per label, per model, per definition hash.
-- Unproven labels are stored and may be shown as evidence with their measured numbers.
-  They never produce a rate.
+- the hold-out is disjoint from the tuning set by run; the gate is per
+  `(definition hash, model, resource role)`, so a proof never carries to another model;
+- unproven labels are stored and shown as evidence with their measured numbers, never as a rate.
 
-Draft a blind review set (the packet is wider than the model digest on purpose), label it,
-then measure with stored probabilities (no new inference):
+Draft a blind review set (the packet is wider than the model digest on purpose), label it
+without seeing the model's answer, fit on tuning, prove on hold-out:
 
 ```bash
-agent-manager annotations gold --label agent.spinning --window 30d --out gold.jsonl
-# edit gold.jsonl: set "positive" on every row from the evidence, without seeing the model's answer
-agent-manager annotations benchmark --gold gold.jsonl --label agent.spinning  # threshold defaults to the label's declared value
+agent-manager annotations gold --label work.blocked_by_tool --window 30d --out gold.jsonl
+# set "positive" on every row from the evidence; split rows into tuning and hold-out files by run
+agent-manager annotations benchmark --gold tuning.jsonl --label work.blocked_by_tool --model laya:en --resource-role decide.local
+agent-manager annotations benchmark --gold holdout.jsonl --split holdout --fit-from tuning.jsonl --label work.blocked_by_tool --model laya:en --resource-role decide.local
+agent-manager annotations calibration --label work.blocked_by_tool --gold tuning.jsonl --gold holdout.jsonl
 ```
 
-`annotations gold` selects runs already observed under the label's current definition and
-emits bounded state per run, never the stored probability: anchoring on the model would make
-the measurement circular. Its default size is the label's `min_gold` (capped at 100), so the
-draft can actually clear the gate. Every row starts `"positive":null`, and the benchmark refuses an
-unfilled row rather than silently dropping it. Rows are JSONL
-(`{"run_id":"…","label":"…","positive":true}`); the command fetches each run's stored
-annotation, prints TP/FP/FN/TN and precision/recall, and prints the `gate.measured` block
-(with its `definition_hash`) to paste under the label's `gate` in the pack. Re-thresholding
-is free because the probability vectors are durable.
+Gold files live in the private gold root (`runtime.gold_root`, default `gold/` under the scenario's state directory; the
+API reports it as `gold_root` on `annotations packs`): relative `--out`, `--gold`, `--fit-from` and `--runs-from` resolve
+against it, files are written 0600, and a measurement's `gold_file` is root-relative. After editing `runtime.provenance`,
+run `agent-manager annotations provenance` so coverage and the mood population reflect the new policy.
 
-A score label declares its friction direction: `max_score` for low-is-bad
-(`operator.valence`), `min_score` for high-is-bad (`agent.spinning`). Its confidence is the
-probability mass in that region, not the winning level's probability, so a confident
-three-level score can still clear the gate.
+`annotations gold` emits bounded state per run, never the stored probability: anchoring on
+the model would make the measurement circular. Every row starts `"positive":null`, and the
+benchmark refuses an unfilled row. The tuning run fits a temperature and threshold; the
+hold-out run measures with them and prints the `gate.measurements[]` entry to paste under
+the label's `gate`. Re-thresholding is free because the probability vectors are durable.
+A hold-out needs at least 8 positives to mean anything; if the corpus cannot supply them
+(a rare label), delete the label or mark it `optional: true` rather than leave it unproven.
 
-For affect labels, start with valence and frustration/satisfaction. Six-way emotion is
-optional; small local decision models are weak at it. Grow the gold set from the operator's
-own messages before expecting a stable mood series.
+A score label declares its friction direction (`max_score` low-is-bad, `min_score`
+high-is-bad); its confidence is the probability mass in that region. Prefer `noul`:
+small decision models compress ordinal scales.
+
+For mood labels, read every message (the corpus is small), label per message, and split by
+message. Grow the gold set from the operator's own words before expecting a stable series.
 
 ### 5. Compatibility and invalidation
 
@@ -107,7 +110,8 @@ own messages before expecting a stable mood series.
 - Changing options/levels/evidence semantics is `breaking`: only that label's observations
   are not reused; the gate resets.
 - Changing the model keeps other models' rows; the gate is per model.
-- Deprecate, do not delete. Historical observations stay queryable.
+- A label that cannot reach a hold-out is deleted or marked `optional: true`. Historical
+  observations of a removed label stay in the store but leave every report.
 
 ### 6. Schedule and cost
 
@@ -117,10 +121,10 @@ Embedding and annotation have separate configs. Use the shared scheduler:
 - `idle`: background work only when the host is idle and inside windows.
 - `balanced`: windows plus budgets.
 - Backfill horizon is explicit; older data is annotated only on demand.
-- Batch by model affinity to avoid hot loads. One `DecideBatch` call can answer many labels
+- Batches group by the model each label's role resolves to, to avoid hot loads. One `DecideBatch` call can answer many labels
   for many states; store the probability vectors so re-thresholding is free.
-- `agent-manager usage annotations --window 7d` is the operator read for coverage and gate
-  state; `agent-manager annotations evaluate` runs a bounded pass on demand.
+- `agent-manager usage annotations --window last_7d` is the operator read for coverage, gate
+  state and the model each proof is for; `agent-manager annotations evaluate` runs a bounded pass on demand.
 
 ### 7. Measure the label
 

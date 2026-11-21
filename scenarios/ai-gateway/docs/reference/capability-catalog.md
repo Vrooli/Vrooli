@@ -55,7 +55,10 @@ Each selectable proto request kind declares its required input modalities, outpu
 | `chat.uncensored` | typed_value | 240000 | 1 |
 | `classify.fast` | typed_value | 45000 | 4 |
 | `decide.accurate` | decision | 120000 | 6 |
+| `decide.candidates` | decision | 120000 | 15 |
 | `decide.fast` | decision | 30000 | 5 |
+| `decide.short` | decision | 30000 | 2 |
+| `decide.short.accurate` | decision | 120000 | 2 |
 | `detect.pii.default` | typed_value | 45000 | 1 |
 | `device-control.plan` | typed_value | 90000 | 4 |
 | `device.geometry.byok` | typed_value | 120000 | 1 |
@@ -118,11 +121,30 @@ Each selectable proto request kind declares its required input modalities, outpu
 | `decide.accurate` | `ollaya` | `decide.clef.cloudflare` | Hosted Cloudflare Clef-flash. |
 | `decide.accurate` | `ollaya` | `decide.local` | Local Laya keeps decisions available when no accurate candidate can serve. |
 | `decide.accurate` | `ai-gateway` | `classify.fast` | Last resort for choice-only questions through the enum-constrained LLM path. |
+| `decide.candidates` | `ollaya` | `decide.local` | Laya router, the current decide.fast model: the baseline every candidate is measured against. |
+| `decide.candidates` | `ollaya` | `decide.local.accurate` | Winnow-E4B, the current decide.accurate model: the accuracy baseline. |
+| `decide.candidates` | `ollaya` | `decide.local.typed` | Laya fine-tuned on the typed-decisions workflows (421M, 1024-token context). |
+| `decide.candidates` | `ollaya` | `decide.local.coba-400m` | Coba 400M, Ollaya's own Laya-network model distilled from pplx-decider. |
+| `decide.candidates` | `ollaya` | `decide.local.coba-1b` | Coba 1B, the most accurate Coba size. |
+| `decide.candidates` | `ollaya` | `decide.local.largha` | Largha 150M, the smallest multilingual decision encoder under evaluation. |
+| `decide.candidates` | `ollaya` | `decide.local.decima-clean` | Decima-base-clean, a late-interaction scorer trained without non-commercial data. |
+| `decide.candidates` | `ollaya` | `decide.local.decima-agent` | Decima-agent, tuned for coding-agent decisions with an 8192-token state; rights unknown until the operator decides. |
+| `decide.candidates` | `ollaya` | `decide.local.decima-small` | Decima-small, the fastest CPU model under evaluation; rights unknown until the operator decides. |
+| `decide.candidates` | `ollaya` | `decide.local.nli-modernbert` | ModernBERT-large zero-shot NLI baseline; rights unknown until the operator decides. |
+| `decide.candidates` | `ollaya` | `decide.local.nli-deberta` | DeBERTa-v3-large zero-shot NLI baseline; rights unknown until the operator decides. |
+| `decide.candidates` | `ollaya` | `decide.local.pplx` | Perplexity pplx-decider-flash (Qwen3.5-4B), the strongest open decider under evaluation; GPU only. |
+| `decide.candidates` | `ollaya` | `decide.local.kev` | Kev 4B (LoRA plus pointer head on Qwen3.5-4B-Base); GPU only. |
+| `decide.candidates` | `ollaya` | `decide.local.credence` | Credence v1 E4B calibrated (Winnow refinement with validation-fitted temperature); GPU only, rights unknown until the operator decides. |
+| `decide.candidates` | `ai-gateway` | `classify.fast` | The enum-constrained LLM path, as a no-probability baseline for choice questions. |
 | `decide.fast` | `ollaya` | `decide.local` | Local Laya answers in milliseconds on the GPU and keeps the state on the host. |
 | `decide.fast` | `ollaya` | `decide.jev.edenai` | Hosted TypeSafe Jev through Eden AI; skipped until vrooli/edenai is provisioned. |
 | `decide.fast` | `ollaya` | `decide.jev.typesafe` | Hosted TypeSafe Jev direct; skipped until vrooli/typesafe is provisioned. |
 | `decide.fast` | `ollaya` | `decide.clef.cloudflare` | Hosted Cloudflare Clef-flash; skipped until vrooli/cloudflare-workers-ai is provisioned. |
 | `decide.fast` | `ai-gateway` | `classify.fast` | Last resort for choice-only questions: the enum-constrained LLM path, which returns labels without calibrated probabilities. |
+| `decide.short` | `ollaya` | `decide.local.coba-400m` | Measured bake-off 2026-11-20 on operator-mood gold: best of the cleared-rights models up to 1.9 GiB on all three mood labels at the same warm latency as Laya (about 0.24 s for three questions). Clears no gate by itself. |
+| `decide.short` | `ollaya` | `decide.local` | Local Laya answers when Coba 400M cannot be admitted; measured below it on every mood label. |
+| `decide.short.accurate` | `ollaya` | `decide.local.coba-1b` | Measured bake-off 2026-11-20: the only measured cleared-rights model larger than Coba 400M (3.5 GiB, about 6 s warm for three questions); its gain over the 400M is within a few gold rows. |
+| `decide.short.accurate` | `ollaya` | `decide.local` | Local Laya keeps escalation available when Coba 1B cannot be admitted. |
 | `detect.pii.default` | `pii-detector` | `pii.small` | The pii-detector resource owns the tiered PII model policy (pii.small default -> pii.default -> pii.large) and always runs the deterministic regex/checksum pass. |
 | `device-control.plan` | `ollama` | `chat.default` | Use Ollama's existing local generation role with gateway schema validation; the dedicated resource extraction role is not yet available. |
 | `device-control.plan` | `openrouter` | `extract.structured` | Hosted structured-output fallback when the local planning resource is unavailable. |

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
+	"time"
 
 	"ai-gateway/internal/providers"
 	"ai-gateway/internal/rolecatalog"
@@ -33,6 +35,13 @@ type ResourceRepository struct {
 	ledger        AttemptLedger
 	rightsContext func(context.Context) (policy.RightsContext, error)
 	consent       RemoteConsentVerifier
+
+	// embedCache holds recent candidate authorizations for embedding requests;
+	// authorizationTTL and clock exist so tests can control it.
+	embedMu          sync.Mutex
+	embedCache       map[string]embeddingCacheEntry
+	authorizationTTL *time.Duration
+	clock            func() time.Time
 }
 
 // RemoteConsentVerifier is the Gateway-owned, revocation-aware consent

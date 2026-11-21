@@ -30,7 +30,7 @@ func (a *App) cmdScenarioSmoke(args []string) error {
 	fs := flag.NewFlagSet("scenario-smoke", flag.ContinueOnError)
 	profileID := fs.String("profile-id", "", "Profile ID to use; defaults to an available code.cheap profile")
 	projectRoot := fs.String("project-root", "", "Project root for the scratch task (defaults to the current directory)")
-	workspaceSandboxURLDefault, _ := os.LookupEnv("WORKSPACE_SANDBOX_URL")
+	workspaceSandboxURLDefault, _ := ambient.LookupEnv("WORKSPACE_SANDBOX_URL")
 	workspaceSandboxURL := fs.String("workspace-sandbox-url", workspaceSandboxURLDefault, "Workspace Sandbox API URL")
 	timeout := fs.Duration("timeout", defaultScenarioSmokeTimeout, "Maximum time to wait for terminal completion")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -52,7 +52,7 @@ func (a *App) cmdScenarioSmoke(args []string) error {
 	if err != nil {
 		return err
 	}
-	scratchName := fmt.Sprintf(".agent-manager-scenario-smoke-%d.txt", time.Now().UTC().UnixNano())
+	scratchName := fmt.Sprintf(".agent-manager-scenario-smoke-%d.txt", ambient.Now().UTC().UnixNano())
 	scratchPath := filepath.Join(root, scratchName)
 	prompt := fmt.Sprintf("Create the file %q at the project root with exactly this one line: agent-manager tracking smoke. Do not modify any other file.", scratchName)
 	task := &domainpb.Task{
@@ -159,8 +159,8 @@ func scenarioSmokeProjectRoot(value string) (string, error) {
 }
 
 func (a *App) scenarioSmokeWait(runID string, timeout time.Duration) (*domainpb.Run, error) {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
+	deadline := ambient.Now().Add(timeout)
+	for ambient.Now().Before(deadline) {
 		_, run, err := a.services.Runs.Get(runID)
 		if err != nil {
 			return nil, fmt.Errorf("get smoke run: %w", err)

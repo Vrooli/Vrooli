@@ -1,6 +1,6 @@
 // Package annotationfacets projects gated annotation labels into the
 // conversation-search catalog's existing tags. It deliberately does not add a
-// new search filter: `--tags label:agent.spinning` already works, and the
+// new search filter: `--tags label:agent.stalled` already works, and the
 // catalog is the one place conversation search reads.
 //
 // The projection is a convenience, not the source of truth. The annotation
@@ -138,6 +138,12 @@ func crossesSearchThreshold(label runannotations.Label, annotation runannotation
 	}
 	if threshold <= 0 {
 		return true
+	}
+	// The calibrated score reads the stored vector at the temperature measured
+	// for the model that answered, so the same threshold means the same
+	// confidence for every model. A row with nothing to score never crosses.
+	if annotation.CalibratedProbability != nil {
+		return *annotation.CalibratedProbability >= threshold
 	}
 	return annotation.Probability != nil && *annotation.Probability >= threshold
 }

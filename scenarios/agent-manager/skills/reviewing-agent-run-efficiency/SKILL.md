@@ -32,7 +32,7 @@ evidence before starting each drill-down with `agent-manager run report <id>`.
 | Files reread | The context or skill did not preserve a prior read. | `run tools`, `run messages` |
 | Long event gap | A tool, environment, or reasoning loop consumed time without visible progress. | `run events` |
 | High turns/tokens with a successful result | The run delivered but likely has reusable process friction. | `run messages`, `run result` |
-| Inferred annotation on the evidence run | A gated label (spinning, discovery-slow, valence) corroborates a pattern; an unproven label is a lead, not a verdict. | `annotations show <run-id>`, `usage annotations` |
+| Inferred annotation on the evidence run | A gated label (blocked-by-tool, dissatisfied) corroborates a pattern; an unproven label is a lead, not a verdict. | `annotations show <run-id>`, `usage annotations` |
 
 Only call a pattern waste when the report and drill-down evidence rule out a
 necessary retry or deliberate verification. Recommend the smallest durable

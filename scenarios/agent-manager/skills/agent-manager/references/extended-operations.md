@@ -129,3 +129,26 @@ operator/exact-parent tests and independent evidence remain deployment gates.
 Other lifecycle endpoints retain their existing contracts.
 
 For the authority model behind these rules — who may create a run and how a bounded caller is granted that authority — read `path:docs/concepts/AUTHORIZATION.md`.
+
+### Program contracts
+
+When the task is about which Agent Manager capability to reuse, these declared
+programs are the owner-routed leaves. Read the contract for full schemas.
+
+| Need | Program | Purpose | Required inputs |
+|---|---|---|---|
+| Recover a retained conversation | `agent-manager.conversation-recall` | Merge bounded direct and federated conversation clues | `clues`; optional scope, time, mode, and result limits |
+| Digest recurring friction | `agent-manager.friction-digest` | Rank deterministic friction fingerprints for one owner scenario | `scenario`, `window_days` |
+| Start an investigation | `agent-manager.investigate` | Create and collect one durable investigation | `subject`, `scope` |
+| Collect investigation evidence | `agent-manager.investigation-evidence` | Gather bounded run reports for explicit investigation subjects | `run_ids` |
+| Read the Agent Manager setpoint | `agent-manager.setpoint-read` | Report measured supervision and run-health rows | optional window inputs |
+| Read one supervision case | `agent-manager.supervision-case-read` | Inspect one durable case and its evidence | `case_id` |
+| Evaluate supervision | `agent-manager.supervision-evaluate` | Score a bounded supervision decision against policy | `case_id`, `policy_id` |
+| Read one supervision experiment | `agent-manager.supervision-experiment-read` | Inspect experiment state and outcome evidence | `experiment_id` |
+
+Use `program-runtime library run <name> --input key=value`; inputs are
+JSON-decoded, so quote numeric-looking strings as JSON strings (for example
+`--input 'window="7"'`). Do not reconstruct these joins with direct database
+reads.
+
+For `conversation-recall`, a `partial` envelope with `signals.degradations` means some Search Hub provider legs were not fully searched: keep the returned candidates and provenance, never read an empty set as a complete negative, follow `signals.next_actions` and check provider health. Sibling provider hits are counts only. Treat copied text as a clue, not a unique identifier, and verify a candidate by its provenance before opening its context.

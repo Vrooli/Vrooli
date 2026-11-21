@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"agent-manager/internal/effortdecision"
 	"agent-manager/internal/goalhome"
@@ -84,7 +83,7 @@ func (a *App) effortFeedback(args []string) error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	updated, changed, err := goalhome.AddSupervisorFeedback(original, *id, *title, *detail, time.Now().UTC())
+	updated, changed, err := goalhome.AddSupervisorFeedback(original, *id, *title, *detail, ambient.Now().UTC())
 	if err != nil {
 		return err
 	}

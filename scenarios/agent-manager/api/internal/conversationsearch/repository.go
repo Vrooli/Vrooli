@@ -202,18 +202,23 @@ type ProjectionStatus struct {
 	// covers: visible prose/quoted chunks, not tool payloads that are never
 	// embedded. It keeps a 98.9% eligible index from reading as 4.7%.
 	SemanticEligibleDocuments uint64
-	PendingChanges            uint64
-	DeletedDocuments          uint64
-	OrphanDocuments           uint64
-	ActiveGeneration          string
-	CandidateGeneration       string
-	LastSuccessAt             time.Time
-	LastIndexedAt             time.Time
-	LastErrorCode             string
-	CollectionName            string
-	CollectionLayout          string
-	EmbeddingModel            string
-	DegradedDependencies      []string
+	// SemanticCoverageUnknown is true when no vector count has been observed
+	// (the first probe is in flight or failed). SemanticDocuments is then 0 by
+	// absence, not by measurement, and consumers must not read it as empty
+	// coverage.
+	SemanticCoverageUnknown bool
+	PendingChanges          uint64
+	DeletedDocuments        uint64
+	OrphanDocuments         uint64
+	ActiveGeneration        string
+	CandidateGeneration     string
+	LastSuccessAt           time.Time
+	LastIndexedAt           time.Time
+	LastErrorCode           string
+	CollectionName          string
+	CollectionLayout        string
+	EmbeddingModel          string
+	DegradedDependencies    []string
 }
 
 type ChangeOperation string

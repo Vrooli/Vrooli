@@ -2,7 +2,6 @@ package conversationsearch
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -84,24 +83,24 @@ func TestCoverageMetadataIndexAdoptsPopulatedCatalogAndTracksVisibility(t *testi
 	assertCounts(2, 2)
 }
 
-func TestRecordSemanticCoverageKeepsLastGoodOnFailedProbe(t *testing.T) {
+func TestRecordSemanticCoverageIgnoresAnUnknownCount(t *testing.T) {
 	runtime := &SemanticRuntime{}
 	runtime.health.EmbeddedDocuments = 100
 	runtime.health.EligibleDocuments = 120
 
-	// A failed probe carries the last good count; publishing 0 would contradict
-	// the vectors the collection still serves.
-	runtime.recordSemanticCoverage(t.Context(), 0, errors.New("context deadline exceeded"))
+	// No probe has completed: the count is absent, not zero, so the published
+	// value must survive.
+	runtime.recordSemanticCoverage(t.Context(), 0, false)
 	if runtime.health.EmbeddedDocuments != 100 {
-		t.Fatalf("failed probe replaced a known count with %d", runtime.health.EmbeddedDocuments)
+		t.Fatalf("unknown count replaced a known value with %d", runtime.health.EmbeddedDocuments)
 	}
-	// A successful empty read is genuinely zero.
-	runtime.recordSemanticCoverage(t.Context(), 0, nil)
+	// An observed empty read is genuinely zero.
+	runtime.recordSemanticCoverage(t.Context(), 0, true)
 	if runtime.health.EmbeddedDocuments != 0 {
-		t.Fatalf("successful empty probe kept %d", runtime.health.EmbeddedDocuments)
+		t.Fatalf("observed empty probe kept %d", runtime.health.EmbeddedDocuments)
 	}
-	runtime.recordSemanticCoverage(t.Context(), 50, nil)
+	runtime.recordSemanticCoverage(t.Context(), 50, true)
 	if runtime.health.EmbeddedDocuments != 50 {
-		t.Fatalf("successful probe recorded %d", runtime.health.EmbeddedDocuments)
+		t.Fatalf("observed probe recorded %d", runtime.health.EmbeddedDocuments)
 	}
 }

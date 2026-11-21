@@ -44,6 +44,9 @@ type DecisionRequest struct {
 	Profile           sharedv1.Profile
 	PrivacyClass      sharedv1.PrivacyClass
 	PrivacyProvenance string
+	// PinResourceRole restricts the walk to exactly one of the role's declared
+	// candidates. Empty means the ordinary ordered walk.
+	PinResourceRole string
 }
 
 // DecisionError is a request defect, reported with the construct to fix.

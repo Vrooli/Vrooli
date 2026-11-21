@@ -52,7 +52,7 @@ func TestCandidateRunsWindowForRotatesAcrossUnannotatedRuns(t *testing.T) {
 		t.Helper()
 		probability := 0.9
 		annotation := Annotation{
-			ScopeKind: ScopeRun, ScopeID: runID, LabelID: "agent.spinning", DefinitionHash: hash,
+			ScopeKind: ScopeRun, ScopeID: runID, LabelID: "agent.stalled", DefinitionHash: hash,
 			Model: "model-a", ModelVersion: "role-a", Method: "decision", State: StateObserved,
 			Value: Value{Kind: "noul", Noul: &probability}, Probability: &probability, ObservedAt: at,
 		}

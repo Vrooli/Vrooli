@@ -171,7 +171,7 @@ func (a *App) decisionRaise(args []string) error {
 	if err != nil {
 		return err
 	}
-	now := time.Now().UTC()
+	now := ambient.Now().UTC()
 	at, relative, err := parseDecisionDeadline(*deadline, now)
 	if err != nil {
 		return err
@@ -225,7 +225,7 @@ func (a *App) decisionRaise(args []string) error {
 		if hasQueue {
 			_, result.Changed = goalhome.AddNeedsOperatorItem(queue, view)
 		}
-		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+		if strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != "" {
 			// A raise from an agent run declares the operator may ask it for more
 			// context; the preview shows the event that run would send.
 			record.RaisedByRunId = "this-run"
@@ -388,7 +388,7 @@ func (a *App) decisionAnswer(args []string) error {
 	if dir == "" || fs.NArg() != 2 {
 		return errors.New(decisionUsage)
 	}
-	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+	if strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != "" {
 		return errors.New("an agent run cannot answer an operator decision; the operator answers on the phone or from an operator shell")
 	}
 	ref, err := decisionHomeRef(dir, *homeRef)

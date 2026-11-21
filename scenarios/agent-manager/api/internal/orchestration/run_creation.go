@@ -996,12 +996,7 @@ func (f *createRunFlow) emitInitialPrompt(ctx context.Context, imageAttachments 
 			})
 		}
 	}
-	var userEvent *domain.RunEvent
-	if len(attInfo) > 0 {
-		userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", f.userMessage, attInfo)
-	} else {
-		userEvent = domain.NewMessageEvent(run.ID, "user", f.userMessage)
-	}
+	userEvent := newUserMessage(ctx, run.ID, f.userMessage, attInfo)
 	if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
 		obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
 	}

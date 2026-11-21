@@ -14,8 +14,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type fixedPromptResolver struct{ resolution PromptResolution }
-
 func TestTypedReviewCannotCompleteWithoutValidVerdict(t *testing.T) {
 	for _, parallel := range []bool{false, true} {
 		for _, kind := range []string{"missing", "untyped", "invalid", "false-success", "goal-complete"} {
@@ -65,10 +63,6 @@ func TestTypedReviewCannotCompleteWithoutValidVerdict(t *testing.T) {
 			})
 		}
 	}
-}
-
-func (f fixedPromptResolver) Resolve(_ context.Context, _ *domain.WorkflowPromptRef, _ PromptAssignmentIdentity) (PromptResolution, error) {
-	return f.resolution, nil
 }
 
 func TestEngineFailPersistsExternalWorkerFailure(t *testing.T) {
@@ -125,7 +119,7 @@ func TestEngineRecordDiagnosticSequencesEvidenceWithoutRefreshingLifecycleProgre
 	}
 }
 
-func TestEngine_AssignsArmedPromptAtAttemptCreation(t *testing.T) {
+func TestEngine_RefusesArmedPromptRefBecauseSkillExperimentsAreRetired(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{
 		{ID: "work", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.fast", PromptRef: &domain.WorkflowPromptRef{SkillID: "skill", ExperimentID: "exp-1"}, Bindings: []domain.WorkflowInputBinding{inputBinding("topic", "$.topic")}}},
@@ -134,19 +128,16 @@ func TestEngine_AssignsArmedPromptAtAttemptCreation(t *testing.T) {
 	definition.EntryNode = "work"
 	definition.Edges = []domain.WorkflowEdge{{From: "work", To: "done"}}
 	engine, store, _ := testEngine(t, definition)
-	engine.PromptResolver = fixedPromptResolver{resolution: PromptResolution{Content: "Assigned {{.topic}}", ExperimentID: "exp-1", VariantID: "treatment", ContentHash: "sha256:assigned"}}
 	execution, err := engine.Start(context.Background(), revision(definition), json.RawMessage(`{"topic":"A"}`), "armed-attempt")
 	if err != nil {
 		t.Fatal(err)
 	}
 	advanced := mustAdvance(t, engine, execution.ID)
-	attempts, err := store.ListAttempts(context.Background(), execution.ID)
-	if err != nil || len(attempts) != 1 {
-		t.Fatalf("advanced=%+v reason=%+v attempts=%+v err=%v", advanced, advanced.TerminalReason, attempts, err)
+	if advanced.Status != domain.WorkflowExecutionFailed || advanced.TerminalReason == nil || !strings.Contains(advanced.TerminalReason.Message, domain.ErrSkillExperimentsRetired.Error()) {
+		t.Fatalf("armed promptRef was not refused: status=%s reason=%+v", advanced.Status, advanced.TerminalReason)
 	}
-	got := attempts[0]
-	if got.Status != domain.WorkflowAttemptDispatchPending || got.PromptSnapshot != "Assigned A" || got.ExperimentID != "exp-1" || got.VariantID != "treatment" || got.PromptHash != "sha256:assigned" {
-		t.Fatalf("assignment=%+v", got)
+	if attempts, err := store.ListAttempts(context.Background(), execution.ID); err != nil || len(attempts) != 0 {
+		t.Fatalf("armed promptRef created attempts=%+v err=%v", attempts, err)
 	}
 }
 

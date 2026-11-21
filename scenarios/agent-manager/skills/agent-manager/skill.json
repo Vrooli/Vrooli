@@ -64,7 +64,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 11,
+  "revision": 12,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -82,5 +82,5 @@
     "investigation",
     "learning-spine"
   ],
-  "updatedAt": "2026-11-05T01:16:00Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

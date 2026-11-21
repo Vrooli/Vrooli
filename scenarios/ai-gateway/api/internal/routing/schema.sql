@@ -48,7 +48,13 @@ CREATE TABLE IF NOT EXISTS route_events (
   -- Both columns are stored because neither is sufficient alone: a provider
   -- that accepts and silently ignores the control makes a sent value on its own
   -- a misleading record of the route's conditions.
-  sampling_temperature_support TEXT NOT NULL DEFAULT ''
+  sampling_temperature_support TEXT NOT NULL DEFAULT '',
+  preparation_duration_ns INTEGER NOT NULL DEFAULT 0,
+  route_plan_duration_ns INTEGER NOT NULL DEFAULT 0,
+  role_resolution_duration_ns INTEGER NOT NULL DEFAULT 0,
+  eligibility_duration_ns INTEGER NOT NULL DEFAULT 0,
+  capacity_admission_duration_ns INTEGER NOT NULL DEFAULT 0,
+  provider_execution_duration_ns INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);

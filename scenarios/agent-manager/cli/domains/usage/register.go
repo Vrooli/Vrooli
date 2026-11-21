@@ -26,15 +26,12 @@ func connectClient(core *cliapp.ScenarioApp) measureconnect.MeasuresServiceClien
 	return measureconnect.NewMeasuresServiceClient(h, base)
 }
 
-// Register declares the `usage` group; run adds the per-run commands the
-// CLI's run services implement (`usage reindex`).
-func Register(run ...cliapp.Command) cliapp.SubcommandGroup {
-	return RegisterWithCensus(nil, run...)
-}
-
-// RegisterWithCensus adds a complete read-only running-run census to capacity.
-func RegisterWithCensus(census RunningRunCensus, run ...cliapp.Command) cliapp.SubcommandGroup {
-	commands := []cliapp.Command{capacityCommand(connectClient, census), forecastCommand(connectClient), paceCommand(paceHTTPClient), runtimeFrictionCommand(paceHTTPClient), annotationsCommand(paceHTTPClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(frictionConnectClient), frictionDismissCommand(frictionConnectClient), opportunitiesCommand(registryFetch), coverageCommand(connectClient), compareCommand(connectClient), parityCommand(connectClient), outcomesCommand(connectClient)}
+// Register declares the `usage` group. census is the complete read-only
+// running-run census capacity reads (nil: none); now is the clock capacity
+// windows its burn evidence by; run adds the per-run commands the CLI's run
+// services implement (`usage reindex`).
+func Register(census RunningRunCensus, now func() time.Time, run ...cliapp.Command) cliapp.SubcommandGroup {
+	commands := []cliapp.Command{capacityCommand(connectClient, census, now), forecastCommand(connectClient), paceCommand(paceHTTPClient), runtimeFrictionCommand(paceHTTPClient), annotationsCommand(registryFetch), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(frictionConnectClient), frictionDismissCommand(frictionConnectClient), opportunitiesCommand(registryFetch), coverageCommand(connectClient), compareCommand(connectClient), parityCommand(connectClient), outcomesCommand(connectClient)}
 	return cliapp.SubcommandGroup{Name: "usage", Description: "Provider subscription usage from the provider's own quota readings", NeedsAPI: true, Subcommands: append(commands, run...)}
 }
 

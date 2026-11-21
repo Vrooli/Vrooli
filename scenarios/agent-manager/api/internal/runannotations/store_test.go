@@ -48,7 +48,7 @@ func TestSaveIsIdempotentAndKeepsProbabilityNullable(t *testing.T) {
 	store, _ := testStore(t)
 	ctx := context.Background()
 	at := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
-	row := annotation("run-1", "agent.spinning", "hash-1", at, floatPointer(0.72))
+	row := annotation("run-1", "agent.stalled", "hash-1", at, floatPointer(0.72))
 	for range 3 {
 		if err := store.Save(ctx, []Annotation{row}); err != nil {
 			t.Fatal(err)
@@ -58,7 +58,7 @@ func TestSaveIsIdempotentAndKeepsProbabilityNullable(t *testing.T) {
 	if err != nil || count != 1 {
 		t.Fatalf("count = %d %v, want 1", count, err)
 	}
-	latest, err := store.Current(ctx, ScopeRun, "run-1", "agent.spinning", "hash-1")
+	latest, err := store.Current(ctx, ScopeRun, "run-1", "agent.stalled", "hash-1")
 	if err != nil || latest == nil {
 		t.Fatalf("current = %v %v", latest, err)
 	}
@@ -88,13 +88,13 @@ func TestSaveRefusesToMoveAnObservationBackwards(t *testing.T) {
 	ctx := context.Background()
 	newer := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
 	older := newer.Add(-time.Hour)
-	if err := store.Save(ctx, []Annotation{annotation("run-1", "agent.spinning", "hash-1", newer, floatPointer(0.8))}); err != nil {
+	if err := store.Save(ctx, []Annotation{annotation("run-1", "agent.stalled", "hash-1", newer, floatPointer(0.8))}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Save(ctx, []Annotation{annotation("run-1", "agent.spinning", "hash-1", older, floatPointer(0.1))}); err != nil {
+	if err := store.Save(ctx, []Annotation{annotation("run-1", "agent.stalled", "hash-1", older, floatPointer(0.1))}); err != nil {
 		t.Fatal(err)
 	}
-	latest, _ := store.Current(ctx, ScopeRun, "run-1", "agent.spinning", "hash-1")
+	latest, _ := store.Current(ctx, ScopeRun, "run-1", "agent.stalled", "hash-1")
 	if latest.Probability == nil || *latest.Probability != 0.8 {
 		t.Fatalf("older replay overwrote newer observation: %v", latest.Probability)
 	}
@@ -163,7 +163,35 @@ func TestStoreOrderingSurvivesSameSecondFractions(t *testing.T) {
 	}
 }
 
-func TestCoverageCountsLatestStatePerScope(t *testing.T) {
+// latestRows collects ForEachLatest for a window.
+func latestRows(t *testing.T, store *Store, since, until time.Time) []Annotation {
+	t.Helper()
+	var rows []Annotation
+	err := store.ForEachLatest(context.Background(), since, until, nil, func(row Annotation) error {
+		rows = append(rows, row)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
+}
+
+// latestRow is the newest row of one label for one run, under any definition.
+func latestRow(store *Store, runID, labelID string) (*Annotation, error) {
+	rows, err := store.LatestForScope(context.Background(), ScopeRun, runID)
+	if err != nil {
+		return nil, err
+	}
+	for index := range rows {
+		if rows[index].LabelID == labelID {
+			return &rows[index], nil
+		}
+	}
+	return nil, nil
+}
+
+func TestForEachLatestReadsOneRowPerScopeAndLabelInTheWindow(t *testing.T) {
 	store, _ := testStore(t)
 	ctx := context.Background()
 	base := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
@@ -171,86 +199,26 @@ func TestCoverageCountsLatestStatePerScope(t *testing.T) {
 		annotation("run-1", "a", "h1", base, floatPointer(0.7)),
 		annotation("run-2", "a", "h1", base, nil),
 		annotation("run-3", "a", "h1", base, nil),
+		annotation("run-1", "a", "h1", base.Add(time.Minute), floatPointer(0.9)),
 	}
 	rows[1].State = StateUnavailable
 	rows[2].State = StateCompatible
 	if err := store.Save(ctx, rows); err != nil {
 		t.Fatal(err)
 	}
-	coverage, err := store.Coverage(ctx, time.Time{})
-	if err != nil {
-		t.Fatal(err)
+	latest := latestRows(t, store, time.Time{}, time.Time{})
+	counts := StateCounts{}
+	for _, row := range latest {
+		addCount(&counts, row.State)
+		if row.ScopeID == "run-1" && (row.Probability == nil || *row.Probability != 0.9) {
+			t.Fatalf("run-1 latest = %+v, want the newer observation", row)
+		}
 	}
-	counts := coverage["a"]
 	if counts.Observed != 1 || counts.Compatible != 1 || counts.Unavailable != 1 || counts.NotObserved != 0 {
 		t.Fatalf("counts = %+v", counts)
 	}
-	window, err := store.Coverage(ctx, base.Add(time.Hour))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if window["a"].Total() != 0 {
-		t.Fatalf("future window = %+v", window["a"])
-	}
-}
-
-func TestPositivesAppliesASignedScoreCeiling(t *testing.T) {
-	store, _ := testStore(t)
-	ctx := context.Background()
-	now := time.Now().UTC()
-	confidence := 0.9
-	ceiling := -1.0
-	save := func(scope string, score float64) {
-		t.Helper()
-		value := score
-		item := annotation(scope, "operator.valence", "hash", now, &confidence)
-		item.Value = Value{Kind: "score", Score: &value}
-		if err := store.Save(ctx, []Annotation{item}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	save("run-negative", -1.5)
-	save("run-positive", 1.5)
-	save("run-barely-negative", -0.5)
-	level := -1 // index whose score (offset 0) is at or below the ceiling
-	count, err := store.Positives(ctx, now.Add(-time.Hour), now.Add(time.Hour), "operator.valence", FrictionSelector{
-		Threshold: confidence, LevelBound: &level, ScoreBound: &ceiling,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatalf("positives = %d, want only the observation at or below the ceiling", count)
-	}
-}
-
-func TestPositivesUsesTheProbabilityMassInTheFrictionRegion(t *testing.T) {
-	store, _ := testStore(t)
-	ctx := context.Background()
-	now := time.Now().UTC()
-	save := func(scope string, score float64, probabilities map[string]float64) {
-		t.Helper()
-		value := score
-		confidence := 0.8
-		item := annotation(scope, "agent.spinning", "hash", now, &confidence)
-		item.Value = Value{Kind: "score", Score: &value, Probabilities: probabilities}
-		if err := store.Save(ctx, []Annotation{item}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// A confident top level is normal on a five-level scale; the mass at or
-	// above level 3 is what the friction rule reads.
-	save("run-spinning", 3, map[string]float64{"0": 0.02, "1": 0.08, "2": 0.15, "3": 0.45, "4": 0.30})
-	save("run-mild", 2, map[string]float64{"0": 0.20, "1": 0.40, "2": 0.30, "3": 0.08, "4": 0.02})
-	bound := 3
-	count, err := store.Positives(ctx, now.Add(-time.Hour), now.Add(time.Hour), "agent.spinning", FrictionSelector{
-		Threshold: 0.6, LevelBound: &bound, LevelAtLeast: true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatalf("positives = %d, want only the run whose mass at or above level 3 clears 0.6", count)
+	if future := latestRows(t, store, base.Add(time.Hour), time.Time{}); len(future) != 0 {
+		t.Fatalf("future window = %+v", future)
 	}
 }
 
@@ -259,23 +227,23 @@ func TestObservedScopesKeepsOnlyTheCurrentDefinition(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 	confidence := 0.9
-	current := annotation("run-current", "agent.spinning", "current-hash", now, &confidence)
-	stale := annotation("run-stale", "agent.spinning", "old-hash", now, &confidence)
-	unavailable := annotation("run-unavailable", "agent.spinning", "current-hash", now, &confidence)
+	current := annotation("run-current", "agent.stalled", "current-hash", now, &confidence)
+	stale := annotation("run-stale", "agent.stalled", "old-hash", now, &confidence)
+	unavailable := annotation("run-unavailable", "agent.stalled", "current-hash", now, &confidence)
 	unavailable.State = StateUnavailable
 	if err := store.Save(ctx, []Annotation{current, stale, unavailable}); err != nil {
 		t.Fatal(err)
 	}
-	scopes, err := store.ObservedScopes(ctx, now.Add(-time.Hour), now.Add(time.Hour), "agent.spinning", "current-hash", 10)
+	scopes, err := store.ObservedScopes(ctx, ScopeRun, now.Add(-time.Hour), now.Add(time.Hour), "agent.stalled", "current-hash", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(scopes) != 1 || scopes[0] != "run-current" {
+	if len(scopes) != 1 || scopes[0].ScopeID != "run-current" || scopes[0].RunID != "run-current" {
 		t.Fatalf("observed scopes = %v, want only the current observed run", scopes)
 	}
 }
 
-func TestCoverageSeparatesRowsFromAnotherDefinition(t *testing.T) {
+func TestRunCoverageCountsOnlyTheCurrentDefinitionAsObserved(t *testing.T) {
 	store, _ := testStore(t)
 	ctx := context.Background()
 	base := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
@@ -287,23 +255,6 @@ func TestCoverageSeparatesRowsFromAnotherDefinition(t *testing.T) {
 	if err := store.Save(ctx, rows); err != nil {
 		t.Fatal(err)
 	}
-	legacy, err := store.CoverageWindow(ctx, time.Time{}, time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if legacy["a"].Observed != 3 {
-		t.Fatalf("legacy coverage = %+v, want every row counted", legacy["a"])
-	}
-	current, err := store.CoverageWindowFor(ctx, time.Time{}, time.Time{}, map[string]string{"a": "current"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if current["a"].Observed != 1 || current["a"].Stale != 2 {
-		t.Fatalf("hash-aware coverage = %+v, want 1 observed and 2 stale", current["a"])
-	}
-	if current["a"].Total() != 1 {
-		t.Fatalf("total = %d, want stale rows excluded", current["a"].Total())
-	}
 	eligible, observed, err := store.RunCoverageFor(ctx, time.Time{}, time.Time{}, map[string]string{"a": "current"})
 	if err != nil {
 		t.Fatal(err)
@@ -311,12 +262,58 @@ func TestCoverageSeparatesRowsFromAnotherDefinition(t *testing.T) {
 	if eligible != 3 || observed != 1 {
 		t.Fatalf("run coverage = %d/%d, want 1 of 3 observed for the current hash", observed, eligible)
 	}
-	positives, err := store.PositivesFor(ctx, time.Time{}, time.Time{}, "a", "current", FrictionSelector{Threshold: 0.6})
-	if err != nil {
+}
+
+func TestTrialsAreAnotherTableAndNeverMixWithProduction(t *testing.T) {
+	store, _ := testStore(t)
+	ctx := context.Background()
+	at := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
+	production := annotation("run-1", "a", "h1", at, floatPointer(0.9))
+	trial := annotation("run-1", "a", "h1", at.Add(time.Minute), floatPointer(0.2))
+	trial.Model, trial.ModelVersion = "candidate", "decide.local.candidate"
+	if err := store.Save(ctx, []Annotation{production}); err != nil {
 		t.Fatal(err)
 	}
-	if positives != 1 {
-		t.Fatalf("positives = %d, want only the current definition", positives)
+	if err := store.Trials().Save(ctx, []Annotation{trial}); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.Current(ctx, ScopeRun, "run-1", "a", "h1")
+	if err != nil || current == nil || current.Model != "model-a" {
+		t.Fatalf("production read = %+v (%v), want its own row untouched by the trial", current, err)
+	}
+	trialRow, err := store.Trials().CurrentFor(ctx, ScopeRun, "run-1", "a", "h1", "decide.local.candidate")
+	if err != nil || trialRow == nil || trialRow.Model != "candidate" {
+		t.Fatalf("trial read = %+v (%v)", trialRow, err)
+	}
+	if production, _ := store.Count(ctx); production != 1 {
+		t.Fatalf("production rows = %d, want 1", production)
+	}
+	if latest := latestRows(t, store, time.Time{}, time.Time{}); len(latest) != 1 || latest[0].Model != "model-a" {
+		t.Fatalf("production coverage rows = %+v, want only the production row", latest)
+	}
+}
+
+func TestMessageRowsCarryTheirRunAndTimestamp(t *testing.T) {
+	store, _ := testStore(t)
+	ctx := context.Background()
+	at := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC)
+	older := annotation("msg-1", "mood", "h1", at, floatPointer(0.4))
+	older.ScopeKind, older.RunID, older.OccurredAt = ScopeMessage, "run-1", at.Add(-2*time.Hour)
+	newer := annotation("msg-2", "mood", "h1", at, floatPointer(0.6))
+	newer.ScopeKind, newer.RunID, newer.OccurredAt = ScopeMessage, "run-1", at.Add(-time.Hour)
+	if err := store.Save(ctx, []Annotation{newer, older}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.LatestMessagesForRun(ctx, "run-1")
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("rows = %+v (%v)", rows, err)
+	}
+	if rows[0].ScopeID != "msg-1" || !rows[0].OccurredAt.Equal(at.Add(-2*time.Hour)) {
+		t.Fatalf("messages are not oldest first with their timestamps: %+v", rows)
+	}
+	series, err := store.MessageObservations(ctx, "mood", "h1", at.Add(-90*time.Minute), time.Time{})
+	if err != nil || len(series) != 1 || series[0].ScopeID != "msg-2" {
+		t.Fatalf("series window = %+v (%v), want only the message written inside it", series, err)
 	}
 }
 

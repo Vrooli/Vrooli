@@ -9,6 +9,8 @@ import (
 	"time"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+
+	"agent-manager/internal/toolfacts"
 )
 
 type fakeDecision struct {
@@ -19,6 +21,9 @@ type fakeDecision struct {
 	// overflowAbove rejects any item whose state is longer than this many
 	// bytes, the way a small-context model reports context_overflow.
 	overflowAbove int
+	// resolve names the model and resource role that answer a request. Without
+	// it every request is answered by winnow on decide.local.
+	resolve func(request *inferencev1.DecideBatchRequest) (model, resourceRole string)
 }
 
 func (f *fakeDecision) DecideBatch(_ context.Context, request *inferencev1.DecideBatchRequest) (*inferencev1.DecideBatchResponse, error) {
@@ -41,8 +46,12 @@ func (f *fakeDecision) DecideBatch(_ context.Context, request *inferencev1.Decid
 			})
 			continue
 		}
+		model, resourceRole := "winnow", "decide.local"
+		if f.resolve != nil {
+			model, resourceRole = f.resolve(request)
+		}
 		result := &inferencev1.DecideResponse{
-			Method: method, Provider: "ollaya", Model: "winnow", ResourceRole: "decide.local",
+			Method: method, Provider: "ollaya", Model: model, ResourceRole: resourceRole,
 		}
 		for _, question := range request.Questions {
 			if f.answer != nil {
@@ -79,7 +88,18 @@ func defaultAnswer(question *inferencev1.DecisionQuestion) *inferencev1.Decision
 
 func testService(t *testing.T, labels string, facts []RunFacts, decision DecisionClient, opts Options) (*Service, *Store) {
 	t.Helper()
-	pack, err := LoadCompiled(packPathForTest(t, labels))
+	return testServicePack(t, packWithLabels(labels), facts, decision, opts)
+}
+
+// testServiceRuntime is testService with an explicit runtime block.
+func testServiceRuntime(t *testing.T, runtime, labels string, facts []RunFacts, decision DecisionClient, opts Options) (*Service, *Store) {
+	t.Helper()
+	return testServicePack(t, `{"pack":{"name":"test","version":"1","runtime":`+runtime+`,"labels":`+labels+`}}`, facts, decision, opts)
+}
+
+func testServicePack(t *testing.T, packJSON string, facts []RunFacts, decision DecisionClient, opts Options) (*Service, *Store) {
+	t.Helper()
+	pack, err := LoadCompiled(writePack(t, packJSON))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +111,9 @@ func testService(t *testing.T, labels string, facts []RunFacts, decision Decisio
 	opts.Store = store
 	opts.Features = fixture
 	opts.Decisions = decision
-	opts.Clock = func() time.Time { return time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC) }
+	if opts.Clock == nil {
+		opts.Clock = func() time.Time { return time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC) }
+	}
 	service, err := NewService(pack, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -461,7 +483,7 @@ func TestAddingALabelIsDataNotCode(t *testing.T) {
 	  }
 	]`
 	fact := runFact("run-1")
-	fact.ToolSummary.Calls = 3
+	fact.ToolSummary.ToolCalls = 3
 	service, _ := testService(t, labels, []RunFacts{fact}, nil, Options{})
 	view, err := service.Annotate(context.Background(), "run-1", AnnotateOptions{})
 	if err != nil {
@@ -515,11 +537,11 @@ func TestCompositeCombinesOtherLabels(t *testing.T) {
 
 func TestCoverageContractShapeIsExplicitOnEmptyStore(t *testing.T) {
 	labels := `[{
-	  "id":"agent.spinning","group":"agent","scope":"run","method":"deterministic",
+	  "id":"agent.stalled","group":"agent","scope":"run","method":"deterministic",
 	  "rule":"tool_calls >= 1 ? 'yes' : 'no'",
 	  "evidence":[{"source":"tool_summary","field":"calls"}],
 	  "gate":{"precision":0.7,"recall":0.5,"min_gold":10},
-	  "search":{"facet":"label:agent.spinning","min_probability":0.6},
+	  "search":{"facet":"label:agent.stalled","min_probability":0.6},
 	  "compatibility":{"change":"breaking"}
 	}]`
 	service, _ := testService(t, labels, nil, nil, Options{})
@@ -543,16 +565,16 @@ func TestCoverageContractShapeIsExplicitOnEmptyStore(t *testing.T) {
 
 func TestCoverageReportsRateOnlyForAProvenGate(t *testing.T) {
 	unproven := `[{
-	  "id":"agent.spinning","group":"agent","scope":"run","method":"deterministic",
+	  "id":"agent.stalled","group":"agent","scope":"run","method":"deterministic",
 	  "rule":"tool_calls >= 1 ? 'yes' : 'no'",
 	  "evidence":[{"source":"tool_summary","field":"calls"}],
 	  "gate":{"precision":0.7,"recall":0.5,"min_gold":10},
-	  "search":{"facet":"label:agent.spinning","min_probability":0.6},
+	  "search":{"facet":"label:agent.stalled","min_probability":0.6},
 	  "friction":{"enabled":true,"min_probability":0.6,"cost_unit":"run","importance":"high"},
 	  "compatibility":{"change":"breaking"}
 	}]`
 	fact := runFact("run-1")
-	fact.ToolSummary.Calls = 2
+	fact.ToolSummary.ToolCalls = 2
 	service, _ := testService(t, unproven, []RunFacts{fact}, nil, Options{})
 	if _, err := service.Annotate(context.Background(), "run-1", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
@@ -581,7 +603,7 @@ func TestCoverageReportsRateOnlyForAProvenGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	proven := strings.Replace(unproven, `"min_gold":10`,
-		fmt.Sprintf(`"min_gold":10,"measured":{"precision":0.9,"recall":0.8,"gold":10,"definition_hash":%q}`, hash), 1)
+		fmt.Sprintf(`"min_gold":10,"measurements":[{"definition_hash":%q,"model":"rule","resource_role":"","precision":0.9,"recall":0.8,"gold":10,"positives":4,"threshold":0.5,"temperature":1,"split":"holdout"}]`, hash), 1)
 	provenService, _ := testService(t, proven, []RunFacts{fact}, nil, Options{})
 	if _, err := provenService.Annotate(context.Background(), "run-1", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
@@ -601,10 +623,10 @@ func TestCoverageReportsRateOnlyForAProvenGate(t *testing.T) {
 
 func TestRunViewLeadsWithCoverageAndUsesContractLabelIDs(t *testing.T) {
 	labels := `[{
-	  "id":"agent.spinning","group":"agent","scope":"run","method":"deterministic",
+	  "id":"agent.stalled","group":"agent","scope":"run","method":"deterministic",
 	  "rule":"'yes'","evidence":[{"source":"tool_summary","field":"calls"}],
 	  "gate":{"precision":0.7,"recall":0.5,"min_gold":10},
-	  "search":{"facet":"label:agent.spinning","min_probability":0.6},
+	  "search":{"facet":"label:agent.stalled","min_probability":0.6},
 	  "compatibility":{"change":"breaking"}
 	}]`
 	service, _ := testService(t, labels, []RunFacts{runFact("run-1")}, nil, Options{})
@@ -615,7 +637,7 @@ func TestRunViewLeadsWithCoverageAndUsesContractLabelIDs(t *testing.T) {
 	if view.Coverage.Observed != 1 || view.Coverage.Labels != 1 {
 		t.Fatalf("coverage = %+v", view.Coverage)
 	}
-	if len(view.Labels) != 1 || view.Labels[0].ID != "agent.spinning" {
+	if len(view.Labels) != 1 || view.Labels[0].ID != "agent.stalled" {
 		t.Fatalf("labels = %+v", view.Labels)
 	}
 	if view.Labels[0].Gate.State != "unmeasured" {
@@ -1037,7 +1059,7 @@ func TestEvaluatePersistsFinishedGroupsBeforeThePassBudgetExpires(t *testing.T) 
 
 func TestRequireSkipsALabelWithoutEvidenceInsteadOfGuessing(t *testing.T) {
 	labels := `[{
-	  "id":"agent.spinning","group":"agent","scope":"run","method":"decision",
+	  "id":"agent.stalled","group":"agent","scope":"run","method":"decision",
 	  "require":"agent_text_count > 0 || tool_calls > 0",
 	  "question":{"type":"noul","instructions":"did the agent spin?",
 	    "true_description":"yes","false_description":"no"},
@@ -1067,8 +1089,8 @@ func TestRequireSkipsALabelWithoutEvidenceInsteadOfGuessing(t *testing.T) {
 	for _, skip := range view.Skipped {
 		skipped[skip.LabelID] = skip.Reason
 	}
-	if skipped["agent.spinning"] != "insufficient_evidence" {
-		t.Fatalf("skip reason = %q, want insufficient_evidence", skipped["agent.spinning"])
+	if skipped["agent.stalled"] != "insufficient_evidence" {
+		t.Fatalf("skip reason = %q, want insufficient_evidence", skipped["agent.stalled"])
 	}
 	if _, err := service.Annotate(context.Background(), "run-full", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
@@ -1120,7 +1142,7 @@ func TestChangedEvidenceInvalidatesTheCachedAnswer(t *testing.T) {
 
 func TestLostEvidenceSupersedesAnEarlierAnswer(t *testing.T) {
 	labels := `[{
-	  "id":"agent.spinning","group":"agent","scope":"run","method":"decision",
+	  "id":"agent.stalled","group":"agent","scope":"run","method":"decision",
 	  "require":"agent_text_count > 0 || tool_calls > 0",
 	  "question":{"type":"noul","instructions":"did the agent spin?",
 	    "true_description":"yes","false_description":"no"},
@@ -1145,7 +1167,7 @@ func TestLostEvidenceSupersedesAnEarlierAnswer(t *testing.T) {
 	if _, err := service.Annotate(context.Background(), "run-1", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	before, err := store.LatestForLabel(context.Background(), ScopeRun, "run-1", "agent.spinning")
+	before, err := latestRow(store, "run-1", "agent.stalled")
 	if err != nil || before == nil || before.State != StateObserved {
 		t.Fatalf("first annotation = %+v (%v), want observed", before, err)
 	}
@@ -1153,7 +1175,7 @@ func TestLostEvidenceSupersedesAnEarlierAnswer(t *testing.T) {
 	// harness block as operator text).
 	fact.AgentText = nil
 	fact.OperatorMessages = nil
-	fact.ToolSummary = ToolSummaryFacts{}
+	fact.ToolSummary = toolfacts.Facts{}
 	fixture.Set(fact)
 	view, err := service.Annotate(context.Background(), "run-1", AnnotateOptions{})
 	if err != nil {
@@ -1162,7 +1184,7 @@ func TestLostEvidenceSupersedesAnEarlierAnswer(t *testing.T) {
 	if len(view.Skipped) != 1 || view.Skipped[0].Reason != "insufficient_evidence" {
 		t.Fatalf("skipped = %+v, want the evidence guard to fire", view.Skipped)
 	}
-	after, err := store.LatestForLabel(context.Background(), ScopeRun, "run-1", "agent.spinning")
+	after, err := latestRow(store, "run-1", "agent.stalled")
 	if err != nil || after == nil {
 		t.Fatalf("latest after losing evidence = %+v (%v)", after, err)
 	}
@@ -1204,7 +1226,7 @@ func TestLostCandidacySupersedesAnEarlierAnswer(t *testing.T) {
 	if _, err := service.Annotate(context.Background(), "run-1", AnnotateOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	latest, err := store.LatestForLabel(context.Background(), ScopeRun, "run-1", "operator.frustration")
+	latest, err := latestRow(store, "run-1", "operator.frustration")
 	if err != nil || latest == nil {
 		t.Fatalf("latest = %+v (%v)", latest, err)
 	}

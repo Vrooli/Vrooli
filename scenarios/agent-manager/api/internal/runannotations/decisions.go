@@ -4,15 +4,17 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"time"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 )
 
-// This file owns the decision-model path: batching runs into one DecideBatch,
-// splitting questions and shrinking the digest when the model overflows,
-// retrying transport failures in smaller state groups, and reading the typed
-// answers back into observations. It is separate from the evaluator core so
-// neither file grows past the scenario source limit.
+// This file owns the decision-model path: grouping labels by the role they ask,
+// batching units into one DecideBatch per role, splitting questions and
+// shrinking the digest when the model overflows, retrying transport failures in
+// smaller state groups, escalating only to a different model, and reading the
+// typed answers back into observations. It is separate from the evaluator core
+// so neither file grows past the scenario source limit.
 
 func (s *Service) evaluateDecisions(ctx context.Context, works []*runWork) {
 	if len(works) == 0 {
@@ -40,35 +42,60 @@ func (s *Service) evaluateDecisions(ctx context.Context, works []*runWork) {
 		for _, work := range remaining {
 			work.digestShrunk = true
 			work.overflowed = false
-			if shrunk := shrinkDigest(work.facts, len(work.digest)); shrunk != "" {
+			if shrunk := s.shrinkDigest(work); shrunk != "" {
 				work.digest = shrunk
 			}
 		}
 	}
 }
 
-// shrinkDigest re-renders the bounded digest below the size a model already
-// refused. The ladder keeps operator text longer than agent text, so affect
-// labels retain the words they need for as long as possible.
-func shrinkDigest(facts RunFacts, current int) string {
-	target := current * 3 / 5
-	if target < 400 {
-		target = 400
+// shrinkDigest re-renders the bounded state below the size a model already
+// refused, keeping the evidence the labels still needed declared as most
+// important for as long as possible.
+func (s *Service) shrinkDigest(work *runWork) string {
+	if work.build == nil {
+		return ""
 	}
-	body, err := BuildDigestBounded(facts, target)
+	size := work.sentChars
+	if size == 0 {
+		size = len(work.digest)
+	}
+	body, err := work.build(max(size*3/5, minDigestChars), s.digestPriority(work.needs))
 	if err != nil {
-		return body
+		return ""
 	}
 	return body
 }
 
-// runDecisionPass submits every pending label and returns the works whose
-// state the model could not read. It never marks an overflowed label
-// unavailable: the caller decides whether a smaller digest is still allowed.
+// digestPriority is how the labels a call asks rank the digest sections: each
+// label's evidence names its sections most important first, and labels asked
+// together contribute in pack order. A section no asked label names is shrunk
+// before any that one does.
+func (s *Service) digestPriority(labelIDs []string) []string {
+	asked := make(map[string]bool, len(labelIDs))
+	for _, id := range labelIDs {
+		asked[id] = true
+	}
+	var evidence []EvidenceSelector
+	for _, id := range s.pack.Order() {
+		if !asked[id] {
+			continue
+		}
+		if compiled, ok := s.pack.Label(id); ok {
+			evidence = append(evidence, compiled.label.Evidence...)
+		}
+	}
+	return DigestPriority(evidence)
+}
+
+// runDecisionPass submits every pending label, one role at a time, and returns
+// the works whose state the model could not read. It never marks an overflowed
+// label unavailable: the caller decides whether a smaller digest is still
+// allowed.
 func (s *Service) runDecisionPass(ctx context.Context, works []*runWork) []*runWork {
-	// The budget bounds decision states (runs), not distinct labels: one
-	// state carries every question asked about it. Counting label occurrences
-	// would allow an unbounded number of runs whenever the pack has few labels.
+	// The budget bounds decision states (units), not distinct labels: one state
+	// carries every question asked about it. Counting label occurrences would
+	// allow an unbounded number of runs whenever the pack has few labels.
 	budget := s.pack.Pack.Runtime.Budgets.MaxDecisionStatesPerPass
 	states := 0
 	for _, work := range works {
@@ -107,31 +134,37 @@ func (s *Service) runDecisionPass(ctx context.Context, works []*runWork) []*runW
 		return nil
 	}
 	sort.Slice(needLabels, func(i, j int) bool { return s.labelIndex(needLabels[i]) < s.labelIndex(needLabels[j]) })
-	questions := make(map[string]*inferencev1.DecisionQuestion, len(needLabels))
-	for _, labelID := range needLabels {
-		compiled, ok := s.pack.Label(labelID)
-		if !ok {
-			continue
-		}
-		question, err := questionFor(compiled.label)
-		if err != nil {
-			s.markLabelUnavailable(works, labelID, "question_invalid: "+err.Error())
-			continue
-		}
-		questions[labelID] = question
-	}
-	if len(questions) == 0 {
-		return nil
-	}
 	for _, work := range works {
 		work.overflowed = false
 		work.retryable = false
 		work.transportRetried = false
 	}
-	maxQuestions := s.pack.Pack.Runtime.Batch.MaxQuestions
+	pass := works[0].pass
 	var overflowed []*runWork
-	for _, labelChunk := range chunkStrings(needLabels, maxQuestions) {
-		overflowed = append(overflowed, s.submitQuestions(ctx, works, labelChunk, questions, s.pack.Pack.Runtime.DefaultRole)...)
+	for _, group := range s.groupDecisionLabels(pass, needLabels) {
+		limits := s.roleLimits(ctx, pass, group.role)
+		questions := make(map[string]*inferencev1.DecisionQuestion, len(group.labels))
+		var askable []string
+		for _, labelID := range group.labels {
+			compiled, ok := s.pack.Label(labelID)
+			if !ok {
+				continue
+			}
+			if exceedsLimits(compiled.label, limits) {
+				s.markLabelUnavailable(works, labelID, "question_exceeds_role_limits: "+group.role)
+				continue
+			}
+			question, err := questionFor(compiled.label)
+			if err != nil {
+				s.markLabelUnavailable(works, labelID, "question_invalid: "+err.Error())
+				continue
+			}
+			questions[labelID] = question
+			askable = append(askable, labelID)
+		}
+		for _, labelChunk := range chunkStrings(askable, s.questionCap(limits)) {
+			overflowed = append(overflowed, s.submitQuestions(ctx, works, labelChunk, questions, group, limits)...)
+		}
 	}
 	return dedupeWorks(overflowed)
 }
@@ -142,7 +175,7 @@ func (s *Service) runDecisionPass(ctx context.Context, works []*runWork) []*runW
 // shrinking the state would not help there. Splitting converges on the same
 // one-question-per-call shape the intervention classifier uses, without
 // hardcoding any model's window.
-func (s *Service) submitQuestions(ctx context.Context, works []*runWork, labelChunk []string, questions map[string]*inferencev1.DecisionQuestion, role string) []*runWork {
+func (s *Service) submitQuestions(ctx context.Context, works []*runWork, labelChunk []string, questions map[string]*inferencev1.DecisionQuestion, group decisionGroup, limits ModelLimits) []*runWork {
 	chunkSet := map[string]bool{}
 	chunkQuestions := make([]*inferencev1.DecisionQuestion, 0, len(labelChunk))
 	for _, labelID := range labelChunk {
@@ -169,7 +202,7 @@ func (s *Service) submitQuestions(ctx context.Context, works []*runWork, labelCh
 	var overflowed, retryable []*runWork
 	maxStates := s.pack.Pack.Runtime.Batch.MaxStates
 	for _, stateChunk := range chunkWorks(eligible, maxStates) {
-		for _, work := range s.decisionCall(ctx, stateChunk, chunkQuestions, chunkSet, role, false) {
+		for _, work := range s.decisionCall(ctx, stateChunk, chunkQuestions, chunkSet, group, limits) {
 			overflowed = append(overflowed, work)
 			if work.retryable {
 				retryable = append(retryable, work)
@@ -185,7 +218,7 @@ func (s *Service) submitQuestions(ctx context.Context, works []*runWork, labelCh
 			work.retryable = false
 		}
 		for _, stateChunk := range chunkWorks(retryable, 4) {
-			for _, work := range s.decisionCall(ctx, stateChunk, chunkQuestions, chunkSet, role, false) {
+			for _, work := range s.decisionCall(ctx, stateChunk, chunkQuestions, chunkSet, group, limits) {
 				if work.overflowed {
 					overflowed = append(overflowed, work)
 				}
@@ -197,8 +230,8 @@ func (s *Service) submitQuestions(ctx context.Context, works []*runWork, labelCh
 		return overflowed
 	}
 	middle := len(labelChunk) / 2
-	left := s.submitQuestions(ctx, overflowed, labelChunk[:middle], questions, role)
-	right := s.submitQuestions(ctx, overflowed, labelChunk[middle:], questions, role)
+	left := s.submitQuestions(ctx, overflowed, labelChunk[:middle], questions, group, limits)
+	right := s.submitQuestions(ctx, overflowed, labelChunk[middle:], questions, group, limits)
 	return dedupeWorks(append(left, right...))
 }
 
@@ -218,67 +251,14 @@ func dedupeWorks(works []*runWork) []*runWork {
 	return unique
 }
 
-// evaluateEscalation re-asks only low-confidence answers with escalate_role.
-func (s *Service) evaluateEscalation(ctx context.Context, works []*runWork, questionSet map[string]bool) {
-	role := s.pack.Pack.Runtime.EscalateRole
-	escalation := s.pack.Pack.Runtime.Escalation
-	if !escalation.Enabled || role == "" || s.decisions == nil {
-		return
-	}
-	var (
-		eligible []*runWork
-		labels   []string
-	)
-	for _, work := range works {
-		low := false
-		for labelID := range questionSet {
-			observation, ok := work.observations[labelID]
-			if !ok || observation.State != StateObserved || observation.Confidence == nil {
-				continue
-			}
-			if *observation.Confidence < escalation.MinConfidence {
-				low = true
-			}
-		}
-		if low {
-			eligible = append(eligible, work)
-		}
-	}
-	for labelID := range questionSet {
-		labels = append(labels, labelID)
-	}
-	sort.Slice(labels, func(i, j int) bool { return s.labelIndex(labels[i]) < s.labelIndex(labels[j]) })
-	if len(labels) > escalation.MaxLabels {
-		labels = labels[:escalation.MaxLabels]
-	}
-	questions := make([]*inferencev1.DecisionQuestion, 0, len(labels))
-	chunkSet := map[string]bool{}
-	for _, labelID := range labels {
-		compiled, ok := s.pack.Label(labelID)
-		if !ok {
-			continue
-		}
-		question, err := questionFor(compiled.label)
-		if err != nil {
-			continue
-		}
-		questions = append(questions, question)
-		chunkSet[labelID] = true
-	}
-	if len(questions) == 0 {
-		return
-	}
-	for _, chunk := range chunkWorks(eligible, s.pack.Pack.Runtime.Batch.MaxStates) {
-		s.decisionCall(ctx, chunk, questions, chunkSet, role, true)
-	}
-}
-
-func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions []*inferencev1.DecisionQuestion, labelSet map[string]bool, role string, escalationPass bool) []*runWork {
-	items := make([]*inferencev1.DecideBatchItem, len(works))
-	for i, work := range works {
-		items[i] = &inferencev1.DecideBatchItem{StateJson: work.digest}
-	}
+// decideRequest builds one gateway call. Conversation content is confidential
+// and local-only, and a pinned pass restricts the walk to its candidate.
+func (s *Service) decideRequest(pass *passState, role string, questions []*inferencev1.DecisionQuestion, states []string) *inferencev1.DecideBatchRequest {
 	contract := s.contract(role)
+	items := make([]*inferencev1.DecideBatchItem, len(states))
+	for index, state := range states {
+		items[index] = &inferencev1.DecideBatchItem{StateJson: state}
+	}
 	request := &inferencev1.DecideBatchRequest{
 		Role:              role,
 		Questions:         questions,
@@ -287,11 +267,22 @@ func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions 
 		PrivacyClass:      contract.PrivacyClass,
 		PrivacyProvenance: contract.PrivacySource,
 	}
-	response, err := s.decisions.DecideBatch(ctx, request)
+	if pass.pinned() {
+		request.PinResourceRole = pass.pin
+	}
+	return request
+}
+
+func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions []*inferencev1.DecisionQuestion, labelSet map[string]bool, group decisionGroup, limits ModelLimits) []*runWork {
+	pass := works[0].pass
+	budget := s.digestBudget(limits, questions)
+	priority := s.digestPriority(sortedKeys(labelSet))
+	states := make([]string, len(works))
+	for i, work := range works {
+		states[i] = work.stateFor(budget, priority)
+	}
+	response, err := s.decisions.DecideBatch(ctx, s.decideRequest(pass, group.role, questions, states))
 	if err != nil {
-		if escalationPass {
-			return nil
-		}
 		failed := make([]*runWork, 0, len(works))
 		for _, work := range works {
 			if !work.transportRetried {
@@ -307,13 +298,11 @@ func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions 
 		}
 		return failed
 	}
-	if response == nil || len(response.Results) != len(items) {
-		if !escalationPass {
-			for _, work := range works {
-				for labelID := range labelSet {
-					if contains(work.needs, labelID) {
-						s.markLabelUnavailableForWork(work, labelID, "decision_result_count_mismatch")
-					}
+	if response == nil || len(response.Results) != len(works) {
+		for _, work := range works {
+			for labelID := range labelSet {
+				if contains(work.needs, labelID) {
+					s.markLabelUnavailableForWork(work, labelID, "decision_result_count_mismatch")
 				}
 			}
 		}
@@ -325,18 +314,20 @@ func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions 
 		// hides the provider's actual reason, so the batch-level failure is
 		// surfaced once for every label this call needed.
 		if failure := decisionFailure(result); failure != "" {
-			if !escalationPass {
-				if decisionOverflowed(result) && !work.digestShrunk {
-					work.overflowed = true
-					continue
-				}
-				for labelID := range labelSet {
-					if contains(work.needs, labelID) {
-						s.markLabelUnavailableForWork(work, labelID, failure)
-					}
+			if decisionOverflowed(result) && !work.digestShrunk {
+				work.overflowed = true
+				continue
+			}
+			for labelID := range labelSet {
+				if contains(work.needs, labelID) {
+					s.markLabelUnavailableForWork(work, labelID, failure)
 				}
 			}
 			continue
+		}
+		if !pass.pinned() {
+			// A pinned answer says nothing about what the role resolves to.
+			s.roles.note(group.role, result, s.now())
 		}
 		answers := map[string]*inferencev1.DecisionAnswer{}
 		for _, answer := range result.GetAnswers() {
@@ -344,48 +335,28 @@ func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions 
 		}
 		for labelID := range labelSet {
 			compiled, ok := s.pack.Label(labelID)
-			if !ok {
-				continue
-			}
-			if escalationPass {
-				existing, observed := work.observations[labelID]
-				if !observed || existing.State != StateObserved || existing.Confidence == nil {
-					continue
-				}
-				if *existing.Confidence >= s.pack.Pack.Runtime.Escalation.MinConfidence {
-					continue
-				}
-			} else if !contains(work.needs, labelID) {
+			if !ok || !contains(work.needs, labelID) {
 				continue
 			}
 			answer := answers[labelID]
 			if answer == nil {
-				if !escalationPass {
-					s.markLabelUnavailableForWork(work, labelID, "decision_missing_answer")
-				}
+				s.markLabelUnavailableForWork(work, labelID, "decision_missing_answer")
 				continue
 			}
-			observation := s.decisionObservation(compiled.label, compiled.hash, result, answer)
-			if escalationPass {
-				existing := work.observations[labelID]
-				if observation.State != StateObserved || observation.Confidence == nil {
-					continue
-				}
-				if existing.Confidence != nil && *observation.Confidence <= *existing.Confidence {
-					continue
-				}
-				// Carry the prior evidence forward; the escalation answers the
-				// same digest, not a different state.
-				observation.EvidenceEventIDs = existing.EvidenceEventIDs
-				s.record(work, observation)
-				continue
+			observation := s.decisionObservation(compiled.label, compiled.hash, group.role, result, answer)
+			if pass.pinned() && result.GetResourceRole() != pass.pin {
+				// The gateway is contracted to answer a pinned request with
+				// exactly the pinned candidate. An answer from anyone else must
+				// not be stored as that candidate's.
+				observation.State = StateUnavailable
+				observation.Reason = "pin_mismatch: answered by " + result.GetResourceRole() + ", pinned " + pass.pin
 			}
 			s.record(work, observation)
 			work.needs = remove(work.needs, labelID)
 		}
 	}
-	if !escalationPass {
-		s.evaluateEscalation(ctx, works, labelSet)
+	if !pass.pinned() {
+		s.evaluateEscalation(ctx, works, labelSet, group)
 	}
 	failed := make([]*runWork, 0)
 	for _, work := range works {
@@ -394,6 +365,150 @@ func (s *Service) decisionCall(ctx context.Context, works []*runWork, questions 
 		}
 	}
 	return failed
+}
+
+// evaluateEscalation re-asks only low-confidence answers, and only of a model
+// that has not already answered. An escalation role that resolves to the same
+// model as the first pass cannot say anything new, so the call is skipped and
+// the fact is remembered for the pack's same_model_ttl; the saving is counted.
+// A call that is made and answered by the same model teaches the engine the same
+// thing, so it is made at most once per ttl.
+func (s *Service) evaluateEscalation(ctx context.Context, works []*runWork, labelSet map[string]bool, group decisionGroup) {
+	escalation := s.pack.Pack.Runtime.Escalation
+	if !escalation.Enabled || group.escalate == "" || s.decisions == nil || len(works) == 0 {
+		return
+	}
+	pass := works[0].pass
+	low := map[string]bool{}
+	var eligible []*runWork
+	for _, work := range works {
+		isLow := false
+		for labelID := range labelSet {
+			observation, ok := work.observations[labelID]
+			if ok && observation.State == StateObserved && observation.Confidence != nil && *observation.Confidence < escalation.MinConfidence {
+				low[labelID] = true
+				isLow = true
+			}
+		}
+		if isLow {
+			eligible = append(eligible, work)
+		}
+	}
+	if len(eligible) == 0 {
+		return
+	}
+	maxStates := s.pack.Pack.Runtime.Batch.MaxStates
+	escalationLimits := s.roleLimits(ctx, pass, group.escalate)
+	labels := make([]string, 0, len(low))
+	for labelID := range low {
+		labels = append(labels, labelID)
+	}
+	sort.Slice(labels, func(i, j int) bool { return s.labelIndex(labels[i]) < s.labelIndex(labels[j]) })
+	if len(labels) > escalation.MaxLabels {
+		labels = labels[:escalation.MaxLabels]
+	}
+	questions := map[string]*inferencev1.DecisionQuestion{}
+	var askable []string
+	for _, labelID := range labels {
+		compiled, ok := s.pack.Label(labelID)
+		if !ok || exceedsLimits(compiled.label, escalationLimits) {
+			continue
+		}
+		if question, err := questionFor(compiled.label); err == nil {
+			questions[labelID] = question
+			askable = append(askable, labelID)
+		}
+	}
+	if len(askable) == 0 {
+		return
+	}
+	labelChunks := chunkStrings(askable, s.questionCap(escalationLimits))
+	stats := EscalationStats{EligibleStates: len(eligible)}
+	ttl := escalation.SameModelDuration()
+	if s.roles.sameModel(group.role, group.escalate, s.now(), ttl) {
+		stats.SkippedStates = len(eligible)
+		stats.SkippedCalls = len(chunkWorks(eligible, maxStates)) * len(labelChunks)
+		pass.addEscalation(stats)
+		return
+	}
+	sameModel := false
+	for _, stateChunk := range chunkWorks(eligible, maxStates) {
+		for _, labelChunk := range labelChunks {
+			chunkQuestions := make([]*inferencev1.DecisionQuestion, 0, len(labelChunk))
+			for _, labelID := range labelChunk {
+				chunkQuestions = append(chunkQuestions, questions[labelID])
+			}
+			budget := s.digestBudget(escalationLimits, chunkQuestions)
+			priority := s.digestPriority(labelChunk)
+			states := make([]string, len(stateChunk))
+			for index, work := range stateChunk {
+				states[index] = work.stateFor(budget, priority)
+			}
+			started := time.Now()
+			response, err := s.decisions.DecideBatch(ctx, s.decideRequest(pass, group.escalate, chunkQuestions, states))
+			stats.Calls++
+			stats.StatesAsked += len(stateChunk)
+			stats.CallSeconds += time.Since(started).Seconds()
+			if err != nil || response == nil || len(response.Results) != len(stateChunk) {
+				continue
+			}
+			for index, work := range stateChunk {
+				result := response.Results[index]
+				if decisionFailure(result) != "" {
+					continue
+				}
+				s.roles.note(group.escalate, result, s.now())
+				answers := map[string]*inferencev1.DecisionAnswer{}
+				for _, answer := range result.GetAnswers() {
+					answers[answer.GetQuestionId()] = answer
+				}
+				askedSame := false
+				for _, labelID := range labelChunk {
+					existing, observed := work.observations[labelID]
+					if !observed || existing.State != StateObserved || existing.Confidence == nil || *existing.Confidence >= escalation.MinConfidence {
+						continue
+					}
+					if result.GetModel() == existing.Model && result.GetResourceRole() == existing.ModelVersion {
+						// The same model answered again: nothing new, whatever
+						// the escalation role is called.
+						askedSame = true
+						continue
+					}
+					answer := answers[labelID]
+					compiled, ok := s.pack.Label(labelID)
+					if answer == nil || !ok {
+						continue
+					}
+					observation := s.decisionObservation(compiled.label, compiled.hash, group.escalate, result, answer)
+					if observation.State != StateObserved || observation.Confidence == nil {
+						continue
+					}
+					if existing.Confidence != nil && *observation.Confidence <= *existing.Confidence {
+						continue
+					}
+					// Carry the prior evidence forward; the escalation answers the
+					// same digest, not a different state.
+					observation.EvidenceEventIDs = existing.EvidenceEventIDs
+					s.record(work, observation)
+					stats.Adopted++
+				}
+				if askedSame {
+					stats.SameModelAnswers++
+					sameModel = true
+				}
+			}
+			if sameModel {
+				break
+			}
+		}
+		if sameModel {
+			break
+		}
+	}
+	if sameModel {
+		s.roles.markFutile(group.role, group.escalate, s.now(), ttl)
+	}
+	pass.addEscalation(stats)
 }
 
 // decisionFailure describes a decision result that carries no usable answer
@@ -418,7 +533,9 @@ func decisionFailure(result *inferencev1.DecideResponse) string {
 
 // decisionOverflowed reports a state no candidate could read whole. It mirrors
 // the intervention classifier: a top-level overflow code, or a candidate walk
-// that records context_overflow while the fallback answered.
+// that records context_overflow (or limits_exceeded: the request is outside the
+// model's declared bounds, which splitting the questions or shrinking the state
+// fixes the same way) while the fallback answered.
 func decisionOverflowed(result *inferencev1.DecideResponse) bool {
 	if result == nil {
 		return false
@@ -427,16 +544,17 @@ func decisionOverflowed(result *inferencev1.DecideResponse) bool {
 		return true
 	}
 	for _, candidate := range result.GetCandidates() {
-		if candidate.GetReason() == "context_overflow" {
+		if reason := candidate.GetReason(); reason == "context_overflow" || reason == "limits_exceeded" {
 			return true
 		}
 	}
 	return false
 }
 
-func (s *Service) decisionObservation(label Label, hash string, result *inferencev1.DecideResponse, answer *inferencev1.DecisionAnswer) Annotation {
+func (s *Service) decisionObservation(label Label, hash, requestedRole string, result *inferencev1.DecideResponse, answer *inferencev1.DecisionAnswer) Annotation {
 	observation := s.observation(label, hash, StateObserved, "")
 	observation.ObservedAt = s.now().UTC()
+	observation.RequestedRole = requestedRole
 	observation.Method = strings.TrimPrefix(result.GetMethod().String(), "DECISION_METHOD_")
 	if result.GetMethod() == inferencev1.DecisionMethod_DECISION_METHOD_UNSPECIFIED {
 		observation.Method = "decision"

@@ -59,6 +59,8 @@ Read base rows and supervision routing rows through `run agent-manager.setpoint-
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for Agent Manager's own bindings, and Agent Manager's own friction for `agent-manager` commands through `run agent-manager.friction-digest` with `scenario=agent-manager`.
 
+The digest's `inferred_annotations` section lists labels with a rate only where a model's hold-out proved them (each names its gate and the model); unproven labels appear as ids with their gate state and never as a rate. An empty section is unknown, not zero friction.
+
 External sensors outrank self-reported ones: an owner's `report-bug` filing about a wrong attribution outranks `ownerConfidence`.
 
 Supervision rows route explicitly to `agent-manager.friction-digest`. Read its

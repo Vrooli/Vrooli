@@ -55,6 +55,10 @@ func (h *AnnotationsHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/v1/annotations/run/{id}", h.Annotate).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/annotations/evaluate", h.Evaluate).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/annotations/gold", h.GoldDraft).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/annotations/benchmark", h.Benchmark).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/annotations/provenance/refresh", h.RefreshProvenance).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/annotations/series", h.Series).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/annotations/gate", h.Gate).Methods(http.MethodGet)
 }
 
 type packsResponse struct {
@@ -85,6 +89,12 @@ type evaluateRequest struct {
 	IncludeOptional bool     `json:"include_optional"`
 	Force           bool     `json:"force"`
 	DryRun          bool     `json:"dry_run"`
+	// PinResourceRole restricts every decision to one declared candidate and
+	// stores the answers apart from production; Role is the role walked for it.
+	PinResourceRole string `json:"pin_resource_role"`
+	Role            string `json:"role"`
+	// MessageIDs restricts message-scope labels to the named human messages.
+	MessageIDs []string `json:"message_ids"`
 }
 
 // Packs returns the loaded pack identity.
@@ -129,7 +139,14 @@ func (h *AnnotationsHandler) Run(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	view, err := h.service.Run(r.Context(), runID)
+	read := h.service.Run
+	if source := strings.TrimSpace(r.URL.Query().Get("source")); source == runannotations.SourcePinned {
+		read = h.service.RunTrial
+	} else if source != "" && source != runannotations.SourceProduction {
+		writeJSONError(w, http.StatusBadRequest, "source must be production or pinned")
+		return
+	}
+	view, err := read(r.Context(), runID)
 	if err != nil {
 		writeAnnotationError(w, err)
 		return
@@ -199,6 +216,7 @@ func (h *AnnotationsHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 	options := runannotations.EvaluateOptions{
 		Limit: request.Limit, RunIDs: request.RunIDs, Labels: request.Labels,
 		IncludeOptional: request.IncludeOptional, Force: request.Force, DryRun: request.DryRun,
+		PinResourceRole: request.PinResourceRole, Role: request.Role, MessageIDs: request.MessageIDs,
 	}
 	if strings.TrimSpace(request.Since) != "" {
 		since, err := time.Parse(time.RFC3339, request.Since)
@@ -221,8 +239,60 @@ func (h *AnnotationsHandler) Evaluate(w http.ResponseWriter, r *http.Request) {
 		writeAnnotationError(w, err)
 		return
 	}
-	if !request.DryRun && len(result.Runs) > 0 {
+	// A pinned pass writes the trials table; its answers are never facets.
+	if !request.DryRun && request.PinResourceRole == "" && len(result.Runs) > 0 {
 		h.refreshFacets(r.Context(), result.Runs)
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// RefreshProvenance recomputes the stored authorship of annotated runs whose
+// provenance predates the pack's current policy. It evaluates no label.
+func (h *AnnotationsHandler) RefreshProvenance(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		Limit int `json:"limit"`
+	}
+	if !decodeAnnotationBody(w, r, &request) {
+		return
+	}
+	result, err := h.service.RefreshProvenance(r.Context(), request.Limit)
+	if err != nil {
+		writeAnnotationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// Benchmark measures a label against gold rows from stored probability vectors.
+// It runs no model.
+func (h *AnnotationsHandler) Benchmark(w http.ResponseWriter, r *http.Request) {
+	var request runannotations.BenchmarkRequest
+	if !decodeAnnotationBodyLimit(w, r, &request, 4<<20) {
+		return
+	}
+	result, err := h.service.Benchmark(r.Context(), request)
+	if err != nil {
+		writeAnnotationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// Series returns a message-scope label's per-message series in time buckets.
+func (h *AnnotationsHandler) Series(w http.ResponseWriter, r *http.Request) {
+	if !annotationWindowOK(w, r) {
+		return
+	}
+	query := r.URL.Query()
+	label := strings.TrimSpace(query.Get("label"))
+	if label == "" {
+		writeJSONError(w, http.StatusBadRequest, "label is required")
+		return
+	}
+	result, err := h.service.Series(r.Context(), label, query.Get("window"), query.Get("bucket"))
+	if err != nil {
+		writeAnnotationError(w, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, result)
 }
@@ -241,7 +311,11 @@ func annotationRunID(w http.ResponseWriter, r *http.Request) (string, bool) {
 }
 
 func decodeAnnotationBody(w http.ResponseWriter, r *http.Request, target any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	return decodeAnnotationBodyLimit(w, r, target, 64<<10)
+}
+
+func decodeAnnotationBodyLimit(w http.ResponseWriter, r *http.Request, target any, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
@@ -260,6 +334,8 @@ func writeAnnotationError(w http.ResponseWriter, err error) {
 		writeJSONError(w, http.StatusNotFound, "annotation scope not found")
 	case errors.Is(err, runannotations.ErrPackNotFound):
 		writeJSONError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, runannotations.ErrInvalidRequest):
+		writeJSONError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, runannotations.ErrSelectionUnavailable):
 		writeJSONError(w, http.StatusBadRequest, "run selection unavailable; pass run_ids or wire a selector")
 	default:

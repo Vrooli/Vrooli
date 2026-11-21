@@ -380,7 +380,7 @@ func upsertAttempt(ctx context.Context, tx *Tx, a *domain.WorkflowNodeAttempt) e
 	if a.CompletedAt != nil {
 		completed = SQLiteTime(*a.CompletedAt)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO workflow_node_attempts (id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,experiment_id,variant_id,prompt_hash,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,experiment_id=excluded.experiment_id,variant_id=excluded.variant_id,prompt_hash=excluded.prompt_hash,run_id=excluded.run_id,conversation_id=excluded.conversation_id,source_attempt_id=excluded.source_attempt_id,child_execution_id=excluded.child_execution_id,error_code=excluded.error_code,raw_output=excluded.raw_output,validation_error=excluded.validation_error,version=excluded.version,updated_at=excluded.updated_at,completed_at=excluded.completed_at`, a.ID, a.ExecutionID, a.NodeID, a.Ordinal, a.Strategy, a.Status, a.IdempotencyKey, string(a.InputSnapshot), a.PromptSnapshot, a.ExperimentID, a.VariantID, a.PromptHash, run, a.ConversationID, source, child, a.ErrorCode, a.RawOutput, a.ValidationError, a.Version, SQLiteTime(a.CreatedAt), SQLiteTime(a.UpdatedAt), completed)
+	_, err = tx.ExecContext(ctx, `INSERT INTO workflow_node_attempts (id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,run_id=excluded.run_id,conversation_id=excluded.conversation_id,source_attempt_id=excluded.source_attempt_id,child_execution_id=excluded.child_execution_id,error_code=excluded.error_code,raw_output=excluded.raw_output,validation_error=excluded.validation_error,version=excluded.version,updated_at=excluded.updated_at,completed_at=excluded.completed_at`, a.ID, a.ExecutionID, a.NodeID, a.Ordinal, a.Strategy, a.Status, a.IdempotencyKey, string(a.InputSnapshot), a.PromptSnapshot, run, a.ConversationID, source, child, a.ErrorCode, a.RawOutput, a.ValidationError, a.Version, SQLiteTime(a.CreatedAt), SQLiteTime(a.UpdatedAt), completed)
 	return err
 }
 
@@ -391,7 +391,7 @@ func insertJournal(ctx context.Context, tx *Tx, e *domain.WorkflowJournalEntry) 
 
 func (r *workflowExecutionRepository) GetAttemptByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowNodeAttempt, error) {
 	var rows []workflowAttemptRow
-	if err := r.db.SelectContext(ctx, &rows, `SELECT id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,experiment_id,variant_id,prompt_hash,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at FROM workflow_node_attempts WHERE idempotency_key=?`, key); err != nil {
+	if err := r.db.SelectContext(ctx, &rows, `SELECT id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at FROM workflow_node_attempts WHERE idempotency_key=?`, key); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -413,9 +413,6 @@ type workflowAttemptRow struct {
 	// These fields were introduced by additive migrations and the schema permits
 	// NULL for existing executions. Keep the scan representation nullable so an
 	// older attempt can be listed after the migration has been applied.
-	ExperimentID     sql.NullString `db:"experiment_id"`
-	VariantID        sql.NullString `db:"variant_id"`
-	PromptHash       sql.NullString `db:"prompt_hash"`
 	RunID            sql.NullString `db:"run_id"`
 	ConversationID   string         `db:"conversation_id"`
 	SourceAttemptID  sql.NullString `db:"source_attempt_id"`
@@ -431,7 +428,7 @@ type workflowAttemptRow struct {
 
 func (r workflowAttemptRow) domain() (*domain.WorkflowNodeAttempt, error) {
 	id, eid := uuid.MustParse(r.ID), uuid.MustParse(r.ExecutionID)
-	a := &domain.WorkflowNodeAttempt{ID: id, ExecutionID: eid, NodeID: r.NodeID, Ordinal: r.Ordinal, Strategy: domain.WorkflowAttemptStrategy(r.Strategy), Status: domain.WorkflowAttemptStatus(r.Status), IdempotencyKey: r.IdempotencyKey, InputSnapshot: json.RawMessage(r.InputSnapshotJSON), PromptSnapshot: r.PromptSnapshot, ExperimentID: r.ExperimentID.String, VariantID: r.VariantID.String, PromptHash: r.PromptHash.String, ConversationID: r.ConversationID, ErrorCode: r.ErrorCode.String, RawOutput: r.RawOutput.String, ValidationError: r.ValidationError.String, Version: r.Version, CreatedAt: r.CreatedAt.Time(), UpdatedAt: r.UpdatedAt.Time()}
+	a := &domain.WorkflowNodeAttempt{ID: id, ExecutionID: eid, NodeID: r.NodeID, Ordinal: r.Ordinal, Strategy: domain.WorkflowAttemptStrategy(r.Strategy), Status: domain.WorkflowAttemptStatus(r.Status), IdempotencyKey: r.IdempotencyKey, InputSnapshot: json.RawMessage(r.InputSnapshotJSON), PromptSnapshot: r.PromptSnapshot, ConversationID: r.ConversationID, ErrorCode: r.ErrorCode.String, RawOutput: r.RawOutput.String, ValidationError: r.ValidationError.String, Version: r.Version, CreatedAt: r.CreatedAt.Time(), UpdatedAt: r.UpdatedAt.Time()}
 	if r.RunID.Valid {
 		v, err := uuid.Parse(r.RunID.String)
 		if err != nil {
@@ -485,7 +482,7 @@ func (r *workflowExecutionRepository) ExecutionIDForRun(ctx context.Context, run
 
 func (r *workflowExecutionRepository) ListAttempts(ctx context.Context, id uuid.UUID) ([]*domain.WorkflowNodeAttempt, error) {
 	var rows []workflowAttemptRow
-	if err := r.db.SelectContext(ctx, &rows, `SELECT id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,experiment_id,variant_id,prompt_hash,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at FROM workflow_node_attempts WHERE execution_id=? ORDER BY created_at,id`, id); err != nil {
+	if err := r.db.SelectContext(ctx, &rows, `SELECT id,execution_id,node_id,ordinal,strategy,status,idempotency_key,input_snapshot_json,prompt_snapshot,run_id,conversation_id,source_attempt_id,child_execution_id,error_code,raw_output,validation_error,version,created_at,updated_at,completed_at FROM workflow_node_attempts WHERE execution_id=? ORDER BY created_at,id`, id); err != nil {
 		return nil, err
 	}
 	out := make([]*domain.WorkflowNodeAttempt, 0, len(rows))

@@ -410,12 +410,11 @@ func (e *Engine) prepareParallelAttempt(x *domain.WorkflowExecution, forkID stri
 	// Parallel planning currently prepares its durable attempt inside the same
 	// engine transaction-free phase. The resolver still runs before the attempt
 	// is committed; Advance supplies cancellation at the outer boundary.
-	assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
-	input, prompt, resolution, _, strategy, source, _, err := e.resolveAgentInput(context.Background(), node, attempts, journal, x.Input, x.ID.String(), assignment)
+	input, prompt, _, strategy, source, _, err := e.resolveAgentInput(node, attempts, journal, x.Input, x.ID.String())
 	if err != nil {
 		return nil, err
 	}
-	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, ExperimentID: resolution.ExperimentID, VariantID: resolution.VariantID, PromptHash: resolution.ContentHash, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
+	return &domain.WorkflowNodeAttempt{ID: uuid.New(), ExecutionID: x.ID, NodeID: node.ID, Ordinal: ordinal, Strategy: strategy, Status: domain.WorkflowAttemptDispatchPending, IdempotencyKey: idempotencyKey, InputSnapshot: input, PromptSnapshot: prompt, SourceAttemptID: source, Version: 1, CreatedAt: now, UpdatedAt: now}, nil
 }
 
 func parallelPlan(definition domain.WorkflowDefinition, forkID string) (map[string]*domain.WorkflowNode, *domain.WorkflowNode, error) {

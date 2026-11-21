@@ -2,11 +2,13 @@ package runannotations
 
 import (
 	"testing"
+
+	"agent-manager/internal/toolfacts"
 )
 
 func TestCandidateCELUsesDocumentedFeatures(t *testing.T) {
 	pack, err := LoadCompiled(packPathForTest(t, `[{
-		"id":"agent.spinning","group":"agent","scope":"run","method":"decision",
+		"id":"agent.stalled","group":"agent","scope":"run","method":"decision",
 		"question":{"type":"noul","instructions":"x","true_description":"t","false_description":"f"},
 		"evidence":[],"candidates":"duration_min >= 8 || failed_commands >= 2 || repeated_paths >= 3",
 		"gate":{"precision":0.5,"recall":0.5,"min_gold":1},
@@ -14,17 +16,17 @@ func TestCandidateCELUsesDocumentedFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compiled, _ := pack.Label("agent.spinning")
+	compiled, _ := pack.Label("agent.stalled")
 	evaluator := celEvaluator{CostLimit: defaultCostLimit}
 	cases := []struct {
 		features RunFeatures
 		want     bool
 	}{
-		{RunFeatures{DurationMin: 7}, false},
-		{RunFeatures{DurationMin: 8}, true},
-		{RunFeatures{FailedCommands: 2}, true},
-		{RunFeatures{RepeatedPaths: 3}, true},
-		{RunFeatures{RepeatedPaths: 2, FailedCommands: 1, DurationMin: 2}, false},
+		{toolFeatures(toolfacts.Facts{}, 7), false},
+		{toolFeatures(toolfacts.Facts{}, 8), true},
+		{toolFeatures(toolfacts.Facts{FailedCommands: 2}, 0), true},
+		{toolFeatures(toolfacts.Facts{RepeatedPaths: 3}, 0), true},
+		{toolFeatures(toolfacts.Facts{RepeatedPaths: 2, FailedCommands: 1}, 2), false},
 	}
 	for i, tc := range cases {
 		got, err := evaluator.evalBool(compiled.candidates, tc.features.Activation())
@@ -76,4 +78,9 @@ func TestDeterministicRuleDistinguishesFalseFromUnknown(t *testing.T) {
 	if err != nil || decided || value != "" {
 		t.Fatalf("unknown: %q %t %v", value, decided, err)
 	}
+}
+
+// toolFeatures is the features of a run with the given tool facts and duration.
+func toolFeatures(tools toolfacts.Facts, durationMin float64) RunFeatures {
+	return FeaturesFromFacts(RunFacts{ToolSummary: tools, Timings: TimingFacts{DurationMinutes: durationMin}})
 }

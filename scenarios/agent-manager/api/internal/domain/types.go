@@ -67,8 +67,7 @@ type AgentProfile struct {
 	DeclaredScopes []string `json:"declaredScopes,omitempty" db:"declared_scopes"`
 	// SkillPack names the prompt-manager skills projected into this profile's
 	// private run scope. It is an allow-list of identifiers, never a path.
-	SkillPack         []string `json:"skillPack,omitempty" db:"skill_pack"`
-	SkillExperimentID string   `json:"skillExperimentId,omitempty" db:"skill_experiment_id"`
+	SkillPack []string `json:"skillPack,omitempty" db:"skill_pack"`
 
 	// Metadata
 	CreatedBy       string    `json:"createdBy,omitempty" db:"created_by"`

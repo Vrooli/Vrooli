@@ -25,7 +25,11 @@ func (f *annotationDecisionFake) DecideBatch(_ context.Context, request *inferen
 	f.calls++
 	response := &inferencev1.DecideBatchResponse{}
 	for range request.Items {
-		result := &inferencev1.DecideResponse{Method: inferencev1.DecisionMethod_DECISION_METHOD_DECISION_MODEL, Provider: "ollaya", Model: "winnow"}
+		result := &inferencev1.DecideResponse{
+			Method: inferencev1.DecisionMethod_DECISION_METHOD_DECISION_MODEL, Provider: "ollaya", Model: "winnow",
+			// A pinned request is answered by exactly the pinned candidate.
+			ResourceRole: request.GetPinResourceRole(),
+		}
 		for _, question := range request.Questions {
 			noul := 0.75
 			result.Answers = append(result.Answers, &inferencev1.DecisionAnswer{QuestionId: question.GetId(), Type: question.GetType(), Noul: &noul})
@@ -319,5 +323,101 @@ func TestAnnotationGoldDraftIsBlindAndComplete(t *testing.T) {
 		if _, ok := run[leaked]; ok {
 			t.Fatalf("draft leaked %q: %v", leaked, run)
 		}
+	}
+}
+
+func TestAnnotationPinnedEvaluateIsStoredApartAndReadBack(t *testing.T) {
+	router, fake, _ := annotationHandlerForTest(t)
+	post := func(path, body string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+		return recorder
+	}
+	get := func(path string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		return recorder
+	}
+	if code := post("/api/v1/annotations/evaluate", `{"run_ids":["run-1"],"pin_resource_role":"decide.local.candidate","labels":["operator.frustration"]}`).Code; code != http.StatusOK {
+		t.Fatalf("pinned evaluate -> %d", code)
+	}
+	if fake.calls != 1 {
+		t.Fatalf("decision calls = %d", fake.calls)
+	}
+	var trial, production runannotations.RunView
+	recorder := get("/api/v1/annotations/run/run-1?source=pinned")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("pinned read -> %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &trial); err != nil {
+		t.Fatal(err)
+	}
+	if len(trial.Labels) != 1 || trial.Labels[0].ResourceRole != "decide.local.candidate" || trial.State != "read_trial" {
+		t.Fatalf("trial view = %+v", trial)
+	}
+	if err := json.Unmarshal(get("/api/v1/annotations/run/run-1").Body.Bytes(), &production); err != nil {
+		t.Fatal(err)
+	}
+	if len(production.Labels) != 0 {
+		t.Fatalf("production view carries the trial answer: %+v", production.Labels)
+	}
+	if code := get("/api/v1/annotations/run/run-1?source=elsewhere").Code; code != http.StatusBadRequest {
+		t.Fatalf("unknown source -> %d, want 400", code)
+	}
+}
+
+func TestAnnotationBenchmarkAndSeriesRejectBadRequests(t *testing.T) {
+	router, _, _ := annotationHandlerForTest(t)
+	post := func(path, body string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+		return recorder
+	}
+	for name, body := range map[string]string{
+		"unknown label": `{"label":"nope","rows":[{"run_id":"run-1","positive":true}]}`,
+		"unknown split": `{"label":"operator.frustration","split":"dev","rows":[{"run_id":"run-1","positive":true}]}`,
+		"overlap":       `{"label":"operator.frustration","split":"holdout","rows":[{"run_id":"run-1","positive":true}],"fit_rows":[{"run_id":"run-1","positive":false}]}`,
+	} {
+		if recorder := post("/api/v1/annotations/benchmark", body); recorder.Code != http.StatusBadRequest {
+			t.Fatalf("%s -> %d: %s", name, recorder.Code, recorder.Body.String())
+		}
+	}
+	for path, want := range map[string]int{
+		"/api/v1/annotations/series":                                        http.StatusBadRequest,
+		"/api/v1/annotations/series?label=nope":                             http.StatusBadRequest,
+		"/api/v1/annotations/series?label=operator.frustration":             http.StatusBadRequest, // run scope
+		"/api/v1/annotations/series?label=operator.frustration&window=junk": http.StatusBadRequest,
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if recorder.Code != want {
+			t.Fatalf("%s -> %d: %s", path, recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func TestAnnotationBenchmarkMeasuresStoredAnswersWithoutInference(t *testing.T) {
+	router, fake, _ := annotationHandlerForTest(t)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/annotations/run/run-1", strings.NewReader(`{}`)))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("annotate -> %d", recorder.Code)
+	}
+	calls := fake.calls
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/annotations/benchmark",
+		strings.NewReader(`{"label":"operator.frustration","rows":[{"run_id":"run-1","positive":true}],"gold_file":"gold/x.jsonl"}`)))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("benchmark -> %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var result runannotations.BenchmarkResult
+	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls != calls {
+		t.Fatalf("the benchmark called a model: %d -> %d", calls, fake.calls)
+	}
+	if result.Measurement == nil || result.Measurement.Model != "winnow" || result.Measurement.GoldFile != "gold/x.jsonl" || result.Gold != 1 || result.TP != 1 {
+		t.Fatalf("result = %+v", result)
 	}
 }

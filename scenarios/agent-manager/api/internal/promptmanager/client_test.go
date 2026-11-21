@@ -12,8 +12,6 @@ import (
 
 	"connectrpc.com/connect"
 	httpx "github.com/vrooli/api-core/apihttptest"
-	experimentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments"
-	experimentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments/experiments_v1connect"
 	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
 	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
@@ -29,25 +27,6 @@ type fakeSkillsService struct {
 	update   func(*skillsv1.UpdateSkillRequest) (*skillsv1.UpdateSkillResponse, error)
 	versions func(*skillsv1.ListSkillVersionsRequest) (*skillsv1.ListSkillVersionsResponse, error)
 	revert   func(*skillsv1.RevertSkillRequest) (*skillsv1.RevertSkillResponse, error)
-}
-
-type fakeExperimentsService struct {
-	experimentsconnect.UnimplementedExperimentsServiceHandler
-	assign func(*experimentsv1.AssignExperimentRequest) (*experimentsv1.ExperimentAssignment, error)
-	record func(*experimentsv1.RecordOutcomeRequest) (*experimentsv1.ExperimentOutcome, error)
-}
-
-func (f fakeExperimentsService) AssignExperiment(_ context.Context, req *connect.Request[experimentsv1.AssignExperimentRequest]) (*connect.Response[experimentsv1.ExperimentAssignment], error) {
-	return unaryResponse(f.assign, req)
-}
-
-func (f fakeExperimentsService) RecordOutcome(_ context.Context, req *connect.Request[experimentsv1.RecordOutcomeRequest]) (*connect.Response[experimentsv1.ExperimentOutcome], error) {
-	return unaryResponse(f.record, req)
-}
-
-func experimentTestHandler(service fakeExperimentsService) http.Handler {
-	_, handler := experimentsconnect.NewExperimentsServiceHandler(service)
-	return handler
 }
 
 func unaryResponse[Req, Res any](fn func(*Req) (*Res, error), req *connect.Request[Req]) (*connect.Response[Res], error) {
@@ -207,13 +186,10 @@ func TestHTTPClient_PublishFrictionUsesCanonicalIntakeAndAttribution(t *testing.
 	}
 }
 
-func TestHTTPClient_ReadSkillSource_PinsWhenNoExperiment(t *testing.T) {
+func TestHTTPClient_ReadSkillSource_PinsTheRead(t *testing.T) {
 	client := newSkillTestClient(t, fakeSkillsService{read: func(req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
 		if req.GetVariantPolicy() != "pinned" {
 			t.Errorf("expected variantPolicy pinned, got %q", req.GetVariantPolicy())
-		}
-		if req.GetExperimentId() != "" {
-			t.Errorf("expected empty experimentId, got %q", req.GetExperimentId())
 		}
 		return &skillsv1.ReadSkillsResponse{
 			Combined:     "content",
@@ -222,62 +198,12 @@ func TestHTTPClient_ReadSkillSource_PinsWhenNoExperiment(t *testing.T) {
 		}, nil
 	}}, nil)
 
-	snap, err := client.ReadSkillSource(context.Background(), "test-skill", "", nil, false)
+	snap, err := client.ReadSkillSource(context.Background(), "test-skill", nil, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if snap.VariantID != "control" {
 		t.Errorf("expected control variant, got %q", snap.VariantID)
-	}
-	if snap.ExperimentID != "" {
-		t.Errorf("expected empty experimentId, got %q", snap.ExperimentID)
-	}
-}
-
-func TestHTTPClient_ReadSkillSource_ArmsExplicitExperiment(t *testing.T) {
-	client := newSkillTestClient(t, fakeSkillsService{read: func(req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
-		if req.GetExperimentId() != "exp-1" {
-			t.Errorf("expected experimentId exp-1, got %q", req.GetExperimentId())
-		}
-		if req.GetVariantPolicy() != "" {
-			t.Errorf("expected no variantPolicy when armed, got %q", req.GetVariantPolicy())
-		}
-		return &skillsv1.ReadSkillsResponse{
-			Combined:          "variant content",
-			CombinedHash:      "sha256:def",
-			SelectedVariantId: "variant-a",
-			ExperimentId:      "exp-1",
-			Skills:            []*skillsv1.Skill{{Id: "test-skill", Revision: 4}},
-		}, nil
-	}}, nil)
-
-	snap, err := client.ReadSkillSource(context.Background(), "test-skill", "exp-1", nil, false)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if snap.VariantID != "variant-a" || snap.ExperimentID != "exp-1" {
-		t.Errorf("expected armed variant-a/exp-1, got %q/%q", snap.VariantID, snap.ExperimentID)
-	}
-}
-
-func TestHTTPClient_RecordExperimentOutcome(t *testing.T) {
-	client := newSkillTestClient(t, fakeSkillsService{}, experimentTestHandler(fakeExperimentsService{record: func(outcome *experimentsv1.RecordOutcomeRequest) (*experimentsv1.ExperimentOutcome, error) {
-		if outcome.GetExperimentId() != "exp-1" || outcome.GetVariantId() != "variant-a" || outcome.GetSource() != "agent-manager" {
-			t.Errorf("unexpected outcome %+v", outcome)
-		}
-		if got := outcome.GetData().GetStructValue().GetFields()["status"].GetStringValue(); got != "complete" {
-			t.Errorf("unexpected outcome data status %q", got)
-		}
-		return &experimentsv1.ExperimentOutcome{VariantId: outcome.GetVariantId(), Source: outcome.GetSource()}, nil
-	}}))
-
-	err := client.RecordExperimentOutcome(context.Background(), "exp-1", ExperimentOutcome{
-		VariantID: "variant-a",
-		Source:    "agent-manager",
-		Data:      json.RawMessage(`{"status":"complete"}`),
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -298,7 +224,7 @@ func TestHTTPClient_ReadSkill_ResolverError(t *testing.T) {
 	}
 }
 
-func TestHTTPClientAdminOperationsAndExperimentAssignment(t *testing.T) {
+func TestHTTPClientAdminOperations(t *testing.T) {
 	service := fakeSkillsService{
 		list: func(req *skillsv1.ListSkillsRequest) (*skillsv1.ListSkillsResponse, error) {
 			if req.GetTag() != "ops tag" {
@@ -325,12 +251,7 @@ func TestHTTPClientAdminOperationsAndExperimentAssignment(t *testing.T) {
 			return &skillsv1.RevertSkillResponse{SkillId: "skill/a", RevertedTo: 1}, nil
 		},
 	}
-	client := newSkillTestClient(t, service, experimentTestHandler(fakeExperimentsService{assign: func(req *experimentsv1.AssignExperimentRequest) (*experimentsv1.ExperimentAssignment, error) {
-		if req.GetExperimentId() != "exp/1" || req.GetExecutionId() != "execution" || req.GetNodeId() != "node" || req.GetAttemptKey() != "attempt" || req.GetIdempotencyKey() != "key" {
-			t.Fatalf("assignment request=%+v", req)
-		}
-		return &experimentsv1.ExperimentAssignment{ExperimentId: "exp/1", SkillId: "skill/a", VariantId: "variant", Content: "prompt", ContentHash: "sha256:1"}, nil
-	}}))
+	client := newSkillTestClient(t, service, nil)
 	ctx := context.Background()
 	if skills, err := client.ListSkills(ctx, "ops tag"); err != nil || len(skills) != 1 {
 		t.Fatalf("skills=%+v err=%v", skills, err)
@@ -347,13 +268,6 @@ func TestHTTPClientAdminOperationsAndExperimentAssignment(t *testing.T) {
 	}
 	if err := client.RevertSkillVersion(ctx, "skill/a", 1); err != nil {
 		t.Fatal(err)
-	}
-	assignment := AssignmentRequest{ExperimentID: "exp/1", SkillID: "skill/a", ExecutionID: "execution", NodeID: "node", AttemptKey: "attempt", IdempotencyKey: "key"}
-	if snap, err := client.AssignExperimentPrompt(ctx, assignment); err != nil || snap.VariantID != "variant" || snap.Content != "prompt" {
-		t.Fatalf("assignment=%+v err=%v", snap, err)
-	}
-	if _, err := client.AssignExperimentPrompt(ctx, AssignmentRequest{}); err == nil {
-		t.Fatal("incomplete assignment accepted")
 	}
 }
 

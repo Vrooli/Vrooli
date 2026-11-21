@@ -77,6 +77,44 @@ func TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider(t *testing
 	require.False(t, ollamaCand.GetFallbackEligible())
 }
 
+// A capacity refusal means "does not fit right now". The route moves on, and
+// the refused candidate must stay selectable once memory frees up, so nothing
+// about it may reach the breaker.
+func TestCapacityRefusalFallsBackWithoutPenalisingTheProvider(t *testing.T) {
+	for _, code := range []string{"insufficient_vram", "insufficient_memory", "limits_exceeded"} {
+		t.Run(code, func(t *testing.T) {
+			runner := roleRunner()
+			runner.ErrorMatch = func(command providers.Command) error {
+				if strings.HasPrefix(command.String(), "resource-ollama gateway generate --role chat.default ") {
+					return &providers.CommandError{Code: code, Command: "resource-ollama"}
+				}
+				return nil
+			}
+			runner.Results[openRouterGenerateCmd] = providers.Result{Stdout: `{"response":"ok"}`}
+
+			db := newSchemaDB(t)
+			svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
+				routing.WithHealth(routing.NewSQLHealthRepository(db)),
+				routing.WithBreakerPolicy(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second}),
+				routing.WithClock(func() time.Time { return breakerBaseTime }))
+			ctx := context.Background()
+
+			resp, err := svc.Execute(ctx, baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST), "hello")
+			require.NoError(t, err)
+			require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider())
+			require.Equal(t, string(routing.FailureCapacityRefused), resp.GetEvidence().GetFailureClass())
+
+			_, found, err := routing.NewSQLHealthRepository(db).Get(ctx, routing.HealthKey{Provider: "ollama", Role: "chat.default", Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION})
+			require.NoError(t, err)
+			require.False(t, found, "a capacity refusal must leave no health record")
+
+			prev, err := svc.Preview(ctx, baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST))
+			require.NoError(t, err)
+			require.Equal(t, "ollama", prev.GetSelectedProvider(), "the refused candidate is still first once memory frees up")
+		})
+	}
+}
+
 func TestBreakerIsolatesByRequestKind(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	runner := roleRunner()
 	db := newSchemaDB(t)

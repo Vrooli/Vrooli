@@ -73,8 +73,8 @@ func runtimeFrictionCommand(newHTTP paceHTTPFor) cliapp.Command {
 		Usage:       "agent-manager usage runtime-friction [--since RFC3339] [--until RFC3339] [--json]",
 		HelpText:    "Reads measured duration categories, report coverage, structured guard outcomes, enforcement request durations, and later agent responses. Imported runs are included when available. `checkId` is blank when the source records only a command path or refusal without authoritative identity. Unknowns remain explicit.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
-			{Name: "since", Description: "RFC 3339 start of the report window (default: 7 days ago)"},
-			{Name: "until", Description: "RFC 3339 end of the report window (default: now)"},
+			{Name: "since", Description: "Start of the report window: RFC 3339, YYYY-MM-DD or an age such as 7d (default: 7 days before --until)"},
+			{Name: "until", Description: "End of the report window: RFC 3339, YYYY-MM-DD or an age such as 1d (default: now)"},
 		}},
 		RunCtx: func(ctx cliapp.RunContext) error {
 			query := url.Values{}

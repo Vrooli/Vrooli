@@ -114,8 +114,10 @@ capacity_claim_id, capacity_required_bytes, capacity_granted_bytes,
 capacity_reclaim_required, input_tokens, output_tokens, cost_estimate,
 selected_model, image_count, attachment_bytes, attachment_sha256,
 attachments_redacted, attachment_dimensions_json,
-sampling_temperature, sampling_temperature_support
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+sampling_temperature, sampling_temperature_support,
+preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
+eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -155,6 +157,12 @@ sampling_temperature, sampling_temperature_support
 		string(dimensions),
 		nullableFloat(ev.SamplingTemperature),
 		samplingSupportText(ev.GetSamplingTemperatureSupport()),
+		ev.GetPreparationDurationNs(),
+		ev.GetRoutePlanDurationNs(),
+		ev.GetRoleResolutionDurationNs(),
+		ev.GetEligibilityDurationNs(),
+		ev.GetCapacityAdmissionDurationNs(),
+		ev.GetProviderExecutionDurationNs(),
 	)
 	return err
 }
@@ -215,7 +223,9 @@ breaker_state, failure_class, rejection_reason, capacity_verdict, capacity_claim
 capacity_required_bytes, capacity_granted_bytes, capacity_reclaim_required,
 input_tokens, output_tokens, cost_estimate, selected_model, image_count,
 attachment_bytes, attachment_sha256, attachments_redacted,
-attachment_dimensions_json, sampling_temperature, sampling_temperature_support
+attachment_dimensions_json, sampling_temperature, sampling_temperature_support,
+preparation_duration_ns, route_plan_duration_ns, role_resolution_duration_ns,
+eligibility_duration_ns, capacity_admission_duration_ns, provider_execution_duration_ns
 FROM route_events`
 
 type scanner interface {
@@ -271,6 +281,12 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&dimensionsJSON,
 		&samplingTemperature,
 		&samplingSupport,
+		&ev.PreparationDurationNs,
+		&ev.RoutePlanDurationNs,
+		&ev.RoleResolutionDurationNs,
+		&ev.EligibilityDurationNs,
+		&ev.CapacityAdmissionDurationNs,
+		&ev.ProviderExecutionDurationNs,
 	)
 	if err != nil {
 		return nil, err

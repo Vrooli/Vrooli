@@ -158,7 +158,7 @@ func TestCapacityCommandUsesRecentBurnAndLiveCensusForHeadroom(t *testing.T) {
 	}, func() ([]*domainpb.Run, error) {
 		censusCalls++
 		return []*domainpb.Run{{ActualModel: "model-a", ResolvedConfig: &domainpb.RunConfig{RoleRef: "research", RunnerType: domainpb.RunnerType_RUNNER_TYPE_CODEX}}, {ActualModel: "model-a", ResolvedConfig: &domainpb.RunConfig{RoleRef: "research", RunnerType: domainpb.RunnerType_RUNNER_TYPE_CODEX}}}, nil
-	})
+	}, func() time.Time { return time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC) })
 	var stdout bytes.Buffer
 	ctx, err := cliapp.NewTestRunContextFromArgs(cmd.Args, []string{"--json"}, nil, &stdout, &bytes.Buffer{})
 	if err != nil {
@@ -170,12 +170,13 @@ func TestCapacityCommandUsesRecentBurnAndLiveCensusForHeadroom(t *testing.T) {
 	if censusCalls != 1 {
 		t.Fatalf("live census calls = %d", censusCalls)
 	}
+	for _, request := range fixture.requests {
+		if request.GetSince() != "2026-11-20T11:00:00Z" {
+			t.Fatalf("burner window starts %q, want one hour before the injected clock", request.GetSince())
+		}
+	}
 	if len(fixture.requests) != 2 || fixture.requests[0].GetGroupBy() != "model" || fixture.requests[1].GetGroupBy() != "run" || fixture.requests[1].GetLimit() != 10000 {
 		t.Fatalf("burner queries = %#v, want bounded model and run evidence", fixture.requests)
-	}
-	since, err := time.Parse(time.RFC3339, fixture.requests[0].GetSince())
-	if err != nil || time.Since(since) < 59*time.Minute || time.Since(since) > 61*time.Minute {
-		t.Fatalf("burner since = %q, want previous hour", fixture.requests[0].GetSince())
 	}
 	if fixture.requests[0].GetSince() != fixture.requests[1].GetSince() {
 		t.Fatalf("model and run evidence used different windows: %+v", fixture.requests)

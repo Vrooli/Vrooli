@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -186,6 +187,11 @@ type WorkflowContinueNode struct {
 	MaxToolCalls         int                    `json:"maxToolCalls,omitempty"`
 	TimeoutSeconds       int                    `json:"timeoutSeconds,omitempty"`
 }
+
+// ErrSkillExperimentsRetired rejects workflows that still arm a skill
+// experiment: the experiment subsystem was removed from prompt-manager, so an
+// armed promptRef or experimentEvaluator can no longer be honored.
+var ErrSkillExperimentsRetired = errors.New("skill experiments are retired: remove experimentId and experimentEvaluator from the workflow")
 
 // WorkflowPromptRef references a prompt-manager skill as an alternative to an
 // inline promptTemplate. It resolves at reconcile time: the resolved content is

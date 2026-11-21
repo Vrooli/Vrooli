@@ -151,6 +151,9 @@ func TestClassifyProviderError(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 		{"exit", &providers.CommandError{Code: "exit_error"}, routing.FailureExecution},
 		{"policy", &providers.CommandError{Code: "unsupported_kind"}, routing.FailurePolicyError},
 		{"unavailable", &providers.CommandError{Code: "unavailable"}, routing.FailureUnavailable},
+		{"insufficient_vram", &providers.CommandError{Code: "insufficient_vram"}, routing.FailureCapacityRefused},
+		{"insufficient_memory", &providers.CommandError{Code: "insufficient_memory"}, routing.FailureCapacityRefused},
+		{"limits_exceeded", &providers.CommandError{Code: "limits_exceeded"}, routing.FailureCapacityRefused},
 		{"unknown", errors.New("boom"), routing.FailureExecution},
 	}
 	for _, tc := range cases {

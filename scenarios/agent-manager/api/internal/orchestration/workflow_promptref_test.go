@@ -27,7 +27,7 @@ func (f *fakePromptSource) ReadSkill(_ context.Context, _ string, _ map[string]s
 	return f.content, f.err
 }
 
-func (f *fakePromptSource) ReadSkillSource(_ context.Context, skillID, _ string, variables map[string]string, withScope bool) (promptmanager.SkillSourceSnapshot, error) {
+func (f *fakePromptSource) ReadSkillSource(_ context.Context, skillID string, variables map[string]string, withScope bool) (promptmanager.SkillSourceSnapshot, error) {
 	f.calls++
 	f.variables = clonePromptVariables(variables)
 	f.withScope = withScope
@@ -106,7 +106,7 @@ func TestPromptRefResolvesAndPinsProvenance(t *testing.T) {
 	}
 }
 
-func TestArmedPromptRefWithoutEvaluatorContractIsRejected(t *testing.T) {
+func TestArmedPromptRefIsRejectedBecauseSkillExperimentsAreRetired(t *testing.T) {
 	prompt := &fakePromptSource{content: "Treatment prompt.", hash: "sha256:treatment", rev: 3}
 	o := newPromptRefOrchestrator(t, prompt)
 	ctx := context.Background()
@@ -121,7 +121,7 @@ func TestArmedPromptRefWithoutEvaluatorContractIsRejected(t *testing.T) {
 		t.Fatalf("reconcile=%+v err=%v", res, err)
 	}
 	if prompt.calls != 0 {
-		t.Fatalf("reconcile selected treatment %d time(s)", prompt.calls)
+		t.Fatalf("reconcile read the armed skill %d time(s)", prompt.calls)
 	}
 }
 

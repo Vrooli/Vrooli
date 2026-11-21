@@ -652,35 +652,6 @@ func TestSubworkflowStateNilAndTerminalProjection(t *testing.T) {
 	}
 }
 
-func TestWorkflowVerdictTraversalAndOutcomeStatusFailClosed(t *testing.T) {
-	value := json.RawMessage(`{"verdict":"pass","nested":{"a/b":["ignore","approved"]}}`)
-	for _, test := range []struct {
-		pointer string
-		want    string
-		ok      bool
-	}{
-		{pointer: "/verdict", want: "pass", ok: true},
-		{pointer: "/nested/a~1b/1", want: "approved", ok: true},
-		{pointer: "/nested/a~1b/9"},
-		{pointer: "/nested/missing"},
-		{pointer: "verdict"},
-	} {
-		got, ok := workflowVerdict(value, test.pointer)
-		if got != test.want || ok != test.ok {
-			t.Fatalf("pointer %q = %q,%t; want %q,%t", test.pointer, got, ok, test.want, test.ok)
-		}
-	}
-	if _, ok := workflowVerdict(json.RawMessage(`not-json`), "/verdict"); ok {
-		t.Fatal("invalid JSON produced a verdict")
-	}
-	if outcomeStatus(nil, "pass") != "incomplete" || outcomeStatus(&domain.StructuredResult{Status: domain.StructuredResultSuccess}, "") != "incomplete" || outcomeStatus(&domain.StructuredResult{Status: domain.StructuredResultSuccess}, "pass") != "complete" {
-		t.Fatal("outcome status did not preserve evaluator completeness semantics")
-	}
-	if !containsWorkflowNode([]string{"one", "two"}, "two") || containsWorkflowNode([]string{"one"}, "two") {
-		t.Fatal("treatment-node membership is incorrect")
-	}
-}
-
 func TestChildStateFromRunRetainsRequiredFinalization(t *testing.T) {
 	for _, status := range []domain.RunFinalizationStatus{"", domain.RunFinalizationStatusNone, domain.RunFinalizationStatusPending, domain.RunFinalizationStatusRunning, domain.RunFinalizationStatusFailed, domain.RunFinalizationStatusSkipped, domain.RunFinalizationStatusSucceeded} {
 		t.Run(string(status), func(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -105,7 +104,7 @@ func (a *App) storageEvidencePrune(args []string) error {
 		return fmt.Errorf("--apply requires --reason with 1-512 bytes")
 	}
 	api := a.services.Maintenance.api.WithTimeout(30 * time.Minute)
-	agentRun := strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != ""
+	agentRun := strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != ""
 	if *localOwner {
 		if agentRun {
 			return fmt.Errorf("--local-owner is unavailable inside an identified agent run; %s", evidencePruneAgentHint)
@@ -117,7 +116,7 @@ func (a *App) storageEvidencePrune(args []string) error {
 		api = owner
 	}
 	request := map[string]any{"efforts": []string(efforts), "classes": []string(classes), "dry_run": !*apply, "reason": *reason}
-	if session := strings.TrimSpace(os.Getenv("WC_WEB_CONSOLE_SESSION_ID")); session != "" {
+	if session := strings.TrimSpace(ambient.Getenv("WC_WEB_CONSOLE_SESSION_ID")); session != "" {
 		request["web_console_session_id"] = session
 	}
 	payload, _ := json.Marshal(request)

@@ -34,6 +34,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	bindings["RoutingService.ListRouteEvidence"] = h.evidenceList
 	bindings["RoutingService.GetRouteEvidence"] = h.evidenceShow
 	bindings["RoutingService.ListProviderHealth"] = h.health
+	bindings["evidence-profile"] = h.evidenceProfile
 	bindings["replay"] = h.replay
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

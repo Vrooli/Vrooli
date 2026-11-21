@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-manager/internal/toolfriction"
+	"agent-manager/internal/usageattribution"
 )
 
 const runtimeFrictionMaxWindow = 30 * 24 * time.Hour
@@ -18,17 +19,17 @@ func (h *Handler) RuntimeFriction(w http.ResponseWriter, r *http.Request) {
 	since := now.Add(-7 * 24 * time.Hour)
 	query := r.URL.Query()
 	if raw := strings.TrimSpace(query.Get("until")); raw != "" {
-		parsed, err := time.Parse(time.RFC3339, raw)
+		parsed, err := usageattribution.ParseWindowBound("until", raw, now)
 		if err != nil {
-			writeSimpleError(w, r, "until", "until must be RFC 3339")
+			writeSimpleError(w, r, "until", err.Error())
 			return
 		}
 		until = parsed.UTC()
 	}
 	if raw := strings.TrimSpace(query.Get("since")); raw != "" {
-		parsed, err := time.Parse(time.RFC3339, raw)
+		parsed, err := usageattribution.ParseWindowBound("since", raw, now)
 		if err != nil {
-			writeSimpleError(w, r, "since", "since must be RFC 3339")
+			writeSimpleError(w, r, "since", err.Error())
 			return
 		}
 		since = parsed.UTC()

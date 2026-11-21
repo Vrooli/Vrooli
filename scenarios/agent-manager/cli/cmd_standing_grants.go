@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -116,7 +115,7 @@ const standingGrantResource = "agent-manager"
 // endpoint on that resource accepts it. Refused inside an identified agent run so
 // an agent cannot elevate — the same guard as localOwnerAPI.
 func localOwnerAPIForResource(api *cliutil.APIClient, resource string) (*cliutil.APIClient, error) {
-	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
+	if strings.TrimSpace(ambient.Getenv(cliutil.EnvIdentityToken)) != "" {
 		return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

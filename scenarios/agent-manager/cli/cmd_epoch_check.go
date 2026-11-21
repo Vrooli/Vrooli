@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"agent-manager/internal/goalhome"
 
@@ -91,7 +90,7 @@ func (a *App) effortEpochCheck(args []string) error {
 		}
 	}
 	limits := goalhome.Thresholds{FlatlineK: *k, OverrunFactor: *overrun, RefactorGrowth: *growth, FeatureFactor: *featureFactor, WallClock: *wallClock, SpendThreshold: *spendThreshold}
-	report := &epochCheckReport{EpochReport: goalhome.EvaluateEpoch(path, file, limits, time.Now().UTC(), weighted)}
+	report := &epochCheckReport{EpochReport: goalhome.EvaluateEpoch(path, file, limits, ambient.Now().UTC(), weighted)}
 	if *scenario == "" {
 		*scenario = file.Fields["scenario"]
 	}

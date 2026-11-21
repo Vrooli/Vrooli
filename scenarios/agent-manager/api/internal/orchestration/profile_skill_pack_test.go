@@ -15,18 +15,7 @@ type profilePackSource struct {
 	skills map[string]promptmanager.SkillSourceSnapshot
 }
 
-type assignedProfilePackSource struct{ profilePackSource }
-
-func (s assignedProfilePackSource) AssignExperimentPrompt(_ context.Context, req promptmanager.AssignmentRequest) (promptmanager.SkillSourceSnapshot, error) {
-	snapshot, ok := s.skills[req.SkillID]
-	if !ok {
-		return promptmanager.SkillSourceSnapshot{}, os.ErrNotExist
-	}
-	snapshot.ExperimentID, snapshot.VariantID = req.ExperimentID, "control"
-	return snapshot, nil
-}
-
-func (s profilePackSource) ReadSkillSource(_ context.Context, id, _ string, _ map[string]string, _ bool) (promptmanager.SkillSourceSnapshot, error) {
+func (s profilePackSource) ReadSkillSource(_ context.Context, id string, _ map[string]string, _ bool) (promptmanager.SkillSourceSnapshot, error) {
 	if skill, ok := s.skills[id]; ok {
 		return skill, nil
 	}
@@ -102,21 +91,5 @@ func TestUpdateProjectedProfileSkillChangesOnlyOneRun(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(skillsDir, "alpha")); !os.IsNotExist(err) {
 		t.Fatalf("removed skill survived heartbeat update: %v", err)
-	}
-}
-
-func TestProjectProfileSkillsAssignedUsesStableAssignmentSurface(t *testing.T) {
-	root := t.TempDir()
-	runID := uuid.New()
-	skillsDir := filepath.Join(root, runID.String(), "skill-scope", "claude-code", "skills")
-	source := assignedProfilePackSource{profilePackSource{skills: map[string]promptmanager.SkillSourceSnapshot{
-		"alpha": {SkillID: "alpha", Description: "assigned", Content: "frozen treatment"},
-	}}}
-	if _, err := ProjectProfileSkillsAssigned(context.Background(), root, runID, skillsDir, "exp-1", []string{"alpha"}, source, 1500); err != nil {
-		t.Fatal(err)
-	}
-	body, err := os.ReadFile(filepath.Join(skillsDir, "alpha", "SKILL.md"))
-	if err != nil || !strings.Contains(string(body), "frozen treatment") {
-		t.Fatalf("assigned profile content missing: %v", err)
 	}
 }

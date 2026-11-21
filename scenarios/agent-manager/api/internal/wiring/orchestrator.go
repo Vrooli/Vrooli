@@ -44,6 +44,7 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/toolfacts"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
 	"agent-manager/internal/usagemodes"
@@ -62,6 +63,9 @@ import (
 // composition root. It keeps main free of construction details while making
 // every dependency consumed by server startup explicit.
 type OrchestratorDependencies struct {
+	// TranscriptParsers resolves each harness's own transcript parser from the
+	// runner registry, for readers of transcript files outside the importer.
+	TranscriptParsers     toolfacts.ParserResolver
 	TerminalEvents        *TerminalEvents // nil unless explicitly composed
 	OwnerIdentity         authn.TokenVerifier
 	Orchestrator          *orchestration.Orchestrator
@@ -315,7 +319,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")},
 	}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{TerminalEvents: terminalEvents, OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore, ResolveAttachedSession: database.AttachedSessionRunResolver(db)}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider, ProviderReadiness: sandboxProvider}, nil
+	return OrchestratorDependencies{TranscriptParsers: toolfacts.RegistryParsers(registry), TerminalEvents: terminalEvents, OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore, ResolveAttachedSession: database.AttachedSessionRunResolver(db)}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider, ProviderReadiness: sandboxProvider}, nil
 }
 
 // usagePageURL links a will-exhaust notification to the Agent Manager Usage

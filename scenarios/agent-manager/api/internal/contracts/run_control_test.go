@@ -103,7 +103,7 @@ func TestRunConfigFieldLivenessRegistryIsComplete(t *testing.T) {
 		"ContextLimitTokens":      "ContextLimitEnv",
 		"PendingModelRebase":      "applyPendingModelRebase",
 		"ModelRebases":            "applyPendingModelRebase",
-		"SkillPack":               "ProjectProfileSkills", "SkillExperimentID": "ProjectProfileSkillsAssigned", "Admission": "dependentDelegationAdmissionError",
+		"SkillPack":               "ProjectProfileSkills", "Admission": "dependentDelegationAdmissionError",
 	}
 	assertFieldRegistry(t, reflect.TypeOf(domain.RunConfig{}), "RunConfig", registry)
 }

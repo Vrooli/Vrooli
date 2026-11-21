@@ -946,9 +946,6 @@ func New(
 	if o.workflowExecutions != nil && o.workflows != nil {
 		expressions, _ := workflowruntime.NewExpressionEvaluator()
 		o.workflowEngine = &workflowruntime.Engine{Store: o.workflowExecutions, Catalog: o.workflows, Children: workflowChildLauncher{o: o}, Subworkflows: workflowSubworkflowLauncher{o: o}, Expressions: expressions, Now: o.now}
-		if source, ok := o.promptClient.(promptmanager.AssignmentClient); ok && source != nil {
-			o.workflowEngine.PromptResolver = workflowPromptResolver{source: source}
-		}
 	}
 
 	if o.dispatcher == nil {

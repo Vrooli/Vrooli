@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/sqlcompat"
+	"agent-manager/internal/toolfacts"
 )
 
 // Bounds for the repository adapter. They keep one run's read cheap; a text
@@ -17,10 +18,12 @@ import (
 const (
 	maxOperatorMessages = 12
 	maxAgentMessages    = 8
-	// maxToolEvents bounds the tool-event tail a summary reads. Four hundred
-	// events cover the endgame of a long run, where repetition is decided,
-	// without reading tens of thousands of rows per annotation.
-	maxToolEvents = 400
+	// maxOperatorHistory bounds the operator-source messages kept for provenance
+	// and message-scope labels. The digest still reads only the newest
+	// maxOperatorMessages of them.
+	maxOperatorHistory = 48
+	// maxOpeningChars bounds the opening of a run kept to tell who launched it.
+	maxOpeningChars = 240
 )
 
 // SQLiteFeatureSource reads one run's bounded facts from the Agent Manager
@@ -30,11 +33,33 @@ const (
 type SQLiteFeatureSource struct {
 	DB  sqlcompat.DB
 	Now func() time.Time
+	// Parsers resolves a harness's transcript parser, so the tool facts of a run
+	// that has only a transcript file (an imported session whose events were
+	// never retained) are still read. Nil leaves such runs with source none.
+	Parsers toolfacts.ParserResolver
+
+	toolsOnce sync.Once
+	tools     *toolfacts.Reader
+	toolsErr  error
 }
 
-// NewSQLiteFeatureSource returns a repository-backed feature source.
-func NewSQLiteFeatureSource(db sqlcompat.DB) *SQLiteFeatureSource {
-	return &SQLiteFeatureSource{DB: db, Now: time.Now}
+// NewSQLiteFeatureSource returns a repository-backed feature source. parsers
+// may be nil (see SQLiteFeatureSource.Parsers).
+func NewSQLiteFeatureSource(db sqlcompat.DB, parsers toolfacts.ParserResolver) *SQLiteFeatureSource {
+	return &SQLiteFeatureSource{DB: db, Now: time.Now, Parsers: parsers}
+}
+
+// toolReader is the one reader of a run's tool activity, built once from the
+// embedded rules the rule environment is declared from.
+func (s *SQLiteFeatureSource) toolReader() (*toolfacts.Reader, error) {
+	s.toolsOnce.Do(func() {
+		if toolRulesErr != nil {
+			s.toolsErr = fmt.Errorf("load tool fact rules: %w", toolRulesErr)
+			return
+		}
+		s.tools = &toolfacts.Reader{DB: s.DB, Parsers: s.Parsers, Rules: toolRules}
+	})
+	return s.tools, s.toolsErr
 }
 
 // Facts implements FeatureSource.
@@ -86,10 +111,13 @@ func (s *SQLiteFeatureSource) runFacts(ctx context.Context, runID string) (RunFa
 		StartedAt     sql.NullString `db:"started_at"`
 		EndedAt       sql.NullString `db:"ended_at"`
 		ExitCode      sql.NullInt64  `db:"exit_code"`
+		ParentRunID   sql.NullString `db:"parent_run_id"`
+		ImportedFrom  sql.NullString `db:"import_source_harness"`
+		Depth         sql.NullInt64  `db:"depth"`
 	}
 	err := s.DB.GetContext(ctx, &row, `
 SELECT id, workload_kind, workload_key, harness_kind, run_mode, status, terminal_class, stop_reason,
-       started_at, ended_at, exit_code
+       started_at, ended_at, exit_code, parent_run_id, import_source_harness, depth
 FROM runs WHERE id = ?`, runID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -104,6 +132,10 @@ FROM runs WHERE id = ?`, runID)
 		RunMode:     row.RunMode.String,
 		Terminal: TerminalFacts{
 			Status: row.Status.String, Class: row.TerminalClass.String, StopReason: row.StopReason.String,
+		},
+		Lineage: LineageFacts{
+			Imported: strings.TrimSpace(row.ImportedFrom.String) != "", ParentRunID: strings.TrimSpace(row.ParentRunID.String),
+			Depth: int(row.Depth.Int64),
 		},
 		ExistingSignals: map[string]SignalFact{},
 	}
@@ -132,8 +164,11 @@ const maxMessageScan = 4000
 func (s *SQLiteFeatureSource) messageFacts(ctx context.Context, runID string, facts *RunFacts) error {
 	var operators, agents []MessageFact
 	const pageSize = 200
+	// exhausted is true when the scan reached the run's first event, so the
+	// oldest operator message read is the one that opened the run.
+	exhausted := false
 	for scanned := 0; scanned < maxMessageScan; scanned += pageSize {
-		if len(operators) >= maxOperatorMessages && len(agents) >= maxAgentMessages {
+		if len(operators) >= maxOperatorHistory && len(agents) >= maxAgentMessages {
 			break
 		}
 		rows, err := s.DB.QueryxContext(ctx, `
@@ -159,7 +194,7 @@ WHERE run_id = ? AND event_type = ? ORDER BY sequence DESC LIMIT ? OFFSET ?`,
 			if !ok {
 				continue
 			}
-			fact := MessageFact{EventID: id, At: parseDBTime(timestamp), Text: BoundText(message.Content, 2000)}
+			fact := MessageFact{EventID: id, At: parseDBTime(timestamp), Text: BoundText(message.Content, 2000), Sender: message.Sender}
 			if fact.Text == "" {
 				continue
 			}
@@ -183,6 +218,7 @@ WHERE run_id = ? AND event_type = ? ORDER BY sequence DESC LIMIT ? OFFSET ?`,
 			return err
 		}
 		if count < pageSize {
+			exhausted = true
 			break
 		}
 	}
@@ -192,93 +228,27 @@ WHERE run_id = ? AND event_type = ? ORDER BY sequence DESC LIMIT ? OFFSET ?`,
 	// be the newest messages.
 	reverseMessages(operators)
 	reverseMessages(agents)
+	if exhausted && len(operators) > 0 {
+		operators[0].Seed = true
+		facts.Lineage.Opening = BoundText(operators[0].Text, maxOpeningChars)
+	}
+	operators = tailMessages(operators, maxOperatorHistory)
+	facts.OperatorHistory = operators
 	facts.OperatorMessages = tailMessages(operators, maxOperatorMessages)
 	facts.AgentText = tailMessages(agents, maxAgentMessages)
 	return nil
 }
 
 func (s *SQLiteFeatureSource) toolFacts(ctx context.Context, runID string, facts *RunFacts) error {
-	var totalCalls int
-	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id = ? AND event_type = ?`,
-		runID, string(domain.EventTypeToolCall)).Scan(&totalCalls); err != nil {
-		return fmt.Errorf("count tool calls: %w", err)
-	}
-	rows, err := s.DB.QueryxContext(ctx, `
-SELECT id, event_type, timestamp, data FROM run_events
-WHERE run_id = ? AND event_type IN (?, ?) ORDER BY sequence DESC LIMIT ?`,
-		runID, string(domain.EventTypeToolCall), string(domain.EventTypeToolResult), maxToolEvents)
+	reader, err := s.toolReader()
 	if err != nil {
-		return fmt.Errorf("read tool events: %w", err)
-	}
-	defer rows.Close()
-	var (
-		pathCounts    = map[string]int{}
-		commandCounts = map[string]int{}
-		failed        = map[string]bool{}
-		lastError     string
-	)
-	for rows.Next() {
-		var id, eventType, timestamp, data string
-		if err := rows.Scan(&id, &eventType, &timestamp, &data); err != nil {
-			return err
-		}
-		_ = id
-		_ = timestamp
-		payload, err := domain.DecodeEventPayload(domain.RunEventType(eventType), []byte(data))
-		if err != nil {
-			continue
-		}
-		switch event := payload.(type) {
-		case *domain.ToolCallEventData:
-			path := toolPath(event.Input)
-			command := toolCommand(event.Input)
-			if path == "" && command != "" {
-				// Most harnesses wrap the whole action in a shell command
-				// ("bash -lc 'cat api/run.go'"); without extracting its targets,
-				// repeated reads are invisible and repeated_paths is always 0.
-				path = commandTarget(command)
-			}
-			if path != "" {
-				pathCounts[path]++
-			}
-			if command != "" {
-				commandCounts[normalizeCommand(command)]++
-			}
-		case *domain.ToolResultEventData:
-			if event.ExitCode != nil && *event.ExitCode != 0 {
-				facts.ToolSummary.FailedCommands++
-			}
-			unknown := event.OutcomeKnown != nil && !*event.OutcomeKnown
-			if !unknown && (!event.Success || strings.TrimSpace(event.Error) != "") {
-				facts.ToolSummary.Failures++
-				if name := strings.TrimSpace(event.ToolName); name != "" {
-					failed[name] = true
-				}
-				if text := strings.TrimSpace(event.Error); text != "" {
-					lastError = BoundText(text, 400)
-				}
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
 		return err
 	}
-	facts.ToolSummary.Calls = totalCalls
-	for _, count := range pathCounts {
-		if count > 1 {
-			facts.ToolSummary.RepeatedPaths += count - 1
-		}
+	found, err := reader.Facts(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("read tool facts: %w", err)
 	}
-	for _, count := range commandCounts {
-		if count > 1 {
-			facts.ToolSummary.RepeatedCommands += count - 1
-		}
-	}
-	for name := range failed {
-		facts.ToolSummary.FailedTools = append(facts.ToolSummary.FailedTools, name)
-	}
-	sort.Strings(facts.ToolSummary.FailedTools)
-	facts.ToolSummary.LastError = lastError
+	facts.ToolSummary = found
 	return nil
 }
 
@@ -483,54 +453,6 @@ func (s *SQLiteRunSelector) scanIDs(ctx context.Context, query string, args ...a
 		out = append(out, id)
 	}
 	return out, rows.Err()
-}
-
-// toolCommand returns the shell command a tool input carries, if any.
-func toolCommand(input map[string]any) string {
-	for _, key := range []string{"command", "cmd"} {
-		if value, ok := input[key].(string); ok && strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
-}
-
-// normalizeCommand collapses whitespace so "cat  a.go" and "cat a.go" count as
-// the same command. It deliberately keeps the text otherwise intact: two
-// different commands that share a prefix are different work.
-func normalizeCommand(command string) string {
-	return strings.Join(strings.Fields(command), " ")
-}
-
-// commandTarget picks one path-like token out of a shell command. The first
-// absolute or explicitly relative path is the best available stand-in for the
-// file an action touched; commands with no path return "".
-func commandTarget(command string) string {
-	fields := strings.Fields(command)
-	// The first token is the program itself (/bin/bash, go, cat), never a file
-	// the action read; counting it would make every command look repeated.
-	if len(fields) > 1 {
-		fields = fields[1:]
-	}
-	for _, token := range fields {
-		token = strings.Trim(token, `"'\;,()[]{}`)
-		if strings.HasPrefix(token, "/") && len(token) > 1 {
-			return token
-		}
-		if strings.HasPrefix(token, "./") || strings.HasPrefix(token, "../") {
-			return token
-		}
-	}
-	return ""
-}
-
-func toolPath(input map[string]any) string {
-	for _, key := range []string{"file_path", "path", "filePath", "notebook_path"} {
-		if value, ok := input[key].(string); ok && strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func reverseMessages(messages []MessageFact) {

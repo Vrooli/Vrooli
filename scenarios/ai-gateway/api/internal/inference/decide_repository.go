@@ -31,12 +31,14 @@ type DecisionRepository interface {
 var candidateReasons = map[string]struct{}{
 	providers.CodeUnconfigured: {}, providers.CodeUnreachable: {}, providers.CodeRateLimited: {},
 	providers.CodeProviderOverloaded: {}, providers.CodeContextOverflow: {}, providers.CodeProviderFailed: {},
+	providers.CodeInsufficientVRAM: {}, providers.CodeInsufficientMemory: {}, providers.CodeLimitsExceeded: {},
 	"timeout": {}, "missing_binary": {},
 }
 
 const (
 	reasonLocalityForbidden = "locality_forbidden"
 	reasonUnsupportedTypes  = "unsupported_question_types"
+	constructPinnedRole     = "pin_resource_role"
 	reasonInvalidAnswers    = "invalid_answers"
 	reasonSourceNotSelected = "source_not_selected"
 	reasonNoEligibleRoute   = "no_eligible_route"
@@ -56,16 +58,40 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 	if !definition.IsDecision() {
 		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, fmt.Sprintf("inference role %q is a typed-value role; use Run", request.Role), "role")
 	}
+	candidates, err := walkCandidates(definition, request, r.adapters)
+	if err != nil {
+		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), constructPinnedRole)
+	}
 	body, err := systemOneBody(request)
 	if err != nil {
 		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "questions")
 	}
-	r.decideCandidates(ctx, definition, request, classify, body, response)
+	r.decideCandidates(ctx, definition, request, candidates, classify, body, response)
 	return finishDecision(request, response)
 }
 
-func (r *ResourceRepository) decideCandidates(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, classify TypedRunner, body string, response *inferencev1.DecideResponse) {
-	for _, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
+// walkCandidates is the candidates a request may be answered by. An ordinary
+// request walks the role's declared candidates in profile order. A pinned
+// request walks exactly the one it names, so nothing falls back: the pin must
+// be a candidate the role declares, because the catalog, not the caller, owns
+// which models a role may reach.
+func walkCandidates(definition rolecatalog.InferenceRole, request DecisionRequest, adapters map[string]providers.Adapter) ([]rolecatalog.Candidate, error) {
+	pin := strings.TrimSpace(request.PinResourceRole)
+	if pin == "" {
+		return orderedCandidates(definition.Candidates, adapters, request.Profile), nil
+	}
+	declared := make([]string, 0, len(definition.Candidates))
+	for _, candidate := range definition.Candidates {
+		if candidate.ResourceRole == pin {
+			return []rolecatalog.Candidate{candidate}, nil
+		}
+		declared = append(declared, candidate.ResourceRole)
+	}
+	return nil, fmt.Errorf("pin_resource_role %q is not a candidate of role %q (declared: %s)", pin, request.Role, strings.Join(declared, ", "))
+}
+
+func (r *ResourceRepository) decideCandidates(ctx context.Context, definition rolecatalog.InferenceRole, request DecisionRequest, candidates []rolecatalog.Candidate, classify TypedRunner, body string, response *inferencev1.DecideResponse) {
+	for _, candidate := range candidates {
 		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
 		response.Candidates = append(response.Candidates, row)
 		if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && !browserCandidateMatchesSource(providers.Source(ctx), candidate.Provider, "") {
@@ -91,6 +117,10 @@ func finishDecision(request DecisionRequest, response *inferencev1.DecideRespons
 	code := terminalDecisionCode(response.Candidates)
 	message := fmt.Sprintf("no decision candidate answered for role %q (%s)", request.Role, summarizeCandidates(response.Candidates))
 	construct := ""
+	if pin := strings.TrimSpace(request.PinResourceRole); pin != "" {
+		message = fmt.Sprintf("pinned candidate %q of role %q did not answer and no other candidate was tried (%s)", pin, request.Role, summarizeCandidates(response.Candidates))
+		construct = constructPinnedRole
+	}
 	if strings.HasPrefix(strings.TrimSpace(request.Role), "browser.") && browserNoRouteOnly(response.Candidates) {
 		code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_NO_ELIGIBLE_ROUTE
 		construct = "source_or_route_eligibility"
@@ -118,6 +148,12 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition rolec
 	providerRequest := ProviderRequest{Profile: request.Profile, PrivacyClass: request.PrivacyClass}
 	if !r.admitsRequest(ctx, providerRequest, candidate.Provider, resolved.Locality) {
 		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
+		return
+	}
+	// The model's declared bounds are data the resource owns; a request outside
+	// them is skipped here instead of being dispatched to be refused.
+	if violation := limitsViolation(resolved.Limits, request.Questions); violation != "" {
+		skip(row, providers.CodeLimitsExceeded, violation)
 		return
 	}
 	executionRole, expectedArtifactDigest := resolved, ""
@@ -201,6 +237,29 @@ func (r *ResourceRepository) decideByEnum(ctx context.Context, request DecisionR
 	response.Answers, response.Method = answers, inferencev1.DecisionMethod_DECISION_METHOD_LLM_ENUM
 	response.Provider, response.Model = run.GetProvider(), run.GetModel()
 	response.ResourceRole, response.LatencyMs = candidate.ResourceRole, row.LatencyMs
+}
+
+// limitsViolation reports why a question set is outside a model's declared
+// bounds, or "" when it fits or the model declares none. Only counts the
+// gateway can know exactly are checked; the state's token length is the
+// model's own refusal (context_overflow), because the gateway has no tokenizer
+// and an estimate would skip candidates that could have answered.
+func limitsViolation(limits *providers.DecisionLimits, questions []*inferencev1.DecisionQuestion) string {
+	if limits == nil {
+		return ""
+	}
+	if limits.MaxQuestions > 0 && len(questions) > int(limits.MaxQuestions) {
+		return fmt.Sprintf("request has %d questions; the model accepts %d", len(questions), limits.MaxQuestions)
+	}
+	for _, question := range questions {
+		if limits.MaxOptions > 0 && len(question.GetOptions()) > int(limits.MaxOptions) {
+			return fmt.Sprintf("question %q has %d options; the model accepts %d", question.GetId(), len(question.GetOptions()), limits.MaxOptions)
+		}
+		if limits.ScoreLevels > 0 && len(question.GetLevels()) > 0 && len(question.GetLevels()) != int(limits.ScoreLevels) {
+			return fmt.Sprintf("question %q has %d score levels; the model serves exactly %d", question.GetId(), len(question.GetLevels()), limits.ScoreLevels)
+		}
+	}
+	return ""
 }
 
 func browserCandidateMatchesSource(source, provider, locality string) bool {

@@ -1,11 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.friction-digest",
-  "version": "5",
+  "version": "7",
   "helpers": {
     "program": "1"
   },
-  "purpose": "Rank the recurring deterministic friction fingerprints one scenario owns over a recent window, with owner-confidence counts, no estimation, and the gated inferred-annotation coverage beside them.",
+  "purpose": "Rank the recurring deterministic friction fingerprints one scenario owns over a recent window, with owner-confidence counts, no estimation, and beside them inferred-annotation coverage, with rates only for hold-out-proven labels.",
   "inputs": {
     "scenario": {
       "type": "string",
@@ -39,7 +39,7 @@
     "the usage/friction response exposes owner profile totals as metadata and ranked owner findings as rows",
     "each call runs in its own program-runtime session; session variables persist across submissions",
     "the caller reads an empty digest beside coverage: unknown outcomes cannot show failures",
-    "the usage/friction response carries inferredAnnotations from the run-annotation pack for the same window; a label without a measured gate never carries a rate"
+    "the usage/friction response carries inferredAnnotations from the run-annotation pack for the same window, projected from the usage.annotation_gate measure; a rate exists only over answers from a model whose hold-out cleared the label's targets, and the pack's labels are data, so a removed label leaves the digest on its own"
   ],
   "invariants": [
     "no binding with effect write or destructive is called",
@@ -105,7 +105,7 @@
       "supervision_calibration_available": "Assessed nonempty and uncapped sample; not proof of candidate replay",
       "supervision_outcome_coverage": "null until a decision denominator is measured",
       "supervision_coverage_reason": "pending_telemetry",
-      "inferred_annotations": "gated inferred labels for the same window: pack, coverage, eligible/observed runs, friction-lens labels with observed/eligible/coverage, a rate only for a proven gate, and a note when a rate is absent; an empty window is unknown, not zero friction"
+      "inferred_annotations": "friction-lens labels for the same window beside coverage: pack, coverage, eligible/observed runs; `proven` lists labels with a rate (hold-out proven, rate over that model's answers) with the proving model, resource role, calibration (raw, calibrated or rule), ECE, gate state, precision, recall and gold; `unproven` names every other friction label with its gate state and no rate; an empty window is unknown, not zero friction"
     },
     "errors": {
       "classes": [

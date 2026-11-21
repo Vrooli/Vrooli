@@ -52,12 +52,9 @@ func (h *Handler) registerOpportunities(registry *measurelib.Registry) error {
 			return measurelib.MeasureResult{}, err
 		}
 		if since := strings.TrimSpace(request.Params["since"]); since != "" {
-			if window.From, err = time.Parse(time.RFC3339, since); err != nil {
-				// A verify line says "since <date of the change>": a bare date is that.
-				var dateErr error
-				if window.From, dateErr = time.ParseInLocation("2006-01-02", since, time.UTC); dateErr != nil {
-					return measurelib.MeasureResult{}, fmt.Errorf("since %q is not RFC 3339 or YYYY-MM-DD: %w", since, err)
-				}
+			// A verify line says "since <date of the change>": a bare date is that.
+			if window.From, err = usageattribution.ParseWindowBound("since", since, window.To); err != nil {
+				return measurelib.MeasureResult{}, err
 			}
 		}
 		if window.From, err = usageattribution.ToolWindowStart(window.From, window.To); err != nil {

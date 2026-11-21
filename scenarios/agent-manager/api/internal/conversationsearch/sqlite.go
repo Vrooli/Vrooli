@@ -1104,8 +1104,16 @@ WHERE processed_at IS NULL AND sequence > ? AND operation IN ('delete_event','de
 	return exists != 0, err
 }
 
+// ProjectionStatus reads the projection's counts. Unlike the retrieval path it
+// may wait for the coverage query (its callers are the bounded background
+// status refresh), because the cold-cache snapshot CachedCoverage returns is
+// zero, and a status that prints zero documents for an index that holds 1.2M
+// is reporting an unobserved count as a measurement.
 func (r *SQLiteRepository) ProjectionStatus(ctx context.Context) (ProjectionStatus, error) {
-	visible, catalog, lexical := r.CachedCoverage()
+	visible, catalog, lexical, err := r.CountCoverage(ctx)
+	if err != nil {
+		return ProjectionStatus{}, fmt.Errorf("count conversation search coverage: %w", err)
+	}
 	status := ProjectionStatus{CanonicalMessages: visible, CatalogDocuments: catalog, LexicalDocuments: lexical}
 	_ = r.db.GetContext(ctx, &status.PendingChanges, `SELECT COUNT(*) FROM conversation_search_changes WHERE processed_at IS NULL`)
 	_ = r.db.GetContext(ctx, &status.DeletedDocuments, `SELECT COUNT(*) FROM conversation_search_changes WHERE operation IN ('delete_event','delete_run')`)

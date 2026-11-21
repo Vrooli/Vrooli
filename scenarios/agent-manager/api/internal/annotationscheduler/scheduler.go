@@ -71,6 +71,9 @@ type Options struct {
 	DBPath string
 	// Mode overrides ModeEnv and the default. Empty means passive.
 	Mode schedule.Mode
+	// Getenv reads ModeEnv when Mode is empty. Nil uses the process
+	// environment; tests inject a map so no test touches ambient state.
+	Getenv func(string) string
 	// Interval is the producer cadence. Zero uses DefaultInterval.
 	Interval time.Duration
 	// BackfillHorizon is how far back a pass selects runs. Zero uses the
@@ -107,7 +110,7 @@ func Start(ctx context.Context, opts Options) (*Runner, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	mode, err := resolveMode(opts.Mode)
+	mode, err := resolveMode(opts.Mode, opts.Getenv)
 	if err != nil {
 		return nil, err
 	}
@@ -228,10 +231,13 @@ func Start(ctx context.Context, opts Options) (*Runner, error) {
 // resolveMode applies the explicit option, then the environment, then passive.
 // Passive is the safe default: on-demand annotation still works, but no
 // background inference starts until an operator opts in.
-func resolveMode(explicit schedule.Mode) (schedule.Mode, error) {
+func resolveMode(explicit schedule.Mode, getenv func(string) string) (schedule.Mode, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
 	raw := explicit
 	if raw == "" {
-		raw = schedule.Mode(strings.TrimSpace(os.Getenv(ModeEnv)))
+		raw = schedule.Mode(strings.TrimSpace(getenv(ModeEnv)))
 	}
 	if raw == "" {
 		raw = schedule.ModePassive
@@ -280,7 +286,7 @@ func (r *Runner) submitIfIdle(ctx context.Context, limit int) {
 		Owner:         Owner,
 		Priority:      schedule.PriorityBatch,
 		ResourceClass: schedule.ResourceClassCompute,
-		ModelAffinity: r.options.Service.ModelAffinity(),
+		ModelAffinity: r.options.Service.Affinity(),
 		Estimate: schedule.Estimate{
 			Seconds:  defaultEstimateSeconds,
 			RAMBytes: defaultEstimateRAM,

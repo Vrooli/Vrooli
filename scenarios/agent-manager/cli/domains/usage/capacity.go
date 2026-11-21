@@ -159,7 +159,7 @@ func cloneIntCounts(counts map[string]int) map[string]int {
 	return copy
 }
 
-func capacityCommand(newClient clientFor, census RunningRunCensus) cliapp.Command {
+func capacityCommand(newClient clientFor, census RunningRunCensus, now func() time.Time) cliapp.Command {
 	cmd := cliapp.Command{Name: "capacity", NeedsAPI: true, Description: "How much provider quota remains for running agents? [--provider NAME] [--json]", Usage: "agent-manager usage capacity [--provider NAME] [--json]", HelpText: "Reads current forecast, model-grouped usage from the last hour, and the live run census. Model burn divided across currently running matching runs is a current-census estimate, not per-run billing or measured active hours. Missing or stale evidence remains unknown; off-disk usage stays unattributed.", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{providerFlag}}}
 	return cmd.WithPrimitive(cliapp.ProtoList(func(op cliapp.OperationContext) (proto.Message, error) {
 		client := newClient(op.Core())
@@ -168,7 +168,7 @@ func capacityCommand(newClient clientFor, census RunningRunCensus) cliapp.Comman
 		if err != nil {
 			return nil, err
 		}
-		cutoff := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+		cutoff := now().UTC().Add(-time.Hour).Format(time.RFC3339)
 		burners, err := client.UsageBurners(context.Background(), connect.NewRequest(&measurepb.UsageBurnersRequest{Provider: provider, GroupBy: "model", Since: cutoff}))
 		if err != nil {
 			return nil, err

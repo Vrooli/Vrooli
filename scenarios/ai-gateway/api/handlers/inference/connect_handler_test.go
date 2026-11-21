@@ -1,6 +1,7 @@
 package inference_test
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"net/http"
@@ -24,14 +25,16 @@ import (
 )
 
 func TestRunIsReachableThroughGeneratedConnectClient(t *testing.T) {
+	var logs bytes.Buffer
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.New(&logs, "", 0)},
 		handler.Module(handler.Deps{Service: inference.NewService(nil)}),
 	)
 	live := httpx.NewLiveServer(t, srv)
 	client := inferenceconnect.NewInferenceServiceClient(live.Client, live.URL)
+	const prompt = "SYNTHETIC_GATEWAY_PROMPT_SENTINEL"
 	response, err := client.Run(t.Context(), connect.NewRequest(&inferencev1.RunRequest{
-		Source:            "a source",
+		Source:            prompt,
 		SchemaJson:        `{"type":"object"}`,
 		Instruction:       "Return the empty object.",
 		Role:              "extract.structured",
@@ -41,6 +44,8 @@ func TestRunIsReachableThroughGeneratedConnectClient(t *testing.T) {
 	require.True(t, response.Msg.GetValidated())
 	require.Equal(t, `{}`, response.Msg.GetValueJson())
 	require.NotNil(t, response.Msg.GetUsage())
+	require.NotContains(t, logs.String(), prompt, "production server logging must omit request bodies")
+	require.NotContains(t, response.Msg.GetValueJson(), prompt, "the static gateway fixture must not echo source text")
 }
 
 func TestBrowserDecisionConnectRouteFailsClosedWithoutVerifiedOwnerBinding(t *testing.T) {
@@ -114,6 +119,7 @@ func TestRunBindsCanonicalRequestDigestAndTreatsRootAsIdempotencyOnly(t *testing
 type sourceCaptureRepository struct {
 	sources            []string
 	privacyProvenances []string
+	pins               []string
 }
 
 func (r *sourceCaptureRepository) Run(ctx context.Context, request inference.ProviderRequest) (inference.ProviderResult, error) {
@@ -125,6 +131,7 @@ func (r *sourceCaptureRepository) Run(ctx context.Context, request inference.Pro
 func (r *sourceCaptureRepository) Decide(ctx context.Context, request inference.DecisionRequest, _ inference.TypedRunner) *inferencev1.DecideResponse {
 	r.sources = append(r.sources, providers.Source(ctx))
 	r.privacyProvenances = append(r.privacyProvenances, request.PrivacyProvenance)
+	r.pins = append(r.pins, request.PinResourceRole)
 	return &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
 }
 
@@ -221,7 +228,7 @@ func TestEveryTypedRoutePreservesCallerSourceAndSharedProfile(t *testing.T) {
 	decide := connect.NewRequest(&inferencev1.DecideRequest{
 		Role: "decide.fast", State: "state", Questions: []*inferencev1.DecisionQuestion{question},
 		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
-		PrivacyProvenance: "decision-source-basis",
+		PrivacyProvenance: "decision-source-basis", PinResourceRole: "decide.local.kev",
 	})
 	decide.Header().Set("X-Vrooli-AI-Source", "own-key")
 	_, err = connectHandler.Decide(t.Context(), decide)
@@ -233,10 +240,12 @@ func TestEveryTypedRoutePreservesCallerSourceAndSharedProfile(t *testing.T) {
 		Role: "decide.fast", Questions: []*inferencev1.DecisionQuestion{question},
 		Items: []*inferencev1.DecideBatchItem{{State: "state"}}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
 		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "decision-batch-source-basis",
+		PinResourceRole: "decide.local.pplx",
 	})
 	decideBatch.Header().Set("X-Vrooli-AI-Source", "own-key")
 	_, err = connectHandler.DecideBatch(t.Context(), decideBatch)
 	require.NoError(t, err)
 	require.Equal(t, []string{"own-key", "own-key", "own-key", "own-key"}, repository.sources)
 	require.Equal(t, []string{"run-source-basis", "batch-source-basis", "decision-source-basis", "decision-batch-source-basis"}, repository.privacyProvenances)
+	require.Equal(t, []string{"decide.local.kev", "decide.local.pplx"}, repository.pins, "the pin reaches every decision walk, single and batched")
 }

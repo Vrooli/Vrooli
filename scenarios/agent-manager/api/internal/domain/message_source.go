@@ -17,6 +17,13 @@ const (
 	MessageSourceUnknown          = "unknown"
 )
 
+// Message senders: who delivered a message through the API, as the verified
+// caller's identity says. A closed set; anything else is left empty.
+const (
+	MessageSenderPerson = "person"
+	MessageSenderAgent  = "agent"
+)
+
 // Agent Manager wake message prefixes. orchestration/park.go builds the text
 // from these and the classifier recognises them, so both stay in step.
 const (

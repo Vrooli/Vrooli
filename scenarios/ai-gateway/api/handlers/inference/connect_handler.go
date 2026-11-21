@@ -105,7 +105,7 @@ func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[infere
 	return connect.NewResponse(h.service.Decide(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), State: req.Msg.GetState(), StateJSON: req.Msg.GetStateJson(),
 		Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
-		PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(), PinResourceRole: req.Msg.GetPinResourceRole(),
 	})), nil
 }
 
@@ -124,6 +124,6 @@ func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[i
 	}
 	return connect.NewResponse(h.service.DecideBatch(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
-		PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(), PinResourceRole: req.Msg.GetPinResourceRole(),
 	}, items)), nil
 }

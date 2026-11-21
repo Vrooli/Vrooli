@@ -100,23 +100,28 @@ type ActiveGenerationReconciler interface {
 // one of the GenerationHealth* constants; Degradation() is empty only when the
 // leg is genuinely healthy.
 type SemanticGenerationHealth struct {
-	State              string    `json:"state"`
-	Detail             string    `json:"detail,omitempty"`
-	SurvivorID         string    `json:"survivorId,omitempty"`
-	SurvivorCollection string    `json:"survivorCollection,omitempty"`
-	RecipeValid        bool      `json:"recipeValid"`
-	ActiveGenerations  int       `json:"activeGenerations"`
-	RetiredDuplicates  int       `json:"retiredDuplicates"`
-	EmbeddedDocuments  uint64    `json:"embeddedDocuments,omitempty"`
-	EligibleDocuments  uint64    `json:"eligibleDocuments,omitempty"`
-	ObservedAt         time.Time `json:"observedAt,omitempty"`
-	Findings           []string  `json:"findings,omitempty"`
+	State              string `json:"state"`
+	Detail             string `json:"detail,omitempty"`
+	SurvivorID         string `json:"survivorId,omitempty"`
+	SurvivorCollection string `json:"survivorCollection,omitempty"`
+	RecipeValid        bool   `json:"recipeValid"`
+	ActiveGenerations  int    `json:"activeGenerations"`
+	RetiredDuplicates  int    `json:"retiredDuplicates"`
+	EmbeddedDocuments  uint64 `json:"embeddedDocuments,omitempty"`
+	// EmbeddedObserved is true once a vector count has been read; before that
+	// EmbeddedDocuments is absent, not zero.
+	EmbeddedObserved  bool      `json:"embeddedObserved,omitempty"`
+	EligibleDocuments uint64    `json:"eligibleDocuments,omitempty"`
+	ObservedAt        time.Time `json:"observedAt,omitempty"`
+	Findings          []string  `json:"findings,omitempty"`
 }
 
 // Degradation returns the status line for this health, or "" when healthy.
 func (h SemanticGenerationHealth) Degradation() string {
 	coverage := ""
-	if h.EligibleDocuments > 0 {
+	if h.EligibleDocuments > 0 && !h.EmbeddedObserved {
+		coverage = fmt.Sprintf("; vector coverage not yet observed (%d semantic-eligible chunks)", h.EligibleDocuments)
+	} else if h.EligibleDocuments > 0 {
 		coverage = fmt.Sprintf("; vectors %d/%d semantic-eligible chunks (%.1f%%; the catalog denominator also counts non-embeddable tool payloads)",
 			h.EmbeddedDocuments, h.EligibleDocuments, 100*float64(h.EmbeddedDocuments)/float64(h.EligibleDocuments))
 	}

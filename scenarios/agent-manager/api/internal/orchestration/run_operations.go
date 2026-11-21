@@ -697,28 +697,99 @@ func valueOrDefault(ptr *domain.RunMode, def domain.RunMode) domain.RunMode {
 // Investigation Settings Operations
 // -----------------------------------------------------------------------------
 
+// investigationPromptTTL bounds how long the two investigation prompt
+// templates are served from memory before prompt-manager is read again.
+// Update and Reset invalidate immediately.
+const (
+	investigationPromptTTL      = 5 * time.Minute
+	investigationPromptRetryTTL = 30 * time.Second
+)
+
+// investigationPromptCache holds the two templates read from prompt-manager
+// skills. Every run-list refresh evaluates run actions, which need settings, so
+// an uncached read here becomes a prompt-manager read per poll.
+//
+// expiresAt is the single refresh deadline: a successful read sets it one TTL
+// out, a failed read (including a cold start with nothing cached) sets it one
+// retry interval out, and invalidation clears it. The read itself runs without
+// the mutex; refreshing lets one caller read while the others serve what is
+// cached, and gen discards a read that an invalidation overtook.
+type investigationPromptCache struct {
+	mu         sync.Mutex
+	prompt     string
+	apply      string
+	expiresAt  time.Time
+	refreshing bool
+	gen        uint64
+}
+
+// investigationPromptCaches is keyed by orchestrator because the cache is
+// scoped to one promptClient; service.go is outside this change's lane, so the
+// state lives here instead of in an Orchestrator field.
+var investigationPromptCaches sync.Map // *Orchestrator -> *investigationPromptCache
+
+func (o *Orchestrator) investigationPrompts() *investigationPromptCache {
+	c, _ := investigationPromptCaches.LoadOrStore(o, &investigationPromptCache{})
+	return c.(*investigationPromptCache)
+}
+
+func (o *Orchestrator) invalidateInvestigationPrompts() {
+	c := o.investigationPrompts()
+	c.mu.Lock()
+	c.gen++
+	c.expiresAt = time.Time{}
+	c.mu.Unlock()
+}
+
+// GetInvestigationSettings returns persisted settings with the prompt
+// templates overlaid from prompt-manager skills (skills win over DB values).
 func (o *Orchestrator) GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error) {
-	var settings *domain.InvestigationSettings
-	if o.investigationSettings == nil {
-		settings = domain.DefaultInvestigationSettings()
-	} else {
+	settings := domain.DefaultInvestigationSettings()
+	if o.investigationSettings != nil {
 		var err error
-		settings, err = o.investigationSettings.Get(ctx)
-		if err != nil {
+		if settings, err = o.investigationSettings.Get(ctx); err != nil {
 			return nil, err
 		}
 	}
-
-	// Overlay prompt templates from prompt-manager skills (overrides DB values)
-	if o.promptClient != nil {
-		if prompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation", nil, false); err == nil {
-			settings.PromptTemplate = prompt
-		}
-		if applyPrompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation-apply", nil, false); err == nil {
-			settings.ApplyPromptTemplate = applyPrompt
-		}
+	if o.promptClient == nil {
+		return settings, nil
 	}
 
+	c := o.investigationPrompts()
+	c.mu.Lock()
+	now := o.now()
+	if !c.refreshing && !now.Before(c.expiresAt) {
+		c.refreshing = true
+		gen := c.gen
+		c.mu.Unlock()
+		prompt, perr := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation", nil, false)
+		apply, aerr := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation-apply", nil, false)
+		c.mu.Lock()
+		c.refreshing = false
+		if c.gen == gen {
+			if perr == nil {
+				c.prompt = prompt
+			}
+			if aerr == nil {
+				c.apply = apply
+			}
+			// Keep serving what was last read; after a failure retry soon
+			// instead of hitting an unavailable prompt-manager on every call.
+			ttl := investigationPromptTTL
+			if perr != nil || aerr != nil {
+				ttl = investigationPromptRetryTTL
+			}
+			c.expiresAt = now.Add(ttl)
+		}
+	}
+	promptTemplate, applyTemplate := c.prompt, c.apply
+	c.mu.Unlock()
+	if promptTemplate != "" {
+		settings.PromptTemplate = promptTemplate
+	}
+	if applyTemplate != "" {
+		settings.ApplyPromptTemplate = applyTemplate
+	}
 	return settings, nil
 }
 
@@ -731,6 +802,10 @@ func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings
 	if !settings.DefaultDepth.IsValid() {
 		return domain.NewValidationError("defaultDepth", "invalid depth value")
 	}
+
+	// Invalidate however the writes end: the first skill may already have
+	// changed when the second fails.
+	defer o.invalidateInvestigationPrompts()
 
 	// Write prompt templates to prompt-manager skills
 	if o.promptClient != nil {
@@ -760,6 +835,8 @@ func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
 	if o.investigationSettings == nil {
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
+
+	defer o.invalidateInvestigationPrompts()
 
 	// Revert prompt-manager skills to original version
 	if o.promptClient != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -31,8 +30,10 @@ type goldQuestion struct {
 }
 
 type goldDraftRun struct {
-	RunID  string `json:"run_id"`
-	Digest string `json:"digest"`
+	RunID string `json:"run_id"`
+	// ScopeID names the message of a message-scope label's packet.
+	ScopeID string `json:"scope_id,omitempty"`
+	Digest  string `json:"digest"`
 }
 
 // goldRow is one line of the editable gold file. Positive stays null until a
@@ -40,6 +41,7 @@ type goldDraftRun struct {
 // dropping it.
 type goldRow struct {
 	RunID          string `json:"run_id"`
+	ScopeID        string `json:"scope_id,omitempty"`
 	Label          string `json:"label"`
 	Positive       *bool  `json:"positive"`
 	DefinitionHash string `json:"definition_hash,omitempty"`
@@ -49,16 +51,16 @@ type goldRow struct {
 func goldCommand() cliapp.Command {
 	return cliapp.Command{
 		Name: "gold", NeedsAPI: true,
-		Description: "Write a blind, unlabelled gold-set draft for one label",
+		Description: "Write a blind, unlabelled gold-set draft for one label (runs, or messages for a message-scope label)",
 		Usage:       "agent-manager annotations gold --label <id> [--window 30d] [--limit 20] [--out <file>] [--json]",
-		HelpText: "Fetches the bounded state of runs already observed under the label's current definition, without the stored answer. The packet is wider than the model digest (more messages, a longer last error) so a person can judge the row; blindness protects the stored answer, not the evidence. " +
+		HelpText: "Fetches the bounded state of runs (for a message-scope label, human messages with the agent text before them; each row carries the message's scope_id) already observed under the label's current definition, without the stored answer. The packet is wider than the model digest (more messages, a longer last error) so a person can judge the row; blindness protects the stored answer, not the evidence. " +
 			"Each JSONL row starts with \"positive\":null; set it to true or false from the evidence, then run " +
 			"`agent-manager annotations benchmark --gold <file> --label <id>`. Unfilled rows are rejected so an empty draft cannot produce a gate.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "label", Required: true, Description: "Label id to build a gold set for"},
 			{Name: "window", Default: "30d", Description: "Observation window (7d, 30d, all or RFC3339)"},
 			{Name: "limit", Default: "0", Description: "Runs to include; 0 uses the label's gate size (min_gold, capped at 100)"},
-			{Name: "out", Description: "Write JSONL rows to this file instead of stdout"},
+			{Name: "out", Description: "Write JSONL rows to this file (relative to the gold root, created 0600) instead of stdout"},
 			{Name: "json", Bool: true, LocalOnly: true, Description: "Print the full draft packet instead of JSONL rows"},
 		}},
 		RunCtx: func(ctx cliapp.RunContext) error {
@@ -88,13 +90,19 @@ func goldCommand() cliapp.Command {
 			out := strings.TrimSpace(ctx.Flag("out"))
 			var writer io.Writer = ctx.Stdout()
 			if out != "" {
-				// A gold draft carries transcript excerpts; keep it private.
-				file, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+				// A gold draft carries transcript excerpts: it goes in the private
+				// gold root, owner-only.
+				root, err := fetchGoldRoot(ctx)
+				if err != nil {
+					return err
+				}
+				file, resolved, err := root.create(out)
 				if err != nil {
 					return err
 				}
 				defer file.Close()
 				writer = file
+				out = resolved
 			}
 			if err := writeGoldDraft(writer, draft); err != nil {
 				return err
@@ -117,7 +125,7 @@ func writeGoldDraft(out io.Writer, draft goldDraft) error {
 	encoder := json.NewEncoder(out)
 	for _, run := range draft.Runs {
 		row := goldRow{
-			RunID: run.RunID, Label: draft.Label,
+			RunID: run.RunID, ScopeID: run.ScopeID, Label: draft.Label,
 			DefinitionHash: draft.DefinitionHash, Digest: run.Digest,
 		}
 		if err := encoder.Encode(row); err != nil {

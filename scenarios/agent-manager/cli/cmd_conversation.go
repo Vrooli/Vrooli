@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -253,8 +252,14 @@ func (a *App) conversationIndexStatus(args []string) error {
 	fmt.Printf("Conversation index: %s\n", formatEnumValue(response.GetState(), "CONVERSATION_INDEX_STATE_", "-"))
 	fmt.Printf("  generation=%s candidate=%s collection=%s layout=%s model=%s\n", response.GetActiveGeneration(), response.GetCandidateGeneration(), response.GetCollectionName(), response.GetCollectionLayout(), response.GetEmbeddingModel())
 	if coverage != nil {
-		fmt.Printf("  documents canonical=%d catalog=%d lexical=%d semantic=%d pending=%d deleted=%d orphan=%d\n", coverage.GetCanonicalVisibleMessages(), coverage.GetCatalogDocuments(), coverage.GetLexicalDocuments(), coverage.GetSemanticDocuments(), coverage.GetPendingDocuments(), coverage.GetDeletedDocuments(), coverage.GetOrphanDocuments())
-		fmt.Printf("  coverage lexical=%.1f%% semantic=%.1f%% freshness=%s\n", coverage.GetLexicalRatio()*100, coverage.GetSemanticRatio()*100, time.Duration(coverage.GetFreshnessLagMs())*time.Millisecond)
+		semanticCount, semanticPercent := fmt.Sprintf("%d", coverage.GetSemanticDocuments()), fmt.Sprintf("%.1f%%", coverage.GetSemanticRatio()*100)
+		if conversationSemanticCoverageUnknown(response) {
+			// The server has not observed a vector count yet; a zero here would
+			// read as an empty index.
+			semanticCount, semanticPercent = "unknown", "unknown"
+		}
+		fmt.Printf("  documents canonical=%d catalog=%d lexical=%d semantic=%s pending=%d deleted=%d orphan=%d\n", coverage.GetCanonicalVisibleMessages(), coverage.GetCatalogDocuments(), coverage.GetLexicalDocuments(), semanticCount, coverage.GetPendingDocuments(), coverage.GetDeletedDocuments(), coverage.GetOrphanDocuments())
+		fmt.Printf("  coverage lexical=%.1f%% semantic=%s freshness=%s\n", coverage.GetLexicalRatio()*100, semanticPercent, time.Duration(coverage.GetFreshnessLagMs())*time.Millisecond)
 	}
 	if response.GetLastErrorCode() != "" {
 		fmt.Printf("  last_error=%s\n", response.GetLastErrorCode())
@@ -268,6 +273,21 @@ func (a *App) conversationIndexStatus(args []string) error {
 	return nil
 }
 
+// conversationSemanticCoverageUnknownMarker is the degraded-dependency prefix
+// the server publishes while no vector count has been observed (its
+// conversationsearch.SemanticCoverageUnknownPrefix). The status proto has no
+// "unknown" scalar, so the explicit line is the contract.
+const conversationSemanticCoverageUnknownMarker = "semantic-coverage: unknown"
+
+func conversationSemanticCoverageUnknown(status *domainpb.GetConversationIndexStatusResponse) bool {
+	for _, dependency := range status.GetDegradedDependencies() {
+		if strings.HasPrefix(dependency, conversationSemanticCoverageUnknownMarker) {
+			return true
+		}
+	}
+	return false
+}
+
 // conversationIndexRepair exercises the owner's idempotent generation repair
 // and reports the result. Reconciliation itself runs server-side (on startup
 // and on every status request) because the CLI has no database or Qdrant
@@ -277,7 +297,7 @@ func (a *App) conversationIndexRepair(args []string) error {
 	fs := flag.NewFlagSet("conversation index repair", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	rebuild := fs.Bool("rebuild", false, "Start a full reindex so a fresh semantic generation is embedded")
-	controlToken := fs.String("control-token", strings.TrimSpace(os.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
+	controlToken := fs.String("control-token", strings.TrimSpace(ambient.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -302,17 +322,22 @@ func (a *App) conversationIndexRepair(args []string) error {
 		}
 	}
 	semantic := status.GetCoverage().GetSemanticDocuments()
-	healthy := status.GetActiveGeneration() != "" && semantic > 0 && len(status.GetDegradedDependencies()) == 0
+	unknown := conversationSemanticCoverageUnknown(status)
+	healthy := !unknown && status.GetActiveGeneration() != "" && semantic > 0 && len(status.GetDegradedDependencies()) == 0
 	summary := conversationIndexRepairSummary(status, reindex, semantic)
 	if *jsonOutput {
 		return printConversationRepairJSON(status, reindex, healthy, summary)
 	}
 	fmt.Println("Conversation index repair (the server reconciles generations on every status request):")
 	fmt.Printf("  generation=%s collection=%s model=%s\n", status.GetActiveGeneration(), status.GetCollectionName(), status.GetEmbeddingModel())
-	fmt.Printf("  semantic=%d/%d (%.1f%%) lexical=%d/%d\n",
-		semantic, status.GetCoverage().GetCatalogDocuments(),
-		status.GetCoverage().GetSemanticRatio()*100,
-		status.GetCoverage().GetLexicalDocuments(), status.GetCoverage().GetCatalogDocuments())
+	if unknown {
+		fmt.Printf("  semantic=unknown lexical=%d/%d\n", status.GetCoverage().GetLexicalDocuments(), status.GetCoverage().GetCatalogDocuments())
+	} else {
+		fmt.Printf("  semantic=%d/%d (%.1f%%) lexical=%d/%d\n",
+			semantic, status.GetCoverage().GetCatalogDocuments(),
+			status.GetCoverage().GetSemanticRatio()*100,
+			status.GetCoverage().GetLexicalDocuments(), status.GetCoverage().GetCatalogDocuments())
+	}
 	for _, dependency := range status.GetDegradedDependencies() {
 		fmt.Printf("  degraded_dependency=%s\n", safeTerminalText(dependency))
 	}
@@ -320,6 +345,9 @@ func (a *App) conversationIndexRepair(args []string) error {
 		printConversationReindex(reindex)
 	}
 	fmt.Println(summary)
+	if unknown && reindex == nil {
+		return fmt.Errorf("semantic coverage is unknown: %s; retry in a moment", summary)
+	}
 	if semantic == 0 && reindex == nil {
 		return fmt.Errorf("semantic index is still empty: %s; rerun with --rebuild to embed a fresh generation", summary)
 	}
@@ -330,6 +358,8 @@ func conversationIndexRepairSummary(status *domainpb.GetConversationIndexStatusR
 	switch {
 	case status.GetActiveGeneration() == "":
 		return "no active conversation generation is recorded"
+	case conversationSemanticCoverageUnknown(status):
+		return "semantic coverage has not been observed yet; the vector count probe has not completed"
 	case semantic > 0 && len(status.GetDegradedDependencies()) == 0:
 		return fmt.Sprintf("semantic search serves %d documents from %s", semantic, status.GetActiveGeneration())
 	case reindex != nil:
@@ -415,7 +445,7 @@ func (a *App) conversationReindex(args []string) error {
 	full := fs.Bool("full", true, "Reconcile the full authoritative corpus")
 	maxDocuments := fs.Uint64("max-documents", 0, "Bound documents considered; zero means the server limit")
 	idempotencyKey := fs.String("idempotency-key", "", "Reuse an existing rebuild operation for safe retries")
-	controlToken := fs.String("control-token", strings.TrimSpace(os.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
+	controlToken := fs.String("control-token", strings.TrimSpace(ambient.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -445,7 +475,7 @@ func (a *App) conversationReindex(args []string) error {
 func (a *App) conversationReindexCancel(args []string) error {
 	fs := flag.NewFlagSet("conversation index cancel", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	controlToken := fs.String("control-token", strings.TrimSpace(os.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
+	controlToken := fs.String("control-token", strings.TrimSpace(ambient.Getenv(conversationControlTokenEnv)), "Control token (defaults to AGENT_MANAGER_SEARCH_CONTROL_TOKEN)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}

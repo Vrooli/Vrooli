@@ -31,7 +31,12 @@ sessions re-render older cached percents); it needs at least ten minutes of
 history and a reading no older than ten minutes. Burn is divided by the
 run-seconds of the runs that reported the quota (their source run IDs), counted
 only between adjacent samples at most three minutes apart that both positively
-observed the run. Every bias lowers the ceiling: account burn includes usage no
+observed the run. Codex quota frames name imported transcript runs, which have
+no process of their own; one counts as observed while a present executor holds
+its transcript open (control-plane `openTranscripts`). Claude statusline
+readings name the launcher's `VROOLI_SOURCE_RUN_ID` (the attached run, or the
+run owning a governed session's identity), else the attached run resolved from
+`VROOLI_AGENT_SESSION`. Every bias lowers the ceiling: account burn includes usage no
 run reported, and incomplete or partial samples can hide a run but never invent
 one. A window with no positive burn, no source run IDs, a stale reading, or a
 source run reported under two account scopes is listed in `unavailable_scopes`

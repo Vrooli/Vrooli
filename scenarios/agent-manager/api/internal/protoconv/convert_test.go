@@ -876,6 +876,15 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 		}
 	})
 
+	t.Run("message sender", func(t *testing.T) {
+		event := domain.NewMessageEvent(runID, "user", "stop, wrong file")
+		event.Data.(*domain.MessageEventData).Sender, event.Data.(*domain.MessageEventData).SenderID = domain.MessageSenderPerson, "operator"
+		message := RunEventToProto(event).GetMessage()
+		if message == nil || message.Sender != "person" || message.SenderId != "operator" {
+			t.Fatalf("message sender proto = %#v", message)
+		}
+	})
+
 	t.Run("tool call", func(t *testing.T) {
 		event := &domain.RunEvent{
 			ID:        uuid.New(),

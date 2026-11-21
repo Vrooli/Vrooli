@@ -42,29 +42,41 @@ type Value struct {
 	Options       []string           `json:"options,omitempty"`
 	Levels        []string           `json:"levels,omitempty"`
 	Probabilities map[string]float64 `json:"probabilities,omitempty"`
+	// Inputs are the proof keys of the observations a composite over labels read
+	// (transitively), so its proof can be derived from theirs at read time.
+	Inputs []InputKey `json:"inputs,omitempty"`
 }
 
 // Annotation is one immutable observation keyed by definition and model.
 type Annotation struct {
-	ScopeKind        Scope     `json:"scope_kind"`
-	ScopeID          string    `json:"scope_id"`
-	LabelID          string    `json:"label_id"`
-	DefinitionHash   string    `json:"definition_hash"`
+	ScopeKind Scope  `json:"scope_kind"`
+	ScopeID   string `json:"scope_id"`
+	// RunID is the run an observation belongs to. For a run-scope row it equals
+	// ScopeID; for a message-scope row it is the parent run.
+	RunID          string `json:"run_id,omitempty"`
+	LabelID        string `json:"label_id"`
+	DefinitionHash string `json:"definition_hash"`
 	// EvidenceHash fingerprints the bounded state this answer read. An empty
 	// value (rows written before the column existed) never matches, so the
 	// answer is recomputed once.
-	EvidenceHash     string    `json:"-"`
-	Model            string    `json:"model,omitempty"`
-	ModelVersion     string    `json:"model_version,omitempty"`
-	Value            Value     `json:"value"`
-	Probability      *float64  `json:"probability,omitempty"`
-	Confidence       *float64  `json:"confidence,omitempty"`
-	Method           string    `json:"method"`
-	Provider         string    `json:"provider,omitempty"`
-	EvidenceEventIDs []string  `json:"evidence_event_ids,omitempty"`
-	ObservedAt       time.Time `json:"observed_at"`
-	State            State     `json:"state"`
-	Reason           string    `json:"reason,omitempty"`
+	EvidenceHash string `json:"-"`
+	// RequestedRole is the decision role the engine asked. It differs from
+	// ModelVersion, which is the resource role that actually answered, so a
+	// label whose role changed is re-asked instead of served a stale answer.
+	RequestedRole    string   `json:"requested_role,omitempty"`
+	Model            string   `json:"model,omitempty"`
+	ModelVersion     string   `json:"model_version,omitempty"`
+	Value            Value    `json:"value"`
+	Probability      *float64 `json:"probability,omitempty"`
+	Confidence       *float64 `json:"confidence,omitempty"`
+	Method           string   `json:"method"`
+	Provider         string   `json:"provider,omitempty"`
+	EvidenceEventIDs []string `json:"evidence_event_ids,omitempty"`
+	// OccurredAt is when a message-scope subject was written; zero for a run.
+	OccurredAt time.Time `json:"occurred_at,omitzero"`
+	ObservedAt time.Time `json:"observed_at"`
+	State      State     `json:"state"`
+	Reason     string    `json:"reason,omitempty"`
 }
 
 // StateCounts is one label's coverage in a window. Every field is a count of
@@ -85,19 +97,40 @@ func (c StateCounts) Total() int {
 	return c.Observed + c.Compatible + c.NotObserved + c.Unavailable
 }
 
-// Store persists run_annotations.
+// Table names. Observations are production answers; trials hold bake-off
+// answers produced by a pinned candidate and never mix with them; provenance
+// holds one row per annotated run describing whose text it carried.
+const (
+	TableObservations = "run_annotations"
+	TableTrials       = "run_annotation_trials"
+)
+
+// Store persists observations in one table. The production store and the
+// trials store share every query; only the table differs, which is what keeps a
+// pinned candidate's answers from overwriting or mixing with production ones.
 type Store struct {
-	db  sqlcompat.DB
-	now func() time.Time
+	db    sqlcompat.DB
+	now   func() time.Time
+	table string
 }
 
-// NewStore wraps the shared SQL database seam.
+// NewStore wraps the shared SQL database seam over the production table.
 func NewStore(db sqlcompat.DB) *Store {
-	return &Store{db: db, now: time.Now}
+	return &Store{db: db, now: time.Now, table: TableObservations}
 }
+
+// Trials returns the store of pinned-candidate (bake-off) observations. It has
+// the same shape and the same queries as the production store.
+func (s *Store) Trials() *Store {
+	return &Store{db: s.db, now: s.now, table: TableTrials}
+}
+
+// Table names the table this store reads and writes.
+func (s *Store) Table() string { return s.table }
 
 // EnsureSchema applies the package schema idempotently. It is safe to call on
-// every start and on each dev-routed pool.
+// every start and on each dev-routed pool. Columns added after a table first
+// shipped are added in place; older rows keep the column defaults.
 func (s *Store) EnsureSchema(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return errors.New("annotation store has no database")
@@ -105,18 +138,61 @@ func (s *Store) EnsureSchema(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, Schema()); err != nil {
 		return fmt.Errorf("apply run_annotations schema: %w", err)
 	}
-	return s.ensureEvidenceHashColumn(ctx)
+	for _, table := range []string{TableObservations, TableTrials} {
+		if err := s.ensureColumns(ctx, table); err != nil {
+			return err
+		}
+	}
+	// Provenance rows written before the policy hash existed carry an empty
+	// one, which never matches: they read as stale until recomputed.
+	return s.addMissingColumns(ctx, tableProvenance, addedProvenanceColumns)
 }
 
-// ensureEvidenceHashColumn adds the evidence fingerprint to a database created
-// before it existed. Older rows keep an empty fingerprint, which never matches
-// a computed one, so each run is re-annotated once and cached afterwards.
-func (s *Store) ensureEvidenceHashColumn(ctx context.Context) error {
-	rows, err := s.db.QueryxContext(ctx, `PRAGMA table_info(run_annotations)`)
-	if err != nil {
-		return fmt.Errorf("inspect run_annotations schema: %w", err)
+// tableProvenance is the per-run authorship table.
+const tableProvenance = "run_annotation_provenance"
+
+var addedProvenanceColumns = []struct{ name, ddl string }{
+	{"policy_hash", `TEXT NOT NULL DEFAULT ''`},
+}
+
+// addedColumns are the columns added after the first release of the table, with
+// the DDL that adds them.
+var addedColumns = []struct{ name, ddl string }{
+	{"evidence_hash", `TEXT NOT NULL DEFAULT ''`},
+	{"run_id", `TEXT NOT NULL DEFAULT ''`},
+	{"requested_role", `TEXT NOT NULL DEFAULT ''`},
+	{"occurred_at", `TEXT NOT NULL DEFAULT ''`},
+}
+
+// ensureColumns adds any missing column. Rows written before evidence_hash
+// existed carry an empty fingerprint, which never matches a computed one, so
+// each run is re-annotated once and cached afterwards. Run-scope rows get their
+// run id from their scope id.
+func (s *Store) ensureColumns(ctx context.Context, table string) error {
+	if err := s.addMissingColumns(ctx, table, addedColumns); err != nil {
+		return err
 	}
-	defer rows.Close()
+	// The run index is created here, not in the schema, because the column may
+	// have only just been added.
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS idx_%s_run ON %s(run_id, label_id, observed_at DESC)`, table, table)); err != nil {
+		return fmt.Errorf("index %s run id: %w", table, err)
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS idx_%s_occurred ON %s(label_id, occurred_at)`, table, table)); err != nil {
+		return fmt.Errorf("index %s occurred_at: %w", table, err)
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`CREATE INDEX IF NOT EXISTS idx_%s_role ON %s(requested_role, observed_at DESC)`, table, table)); err != nil {
+		return fmt.Errorf("index %s requested_role: %w", table, err)
+	}
+	return nil
+}
+
+// addMissingColumns adds each column of added the table lacks.
+func (s *Store) addMissingColumns(ctx context.Context, table string, added []struct{ name, ddl string }) error {
+	have := map[string]bool{}
+	rows, err := s.db.QueryxContext(ctx, fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		return fmt.Errorf("inspect %s schema: %w", table, err)
+	}
 	for rows.Next() {
 		var (
 			position int
@@ -127,17 +203,28 @@ func (s *Store) ensureEvidenceHashColumn(ctx context.Context) error {
 			primary  int
 		)
 		if err := rows.Scan(&position, &name, &kind, &notNull, &fallback, &primary); err != nil {
+			rows.Close()
 			return err
 		}
-		if name == "evidence_hash" {
-			return nil
-		}
+		have[name] = true
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		return err
 	}
-	if _, err := s.db.ExecContext(ctx, `ALTER TABLE run_annotations ADD COLUMN evidence_hash TEXT NOT NULL DEFAULT ''`); err != nil {
-		return fmt.Errorf("add evidence_hash column: %w", err)
+	rows.Close()
+	for _, column := range added {
+		if have[column.name] {
+			continue
+		}
+		if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, table, column.name, column.ddl)); err != nil {
+			return fmt.Errorf("add %s.%s: %w", table, column.name, err)
+		}
+		if column.name == "run_id" {
+			if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET run_id = scope_id WHERE run_id = '' AND scope_kind = 'run'`, table)); err != nil {
+				return fmt.Errorf("backfill %s.run_id: %w", table, err)
+			}
+		}
 	}
 	return nil
 }
@@ -173,25 +260,36 @@ func (s *Store) Save(ctx context.Context, annotations []Annotation) error {
 		if annotation.Confidence != nil {
 			confidence = *annotation.Confidence
 		}
-		if _, err := s.db.ExecContext(ctx, `
-INSERT INTO run_annotations (scope_kind, scope_id, label_id, definition_hash, evidence_hash, model, model_version,
-  value_json, probability, confidence, method, provider, evidence_event_ids_json, observed_at, state, reason)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		runID := annotation.RunID
+		if runID == "" && annotation.ScopeKind == ScopeRun {
+			runID = annotation.ScopeID
+		}
+		occurred := ""
+		if !annotation.OccurredAt.IsZero() {
+			occurred = formatTime(annotation.OccurredAt)
+		}
+		if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`
+INSERT INTO %[1]s (scope_kind, scope_id, run_id, label_id, definition_hash, evidence_hash, requested_role, model, model_version,
+  value_json, probability, confidence, method, provider, evidence_event_ids_json, occurred_at, observed_at, state, reason)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (scope_kind, scope_id, label_id, definition_hash, model, model_version) DO UPDATE SET
+  run_id = excluded.run_id,
   evidence_hash = excluded.evidence_hash,
+  requested_role = excluded.requested_role,
   value_json = excluded.value_json,
   probability = excluded.probability,
   confidence = excluded.confidence,
   method = excluded.method,
   provider = excluded.provider,
   evidence_event_ids_json = excluded.evidence_event_ids_json,
+  occurred_at = excluded.occurred_at,
   observed_at = excluded.observed_at,
   state = excluded.state,
   reason = excluded.reason
-WHERE excluded.observed_at >= run_annotations.observed_at`,
-			string(annotation.ScopeKind), annotation.ScopeID, annotation.LabelID, annotation.DefinitionHash,
-			annotation.EvidenceHash, annotation.Model, annotation.ModelVersion, string(valueJSON), probability, confidence,
-			annotation.Method, annotation.Provider, string(evidenceJSON), formatTime(annotation.ObservedAt),
+WHERE excluded.observed_at >= %[1]s.observed_at`, s.table),
+			string(annotation.ScopeKind), annotation.ScopeID, runID, annotation.LabelID, annotation.DefinitionHash,
+			annotation.EvidenceHash, annotation.RequestedRole, annotation.Model, annotation.ModelVersion, string(valueJSON), probability, confidence,
+			annotation.Method, annotation.Provider, string(evidenceJSON), occurred, formatTime(annotation.ObservedAt),
 			string(annotation.State), annotation.Reason); err != nil {
 			return fmt.Errorf("save annotation %s/%s: %w", annotation.ScopeID, annotation.LabelID, err)
 		}
@@ -199,29 +297,31 @@ WHERE excluded.observed_at >= run_annotations.observed_at`,
 	return nil
 }
 
-const annotationColumns = `scope_kind, scope_id, label_id, definition_hash, evidence_hash, model, model_version,
-  value_json, probability, confidence, method, provider, evidence_event_ids_json, observed_at, state, reason`
+const annotationColumns = `scope_kind, scope_id, run_id, label_id, definition_hash, evidence_hash, requested_role, model, model_version,
+  value_json, probability, confidence, method, provider, evidence_event_ids_json, occurred_at, observed_at, state, reason`
 
-// Current returns the latest observation for an exact definition hash,
-// regardless of model. A caller uses it as a compute cache: the definition did
-// not change, so the previous answer is still an answer.
+// Current returns the latest observed or compatible row for an exact definition
+// hash, regardless of model. A caller uses it as a compute cache: the
+// definition did not change, so the previous answer is still an answer.
 func (s *Store) Current(ctx context.Context, scopeKind Scope, scopeID, labelID, hash string) (*Annotation, error) {
 	row := s.db.QueryRowContext(ctx, fmt.Sprintf(`
-SELECT %s FROM run_annotations
+SELECT %s FROM %s
 WHERE scope_kind = ? AND scope_id = ? AND label_id = ? AND definition_hash = ?
   AND state IN ('observed', 'compatible')
-ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns),
+ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns, s.table),
 		string(scopeKind), scopeID, labelID, hash)
 	return scanAnnotation(row)
 }
 
-// LatestForLabel returns the newest row for one label under any hash.
-func (s *Store) LatestForLabel(ctx context.Context, scopeKind Scope, scopeID, labelID string) (*Annotation, error) {
+// CurrentFor is Current restricted to one resource role: the cache of a pinned
+// evaluation, which must reuse only the candidate it measures.
+func (s *Store) CurrentFor(ctx context.Context, scopeKind Scope, scopeID, labelID, hash, resourceRole string) (*Annotation, error) {
 	row := s.db.QueryRowContext(ctx, fmt.Sprintf(`
-SELECT %s FROM run_annotations
-WHERE scope_kind = ? AND scope_id = ? AND label_id = ?
-ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns),
-		string(scopeKind), scopeID, labelID)
+SELECT %s FROM %s
+WHERE scope_kind = ? AND scope_id = ? AND label_id = ? AND definition_hash = ? AND model_version = ?
+  AND state IN ('observed', 'compatible')
+ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns, s.table),
+		string(scopeKind), scopeID, labelID, hash, resourceRole)
 	return scanAnnotation(row)
 }
 
@@ -231,29 +331,41 @@ func (s *Store) Compatible(ctx context.Context, scopeKind Scope, scopeID, labelI
 	if len(hashes) == 0 {
 		return nil, nil
 	}
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(hashes)), ",")
 	args := []any{string(scopeKind), scopeID, labelID}
 	for _, hash := range hashes {
 		args = append(args, hash)
 	}
 	row := s.db.QueryRowContext(ctx, fmt.Sprintf(`
-SELECT %s FROM run_annotations
+SELECT %s FROM %s
 WHERE scope_kind = ? AND scope_id = ? AND label_id = ?
   AND definition_hash IN (%s) AND state IN ('observed', 'compatible')
-ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns, placeholders), args...)
+ORDER BY observed_at DESC, rowid DESC LIMIT 1`, annotationColumns, s.table, placeholders(len(hashes))), args...)
 	return scanAnnotation(row)
 }
 
 // LatestForScope returns the newest row per label for one scope.
 func (s *Store) LatestForScope(ctx context.Context, scopeKind Scope, scopeID string) ([]Annotation, error) {
-	rows, err := s.db.QueryxContext(ctx, fmt.Sprintf(`
-SELECT %s FROM (
-  SELECT %s, ROW_NUMBER() OVER (PARTITION BY label_id ORDER BY observed_at DESC, rowid DESC) AS rn
-  FROM run_annotations WHERE scope_kind = ? AND scope_id = ?
-) WHERE rn = 1 ORDER BY label_id`, annotationColumns, annotationColumns),
-		string(scopeKind), scopeID)
+	return s.queryAnnotations(ctx, fmt.Sprintf(`
+SELECT %[1]s FROM (
+  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY label_id ORDER BY observed_at DESC, rowid DESC) AS rn
+  FROM %[2]s WHERE scope_kind = ? AND scope_id = ?
+) WHERE rn = 1 ORDER BY label_id`, annotationColumns, s.table), string(scopeKind), scopeID)
+}
+
+// LatestMessagesForRun returns the newest row per (message, label) for the
+// message-scope rows of one run, oldest message first.
+func (s *Store) LatestMessagesForRun(ctx context.Context, runID string) ([]Annotation, error) {
+	return s.queryAnnotations(ctx, fmt.Sprintf(`
+SELECT %[1]s FROM (
+  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC) AS rn
+  FROM %[2]s WHERE scope_kind = 'message' AND run_id = ?
+) WHERE rn = 1 ORDER BY occurred_at, scope_id, label_id`, annotationColumns, s.table), runID)
+}
+
+func (s *Store) queryAnnotations(ctx context.Context, query string, args ...any) ([]Annotation, error) {
+	rows, err := s.db.QueryxContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("read annotations for %s: %w", scopeID, err)
+		return nil, fmt.Errorf("read annotations: %w", err)
 	}
 	defer rows.Close()
 	var out []Annotation
@@ -267,89 +379,53 @@ SELECT %s FROM (
 	return out, rows.Err()
 }
 
-// Coverage counts latest state per label in the window. Since zero means all
-// time. The scope kind is run in this slice.
-func (s *Store) Coverage(ctx context.Context, since time.Time) (map[string]StateCounts, error) {
-	return s.CoverageWindow(ctx, since, time.Time{})
-}
-
-// CoverageWindow counts latest state per label in [since, until). Zero bounds
-// mean unbounded on that side.
-func (s *Store) CoverageWindow(ctx context.Context, since, until time.Time) (map[string]StateCounts, error) {
-	return s.CoverageWindowFor(ctx, since, until, nil)
-}
-
-// CoverageWindowFor counts latest state per label, separating rows that belong
-// to another definition revision. Without current hashes every row counts as
-// its stored state; callers with a compiled pack pass them so a definition
-// change cannot keep an old answer looking like a current observation.
-func (s *Store) CoverageWindowFor(ctx context.Context, since, until time.Time, current map[string]string) (map[string]StateCounts, error) {
-	args := []any{string(ScopeRun)}
-	where := `scope_kind = ?`
+// windowClause builds the observed_at bounds shared by every windowed read.
+func windowClause(since, until time.Time, args []any) (string, []any) {
+	clause := ""
 	if !since.IsZero() {
-		where += ` AND observed_at >= ?`
+		clause += ` AND observed_at >= ?`
 		args = append(args, formatTime(since))
 	}
 	if !until.IsZero() {
-		where += ` AND observed_at <= ?`
+		clause += ` AND observed_at <= ?`
 		args = append(args, formatTime(until))
 	}
+	return clause, args
+}
+
+// ForEachLatest streams the newest row per (scope, label) observed in
+// [since, until]; a zero bound is unbounded. A row's value is decoded only when
+// wantValue says its label needs it, so a coverage pass over thousands of rows
+// does not decode the vectors of labels that report no rate. Memory is one row.
+func (s *Store) ForEachLatest(ctx context.Context, since, until time.Time, wantValue func(labelID string) bool, visit func(Annotation) error) error {
+	clause, args := windowClause(since, until, nil)
 	rows, err := s.db.QueryxContext(ctx, fmt.Sprintf(`
-SELECT label_id, state, definition_hash, COUNT(*) FROM (
-  SELECT label_id, state, definition_hash, ROW_NUMBER() OVER (
-    PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC
+SELECT %[1]s FROM (
+  SELECT %[1]s, ROW_NUMBER() OVER (
+    PARTITION BY scope_kind, scope_id, label_id ORDER BY observed_at DESC, rowid DESC
   ) AS rn
-  FROM run_annotations WHERE %s
-) WHERE rn = 1 GROUP BY label_id, state, definition_hash`, where), args...)
+  FROM %[2]s WHERE 1 = 1%[3]s
+) WHERE rn = 1`, annotationColumns, s.table, clause), args...)
 	if err != nil {
-		return nil, fmt.Errorf("annotation coverage: %w", err)
+		return fmt.Errorf("annotation coverage: %w", err)
 	}
 	defer rows.Close()
-	out := map[string]StateCounts{}
 	for rows.Next() {
-		var (
-			labelID string
-			state   string
-			hash    string
-			count   int
-		)
-		if err := rows.Scan(&labelID, &state, &hash, &count); err != nil {
-			return nil, err
+		annotation, err := scanAnnotationFiltered(rows, wantValue)
+		if err != nil {
+			return err
 		}
-		counts := out[labelID]
-		if current != nil && current[labelID] != hash {
-			counts.Stale += count
-			out[labelID] = counts
-			continue
+		if err := visit(*annotation); err != nil {
+			return err
 		}
-		// Several definition revisions can share a state, so accumulate.
-		switch State(state) {
-		case StateObserved:
-			counts.Observed += count
-		case StateCompatible:
-			counts.Compatible += count
-		case StateNotObserved:
-			counts.NotObserved += count
-		case StateUnavailable:
-			counts.Unavailable += count
-		}
-		out[labelID] = counts
 	}
-	return out, rows.Err()
+	return rows.Err()
 }
 
-// RunCoverage counts distinct runs with any latest annotation and runs with at
-// least one observed/compatible latest annotation in the window. Eligible is
-// the annotated population in this slice: WS-E may supply a wider candidate
-// census later without changing this shape.
-func (s *Store) RunCoverage(ctx context.Context, since, until time.Time) (eligible, observed int, err error) {
-	return s.RunCoverageFor(ctx, since, until, nil)
-}
-
-// RunCoverageFor counts runs whose latest annotation belongs to the current
-// definition. A run whose newest row is from an older revision has no answer
-// for this pack, so counting it as observed would overstate coverage after a
-// definition change.
+// RunCoverageFor counts distinct runs with any latest annotation and runs whose
+// latest annotation is observed or compatible under the current definition. A
+// run whose newest row is from an older revision has no answer for this pack,
+// so counting it as observed would overstate coverage after a definition change.
 func (s *Store) RunCoverageFor(ctx context.Context, since, until time.Time, current map[string]string) (eligible, observed int, err error) {
 	// The current-definition predicate is printed before the window predicate,
 	// so its arguments must be collected first.
@@ -372,15 +448,7 @@ func (s *Store) RunCoverageFor(ctx context.Context, since, until time.Time, curr
 	}
 	args := append([]any{}, currentArgs...)
 	args = append(args, string(ScopeRun))
-	where := `scope_kind = ?`
-	if !since.IsZero() {
-		where += ` AND observed_at >= ?`
-		args = append(args, formatTime(since))
-	}
-	if !until.IsZero() {
-		where += ` AND observed_at <= ?`
-		args = append(args, formatTime(until))
-	}
+	clause, args := windowClause(since, until, args)
 	err = s.db.QueryRowContext(ctx, fmt.Sprintf(`
 SELECT COUNT(DISTINCT scope_id),
   COUNT(DISTINCT CASE WHEN state IN ('observed', 'compatible') AND %s THEN scope_id END)
@@ -388,99 +456,133 @@ FROM (
   SELECT scope_id, label_id, state, definition_hash, ROW_NUMBER() OVER (
     PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC
   ) AS rn
-  FROM run_annotations WHERE %s
-) WHERE rn = 1`, currentMatch, where), args...).Scan(&eligible, &observed)
+  FROM %s WHERE scope_kind = ?%s
+) WHERE rn = 1`, currentMatch, s.table, clause), args...).Scan(&eligible, &observed)
 	if err != nil {
 		return 0, 0, fmt.Errorf("run annotation coverage: %w", err)
 	}
 	return eligible, observed, nil
 }
 
-// FrictionSelector is the friction rule a label declares, expressed in the
-// stored shape so one SQL statement can count positives. LevelBound is set for
-// score labels: it is the inclusive level index where the friction region
-// starts (LevelAtLeast) or ends.
-type FrictionSelector struct {
-	Threshold    float64
-	LevelBound   *int
-	LevelAtLeast bool
-	// ScoreBound is the raw score limit for observations that predate stored
-	// level probabilities. A calibrated answer is judged by its region mass;
-	// a legacy one falls back to the score plus its top probability.
-	ScoreBound *float64
-}
-
-// Positives counts the latest observation per scope whose value clears the
-// label's friction selector. A score label is judged by the probability mass
-// in its friction region, because the winning level's probability on a
-// multi-level scale is structurally low; a choice or noul label keeps the top
-// probability.
-func (s *Store) Positives(ctx context.Context, since, until time.Time, labelID string, selector FrictionSelector) (int, error) {
-	return s.PositivesFor(ctx, since, until, labelID, "", selector)
-}
-
-// PositivesFor counts friction positives for one definition revision. An
-// empty hash keeps the legacy behaviour for callers that have no compiled
-// pack; with a hash, a stale row can never contribute to a rate.
-func (s *Store) PositivesFor(ctx context.Context, since, until time.Time, labelID, definitionHash string, selector FrictionSelector) (int, error) {
-	args := []any{string(ScopeRun), labelID}
-	where := `scope_kind = ? AND label_id = ?`
-	if definitionHash != "" {
-		where += ` AND definition_hash = ?`
-		args = append(args, definitionHash)
-	}
-	if !since.IsZero() {
-		where += ` AND observed_at >= ?`
-		args = append(args, formatTime(since))
-	}
-	if !until.IsZero() {
-		where += ` AND observed_at <= ?`
-		args = append(args, formatTime(until))
-	}
-	condition := `probability IS NOT NULL AND probability >= ?`
-	if selector.LevelBound == nil {
-		args = append(args, selector.Threshold)
-	}
-	if selector.LevelBound != nil {
-		comparison := "<="
-		if selector.LevelAtLeast {
-			comparison = ">="
-		}
-		condition = `value_json IS NOT NULL
-  AND json_extract(value_json, '$.score') IS NOT NULL
-  AND json_extract(value_json, '$.score') ` + comparison + ` ?
-  AND ((json_type(value_json, '$.probabilities') IS NOT NULL
-    AND (SELECT COALESCE(SUM(CAST(level.value AS REAL)), 0)
-         FROM json_each(json_extract(value_json, '$.probabilities')) AS level
-         WHERE CAST(level.key AS INTEGER) ` + comparison + ` ?) >= ?)
-    OR (json_type(value_json, '$.probabilities') IS NULL AND probability >= ?))`
-		scoreBound := 0.0
-		if selector.ScoreBound != nil {
-			scoreBound = *selector.ScoreBound
-		}
-		args = append(args, scoreBound, *selector.LevelBound, selector.Threshold, selector.Threshold)
-	}
-	var count int
-	err := s.db.QueryRowContext(ctx, fmt.Sprintf(`
-SELECT COUNT(*) FROM (
-  SELECT probability, value_json, ROW_NUMBER() OVER (
-    PARTITION BY scope_id, label_id ORDER BY observed_at DESC, rowid DESC
-  ) AS rn
-  FROM run_annotations WHERE %s
-) WHERE rn = 1 AND %s`, where, condition), args...).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("count positives for %s: %w", labelID, err)
-	}
-	return count, nil
-}
-
 // Count returns the total row count, for diagnostics and tests.
 func (s *Store) Count(ctx context.Context) (int64, error) {
 	var count int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_annotations`).Scan(&count); err != nil {
+	if err := s.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM %s`, s.table)).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
+}
+
+// ObservedScope is one subject a label has a current answer for: the scope id
+// and the run it belongs to (the same id for a run).
+type ObservedScope struct {
+	ScopeID string `db:"scope_id"`
+	RunID   string `db:"run_id"`
+}
+
+// ObservedScopes lists the subjects (runs, or messages for a message-scope
+// label) whose latest answer for one label is current for the definition hash
+// and answered, newest first.
+func (s *Store) ObservedScopes(ctx context.Context, scopeKind Scope, since, until time.Time, labelID, definitionHash string, limit int) ([]ObservedScope, error) {
+	if limit <= 0 {
+		limit = DefaultGoldDraft
+	}
+	clause, args := windowClause(since, until, []any{string(scopeKind), labelID})
+	args = append(args, definitionHash, limit)
+	var scopes []ObservedScope
+	err := s.db.SelectContext(ctx, &scopes, fmt.Sprintf(`
+SELECT scope_id, CASE WHEN run_id = '' THEN scope_id ELSE run_id END AS run_id FROM (
+  SELECT scope_id, run_id, state, definition_hash, observed_at, ROW_NUMBER() OVER (
+    PARTITION BY scope_id ORDER BY observed_at DESC, rowid DESC
+  ) AS rn
+  FROM %s WHERE scope_kind = ? AND label_id = ?%s
+) WHERE rn = 1 AND state IN ('observed', 'compatible') AND definition_hash = ?
+ORDER BY observed_at DESC, scope_id LIMIT ?`, s.table, clause), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list observed scopes for %s: %w", labelID, err)
+	}
+	return scopes, nil
+}
+
+// maxScopesPerQuery keeps one IN list far below SQLite's variable limit.
+const maxScopesPerQuery = 400
+
+// LatestObservations returns the newest observed or compatible row per scope
+// for one label definition. A non-empty model or resource role restricts the
+// rows to that candidate; both empty reads whichever model answered last, which
+// a benchmark then refuses when the rows span more than one.
+func (s *Store) LatestObservations(ctx context.Context, scopeKind Scope, scopeIDs []string, labelID, hash, model, resourceRole string) (map[string]Annotation, error) {
+	out := make(map[string]Annotation, len(scopeIDs))
+	for start := 0; start < len(scopeIDs); start += maxScopesPerQuery {
+		chunk := scopeIDs[start:min(start+maxScopesPerQuery, len(scopeIDs))]
+		args := []any{string(scopeKind), labelID, hash}
+		filter := ""
+		if model != "" {
+			filter += ` AND model = ?`
+			args = append(args, model)
+		}
+		if resourceRole != "" {
+			filter += ` AND model_version = ?`
+			args = append(args, resourceRole)
+		}
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+		rows, err := s.queryAnnotations(ctx, fmt.Sprintf(`
+SELECT %s FROM %s
+WHERE scope_kind = ? AND label_id = ? AND definition_hash = ? AND state IN ('observed', 'compatible')%s
+  AND scope_id IN (%s)
+ORDER BY observed_at DESC, rowid DESC`, annotationColumns, s.table, filter, placeholders(len(chunk))), args...)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if _, seen := out[row.ScopeID]; !seen {
+				out[row.ScopeID] = row
+			}
+		}
+	}
+	return out, nil
+}
+
+// MessageObservations returns the newest observed or compatible row per
+// (message, label) whose subject was written in [since, until], oldest first.
+// It backs the per-message time series.
+func (s *Store) MessageObservations(ctx context.Context, labelID, hash string, since, until time.Time) ([]Annotation, error) {
+	args := []any{labelID, hash}
+	clause := ""
+	if !since.IsZero() {
+		clause += ` AND occurred_at >= ?`
+		args = append(args, formatTime(since))
+	}
+	if !until.IsZero() {
+		clause += ` AND occurred_at <= ?`
+		args = append(args, formatTime(until))
+	}
+	return s.queryAnnotations(ctx, fmt.Sprintf(`
+SELECT %[1]s FROM (
+  SELECT %[1]s, ROW_NUMBER() OVER (PARTITION BY scope_id ORDER BY observed_at DESC, rowid DESC) AS rn
+  FROM %[2]s WHERE scope_kind = 'message' AND label_id = ? AND definition_hash = ?
+    AND state IN ('observed', 'compatible')%[3]s
+) WHERE rn = 1 ORDER BY occurred_at, scope_id`, annotationColumns, s.table, clause), args...)
+}
+
+// LastResolution is the provider, model and resource role that last answered a
+// request for a decision role, read from the stored answers. It lets a restarted
+// engine size its first call to a role from what the gateway resolved before,
+// without the gateway having to be asked how it would walk the role.
+func (s *Store) LastResolution(ctx context.Context, requestedRole string) (provider, model, resourceRole string, ok bool, err error) {
+	row := s.db.QueryRowContext(ctx, fmt.Sprintf(`
+SELECT provider, model, model_version FROM %s
+WHERE requested_role = ? AND state = 'observed' AND model <> '' AND model_version <> ''
+ORDER BY observed_at DESC LIMIT 1`, s.table), requestedRole)
+	switch scanErr := row.Scan(&provider, &model, &resourceRole); {
+	case errors.Is(scanErr, sql.ErrNoRows):
+		return "", "", "", false, nil
+	case scanErr != nil:
+		return "", "", "", false, fmt.Errorf("read last resolution of %s: %w", requestedRole, scanErr)
+	}
+	return provider, model, resourceRole, true, nil
 }
 
 type rowScanner interface {
@@ -488,7 +590,7 @@ type rowScanner interface {
 }
 
 func scanAnnotation(row rowScanner) (*Annotation, error) {
-	annotation, err := scanAnnotationInto(row)
+	annotation, err := scanAnnotationInto(row, nil)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -496,23 +598,29 @@ func scanAnnotation(row rowScanner) (*Annotation, error) {
 }
 
 func scanAnnotationRows(rows *sqlx.Rows) (*Annotation, error) {
-	return scanAnnotationInto(rows)
+	return scanAnnotationInto(rows, nil)
 }
 
-func scanAnnotationInto(row rowScanner) (*Annotation, error) {
+func scanAnnotationFiltered(rows *sqlx.Rows, wantValue func(string) bool) (*Annotation, error) {
+	return scanAnnotationInto(rows, wantValue)
+}
+
+func scanAnnotationInto(row rowScanner, wantValue func(string) bool) (*Annotation, error) {
 	var (
-		scopeKind, scopeID, labelID, hash, evidenceHash, model, modelVersion string
-		valueJSON, method, provider, evidenceJSON, observedAt, state, reason string
-		probability, confidence                                              sql.NullFloat64
+		scopeKind, scopeID, runID, labelID, hash, evidenceHash, requestedRole, model, modelVersion string
+		valueJSON, method, provider, evidenceJSON, occurredAt, observedAt, state, reason           string
+		probability, confidence                                                                    sql.NullFloat64
 	)
-	if err := row.Scan(&scopeKind, &scopeID, &labelID, &hash, &evidenceHash, &model, &modelVersion,
+	if err := row.Scan(&scopeKind, &scopeID, &runID, &labelID, &hash, &evidenceHash, &requestedRole, &model, &modelVersion,
 		&valueJSON, &probability, &confidence, &method, &provider, &evidenceJSON,
-		&observedAt, &state, &reason); err != nil {
+		&occurredAt, &observedAt, &state, &reason); err != nil {
 		return nil, err
 	}
 	var value Value
-	if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
-		return nil, fmt.Errorf("decode annotation value: %w", err)
+	if wantValue == nil || wantValue(labelID) {
+		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
+			return nil, fmt.Errorf("decode annotation value: %w", err)
+		}
 	}
 	var evidence []string
 	if err := json.Unmarshal([]byte(evidenceJSON), &evidence); err != nil {
@@ -523,10 +631,15 @@ func scanAnnotationInto(row rowScanner) (*Annotation, error) {
 		return nil, err
 	}
 	annotation := &Annotation{
-		ScopeKind: Scope(scopeKind), ScopeID: scopeID, LabelID: labelID, DefinitionHash: hash,
-		EvidenceHash: evidenceHash,
+		ScopeKind: Scope(scopeKind), ScopeID: scopeID, RunID: runID, LabelID: labelID, DefinitionHash: hash,
+		EvidenceHash: evidenceHash, RequestedRole: requestedRole,
 		Model: model, ModelVersion: modelVersion, Value: value, Method: method, Provider: provider,
 		EvidenceEventIDs: evidence, ObservedAt: at, State: State(state), Reason: reason,
+	}
+	if occurredAt != "" {
+		if occurred, err := parseStoreTime(occurredAt); err == nil {
+			annotation.OccurredAt = occurred
+		}
 	}
 	if probability.Valid {
 		annotation.Probability = &probability.Float64
@@ -536,9 +649,6 @@ func scanAnnotationInto(row rowScanner) (*Annotation, error) {
 	}
 	return annotation, nil
 }
-
-// sqlxRows is the concrete iterator shape sqlcompat exposes.
-type sqlxRows = sqlx.Rows
 
 // annotationTimeLayout is fixed-width so SQLite TEXT comparisons sort
 // chronologically. RFC3339Nano drops trailing zeros, which makes a fractional
@@ -554,38 +664,4 @@ func parseStoreTime(text string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("unparseable annotation time %q", text)
-}
-
-// ObservedScopes lists the runs whose latest answer for one label is current
-// and observed (or compatibly reused) in the window, newest first. It backs
-// the blind gold draft: a run can be labelled only when the benchmark will
-// find a stored answer to compare against.
-func (s *Store) ObservedScopes(ctx context.Context, since, until time.Time, labelID, definitionHash string, limit int) ([]string, error) {
-	if limit <= 0 {
-		limit = DefaultGoldDraft
-	}
-	args := []any{string(ScopeRun), labelID}
-	where := `scope_kind = ? AND label_id = ?`
-	if !since.IsZero() {
-		where += ` AND observed_at >= ?`
-		args = append(args, formatTime(since))
-	}
-	if !until.IsZero() {
-		where += ` AND observed_at <= ?`
-		args = append(args, formatTime(until))
-	}
-	args = append(args, definitionHash, limit)
-	var scopes []string
-	err := s.db.SelectContext(ctx, &scopes, fmt.Sprintf(`
-SELECT scope_id FROM (
-  SELECT scope_id, state, definition_hash, observed_at, ROW_NUMBER() OVER (
-    PARTITION BY scope_id ORDER BY observed_at DESC, rowid DESC
-  ) AS rn
-  FROM run_annotations WHERE %s
-) WHERE rn = 1 AND state IN ('observed', 'compatible') AND definition_hash = ?
-ORDER BY observed_at DESC, scope_id LIMIT ?`, where), args...)
-	if err != nil {
-		return nil, fmt.Errorf("list observed scopes for %s: %w", labelID, err)
-	}
-	return scopes, nil
 }
