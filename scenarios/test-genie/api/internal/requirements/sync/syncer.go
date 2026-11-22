@@ -447,7 +447,7 @@ func (s *syncer) writeUpdatedFiles(ctx context.Context, index *parsing.ModuleInd
 	written := 0
 	for filePath := range fileChanges {
 		module := index.GetModule(filePath)
-		if module == nil {
+		if module == nil || !types.AutoSyncEnabledFor(index.Modules, module) {
 			continue
 		}
 

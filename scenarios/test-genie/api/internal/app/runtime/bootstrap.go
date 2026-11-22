@@ -22,6 +22,7 @@ import (
 	"test-genie/internal/dbexec"
 	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
+	"test-genie/internal/frozenreplay"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/playbooksclaims"
@@ -69,6 +70,7 @@ type Bootstrapped struct {
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
 	ReceiptService      *validationbroker.Service
+	FrozenReplayService *frozenreplay.Service
 	// StartBackground is invoked by the HTTP transport only after its listener is
 	// accepting requests. Expensive advisory work must never begin while the
 	// lifecycle health endpoint is still competing for the one SQLite connection.
@@ -139,6 +141,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
+	runner.SetAdaptivePlanResolver(executionPlanner)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
@@ -212,13 +215,25 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		log.Printf("[test-genie] provider-conformance maturity spec unavailable: %v", specErr)
 	}
 	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
-	identityResolver := validationbroker.NewContentIdentityResolver(repoRoot, 32<<20).WithControlPlaneInputs().WithExecutionPlanner(executionPlanner)
-	runProducer := validationbroker.NewRunProducer(runManager, identityResolver).WithGCTEvidence(validationbroker.NewLiveGCTEvidenceClient()).WithExecutionPlanner(executionPlanner)
-	receiptService := validationbroker.NewService(validationbroker.NewRepository(db), runProducer)
+	identityResolver := validationbroker.NewContentIdentityResolver(repoRoot, 32<<20).
+		WithControlPlaneInputs().
+		WithExecutionPlanner(executionPlanner).
+		WithWorkspaceSandboxSeals(validationbroker.LiveWorkspaceSandboxSealOwner{}).
+		WithFrozenEvaluatorBundles(validationbroker.LiveFrozenEvaluatorBundleOwner{})
+	runProducer := validationbroker.NewRunProducer(runManager, identityResolver).
+		WithGCTEvidence(validationbroker.NewLiveGCTEvidenceClient()).
+		WithExecutionPlanner(executionPlanner).
+		WithFrozenReplayTestRunner(validationbroker.LiveFrozenReplayTestRunner{})
+	receiptRepo := validationbroker.NewRepository(db)
+	receiptService := validationbroker.NewService(receiptRepo, runProducer)
 	receiptService.SetProducer(runProducer)
 	receiptService.SetIdentityResolver(identityResolver)
 	receiptService.SetEvidenceDeclarationResolver(validationbroker.DescriptorEvidenceResolver{RepoRoot: repoRoot})
 	receiptService.SetRetainedEvidenceAdmission(runArtifactEvidenceAdmission{runs: runsService})
+	frozenReplayService, err := frozenreplay.NewService(context.Background(), db, validationbroker.FrozenReplayEvidenceVerifier{Receipts: receiptRepo, Runs: runManager})
+	if err != nil {
+		return nil, fmt.Errorf("initialize frozen replay receipt owner: %w", err)
+	}
 	if recovered, err := receiptService.Recover(context.Background()); err != nil {
 		return nil, fmt.Errorf("recover validation receipts: %w", err)
 	} else if recovered > 0 {
@@ -306,6 +321,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		RunsService:         runsService,
 		ValidationService:   validationService,
 		ReceiptService:      receiptService,
+		FrozenReplayService: frozenReplayService,
 		StartBackground:     background.Start,
 		SweepStatus:         sweepStatus,
 	}, nil

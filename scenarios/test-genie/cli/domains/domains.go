@@ -4,6 +4,7 @@ import (
 	"test-genie/cli/domains/local"
 	"test-genie/cli/domains/suites"
 	"test-genie/cli/eligibility"
+	"test-genie/cli/frozenreplay"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/remediate"
 	"test-genie/cli/runs"
@@ -45,5 +46,9 @@ func SubcommandGroups(manifest []byte, runtime deps.Runtime) ([]cliapp.Subcomman
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{runsGroup, validationGroup, eligibilityGroup, remediate.Register(runtime.Remediate)}, nil
+	frozenReplayGroup, err := frozenreplay.Register(manifest, runtime.APIClient)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{runsGroup, validationGroup, frozenReplayGroup, eligibilityGroup, remediate.Register(runtime.Remediate)}, nil
 }

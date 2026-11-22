@@ -113,6 +113,7 @@ func TestNewFindingPopulatesPerSourceEffort(t *testing.T) {
 		{architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY, architecturev1.EffortHint_EFFORT_HINT_SMALL},
 		{architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
 		{architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
+		{architecturev1.FindingSource_FINDING_SOURCE_MODEL_EVAL, architecturev1.EffortHint_EFFORT_HINT_MEDIUM},
 	}
 	for _, tc := range cases {
 		f := newFinding("demo", tc.source, "code", "error", "m", "", []string{"a"}, nil)

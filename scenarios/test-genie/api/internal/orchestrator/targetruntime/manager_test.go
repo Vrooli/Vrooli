@@ -95,7 +95,7 @@ func (f *demandFixture) Acquire(_ context.Context, req demand.AcquireRequest) (d
 	if f.err != nil {
 		return demand.Lease{}, f.err
 	}
-	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, Kind: req.Kind, Status: "active", ExpiresAt: time.Now().Add(time.Minute)}, nil
+	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, ConsumerID: req.ConsumerID, RequestID: req.RequestID, Kind: req.Kind, Status: "active", ExpiresAt: time.Now().Add(time.Minute)}, nil
 }
 
 func (f *demandFixture) Renew(_ context.Context, leaseID string, _ time.Duration) (demand.Lease, error) {

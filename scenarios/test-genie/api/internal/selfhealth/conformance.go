@@ -351,7 +351,7 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	pr := ProviderConformance{Provider: provider, Phase: phase}
 
 	// spec_valid is a local check, independent of whether the provider is live.
-	spec := loadProviderDescriptorSpec(&pr, repoRoot, provider)
+	spec := loadProviderDescriptorSpec(&pr, repoRoot, provider, phase)
 	switch {
 	case spec == nil:
 	case spec.Provider != provider || spec.Phase != phase:
@@ -576,9 +576,36 @@ func candidatePathWithin(root, candidatePath string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func loadProviderDescriptorSpec(pr *ProviderConformance, repoRoot, provider string) *assessment.Spec {
-	path := filepath.Join(repoRoot, "scenarios", provider, filepath.FromSlash(providerdescriptor.RelPath))
-	load := providerdescriptor.Load(providerdescriptor.LoadOptions{Paths: []string{path}})
+func loadProviderDescriptorSpec(pr *ProviderConformance, repoRoot, provider, phase string) *assessment.Spec {
+	dir := filepath.Join(repoRoot, "scenarios", provider, ".vrooli")
+	paths, err := filepath.Glob(filepath.Join(dir, "test-genie*.json"))
+	if err != nil {
+		pr.Violations = append(pr.Violations, "descriptor invalid: list phase descriptors: "+err.Error())
+		return nil
+	}
+	var matching []string
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			pr.Violations = append(pr.Violations, fmt.Sprintf("descriptor invalid: path=%s detail=read phase identity: %v", path, readErr))
+			return nil
+		}
+		var identity struct {
+			Phase string `json:"phase"`
+		}
+		if decodeErr := json.Unmarshal(raw, &identity); decodeErr != nil {
+			pr.Violations = append(pr.Violations, fmt.Sprintf("descriptor invalid: path=%s detail=parse phase identity: %v", path, decodeErr))
+			return nil
+		}
+		if identity.Phase == phase {
+			matching = append(matching, path)
+		}
+	}
+	if len(matching) != 1 {
+		pr.Violations = append(pr.Violations, fmt.Sprintf("descriptor invalid: phase %q has %d provider-owned maturity descriptors", phase, len(matching)))
+		return nil
+	}
+	load := providerdescriptor.Load(providerdescriptor.LoadOptions{Paths: matching, RepoRoot: repoRoot})
 	for _, diagnostic := range load.Diagnostics {
 		pr.Violations = append(pr.Violations, fmt.Sprintf(
 			"descriptor invalid: code=%s path=%s detail=%s",

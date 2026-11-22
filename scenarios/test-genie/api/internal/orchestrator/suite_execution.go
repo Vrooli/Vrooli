@@ -100,6 +100,7 @@ const (
 	phaseStatusNotExecutable       = "not_executable"
 	phaseStatusNotRun              = "not_run"
 	phaseStatusProviderUnavailable = "provider_unavailable"
+	phaseStatusNotEvaluated        = "not_evaluated"
 )
 
 func isSkippedPhaseStatus(status string) bool {
@@ -111,15 +112,19 @@ func isSkippedPhaseStatus(status string) bool {
 	}
 }
 
-// Suite verdict vocabulary (tri-state). Replaces the old binary success flag:
+// Suite verdict vocabulary. Replaces the old binary success flag:
 //   - PASS: every selected phase ran and passed (optional-phase skips are fine).
 //   - PARTIAL: nothing failed, but a non-optional phase could not run (a
 //     runnability SKIP) — exit 0, loudly labeled, machine-readable.
-//   - FAIL: at least one phase failed — non-zero exit.
+//   - NOT_EVALUATED: no phase failed, but an explicit evaluation had no
+//     qualifying evidence. This takes precedence over PARTIAL and exits non-zero.
+//   - FAIL: at least one gating phase failed — non-zero exit, and takes
+//     precedence over NOT_EVALUATED.
 const (
-	SuiteVerdictPass    = "PASS"
-	SuiteVerdictPartial = "PARTIAL"
-	SuiteVerdictFail    = "FAIL"
+	SuiteVerdictPass         = "PASS"
+	SuiteVerdictPartial      = "PARTIAL"
+	SuiteVerdictFail         = "FAIL"
+	SuiteVerdictNotEvaluated = "NOT_EVALUATED"
 )
 
 // SuiteOrchestrator runs scenario-local test phases without relying on external bash runners.
@@ -137,6 +142,7 @@ type SuiteOrchestrator struct {
 	demand        demand.LeaseClient
 	capacity      PhaseCapacityBroker
 	costEstimator PhaseCostEstimator
+	adaptivePlans AdaptivePlanResolver
 }
 
 // PhaseCapacityBroker is the narrow admission seam used by the scheduler.
@@ -195,6 +201,15 @@ func (o *SuiteOrchestrator) SetCapacityBroker(broker PhaseCapacityBroker) {
 func (o *SuiteOrchestrator) SetPhaseCostEstimator(estimator PhaseCostEstimator) {
 	if o != nil {
 		o.costEstimator = estimator
+	}
+}
+
+// SetAdaptivePlanResolver wires the owner of adaptive quick/smoke selection.
+// Rebase uses it when an admission plan becomes stale, rather than trying to
+// resolve adaptive profile names as fixed presets.
+func (o *SuiteOrchestrator) SetAdaptivePlanResolver(resolver AdaptivePlanResolver) {
+	if o != nil {
+		o.adaptivePlans = resolver
 	}
 }
 
@@ -327,10 +342,8 @@ type SuiteExecutionResult struct {
 	Success     bool      `json:"success"`
 	TargetKind  string    `json:"targetKind,omitempty"`
 	TargetID    string    `json:"targetId,omitempty"`
-	// Verdict is the tri-state outcome (PASS/PARTIAL/FAIL). Success is kept for
-	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
-	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
-	// reported without failing CI.
+	// Verdict is the terminal suite outcome. Success is true only for PASS and
+	// PARTIAL; NOT_EVALUATED and FAIL are non-passing results.
 	Verdict string `json:"verdict,omitempty"`
 	// FailureReason records a suite-level error that occurred before a phase
 	// could emit its own result, such as target-runtime startup failure. It is
@@ -592,7 +605,7 @@ func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExec
 func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
 	prepareStarted := time.Now()
 	emitPreparationProgress(emit, "planning", "starting")
-	prepared, err := o.prepareExecution(req)
+	prepared, err := o.prepareExecution(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -621,6 +634,9 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, readiness.Active, req, nil)
 	if err != nil {
 		return nil, err
+	}
+	if receipt, receiptErr := runtimeLease.DemandLeaseReceipt(); receiptErr == nil {
+		env.TestGenieDemandLeaseReceiptID = receipt.ReceiptID
 	}
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "target_runtime", Status: "completed", DurationMilliseconds: time.Since(runtimeStarted).Milliseconds()})
 	emitPreparationProgress(emit, "target_runtime", fmt.Sprintf("completed in %s", time.Since(runtimeStarted).Round(time.Millisecond)))
@@ -859,7 +875,7 @@ func resolveRunDiagnostics(preset string) sharedruns.DiagnosticsConfig {
 	}
 }
 
-func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*preparedExecution, error) {
+func (o *SuiteOrchestrator) prepareExecution(ctx context.Context, req SuiteExecutionRequest) (*preparedExecution, error) {
 	planCtx, err := o.loadExecutionPlanContext(req)
 	if err != nil {
 		return nil, err
@@ -952,6 +968,20 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		if len(req.Phases) == 0 && len(req.ResolvedPhases) > 0 {
 			req.ResolvedPhases = nil
 			req.PredictedPhaseDurationsMilliseconds = nil
+			if _, adaptive := phases.AdaptiveProfile(req.Preset); adaptive {
+				if o.adaptivePlans == nil {
+					return nil, errors.New("rebase adaptive execution plan: adaptive plan resolver is unavailable")
+				}
+				resolution, resolveErr := o.adaptivePlans.ResolveAdaptivePlan(ctx, req)
+				if resolveErr != nil {
+					return nil, fmt.Errorf("rebase adaptive execution plan: %w", resolveErr)
+				}
+				if len(resolution.ResolvedPhases) == 0 {
+					return nil, errors.New("rebase adaptive execution plan: planner returned no phases")
+				}
+				req.ResolvedPhases = append([]string(nil), resolution.ResolvedPhases...)
+				req.PredictedPhaseDurationsMilliseconds = resolution.PredictedPhaseDurationsMilliseconds
+			}
 			planCtx, err = o.loadExecutionPlanContext(req)
 			if err != nil {
 				return nil, fmt.Errorf("rebase queued execution plan: %w", err)
@@ -1168,14 +1198,14 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result := prepared.result
 	result.RunID = prepared.runID
 	result.CompletedAt = time.Now().UTC()
-	// Tri-state verdict supersedes the binary flag. Success stays true for both
-	// PASS and PARTIAL — only FAIL is a non-zero exit — so a self-test that
-	// honestly skips an unrunnable phase does not fail CI.
+	// The explicit verdict supersedes the binary flag. PARTIAL remains a
+	// successful runnability outcome, but NOT_EVALUATED is non-passing even when
+	// another phase is merely partial.
 	result.Verdict = computeSuiteVerdict(phaseResults, prepared.plan.Selected)
 	if result.FailureReason != "" {
 		result.Verdict = SuiteVerdictFail
 	}
-	result.Success = result.Verdict != SuiteVerdictFail
+	result.Success = suiteVerdictIsSuccessful(result.Verdict)
 	_ = anyFailure // verdict derives failure from phase statuses (skips ≠ failures)
 	result.Phases = phaseResults
 	resultViews := buildPhaseResultViews(prepared.runLogDir, phaseResults)
@@ -2087,7 +2117,12 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		classificationSource = phases.ClassificationSourceProvider
 	}
 	remediation := report.Remediation
-	if report.Skipped && runErr == nil {
+	if report.NotEvaluated {
+		status = phaseStatusNotEvaluated
+		classification = failureClassMissingDependency
+		errMsg = "provider could not evaluate the experience; see phase observations"
+		runErr = nil
+	} else if report.Skipped && runErr == nil {
 		status = phaseStatusSkipped
 	}
 

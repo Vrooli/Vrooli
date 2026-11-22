@@ -1,3 +1,5 @@
+import { create } from "@bufbuild/protobuf";
+import { SelfHealthSchema } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders as render } from "../../test-utils";
@@ -22,7 +24,7 @@ describe("HealthPage", () => {
   });
 
   it("renders catalog, conformance and ledger from a populated snapshot", async () => {
-    const snapshot: SelfHealth = {
+    const snapshot: SelfHealth = create(SelfHealthSchema, {
       catalog: { totalPhases: 18, delegatedPhases: 13, nativePhases: 5, phases: [{ name: "smoke", delegated: false }] },
       conformance: [
         { provider: "proto-health", phase: "proto", reachable: true, contractValid: true, specValid: true, identityOk: true, metricsAdopted: true, adoptionScore: 1 }
@@ -35,7 +37,7 @@ describe("HealthPage", () => {
         runOutcomes: [{ outcome: "passed", count: 40 }],
         phases: [{ phase: "performance", availability: 1, failureRate: 0, totalObservations: 10, metricsAdopted: 10, duration: { p50: 19, p95: 83, max: 383 } }]
       }
-    };
+    });
     vi.spyOn(api, "getSelfHealth").mockResolvedValue(snapshot);
 
     renderPage();
@@ -49,10 +51,10 @@ describe("HealthPage", () => {
   });
 
   it("shows the empty-ledger fallback when no runs are recorded", async () => {
-    vi.spyOn(api, "getSelfHealth").mockResolvedValue({
+    vi.spyOn(api, "getSelfHealth").mockResolvedValue(create(SelfHealthSchema, {
       catalog: { totalPhases: 0, phases: [] },
       ledger: { runCount: 0, phases: [] }
-    });
+    }));
 
     renderPage();
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/browsergrant"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
@@ -101,6 +103,37 @@ func TestDurableRunPreservesAndPartitionsSupplementalProof(t *testing.T) {
 	}
 	if _, err := m.Start(StartOptions{Input: input, Initiator: verifiedPairContext("proof-b")}); err == nil {
 		t.Fatal("distinct proof attached to active run")
+	}
+}
+
+func TestDurableRunCarriesOnlyVerifiedBrowserGrantRequestLocally(t *testing.T) {
+	exec := &authorityExecutor{contexts: make(chan context.Context, 2), release: make(chan struct{})}
+	m := New(exec, t.TempDir())
+	defer func() { close(exec.release); m.Shutdown() }()
+
+	verifiedInitiator := browsergrant.AttachRequestReceipt(verifiedContext(t, "agent-request-token"), []string{"opaque-browser-grant"})
+	input := startInput("audio-tools")
+	input.Request.RunID = "audio-grant-context-run"
+	if _, err := m.Start(StartOptions{Input: input, Initiator: verifiedInitiator}); err != nil {
+		t.Fatal(err)
+	}
+	active := <-exec.contexts
+	if got := provenance.ForwardedIdentityToken(active); got != "agent-request-token" {
+		t.Fatalf("active run identity token = %q", got)
+	}
+	if got := browsergrant.Receipt(active); got != "opaque-browser-grant" {
+		t.Fatalf("active run browser grant = %q", got)
+	}
+
+	unverifiedInitiator := browsergrant.AttachRequestReceipt(context.Background(), []string{"untrusted-browser-grant"})
+	input = startInput("other-audio-tools")
+	input.Request.RunID = "audio-grant-context-unverified"
+	if _, err := m.Start(StartOptions{Input: input, Initiator: unverifiedInitiator}); err != nil {
+		t.Fatal(err)
+	}
+	unverifiedActive := <-exec.contexts
+	if got := browsergrant.Receipt(unverifiedActive); got != "" {
+		t.Fatalf("unverified run propagated browser grant %q", got)
 	}
 }
 
@@ -1106,6 +1139,48 @@ func TestMultipleFollowersSeeFullSequence(t *testing.T) {
 	}
 	if seq2[len(seq2)-1] != EventRunCompleted {
 		t.Errorf("follower 2 last event = %s, want run_completed", seq2[len(seq2)-1])
+	}
+}
+
+// TestDurableTerminalReconciliationPreservesNotEvaluatedVerdict protects the
+// suite verdict when the durable record only has a coarse failed status.
+func TestDurableTerminalReconciliationPreservesNotEvaluatedVerdict(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	exec := newFakeExecutor(scenarioDir)
+	exec.result = &orchestrator.SuiteExecutionResult{
+		ScenarioName: "demo",
+		Success:      false,
+		Verdict:      orchestrator.SuiteVerdictNotEvaluated,
+		CompletedAt:  time.Now().UTC(),
+		Phases: []orchestrator.PhaseExecutionResult{
+			{Name: "experience", Status: "not_evaluated"},
+			{Name: "unit", Status: "skipped"},
+		},
+	}
+	m := New(exec, root)
+	defer m.Shutdown()
+
+	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
+	<-exec.started
+	close(exec.release)
+	status, err := m.Wait(context.Background(), "demo", runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Success || status.Verdict != orchestrator.SuiteVerdictNotEvaluated {
+		t.Fatalf("terminal status = success:%t verdict:%q; want non-passing NOT_EVALUATED", status.Success, status.Verdict)
+	}
+	snapshot, err := sharedruns.NewIndex(scenarioDir).ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted orchestrator.SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Success || persisted.Verdict != orchestrator.SuiteVerdictNotEvaluated {
+		t.Fatalf("persisted terminal result = success:%t verdict:%q; want non-passing NOT_EVALUATED", persisted.Success, persisted.Verdict)
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/shared"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
@@ -1047,7 +1048,9 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 		lastEventAt:            now,
 		etaTotal:               opts.EstimatedTotalSeconds,
 	}
-	runCtx, cancel := context.WithCancel(provenance.CarryVerifiedIdentity(m.base, opts.Initiator))
+	verifiedRunCtx := provenance.CarryVerifiedIdentity(m.base, opts.Initiator)
+	verifiedRunCtx = browsergrant.CarryVerifiedReceipt(verifiedRunCtx, opts.Initiator)
+	runCtx, cancel := context.WithCancel(verifiedRunCtx)
 	ar.cancel = cancel
 	ar.runCtx = runCtx
 	ar.input = opts.Input
@@ -2381,7 +2384,12 @@ func (m *Manager) reconcileDurableTerminal(scenario, runID, status string, resul
 		}
 		if status == sharedruns.StatusFailed {
 			result.Success = false
-			result.Verdict = "FAIL"
+			// A failed terminal lifecycle must never claim success. Preserve an
+			// explicit non-passing suite verdict (especially NOT_EVALUATED), which
+			// carries more information than the coarser record status.
+			if result.Verdict == "" || result.Verdict == orchestrator.SuiteVerdictPass || result.Verdict == orchestrator.SuiteVerdictPartial {
+				result.Verdict = orchestrator.SuiteVerdictFail
+			}
 		}
 	}
 	if err := ensureArtifactCatalog(dir, runID, result.CompletedAt); err != nil {

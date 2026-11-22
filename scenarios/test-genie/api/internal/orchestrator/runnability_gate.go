@@ -130,9 +130,15 @@ func computeSuiteVerdict(results []PhaseExecutionResult, defs []phases.Definitio
 		return SuiteVerdictFail
 	case phasepolicy.SuiteVerdictPartial:
 		return SuiteVerdictPartial
+	case phasepolicy.SuiteVerdictNotEvaluated:
+		return SuiteVerdictNotEvaluated
 	default:
 		return SuiteVerdictPass
 	}
+}
+
+func suiteVerdictIsSuccessful(verdict string) bool {
+	return verdict == SuiteVerdictPass || verdict == SuiteVerdictPartial
 }
 
 func policyLookup(defs []phases.Definition) map[string]phasepolicy.Policy {

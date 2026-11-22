@@ -196,8 +196,8 @@
         },
         {
           "path": "phases/ui-health/README.md",
-          "title": "UI Health Phase",
-          "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode)",
+          "title": "Retired UI Health Phase Key",
+          "description": "Migration pointer from the retired ui-health phase key to the canonical experience phase.",
           "docType": "phases-ui-health-readme",
           "maturity": "active",
           "requiredBy": [
@@ -437,6 +437,17 @@
           "completion": "required"
         },
         {
+          "path": "phases/consumer-contract/README.md",
+          "docType": "phases-consumer-contract-readme-md",
+          "title": "React Consumer Contracts",
+          "description": "Fleet-wide React UI usage-contract scan and downward-only per-contract ratchet.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "phases/env-conformance/README.md",
           "docType": "phases-env-conformance-readme-md",
           "title": "Environment Conformance Phase",
@@ -486,7 +497,18 @@
           "path": "phases/experience/README.md",
           "docType": "phases-experience-readme-md",
           "title": "Experience Phase",
-          "description": "Scenario experience validation through Experience Manager.",
+          "description": "Single served-UI verdict through UI Health, including runtime and artifact-backed visual evidence.",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "phases/experience-contract/README.md",
+          "docType": "phases-experience-contract-readme-md",
+          "title": "Experience Contract Phase",
+          "description": "Authored scenario experience specification validation through Experience Manager, separate from the served-UI verdict.",
           "maturity": "active",
           "requiredBy": [
             "validated"

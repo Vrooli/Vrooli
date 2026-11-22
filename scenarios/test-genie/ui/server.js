@@ -24,7 +24,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'test-genie',
-  corsOrigins: '*',
   verbose: process.env.NODE_ENV !== 'production',
   // WebSocket configuration for real-time agent updates
   wsPathPrefix: '/ws',

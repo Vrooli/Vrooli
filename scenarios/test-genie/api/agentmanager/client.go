@@ -6,27 +6,24 @@
 package agentmanager
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 // Client is an HTTP client for the agent-manager API.
 type Client struct {
-	httpClient *http.Client
-	jsonOpts   protojson.MarshalOptions
+	httpClient      *http.Client
+	baseURLResolver func(context.Context) (string, error)
 }
 
 // NewClient creates a new agent-manager client.
@@ -35,15 +32,20 @@ func NewClient(timeout time.Duration) *Client {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
-		jsonOpts: protojson.MarshalOptions{
-			UseProtoNames: false, // lowerCamelCase to match agent-manager HTTP handlers
-		},
 	}
 }
 
 // Health checks the agent-manager service health.
 func (c *Client) Health(ctx context.Context) (bool, error) {
-	resp, err := c.doRequest(ctx, "GET", "/health", nil)
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return false, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/health", nil)
+	if err != nil {
+		return false, fmt.Errorf("create agent-manager health request: %w", err)
+	}
+	resp, err := c.httpClient.Do(request)
 	if err != nil {
 		return false, err
 	}
@@ -53,23 +55,15 @@ func (c *Client) Health(ctx context.Context) (bool, error) {
 }
 
 func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
-	body, err := c.jsonOpts.Marshal(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario})
-	if err != nil {
-		return nil, fmt.Errorf("marshal reconcile request: %w", err)
-	}
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	resp, err := client.ReconcileScenarioProfiles(ctx, connect.NewRequest(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager reconcile scenario profiles: %w", err)
 	}
-	var result apipb.ReconcileScenarioProfilesResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return resp.Msg, nil
 }
 
 // =============================================================================
@@ -90,42 +84,32 @@ func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.Ag
 
 // GetProfileResponse retrieves a profile and any attached metadata.
 func (c *Client) GetProfileResponse(ctx context.Context, profileID string) (*apipb.GetProfileResponse, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/profiles/%s", profileID), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetProfile(ctx, connect.NewRequest(&apipb.GetProfileRequest{ProfileId: profileID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get profile: %w", err)
 	}
-
-	var result apipb.GetProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return resp.Msg, nil
 }
 
 // GetRolePolicyCatalog returns portable role choices. Concrete models remain
 // resource-owned execution evidence and are never returned as user input.
 func (c *Client) GetRolePolicyCatalog(ctx context.Context) (*apipb.GetRolePolicyCatalogResponse, error) {
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/role-policy/catalog", nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	resp, err := client.GetRolePolicyCatalog(ctx, connect.NewRequest(&apipb.GetRolePolicyCatalogRequest{}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get role policy catalog: %w", err)
 	}
-	var result apipb.GetRolePolicyCatalogResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return resp.Msg, nil
 }
 
 // =============================================================================
@@ -134,27 +118,15 @@ func (c *Client) GetRolePolicyCatalog(ctx context.Context) (*apipb.GetRolePolicy
 
 // CreateTask creates a new task.
 func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
-	req := &apipb.CreateTaskRequest{Task: task}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/tasks", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	resp, err := client.CreateTask(ctx, connect.NewRequest(&apipb.CreateTaskRequest{Task: task}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create task: %w", err)
 	}
-
-	var result apipb.CreateTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Task, nil
+	return resp.Msg.GetTask(), nil
 }
 
 // =============================================================================
@@ -163,70 +135,47 @@ func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	resp, err := client.CreateRun(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create run: %w", err)
 	}
-
-	var result apipb.CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 // GetRun retrieves a run by ID.
 func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetRun(ctx, connect.NewRequest(&apipb.GetRunRequest{RunId: runID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run: %w", err)
 	}
-
-	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 // GetRunByTag retrieves a run by its tag.
 func (c *Client) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/tag/%s", url.PathEscape(tag)), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetRunByTag(ctx, connect.NewRequest(&apipb.GetRunByTagRequest{Tag: tag}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run by tag: %w", err)
 	}
-
-	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 // ListRunsOptions contains optional filters for listing runs.
@@ -240,67 +189,51 @@ type ListRunsOptions struct {
 // ListRuns lists runs with optional filtering by tag prefix, profile ID, and status.
 // Filters are passed as query parameters (agent-manager ignores JSON body on GET).
 func (c *Client) ListRuns(ctx context.Context, opts ListRunsOptions) ([]*domainpb.Run, error) {
-	// Build query parameters
-	query := url.Values{}
-	if opts.TagPrefix != "" {
-		query.Set("tagPrefix", opts.TagPrefix)
-	}
-	if opts.ProfileID != "" {
-		query.Set("profileId", opts.ProfileID)
-	}
-	if opts.Status != nil {
-		query.Set("status", opts.Status.String())
-	}
-	if opts.Limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", opts.Limit))
-	}
-
-	path := "/api/v1/runs"
-	if len(query) > 0 {
-		path = path + "?" + query.Encode()
-	}
-
-	resp, err := c.doRequest(ctx, "GET", path, nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	request := &apipb.ListRunsRequest{}
+	if opts.TagPrefix != "" {
+		request.TagPrefix = &opts.TagPrefix
 	}
-
-	var result apipb.ListRunsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+	if opts.ProfileID != "" {
+		request.AgentProfileId = &opts.ProfileID
 	}
-	return result.Runs, nil
+	if opts.Status != nil {
+		request.Status = opts.Status
+	}
+	if opts.Limit > 0 {
+		limit := int32(opts.Limit)
+		request.Limit = &limit
+	}
+	resp, err := client.ListRuns(ctx, connect.NewRequest(request))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager list runs: %w", err)
+	}
+	return resp.Msg.GetRuns(), nil
 }
 
 // StopRun stops a running run.
 func (c *Client) StopRun(ctx context.Context, runID string) error {
-	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/%s/stop", runID), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
+	if _, err := client.StopRun(ctx, connect.NewRequest(&apipb.StopRunRequest{RunId: runID})); err != nil {
+		return fmt.Errorf("agent-manager stop run: %w", err)
 	}
 	return nil
 }
 
 // StopRunByTag stops a run by its tag.
 func (c *Client) StopRunByTag(ctx context.Context, tag string) error {
-	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/tag/%s/stop", url.PathEscape(tag)), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
+	if _, err := client.StopRunByTag(ctx, connect.NewRequest(&apipb.StopRunByTagRequest{Tag: tag})); err != nil {
+		return fmt.Errorf("agent-manager stop run by tag: %w", err)
 	}
 	return nil
 }
@@ -318,33 +251,22 @@ func (c *Client) StopAllRuns(ctx context.Context, tagPrefix string) (*StopAllRun
 	if tagPrefix != "" {
 		req.TagPrefix = &tagPrefix
 	}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs/stop-all", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.StopAllRunsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+	resultResponse, err := client.StopAllRuns(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager stop all runs: %w", err)
 	}
 
 	stopResult := &StopAllRunsResult{}
-	if result.Result != nil {
-		stopResult.StoppedCount = int(result.Result.StoppedCount)
-		for _, f := range result.Result.Failures {
+	if resultResponse.Msg.GetResult() != nil {
+		stopResult.StoppedCount = int(resultResponse.Msg.Result.StoppedCount)
+		for _, f := range resultResponse.Msg.Result.Failures {
 			stopResult.Errors = append(stopResult.Errors, f.Error)
 		}
-		stopResult.FailedCount = len(result.Result.Failures)
+		stopResult.FailedCount = len(resultResponse.Msg.Result.Failures)
 	}
 	return stopResult, nil
 }
@@ -355,26 +277,19 @@ func (c *Client) StopAllRuns(ctx context.Context, tagPrefix string) (*StopAllRun
 
 // GetRunEvents retrieves events for a run.
 func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
-	path := fmt.Sprintf("/api/v1/runs/%s/events", runID)
-	if afterSequence > 0 {
-		path = fmt.Sprintf("%s?after_sequence=%d", path, afterSequence)
-	}
-
-	resp, err := c.doRequest(ctx, "GET", path, nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	request := &apipb.GetRunEventsRequest{RunId: runID}
+	if afterSequence > 0 {
+		request.AfterSequence = &afterSequence
 	}
-
-	var result apipb.GetRunEventsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+	resp, err := client.GetRunEvents(ctx, connect.NewRequest(request))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run events: %w", err)
 	}
-	return result.Events, nil
+	return resp.Msg.GetEvents(), nil
 }
 
 // =============================================================================
@@ -383,21 +298,15 @@ func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence i
 
 // GetRunnerStatus retrieves status of all runners.
 func (c *Client) GetRunnerStatus(ctx context.Context) ([]*domainpb.RunnerStatus, error) {
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/runners", nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	resp, err := client.GetRunnerStatus(ctx, connect.NewRequest(&apipb.GetRunnerStatusRequest{}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get runner status: %w", err)
 	}
-
-	var result apipb.GetRunnerStatusResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Runners, nil
+	return resp.Msg.GetRunners(), nil
 }
 
 // =============================================================================
@@ -450,31 +359,10 @@ func NewUUID() string {
 // INTERNAL
 // =============================================================================
 
-func (c *Client) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
-	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
-	}
-
-	baseURL, err := c.resolveBaseURL(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Accept", "application/json")
-
-	return c.httpClient.Do(req)
-}
-
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.baseURLResolver != nil {
+		return c.baseURLResolver(ctx)
+	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve agent-manager url: %w", err)
@@ -482,37 +370,15 @@ func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
 	return url, nil
 }
 
+func (c *Client) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return apiconnect.NewAgentManagerServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
+}
+
 // ResolveURL exposes the computed agent-manager base URL.
 func (c *Client) ResolveURL(ctx context.Context) (string, error) {
 	return c.resolveBaseURL(ctx)
-}
-
-func (c *Client) parseResponse(resp *http.Response, msg proto.Message) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-	if err := opts.Unmarshal(body, msg); err != nil {
-		return fmt.Errorf("unmarshal response: %w", err)
-	}
-	return nil
-}
-
-func (c *Client) parseError(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
-	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal(body, &errResp); err == nil {
-		if errResp.Error != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Error)
-		}
-		if errResp.Message != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Message)
-		}
-	}
-	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, string(body))
 }

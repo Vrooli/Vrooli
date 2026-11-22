@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/shared"
 
 	"github.com/vrooli/api-core/discovery"
@@ -228,16 +229,25 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 	}
 
 	client := NewClient(provider.Timeout, baseURL)
-	if err := requireRetainedEvidenceSupport(ctx, client, provider.RetainedEvidenceSets); err != nil {
+	if err := requireRetainedEvidenceSupport(ctx, client, provider.Phase, provider.RetainedEvidenceSets); err != nil {
 		return unavailable(provider, targetScenario, err)
 	}
-	resp, err := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+	request := connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario:             targetScenario,
 		Path:                 strings.TrimSpace(scenarioPath),
+		Phase:                provider.Phase,
 		IncludeExecution:     provider.IncludeExecution,
 		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
 		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
-	}))
+	})
+	if provider.ProviderScenario == "audio-tools" && provider.Phase == "soak" {
+		for key, values := range browsergrant.AudioToolsSoakHeaders(ctx) {
+			for _, value := range values {
+				request.Header().Add(key, value)
+			}
+		}
+	}
+	resp, err := client.ValidateScenario(ctx, request)
 	if err != nil {
 		return unavailable(provider, targetScenario, fmt.Errorf("%s validation RPC failed: %w", provider.ProviderScenario, err))
 	}
@@ -270,13 +280,14 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		requestTarget.Root = strings.TrimSpace(targetPath)
 	}
 	client := NewTargetClient(provider.Timeout, baseURL)
-	if err := requireRetainedEvidenceSupport(ctx, client, provider.RetainedEvidenceSets); err != nil {
+	if err := requireRetainedEvidenceSupport(ctx, client, provider.Phase, provider.RetainedEvidenceSets); err != nil {
 		return unavailable(provider, target.GetId(), err)
 	}
 	resp, err := client.ValidateTarget(ctx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
 		Target:               requestTarget,
 		IncludeExecution:     provider.IncludeExecution,
 		Path:                 strings.TrimSpace(targetPath),
+		Phase:                provider.Phase,
 		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
 		Exclude:              append([]string(nil), provider.Exclude...),
 		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
@@ -298,7 +309,7 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 	return translate(provider, target.GetId(), legacy)
 }
 
-func requireRetainedEvidenceSupport(ctx context.Context, client any, sets []*scenariovalidationv1.RetainedEvidenceSet) error {
+func requireRetainedEvidenceSupport(ctx context.Context, client any, phase string, sets []*scenariovalidationv1.RetainedEvidenceSet) error {
 	if len(sets) == 0 {
 		return nil
 	}
@@ -306,7 +317,7 @@ func requireRetainedEvidenceSupport(ctx context.Context, client any, sets []*sce
 	if !ok {
 		return errors.New("provider client cannot report retained-evidence support")
 	}
-	response, err := describer.DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
+	response, err := describer.DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{Phase: phase}))
 	if err != nil {
 		return fmt.Errorf("confirm retained-evidence provider capability: %w", err)
 	}
@@ -341,6 +352,7 @@ func RunDurable(ctx context.Context, provider Provider, targetScenario, scenario
 	started, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{
 		Scenario:         targetScenario,
 		Path:             scenarioPath,
+		Phase:            provider.Phase,
 		IdempotencyKey:   key,
 		ParentRunId:      parentRunID,
 		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
@@ -444,6 +456,12 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 		out.Success = true
 		out.Summary.Skipped = true
 		out.Observations = append(out.Observations, shared.NewSkipObservation(provider.ProviderScenario+" skipped validation"))
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED:
+		out.Success = false
+		out.FailureClass = shared.FailureClassMissingDependency
+		out.Error = fmt.Errorf("%s did not evaluate %s", provider.ProviderScenario, scenario)
+		out.Remediation = "Restore the provider's required evaluation inputs and rerun `vrooli scenario test " + scenario + " --phases " + provider.Phase + "`."
+		out.Observations = append(out.Observations, shared.NewErrorObservation(out.Error.Error()))
 	default:
 		out.Success = true
 	}
@@ -508,7 +526,7 @@ func FilterCapabilityResult(result *Result, capabilityID string) *Result {
 		assessmentCopy.Presentation = assessment.BuildPhasePresentation(assessmentCopy)
 		out.Assessment = assessmentCopy
 		out.Presentation = assessmentCopy.GetPresentation()
-		out.Summary = summarize(assessmentCopy.GetScenario(), statusForAssessment(assessmentCopy), assessmentCopy)
+		out.Summary = summarize(assessmentCopy.GetScenario(), statusFromLabel(result.Summary.Status, statusForAssessment(assessmentCopy)), assessmentCopy)
 		out.FindingsSummary = buildFindingsSummary(out.Summary)
 		out.Findings = filterArchitectureFindings(result.Findings, capabilityID, assessmentFindingCodes(assessmentCopy.GetFindings()))
 		return &out
@@ -533,21 +551,80 @@ func MergeCapabilityResults(cached, fresh *Result) *Result {
 		base = cached
 	}
 	out := *base
+	assessmentStatus := statusFromLabel(base.Summary.Status, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED)
 	if cached.Assessment != nil || fresh.Assessment != nil {
 		merged := mergeAssessments(cached.Assessment, fresh.Assessment)
 		out.Assessment = merged
 		out.Presentation = merged.GetPresentation()
-		out.Summary = summarize(merged.GetScenario(), statusForAssessment(merged), merged)
+		assessmentStatus = statusForAssessment(merged)
+		out.Summary = summarize(merged.GetScenario(), assessmentStatus, merged)
 		out.FindingsSummary = buildFindingsSummary(out.Summary)
 	}
+	status := mergeValidationStatuses(cached.Summary.Status, fresh.Summary.Status, assessmentStatus)
+	out.Summary.Status = statusLabel(status)
 	out.Findings = mergeArchitectureFindings(cached.Findings, fresh.Findings)
 	out.RunResult.Observations = append(append([]shared.Observation(nil), cached.RunResult.Observations...), fresh.RunResult.Observations...)
-	out.Success = out.Summary.Status == "passed" || out.Summary.Status == "skipped"
+	out.Success = statusIsSuccessful(out.Summary.Status)
 	if !out.Success && out.Error == nil {
-		out.Error = fmt.Errorf("merged capability result contains blocking findings")
-		out.FailureClass = shared.FailureClassTestFailure
+		if out.Summary.Status == "not_evaluated" {
+			out.Error = fmt.Errorf("merged capability result was not evaluated")
+			out.FailureClass = shared.FailureClassMissingDependency
+		} else {
+			out.Error = fmt.Errorf("merged capability result contains blocking findings")
+			out.FailureClass = shared.FailureClassTestFailure
+		}
 	}
 	return &out
+}
+
+func statusFromLabel(label string, fallback scenariovalidationv1.ValidationStatus) scenariovalidationv1.ValidationStatus {
+	switch strings.TrimSpace(strings.ToLower(label)) {
+	case "not_evaluated":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED
+	case "degraded":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	case "skipped":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED
+	case "error":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	case "failed":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	case "passed":
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	default:
+		return fallback
+	}
+}
+
+func mergeValidationStatuses(cached, fresh string, assessmentStatus scenariovalidationv1.ValidationStatus) scenariovalidationv1.ValidationStatus {
+	left := statusFromLabel(cached, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED)
+	right := statusFromLabel(fresh, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED)
+	for _, status := range []scenariovalidationv1.ValidationStatus{left, right} {
+		if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR || status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+			return status
+		}
+	}
+	// Findings are authoritative evidence too. A stale provider result can
+	// carry NOT_EVALUATED alongside a concrete assessment error; do not let the
+	// less informative phase label hide that defect during cache reconciliation.
+	if assessmentStatus == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		return assessmentStatus
+	}
+	for _, status := range []scenariovalidationv1.ValidationStatus{left, right} {
+		if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED {
+			return status
+		}
+	}
+	for _, status := range []scenariovalidationv1.ValidationStatus{left, right} {
+		if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
+			return status
+		}
+	}
+	return assessmentStatus
+}
+
+func statusIsSuccessful(status string) bool {
+	return status == "passed" || status == "degraded" || status == "skipped"
 }
 
 func mergeAssessments(left, right *commonv1.MaturityAssessment) *commonv1.MaturityAssessment {
@@ -1128,7 +1205,9 @@ func unavailable(provider Provider, scenario string, err error) *Result {
 			)},
 		}}
 	}
-	return failure(provider, scenario, shared.FailureClassMissingDependency, err, "Ensure "+provider.ProviderScenario+" is running (`vrooli scenario start "+provider.ProviderScenario+"`) and reachable.")
+	out := failure(provider, scenario, shared.FailureClassMissingDependency, err, "Ensure "+provider.ProviderScenario+" is running (`vrooli scenario start "+provider.ProviderScenario+"`) and reachable.")
+	out.Summary.Status = "not_evaluated"
+	return out
 }
 
 func failure(provider Provider, scenario string, class shared.FailureClass, err error, remediation string) *Result {

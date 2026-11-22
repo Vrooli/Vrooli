@@ -54,6 +54,19 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			want: SuiteVerdictPass,
 		},
 		{
+			name:    "not evaluated stays not passing",
+			results: []PhaseExecutionResult{{Name: "experience", Status: phaseStatusNotEvaluated}},
+			want:    SuiteVerdictNotEvaluated,
+		},
+		{
+			name: "not evaluated dominates partial skip and success remains false",
+			results: []PhaseExecutionResult{
+				{Name: "experience", Status: phaseStatusNotEvaluated},
+				{Name: "unit", Status: phaseStatusSkipped},
+			},
+			want: SuiteVerdictNotEvaluated,
+		},
+		{
 			name: "any failed → FAIL",
 			results: []PhaseExecutionResult{
 				{Name: "structure", Status: phaseStatusPassed},
@@ -95,10 +108,18 @@ func TestComputeSuiteVerdict(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := computeSuiteVerdict(tc.results, defs); got != tc.want {
+			got := computeSuiteVerdict(tc.results, defs)
+			if got != tc.want {
 				t.Fatalf("computeSuiteVerdict = %q, want %q", got, tc.want)
 			}
+			wantSuccess := tc.want == SuiteVerdictPass || tc.want == SuiteVerdictPartial
+			if success := suiteVerdictIsSuccessful(got); success != wantSuccess {
+				t.Fatalf("suite verdict %q success = %t, want %t", got, success, wantSuccess)
+			}
 		})
+	}
+	if suiteVerdictIsSuccessful(SuiteVerdictNotEvaluated) {
+		t.Fatal("NOT_EVALUATED must never project to success")
 	}
 }
 

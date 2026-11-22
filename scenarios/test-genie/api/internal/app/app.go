@@ -50,6 +50,7 @@ func NewServer() (*httpserver.Server, error) {
 		RunsService:         deps.RunsService,
 		ValidationService:   deps.ValidationService,
 		ReceiptService:      deps.ReceiptService,
+		FrozenReplayService: deps.FrozenReplayService,
 		StartBackground:     deps.StartBackground,
 		SweepStatus:         deps.SweepStatus,
 	}

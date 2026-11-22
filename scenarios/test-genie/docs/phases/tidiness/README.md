@@ -43,9 +43,9 @@ regression against a recorded baseline, or an attempted ratchet loosening.
 ## The canonical fix
 
 - **`LONG_FILE`** → split the file along its natural seams into smaller, single-responsibility units (skills: `tidiness`, `cognitive-load-reduction`).
-- **`TECH_DEBT_MARKERS`** → resolve or clarify the `TODO`/`FIXME`/`HACK` markers; convert real work into tracked items rather than inline debt (skills: `tidiness`, `domain-clarity`).
+- **`TECH_DEBT_MARKERS`** → resolve or clarify the `TODO`/`FIXME`/`HACK` markers; convert real work into tracked items rather than inline debt (skills: `tidiness`, `architecture-lenses`).
 - **`HIGH_COMPLEXITY`** → reduce branching by extracting helpers and flattening control flow; add tests around the seam first (skills: `tidiness`, `cognitive-load-reduction`, `test`).
-- **`HIGH_COUPLING`** → narrow the import surface; enforce a clean boundary of responsibility for the module (skills: `tidiness`, `boundary-of-responsibility-enforcement`).
+- **`HIGH_COUPLING`** → narrow the import surface; enforce a clean boundary of responsibility for the module (skills: `tidiness`, `architecture-lenses`).
 - **`DUPLICATED_CODE`** → use the producer-ranked opportunity and its line-debt weight to extract the shared behavior once (skills: `tidiness`, `utils-unification`).
 - **`DUPLICATED_BOILERPLATE`** → structural or incidental repetition; keep it visible, but it carries no refactor debt.
 - **`TIDINESS_BUDGET_EXCEEDED`** → reduce the named measured metric or set a truthful, tighter budget.

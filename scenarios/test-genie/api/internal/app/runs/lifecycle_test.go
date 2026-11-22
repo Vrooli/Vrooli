@@ -126,7 +126,7 @@ func TestSaturationErrorCarriesTypedAdmissionDetail(t *testing.T) {
 }
 
 func TestCanonicalPresentationUsesItsOwnWireField(t *testing.T) {
-	presentation := &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "ui-health", Phase: "ui-health", CurrentLevel: "L2"}
+	presentation := &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "ui-health", Phase: "experience", CurrentLevel: "L2"}
 	current := &runspb.RunEvent{PhasePresentation: presentation}
 	wire, err := proto.Marshal(current)
 	if err != nil {

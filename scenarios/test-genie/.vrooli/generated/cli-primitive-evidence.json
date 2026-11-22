@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "test-genie",
   "generator": "v1.0.0",
-  "manifest_hash": "60897c17f0753571905700650885ff3a223e4b803f4f5f547df0702e91c33c9b",
+  "manifest_hash": "6b2e1a06db17a54406087157c1176b3b79f890049fe0917284bd0f1bc2c7056a",
   "commands": [
     {
       "path": "eligibility check",
@@ -19,6 +19,22 @@
       "command": "execute",
       "declared_exception": "durable_run",
       "observed_primitive": "durable_run"
+    },
+    {
+      "path": "frozen-replay create",
+      "group": "frozen-replay",
+      "command": "create",
+      "binding": "FrozenReplayService.CreateFrozenReplayReceipt",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "frozen-replay get",
+      "group": "frozen-replay",
+      "command": "get",
+      "binding": "FrozenReplayService.GetFrozenReplayReceipt",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "remediate cancel",

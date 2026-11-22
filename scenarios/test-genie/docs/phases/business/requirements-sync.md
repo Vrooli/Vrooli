@@ -86,6 +86,13 @@ Disable sync for specific modules in their `_metadata`:
 }
 ```
 
+Set `_metadata.auto_sync_enabled` to `false` in `requirements/index.json` to
+disable enrichment and status synchronization for every imported module. A
+module-level `false` disables that module while other modules continue syncing.
+Test validations need a declared reference, phase, or workflow ID before
+requirement-level test evidence can update their status; an unlinked test
+validation remains unchanged.
+
 ## Requirement File Structure
 
 ### Basic Module

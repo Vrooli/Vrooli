@@ -298,7 +298,7 @@ func TestStoreServesBothDeterminedVerdicts(t *testing.T) {
 // the phase did not happen, which is not a result to reuse.
 func TestStoreRejectsNonVerdictStatuses(t *testing.T) {
 	store := New(t.TempDir())
-	for _, status := range []string{"skipped", "missing", "not_executable", "not_run", "provider_unavailable", ""} {
+	for _, status := range []string{"skipped", "missing", "not_executable", "not_run", "provider_unavailable", "not_evaluated", ""} {
 		key := "pc:" + status
 		if err := store.Save(key, "run-x", phases.ExecutionResult{Name: "structure", Status: status}); err != nil {
 			t.Fatalf("save %q: %v", status, err)
@@ -404,7 +404,7 @@ func TestCacheableIsCaseAndSpaceInsensitive(t *testing.T) {
 			t.Fatalf("%q should be cacheable", status)
 		}
 	}
-	for _, status := range []string{"skipped", "pass", "fail", ""} {
+	for _, status := range []string{"skipped", "not_evaluated", "pass", "fail", ""} {
 		if Cacheable(status) {
 			t.Fatalf("%q should not be cacheable", status)
 		}

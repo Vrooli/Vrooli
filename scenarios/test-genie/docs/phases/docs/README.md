@@ -99,9 +99,10 @@ graph TB
         ABS[Absolute Paths<br/>Block OS-rooted paths]
         REFS[References<br/>CODE: ↔ DOC + marked refs]
         MANIFEST[Manifest<br/>Coverage tracking]
+        ASSERT[Assertion truth<br/>Duplicates + polarity]
     end
 
-    SCAN --> FENCES --> MERMAID --> LINKS --> ABS --> REFS --> MANIFEST --> DONE[Complete]
+    SCAN --> FENCES --> MERMAID --> LINKS --> ABS --> REFS --> MANIFEST --> ASSERT --> DONE[Complete]
 
     FENCES -.->|unclosed| FAIL[Fail]
     MERMAID -.->|invalid| WARN[Warn or Fail]
@@ -119,7 +120,7 @@ graph TB
     style MANIFEST fill:#b2dfdb
 ```
 
-The docs phase performs 6 validation checks:
+The docs phase performs 8 validation checks:
 
 | Check | Behavior | Default |
 |-------|----------|---------|
@@ -130,6 +131,7 @@ The docs phase performs 6 validation checks:
 | **Bidirectional refs** | Validate `[CODE: ...]` in docs and `// DOC:` in code | Enabled (warn) |
 | **Marked refs** | Validate required `path:` and `doc:` inline refs | Enabled (warn) |
 | **Manifest coverage** | Track docs registered in `docs/manifest.json` | Disabled |
+| **Assertion truth** | Fail on duplicate or contradictory normative assertions in one current document; reject generic purpose headings; warn on cross-document matches for scope review and repeated assertions in explicitly superseded historical records | Enabled |
 
 ## Bidirectional Reference Validation
 

@@ -41,6 +41,21 @@ func (m *ModuleMetadata) IsAutoSyncEnabled() bool {
 	return *m.AutoSyncEnabled
 }
 
+// AutoSyncEnabledFor reports whether a module participates in automatic
+// enrichment and file synchronization. An index-level opt-out disables every
+// imported module; a module-level opt-out disables only that module.
+func AutoSyncEnabledFor(modules []*RequirementModule, target *RequirementModule) bool {
+	if target == nil {
+		return false
+	}
+	for _, module := range modules {
+		if module != nil && module.IsIndex && module.RelativePath == "index.json" && !module.Metadata.IsAutoSyncEnabled() {
+			return false
+		}
+	}
+	return target.Metadata.IsAutoSyncEnabled()
+}
+
 // Clone creates a deep copy of the module.
 func (m *RequirementModule) Clone() *RequirementModule {
 	if m == nil {

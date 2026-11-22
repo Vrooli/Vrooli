@@ -1,0 +1,66 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "test-genie",
+  "phase": "fault-injection",
+  "displayName": "DBM Recovery Fault Injection",
+  "description": "Runs Data Backup Manager's safe-remount and risky-decision recovery paths through owner simulators, then checks readiness, backup, scratch-restore, and receipt-only platform qualification.",
+  "source": "validation-provider",
+  "orderHint": 41,
+  "timeout": "240s",
+  "findingSource": "unspecified",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": { "kinds": ["scenario"], "selection": "enumerate" },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [{ "fileExists": "api/internal/destinationreadiness/recovery.go" }]
+  },
+  "policy": {
+    "selection": "explicit_only",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "check_only",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": { "path": "scenarios/data-backup-manager/docs/reference/support-matrix.md" },
+  "maturity": {
+    "version": "1.0.0",
+    "levels": [
+      { "id": "L0", "name": "Fault injection unavailable", "description": "The owner simulator suite could not execute.", "entry_criteria": ["DBM target resolved."], "exit_criteria": ["Simulated owner loop executed."], "status_label": "Unavailable", "capability_summary": "Recovery behavior is not proven.", "next_unlock": "Run the owner simulator suite." },
+      { "id": "L1", "name": "Recovery loop exercised", "description": "The simulated safe and risky recovery routes execute through their owners.", "entry_criteria": ["Owner simulators are available."], "exit_criteria": ["Safe remount and risky confirmation paths pass."], "status_label": "Exercised", "capability_summary": "The recovery loop is exercised under simulated faults.", "next_unlock": "Verify backup and scratch-restore receipts." },
+      { "id": "L2", "name": "Receipt matrix verified", "description": "Backup/restore owner tests pass and fixture receipts cannot qualify native cells.", "entry_criteria": ["Recovery routes pass."], "exit_criteria": ["Receipt matrix regenerates and checks successfully."], "status_label": "Verified", "capability_summary": "Simulated recovery and receipt-only qualification checks pass." }
+    ],
+    "capabilities": [
+      { "id": "owner_recovery_loop", "label": "Owner recovery loop", "description": "Safe remount and risky repair decision/callback through control-plane and DBM owners.", "levels": [
+        { "id": "L0", "name": "Unavailable", "description": "Recovery simulator cannot execute.", "entry_criteria": ["Target resolved."], "exit_criteria": ["Simulation executes."] },
+        { "id": "L1", "name": "Simulated", "description": "Safe and risky recovery owner paths pass with fake volume observers.", "entry_criteria": ["Simulator available."], "exit_criteria": ["Safe and risky paths pass."] },
+        { "id": "L2", "name": "Owner loop verified", "description": "Owner tests pass and simulated receipts preserve native qualification boundaries.", "entry_criteria": ["Safe and risky paths pass."], "exit_criteria": ["Receipt-only matrix check passes."] }
+      ]}
+    ],
+    "findings": {
+      "dbm_fault_injection.execution_failed": {
+        "capability_id": "owner_recovery_loop",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["scenario-work-ladder"]
+      }
+    },
+    "fallback": {
+      "capability_id": "owner_recovery_loop",
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": ["scenario-work-ladder"]
+    }
+  }
+}

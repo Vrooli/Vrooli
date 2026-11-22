@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -143,6 +144,36 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	}
 	appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
 	return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
+}
+
+// ResolveAdaptivePlan recomputes the phase set through the same planner used
+// for admission previews. It is called only when an admitted quick/smoke
+// request became stale before execution.
+func (s *ExecutionPlanService) ResolveAdaptivePlan(ctx context.Context, req orchestrator.SuiteExecutionRequest) (orchestrator.AdaptivePlanResolution, error) {
+	req.ResolvedPhases = nil
+	req.PredictedPhaseDurationsMilliseconds = nil
+	preview, err := s.Preview(ctx, req)
+	if err != nil {
+		return orchestrator.AdaptivePlanResolution{}, err
+	}
+	resolution := orchestrator.AdaptivePlanResolution{
+		ResolvedPhases:                      make([]string, 0, len(preview.Phases)),
+		PredictedPhaseDurationsMilliseconds: make(map[string]int64, len(preview.Phases)),
+	}
+	for _, phase := range preview.Phases {
+		name := strings.TrimSpace(phase.Name)
+		if name == "" {
+			continue
+		}
+		resolution.ResolvedPhases = append(resolution.ResolvedPhases, name)
+		if phase.EstimatedDurationSeconds > 0 {
+			resolution.PredictedPhaseDurationsMilliseconds[strings.ToLower(name)] = int64(phase.EstimatedDurationSeconds) * 1000
+		}
+	}
+	if len(resolution.ResolvedPhases) == 0 {
+		return orchestrator.AdaptivePlanResolution{}, fmt.Errorf("planner returned no runnable phases")
+	}
+	return resolution, nil
 }
 
 // applyRunLevelEstimate first looks for an exact, same-scenario full-run key.

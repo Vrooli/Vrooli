@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases/validationprovider"
@@ -191,6 +192,9 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 		client = defaultDelegatedClient
 	}
 	return func(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
+		if provider.ProviderScenario == "audio-tools" && provider.Phase == "soak" {
+			ctx = browsergrant.AudioToolsSoakContext(ctx, env.TestGenieDemandLeaseReceiptID)
+		}
 		bound := provider
 		bound.RetainedEvidenceSets = env.RetainedEvidenceSets
 		if bound.DeliveryMode == "durable-run" {
@@ -285,6 +289,15 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	report.FindingsSummary = findingsSummary
 	if !report.Skipped && provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		report.FindingSource = findingid.SourceToken(provider.FindingSource)
+	}
+	if summary.Status == "not_evaluated" {
+		// A provider's unavailable-evaluation verdict is persisted as such, rather
+		// than being flattened into a generic phase failure. Its observation still
+		// carries the missing-input explanation and the suite remains non-passing.
+		report.NotEvaluated = true
+		report.OutcomeStatus = "not_evaluated"
+		report.Err = nil
+		report.FailureClassification = FailureClassMissingDependency
 	}
 	writePhasePointer(env, provider.Phase, report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "%s summary: %s", provider.Phase, summary.String())

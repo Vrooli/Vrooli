@@ -40,7 +40,19 @@ type Lease struct {
 	Started bool
 
 	// The shared hold owns renewal, cancellation and bounded idempotent cleanup.
-	demandHold *demand.Hold
+	demandHold    *demand.Hold
+	demandReceipt *DemandLeaseReceipt
+}
+
+// DemandLeaseReceipt returns an owner-issued snapshot of the exact control-
+// plane demand lease held for this Test Genie target run. It is evidence of
+// lease admission, not an authority token; consumers must ask Test Genie to
+// verify it against the retained run before acting on it.
+func (l Lease) DemandLeaseReceipt() (DemandLeaseReceipt, error) {
+	if l.demandHold == nil || l.demandReceipt == nil {
+		return DemandLeaseReceipt{}, ErrDemandLeaseUnavailable
+	}
+	return *l.demandReceipt, nil
 }
 
 // Context is the lifetime of work using this target. Renewal loss cancels it
@@ -232,6 +244,12 @@ func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.W
 			return Lease{}, fmt.Errorf("acquire Test Genie job demand for %s: %w", m.Name, err)
 		}
 		lease.demandHold = hold
+		receipt, err := issueDemandLeaseReceipt(requestID, m.Name, hold.Lease)
+		if err != nil {
+			_ = hold.Close()
+			return Lease{}, fmt.Errorf("issue Test Genie demand lease receipt for %s: %w", m.Name, err)
+		}
+		lease.demandReceipt = &receipt
 		ctx = lease.Context(ctx)
 	}
 
@@ -242,12 +260,18 @@ func (m *Manager) EnsureRunning(ctx context.Context, needs Needs, logWriter io.W
 
 	shared.LogStep(logWriter, "starting target scenario %s", m.Name)
 	if err := m.runLifecycle(ctx, nil, logWriter, "start"); err != nil {
+		if lease.demandReceipt != nil {
+			revokeDemandLeaseReceipt(lease.demandReceipt.ReceiptID)
+		}
 		_ = m.releaseDemand(context.Background(), lease, logWriter)
 		return Lease{}, fmt.Errorf("start target scenario %s: %w", m.Name, err)
 	}
 
 	urls, err := m.waitForURLs(ctx, needs)
 	if err != nil {
+		if lease.demandReceipt != nil {
+			revokeDemandLeaseReceipt(lease.demandReceipt.ReceiptID)
+		}
 		_ = m.releaseDemand(context.Background(), lease, logWriter)
 		return Lease{}, err
 	}
@@ -271,6 +295,9 @@ func (m *Manager) LiveSurfaces(ctx context.Context) URLs {
 // reconciler can atomically decide that it is safe to stop. Legacy callers
 // without demand management retain their existing start/stop ownership.
 func (m *Manager) Cleanup(ctx context.Context, lease Lease, logWriter io.Writer) error {
+	if lease.demandReceipt != nil {
+		defer revokeDemandLeaseReceipt(lease.demandReceipt.ReceiptID)
+	}
 	var cleanupErr error
 	if lease.Started && lease.demandHold == nil {
 		shared.LogStep(logWriter, "stopping target scenario %s", m.Name)

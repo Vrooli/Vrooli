@@ -22,6 +22,26 @@ func (m *Matcher) FindBestMatch(val *types.Validation, reqID string, evidence *t
 	if val == nil || evidence == nil {
 		return nil
 	}
+	if val.Type == types.ValTypeManual {
+		// Manual checks require a corresponding explicit manual attestation.
+		// A test run, source path, phase result, or requirement-level evidence
+		// cannot stand in for an operator's review.
+		if evidence.ManualValidations == nil {
+			return nil
+		}
+		manual, ok := evidence.ManualValidations.Get(reqID)
+		if !ok || !manual.IsValid() {
+			return nil
+		}
+		return &types.EvidenceRecord{
+			RequirementID: reqID,
+			Status:        manual.ToLiveStatus(),
+			Phase:         "manual",
+			Evidence:      manual.Notes,
+			UpdatedAt:     manual.ValidatedAt,
+			SourcePath:    manual.ArtifactPath,
+		}
+	}
 
 	var candidates []types.EvidenceRecord
 
@@ -40,21 +60,11 @@ func (m *Matcher) FindBestMatch(val *types.Validation, reqID string, evidence *t
 		candidates = append(candidates, m.matchByPhase(val.Phase, reqID, evidence)...)
 	}
 
-	// Strategy 4: Match by requirement ID directly
-	candidates = append(candidates, m.matchByRequirementID(reqID, evidence)...)
-
-	// Strategy 5: Check manual validations
-	if val.Type == types.ValTypeManual && evidence.ManualValidations != nil {
-		if manual, ok := evidence.ManualValidations.Get(reqID); ok && manual.IsValid() {
-			candidates = append(candidates, types.EvidenceRecord{
-				RequirementID: reqID,
-				Status:        manual.ToLiveStatus(),
-				Phase:         "manual",
-				Evidence:      manual.Notes,
-				UpdatedAt:     manual.ValidatedAt,
-				SourcePath:    manual.ArtifactPath,
-			})
-		}
+	// Strategy 4: Match by requirement ID directly. A test validation with no
+	// declared locator cannot claim requirement-level evidence: it does not
+	// identify which test execution supports that validation.
+	if !val.IsTest() {
+		candidates = append(candidates, m.matchByRequirementID(reqID, evidence)...)
 	}
 
 	if len(candidates) == 0 {

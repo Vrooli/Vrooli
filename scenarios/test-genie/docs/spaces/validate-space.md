@@ -63,9 +63,9 @@ result for `package:api-core` can never satisfy a scenario run by accident.
 | V12 | Security | `security-health` | NOW | partial | Secrets, Go SAST, vuln-DB, JS deps. |
 | V13 | Measures | `measures-health` | NOW | partial | Stateful-domain coverage, per-measure tiers. |
 | V14 | Proto | `proto-health` | NOW | mechanical | Proto contract validation. |
-| V15 | UI Health | `ui-health` | NOW | partial | Manifest/interop/standards + BAS render/handshake. |
+| V15 | Experience | `experience` | NOW | partial | One served-UI verdict: manifest/interop/standards + BAS runtime and artifact-backed visual evidence. |
 | V16 | Performance | `performance-health` | NOW | manual | Go/UI build benchmarks + Lighthouse. |
-| V17 | Experience | `ui-health` (UX) + _(native BAS flows)_ | IN-REACH | manual | Reframes "Playbooks". User-flow validation (BAS test cases) is the runtime rung; the UX-spec ladder is the successor (see Known Gaps). |
+| V17 | Experience Contract | `experience-contract` | IN-REACH | manual | Authored UX-spec validation remains a separate contract result; `experience` owns the one served-UI verdict. |
 
 ### Generated provider capability tier
 

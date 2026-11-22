@@ -56,6 +56,7 @@ not documented below.
 | Post-listener advisory work | `internal/app/runtime/background.go` (`BackgroundCoordinator`) | The HTTP server invokes one once-only coordinator after binding its listener; self-health, the opt-in fleet scheduler, and Agent Manager initialization share its cancellation context. | `background_test.go`, health handler held-pool test, and self-health timeout observer test. | Keeps lifecycle serving independent of optional analytics and ensures shutdown cancels every advisory job. |
 | Diagnostics → BAS plumbing | `internal/orchestrator/testconfig/config/config.go` (`DiagnosticsConfig`) → `internal/basprobe/execution/client.go` | `--diagnostics-preset {none,light,full}` sets `ExecuteWorkflowOptions` (`RequiresVideo/Har/Trace`) + `ArtifactCollectionConfig` toggles. | `config_test.go` (preset parsing/defaults). | Per-run diagnostics depth is immutable once a run completes (Decision 4); baselines just pin runs of differing depth. |
 | RunsService RPC | `internal/app/runs/service.go` | Thin Connect-RPC wrapper over `internal/shared/runs.Index`; `scenariosRoot` resolves a slug → run index path. | `service_test.go` against `t.TempDir()`. | The HTTP surface the test-genie CLI and GCT baseline adapters consume. |
+| UI RunsService client | `ui/src/api/runs.ts` | Generated `RunsService` descriptor and Connect client using `createScenarioConnectTransport`; self-health and artifact catalog readers return generated message types. | `ui/src/api/runs.test.ts` uses a router transport to verify generated request fields and response decoding. | Removes hand-written Connect procedure paths, JSON parsing, duplicate proto interfaces, and unsafe response casts from the UI boundary. |
 | Run evidence catalog + opaque serving | `internal/shared/artifacts/catalog.go`; `RunsService.ListRunArtifacts` / `GetRunArtifact`; REST `GET /scenarios/{name}/runs/{runId}/artifacts/{artifactId}` in `internal/app/httpserver/run_artifact_handler.go` | Atomically persists a digest-verified, run-salted catalog of open artifact kinds. Metadata is path-free; byte access resolves only a run-scoped opaque ID and enforces containment, symlink rejection, content type, no-sniff, and active-content sandbox headers. Read-only legacy projections derive their timestamp from immutable artifact metadata, so unchanged historical bytes produce a stable digest. `ListRunVideos` remains compatibility-only and is not the GCT boundary. | Catalog, RunsService, and HTTP tests cover runtime registration, legacy discovery, unknown kinds, traversal, cross-run IDs, symlinks, missing bytes, and active content. `TestCopiedRunEvidenceRehearsal` optionally copies a real scenario's run index/artifacts/logs into `t.TempDir()`, repeats every terminal projection, resolves every opaque artifact, and proves the copied byte tree is unchanged. | Lets any consumer select stable evidence kinds across all producer phases without learning run filesystem layout or introducing a phase registry. |
 
 ## Durable run lifecycle (server-owned runs)
@@ -121,7 +122,7 @@ evidence rather than being backfilled or presented as canonical.
 
 ## Related docs
 
-- [`docs/agent-system/routed-test-db.md`](../../../../docs/agent-system/routed-test-db.md)
+- [`scenarios/test-genie/docs/reference/routed-test-db.md`](../reference/routed-test-db.md)
   — The canonical two-engine routed-storage contract and fail-closed gate.
 - [`packages/api-core/docs/internal/SEAMS.md`](../../../../packages/api-core/docs/internal/SEAMS.md)
   — Substrate-level seams (`RoutedDB`, `Clock`, `TestModeMiddleware`,
@@ -297,4 +298,4 @@ cuts, default standalone allocation and marker-write failure, actual held-pipe
 and redirected-output descendants, and native delayed-admission/pre-exec gate
 races. These fixtures do not establish natural served expiry or simultaneous
 target-process restart/counter recovery; retain the separate operated evidence
-and the target restart protocol in `docs/agent-system/routed-test-db.md`.
+and the target restart protocol in `scenarios/test-genie/docs/reference/routed-test-db.md`.

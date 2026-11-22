@@ -26,6 +26,60 @@
       "cli_mapping": {
         "command": "test-genie status"
       }
+    },
+    {
+      "id": "frozen_replay_create",
+      "path": "/vrooli.test_genie.v1.frozen_replay.FrozenReplayService/CreateFrozenReplayReceipt",
+      "method": "POST",
+      "summary": "Create an immutable three-way bounty replay receipt",
+      "description": "Verifies preimage, blind candidate, and merged-reference Test Genie evidence before append-only receipt storage.",
+      "category": "frozen-replay",
+      "request": {
+        "type": "object",
+        "content_type": "application/proto+json",
+        "required": ["idempotency_key", "adjudication"],
+        "properties": {
+          "idempotency_key": "string",
+          "adjudication": "FrozenReplayAdjudication"
+        }
+      },
+      "response": {
+        "type": "object",
+        "content_type": "application/proto+json",
+        "properties": {
+          "receipt": "FrozenReplayReceipt",
+          "replayed": "boolean"
+        }
+      },
+      "cli_mapping": {
+        "command": "test-genie frozen-replay create"
+      }
+    },
+    {
+      "id": "frozen_replay_get",
+      "path": "/vrooli.test_genie.v1.frozen_replay.FrozenReplayService/GetFrozenReplayReceipt",
+      "method": "POST",
+      "summary": "Get and verify an immutable bounty replay receipt",
+      "description": "Reads a persisted receipt and checks its SHA-256 content seal.",
+      "category": "frozen-replay",
+      "request": {
+        "type": "object",
+        "content_type": "application/proto+json",
+        "required": ["receipt_id"],
+        "properties": {
+          "receipt_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "content_type": "application/proto+json",
+        "properties": {
+          "receipt": "FrozenReplayReceipt"
+        }
+      },
+      "cli_mapping": {
+        "command": "test-genie frozen-replay get <receipt_id>"
+      }
     }
   ],
   "cli_commands": [
@@ -33,6 +87,16 @@
       "name": "status",
       "description": "Check API and dependency health",
       "endpoint_id": "health"
+    },
+    {
+      "name": "frozen-replay create",
+      "description": "Verify and store an immutable three-way bounty replay receipt",
+      "endpoint_id": "frozen_replay_create"
+    },
+    {
+      "name": "frozen-replay get",
+      "description": "Read an immutable bounty replay receipt",
+      "endpoint_id": "frozen_replay_get"
     }
   ]
 }

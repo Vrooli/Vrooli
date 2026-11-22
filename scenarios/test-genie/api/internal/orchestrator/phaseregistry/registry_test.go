@@ -83,8 +83,12 @@ func TestProducerOnlyDeclarationIsExcludedFromPhaseRegistry(t *testing.T) {
 	}
 }
 
-func TestBuildAcceptsProgramsAndSkillsFindingSources(t *testing.T) {
-	for _, item := range []struct{ phase, provider, source string }{{"programs", "program-runtime", "programs"}, {"skill-set", "prompt-manager", "skills"}} {
+func TestBuildAcceptsExtendedFindingSources(t *testing.T) {
+	for _, item := range []struct{ phase, provider, source string }{
+		{"programs", "program-runtime", "programs"},
+		{"skill-set", "prompt-manager", "skills"},
+		{"model-eval", "ai-gateway", "model-eval"},
+	} {
 		raw := strings.Replace(validDescriptor(item.provider, item.phase), `"findingSource":"docs"`, `"findingSource":"`+item.source+`"`, 1)
 		descriptor := loadDescriptor(t, item.provider, raw)
 		result := Build([]providerdescriptor.Descriptor{descriptor}, Options{Bindings: testBindings()})

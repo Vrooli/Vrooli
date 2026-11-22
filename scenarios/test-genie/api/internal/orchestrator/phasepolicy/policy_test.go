@@ -66,6 +66,39 @@ func TestSuiteVerdictForExecution(t *testing.T) {
 			want: SuiteVerdictFail,
 		},
 		{
+			name: "not evaluated never passes",
+			results: []ExecutionInput{{
+				Phase:  "experience",
+				Status: StatusNotEvaluated,
+				Policy: RequiredProviderPolicy(),
+			}},
+			want: SuiteVerdictNotEvaluated,
+		},
+		{
+			name: "real defect dominates not evaluated",
+			results: []ExecutionInput{
+				{Phase: "experience", Status: StatusNotEvaluated, Policy: RequiredProviderPolicy()},
+				{Phase: "unit", Status: StatusFailed, Policy: RequiredProviderPolicy()},
+			},
+			want: SuiteVerdictFail,
+		},
+		{
+			name: "not evaluated dominates partial unavailable provider",
+			results: []ExecutionInput{
+				{Phase: "experience", Status: StatusNotEvaluated, Policy: RequiredProviderPolicy()},
+				{Phase: "docs", Status: StatusProviderUnavailable, Policy: withUnavailable(RequiredProviderPolicy(), UnavailablePartial)},
+			},
+			want: SuiteVerdictNotEvaluated,
+		},
+		{
+			name: "not evaluated dominates partial in reverse order",
+			results: []ExecutionInput{
+				{Phase: "docs", Status: StatusProviderUnavailable, Policy: withUnavailable(RequiredProviderPolicy(), UnavailablePartial)},
+				{Phase: "experience", Status: StatusNotEvaluated, Policy: RequiredProviderPolicy()},
+			},
+			want: SuiteVerdictNotEvaluated,
+		},
+		{
 			name: "best effort unavailable provider passes",
 			results: []ExecutionInput{{
 				Phase:  "performance",

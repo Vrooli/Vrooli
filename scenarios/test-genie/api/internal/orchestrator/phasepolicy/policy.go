@@ -50,10 +50,12 @@ const (
 	StatusNotRun              = "not_run"
 	StatusNotApplicable       = "not_applicable"
 	StatusProviderUnavailable = "provider_unavailable"
+	StatusNotEvaluated        = "not_evaluated"
 
-	SuiteVerdictPass    = "pass"
-	SuiteVerdictFail    = "fail"
-	SuiteVerdictPartial = "partial"
+	SuiteVerdictPass         = "pass"
+	SuiteVerdictFail         = "fail"
+	SuiteVerdictPartial      = "partial"
+	SuiteVerdictNotEvaluated = "not_evaluated"
 )
 
 type Policy struct {
@@ -159,12 +161,15 @@ func (p Policy) Validate() []ValidationError {
 
 func SuiteVerdictForExecution(results []ExecutionInput) string {
 	partial := false
+	notEvaluated := false
 	for _, result := range results {
 		policy := result.Policy
 		if policy.IsZero() {
 			policy = RequiredProviderPolicy()
 		}
 		switch normalize(result.Status) {
+		case StatusNotEvaluated:
+			notEvaluated = true
 		case StatusFailed:
 			if policy.ResultGating != ResultGatingAdvisory {
 				return SuiteVerdictFail
@@ -182,6 +187,9 @@ func SuiteVerdictForExecution(results []ExecutionInput) string {
 				partial = true
 			}
 		}
+	}
+	if notEvaluated {
+		return SuiteVerdictNotEvaluated
 	}
 	if partial {
 		return SuiteVerdictPartial

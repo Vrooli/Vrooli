@@ -2,6 +2,9 @@ package validationbroker
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -20,6 +23,43 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func TestFrozenEvaluatorBundleIdentityRequiresExactBytesAndCanonicalManifest(t *testing.T) {
+	files := []FrozenEvaluatorFile{{RelativePath: "acceptance.cjs", Content: []byte("assert(true)"), SHA256: sha256Hex([]byte("assert(true)"))}, {RelativePath: "fixtures/input.json", Content: []byte("{}"), SHA256: sha256Hex([]byte("{}"))}}
+	type tuple struct {
+		RelativePath string `json:"relativePath"`
+		SHA256       string `json:"sha256"`
+		Size         int64  `json:"size"`
+	}
+	manifest, err := json.Marshal([]tuple{{"acceptance.cjs", files[0].SHA256, int64(len(files[0].Content))}, {"fixtures/input.json", files[1].SHA256, int64(len(files[1].Content))}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contentDigest := sha256Hex(manifest)
+	bundle := FrozenEvaluatorBundle{EvaluatorBundleID: "case@1:bundle", CaseID: "case", EntryPoint: "acceptance.cjs", EvaluatorDigest: files[0].SHA256, ContentDigest: contentDigest, Files: files}
+	ref := &validationv1.FrozenEvaluatorBundleReference{EvaluatorBundleId: bundle.EvaluatorBundleID, EvaluatorDigest: bundle.EvaluatorDigest, EntryPoint: bundle.EntryPoint}
+	identity, err := frozenEvaluatorContentRoot(bundle, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.GetIdentity() != "sha256:"+contentDigest || len(identity.GetFiles()) != 2 {
+		t.Fatalf("evaluator identity = %#v", identity)
+	}
+	bundle.Files[1].Content = []byte("tampered")
+	if _, err := frozenEvaluatorContentRoot(bundle, ref); err == nil {
+		t.Fatal("tampered evaluator bytes accepted")
+	}
+	bundle.Files[1].Content = []byte("{}")
+	bundle.ContentDigest = "sha256:" + hex.EncodeToString(make([]byte, 32))
+	if _, err := frozenEvaluatorContentRoot(bundle, ref); err == nil {
+		t.Fatal("mismatched canonical evaluator manifest accepted")
+	}
+}
+
+func sha256Hex(value []byte) string {
+	digest := sha256.Sum256(value)
+	return hex.EncodeToString(digest[:])
+}
+
 func TestResolveSourceIdentityIsReadOnlyAndDoesNotAcceptCallerIdentity(t *testing.T) {
 	ctx := context.Background()
 	repo := NewRepository(testsqllite(t))
@@ -28,7 +68,7 @@ func TestResolveSourceIdentityIsReadOnlyAndDoesNotAcceptCallerIdentity(t *testin
 	service := NewService(repo, nil)
 	service.SetIdentityResolver(resolver)
 	request := &validationv1.ResolveSourceIdentityRequest{
-		Targets: []*commonv1.ValidationTarget{{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, Id: "demo"}},
+		Targets:       []*commonv1.ValidationTarget{{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, Id: "demo"}},
 		ContentInputs: []*validationv1.ContentInputRoot{{Name: "candidate", Root: "scenarios/demo", Selections: []*validationv1.InputSelection{{Glob: "**", Required: true}}}},
 	}
 	response, err := service.ResolveSourceIdentity(ctx, connect.NewRequest(request))

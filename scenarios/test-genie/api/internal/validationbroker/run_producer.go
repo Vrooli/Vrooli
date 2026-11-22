@@ -39,6 +39,7 @@ type RunProducer struct {
 	identity IdentityResolver
 	gct      GCTEvidenceClient
 	planner  execution.ExecutionPlanner
+	replay   FrozenReplayTestRunner
 }
 
 const evidenceProducerCleanupReserve = 60 * time.Second
@@ -75,7 +76,15 @@ func (p *RunProducer) WithGCTEvidence(client GCTEvidenceClient) *RunProducer {
 	return p
 }
 
+func (p *RunProducer) WithFrozenReplayTestRunner(runner FrozenReplayTestRunner) *RunProducer {
+	p.replay = runner
+	return p
+}
+
 func (p *RunProducer) ExecuteValidation(ctx context.Context, current *validationv1.ValidationReceipt, intent *validationv1.ValidationIntent, transition TransitionFunc) error {
+	if intent.GetFrozenReplayExecution() != nil {
+		return p.executeFrozenReplay(ctx, current, intent, transition)
+	}
 	if p == nil || p.runs == nil {
 		return fmt.Errorf("suite run manager is unavailable")
 	}

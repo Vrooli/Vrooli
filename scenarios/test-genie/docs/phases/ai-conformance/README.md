@@ -29,7 +29,7 @@ Each finding caps the capability it names at L1 until cleared; only ERROR/BLOCKE
 | `ai.direct_ollama_http` / `ai.direct_openrouter_http` | resource_boundary | L1 | ERROR | Yes |
 | `ai.invalid_provider_secret_env` | resource_boundary | L1 | ERROR | Yes |
 | `ai.invalid_provider_url_env` | resource_boundary | L1 | WARNING | No |
-| `ai.concrete_model_slug` | model_policy | L1 | WARNING | No |
+| `ai.concrete_model_slug` | model_policy | L1 | ERROR | Yes |
 | `ai.hardcoded_context_window` | model_policy | L1 | WARNING | No |
 | `ai.resource_gateway_missing_role` | model_policy | L1 | WARNING | No |
 | `ai.hardcoded_embedding_dimensions` | embedding_safety | L1 | ERROR | Yes |
@@ -40,7 +40,7 @@ Each finding caps the capability it names at L1 until cleared; only ERROR/BLOCKE
 ## The canonical fix
 
 - **Resource-boundary findings** (`ai.direct_ollama_http`, `ai.direct_openrouter_http`, `ai.invalid_provider_secret_env`, `ai.invalid_provider_url_env`) → remove direct provider HTTP calls and provider-owned secret/url settings; route the call through a resource or an AI Gateway profile so credentials and topology are owned by the boundary, not the scenario. Provider migration needs scenario-specific role/profile intent — load `prompt-manager skill read ecosystem-fit`.
-- **Model-policy findings** (`ai.concrete_model_slug`, `ai.hardcoded_context_window`, `ai.resource_gateway_missing_role`) → replace concrete model slugs and hard-coded context budgets with role/profile requests; add the missing role policy to the owning resource so model selection can evolve behind policy.
+- **Model-policy findings** (`ai.concrete_model_slug`, `ai.hardcoded_context_window`, `ai.resource_gateway_missing_role`) → replace concrete model slugs and hard-coded context budgets with role/profile requests; add the missing role policy to the owning resource so model selection can evolve behind policy. Concrete model literals in executable/configured caller surfaces are an error; documentation, tests, and evaluation fixtures remain evidence rather than runtime selection.
 - **Embedding-safety findings** (`ai.hardcoded_embedding_dimensions`, `ai.embedding_metadata_missing`) → record role/model/dimension/content-version and a retarget strategy alongside each vector store so an embedding-model change is a deliberate, migratable event. This is a data-retention decision — load `prompt-manager skill read storage-manager`.
 - **Gateway-adoption findings** (`ai.gateway_not_adopted`, `ai.unreviewed_exception`) → adopt AI Gateway profile contracts where they cover the operation, or record a low-level exception with owner, expiry, and replacement plan for scenario-owner review.
 

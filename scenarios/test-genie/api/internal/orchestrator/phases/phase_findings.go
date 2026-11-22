@@ -44,6 +44,7 @@ func normalizeFindingSeverity(raw string) architecturev1.FindingSeverity {
 //	DEPENDENCY   → SMALL    (one declared-vs-actual dependency drift)
 //	COVERAGE     → MEDIUM   (write tests for an under-covered target)
 //	SECURITY     → MEDIUM   (rotate a secret / bump a vulnerable dep)
+//	MODEL_EVAL   → MEDIUM   (close an evaluation-readiness evidence gap)
 //	STRUCTURE    → LARGE    (package mislocation — a structural move)
 //	ARCHITECTURE → LARGE    (import cycle / coupling — structural)
 //	(anything else) → UNSPECIFIED
@@ -59,7 +60,8 @@ func defaultEffortForSource(source architecturev1.FindingSource) architecturev1.
 		architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY:
 		return architecturev1.EffortHint_EFFORT_HINT_SMALL
 	case architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
-		architecturev1.FindingSource_FINDING_SOURCE_SECURITY:
+		architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
+		architecturev1.FindingSource_FINDING_SOURCE_MODEL_EVAL:
 		return architecturev1.EffortHint_EFFORT_HINT_MEDIUM
 	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
 		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE:

@@ -194,12 +194,13 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 // build instead of silently producing un-attributed findings.
 func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 	producing := map[Name]architecturev1.FindingSource{
-		Name("structure"):    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-		Name("contracts"):    architecturev1.FindingSource_FINDING_SOURCE_CLI,
-		Name("ui-health"):    architecturev1.FindingSource_FINDING_SOURCE_UI,
-		Name("api"):          architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Name("quality"):      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Name("architecture"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("structure"):           architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		Name("contracts"):           architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		Name("experience-contract"): architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Name("consumer-contract"):   architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Name("api"):                 architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Name("quality"):             architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Name("architecture"):        architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 		// Code-facts and the language-graph providers emit architecture findings
 		// through the validation-provider bridge, so their descriptor-owned
 		// finding source is intentional rather than a phantom source.
@@ -229,6 +230,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Name("soak"):            architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 		Name("programs"):        architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS,
 		Name("skill-set"):       architecturev1.FindingSource_FINDING_SOURCE_SKILLS,
+		Name("model-eval"):      architecturev1.FindingSource_FINDING_SOURCE_MODEL_EVAL,
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -311,8 +313,8 @@ func TestDocLinkPreservesPathOwnership(t *testing.T) {
 	}{
 		{
 			name: "repository documentation is root-relative",
-			path: "docs/agent-system/routed-test-db.md",
-			want: "/docs/agent-system/routed-test-db.md",
+			path: "scenarios/test-genie/docs/reference/routed-test-db.md",
+			want: "/scenarios/test-genie/docs/reference/routed-test-db.md",
 		},
 		{
 			name: "Test Genie phase documentation stays local",

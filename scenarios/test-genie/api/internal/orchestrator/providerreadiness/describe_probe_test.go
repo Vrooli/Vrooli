@@ -26,15 +26,19 @@ type stubProvider struct {
 	describeErr     error
 	validate        *scenariovalidationv1.ValidateScenarioResponse
 	describeCalls   int
+	describePhase   string
 	validateCalls   int
 	validateLatency time.Duration
 }
 
 func (s *stubProvider) DescribeProvider(
 	_ context.Context,
-	_ *connect.Request[scenariovalidationv1.DescribeProviderRequest],
+	req *connect.Request[scenariovalidationv1.DescribeProviderRequest],
 ) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
 	s.describeCalls++
+	if req != nil && req.Msg != nil {
+		s.describePhase = req.Msg.GetPhase()
+	}
 	if s.describeErr != nil {
 		return nil, s.describeErr
 	}
@@ -94,6 +98,9 @@ func TestDescribeProbeAnswersWithoutTargetAnalysis(t *testing.T) {
 	}
 	if got.SpecVersion != "2.1.0" {
 		t.Errorf("SpecVersion = %q", got.SpecVersion)
+	}
+	if stub.describePhase != "security" {
+		t.Errorf("requested phase = %q, want security", stub.describePhase)
 	}
 	if got.BinaryModifiedAt != binaryModifiedAt.Format(time.RFC3339Nano) {
 		t.Errorf("BinaryModifiedAt = %q, want %q", got.BinaryModifiedAt, binaryModifiedAt.Format(time.RFC3339Nano))

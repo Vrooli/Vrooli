@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -60,6 +61,37 @@ func TestUnavailableOptionalProviderRemainsSkippedInPhasePointer(t *testing.T) {
 	}
 	if payload.Status != "skipped" {
 		t.Fatalf("pointer status = %q, want skipped", payload.Status)
+	}
+}
+
+func TestNotEvaluatedProviderIsPersistedWithoutPassing(t *testing.T) {
+	dir := t.TempDir()
+	env := workspace.Environment{RunID: "not-evaluated-provider", ScenarioName: "fixture", ScenarioDir: dir}
+	provider := validationprovider.Provider{Phase: "experience", ProviderScenario: "ui-health"}
+	report := runValidationProviderPhase(context.Background(), env, io.Discard, provider,
+		func(context.Context, workspace.Environment, io.Writer, validationprovider.Provider) *validationprovider.Result {
+			return &validationprovider.Result{RunResult: shared.RunResult[validationprovider.Summary]{
+				Success:      false,
+				Summary:      validationprovider.Summary{Scenario: "fixture", Status: "not_evaluated"},
+				Error:        errors.New("ui-health did not evaluate fixture"),
+				FailureClass: shared.FailureClassMissingDependency,
+			}}
+		})
+	if !report.NotEvaluated || report.Err != nil || report.OutcomeStatus != "not_evaluated" {
+		t.Fatalf("not-evaluated provider response was not retained as an unevaluated outcome: %+v", report)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "experience.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != "not_evaluated" {
+		t.Fatalf("persisted phase status = %q, want not_evaluated", payload.Status)
 	}
 }
 

@@ -33,14 +33,14 @@ func TestRunListHumanRendersDisplayNameWithPhaseKey(t *testing.T) {
 		if r.URL.Path != "/api/v1/phases" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"items":[{"name":"ui-health","displayName":"UI Health","provider":"ui-health","source":"validation-provider","description":"Validates UI contracts."}],"count":1}`)
+		fmt.Fprint(w, `{"items":[{"name":"experience","displayName":"Experience","provider":"ui-health","source":"validation-provider","description":"Evaluates the served UI experience."}],"count":1}`)
 	})
 
 	var out bytes.Buffer
 	if err := run(api, []string{"list"}, &out); err != nil {
 		t.Fatalf("run list: %v", err)
 	}
-	if !strings.Contains(out.String(), "UI Health (ui-health)") {
+	if !strings.Contains(out.String(), "Experience (experience)") {
 		t.Fatalf("expected display name with phase key, got %s", out.String())
 	}
 }
@@ -79,17 +79,17 @@ func TestRunPlanHumanRendersDisplayNameWithPhaseKey(t *testing.T) {
 		if r.URL.Path != "/api/v1/executions/plan" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"scenarioName":"demo","phases":[{"name":"ui-health","displayName":"UI Health","selectionStatus":"selected","provider":"ui-health","phaseClass":"architecture","runtimeClass":"static"}]}`)
+		fmt.Fprint(w, `{"scenarioName":"demo","phases":[{"name":"experience","displayName":"Experience","selectionStatus":"selected","provider":"ui-health","phaseClass":"runtime","runtimeClass":"execution"}]}`)
 	})
 
 	var out bytes.Buffer
 	if err := run(api, []string{"plan", "demo"}, &out); err != nil {
 		t.Fatalf("run plan: %v", err)
 	}
-	if !strings.Contains(out.String(), "UI Health (ui-health)") {
+	if !strings.Contains(out.String(), "Experience (experience)") {
 		t.Fatalf("expected planned phase display name with key, got %s", out.String())
 	}
-	if !strings.Contains(out.String(), "provider=ui-health") || !strings.Contains(out.String(), "class=architecture/static") {
+	if !strings.Contains(out.String(), "provider=ui-health") || !strings.Contains(out.String(), "class=runtime/execution") {
 		t.Fatalf("expected planned phase provider and class metadata, got %s", out.String())
 	}
 }

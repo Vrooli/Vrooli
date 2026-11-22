@@ -13,6 +13,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/shared"
 	sharedruns "test-genie/internal/shared/runs"
@@ -99,7 +100,8 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Target: scenario, TargetRef: targetRef, Coalesced: true}), nil
 	}
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, Initiator: ctx, EstimatedTotalSeconds: etaTotal})
+	initiator := browsergrant.AttachRequestReceipt(ctx, req.Header().Values(browsergrant.HeaderBrowserGrantReceipt))
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, Initiator: initiator, EstimatedTotalSeconds: etaTotal})
 	if err != nil {
 		var busy *runmanager.BusyError
 		if errors.As(err, &busy) {

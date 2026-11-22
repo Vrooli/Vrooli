@@ -82,7 +82,7 @@ fail the phase, so warnings and infos are honest, non-failing debt.
   `test`).
 - **`measures.illegal-domain-declaration`** → a declared domain is not a legal
   stateful domain for the scenario's architecture: remove or correct it; run the
-  `screaming-architecture-audit` skill to reconcile with the canonical architecture.
+  `architecture-lenses` skill to reconcile with the canonical architecture.
 - **`measures.malformed-declaration`** → the measure does not assemble against its
   bound proto request schema: fix the declaration shape and the proto binding
   (`measures-adoption`, `api-steer`).

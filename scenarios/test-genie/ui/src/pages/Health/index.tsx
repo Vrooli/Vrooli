@@ -1,3 +1,5 @@
+import { create } from "@bufbuild/protobuf";
+import { SelfHealthSchema } from "@vrooli/proto-types/test-genie/v1/runs/runs_pb";
 import { useSelfHealth } from "../../hooks/useSelfHealth";
 import { selectors } from "../../consts/selectors";
 import type {
@@ -220,7 +222,7 @@ export function HealthPage() {
     );
   }
 
-  const selfHealth = data ?? {};
+  const selfHealth = data ?? create(SelfHealthSchema, {});
   const hasLedger = (selfHealth.ledger?.phases ?? []).length > 0 || num(selfHealth.ledger?.runCount) > 0;
 
   return (

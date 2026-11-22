@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"strings"
 
 	"test-genie/internal/orchestrator/applicability"
@@ -67,6 +68,20 @@ type executionPlanContext struct {
 	env    workspacepkg.Environment
 	config *workspacepkg.Config
 	plan   *phasePlan
+}
+
+// AdaptivePlanResolution is the phase selection and estimates recomputed by
+// the execution planner when an admitted adaptive-profile request goes stale.
+type AdaptivePlanResolution struct {
+	ResolvedPhases                      []string
+	PredictedPhaseDurationsMilliseconds map[string]int64
+}
+
+// AdaptivePlanResolver keeps the profile policy at the planner that owns it.
+// The orchestrator consumes a fresh selection at rebase time without
+// reimplementing the planner's budget and history rules.
+type AdaptivePlanResolver interface {
+	ResolveAdaptivePlan(context.Context, SuiteExecutionRequest) (AdaptivePlanResolution, error)
 }
 
 func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) (*executionPlanContext, error) {

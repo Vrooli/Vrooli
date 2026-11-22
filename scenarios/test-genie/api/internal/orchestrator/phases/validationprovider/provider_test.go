@@ -3,14 +3,19 @@ package validationprovider
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 
+	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/shared"
 
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 	assessmentpkg "github.com/vrooli/maturity-go/assessment"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	cartosharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
@@ -74,8 +79,9 @@ func (f fakeClient) ValidateScenario(context.Context, *connect.Request[scenariov
 // capturingClient records the request it was called with so tests can assert
 // what Run put on the wire.
 type capturingClient struct {
-	resp *scenariovalidationv1.ValidateScenarioResponse
-	got  *scenariovalidationv1.ValidateScenarioRequest
+	resp    *scenariovalidationv1.ValidateScenarioResponse
+	got     *scenariovalidationv1.ValidateScenarioRequest
+	headers http.Header
 }
 
 type capturingTargetClient struct {
@@ -120,6 +126,7 @@ func (c *capturingDurableClient) AbortValidationRun(_ context.Context, req *conn
 
 func (c *capturingClient) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	c.got = req.Msg
+	c.headers = req.Header().Clone()
 	return connect.NewResponse(c.resp), nil
 }
 
@@ -158,6 +165,47 @@ func TestRunSendsScenarioPath(t *testing.T) {
 	}
 	if cap.got.GetPath() != wantPath {
 		t.Fatalf("path = %q, want %q", cap.got.GetPath(), wantPath)
+	}
+	if cap.got.GetPhase() != "proto" {
+		t.Fatalf("phase = %q, want proto", cap.got.GetPhase())
+	}
+}
+
+func TestAudioToolsSoakForwardsOnlyRequestScopedVerifiedBearerHeaders(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	cap := &capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: "audio-tools", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment(""),
+	}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://audio-tools", nil }
+	NewClient = func(time.Duration, string) Client { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	var initiator context.Context
+	handler := provenance.Middleware(provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: token}}, nil
+	}))(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { initiator = r.Context() }))
+	req := httptest.NewRequest(http.MethodPost, "/start", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "agent-token-from-request")
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	initiator = browsergrant.AttachRequestReceipt(initiator, []string{"browser-grant-from-request"})
+	runCtx := provenance.CarryVerifiedIdentity(context.Background(), initiator)
+	runCtx = browsergrant.CarryVerifiedReceipt(runCtx, initiator)
+	runCtx = browsergrant.AudioToolsSoakContext(runCtx, "lease-receipt-for-this-run")
+
+	provider := testProvider(false)
+	provider.ProviderScenario = "audio-tools"
+	provider.Phase = "soak"
+	Run(runCtx, provider, "audio-tools", "/audio-tools")
+	if cap.headers.Get(cliutil.HeaderAgentIdentityToken) != "agent-token-from-request" ||
+		cap.headers.Get(browsergrant.HeaderBrowserGrantReceipt) != "browser-grant-from-request" ||
+		cap.headers.Get("X-Test-Genie-Lease-Receipt") != "lease-receipt-for-this-run" || len(cap.headers) != 3 {
+		t.Fatalf("audio-tools soak bearer headers = %#v", cap.headers)
+	}
+
+	cap.headers = nil
+	Run(context.Background(), provider, "audio-tools", "/audio-tools")
+	if len(cap.headers) != 0 {
+		t.Fatalf("unverified request forwarded bearer headers: %#v", cap.headers)
 	}
 }
 
@@ -247,6 +295,9 @@ func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
 	if cap.start.GetIdempotencyKey() != "parent-run-1:proto" || cap.start.GetParentRunId() != "parent-run-1" {
 		t.Fatalf("start identity = %+v", cap.start)
 	}
+	if cap.start.GetPhase() != "proto" {
+		t.Fatalf("start phase = %q, want proto", cap.start.GetPhase())
+	}
 	// The generic durable contract carries target and run identity only. Provider
 	// safety authorization (including routed isolation) remains provider-owned.
 	if cap.start.GetScenario() != "demo" || cap.start.GetPath() != "/tmp/demo" {
@@ -316,11 +367,11 @@ func testProvider(optional bool) Provider {
 
 func testAssessment(severity string) *commonv1.MaturityAssessment {
 	a := &commonv1.MaturityAssessment{
-		Scenario: "demo",
-		Provider: "proto-health",
-		Phase:    "proto",
-		Version:  "1",
-		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", NextLevel: "L2", Clean: true, UnknownCount: 1},
+		Scenario:           "demo",
+		Provider:           "proto-health",
+		Phase:              "proto",
+		Version:            "1",
+		Local:              &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", NextLevel: "L2", Clean: true, UnknownCount: 1},
 		FindingsBySeverity: map[string]int32{},
 	}
 	if severity != "" {
@@ -544,7 +595,7 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 
 func TestUIHealthDirectAndDelegatedPresentationsMatch(t *testing.T) {
 	provider := Provider{
-		Phase:            "ui-health",
+		Phase:            "experience",
 		ProviderScenario: "ui-health",
 		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Emoji:            "U",
@@ -556,7 +607,7 @@ func TestUIHealthDirectAndDelegatedPresentationsMatch(t *testing.T) {
 	// Genie after delegation; transport must not derive or reshape it.
 	directAssessment := testCapabilityAssessment()
 	directAssessment.Provider = "ui-health"
-	directAssessment.Phase = "ui-health"
+	directAssessment.Phase = "experience"
 	directAssessment.Presentation = assessmentpkg.BuildPhasePresentation(directAssessment)
 	providerPresentation := directAssessment.GetPresentation()
 	response := &scenariovalidationv1.ValidateScenarioResponse{
@@ -574,7 +625,7 @@ func TestUIHealthDirectAndDelegatedPresentationsMatch(t *testing.T) {
 		t.Fatalf("delegated run did not retain presentation: result=%+v", got)
 	}
 	if !proto.Equal(got.Presentation, providerPresentation) {
-		t.Fatalf("Test Genie changed ui-health's direct provider presentation:\n got=%+v\nwant=%+v", got.Presentation, providerPresentation)
+		t.Fatalf("Test Genie changed experience's direct provider presentation:\n got=%+v\nwant=%+v", got.Presentation, providerPresentation)
 	}
 }
 
@@ -596,6 +647,62 @@ func TestRunDegradedStatusStaysVisibleWithoutBeingRewrittenAsPassed(t *testing.T
 	}
 	if got.Summary.Status != "degraded" {
 		t.Fatalf("summary status = %q, want degraded rather than passed", got.Summary.Status)
+	}
+}
+
+func TestRunNotEvaluatedNeverPasses(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED,
+			Assessment: testAssessment(""),
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if got.Success {
+		t.Fatal("not-evaluated provider response must never pass")
+	}
+	if got.Summary.Status != "not_evaluated" || got.FailureClass != shared.FailureClassMissingDependency {
+		t.Fatalf("not-evaluated result lost its verdict: status=%q failure=%q", got.Summary.Status, got.FailureClass)
+	}
+	if got.Error == nil || !strings.Contains(got.Error.Error(), "did not evaluate") {
+		t.Fatalf("missing actionable not-evaluated error: %v", got.Error)
+	}
+}
+
+func TestMergeCapabilityResultsPreservesNotEvaluated(t *testing.T) {
+	assessment := testCapabilityAssessment()
+	base := &Result{RunResult: shared.RunResult[Summary]{Success: false, Summary: Summary{Scenario: "demo", Status: "not_evaluated"}}, Assessment: assessment}
+	passing := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: "passed"}}, Assessment: assessment}
+	projected := FilterCapabilityResult(base, "interop")
+	merged := MergeCapabilityResults(projected, passing)
+	if merged.Success || merged.Summary.Status != "not_evaluated" {
+		t.Fatalf("cached not-evaluated verdict was erased by merge: success=%v status=%q", merged.Success, merged.Summary.Status)
+	}
+}
+
+func TestMergeCapabilityResultsObservedAssessmentFailureOutranksNotEvaluated(t *testing.T) {
+	assessment := testAssessment("SEVERITY_ERROR")
+	unevaluated := &Result{
+		RunResult:  shared.RunResult[Summary]{Success: false, Summary: Summary{Scenario: "demo", Status: "not_evaluated"}},
+		Assessment: assessment,
+	}
+	merged := MergeCapabilityResults(unevaluated, unevaluated)
+	if merged.Success || merged.Summary.Status != "failed" {
+		t.Fatalf("assessment error was hidden by not-evaluated status: success=%v status=%q error=%v", merged.Success, merged.Summary.Status, merged.Error)
+	}
+}
+
+func TestMergeCapabilityResultsPreservesNotEvaluatedWithoutAssessment(t *testing.T) {
+	cached := &Result{RunResult: shared.RunResult[Summary]{Success: false, Summary: Summary{Scenario: "demo", Status: "not_evaluated"}}}
+	fresh := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: "passed"}}}
+	merged := MergeCapabilityResults(cached, fresh)
+	if merged.Success || merged.Summary.Status != "not_evaluated" {
+		t.Fatalf("assessment-free merge erased not-evaluated: success=%v status=%q", merged.Success, merged.Summary.Status)
 	}
 }
 
@@ -745,6 +852,17 @@ func TestRunOptionalProviderUnavailableSkips(t *testing.T) {
 	}
 	if len(got.Findings) != 0 {
 		t.Fatalf("skip should emit no findings, got %+v", got.Findings)
+	}
+}
+
+func TestRunRequiredProviderUnavailableIsNotEvaluatedAndCannotPass(t *testing.T) {
+	prevResolve := ResolveBaseURL
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "", errors.New("not running") }
+	t.Cleanup(func() { ResolveBaseURL = prevResolve })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if got.Success || got.Summary.Status != "not_evaluated" {
+		t.Fatalf("required unreachable provider must be not-evaluated and fail closed: success=%v summary=%+v", got.Success, got.Summary)
 	}
 }
 

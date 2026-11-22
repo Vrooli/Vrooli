@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type fakeScenarioRepo struct {
@@ -15,6 +16,72 @@ type fakeScenarioRepo struct {
 	listErr       error
 	getSummary    *ScenarioSummary
 	getErr        error
+}
+
+func TestExperienceFreshnessIsServerDerivedAndFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	uiRoot := filepath.Join(root, "demo", "ui")
+	sourceDir := filepath.Join(uiRoot, "src")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(sourceDir, "App.tsx")
+	if err := os.WriteFile(page, []byte("export default function App() {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changeAt := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	for _, path := range []string{page, sourceDir, uiRoot} {
+		if err := os.Chtimes(path, changeAt, changeAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
+	verdictAt := changeAt.Add(time.Hour)
+	decorate := func(at *time.Time) ScenarioSummary {
+		t.Helper()
+		summary := ScenarioSummary{ScenarioName: "demo", LastExperienceAt: at}
+		svc.decorateScenario(&summary)
+		return summary
+	}
+
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceEvaluatedAfterLastUIChange {
+		t.Fatalf("current verdict freshness = %q, want %q", got, ExperienceEvaluatedAfterLastUIChange)
+	}
+	if got := decorate(&changeAt).ExperienceFreshness; got != ExperienceOlderThanLastUIChange {
+		t.Fatalf("timestamp tie must fail closed as stale, got %q", got)
+	}
+	if got := decorate(nil).ExperienceFreshness; got != ExperienceNeverRun {
+		t.Fatalf("missing verdict freshness = %q, want %q", got, ExperienceNeverRun)
+	}
+
+	// A deletion leaves no file timestamp, so the containing directory's
+	// timestamp must advance the UI change frontier.
+	removedAt := changeAt.Add(2 * time.Hour)
+	if err := os.Remove(page); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{sourceDir, uiRoot} {
+		if err := os.Chtimes(path, removedAt, removedAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stale := decorate(&verdictAt)
+	if stale.ExperienceFreshness != ExperienceOlderThanLastUIChange || stale.LastUIChangeAt == nil || !stale.LastUIChangeAt.Equal(removedAt) {
+		t.Fatalf("deleted UI source did not stale verdict: freshness=%q uiChange=%v", stale.ExperienceFreshness, stale.LastUIChangeAt)
+	}
+
+	if err := os.RemoveAll(uiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceUISurfaceUnavailable {
+		t.Fatalf("absent UI surface freshness = %q, want %q", got, ExperienceUISurfaceUnavailable)
+	}
+	if err := os.Symlink(filepath.Join(root, "missing-ui-target"), uiRoot); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceUIChangeTimeUnavailable {
+		t.Fatalf("uninspectable UI tree freshness = %q, want %q", got, ExperienceUIChangeTimeUnavailable)
+	}
 }
 
 func (f *fakeScenarioRepo) List(context.Context) ([]ScenarioSummary, error) {

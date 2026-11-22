@@ -28,6 +28,10 @@ type Environment struct {
 	// coverage/runs/<RunID>/. The orchestrator mints it once per run and
 	// threads it into every phase writer.
 	RunID string
+	// TestGenieDemandLeaseReceiptID is the opaque Test Genie owner-issued
+	// receipt for this run's live target demand lease. Provider phases may
+	// forward it to the target's owner API for run/target verification.
+	TestGenieDemandLeaseReceiptID string
 
 	// DiagnosticsPreset, when non-empty ("none"|"light"|"full"), records the
 	// requested provider-evidence depth for this run.

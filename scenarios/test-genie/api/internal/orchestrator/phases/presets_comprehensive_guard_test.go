@@ -36,7 +36,7 @@ func TestComprehensivePresetEqualsCatalog(t *testing.T) {
 }
 
 // TestComprehensivePresetIncludesPreviouslyDroppedPhases pins the specific
-// regression that motivated this guard: ui-health (mandatory) and architecture
+// regression that motivated this guard: experience (mandatory) and architecture
 // (advisory) were silently omitted from a hand-maintained comprehensive list.
 func TestComprehensivePresetIncludesPreviouslyDroppedPhases(t *testing.T) {
 	comprehensive := DefaultPresets()[PresetComprehensive.String()]
@@ -44,7 +44,7 @@ func TestComprehensivePresetIncludesPreviouslyDroppedPhases(t *testing.T) {
 	for _, p := range comprehensive {
 		have[p] = struct{}{}
 	}
-	for _, required := range []Name{Name("ui-health"), Name("architecture"), Name("quality")} {
+	for _, required := range []Name{Name("experience"), Name("experience-contract"), Name("architecture"), Name("quality")} {
 		if _, ok := have[required.String()]; !ok {
 			t.Errorf("comprehensive preset must include %q (regression: it was once silently dropped)", required)
 		}

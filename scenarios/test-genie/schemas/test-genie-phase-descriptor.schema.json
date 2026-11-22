@@ -40,7 +40,7 @@
     "$schema": { "const": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json" },
     "schemaVersion": { "const": "1.0.0" },
     "scenario": { "type": "string", "minLength": 1 },
-    "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "description": "The canonical phase key. Historical keys belong in aliases or supersedes and are not additional registered verdicts." },
     "displayName": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
     "source": { "enum": ["validation-provider"] },
@@ -81,6 +81,7 @@
       "uniqueItems": true
     },
     "supersedes": {
+      "description": "Retired phase keys replaced by this canonical provider; these keys are lineage only and are never registered as additional verdicts.",
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
       "uniqueItems": true

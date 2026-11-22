@@ -67,6 +67,9 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 
 	// Phase 1: Match evidence to validations
 	for _, module := range index.Modules {
+		if !types.AutoSyncEnabledFor(index.Modules, module) {
+			continue
+		}
 		for i := range module.Requirements {
 			req := &module.Requirements[i]
 			e.enrichRequirement(ctx, req, evidence)
@@ -75,6 +78,9 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 
 	// Phase 2: Aggregate validation status to requirement level
 	for _, module := range index.Modules {
+		if !types.AutoSyncEnabledFor(index.Modules, module) {
+			continue
+		}
 		for i := range module.Requirements {
 			req := &module.Requirements[i]
 			e.aggregator.AggregateRequirement(req)

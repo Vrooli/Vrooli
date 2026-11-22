@@ -102,7 +102,7 @@ func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 }
 
 func TestCheckIncludesCapabilitySummary(t *testing.T) {
-	resp := validProviderResponse("demo", "ui-health", "ui-health", "2.0.0", "L0")
+	resp := validProviderResponse("demo", "ui-health", "experience", "2.0.0", "L0")
 	resp.Assessment.Local.NextLevel = "L1"
 	resp.Assessment.Capabilities = []*commonv1.CapabilityMaturityAssessment{
 		{

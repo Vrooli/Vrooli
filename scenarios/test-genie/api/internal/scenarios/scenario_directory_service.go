@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	apistorage "github.com/vrooli/api-core/storage"
 
@@ -239,16 +240,87 @@ func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
 	if summary == nil || summary.ScenarioName == "" {
 		return
 	}
+	if summary.LastExperienceAt == nil {
+		summary.ExperienceFreshness = ExperienceNeverRun
+	}
 	if s == nil || s.scenariosRoot == "" || s.detectTesting == nil {
+		if summary.LastExperienceAt != nil {
+			summary.ExperienceFreshness = ExperienceUIChangeTimeUnavailable
+		}
 		return
 	}
 	dir := filepath.Join(s.scenariosRoot, summary.ScenarioName)
+	if _, err := os.Stat(dir); err != nil {
+		if summary.LastExperienceAt != nil {
+			summary.ExperienceFreshness = ExperienceUIChangeTimeUnavailable
+		}
+		return
+	}
+	changedAt, ok, err := latestUIChange(filepath.Join(dir, "ui"))
+	if err != nil {
+		if summary.LastExperienceAt != nil {
+			summary.ExperienceFreshness = ExperienceUIChangeTimeUnavailable
+		}
+	} else if ok {
+		summary.LastUIChangeAt = &changedAt
+		if summary.LastExperienceAt != nil {
+			if !summary.LastExperienceAt.After(changedAt) {
+				summary.ExperienceFreshness = ExperienceOlderThanLastUIChange
+			} else {
+				summary.ExperienceFreshness = ExperienceEvaluatedAfterLastUIChange
+			}
+		}
+	} else if summary.LastExperienceAt != nil {
+		summary.ExperienceFreshness = ExperienceUISurfaceUnavailable
+	}
 	caps := s.detectTesting(dir)
 	if !caps.HasTests {
 		summary.Testing = nil
 		return
 	}
 	summary.Testing = &caps
+}
+
+func latestUIChange(root string) (time.Time, bool, error) {
+	var latest time.Time
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return time.Time{}, false, nil
+		}
+		return time.Time{}, false, err
+	}
+	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
+		return time.Time{}, false, fmt.Errorf("UI source root is not a regular directory")
+	}
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path != root {
+			switch entry.Name() {
+			case "node_modules", "dist", "build", "coverage", ".git", ".vite":
+				if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+					return filepath.SkipDir
+				}
+			}
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("UI source tree contains symlink %q", path)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.ModTime().After(latest) {
+			latest = info.ModTime()
+		}
+		return nil
+	})
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return latest, !latest.IsZero(), nil
 }
 
 // RunScenarioTests executes the preferred testing command for the provided scenario.

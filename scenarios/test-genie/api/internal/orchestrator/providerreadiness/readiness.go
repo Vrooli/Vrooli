@@ -548,7 +548,7 @@ func describeProbe(ctx context.Context, baseURL string, in Input) (ProbeResult, 
 	resp, err := scenariovalidationconnect.NewScenarioValidationServiceClient(
 		&http.Client{Timeout: DescribeTimeout},
 		baseURL,
-	).DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
+	).DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{Phase: in.Phase}))
 	if err != nil {
 		// Unimplemented is propagated verbatim so DefaultProbe can distinguish
 		// "provider has not adopted this yet" from "provider is unhealthy".

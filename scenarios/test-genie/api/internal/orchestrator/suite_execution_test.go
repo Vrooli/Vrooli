@@ -606,7 +606,7 @@ func TestPrepareExecutionRebasesAdmissionIdentityBeforeExecution(t *testing.T) {
 				AdmissionConfigurationDigest: "stale-configuration",
 				AdmissionQueued:              tt.queued,
 			}
-			prepared, err := o.prepareExecution(request)
+			prepared, err := o.prepareExecution(context.Background(), request)
 			if err != nil {
 				t.Fatalf("prepareExecution: %v", err)
 			}
@@ -630,6 +630,54 @@ func TestPrepareExecutionRebasesAdmissionIdentityBeforeExecution(t *testing.T) {
 				t.Fatalf("rebased result warnings = %v, want queued rebase warning", prepared.result.Warnings)
 			}
 		})
+	}
+}
+
+type adaptivePlanResolverFunc func(context.Context, SuiteExecutionRequest) (AdaptivePlanResolution, error)
+
+func (fn adaptivePlanResolverFunc) ResolveAdaptivePlan(ctx context.Context, req SuiteExecutionRequest) (AdaptivePlanResolution, error) {
+	return fn(ctx, req)
+}
+
+func TestPrepareExecutionReplansAdaptivePresetAfterAdmissionDrift(t *testing.T) {
+	root := t.TempDir()
+	createScenarioLayout(t, root, "demo")
+	o, err := NewSuiteOrchestrator(root)
+	if err != nil {
+		t.Fatalf("NewSuiteOrchestrator: %v", err)
+	}
+	called := false
+	o.SetAdaptivePlanResolver(adaptivePlanResolverFunc(func(_ context.Context, req SuiteExecutionRequest) (AdaptivePlanResolution, error) {
+		called = true
+		if req.Preset != "quick" || len(req.ResolvedPhases) != 0 {
+			t.Fatalf("resolver received stale selection: preset=%q resolved=%v", req.Preset, req.ResolvedPhases)
+		}
+		return AdaptivePlanResolution{
+			ResolvedPhases:                      []string{"structure"},
+			PredictedPhaseDurationsMilliseconds: map[string]int64{"structure": 12000},
+		}, nil
+	}))
+
+	prepared, err := o.prepareExecution(context.Background(), SuiteExecutionRequest{
+		ScenarioName:                 "demo",
+		Preset:                       "quick",
+		ResolvedPhases:               []string{"unit"},
+		AdmissionTreeDigest:          "stale-tree",
+		AdmissionPhaseSetDigest:      "stale-phase-set",
+		AdmissionDescriptorDigest:    "stale-descriptor",
+		AdmissionConfigurationDigest: "stale-configuration",
+	})
+	if err != nil {
+		t.Fatalf("prepareExecution: %v", err)
+	}
+	if !called {
+		t.Fatal("adaptive planner was not called after admission drift")
+	}
+	if prepared.request.Preset != "quick" || len(prepared.request.ResolvedPhases) != 1 || prepared.request.ResolvedPhases[0] != "structure" {
+		t.Fatalf("rebased request = %+v, want quick with freshly resolved structure phase", prepared.request)
+	}
+	if got := prepared.request.PredictedPhaseDurationsMilliseconds["structure"]; got != 12000 {
+		t.Fatalf("rebased estimate = %d, want 12000ms", got)
 	}
 }
 

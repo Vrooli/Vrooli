@@ -99,7 +99,7 @@ func TestManifestCatalogsLocalSubcommandTreesAndArgumentShapes(t *testing.T) {
 	}
 }
 
-func TestResolveIdentityRequestFileIsLocalInput(t *testing.T) {
+func TestResolveIdentitySupportsInlineAndLocalFileInputs(t *testing.T) {
 	m, err := cliapp.ParseManifest(manifestBytes)
 	if err != nil {
 		t.Fatalf("parse manifest: %v", err)
@@ -112,15 +112,25 @@ func TestResolveIdentityRequestFileIsLocalInput(t *testing.T) {
 			if command.Name != "resolve-identity" {
 				continue
 			}
+			fileInput, targetsInput, contentInputsInput := false, false, false
 			for _, flag := range command.Flags {
 				if flag.Name == "request-file" {
-					if !flag.Required || !flag.LocalOnly || flag.Bind != nil {
-						t.Fatalf("request-file must be a required CLI-only input without a fake protobuf field binding: %+v", flag)
+					if !flag.LocalOnly || flag.Bind != nil {
+						t.Fatalf("request-file must remain a CLI-only input without a fake protobuf field binding: %+v", flag)
 					}
-					return
+					fileInput = true
+				}
+				if flag.Name == "targets" && flag.Bind != nil && flag.Bind.Field == "targets" && flag.Bind.Kind == "json_inline" {
+					targetsInput = true
+				}
+				if flag.Name == "content-inputs" && flag.Bind != nil && flag.Bind.Field == "content_inputs" && flag.Bind.Kind == "json_inline" {
+					contentInputsInput = true
 				}
 			}
-			t.Fatal("resolve-identity is missing request-file")
+			if !fileInput || !targetsInput || !contentInputsInput {
+				t.Fatalf("resolve-identity must accept request-file or both typed top-level JSON fields: file=%t targets=%t content-inputs=%t", fileInput, targetsInput, contentInputsInput)
+			}
+			return
 		}
 	}
 	t.Fatal("missing validation resolve-identity command")

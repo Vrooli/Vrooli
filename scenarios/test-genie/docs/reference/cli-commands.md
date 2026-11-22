@@ -63,6 +63,12 @@ for abort wait and reattachment behavior. The `runs` command also provides `stat
 `show`, `compare`, `cost`, and freshness/history operations; refer to `test-genie runs
 --help` for exact syntax.
 
+Use `test-genie runs experience-age --scenario <slug>` to inspect the latest
+stored `experience` verdict against the current UI source tree. It prints the
+stored result, evaluation time, run ID, and freshness state. Exit 0 means a
+current passed verdict; exit 1 means never-run, stale, or current failed; exit 2
+means the age or verdict cannot be compared safely.
+
 For a pending run, `runs status` is a nonblocking snapshot that prints one
 canonical `runs wait --json --timeout=…` command. Its JSON response adds
 `nextAction` with `kind=wait`, the exact command and timeout, and

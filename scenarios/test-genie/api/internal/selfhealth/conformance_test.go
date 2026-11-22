@@ -138,6 +138,10 @@ func writeSpecWithFindings(t *testing.T, repoRoot, provider, phase string, findi
 }
 
 func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[string]any {
+	findingSource := phase
+	if phase == "model-eval" {
+		findingSource = ""
+	}
 	return map[string]any{
 		"schemaVersion": "1.0.0",
 		"scenario":      provider,
@@ -147,7 +151,7 @@ func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[strin
 		"source":        "validation-provider",
 		"orderHint":     100,
 		"timeout":       "30s",
-		"findingSource": phase,
+		"findingSource": findingSource,
 		"validation": map[string]any{
 			"contract": "scenario-validation/v1",
 		},
@@ -236,6 +240,32 @@ func TestScanProviderFullAdoption(t *testing.T) {
 	}
 	if pr.Classification != ConformanceCompliant || len(pr.ReasonCodes) != 0 {
 		t.Fatalf("classification = %q reasons=%v, want compliant with no reasons", pr.Classification, pr.ReasonCodes)
+	}
+}
+
+func TestScanProviderUsesDescriptorForRequestedPhase(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "proto-health", "proto")
+	sibling := assessment.Spec{
+		Provider: "proto-health", Phase: "model-eval", Version: "2",
+		Levels: []assessment.Level{{ID: "L0", Name: "base"}, {ID: "L1", Name: "ready"}},
+		Fallback: assessment.FallbackPolicy{
+			LocalLevelImpact: "L0", GlobalImpact: assessment.ImpactUnknown,
+			Dimension: "measures", SeverityDefault: "WARNING",
+		},
+	}
+	raw, err := json.Marshal(testGenieDescriptor("proto-health", "model-eval", sibling))
+	if err != nil {
+		t.Fatalf("marshal sibling descriptor: %v", err)
+	}
+	path := filepath.Join(repo, "scenarios", "proto-health", ".vrooli", "test-genie-model-eval.json")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatalf("write sibling descriptor: %v", err)
+	}
+
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "model-eval", true), nil), repo, "test-genie", "model-eval", "proto-health", time.Second)
+	if !pr.SpecValid || !pr.IdentityOK || !pr.ContractValid {
+		t.Fatalf("multi-phase provider conformance = %+v, want requested descriptor identity accepted", pr)
 	}
 }
 

@@ -29,6 +29,31 @@ type stubPhaseSampleReader struct {
 	err         error
 }
 
+func TestResolveAdaptivePlanUsesPlannerSelectionAndFreshEstimates(t *testing.T) {
+	builder := &stubPlanBuilder{preview: &orchestrator.ExecutionPlanPreview{
+		ScenarioName: "demo",
+		PresetUsed:   "comprehensive",
+		Phases:       []orchestrator.PlannedPhase{{Name: "unit", TimeoutSeconds: 12}},
+	}}
+	svc := NewExecutionPlanService(builder, &stubPhaseSampleReader{})
+	resolved, err := svc.ResolveAdaptivePlan(context.Background(), orchestrator.SuiteExecutionRequest{
+		ScenarioName: "demo",
+		Preset:       "quick",
+	})
+	if err != nil {
+		t.Fatalf("ResolveAdaptivePlan: %v", err)
+	}
+	if len(builder.requests) != 1 || builder.requests[0].Preset != phases.PresetComprehensive.String() {
+		t.Fatalf("planner requests = %+v, want one comprehensive candidate preview", builder.requests)
+	}
+	if len(resolved.ResolvedPhases) != 1 || resolved.ResolvedPhases[0] != "unit" {
+		t.Fatalf("resolved phases = %v, want planner-selected unit", resolved.ResolvedPhases)
+	}
+	if got := resolved.PredictedPhaseDurationsMilliseconds["unit"]; got != 12000 {
+		t.Fatalf("unit duration = %dms, want 12000ms", got)
+	}
+}
+
 func TestMeasuredOrchestrationOverheadUsesMedianResidual(t *testing.T) {
 	now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	samples := []PlanDurationSample{

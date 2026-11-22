@@ -26,6 +26,9 @@ func (u *StatusUpdater) UpdateStatuses(ctx context.Context, index *parsing.Modul
 	var changes []Change
 
 	for _, module := range index.Modules {
+		if !types.AutoSyncEnabledFor(index.Modules, module) {
+			continue
+		}
 		select {
 		case <-ctx.Done():
 			return changes, ctx.Err()

@@ -191,6 +191,10 @@ func ObservationsToStrings(obs []Observation) []string {
 // RunReport captures per-phase execution context that a runner returns.
 type RunReport struct {
 	Err error
+	// NotEvaluated marks a provider result that could not establish a verdict.
+	// The diagnostic remains in Observations; it is not a phase defect.
+	NotEvaluated  bool
+	OutcomeStatus string
 	// Skipped means the provider did not perform the phase; it is not a pass.
 	Skipped               bool
 	Observations          []Observation

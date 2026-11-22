@@ -24,6 +24,7 @@ import (
 	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/shared"
 	"test-genie/internal/storage/sqlitedb"
+	"test-genie/internal/testsqlite"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -39,7 +40,8 @@ func TestServer_handleListScenarios(t *testing.T) {
 	scenarioSvc := &stubScenarioDirectory{
 		summaries: []scenarios.ScenarioSummary{
 			{
-				ScenarioName: "demo",
+				ScenarioName:        "demo",
+				ExperienceFreshness: scenarios.ExperienceOlderThanLastUIChange,
 				Testing: &scenarios.TestingCapabilities{
 					Phased:    true,
 					HasTests:  true,
@@ -79,6 +81,62 @@ func TestServer_handleListScenarios(t *testing.T) {
 	}
 	if payload.Items[0].Testing == nil || payload.Items[0].Testing.Preferred != "phased" {
 		t.Fatalf("expected testing capabilities in payload: %#v", payload.Items[0])
+	}
+	if payload.Items[0].ExperienceFreshness != scenarios.ExperienceOlderThanLastUIChange {
+		t.Fatalf("expected backend-derived experience freshness in payload, got %q", payload.Items[0].ExperienceFreshness)
+	}
+}
+
+func TestServerScenarioSummaryServesPersistedVerdictFreshness(t *testing.T) {
+	db := testsqlite.Open(t)
+	root := t.TempDir()
+	uiRoot := filepath.Join(root, "demo", "ui")
+	sourceDir := filepath.Join(uiRoot, "src")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(sourceDir, "App.tsx")
+	if err := os.WriteFile(page, []byte("export default function App() {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uiChange := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	verdictAt := uiChange.Add(time.Hour)
+	for _, path := range []string{page, sourceDir, uiRoot} {
+		if err := os.Chtimes(path, uiChange, uiChange); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO suite_executions (id, run_id, scenario_name, requested_phases, requested_skip_phases, planned_phases, fail_fast, success, started_at, completed_at) VALUES ('11111111-1111-1111-1111-111111111111', 'run-1', 'demo', '[]', '[]', '[]', 0, 1, ?, ?)`, verdictAt.Add(-time.Minute).Format(time.RFC3339), verdictAt.Format(time.RFC3339)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO suite_execution_phases (execution_id, ordinal, phase_name, status, completed_at, duration_seconds) VALUES ('11111111-1111-1111-1111-111111111111', 0, 'experience', 'passed', ?, 1)`, verdictAt.Format(time.RFC3339)); err != nil {
+		t.Fatal(err)
+	}
+	service := scenarios.NewScenarioDirectoryService(scenarios.NewScenarioDirectoryRepository(db), nil, root)
+	server := &Server{scenarios: service, logger: log.New(io.Discard, "", 0)}
+	read := func() scenarios.ScenarioSummary {
+		t.Helper()
+		req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/demo", nil), map[string]string{"name": "demo"})
+		rec := httptest.NewRecorder()
+		server.handleGetScenario(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GetScenario status = %d body=%s", rec.Code, rec.Body.String())
+		}
+		var summary scenarios.ScenarioSummary
+		if err := json.NewDecoder(rec.Body).Decode(&summary); err != nil {
+			t.Fatal(err)
+		}
+		return summary
+	}
+	if got := read(); got.ExperienceFreshness != scenarios.ExperienceEvaluatedAfterLastUIChange || got.LastExperienceStatus != "passed" || got.LastExperienceRunID != "run-1" {
+		t.Fatalf("API did not serve current persisted verdict age: %+v", got)
+	}
+	changedAt := verdictAt.Add(time.Minute)
+	if err := os.Chtimes(page, changedAt, changedAt); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got.ExperienceFreshness != scenarios.ExperienceOlderThanLastUIChange {
+		t.Fatalf("API did not stale the stored verdict after a UI edit: %+v", got)
 	}
 }
 

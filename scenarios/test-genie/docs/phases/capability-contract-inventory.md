@@ -7,15 +7,13 @@ removing a phase forces this file to be updated.
 
 ## Posture
 
-**Every catalog phase is provider-delegated.** The catalog is built entirely from
-provider `.vrooli/test-genie.json` descriptors (`loadDefaultCatalogFromDescriptors`),
-so there is **no Test-Genie-native phase** today: each phase is owned by a provider
-scenario that computes and returns a `MaturityAssessment`. The native-phase
-exemption mechanism described in the contract is therefore **reserved but unused** —
-if a future native phase is added that cannot fit a provider ladder, it is marked
-with an explicit, documented exemption rather than silently skipped. Until then,
-every phase carries a complete contract (North Star + gated ladder + structured
-remediation doc), enforced by the provider-conformance self-phase.
+Most catalog phases are provider-delegated and compute their own
+`MaturityAssessment`. `environment_conformance` is repository-scanned, and
+`fault-injection` is a Test Genie validation-provider phase with a dedicated owner
+handler. These exceptions remain in the catalog inventory and must keep their
+contracts and remediation links explicit. Every phase carries a complete contract
+(North Star + gated ladder + structured remediation doc), enforced by the
+provider-conformance self-phase.
 
 ## Inventory
 
@@ -33,15 +31,18 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `branding` | brand-manager | 6 | provider-delegated | `scenarios/test-genie/docs/phases/branding/README.md` |
 | `business` | business-health | 4 | provider-delegated | `scenarios/test-genie/docs/phases/business/README.md` |
 | `channel-conformance` | switchboard | 3 | provider-delegated | `scenarios/switchboard/docs/internal/PROBLEMS.md` |
+| `cloud-production-health` | landing-page-business-suite | 1 | provider-delegated | `scenarios/test-genie/docs/phases/cloud-production-health/README.md` |
+| `credential-leak-proof` | landing-page-business-suite | 1 | provider-delegated | `scenarios/landing-page-business-suite/docs/testing/credential-leak-proof.md` |
 | `component-tests` | react-component-library | 1 | provider-delegated | `scenarios/test-genie/docs/phases/component-tests/README.md` |
 | `contracts` | cli-health | 7 | provider-delegated (lighthouse) | `scenarios/test-genie/docs/phases/contracts/README.md` |
 | `code-facts` | code-facts | 1 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `dependencies` | scenario-dependency-analyzer | 6 | provider-delegated | `scenarios/test-genie/docs/phases/dependencies/README.md` |
 | `docs` | knowledge-observatory | 7 | provider-delegated | `scenarios/test-genie/docs/phases/docs/README.md` |
 | `event-capture-conformance` | vrooli-events | 1 | provider-delegated | `scenarios/test-genie/docs/phases/event-capture-conformance/README.md` |
-| `experience` | experience-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/experience/README.md` |
+| `fault-injection` | test-genie | 1 | test-genie-native (validation-provider) | `scenarios/data-backup-manager/docs/reference/support-matrix.md` |
 | `go-code-graph` | go-code-graph | 1 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `measures` | measures-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/measures/README.md` |
+| `model-eval` | ai-gateway | 1 | provider-delegated | `scenarios/ai-gateway/docs/operations/model-eval.md` |
 | `monetization-conformance` | landing-page-business-suite | 1 | provider-delegated | `scenarios/test-genie/docs/phases/monetization-conformance/README.md` |
 | `performance` | performance-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/performance/README.md` |
 | `programs` | program-runtime | 3 | provider-delegated | `scenarios/test-genie/docs/phases/programs/README.md` |
@@ -53,13 +54,16 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `security` | security-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/security/README.md` |
 | `skill-set` | prompt-manager | 3 | provider-delegated | `scenarios/test-genie/docs/phases/skill-set/README.md` |
 | `soak` | audio-tools | 1 | provider-delegated | `scenarios/audio-tools/docs/test-genie/soak/README.md` |
+| `stripe-test-outcomes` | landing-page-business-suite | 1 | provider-delegated | `scenarios/test-genie/docs/phases/stripe-test-outcomes/README.md` |
 | `storage` | storage-manager | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
 | `structure` | structure-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/structure/README.md` |
 | `typescript-code-graph` | typescript-code-graph | 1 | provider-delegated | `scenarios/test-genie/docs/phases/architecture/README.md` |
 | `environment_conformance` | envresolve-go | 4 | repository-scanned | `scenarios/test-genie/docs/phases/env-conformance/README.md` |
 | `tidiness` | tidiness-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/tidiness/README.md` |
 | `templates` | template-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/templates/README.md` |
-| `ui-health` | ui-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/ui-health/README.md` |
+| `experience` | ui-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/experience/README.md` |
+| `experience-contract` | experience-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/experience-contract/README.md` |
+| `consumer-contract` | react-component-library | 1 | provider-delegated | `scenarios/test-genie/docs/phases/consumer-contract/README.md` |
 | `unit` | unit-health | 6 | provider-delegated | `scenarios/test-genie/docs/phases/unit/README.md` |
 | `workflow` | workflow-health | 6 (phase-level) | provider-delegated | `scenarios/test-genie/docs/phases/workflow/README.md` |
 

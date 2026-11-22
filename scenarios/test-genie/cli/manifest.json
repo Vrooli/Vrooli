@@ -715,7 +715,11 @@
         {
           "name": "resolve-identity",
           "description": "Resolve the current source identity for declared content roots without admitting validation work",
-          "flags": [{"name":"request-file","required":true,"description":"CLI-only path to a typed ResolveSourceIdentityRequest protobuf-JSON document","local_only":true}],
+          "flags": [
+            {"name":"request-file","description":"CLI-only path to a typed ResolveSourceIdentityRequest protobuf-JSON document","local_only":true},
+            {"name":"targets","description":"Typed ValidationTarget JSON array","bind":{"field":"targets","kind":"json_inline"}},
+            {"name":"content-inputs","description":"Typed ContentInputRoot JSON array","bind":{"field":"content_inputs","kind":"json_inline"}}
+          ],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ResolveSourceIdentity"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
           "architecture": {"primitive":"operational"}
@@ -742,7 +746,10 @@
         {
           "name": "create",
           "description": "Create or attach to validation work from a protobuf-JSON intent file",
-          "flags": [{"name":"intent-file","required":true,"description":"Path to a ValidationIntent protobuf-JSON document","bind":{"field":"intent","kind":"json_file"},"bind_waiver":"The validation CLI reads the file and decodes its protobuf JSON into ValidationIntent."}],
+          "flags": [
+            {"name":"intent-file","description":"Path to a ValidationIntent protobuf-JSON document","bind":{"field":"intent","kind":"json_file"},"bind_waiver":"The validation CLI reads the file and decodes its protobuf JSON into ValidationIntent."},
+            {"name":"intent-json","description":"Typed ValidationIntent protobuf JSON","bind":{"field":"intent","kind":"json_inline"}}
+          ],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"CreateValidation"},
           "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
           "architecture": {"primitive":"proto_mutation"}
@@ -817,6 +824,31 @@
           "description": "List bounded migration shadow comparisons",
           "flags": [{"name":"page-size","default":"100","description":"Maximum comparisons (1-500)"}],
           "binding": {"kind":"connect-rpc","service":"ValidationService","method":"ListValidationShadows"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        }
+      ]
+    },
+    {
+      "name": "frozen-replay",
+      "description": "Create and inspect immutable F9 bounty replay receipts",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Verify owner-produced preimage, candidate, and reference outcomes and persist the adjudication",
+          "flags": [
+            {"name":"idempotency-key","required":true,"description":"Stable key for this exact replay adjudication","bind":{"field":"idempotency_key"}},
+            {"name":"adjudication","required":true,"description":"Proto-JSON FrozenReplayAdjudication object; use @file.json for a file","bind":{"field":"adjudication","kind":"json_inline"},"bind_waiver":"The CLI decodes this inline or @file value into the generated FrozenReplayAdjudication protobuf. Program Runtime supplies the nested object directly."}
+          ],
+          "binding": {"kind":"connect-rpc","service":"FrozenReplayService","method":"CreateFrozenReplayReceipt"},
+          "governance": {"effect":"write","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_mutation"}
+        },
+        {
+          "name": "get",
+          "description": "Read and verify one immutable F9 bounty replay receipt",
+          "positionals": [{"name":"receipt_id","required":true,"description":"Receipt digest suffix","bind":{"field":"receipt_id"}}],
+          "binding": {"kind":"connect-rpc","service":"FrozenReplayService","method":"GetFrozenReplayReceipt"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
           "architecture": {"primitive":"proto_list"}
         }

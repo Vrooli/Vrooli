@@ -51,11 +51,11 @@ Each finding caps the capability it names at the rung shown; only ERROR/BLOCKER 
 
 - **Graph-extraction findings** (`graph.extract_failed`) → repair the extraction failure (unparseable source, tool crash) so a graph snapshot can be produced; debug with `prompt-manager skill read scientific-debugging`.
 - **Domain-authority findings** (`domain_authority/missing`, `domain_authority/low`, `domains_doc_parse_warning`) → add or curate a domain authority source such as `docs/concepts/DOMAINS.md` and fix its parse warnings so findings route to intentional owners.
-- **Boundary-integrity findings** (`cycle`, `cycle/cross-domain`, `layering`, `cross_scenario`, `coupling_smell`, `mislocated_file`, `naming`, `glossary_drift`) → break import cycles, respect layering, replace cross-scenario private imports with the owner's API contract, and relocate/rename mislocated or misnamed files; load `prompt-manager skill read boundary-of-responsibility-enforcement`.
+- **Boundary-integrity findings** (`cycle`, `cycle/cross-domain`, `layering`, `cross_scenario`, `coupling_smell`, `mislocated_file`, `naming`, `glossary_drift`) → break import cycles, respect layering, replace cross-scenario private imports with the owner's API contract, and relocate/rename mislocated or misnamed files; load `prompt-manager skill read architecture-lenses`.
 - **Surface-coherence findings** (`convergence_drift`, `surface_coherence`) → reconcile missing, stale, or undeclared API/CLI/UI/implementation surfaces so declared and observed surfaces agree with domain authority.
 - **Intent-alignment findings** (`intent.req_unowned_domain`, `intent.domain_unrequired`, `intent.ot_no_domain`, `intent.req_transport_owned`, `intent.vocab_drift`) → reconcile requirement and PRD claims, operational targets, and domain vocabulary with the owned domain map; load `prompt-manager skill read requirements-traceability-steer`.
 
-The `screaming-architecture-audit` skill is the umbrella remediation guide for this phase.
+The `architecture-lenses` skill is the umbrella remediation guide for this phase.
 
 ## How to verify
 

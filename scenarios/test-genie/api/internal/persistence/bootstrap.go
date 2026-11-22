@@ -8,6 +8,7 @@ import (
 
 	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
+	"test-genie/internal/frozenreplay"
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/remediation"
 	"test-genie/internal/selfhealthsnapshots"
@@ -22,6 +23,7 @@ func ApplySchema(db dbexec.Executor, includeSeed bool) error {
 		ddl  string
 	}{
 		{"execution", execution.Schema()},
+		{"frozenreplay", frozenreplay.Schema()},
 		{"playbooksclaims", playbooksclaims.Schema()},
 		{"remediation", remediation.Schema()},
 		{"selfhealthsnapshots", selfhealthsnapshots.Schema()},

@@ -16,6 +16,7 @@ import { useScenarioHistory } from "../../hooks/useExecutions";
 import { useUIStore } from "../../stores/uiStore";
 import { formatRelative } from "../../lib/formatters";
 import type { SuiteExecutionResult } from "../../lib/api";
+import { experienceFreshness, experienceVerdictTone, formatExperienceStatus } from "./experienceFreshness";
 
 interface ScenarioDetailProps {
   scenarioName: string;
@@ -117,6 +118,26 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.04] p-5" data-testid="experience-verdict-freshness">
+        <p className="text-xs uppercase tracking-[0.2em] text-violet-200">Experience verdict</p>
+        {!scenario?.lastExperienceAt || scenario.experienceFreshness === "never_run" ? (
+          <p className="mt-2 text-lg font-semibold text-amber-200">Never run</p>
+        ) : (
+          <>
+            <p className={`mt-2 text-lg font-semibold ${experienceVerdictTone(scenario.experienceFreshness, scenario.lastExperienceStatus) === "success" ? "text-emerald-200" : experienceVerdictTone(scenario.experienceFreshness, scenario.lastExperienceStatus) === "failure" ? "text-red-200" : "text-amber-200"}`} role="status">
+              {experienceFreshness(scenario.experienceFreshness)}
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              Stored result: {formatExperienceStatus(scenario.lastExperienceStatus)} · evaluated {formatRelative(scenario.lastExperienceAt)}
+              {scenario.lastExperienceRunId ? ` · run ${scenario.lastExperienceRunId}` : ""}
+            </p>
+          </>
+        )}
+        {scenario?.lastUIChangeAt && (
+          <p className="mt-1 text-xs text-slate-400">Latest UI source change {formatRelative(scenario.lastUIChangeAt)}</p>
+        )}
       </section>
 
       {/* Tab Navigation */}

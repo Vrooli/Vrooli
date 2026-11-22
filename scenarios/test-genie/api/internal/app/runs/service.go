@@ -24,6 +24,7 @@ import (
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/providerdescriptor"
+	"test-genie/internal/orchestrator/targetruntime"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -72,6 +73,15 @@ type Service struct {
 	// the ledger can surface never-tested-in-window coverage gaps.
 	fleetSource fleetLedgerSource
 	fleetRoster func(ctx context.Context) ([]string, error)
+}
+
+// VerifyDemandLeaseReceipt delegates receipt lookup to the Test Genie target
+// runtime owner. Request data never supplies a run or control-plane lease ID.
+func (s *Service) VerifyDemandLeaseReceipt(receiptID, target string) (targetruntime.DemandLeaseReceipt, error) {
+	if strings.TrimSpace(target) != "audio-tools" {
+		return targetruntime.DemandLeaseReceipt{}, errors.New("unsupported demand lease receipt target")
+	}
+	return targetruntime.VerifyIssuedDemandLeaseReceipt(receiptID, target)
 }
 
 const maxPhaseArtifactResponseBytes = 256 * 1024

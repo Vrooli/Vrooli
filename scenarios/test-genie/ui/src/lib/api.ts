@@ -1,4 +1,27 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import {
+  getSelfHealth as getSelfHealthConnect,
+  listRunArtifacts,
+  type ArtifactRef,
+  type CatalogSummary,
+  type ListRunArtifactsResponse,
+  type PhaseReliability,
+  type ProviderConformance,
+  type ReliabilityLedger,
+  type SelfHealth,
+  type SelfHealthTrendPoint,
+  type TrendDelta,
+} from "../api/runs";
+
+export type {
+  CatalogSummary,
+  PhaseReliability,
+  ProviderConformance,
+  ReliabilityLedger,
+  SelfHealth,
+  SelfHealthTrendPoint,
+  TrendDelta,
+};
 
 // All scenario APIs hang off /api/v1.
 export const API_BASE = resolveApiBase({ appendSuffix: true });
@@ -54,6 +77,14 @@ export interface PhaseExecutionResult {
   observations?: Array<{ type?: string; message?: string }>;
 }
 
+export interface PhaseFindingEvidence {
+  kind?: string;
+  summary?: string;
+  locator?: string;
+  /** Protobuf bytes are JSON encoded as base64. Producers may put safe metadata here. */
+  payload?: string;
+}
+
 export interface Finding {
   stableId: string;
   code: string;
@@ -67,6 +98,7 @@ export interface Finding {
   effort?: string;
   phase: string;
   gating: boolean;
+  evidence?: PhaseFindingEvidence[];
   occurrences?: Array<{ phase: string; locations?: string[] }>;
 }
 
@@ -222,6 +254,12 @@ export interface ScenarioSummary {
   lastExecutionPhases?: PhaseExecutionResult[];
   lastExecutionPhaseSummary?: PhaseSummary;
   lastFailureAt?: string;
+  lastExperienceStatus?: string;
+  lastExperienceAt?: string;
+  lastExperienceRunId?: string;
+  lastUIChangeAt?: string;
+  /** Server-owned freshness classification for the stored experience verdict. */
+  experienceFreshness?: "never_run" | "older_than_last_ui_change" | "evaluated_after_last_ui_change" | "ui_surface_unavailable" | "ui_change_time_unavailable";
 }
 
 export interface ValidationTarget {
@@ -249,168 +287,13 @@ export async function fetchHealth(): Promise<ApiHealthResponse> {
   return parseResponse<ApiHealthResponse>(res);
 }
 
-// --- Self-health (RunsService.GetSelfHealth) -------------------------------
-// GetSelfHealth is a Connect-RPC mounted at the service root (not under
-// /api/v1), so it is addressed by its fully-qualified procedure path. Connect's
-// unary JSON protocol is a plain POST: the request message is the JSON body and
-// the response message is the JSON body on 200 (camelCase proto-JSON). Fields
-// are omit-on-default server-side, so every field here is optional.
-const SELF_HEALTH_PROCEDURE = "/vrooli.test_genie.v1.runs.RunsService/GetSelfHealth";
-const LIST_RUN_ARTIFACTS_PROCEDURE = "/vrooli.test_genie.v1.runs.RunsService/ListRunArtifacts";
-
-export interface RunArtifactRef {
-  id: string;
-  kind: string;
-  mediaType?: string;
-  label?: string;
-  producingPhase?: string;
-  sizeBytes?: string | number;
-  createdAt?: string;
-  accessCapability?: string;
-  accessPath?: string;
-  metadata?: Record<string, string>;
-  relationships?: Array<{ type?: string; targetArtifactId?: string }>;
-  provenance?: string;
-}
-
-export interface RunArtifactCatalog {
-  schemaVersion?: number;
-  digest?: string;
-  artifacts: RunArtifactRef[];
-  legacyDiscovered?: boolean;
-  degradedReasons?: string[];
-}
-
-export interface CatalogPhase {
-  name?: string;
-  optional?: boolean;
-  source?: string;
-  delegated?: boolean;
-  provider?: string;
-  findingSource?: string;
-}
-
-export interface CatalogSummary {
-  totalPhases?: number;
-  delegatedPhases?: number;
-  nativePhases?: number;
-  phases?: CatalogPhase[];
-}
-
-export interface ProviderConformance {
-  provider?: string;
-  phase?: string;
-  reachable?: boolean;
-  contractValid?: boolean;
-  identityOk?: boolean;
-  specValid?: boolean;
-  metricsAdopted?: boolean;
-  adoptionScore?: number;
-  violations?: string[];
-}
-
-export interface LabeledCount {
-  label?: string;
-  count?: number;
-}
-
-export interface DurationStats {
-  samples?: number;
-  p50?: number;
-  p95?: number;
-  min?: number;
-  max?: number;
-  avg?: number;
-}
-
-export interface ScenarioFailureRate {
-  scenario?: string;
-  executed?: number;
-  failures?: number;
-  failureRate?: number;
-}
-
-export interface RunOutcomeCount {
-  outcome?: string;
-  count?: number;
-}
-
-export interface PhaseReliability {
-  phase?: string;
-  provider?: string;
-  findingSource?: string;
-  totalObservations?: number;
-  passed?: number;
-  failed?: number;
-  skipped?: number;
-  degraded?: number;
-  availability?: number;
-  failureRate?: number;
-  metricsAdopted?: number;
-  skipReasons?: LabeledCount[];
-  classifications?: LabeledCount[];
-  duration?: DurationStats;
-  worstScenarios?: ScenarioFailureRate[];
-}
-
-export interface ProviderReliability {
-  provider?: string;
-  phases?: string[];
-  totalObservations?: number;
-  passed?: number;
-  failed?: number;
-  skipped?: number;
-  availability?: number;
-  failureRate?: number;
-  metricsAdopted?: number;
-  duration?: DurationStats;
-}
-
-export interface TrendDelta {
-  previousCapturedAt?: string;
-  previousAvailability?: number;
-  previousRunCount?: number;
-  availabilityDelta?: number;
-  runCountDelta?: number;
-}
-
-export interface ReliabilityLedger {
-  windowDays?: number;
-  runCount?: number;
-  availability?: number;
-  runOutcomes?: RunOutcomeCount[];
-  phases?: PhaseReliability[];
-  providers?: ProviderReliability[];
-  capturedAt?: string;
-  trend?: TrendDelta;
-}
-
-export interface SelfHealthTrendPoint {
-  capturedAt?: string;
-  availability?: number;
-  runCount?: number;
-  hardViolations?: number;
-  metricsAdopted?: number;
-}
-
-export interface SelfHealth {
-  catalog?: CatalogSummary;
-  conformance?: ProviderConformance[];
-  conformanceFreshness?: string;
-  ledger?: ReliabilityLedger;
-  trendSeries?: SelfHealthTrendPoint[];
-}
+export type RunArtifactRef = ArtifactRef;
+export type RunArtifactCatalog = ListRunArtifactsResponse;
 
 export interface GetSelfHealthOptions {
   windowDays?: number;
   skipConformance?: boolean;
   includeTrend?: boolean;
-}
-
-function connectBaseUrl(): string {
-  // API_BASE ends with /api/v1; the Connect handler is mounted at the origin
-  // root, so strip the REST suffix to reach the procedure path.
-  return API_BASE.replace(/\/api\/v1\/?$/, "");
 }
 
 // Construct the owner transfer route from opaque catalog identifiers. The
@@ -419,69 +302,14 @@ export function buildOpaqueArtifactUrl(scenario: string, runId: string, artifact
   return `${API_BASE}/scenarios/${encodeURIComponent(scenario)}/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`;
 }
 
-// Lists typed catalog entries. Artifact bytes are only opened through each
-// server-provided opaque access path; no UI code derives storage locations.
+// RunsService returns generated artifact descriptors. Artifact bytes remain on
+// the owning opaque transfer route; the UI never derives storage locations.
 export async function fetchRunArtifacts(scenario: string, runId: string): Promise<RunArtifactCatalog> {
-  const url = `${connectBaseUrl()}${LIST_RUN_ARTIFACTS_PROCEDURE}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    body: JSON.stringify({ scenario, runId })
-  });
-  let payload: unknown;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
-  if (!res.ok) {
-    const message = isRecord(payload) && typeof payload.message === "string"
-      ? payload.message
-      : `Artifact catalog request failed with status ${res.status}`;
-    throw new Error(message);
-  }
-  if (!isRecord(payload)) return { artifacts: [] };
-  return {
-    schemaVersion: typeof payload.schemaVersion === "number" ? payload.schemaVersion : undefined,
-    digest: typeof payload.digest === "string" ? payload.digest : undefined,
-    artifacts: Array.isArray(payload.artifacts) ? payload.artifacts as RunArtifactRef[] : [],
-    legacyDiscovered: payload.legacyDiscovered === true,
-    degradedReasons: Array.isArray(payload.degradedReasons) ? payload.degradedReasons.filter((reason): reason is string => typeof reason === "string") : []
-  };
+  return listRunArtifacts(scenario, runId);
 }
 
 export async function getSelfHealth(options: GetSelfHealthOptions = {}): Promise<SelfHealth> {
-  const url = `${connectBaseUrl()}${SELF_HEALTH_PROCEDURE}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    body: JSON.stringify({
-      windowDays: options.windowDays ?? 0,
-      skipConformance: options.skipConformance ?? false,
-      includeTrend: options.includeTrend ?? false
-    })
-  });
-
-  let payload: unknown;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
-  if (!res.ok) {
-    // Connect errors carry { code, message }.
-    const message =
-      isRecord(payload) && typeof payload.message === "string"
-        ? payload.message
-        : `Self-health request failed with status ${res.status}`;
-    throw new Error(message);
-  }
-  if (isRecord(payload) && isRecord(payload.selfHealth)) {
-    return payload.selfHealth as SelfHealth;
-  }
-  return {};
+  return getSelfHealthConnect(options);
 }
 
 export async function fetchExecutionHistory(params?: {

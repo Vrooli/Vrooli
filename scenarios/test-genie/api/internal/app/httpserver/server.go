@@ -16,11 +16,13 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 
 	"test-genie/agentmanager"
+	frozenreplayhandler "test-genie/handlers/frozenreplay"
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
 	appvalidation "test-genie/internal/app/validation"
 	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
+	"test-genie/internal/frozenreplay"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/playbooksclaims"
@@ -36,6 +38,7 @@ import (
 
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
+	frozenreplayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/frozen_replay/frozen_replay_v1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 	seedsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/seeds/seeds_v1connect"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation/validation_v1connect"
@@ -72,6 +75,7 @@ type Dependencies struct {
 	RunsService         *apprun.Service
 	ValidationService   *appvalidation.Service
 	ReceiptService      *validationbroker.Service
+	FrozenReplayService *frozenreplay.Service
 	// StartBackground receives a process-owned context after the HTTP listener
 	// is live. It is for advisory work only; serving must not depend on it.
 	StartBackground func(context.Context)
@@ -141,6 +145,7 @@ type Server struct {
 	runsService            *apprun.Service
 	validationService      *appvalidation.Service
 	receiptService         *validationbroker.Service
+	frozenReplayService    *frozenreplay.Service
 	startBackground        func(context.Context)
 	sweepStatus            *selfhealthsnapshots.StatusStore
 	repoRoot               string
@@ -207,6 +212,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		runsService:            deps.RunsService,
 		validationService:      deps.ValidationService,
 		receiptService:         deps.ReceiptService,
+		frozenReplayService:    deps.FrozenReplayService,
 		startBackground:        deps.StartBackground,
 		sweepStatus:            deps.SweepStatus,
 		repoRoot:               deps.RepoRoot,
@@ -287,6 +293,11 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}", s.handleGetPlaybooksClaim).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}/release", s.handleReleasePlaybooksClaim).Methods("POST")
+	if s.frozenReplayService != nil {
+		path, handler := frozenreplayconnect.NewFrozenReplayServiceHandler(frozenreplayhandler.New(s.frozenReplayService))
+		s.router.PathPrefix(path).Handler(handler)
+		apiRouter.PathPrefix("/f9/replays").Handler(http.StripPrefix("/api/v1/f9/replays", s.frozenReplayService.Handler()))
+	}
 
 	// Eligibility Connect-RPC service. The handler resolves a per-scenario
 	// auditor scan and reports whether the scenario qualifies for the
@@ -312,6 +323,7 @@ func (s *Server) setupRoutes() {
 	if s.runsService != nil {
 		path, handler := runs_v1connect.NewRunsServiceHandler(s.runsService)
 		s.router.PathPrefix(path).Handler(handler)
+		apiRouter.HandleFunc("/runs/demand-lease-receipts/verify", s.handleVerifyDemandLeaseReceipt).Methods("POST")
 
 		// Opaque binary artifact route: metadata is enumerated through the typed
 		// RunsService catalog while bytes use REST so media range requests work

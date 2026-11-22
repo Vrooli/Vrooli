@@ -1,11 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // INTEROP-CRITICAL: base must stay relative so proxied, tunneled, and iframe
 // embedded deployments resolve assets correctly outside a domain root.
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   test: {
     globals: true,
     environment: 'jsdom',

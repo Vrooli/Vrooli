@@ -639,11 +639,41 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 	if len(intent.GetContentInputs()) == 0 {
 		return nil, fmt.Errorf("%w: at least one content input root is required", ErrInvalidIntent)
 	}
+	frozenReplay := intent.GetFrozenReplayExecution()
+	if frozenReplay != nil {
+		if frozenReplay.GetCaseId() == "" || frozenReplay.GetSealDigest() == "" || frozenReplay.GetEvaluatorBundleId() == "" || frozenReplay.GetEvaluatorDigest() == "" || frozenReplay.GetEvaluatorEntryPoint() == "" {
+			return nil, fmt.Errorf("%w: frozen replay execution identity is incomplete", ErrInvalidIntent)
+		}
+		if len(intent.GetTargets()) != 1 || intent.GetTargets()[0].GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT || intent.GetTargets()[0].GetId() != frozenReplay.GetCaseId() || len(intent.GetPhases()) != 0 || intent.GetPinnedEvidenceProducer() != nil {
+			return nil, fmt.Errorf("%w: frozen replay requires exactly one matching project target and no generic phase or producer", ErrInvalidIntent)
+		}
+		if intent.GetPurpose() == validationv1.ValidationPurpose_VALIDATION_PURPOSE_EVIDENCE_PRODUCTION {
+			return nil, fmt.Errorf("%w: frozen replay cannot use generic evidence production", ErrInvalidIntent)
+		}
+	}
 	primaryRoots := 0
+	sealRoots, evaluatorRoots := 0, 0
 	seenInputRoots := map[string]struct{}{}
 	for _, root := range intent.GetContentInputs() {
-		if root == nil || strings.TrimSpace(root.GetName()) == "" || strings.TrimSpace(root.GetRoot()) == "" || len(root.GetSelections()) == 0 {
-			return nil, fmt.Errorf("%w: every content input requires name, root, and selections", ErrInvalidIntent)
+		if root == nil || strings.TrimSpace(root.GetName()) == "" {
+			return nil, fmt.Errorf("%w: every content input requires a name", ErrInvalidIntent)
+		}
+		if seal := root.GetWorkspaceSandboxSeal(); seal != nil {
+			sealRoots++
+			if frozenReplay == nil || root.GetDependency() || root.GetRoot() != "" || seal.GetCaseId() != frozenReplay.GetCaseId() || seal.GetRole() != frozenReplay.GetRole() || seal.GetSealDigest() != frozenReplay.GetSealDigest() || root.GetName() != frozenReplayRootName(frozenReplay.GetRole()) {
+				return nil, fmt.Errorf("%w: workspace seal must match the frozen replay execution as its candidate root", ErrInvalidIntent)
+			}
+			if err := validateWorkspaceSandboxSealReference(seal); err != nil {
+				return nil, fmt.Errorf("%w: %v", ErrInvalidIntent, err)
+			}
+		} else if root.GetFrozenEvaluatorBundle() != nil {
+			evaluatorRoots++
+			bundle := root.GetFrozenEvaluatorBundle()
+			if frozenReplay == nil || !root.GetDependency() || root.GetRoot() != "" || len(root.GetSelections()) != 0 || root.GetName() != "frozen-evaluator" || bundle.GetEvaluatorBundleId() != frozenReplay.GetEvaluatorBundleId() || bundle.GetEvaluatorDigest() != frozenReplay.GetEvaluatorDigest() || bundle.GetEntryPoint() != frozenReplay.GetEvaluatorEntryPoint() {
+				return nil, fmt.Errorf("%w: frozen evaluator bundle must match the frozen replay execution", ErrInvalidIntent)
+			}
+		} else if strings.TrimSpace(root.GetRoot()) == "" || len(root.GetSelections()) == 0 {
+			return nil, fmt.Errorf("%w: repository content input requires root and selections", ErrInvalidIntent)
 		}
 		if _, exists := seenInputRoots[root.GetName()]; exists {
 			return nil, fmt.Errorf("%w: duplicate content input root %q", ErrInvalidIntent, root.GetName())
@@ -657,6 +687,12 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 				return nil, fmt.Errorf("%w: content input selections require a non-negated glob", ErrInvalidIntent)
 			}
 		}
+	}
+	if frozenReplay != nil && (sealRoots != 1 || evaluatorRoots != 1 || intent.GetExpectedIdentity().GetIdentity() != "sha256:"+strings.ToLower(frozenReplay.GetSealDigest())) {
+		return nil, fmt.Errorf("%w: frozen replay requires one pinned candidate seal and evaluator identity", ErrInvalidIntent)
+	}
+	if frozenReplay == nil && (sealRoots > 0 || evaluatorRoots > 0) {
+		return nil, fmt.Errorf("%w: owner-sealed inputs require frozen_replay_execution", ErrInvalidIntent)
 	}
 	if primaryRoots != 1 {
 		return nil, fmt.Errorf("%w: exactly one content input must be primary", ErrInvalidIntent)
@@ -688,6 +724,19 @@ func normalizeIntent(input *validationv1.ValidationIntent) (*validationv1.Valida
 		return intent.ContentInputs[i].GetName() < intent.ContentInputs[j].GetName()
 	})
 	return intent, nil
+}
+
+func frozenReplayRootName(role validationv1.WorkspaceSandboxSealRole) string {
+	switch role {
+	case validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_SOURCE:
+		return "source"
+	case validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE:
+		return "candidate"
+	case validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_REFERENCE:
+		return "reference"
+	default:
+		return ""
+	}
 }
 
 func normalizeRetainedEvidence(intent *validationv1.ValidationIntent) error {

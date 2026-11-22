@@ -46,7 +46,7 @@ test-genie execute my-scenario --preset architecture-audit
 |-------|-------------|---------|
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
-| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 15m |
+| Experience | Owns the single served-UI experience verdict: static UI contracts plus runtime evaluation and evidence. | 15m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
 | Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
 | Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 90s |
@@ -66,9 +66,9 @@ test-genie execute my-scenario --preset comprehensive
 | Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 2m |
 | Code Facts | Validates target-aware code evidence and fact provenance. | 2m |
+| Experience | Owns the single served-UI experience verdict: static UI contracts plus runtime evaluation and evidence. | 15m |
 | Go Code Graph | Validates live Go graph extraction for declared targets. | 2m |
 | TypeScript Code Graph | Validates live TypeScript graph extraction for declared targets. | 2m |
-| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 15m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
 | Architecture | Validates structural cohesion through architecture-cartographer. | 3m |
 | Dependencies | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. | 15m |
@@ -81,7 +81,7 @@ test-genie execute my-scenario --preset comprehensive
 | Workflow | Validates BAS workflow assets and safe execution through workflow-health. | 15m |
 | Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
 | Channel Conformance | Runs the shared seven-case adapter contract for every registered Switchboard channel. | 2m |
-| Experience | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. | 10m |
+| Experience Contract | Validates authored scenario-experience-spec/v1 contracts and their maturity; served-UI verdicts belong to the experience phase. | 10m |
 | Tidiness | Validates file and function quality checks through tidiness-manager. | 2m |
 | Security | Validates scenarios and the control plane for secrets, Go SAST, Go vulnerability data, and JavaScript dependency risk through one path-first Security Health scanner pipeline. | 10m |
 | Measures | Validates measures coverage and per-measure tiering through measures-health. | 3m |
@@ -94,9 +94,12 @@ test-genie execute my-scenario --preset comprehensive
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
 | Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 20m |
+| React Consumer Contracts | Runs the usage-contract fleet lint and downward-only per-contract ratchet across every React UI in the repository. | 10m |
 | Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
 | Event Capture Conformance | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. | 45s |
+| DBM Recovery Fault Injection | Runs Data Backup Manager's safe-remount and risky-decision recovery paths through owner simulators, then checks readiness, backup, scratch-restore, and receipt-only platform qualification. | 4m |
+| Local Model Evaluation | Censuses observed runtime models and checks independently reviewed retrieval, policy-role, gateway-task-role and real consumer evidence, then remains blocked until separate LM2 inference admission allows execution. | 90s |
 
 ## Preset Comparison
 
@@ -106,9 +109,9 @@ test-genie execute my-scenario --preset comprehensive
 | Structure | Adaptive | Adaptive | Yes | Yes |
 | Contracts | Adaptive | Adaptive | Yes | Yes |
 | Code Facts | Adaptive | Adaptive | No | Yes |
+| Experience | Adaptive | Adaptive | Yes | Yes |
 | Go Code Graph | Adaptive | Adaptive | No | Yes |
 | TypeScript Code Graph | Adaptive | Adaptive | No | Yes |
-| UI Health | Adaptive | Adaptive | Yes | Yes |
 | API Health | Adaptive | Adaptive | Yes | Yes |
 | Architecture | Adaptive | Adaptive | Yes | Yes |
 | Dependencies | Adaptive | Adaptive | No | Yes |
@@ -121,7 +124,7 @@ test-genie execute my-scenario --preset comprehensive
 | Workflow | Adaptive | Adaptive | No | Yes |
 | Business | Adaptive | Adaptive | No | Yes |
 | Channel Conformance | Adaptive | Adaptive | No | Yes |
-| Experience | Adaptive | Adaptive | No | Yes |
+| Experience Contract | Adaptive | Adaptive | No | Yes |
 | Tidiness | Adaptive | Adaptive | No | Yes |
 | Security | Adaptive | Adaptive | No | Yes |
 | Measures | Adaptive | Adaptive | No | Yes |
@@ -134,9 +137,12 @@ test-genie execute my-scenario --preset comprehensive
 | Search | Adaptive | Adaptive | No | Yes |
 | Provider Conformance | Adaptive | Adaptive | No | Yes |
 | Component Tests | Adaptive | Adaptive | No | Yes |
+| React Consumer Contracts | Adaptive | Adaptive | No | Yes |
 | Agent Conformance | Adaptive | Adaptive | No | Yes |
 | Templates | Adaptive | Adaptive | No | Yes |
 | Event Capture Conformance | Adaptive | Adaptive | No | Yes |
+| DBM Recovery Fault Injection | Adaptive | Adaptive | No | Yes |
+| Local Model Evaluation | Adaptive | Adaptive | No | Yes |
 
 ## Custom Presets
 

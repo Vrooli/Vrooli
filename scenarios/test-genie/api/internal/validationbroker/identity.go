@@ -2,12 +2,18 @@ package validationbroker
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator/phases"
@@ -21,6 +27,38 @@ import (
 
 type IdentityResolver interface {
 	Resolve(context.Context, *validationv1.ValidationIntent) (*validationv1.SourceIdentity, error)
+}
+
+// WorkspaceSandboxSealOwner resolves only owner-authorized, content-addressed
+// seal references. Paths returned by ResolveReplaySeal remain server-internal.
+type WorkspaceSandboxSealOwner interface {
+	ResolveReplaySeal(context.Context, *validationv1.WorkspaceSandboxSealReference) (string, error)
+	VerifyReplaySeal(context.Context, *validationv1.WorkspaceSandboxSealReference) error
+}
+
+type FrozenEvaluatorFile struct {
+	RelativePath string
+	Content      []byte
+	SHA256       string
+}
+
+type FrozenEvaluatorBundle struct {
+	EvaluatorBundleID string
+	CaseID            string
+	EntryPoint        string
+	EvaluatorDigest   string
+	ContentDigest     string
+	Files             []FrozenEvaluatorFile
+}
+
+type frozenEvaluatorDigestTuple struct {
+	RelativePath string `json:"relativePath"`
+	SHA256       string `json:"sha256"`
+	Size         int64  `json:"size"`
+}
+
+type FrozenEvaluatorBundleOwner interface {
+	ResolveFrozenEvaluatorBundle(context.Context, *validationv1.FrozenEvaluatorBundleReference) (FrozenEvaluatorBundle, error)
 }
 
 // matchExpectedIdentity checks retained preconditions before admission replaces
@@ -82,6 +120,8 @@ type ContentIdentityResolver struct {
 	builder     *treedigest.ManifestBuilder
 	buildInputs func(context.Context, string) (*cliv1.ScenarioFreshnessInputs, error)
 	planner     execution.ExecutionPlanner
+	seals       WorkspaceSandboxSealOwner
+	evaluators  FrozenEvaluatorBundleOwner
 }
 
 const buildInputResolveWorkers = 4
@@ -91,6 +131,31 @@ const buildInputResolveWorkers = 4
 func (r *ContentIdentityResolver) WithExecutionPlanner(planner execution.ExecutionPlanner) *ContentIdentityResolver {
 	r.planner = planner
 	return r
+}
+
+func (r *ContentIdentityResolver) WithWorkspaceSandboxSeals(owner WorkspaceSandboxSealOwner) *ContentIdentityResolver {
+	r.seals = owner
+	return r
+}
+
+func (r *ContentIdentityResolver) WithFrozenEvaluatorBundles(owner FrozenEvaluatorBundleOwner) *ContentIdentityResolver {
+	r.evaluators = owner
+	return r
+}
+
+func (r *ContentIdentityResolver) ResolveFrozenEvaluatorBundle(ctx context.Context, execution *validationv1.FrozenReplayExecution) (FrozenEvaluatorBundle, error) {
+	if r == nil || r.evaluators == nil || execution == nil {
+		return FrozenEvaluatorBundle{}, fmt.Errorf("frozen evaluator bundle owner is unavailable")
+	}
+	ref := &validationv1.FrozenEvaluatorBundleReference{EvaluatorBundleId: execution.GetEvaluatorBundleId(), EvaluatorDigest: execution.GetEvaluatorDigest(), EntryPoint: execution.GetEvaluatorEntryPoint()}
+	bundle, err := r.evaluators.ResolveFrozenEvaluatorBundle(ctx, ref)
+	if err != nil {
+		return FrozenEvaluatorBundle{}, err
+	}
+	if _, err := frozenEvaluatorContentRoot(bundle, ref); err != nil {
+		return FrozenEvaluatorBundle{}, err
+	}
+	return bundle, nil
 }
 
 // WithControlPlaneInputs uses lifecycle's authoritative input expansion and
@@ -133,10 +198,41 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 		return nil, fmt.Errorf("repository root is unavailable")
 	}
 	request := treedigest.ManifestRequest{}
+	var sealedRoots []*validationv1.WorkspaceSandboxSealReference
+	var sealDigest string
+	var evaluatorRoots []*validationv1.ContentRootIdentity
 	for _, input := range intent.GetContentInputs() {
-		root, err := r.resolveRoot(input)
+		if bundleRef := input.GetFrozenEvaluatorBundle(); bundleRef != nil {
+			if input.GetWorkspaceSandboxSeal() != nil || strings.TrimSpace(input.GetRoot()) != "" || !input.GetDependency() || input.GetName() != "frozen-evaluator" || len(input.GetSelections()) != 0 {
+				return nil, fmt.Errorf("frozen evaluator input must be a dependency named frozen-evaluator with no caller path or selections")
+			}
+			if r.evaluators == nil {
+				return nil, fmt.Errorf("frozen evaluator bundle owner is unavailable")
+			}
+			bundle, err := r.evaluators.ResolveFrozenEvaluatorBundle(ctx, bundleRef)
+			if err != nil {
+				return nil, fmt.Errorf("resolve frozen evaluator bundle: %w", err)
+			}
+			root, err := frozenEvaluatorContentRoot(bundle, bundleRef)
+			if err != nil {
+				return nil, err
+			}
+			evaluatorRoots = append(evaluatorRoots, root)
+			continue
+		}
+		root, err := r.resolveRoot(ctx, input)
 		if err != nil {
 			return nil, err
+		}
+		if input.GetWorkspaceSandboxSeal() != nil {
+			if input.GetDependency() {
+				return nil, fmt.Errorf("workspace sandbox seal must be the primary content root")
+			}
+			sealedRoots = append(sealedRoots, proto.Clone(input.GetWorkspaceSandboxSeal()).(*validationv1.WorkspaceSandboxSealReference))
+			if sealDigest != "" {
+				return nil, fmt.Errorf("exactly one workspace sandbox seal is allowed per frozen replay intent")
+			}
+			sealDigest = input.GetWorkspaceSandboxSeal().GetSealDigest()
 		}
 		if input.GetDependency() {
 			request.Dependencies = append(request.Dependencies, root)
@@ -235,6 +331,11 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 	if err != nil {
 		return nil, err
 	}
+	for _, seal := range sealedRoots {
+		if err := r.seals.VerifyReplaySeal(ctx, seal); err != nil {
+			return nil, fmt.Errorf("workspace sandbox seal changed during identity resolution: %w", err)
+		}
+	}
 	identity := &validationv1.SourceIdentity{SchemaVersion: uint32(manifest.SchemaVersion), Identity: manifest.Identity, Configuration: manifest.Configuration, Toolchain: manifest.Toolchain, Commit: manifest.Attribution.Commit, Branch: manifest.Attribution.Branch, Dirty: manifest.Attribution.Dirty}
 	for _, root := range manifest.Roots {
 		frozen := &validationv1.ContentRootIdentity{Name: root.Name, Identity: root.Identity}
@@ -243,7 +344,69 @@ func (r *ContentIdentityResolver) Resolve(ctx context.Context, intent *validatio
 		}
 		identity.Roots = append(identity.Roots, frozen)
 	}
+	identity.Roots = append(identity.Roots, evaluatorRoots...)
+	if sealDigest != "" {
+		identity.Identity = "sha256:" + sealDigest
+	}
 	return identity, nil
+}
+
+func frozenEvaluatorContentRoot(bundle FrozenEvaluatorBundle, ref *validationv1.FrozenEvaluatorBundleReference) (*validationv1.ContentRootIdentity, error) {
+	if bundle.EvaluatorBundleID == "" || bundle.EvaluatorBundleID != ref.GetEvaluatorBundleId() || bundle.EvaluatorDigest != ref.GetEvaluatorDigest() || bundle.EntryPoint != ref.GetEntryPoint() || bundle.ContentDigest == "" {
+		return nil, fmt.Errorf("frozen evaluator owner returned a mismatched bundle identity")
+	}
+	if bundle.CaseID == "" || !safeRelativeContentPath(bundle.EntryPoint) {
+		return nil, fmt.Errorf("frozen evaluator bundle case or entry point is invalid")
+	}
+	if len(bundle.Files) == 0 || len(bundle.Files) > 128 {
+		return nil, fmt.Errorf("frozen evaluator bundle file count is outside its bound")
+	}
+	contentBytes := 0
+	seen := make(map[string]bool, len(bundle.Files))
+	tuples := make([]frozenEvaluatorDigestTuple, 0, len(bundle.Files))
+	root := &validationv1.ContentRootIdentity{Name: "frozen-evaluator", Identity: "sha256:" + strings.TrimPrefix(strings.ToLower(bundle.ContentDigest), "sha256:")}
+	entrypointFound := false
+	for _, file := range bundle.Files {
+		if !safeRelativeContentPath(file.RelativePath) || seen[file.RelativePath] {
+			return nil, fmt.Errorf("frozen evaluator manifest contains an unsafe or duplicate path")
+		}
+		seen[file.RelativePath] = true
+		contentBytes += len(file.Content)
+		if contentBytes > 16<<20 {
+			return nil, fmt.Errorf("frozen evaluator bundle exceeds the 16 MiB bound")
+		}
+		digest := sha256.Sum256(file.Content)
+		if len(file.SHA256) != 64 || hex.EncodeToString(digest[:]) != strings.ToLower(file.SHA256) {
+			return nil, fmt.Errorf("frozen evaluator file %q failed owner digest verification", file.RelativePath)
+		}
+		root.Files = append(root.Files, &validationv1.ContentFileIdentity{Path: file.RelativePath, Digest: strings.ToLower(file.SHA256), Size: int64(len(file.Content))})
+		tuples = append(tuples, frozenEvaluatorDigestTuple{RelativePath: file.RelativePath, SHA256: strings.ToLower(file.SHA256), Size: int64(len(file.Content))})
+		if file.RelativePath == bundle.EntryPoint {
+			entrypointFound = strings.ToLower(file.SHA256) == strings.TrimPrefix(strings.ToLower(bundle.EvaluatorDigest), "sha256:")
+		}
+	}
+	if !entrypointFound {
+		return nil, fmt.Errorf("frozen evaluator entry point digest differs from the catalog digest")
+	}
+	sort.Slice(root.Files, func(i, j int) bool { return root.Files[i].GetPath() < root.Files[j].GetPath() })
+	sort.Slice(tuples, func(i, j int) bool { return tuples[i].RelativePath < tuples[j].RelativePath })
+	canonical, err := json.Marshal(tuples)
+	if err != nil {
+		return nil, fmt.Errorf("encode frozen evaluator manifest: %w", err)
+	}
+	manifestDigest := sha256.Sum256(canonical)
+	if hex.EncodeToString(manifestDigest[:]) != strings.TrimPrefix(strings.ToLower(bundle.ContentDigest), "sha256:") {
+		return nil, fmt.Errorf("frozen evaluator content manifest digest differs from owner bundle")
+	}
+	return root, nil
+}
+
+func safeRelativeContentPath(value string) bool {
+	if value == "" || filepath.IsAbs(value) || strings.ContainsAny(value, "\\\x00\r\n") {
+		return false
+	}
+	clean := filepath.Clean(filepath.FromSlash(value))
+	return clean != "." && clean != ".." && !strings.HasPrefix(clean, ".."+string(filepath.Separator))
 }
 
 func (r *ContentIdentityResolver) resolveBuildInputs(ctx context.Context, targetNames []string) ([]*cliv1.ScenarioFreshnessInputs, error) {
@@ -307,7 +470,45 @@ sendJobs:
 	return results, nil
 }
 
-func (r *ContentIdentityResolver) resolveRoot(input *validationv1.ContentInputRoot) (treedigest.RootSpec, error) {
+func (r *ContentIdentityResolver) resolveRoot(ctx context.Context, input *validationv1.ContentInputRoot) (treedigest.RootSpec, error) {
+	if input == nil || strings.TrimSpace(input.GetName()) == "" {
+		return treedigest.RootSpec{}, fmt.Errorf("content root requires a name")
+	}
+	if seal := input.GetWorkspaceSandboxSeal(); seal != nil {
+		if strings.TrimSpace(input.GetRoot()) != "" || input.GetFrozenEvaluatorBundle() != nil {
+			return treedigest.RootSpec{}, fmt.Errorf("workspace sandbox content root must not include a caller filesystem path")
+		}
+		if r.seals == nil {
+			return treedigest.RootSpec{}, fmt.Errorf("workspace sandbox seal owner is unavailable")
+		}
+		if err := validateWorkspaceSandboxSealReference(seal); err != nil {
+			return treedigest.RootSpec{}, err
+		}
+		if err := r.seals.VerifyReplaySeal(ctx, seal); err != nil {
+			return treedigest.RootSpec{}, fmt.Errorf("verify workspace sandbox seal: %w", err)
+		}
+		rootPath, err := r.seals.ResolveReplaySeal(ctx, seal)
+		if err != nil {
+			return treedigest.RootSpec{}, fmt.Errorf("resolve workspace sandbox seal: %w", err)
+		}
+		if strings.TrimSpace(rootPath) == "" || !filepath.IsAbs(rootPath) {
+			return treedigest.RootSpec{}, fmt.Errorf("workspace sandbox returned no owner-resolved absolute root")
+		}
+		if err := r.seals.VerifyReplaySeal(ctx, seal); err != nil {
+			return treedigest.RootSpec{}, fmt.Errorf("workspace sandbox seal changed while resolving: %w", err)
+		}
+		root := treedigest.RootSpec{Name: strings.TrimSpace(input.GetName()), Path: rootPath}
+		for _, selection := range input.GetSelections() {
+			root.Selections = append(root.Selections, treedigest.InputSelection{Glob: selection.GetGlob(), Required: selection.GetRequired()})
+		}
+		return root, nil
+	}
+	if len(input.GetSelections()) == 0 {
+		return treedigest.RootSpec{}, fmt.Errorf("content root requires at least one selection")
+	}
+	if input.GetRoot() == "" {
+		return treedigest.RootSpec{}, fmt.Errorf("repository content root path is required")
+	}
 	rel := filepath.Clean(filepath.FromSlash(strings.TrimSpace(input.GetRoot())))
 	if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return treedigest.RootSpec{}, fmt.Errorf("content root %q must be repository-relative", input.GetRoot())
@@ -322,6 +523,23 @@ func (r *ContentIdentityResolver) resolveRoot(input *validationv1.ContentInputRo
 		root.Selections = append(root.Selections, treedigest.InputSelection{Glob: selection.GetGlob(), Required: selection.GetRequired()})
 	}
 	return root, nil
+}
+
+func validateWorkspaceSandboxSealReference(ref *validationv1.WorkspaceSandboxSealReference) error {
+	if ref == nil || strings.TrimSpace(ref.GetCaseId()) == "" || len(strings.TrimSpace(ref.GetSealDigest())) != 64 {
+		return fmt.Errorf("workspace sandbox seal requires case_id and a SHA-256 seal_digest")
+	}
+	if _, err := hex.DecodeString(ref.GetSealDigest()); err != nil {
+		return fmt.Errorf("workspace sandbox seal digest is not SHA-256 hex")
+	}
+	switch ref.GetRole() {
+	case validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_SOURCE,
+		validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE,
+		validationv1.WorkspaceSandboxSealRole_WORKSPACE_SANDBOX_SEAL_ROLE_REFERENCE:
+		return nil
+	default:
+		return fmt.Errorf("workspace sandbox seal role is required")
+	}
 }
 
 func cloneStringMap(input map[string]string) map[string]string {

@@ -23,7 +23,7 @@ type fakeSnapshotReader struct {
 func TestConformanceToProtoPreservesTypedClassification(t *testing.T) {
 	got := conformanceToProto(selfhealth.ConformanceReport{Providers: []selfhealth.ProviderConformance{{
 		Provider:       "ui-health",
-		Phase:          "ui-health",
+		Phase:          "experience",
 		Classification: selfhealth.ConformanceUnavailable,
 		ReasonCodes:    []string{selfhealth.ReasonProviderUnreachable},
 	}}})

@@ -3,7 +3,7 @@
 // to the phase set (which phases run) and affects only diagnostic visual
 // artifact depth.
 //
-// Lever summary (control-surface-tunable-levers-design):
+// Lever summary (architecture-lenses):
 //
 //	name:    capture profile
 //	field:   StartRunRequest.capture_profile / SuiteExecutionRequest.CaptureProfile

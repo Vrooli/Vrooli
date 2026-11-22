@@ -7,7 +7,7 @@ interface RunArtifactCatalogProps {
   runId?: string;
 }
 
-function artifactSize(size?: string | number): string | undefined {
+function artifactSize(size?: bigint | string | number): string | undefined {
   const bytes = Number(size);
   if (!Number.isFinite(bytes) || bytes < 0) return undefined;
   if (bytes < 1024) return `${bytes} B`;

@@ -1,139 +1,119 @@
 # Experience Phase
 
-The `experience` phase delegates to `experience-manager` through the shared
-`scenario-validation/v1` provider contract.
+The `experience` phase is the single Test Genie verdict for a scenario's served UI. `ui-health` owns this phase and evaluates static UI contracts, runtime render and interaction evidence, and the shared artifact-backed visual/layout evaluator. Experience Manager separately validates authored `scenario-experience-spec/v1` contracts through `experience-contract`; it does not create a second served-UI verdict. It runs in **execution mode** (`IncludeExecution: true`) and produces one consolidated report covering: `ui/manifest.json` bindings + slot directories + overlay rules; static UI-interop rules; net-new UI standards (i18n parity, design-token/no-raw-hex, a gating axe harness, PWA/viewport, tsconfig-strict, eslint stability); UI-bundle freshness (the canonical content-hash engine — a stale bundle gates); and a **BAS-driven runtime render + iframe-bridge handshake** group. The runtime group absorbed the retired native `smoke` phase.
+
+The phase declares `NeedsUI: true` and `RequiredResources: [browser-automation-studio]`. Runtime evidence has three explicit states: evaluated, skipped/unavailable, and evidence-incomplete. A missing browser or incomplete runtime evidence is `not-evaluated`, which never passes. An unavailable BAS/UI is an infrastructure condition rather than a source defect, but it returns `NOT_EVALUATED` (never a pass); static-only runs likewise report `runtime_not_evaluated_static_only`. A runtime maturity rung can advance only when every configured viewport has downloadable screenshot, DOM, layout, viewport provenance, and handshake/interaction evidence.
+
+When the selected `experience` phase is not evaluated and no phase reports a real defect, Test Genie persists the suite verdict `NOT_EVALUATED`. Its `success` field is false and the command exits non-zero. This verdict also takes precedence over `PARTIAL` when another required phase is skipped or unavailable; a real failing phase takes precedence over both and keeps the suite verdict `FAIL`.
 
 This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
 
 ## North Star
 
-The experience spec is a trustworthy, machine-checkable contract whose active
-machine-tier claims are grounded in the live built UI: *the built UI structure
-satisfies the machine-tier experience spec*. Manual-tier claims carry honest,
-current attestations, and deferred perception debt (visual saliency, glance
-judgment) is visible without failing suites. At maximum maturity every capability
-ladder is at its top rung — `spec_contract` L3 (contract clean),
-`structure_reconciliation` L3 (structure clean), `manual_evidence` L2
-(attestations fresh), and `perception_advisory` surfacing advisory perception
-evidence — so the scenario's declared experience intent is provably realized in
-the shipped UI.
+Every UI dimension is fully clean across the ladder: the manifest contract is authoritative and ready for downstream providers; the UI is fully proxy, tunnel, localhost, and iframe safe; freshness is fully clean and ready for downstream runtime validation; browser-driven render, handshake, console, network, and visual validation is fully clean; project standards are fully clean and self-healing for the mechanical subset; and installability, launch, offline, and declared platform capabilities are fully clean. At maximum maturity the UI is a **native-feeling, embed-safe web app** whose every surface is verified, not merely free of findings — the top rung of the deepest capability (`pwa_native_readiness` L5) is the aspiration the whole phase steers toward.
 
 ## The rungs and their gates
 
-Each capability declares a monotone ladder (each rung implies the one below). The
-phase standing surfaces the focus capability's rung and its single next unlock.
+The `experience` phase reports a ladder per capability. Each rung is monotone (it implies the one below); the top rung of each ladder is that capability's North Star and its next unlock is the single highest-value move toward it.
 
-**`spec_contract`** — is the experience contract parseable and internally consistent?
-- L0 Contract unavailable → *Add an `experience/index.json` contract.*
-- L1 Contract parseable → *Resolve schema and index parity findings.*
-- L2 References linked → *Ground active pages in structure evidence.*
-- L3 Contract clean → maximum; experience intent is a trustworthy machine-checkable contract.
-
-**`structure_reconciliation`** — are machine-tier claims grounded in captured UI structure?
-- L0 Capture unavailable → *Capture the target page accessibility tree.*
-- L1 Bindings joinable → *Resolve binding and checker coverage gaps.*
-- L2 Claims checked → *Resolve failed or unproven claims.*
-- L3 Structure clean → maximum; the built UI satisfies the machine-tier spec.
-
-**`manual_evidence`** — do manual-tier claims carry fresh attestations?
-- L0 No attestation evidence → *Record an attestation with author, rationale, and expiry.*
-- L1 Attestations present → *Refresh expired attestations.*
-- L2 Attestations fresh → maximum; manual claims are honestly current.
-
-**`perception_advisory`** (deferred, non-gating)
-- L0 Perception unevaluated → *Calibrate deterministic perception checks in the P2 tier.*
-- L1 Advisory perception visible → perception debt is shown without failing suites.
+| Capability | Rungs | Top rung (North Star) | Example next unlock |
+|---|---|---|---|
+| `manifest_contract` | L0 No UI surface → L5 Contract authority | UI manifest contract fully clean, ready for downstream providers | L1→L2: declare a known template and compatible contract shape |
+| `interop` | L0 Not embeddable → L5 Interop complete | Fully proxy, tunnel, localhost, and iframe safe | L2→L3: harden shortcut, focus, viewport, and server behavior |
+| `freshness` | L0 Unknown bundle → L5 Freshness authority | Fully clean and ready for downstream runtime validation | L2→L3: wire freshness + code-facts authority into the provider |
+| `runtime_render` | L0 Not runnable → L5 Runtime complete | Browser-driven UI validation fully clean | L2→L3: clean console, network, asset, and page-error checks |
+| `project_standards` | L0 Standards absent → L5 Standards complete | Fully clean and self-healing for the mechanical subset | L2→L3: clean i18n parity, token use, a11y harness, strict config |
+| `pwa_native_readiness` | L0 No install surface → L5 Native ready | Installability, launch, offline, and platform capabilities fully clean | L1→L2: register a service worker with offline app-shell fallback |
 
 ## What each finding means
 
-Each finding caps the named capability at a rung; only ERROR/BLOCKER severities
-fail the phase, so warnings and advisories are honest, non-failing debt.
+Each finding caps the capability it names at the rung below its impact; only ERROR/BLOCKER severities fail the phase, so WARNING/INFO findings are honest, non-failing debt. Representative codes (full inventory in the descriptor `maturity.findings` map):
 
 | Code | Capability | Caps at | Severity | Fails phase? |
 |---|---|---|---|---|
-| `experience.schema_invalid` | spec_contract | L1 | ERROR | Yes |
-| `experience.index_parity` | spec_contract | L1 | ERROR | Yes |
-| `experience.ref_unresolved` / `experience.prd_ref_unmatched` | spec_contract | L2 | ERROR | Yes |
-| `experience.binding_orphan` / `experience.tier_violation` | spec_contract | L2 | ERROR | Yes |
-| `experience.route_unspecced` / `experience.state_missing` | spec_contract | L2 | WARNING | No |
-| `experience.binding_unresolved` | structure_reconciliation | L1 | ERROR | Yes |
-| `experience.claim_failed` / `experience.affordance_missing` | structure_reconciliation | L2 | ERROR | Yes |
-| `experience.floor_*` (overflow, viewport_fill, chrome_pinned, tap_target_size, …) | structure_reconciliation | L2 | ERROR | Yes |
-| `experience.claim_unverifiable` | structure_reconciliation | L1 | WARNING | No |
-| `experience.claim_unproven` | structure_reconciliation | L2 | WARNING | No |
-| `experience.capture_unavailable` | structure_reconciliation | L0 | INFO | No |
-| `experience.attestation_expired` | manual_evidence | L1 | WARNING | No |
-| `experience.importance_mismatch` / `experience.glance_judge_mismatch` | perception_advisory | L1 | WARNING (advisory) | No |
+| `service_json_missing` / `service_json_invalid` / `template_unknown` | manifest_contract | L0 | ERROR | Yes |
+| `contract_kind_mismatch` / `slots_empty` / `overlay_unknown_slot` | manifest_contract | L1 | ERROR | Yes |
+| `interop_relative_base` / `interop_router_basename` / `interop_helmet_frame_ancestors` | interop | L1 | ERROR | Yes |
+| `interop_h_screen` / `interop_shortcut_relay` | interop | L1 | WARNING | No |
+| `freshness_ui_bundle_stale` | freshness | L2 | ERROR | Yes |
+| `runtime_load_failed` / `runtime_handshake_failed` / `runtime_bas_execution_failed` / `visual_pixel_blank` | runtime_render | L3 | ERROR | Yes |
+| `runtime_console_errors` / `visual_text_clipped` | runtime_render | L3 | WARNING | No |
+| `runtime_not_evaluated_static_only` / `runtime_skipped_*` / `runtime_evidence_incomplete` | runtime_render | L0 | INFO | The phase is `not-evaluated` and never passes |
+| `standard_tsconfig_strict` | project_standards | L4 | ERROR | Yes |
+| `standard_i18n_locale_parity` | project_standards | L4 | WARNING | No |
+| `standard_a11y_harness` | project_standards | L4 | ERROR | Yes — applicable UI scenarios require the axe dependency, canonical helper, and baseline test |
+| `pwa_manifest_install_fields` / `pwa_service_worker_offline` | pwa_native_readiness | L1–L3 | WARNING | No |
 
 ## The canonical fix
 
-- **Spec-contract findings** (`schema_invalid`, `index_parity`, `ref_unresolved`,
-  `prd_ref_unmatched`, `binding_orphan`, `tier_violation`, `route_unspecced`,
-  `state_missing`) → source-level edits to `experience/index.json`,
-  `experience/pages/*.json`, and `experience/journeys/*.json`: fix the schema
-  shape, reconcile the index with the documents it lists, point references at the
-  intended page/state/element, match PRD operational targets, repair the bound UI
-  contract, and set the deliberate claim tier. Load the `experience-spec-authoring`
-  skill; these are author-intent fixes, not mechanical ones.
-- **Structure-reconciliation findings** (`binding_unresolved`, `claim_failed`,
-  `affordance_missing`, `floor_*`) → reconcile the built UI against the machine-tier
-  spec: fix the selector/markup a binding resolves against, change the
-  product/design/implementation so the failed claim passes, add the missing
-  accessible affordance, or correct the layout so the shell floor (no horizontal
-  overflow, viewport fill, pinned chrome, tap-target size) holds. Add the `ux`
-  skill for affordance/layout floors.
-- **`claim_unverifiable` / `claim_unproven`** → choose a supported claim type (or
-  extend the checker), then capture the evidence — or deliberately re-tier the
-  claim rather than leaving it unproven.
-- **`attestation_expired`** → record a fresh human attestation (author, rationale,
-  expiry) for the manual-tier claim.
-- **`capture_unavailable`** → an operational condition, not a source fix: make a
-  BAS accessibility capture reachable so machine-tier claims can be checked.
-- **`importance_mismatch` / `glance_judge_mismatch`** → perception-tier debt,
-  deferred to the P2 tier; visible but non-gating, no fix required for v1.
+- **Manifest-contract findings** → repair `ui/manifest.json` and `service.json`: declare a known `template`, fix contract kind/schema, populate slots and overlays, and align slot directories on the filesystem. Some (`slot_dir_missing`, `slot_parent_dir_missing`) have implemented safe fixers.
+- **Interop findings** → adopt the relative Vite base, router basename, proxy-preserved API base, iframe bridge, and frame-ancestor helmet; remove hardcoded localhost. `interop_h_screen` and `interop_protective_comments` have safe fixers.
+- **Freshness findings** → rebuild the UI bundle so its content hash matches source (`freshness_ui_bundle_stale` gates); a stale bundle means the running UI does not reflect committed code.
+- **Runtime-render findings** → fix the live render: repair the iframe handshake, clear console/network/page errors, resolve visual defects (blank pixels, broken assets, viewport overflow, unsafe edge tap zones), and restore any missing artifact channel before claiming a visual pass. `runtime_bas_execution_failed` means BAS itself failed before the handshake; its message includes the BAS execution ID and causal error, which should be inspected in the execution timeline rather than misdiagnosed as a scenario bridge timeout.
+- **Project-standards findings** → restore i18n locale parity, replace raw hex with design tokens, add the required axe dependency, canonical helper, and baseline harness test, enable strict tsconfig, and satisfy React-stability lint. Several (i18n parity, tsconfig-strict) have implemented mechanical fixers. The harness is a static gate for UI scenarios; live browser unavailability is `not-evaluated`, never a static pass.
+- **PWA findings** → complete install metadata, launch scope, service-worker offline fallback, and optional platform fields to climb toward native readiness.
 
 ## How to verify
 
 ```bash
 # See the current rung, gaps, and next move for every capability:
-experience-manager validate scenario <scenario>
+ui-health validate scenario <scenario>
+ui-health validate scenario <scenario> --static-only   # static groups only, no BAS
 
-# Or drive it through Test Genie and read the per-phase scorecard + findings:
-test-genie execute <scenario> --phases experience
+# Or drive it through Test Genie and read the per-phase scorecard:
+vrooli scenario test <scenario> --phases experience
 test-genie runs findings --scenario <scenario>
 ```
 
-The `experience` line in the scorecard shows the focus capability's current rung,
-the single highest-unlock next move, and a runnable doc-search topic that resolves
-back to the sections above.
+## How It Runs
 
-## What It Checks
+Test Genie calls the `ui-health` provider through `scenario-validation/v1.ScenarioValidationService.ValidateScenario` with `include_execution: true`. The provider runs its static groups always; when execution is requested and the scenario has a UI, it resolves the running UI via discovery and drives BAS for the render + handshake check, then returns shared `status` plus `assessment.findings`.
 
-- Parses `experience/index.json`, `experience/pages/*.json`, and
-  `experience/journeys/*.json` as `scenario-experience-spec/v1`.
-- Enforces parser-era contract rules: schema shape, index parity,
-  cross-document references, PRD operational-target references, binding
-  integrity, and claim tier semantics.
-- Reports maturity across the spec-contract, structure-reconciliation,
-  manual-evidence, and deferred perception-advisory capability ladders.
+Equivalent human operator flow:
 
-## Applicability
+```bash
+ui-health validate scenario <scenario>            # full report (static + runtime)
+ui-health validate scenario <scenario> --static-only   # static groups only, no BAS
+```
 
-The phase is presence-keyed. It applies only when the target scenario has an
-`experience/` folder. Scenarios that have not adopted the experience axis are
-not failed by this phase; their absence is fleet-sweep debt for
-`experience-manager`, not a suite regression.
+## Opt-Out
 
-## Gating
+Skip for a single run:
 
-Experience Manager always reports ERROR-severity findings as failed validation
-truth. Test Genie may independently mark that failure advisory or non-gating
-for a rollout, but it must retain the failed/degraded provider state and its
-remediation; no environment variable may rewrite an ERROR into `PASSED`.
+```bash
+test-genie execute <scenario> --skip experience
+```
 
-## Degradation
+Disable per scenario via `.vrooli/testing.json`:
 
-Parser-era checks run without Browser Automation Studio. Later structure
-reconciliation may require BAS captures; BAS unavailability should produce
-skipped or informational findings, never a failed phase caused only by missing
-capture infrastructure.
+```json
+{
+  "phases": {
+    "experience": { "enabled": false }
+  }
+}
+```
+
+## Configuration
+
+Per-scenario timeout override via `.vrooli/testing.json` (default: 60s):
+
+```json
+{
+  "phases": {
+    "experience": { "timeout": "120s" }
+  }
+}
+```
+
+
+## Experience contract boundary
+
+The `experience` phase above owns the one served-UI runtime verdict. To validate authored experience intent (`experience/index.json`, pages, journeys, bindings, and claim definitions), run Experience Manager's separate contract phase:
+
+```bash
+experience-manager validate scenario <scenario>
+vrooli scenario test <scenario> --phases experience-contract
+```
+
+The contract result is scoped to authored intent and its reconciliation against evidence. It does not replace, alias, or duplicate the `experience` phase verdict.

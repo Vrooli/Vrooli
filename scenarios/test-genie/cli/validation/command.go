@@ -65,9 +65,18 @@ func register(manifest []byte, client clientFactory) (cliapp.SubcommandGroup, er
 
 func resolveSourceIdentityCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.ResolveSourceIdentityResponse, error) {
 	return func(operation cliapp.OperationContext) (*validationv1.ResolveSourceIdentityResponse, error) {
-		payload, err := os.ReadFile(operation.Flag("request-file"))
-		if err != nil {
-			return nil, fmt.Errorf("read source identity request: %w", err)
+		var payload []byte
+		if targets, inputs := operation.Flag("targets"), operation.Flag("content-inputs"); targets != "" || inputs != "" {
+			if targets == "" || inputs == "" {
+				return nil, fmt.Errorf("resolve identity requires both --targets and --content-inputs")
+			}
+			payload = []byte(fmt.Sprintf(`{"targets":%s,"contentInputs":%s}`, targets, inputs))
+		} else {
+			var err error
+			payload, err = os.ReadFile(operation.Flag("request-file"))
+			if err != nil {
+				return nil, fmt.Errorf("read source identity request: %w", err)
+			}
 		}
 		var request validationv1.ResolveSourceIdentityRequest
 		if err := protojson.Unmarshal(payload, &request); err != nil {
@@ -165,9 +174,13 @@ type clientFactory func() (validationconnect.ValidationServiceClient, error)
 
 func createCall(factory clientFactory) func(cliapp.OperationContext) (*validationv1.CreateValidationResponse, error) {
 	return func(operation cliapp.OperationContext) (*validationv1.CreateValidationResponse, error) {
-		payload, err := os.ReadFile(operation.Flag("intent-file"))
-		if err != nil {
-			return nil, fmt.Errorf("read validation intent: %w", err)
+		payload := []byte(operation.Flag("intent-json"))
+		if len(payload) == 0 {
+			var err error
+			payload, err = os.ReadFile(operation.Flag("intent-file"))
+			if err != nil {
+				return nil, fmt.Errorf("read validation intent: %w", err)
+			}
 		}
 		var intent validationv1.ValidationIntent
 		if err := protojson.Unmarshal(payload, &intent); err != nil {

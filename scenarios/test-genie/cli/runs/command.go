@@ -64,6 +64,8 @@ func Run(apiClient *cliutil.APIClient, args []string) error {
 		return runCost(apiClient, args[1:], os.Stdout)
 	case "freshness":
 		return runFreshness(apiClient, args[1:], os.Stdout)
+	case "experience-age":
+		return runExperienceAge(apiClient, args[1:], os.Stdout)
 	case "wait":
 		return runWait(apiClient, args[1:], os.Stdout)
 	case "wait-all":
@@ -116,6 +118,8 @@ Commands:
                                                                  (exit 1 if any phase is stale/unknown;
                                                                  digest scope is the scenario dir only —
                                                                  shared packages/* edits don't count)
+  experience-age --scenario <s> [--json]                         Read the stored experience verdict age
+                                                                 against the latest UI source change
   freshness --changed                                            Same check for every scenario the
                                                                  current git change-set touches
                                                                  (advisory fan-out used by vrooli

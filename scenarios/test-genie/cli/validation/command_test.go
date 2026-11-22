@@ -18,6 +18,8 @@ type fakeValidationClient struct {
 	validationconnect.ValidationServiceClient
 	calls             map[string]int
 	productionRequest *validationv1.CreateEvidenceProductionRequest
+	identityRequest   *validationv1.ResolveSourceIdentityRequest
+	intentRequest     *validationv1.ValidationIntent
 	evidence          []*validationv1.EvidenceReference
 }
 
@@ -25,14 +27,53 @@ func (f *fakeValidationClient) receipt() *validationv1.ValidationReceipt {
 	return &validationv1.ValidationReceipt{ReceiptId: "receipt-1", LineageId: "lineage-1", State: validationv1.ReceiptState_RECEIPT_STATE_RUNNING, ReasonCode: validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_NONE, Revision: 2, Evidence: f.evidence}
 }
 
-func (f *fakeValidationClient) ResolveSourceIdentity(context.Context, *connect.Request[validationv1.ResolveSourceIdentityRequest]) (*connect.Response[validationv1.ResolveSourceIdentityResponse], error) {
+func (f *fakeValidationClient) ResolveSourceIdentity(_ context.Context, request *connect.Request[validationv1.ResolveSourceIdentityRequest]) (*connect.Response[validationv1.ResolveSourceIdentityResponse], error) {
 	f.calls["resolve-identity"]++
+	f.identityRequest = request.Msg
 	return connect.NewResponse(&validationv1.ResolveSourceIdentityResponse{Identity: &validationv1.SourceIdentity{SchemaVersion: 1, Identity: "ci:v1:resolved"}}), nil
 }
 
-func (f *fakeValidationClient) CreateValidation(context.Context, *connect.Request[validationv1.CreateValidationRequest]) (*connect.Response[validationv1.CreateValidationResponse], error) {
+func (f *fakeValidationClient) CreateValidation(_ context.Context, request *connect.Request[validationv1.CreateValidationRequest]) (*connect.Response[validationv1.CreateValidationResponse], error) {
 	f.calls["create"]++
+	f.intentRequest = request.Msg.GetIntent()
 	return connect.NewResponse(&validationv1.CreateValidationResponse{Receipt: f.receipt()}), nil
+}
+
+func TestValidationCommandsAcceptTypedInlineF9Payloads(t *testing.T) {
+	manifest, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeValidationClient{calls: map[string]int{}}
+	group, err := register(manifest, func() (validationconnect.ValidationServiceClient, error) { return fake, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range group.Subcommands {
+		var args []string
+		switch command.Name {
+		case "resolve-identity":
+			args = []string{"--targets", `[{"kind":"VALIDATION_TARGET_KIND_PROJECT","id":"case-1"}]`, "--content-inputs", `[{"name":"candidate","workspaceSandboxSeal":{"caseId":"case-1","role":"WORKSPACE_SANDBOX_SEAL_ROLE_CANDIDATE","sealDigest":"` + strings.Repeat("a", 64) + `"},"selections":[{"glob":"**","required":true}]}]`, "--json"}
+		case "create":
+			args = []string{"--intent-json", `{"schemaVersion":1,"frozenReplayExecution":{"caseId":"case-1"}}`, "--json"}
+		default:
+			continue
+		}
+		var stdout, stderr bytes.Buffer
+		ctx, err := cliapp.NewTestRunContextFromArgs(command.Args, args, nil, &stdout, &stderr)
+		if err != nil {
+			t.Fatalf("parse %s: %v", command.Name, err)
+		}
+		if err := command.RunCtx(ctx); err != nil {
+			t.Fatalf("run %s: %v", command.Name, err)
+		}
+	}
+	if fake.identityRequest == nil || len(fake.identityRequest.GetTargets()) != 1 || len(fake.identityRequest.GetContentInputs()) != 1 || fake.identityRequest.GetContentInputs()[0].GetWorkspaceSandboxSeal() == nil {
+		t.Fatalf("typed inline identity request was not composed: %#v", fake.identityRequest)
+	}
+	if fake.intentRequest == nil || fake.intentRequest.GetFrozenReplayExecution() == nil {
+		t.Fatalf("typed inline validation intent was not composed: %#v", fake.intentRequest)
+	}
 }
 
 func (f *fakeValidationClient) CreateEvidenceProduction(_ context.Context, request *connect.Request[validationv1.CreateEvidenceProductionRequest]) (*connect.Response[validationv1.CreateEvidenceProductionResponse], error) {

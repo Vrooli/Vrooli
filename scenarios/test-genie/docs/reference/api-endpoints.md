@@ -111,6 +111,21 @@ The ID is valid only for its owning run. The handler rejects traversal,
 cross-run reuse, and symlink escape and applies content-type, no-sniff, and
 active-content sandbox headers.
 
+## F9 frozen replay receipts
+
+The canonical F9 owner binding is the generated
+`vrooli.test_genie.v1.frozen_replay.FrozenReplayService` Connect service:
+
+| Method | Route | Contract |
+| --- | --- | --- |
+| `CreateFrozenReplayReceipt` | `/vrooli.test_genie.v1.frozen_replay.FrozenReplayService/CreateFrozenReplayReceipt` | Verify three owner-produced run receipts and persist a sealed fail/pass/pass adjudication. Idempotent by request key; conflicting reuse returns `AlreadyExists`. |
+| `GetFrozenReplayReceipt` | `/vrooli.test_genie.v1.frozen_replay.FrozenReplayService/GetFrozenReplayReceipt` | Read a receipt by its digest suffix and re-check its content seal. No update or delete method exists. |
+
+See [the frozen replay receipt contract](frozen-replay-receipt.md) for the
+required source roots, status semantics, request body, and error behavior. The
+Test Genie CLI manifest exposes both methods to Program Runtime. A JSON
+compatibility endpoint remains available at `/api/v1/f9/replays`.
+
 ---
 
 ## Remediation jobs
@@ -284,7 +299,7 @@ Execute a test suite for a validation target. This is the primary endpoint for r
 
 The live catalog is descriptor-backed. Use `GET /api/v1/phases` or
 `test-genie phases list` for the exact phase set and provider metadata. Common
-provider-backed phases include `structure`, `contracts`, `ui-health`, `api`,
+provider-backed phases include `structure`, `contracts`, `experience`, `experience-contract`, `api`,
 `architecture`, `dependencies`, `quality`, `docs`, `unit`, `storage`,
 `workflow`, `business`, `performance`, `tidiness`, `security`, `measures`,
 `proto`, `branding`, and `search`.
@@ -302,7 +317,7 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
   "preset": "comprehensive",
   "requestedPreset": "comprehensive",
   "requestedSkipPhases": ["performance"],
-  "plannedPhases": ["structure", "contracts", "ui-health", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
+  "plannedPhases": ["structure", "contracts", "experience", "experience-contract", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
   "failFast": false,
   "phases": [
     {
@@ -374,7 +389,7 @@ List execution history.
       "startedAt": "2025-01-15T10:30:00Z",
       "completedAt": "2025-01-15T10:35:00Z",
       "preset": "comprehensive",
-      "plannedPhases": ["structure", "contracts", "ui-health", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
+      "plannedPhases": ["structure", "contracts", "experience", "experience-contract", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
       "failFast": false
     }
   ],
@@ -441,6 +456,13 @@ List all tracked scenarios with their test status.
 ### GET /api/v1/scenarios/{name}
 
 Get detailed information about a specific scenario.
+
+The summary includes the latest stored `experience` phase status, timestamp,
+and run ID. `experienceFreshness` is computed server-side against the current
+UI source tree: `never_run`, `older_than_last_ui_change`,
+`evaluated_after_last_ui_change`, `ui_surface_unavailable`, or
+`ui_change_time_unavailable`. An unknown or incomplete UI inventory is never
+reported as fresh.
 
 **Path Parameters:**
 
@@ -555,12 +577,12 @@ Returns the provider-backed phase catalog with descriptions and configuration.
       "defaultTimeoutSeconds": 900
     }
   ],
-  "count": 19
+  "count": 20
 }
 ```
 
 The full catalog is descriptor-backed. Use `GET /api/v1/phases` for the current
-list; current in-repo descriptors include `structure`, `contracts`, `ui-health`,
+list; current in-repo descriptors include `structure`, `contracts`, `experience`,
 `api`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `unit`,
 `storage`, `workflow`, `business`, `tidiness`, `security`, `measures`, `proto`,
 `branding`, and `search`.
@@ -645,7 +667,8 @@ curl -s http://localhost:8080/health | jq '.status'
 curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "structure"
 # "contracts"
-# "ui-health"
+# "experience"
+# "experience-contract"
 # "api"
 # "architecture"
 # "dependencies"

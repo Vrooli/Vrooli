@@ -32,8 +32,26 @@ type ScenarioSummary struct {
 	LastExecutionPhases       []orchestrator.PhaseExecutionResult `json:"lastExecutionPhases,omitempty"`
 	LastExecutionPhaseSummary *orchestrator.PhaseSummary          `json:"lastExecutionPhaseSummary,omitempty"`
 	LastFailureAt             *time.Time                          `json:"lastFailureAt,omitempty"`
+	LastExperienceStatus      string                              `json:"lastExperienceStatus,omitempty"`
+	LastExperienceAt          *time.Time                          `json:"lastExperienceAt,omitempty"`
+	LastExperienceRunID       string                              `json:"lastExperienceRunId,omitempty"`
+	LastUIChangeAt            *time.Time                          `json:"lastUIChangeAt,omitempty"`
+	ExperienceFreshness       ExperienceFreshness                 `json:"experienceFreshness"`
 	Testing                   *TestingCapabilities                `json:"testing,omitempty"`
 }
+
+// ExperienceFreshness is the current age of the persisted experience verdict
+// relative to the scenario's latest source UI change. Unknown source inventory
+// must stay explicitly unavailable; consumers must not infer freshness.
+type ExperienceFreshness string
+
+const (
+	ExperienceNeverRun                   ExperienceFreshness = "never_run"
+	ExperienceOlderThanLastUIChange      ExperienceFreshness = "older_than_last_ui_change"
+	ExperienceEvaluatedAfterLastUIChange ExperienceFreshness = "evaluated_after_last_ui_change"
+	ExperienceUISurfaceUnavailable       ExperienceFreshness = "ui_surface_unavailable"
+	ExperienceUIChangeTimeUnavailable    ExperienceFreshness = "ui_change_time_unavailable"
+)
 
 type executionSummary struct {
 	TotalExecutions           int
@@ -45,6 +63,9 @@ type executionSummary struct {
 	LastExecutionPhases       []orchestrator.PhaseExecutionResult
 	LastExecutionPhaseSummary *orchestrator.PhaseSummary
 	LastFailureAt             *time.Time
+	LastExperienceStatus      string
+	LastExperienceAt          *time.Time
+	LastExperienceRunID       string
 }
 
 // ScenarioDirectoryRepository loads scenario summaries from Test Genie's
@@ -109,6 +130,9 @@ func (r *ScenarioDirectoryRepository) buildSummaries(ctx context.Context, names 
 			summary.LastExecutionPhases = append([]orchestrator.PhaseExecutionResult(nil), executionSummary.LastExecutionPhases...)
 			summary.LastExecutionPhaseSummary = executionSummary.LastExecutionPhaseSummary
 			summary.LastFailureAt = executionSummary.LastFailureAt
+			summary.LastExperienceStatus = executionSummary.LastExperienceStatus
+			summary.LastExperienceAt = executionSummary.LastExperienceAt
+			summary.LastExperienceRunID = executionSummary.LastExperienceRunID
 		}
 		summaries = append(summaries, summary)
 	}
@@ -135,7 +159,7 @@ func (r *ScenarioDirectoryRepository) buildSummaries(ctx context.Context, names 
 
 func (r *ScenarioDirectoryRepository) loadScenarioNames(ctx context.Context) ([]string, error) {
 	const q = `
-SELECT scenario_name FROM suite_executions
+SELECT DISTINCT scenario_name FROM suite_executions
 ORDER BY scenario_name ASC
 `
 	rows, err := r.db.QueryContext(ctx, q)
@@ -231,7 +255,70 @@ ORDER BY scenario_name ASC, completed_at DESC
 	if err := r.loadLastExecutionPhases(ctx, result); err != nil {
 		return nil, err
 	}
+	if err := r.loadLastExperienceVerdicts(ctx, result); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// loadLastExperienceVerdicts retains the latest experience result even when a
+// newer run exercised unrelated phases. The verdict age is therefore tied to
+// the experience evaluation itself, not to general scenario activity.
+func (r *ScenarioDirectoryRepository) loadLastExperienceVerdicts(ctx context.Context, summaries map[string]*executionSummary) error {
+	const q = `
+SELECT e.scenario_name, p.status,
+       COALESCE(p.completed_at, e.completed_at) AS evaluated_at,
+       COALESCE(e.run_id, '') AS run_id
+FROM suite_execution_phases p
+JOIN suite_executions e ON e.id = p.execution_id
+WHERE p.phase_name = 'experience'
+`
+	rows, err := r.db.QueryContext(ctx, q)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	latestStatusRank := make(map[string]int, len(summaries))
+	for rows.Next() {
+		var name, status, runID string
+		var rawAt any
+		if err := rows.Scan(&name, &status, &rawAt, &runID); err != nil {
+			return err
+		}
+		completed, err := sqliteutil.ParseTimestamp(rawAt)
+		if err != nil {
+			return err
+		}
+		if summary := summaries[name]; summary != nil {
+			if summary.LastExperienceAt == nil || completed.After(*summary.LastExperienceAt) {
+				summary.LastExperienceStatus = status
+				summary.LastExperienceAt = &completed
+				summary.LastExperienceRunID = runID
+				latestStatusRank[name] = experienceStatusRank(status)
+				continue
+			}
+			// Phase timestamps can tie after older records were stored at whole-
+			// second precision. On a tie, keep a non-pass over a pass so ordering
+			// cannot manufacture a green stored verdict.
+			if completed.Equal(*summary.LastExperienceAt) && experienceStatusRank(status) > latestStatusRank[name] {
+				summary.LastExperienceStatus = status
+				summary.LastExperienceRunID = runID
+				latestStatusRank[name] = experienceStatusRank(status)
+			}
+		}
+	}
+	return rows.Err()
+}
+
+func experienceStatusRank(status string) int {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passed":
+		return 0
+	case "failed":
+		return 2
+	default:
+		return 1
+	}
 }
 
 // loadLastExecutionPhases bulk-loads only each scenario's newest execution

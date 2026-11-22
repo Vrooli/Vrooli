@@ -86,6 +86,24 @@ func TestParser_Parse_ValidModule(t *testing.T) {
 	}
 }
 
+func TestParser_ParseAllPreservesRootIndexAutoSyncOptOut(t *testing.T) {
+	reader := newMemReader()
+	reader.files["/test/requirements/index.json"] = []byte(`{"_metadata":{"auto_sync_enabled":false},"imports":["module.json"],"requirements":[]}`)
+	parser := New(reader)
+	index, err := parser.ParseAll(context.Background(), []discovery.DiscoveredFile{{
+		AbsolutePath: "/test/requirements/index.json", RelativePath: "index.json", IsIndex: true,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Modules) != 1 || !index.Modules[0].IsIndex || index.Modules[0].RelativePath != "index.json" {
+		t.Fatalf("root index identity not preserved: %+v", index.Modules)
+	}
+	if index.Modules[0].Metadata.IsAutoSyncEnabled() {
+		t.Fatal("root index auto_sync_enabled=false was not preserved")
+	}
+}
+
 func TestParser_Parse_FileNotFound(t *testing.T) {
 	reader := newMemReader()
 	parser := New(reader)
