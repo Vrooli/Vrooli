@@ -2,8 +2,12 @@ package review
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +29,50 @@ type (
 		ID, DraftID, Outcome string
 		Verdicts             []Verdict
 	}
+	EditorialPackage struct {
+		ID, DraftID, SourceRevisionID, Scope, Body, BodySHA256, PackageSHA256, ManifestJSON string
+		CreatedAt                                                                           time.Time
+	}
+	RevisionSnapshot struct {
+		DraftID    string
+		Body       string
+		RevisionID string
+	}
+	RevisionSource interface {
+		CurrentRevision(context.Context, string) (RevisionSnapshot, error)
+	}
+	EditorialContext struct {
+		Channel      string                `json:"channel"`
+		Format       string                `json:"format"`
+		CampaignID   string                `json:"campaign_id"`
+		ProjectID    string                `json:"project_id"`
+		PostTypeID   string                `json:"post_type_id"`
+		Lane         string                `json:"lane"`
+		SKU          string                `json:"sku"`
+		ScenarioName string                `json:"scenario_name"`
+		Attachments  []EditorialAttachment `json:"attachments"`
+	}
+	RevisionProvenance struct {
+		ActorKind string `json:"actor_kind"`
+		Capacity  string `json:"capacity"`
+		CreatedAt string `json:"created_at"`
+	}
+	EditorialAttachment struct {
+		ID          string `json:"id"`
+		AssetID     string `json:"asset_id"`
+		Role        string `json:"role"`
+		AspectRatio string `json:"aspect_ratio"`
+		AltText     string `json:"alt_text"`
+		Position    int    `json:"position"`
+	}
+	EditorialSnapshot struct {
+		RevisionSnapshot
+		Context            EditorialContext
+		RevisionProvenance *RevisionProvenance
+	}
+	EditorialSnapshotSource interface {
+		CurrentEditorialSnapshotTx(context.Context, *sql.Tx, string) (EditorialSnapshot, error)
+	}
 	SQLExecutor interface {
 		ExecContext(context.Context, string, ...any) (sql.Result, error)
 		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -33,11 +81,225 @@ type (
 	Service interface {
 		Record(context.Context, string, []Verdict) (Run, error)
 		List(context.Context) ([]Run, error)
+		CreateEditorialPackage(context.Context, string, string, string, string) (EditorialPackage, error)
+		GetEditorialPackage(context.Context, string) (EditorialPackage, error)
 	}
-	service struct{ db SQLExecutor }
+	service struct {
+		db        SQLExecutor
+		revisions RevisionSource
+	}
 )
 
-func NewService(db SQLExecutor) Service { return &service{db} }
+const EditorialPackageScope = "destination_unbound_wording"
+
+func NewService(db SQLExecutor, revisions RevisionSource) Service {
+	return &service{db: db, revisions: revisions}
+}
+
+func (s *service) CreateEditorialPackage(ctx context.Context, draftID, expectedRevisionID, expectedBody, idempotencyKey string) (EditorialPackage, error) {
+	draftID = strings.TrimSpace(draftID)
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if draftID == "" {
+		return EditorialPackage{}, fmt.Errorf("draft id is required")
+	}
+	if idempotencyKey == "" {
+		return EditorialPackage{}, fmt.Errorf("idempotency key is required")
+	}
+	if strings.TrimSpace(expectedBody) == "" {
+		return EditorialPackage{}, fmt.Errorf("a wording package requires a non-empty expected body")
+	}
+	bodyHash := digest([]byte(expectedBody))
+	fingerprintBasis, err := json.Marshal(struct{ DraftID, RevisionID, BodySHA256 string }{draftID, expectedRevisionID, bodyHash})
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	fingerprint := digest(fingerprintBasis)
+	if prior, found, lookupErr := s.packageOperation(ctx, idempotencyKey); lookupErr != nil {
+		return EditorialPackage{}, lookupErr
+	} else if found {
+		if prior.fingerprint != fingerprint {
+			return EditorialPackage{}, fmt.Errorf("idempotency key was reused with a different wording-package request")
+		}
+		return s.GetEditorialPackage(ctx, prior.packageID)
+	}
+	if s.revisions == nil {
+		return EditorialPackage{}, fmt.Errorf("current revision source is unavailable")
+	}
+	current, err := s.revisions.CurrentRevision(ctx, draftID)
+	if err != nil {
+		return EditorialPackage{}, fmt.Errorf("read current draft revision: %w", err)
+	}
+	if current.RevisionID != expectedRevisionID {
+		return EditorialPackage{}, fmt.Errorf("draft revision changed; refresh the exact wording before creating a package")
+	}
+	if current.Body != expectedBody {
+		return EditorialPackage{}, fmt.Errorf("draft wording changed since the queue loaded; refresh before creating a package")
+	}
+	txBeginner, ok := s.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return EditorialPackage{}, fmt.Errorf("transactional storage is required for idempotent package admission")
+	}
+	tx, err := txBeginner.BeginTx(ctx, nil)
+	if err != nil {
+		return s.recoverPackageAdmission(ctx, idempotencyKey, fingerprint, err)
+	}
+	defer tx.Rollback()
+	var priorFingerprint, priorPackageID string
+	err = tx.QueryRowContext(ctx, `SELECT request_fingerprint,package_id FROM editorial_review_package_operations WHERE idempotency_key = ?`, idempotencyKey).Scan(&priorFingerprint, &priorPackageID)
+	if err == nil {
+		if priorFingerprint != fingerprint {
+			return EditorialPackage{}, fmt.Errorf("idempotency key was reused with a different wording-package request")
+		}
+		if err := tx.Commit(); err != nil {
+			return EditorialPackage{}, err
+		}
+		return s.GetEditorialPackage(ctx, priorPackageID)
+	}
+	if err != sql.ErrNoRows {
+		return EditorialPackage{}, err
+	}
+	snapshotSource, ok := s.revisions.(EditorialSnapshotSource)
+	if !ok {
+		_ = tx.Rollback()
+		return EditorialPackage{}, fmt.Errorf("transactional editorial context source is required for package admission")
+	}
+	snapshot, err := snapshotSource.CurrentEditorialSnapshotTx(ctx, tx, draftID)
+	if err != nil {
+		_ = tx.Rollback()
+		return EditorialPackage{}, fmt.Errorf("read transactional editorial snapshot: %w", err)
+	}
+	if snapshot.RevisionID != expectedRevisionID || snapshot.Body != expectedBody {
+		_ = tx.Rollback()
+		return EditorialPackage{}, fmt.Errorf("draft revision or wording changed before package admission; refresh before creating a package")
+	}
+	manifestJSON, err := json.Marshal(struct {
+		SchemaVersion     string              `json:"schema_version"`
+		DraftID           string              `json:"draft_id"`
+		SourceRevisionID  string              `json:"source_revision_id"`
+		RevisionAuthoring *RevisionProvenance `json:"revision_authoring,omitempty"`
+		BodySHA256        string              `json:"body_sha256"`
+		Scope             string              `json:"scope"`
+		Context           EditorialContext    `json:"context"`
+	}{"content-desk-editorial-snapshot/v2", draftID, snapshot.RevisionID, snapshot.RevisionProvenance, bodyHash, EditorialPackageScope, snapshot.Context})
+	if err != nil {
+		_ = tx.Rollback()
+		return EditorialPackage{}, err
+	}
+	packageBasis, err := json.Marshal(struct {
+		DraftID        string `json:"draft_id"`
+		RevisionID     string `json:"source_revision_id"`
+		Scope          string `json:"scope"`
+		BodySHA256     string `json:"body_sha256"`
+		ManifestSHA256 string `json:"manifest_sha256"`
+	}{draftID, snapshot.RevisionID, EditorialPackageScope, bodyHash, digest(manifestJSON)})
+	if err != nil {
+		_ = tx.Rollback()
+		return EditorialPackage{}, err
+	}
+	created := time.Now().UTC()
+	item := EditorialPackage{ID: uuid.NewSHA1(uuid.NameSpaceURL, []byte("content-desk/editorial-package/"+idempotencyKey)).String(), DraftID: draftID, SourceRevisionID: snapshot.RevisionID, Scope: EditorialPackageScope, Body: snapshot.Body, BodySHA256: bodyHash, PackageSHA256: digest(packageBasis), ManifestJSON: string(manifestJSON), CreatedAt: created}
+	_, err = tx.ExecContext(ctx, `INSERT INTO editorial_review_packages (id,draft_id,source_revision_id,scope,body,body_sha256,package_sha256,created_at) VALUES (?,?,?,?,?,?,?,?)`, item.ID, item.DraftID, item.SourceRevisionID, item.Scope, item.Body, item.BodySHA256, item.PackageSHA256, item.CreatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		_ = tx.Rollback()
+		return s.recoverPackageAdmission(ctx, idempotencyKey, fingerprint, err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO editorial_review_package_manifests (package_id,manifest_json) VALUES (?,?)`, item.ID, item.ManifestJSON); err != nil {
+		_ = tx.Rollback()
+		return s.recoverPackageAdmission(ctx, idempotencyKey, fingerprint, err)
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO editorial_review_package_operations (idempotency_key,request_fingerprint,package_id,created_at) VALUES (?,?,?,?)`, idempotencyKey, fingerprint, item.ID, item.CreatedAt.Format(time.RFC3339Nano))
+	if err != nil {
+		_ = tx.Rollback()
+		return s.recoverPackageAdmission(ctx, idempotencyKey, fingerprint, err)
+	}
+	if err := tx.Commit(); err != nil {
+		_ = tx.Rollback()
+		return s.recoverPackageAdmission(ctx, idempotencyKey, fingerprint, err)
+	}
+	return item, nil
+}
+
+func (s *service) recoverPackageAdmission(ctx context.Context, key, fingerprint string, cause error) (EditorialPackage, error) {
+	prior, found, err := s.packageOperation(ctx, key)
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	if !found {
+		return EditorialPackage{}, cause
+	}
+	if prior.fingerprint != fingerprint {
+		return EditorialPackage{}, fmt.Errorf("idempotency key was reused with a different wording-package request")
+	}
+	return s.GetEditorialPackage(ctx, prior.packageID)
+}
+
+type packageOperation struct{ fingerprint, packageID string }
+
+func (s *service) packageOperation(ctx context.Context, key string) (packageOperation, bool, error) {
+	var found packageOperation
+	err := s.db.QueryRowContext(ctx, `SELECT request_fingerprint,package_id FROM editorial_review_package_operations WHERE idempotency_key = ?`, key).Scan(&found.fingerprint, &found.packageID)
+	if err == sql.ErrNoRows {
+		return packageOperation{}, false, nil
+	}
+	if err != nil {
+		return packageOperation{}, false, err
+	}
+	return found, true, nil
+}
+
+func (s *service) GetEditorialPackage(ctx context.Context, id string) (EditorialPackage, error) {
+	var item EditorialPackage
+	var created string
+	err := s.db.QueryRowContext(ctx, `SELECT id,draft_id,source_revision_id,scope,body,body_sha256,package_sha256,created_at FROM editorial_review_packages WHERE id = ?`, strings.TrimSpace(id)).Scan(&item.ID, &item.DraftID, &item.SourceRevisionID, &item.Scope, &item.Body, &item.BodySHA256, &item.PackageSHA256, &created)
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	item.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	err = s.db.QueryRowContext(ctx, `SELECT manifest_json FROM editorial_review_package_manifests WHERE package_id = ?`, item.ID).Scan(&item.ManifestJSON)
+	if err == sql.ErrNoRows {
+		// Legacy wording-only packages retain their original digest basis.
+		legacyBasis, marshalErr := json.Marshal(struct {
+			DraftID    string `json:"draft_id"`
+			RevisionID string `json:"source_revision_id"`
+			Scope      string `json:"scope"`
+			BodySHA256 string `json:"body_sha256"`
+		}{item.DraftID, item.SourceRevisionID, item.Scope, digest([]byte(item.Body))})
+		if marshalErr != nil {
+			return EditorialPackage{}, marshalErr
+		}
+		if item.BodySHA256 != digest([]byte(item.Body)) || item.PackageSHA256 != digest(legacyBasis) {
+			return EditorialPackage{}, fmt.Errorf("editorial package %q failed its content digest check", item.ID)
+		}
+		return item, nil
+	}
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	manifestBasis, err := json.Marshal(struct {
+		DraftID        string `json:"draft_id"`
+		RevisionID     string `json:"source_revision_id"`
+		Scope          string `json:"scope"`
+		BodySHA256     string `json:"body_sha256"`
+		ManifestSHA256 string `json:"manifest_sha256"`
+	}{item.DraftID, item.SourceRevisionID, item.Scope, digest([]byte(item.Body)), digest([]byte(item.ManifestJSON))})
+	if err != nil {
+		return EditorialPackage{}, err
+	}
+	if item.BodySHA256 != digest([]byte(item.Body)) || item.PackageSHA256 != digest(manifestBasis) {
+		return EditorialPackage{}, fmt.Errorf("editorial package %q failed its content digest check", item.ID)
+	}
+	return item, nil
+}
+
+func digest(content []byte) string {
+	hash := sha256.Sum256(content)
+	return hex.EncodeToString(hash[:])
+}
 func (s *service) Record(ctx context.Context, draftID string, verdicts []Verdict) (Run, error) {
 	if len(verdicts) == 0 {
 		return Run{}, fmt.Errorf("review run requires declared failure-mode verdicts")

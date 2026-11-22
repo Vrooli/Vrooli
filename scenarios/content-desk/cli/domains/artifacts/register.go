@@ -101,21 +101,6 @@ func (h *handlers) transitionReport(_ cliapp.OperationContext, message *artifact
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Draft %s is now %s.", message.Draft.Id, message.Draft.Status)}}
 }
 
-func (h *handlers) approveCall(ctx cliapp.OperationContext) (*artifactsv1.ApproveDraftResponse, error) {
-	response, err := h.client.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: ctx.Positional("id")}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("approve draft", err, nil)
-	}
-	if response == nil || response.Msg == nil || response.Msg.Draft == nil {
-		return nil, fmt.Errorf("server returned no approved draft")
-	}
-	return response.Msg, nil
-}
-
-func (h *handlers) approveReport(_ cliapp.OperationContext, message *artifactsv1.ApproveDraftResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Draft %s approved.", message.Draft.Id)}}
-}
-
 func (h *handlers) currentRevisionCall(ctx cliapp.OperationContext) (*artifactsv1.GetDraftCurrentRevisionResponse, error) {
 	response, err := h.client.GetDraftCurrentRevision(context.Background(), connect.NewRequest(&artifactsv1.GetDraftCurrentRevisionRequest{Id: ctx.Positional("id")}))
 	if err != nil {
@@ -141,7 +126,6 @@ func (h *handlers) currentRevisionReport(_ cliapp.OperationContext, message *art
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"ArtifactsService.ApproveDraft":            cliapp.ProtoMutation(h.approveCall, h.approveReport),
 		"ArtifactsService.CreateDraft":             cliapp.ProtoMutation(h.createCall, h.createReport),
 		"ArtifactsService.ListDrafts":              cliapp.ProtoList(h.listCall, h.listReport),
 		"ArtifactsService.TransitionDraft":         cliapp.ProtoMutation(h.transitionCall, h.transitionReport),

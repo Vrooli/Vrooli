@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ExperienceSurface } from "./ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { renderWithProviders } from "../../test-utils";
 
 describe("ExperienceSurface", () => {

@@ -16,7 +16,7 @@ import { artifactsClient } from "../api/artifacts";
 import { readBoard, type BoardLaunchTarget } from "../api/board";
 import { campaignsClient } from "../api/campaigns";
 import { capabilitiesClient } from "../api/capabilities";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { capabilityGaps, draftNextActionKey, isTerminalDraft, type CapabilityGap, type NextActionKey } from "../features/board/boardModel";

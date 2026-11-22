@@ -2,6 +2,7 @@ package artifacts
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	internalclaims "content-desk/internal/claims"
 	internalledger "content-desk/internal/ledger"
 	internalposttypes "content-desk/internal/posttypes"
+	internalprojects "content-desk/internal/projects"
 	internalreview "content-desk/internal/review"
 
 	"github.com/google/uuid"
@@ -38,12 +40,35 @@ func newRepository(t *testing.T) Repository {
 	if _, err = db.ExecContext(context.Background(), internalposttypes.Schema()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = db.ExecContext(context.Background(), internalprojects.Schema()); err != nil {
+		t.Fatal(err)
+	}
 	for _, campaignID := range []string{"campaign-1", "campaign", "slot-campaign"} {
 		if _, err = db.ExecContext(context.Background(), `INSERT INTO campaign_slots (campaign_id, channel, format, capacity, reserved) VALUES (?, 'x-twitter', 'thread', 2, 0)`, campaignID); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return NewSQLiteRepository(db)
+}
+
+func TestCreateCampaignFreeDraftCanUseActiveProject(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	db := repo.(*sqliteRepository).db
+	if _, err := db.ExecContext(ctx, `INSERT INTO projects (id, name, status, created_at) VALUES ('project-o14', 'O14', 'active', ?)`, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		t.Fatal(err)
+	}
+	draft, err := repo.Create(ctx, Draft{ID: "project-draft", ProjectID: "project-o14", PostTypeID: "dev-log", Body: "A project-level observation.", Channel: "x-twitter", Format: "post"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if draft.ProjectID != "project-o14" {
+		t.Fatalf("created project id = %q, want project-o14", draft.ProjectID)
+	}
+	loaded, err := repo.Get(ctx, draft.ID)
+	if err != nil || loaded.ProjectID != "project-o14" {
+		t.Fatalf("loaded draft = %#v, err=%v", loaded, err)
+	}
 }
 
 // [REQ:CONTENTD-P1-006]
@@ -304,6 +329,47 @@ func TestApprovalPersistsOnlyAfterEveryStoredGatePasses(t *testing.T) {
 	}
 }
 
+func TestExactApprovalRejectsStaleBodyAndRevisionAtomically(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	db := repo.(*sqliteRepository).db
+	if _, err := db.ExecContext(ctx, `UPDATE post_types SET status='active' WHERE id='single-image-ad'`); err != nil {
+		t.Fatal(err)
+	}
+	draft, err := repo.Create(ctx, Draft{ID: "exact-approval", PostTypeID: "single-image-ad", Body: "version one", Channel: "linkedin", Format: "post"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := repo.GetCurrentRevision(ctx, draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.ApproveExact(ctx, draft.ID, current.RevisionID, "stale wording"); err == nil || !strings.Contains(err.Error(), "content changed") {
+		t.Fatalf("stale body error = %v", err)
+	}
+	if _, err := repo.UpdateBody(ctx, draft.ID, "version two"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.ApproveExact(ctx, draft.ID, current.RevisionID, "version one"); err == nil || !strings.Contains(err.Error(), "content changed") {
+		t.Fatalf("stale revision error = %v", err)
+	}
+	updated, err := repo.GetCurrentRevision(ctx, draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = repo.ApproveExact(ctx, draft.ID, updated.RevisionID, updated.Body)
+	if err == nil || strings.Contains(err.Error(), "content changed") {
+		t.Fatalf("exact basis should proceed to ordinary approval gates, got %v", err)
+	}
+	var approvals int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM draft_approvals WHERE draft_id=?`, draft.ID).Scan(&approvals); err != nil {
+		t.Fatal(err)
+	}
+	if approvals != 0 {
+		t.Fatalf("stale or gated attempt wrote %d approvals", approvals)
+	}
+}
+
 // [REQ:CONTENTD-P0-015] A body revision is a new artifact revision. It must
 // withdraw the operator approval and invalidate the review that described the
 // prior body, so a changed artifact cannot be released or re-approved under
@@ -418,6 +484,63 @@ func TestCreateReservesCampaignSlotAndAbandonReleasesItOnce(t *testing.T) {
 	}
 	if reserved != 2 {
 		t.Fatalf("reserved = %d, want 2", reserved)
+	}
+}
+
+func TestCreateWithoutCampaignDoesNotReserveCampaignSlot(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	draft, err := repo.Create(ctx, Draft{ID: "personal-note", PostTypeID: "dev-log", Body: "A real note", Channel: "x-twitter", Format: "thread"})
+	if err != nil {
+		t.Fatalf("create campaign-free draft: %v", err)
+	}
+	if draft.CampaignID != "" {
+		t.Fatalf("campaign id = %q, want empty", draft.CampaignID)
+	}
+	if draft.ProjectID != "unassigned" {
+		t.Fatalf("project id = %q, want explicit unassigned", draft.ProjectID)
+	}
+	loaded, err := repo.Get(ctx, draft.ID)
+	if err != nil || loaded.ProjectID != "unassigned" {
+		t.Fatalf("loaded project id = %q, err=%v", loaded.ProjectID, err)
+	}
+	var reserved int
+	if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT reserved FROM campaign_slots WHERE campaign_id = 'slot-campaign'`).Scan(&reserved); err != nil {
+		t.Fatal(err)
+	}
+	if reserved != 0 {
+		t.Fatalf("reserved = %d, want 0 for campaign-free draft", reserved)
+	}
+	if _, err := repo.Transition(ctx, draft.ID, DraftAbandon); err != nil {
+		t.Fatalf("abandon campaign-free draft: %v", err)
+	}
+	if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT reserved FROM campaign_slots WHERE campaign_id = 'slot-campaign'`).Scan(&reserved); err != nil {
+		t.Fatal(err)
+	}
+	if reserved != 0 {
+		t.Fatalf("reserved after abandon = %d, want 0", reserved)
+	}
+}
+
+func TestCreateRejectsUnregisteredProject(t *testing.T) {
+	repo := newRepository(t)
+	_, err := repo.Create(context.Background(), Draft{ID: "bad-project", ProjectID: "imagined-project", PostTypeID: "dev-log", Channel: "x-twitter", Format: "post"})
+	if err == nil {
+		t.Fatal("created draft for an unregistered project")
+	}
+}
+
+func TestCampaignFreeCreateRequiresTextAndActiveType(t *testing.T) {
+	repo := newRepository(t)
+	ctx := context.Background()
+	base := Draft{CampaignID: "", PostTypeID: "dev-log", Channel: "x-twitter", Format: "post"}
+	if _, err := repo.Create(ctx, base); err == nil {
+		t.Fatal("campaign-free draft accepted empty text")
+	}
+	base.Body = "A personal note"
+	base.PostTypeID = "single-image-ad"
+	if _, err := repo.Create(ctx, base); err == nil {
+		t.Fatal("campaign-free draft accepted an inactive post type")
 	}
 }
 

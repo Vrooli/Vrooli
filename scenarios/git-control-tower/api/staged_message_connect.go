@@ -269,7 +269,13 @@ func (h advisoryConnectServer) UpdateWorktreeSuggestionQueueEntry(ctx context.Co
 	if e != nil {
 		return nil, e
 	}
-	out, e := h.server.stagedMessages.UpdateWorktreeQueue(ctx, repositoryIDFor(record), req.Msg)
+	writeCtx, cancel, unlock, e := h.lockQueueMutation(ctx, record.Path)
+	if e != nil {
+		return nil, e
+	}
+	defer cancel()
+	defer unlock()
+	out, e := h.server.stagedMessages.UpdateWorktreeQueue(writeCtx, repositoryIDFor(record), record.Path, req.Msg)
 	if e != nil {
 		return nil, stagedMessageError(e)
 	}
@@ -281,7 +287,13 @@ func (h advisoryConnectServer) RetireWorktreeSuggestionQueueHead(ctx context.Con
 	if e != nil {
 		return nil, e
 	}
-	out, e := h.server.stagedMessages.RetireWorktreeQueueHead(ctx, repositoryIDFor(record), req.Msg)
+	writeCtx, cancel, unlock, e := h.lockQueueMutation(ctx, record.Path)
+	if e != nil {
+		return nil, e
+	}
+	defer cancel()
+	defer unlock()
+	out, e := h.server.stagedMessages.RetireWorktreeQueueHead(writeCtx, repositoryIDFor(record), record.Path, req.Msg)
 	if e != nil {
 		return nil, stagedMessageError(e)
 	}
@@ -293,11 +305,27 @@ func (h advisoryConnectServer) RemoveWorktreeSuggestionQueueEntry(ctx context.Co
 	if e != nil {
 		return nil, e
 	}
-	out, e := h.server.stagedMessages.RemoveWorktreeQueueEntry(ctx, repositoryIDFor(record), req.Msg)
+	writeCtx, cancel, unlock, e := h.lockQueueMutation(ctx, record.Path)
+	if e != nil {
+		return nil, e
+	}
+	defer cancel()
+	defer unlock()
+	out, e := h.server.stagedMessages.RemoveWorktreeQueueEntry(writeCtx, repositoryIDFor(record), req.Msg)
 	if e != nil {
 		return nil, stagedMessageError(e)
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) lockQueueMutation(ctx context.Context, repoPath string) (context.Context, context.CancelFunc, func(), error) {
+	writeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	unlock, err := h.server.repoLock.Acquire(writeCtx, repoPath)
+	if err != nil {
+		cancel()
+		return nil, nil, nil, connect.NewError(connect.CodeUnavailable, errors.New("repository is busy, please retry"))
+	}
+	return writeCtx, cancel, unlock, nil
 }
 
 func (h advisoryConnectServer) ReadStagedMessageEvidence(ctx context.Context, req *connect.Request[v1.ReadStagedMessageEvidenceRequest]) (*connect.Response[v1.ReadStagedMessageEvidenceResponse], error) {

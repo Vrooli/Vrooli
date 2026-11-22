@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
 // Repository is the ledger read/append surface. Channel Manager release
@@ -240,16 +241,9 @@ func (r *sqliteRepository) ContaminatedByClaim(ctx context.Context, claimID stri
 	return out, rows.Err()
 }
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-type sqliteRepository struct{ db SQLExecutor }
-
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) RecordPublish(ctx context.Context, record PublishRecord) (PublishRecord, error) {
 	if record.ID == "" {

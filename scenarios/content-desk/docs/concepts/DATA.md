@@ -2,7 +2,7 @@
 
 ## Accepted Marketing I16 scope — 2026-10-04
 
-Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC governs the added canonical PRD/requirements targets. See ../internal/goal/GOAL.md and its exact materials. This is desired contract reconciliation; no new implementation, live qualification or activation is claimed. Existing implementation inventories and historical decisions below remain historical evidence where superseded.
+Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC governs the added canonical PRD/requirements targets. See ../internal/goal/GOAL.md and its exact materials. The canonical target remains ahead of runtime; the rows below distinguish currently implemented domains from those still open and do not claim live qualification or activation.
 
 Content Desk owns the full Today/Plan/Create/Review/Learn/Content experience, native structured formats, campaign-free project scope, exact source/revision/method/import/package state and safe recovery. Asset Studio is the media byte/candidate/release owner; Channel Manager owns timed release/actions/outcomes; Planner owns accepted human time. External writing remains first-class and generation optional. D-003 does not prohibit manual/external composition or qualified suggestions; D-013/D-018 hypothetical media ownership, D-015 blanket collaboration deferral and unchanged default-console expression are superseded at this bounded accepted scope. Campaign slots constrain actual campaign-attached drafts, not unrelated projects/collections. Per-variant approval never inherits. The append-only legacy importer does not implement article restore/update. Real provider collection remains qualified, while safe native/manual observations are mandatory.
 
@@ -45,7 +45,8 @@ such as BlobStore.
 |---|---|---|---|---|---|
 | Campaign | campaigns | SQLite | `api/internal/campaigns/schema.sql` | Retained after close as historical record. | Theme, audiences, channels, hypotheses, linked SKUs, status, evidence refs. |
 | Artifact slot | campaigns | SQLite | `api/internal/campaigns/schema.sql` | Follows its campaign. | Declared channel/format slots and their occupancy. The budget is a hard cap. |
-| Draft | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Retained; abandoned drafts are marked, not deleted. | Body, hook, type, lane, audience, channel, status, approval attribution. |
+| Draft | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Retained; abandoned drafts are marked, not deleted. | Body, hook, type, lane, audience, channel, status, approval attribution. New drafts receive a project-ref row; `unassigned` is explicit. Legacy drafts without that row remain unmapped until reviewed. |
+| Project | projects | SQLite | `api/internal/projects/schema.sql` | Retained as an active editorial scope. | UUID, unique non-empty name and active status; reserved id `unassigned` is not creatable. Drafts hold an artifacts-owned soft reference, validated against active projects at creation. |
 | Revision | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | Prior bodies, so an edit history survives review. Records whether a revision came from the operator or a commissioned agent. |
 | Image attachment | artifacts | SQLite | `api/internal/artifacts/schema.sql` | Follows its draft. | **Reference and metadata only, never bytes** (D-018): an `image-tools` asset id, resolved path, role (`banner` or `inline`), declared aspect ratio, alt text, and position. Bytes live in image-tools. |
 | Claim | claims | SQLite | `api/internal/claims/schema.sql` | **Never deleted.** | Assertion text, kind, verification state, search date for novelty claims. Shared across drafts. |
@@ -68,7 +69,8 @@ Each domain's schema file lives beside the code that interprets it. The
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | campaigns, artifact_slots | campaigns | `api/internal/campaigns/schema.sql` | campaigns repository/service; read by artifacts for slot admission |
-| drafts, revisions, requests, image_attachments | artifacts | `api/internal/artifacts/schema.sql` | artifacts repository/service; read by claims, review, and ledger |
+| projects | projects | `api/internal/projects/schema.sql` | projects repository/service; read by artifacts to validate project references |
+| drafts, draft_project_refs, revisions, requests, image_attachments | artifacts | `api/internal/artifacts/schema.sql` | artifacts repository/service; project ids are soft references; read by claims, review, and ledger |
 | claims, evidence, citations | claims | `api/internal/claims/schema.sql` | claims policy engine; read by artifacts for the approval gate |
 | post_types, activation_criteria, failure_modes | posttypes | `api/internal/posttypes/schema.sql` | posttypes validation; read by artifacts and review |
 | review_runs, verdicts, challenges | review | `api/internal/review/schema.sql` | review service; read by artifacts for the approval gate |

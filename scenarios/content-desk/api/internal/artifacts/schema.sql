@@ -30,6 +30,15 @@ CREATE TABLE IF NOT EXISTS draft_slots (
   released_at TEXT
 );
 
+-- The relation is owned by artifacts. Project rows are owned by the future
+-- projects domain; this is a soft reference so domains can bootstrap alone.
+-- Older drafts with no relation stay explicitly unresolved rather than being
+-- guessed into a project during bootstrap.
+CREATE TABLE IF NOT EXISTS draft_project_refs (
+  draft_id TEXT PRIMARY KEY REFERENCES drafts(id),
+  project_id TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS draft_revisions (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL REFERENCES drafts(id),

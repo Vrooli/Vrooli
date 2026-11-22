@@ -7,6 +7,7 @@ import { DashboardPage, editorShapeForPostType } from "./DashboardPage";
 const mocks = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   approveDraft: vi.fn(),
+	getDraftCurrentRevision: vi.fn(),
 	updateDraftBody: vi.fn(),
 	attachReleasedAsset: vi.fn(),
 	listDraftAttachments: vi.fn(),
@@ -27,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 	resolveRemediation: vi.fn(),
 }));
 
-vi.mock("../api/artifacts", () => ({ artifactsClient: { listDrafts: mocks.listDrafts, approveDraft: mocks.approveDraft, updateDraftBody: mocks.updateDraftBody, submitReleaseDraft: mocks.submitReleaseDraft, attachReleasedAsset: mocks.attachReleasedAsset, listDraftAttachments: mocks.listDraftAttachments, commissionAgentWork: mocks.commissionAgentWork } }));
+vi.mock("../api/artifacts", () => ({ artifactsClient: { listDrafts: mocks.listDrafts, approveDraft: mocks.approveDraft, getDraftCurrentRevision: mocks.getDraftCurrentRevision, updateDraftBody: mocks.updateDraftBody, submitReleaseDraft: mocks.submitReleaseDraft, attachReleasedAsset: mocks.attachReleasedAsset, listDraftAttachments: mocks.listDraftAttachments, commissionAgentWork: mocks.commissionAgentWork } }));
 vi.mock("../api/claims", () => ({ claimsClient: { listClaims: mocks.listClaims, listDraftClaims: mocks.listDraftClaims, citeClaim: mocks.citeClaim, verifyClaim: mocks.verifyClaim, getClaimCoverage: mocks.getClaimCoverage, listClaimProposals: mocks.listClaimProposals, extractClaimProposals: mocks.extractClaimProposals, decideClaimProposal: mocks.decideClaimProposal } }));
 vi.mock("../api/review", () => ({ reviewClient: { listReviewRuns: mocks.listReviewRuns } }));
 vi.mock("../api/ledger", () => ({ ledgerClient: { listPublishRecords: mocks.listPublishRecords, listRemediations: mocks.listRemediations, createRemediation: mocks.createRemediation, resolveRemediation: mocks.resolveRemediation } }));
@@ -35,8 +36,10 @@ vi.mock("../api/ledger", () => ({ ledgerClient: { listPublishRecords: mocks.list
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, "", "/");
     mocks.listDrafts.mockResolvedValue({ drafts: [] });
     mocks.approveDraft.mockResolvedValue({});
+	mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-default", body: "" } });
     mocks.updateDraftBody.mockResolvedValue({});
 		mocks.attachReleasedAsset.mockResolvedValue({ attachment: { id: "attachment-1" } });
 		mocks.listDraftAttachments.mockResolvedValue({ attachments: [] });
@@ -57,6 +60,34 @@ describe("DashboardPage", () => {
 		mocks.resolveRemediation.mockResolvedValue({ remediation: { id: "remediation-1", status: "resolved" } });
   });
 
+  it("resumes the exact draft id from a Review route query", async () => {
+    window.history.replaceState({}, "", "/review?draft=draft-query-target");
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-query-target", status: "reviewed", campaignId: "", body: "Exact review body" }] });
+    renderWithProviders(<DashboardPage />, { withoutRouter: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
+    expect(await screen.findByLabelText("Draft body")).toHaveValue("Exact review body");
+  });
+
+  it("accepts Review's selected draft ID directly rather than depending on browser URL state", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [
+      { id: "draft-other", status: "reviewed", campaignId: "", body: "Other body" },
+      { id: "draft-selected", status: "reviewed", campaignId: "", body: "Selected exact body" },
+    ] });
+    renderWithProviders(<DashboardPage initialSelectedDraftId="draft-selected" />, { withoutRouter: true });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
+    expect(await screen.findByLabelText("Draft body")).toHaveValue("Selected exact body");
+  });
+
+  it("preserves an empty Review selection instead of approving the workbench's first unrelated draft", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-unopened", status: "reviewed", campaignId: "", body: "Not opened in Review" }] });
+    renderWithProviders(<DashboardPage preserveEmptySelection />, { withoutRouter: true });
+    fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
+    await screen.findByText("draft-unopened");
+    expect(screen.queryByLabelText("Draft body")).not.toBeInTheDocument();
+    expect(screen.getByText("Select a draft to inspect it.")).toBeInTheDocument();
+  });
+
   // [REQ:CONTENTD-P0-014]
   it("[CONTENTD-P0-014] loads the queue and enables approval only when every displayed gate passes", async () => {
     mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", status: "reviewed", campaignId: "campaign-1", body: "Approved content" }] });
@@ -75,17 +106,19 @@ describe("DashboardPage", () => {
 
   it("submits operator approval and refreshes the ledger queue", async () => {
     mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-approve", status: "reviewed", campaignId: "campaign-1", body: "Ready" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-1", body: "Ready" } });
     mocks.listClaims.mockResolvedValue({ claims: [] });
     mocks.listReviewRuns.mockResolvedValue({ reviewRuns: [{ id: "review-approve", draftId: "draft-approve", outcome: "passed" }] });
     renderWithProviders(<DashboardPage />);
     fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
     await screen.findByText("draft-approve");
     fireEvent.click(screen.getByRole("button", { name: "Approve draft" }));
-    await waitFor(() => expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "draft-approve", identityId: "", lane: "" }));
+    await waitFor(() => expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "draft-approve", expectedRevisionId: "rev-1", expectedBody: "Ready", identityId: "", lane: "" }));
   });
 
   it("[CONTENTD-P1-005] sends a targeted approval through the eligibility gate", async () => {
 		mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-target", status: "reviewed", campaignId: "campaign-1", body: "Ready" }] });
+		mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-target", body: "Ready" } });
 		mocks.listReviewRuns.mockResolvedValue({ reviewRuns: [{ id: "review-target", draftId: "draft-target", outcome: "passed" }] });
 		renderWithProviders(<DashboardPage />);
 		fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
@@ -93,7 +126,7 @@ describe("DashboardPage", () => {
 		fireEvent.change(screen.getByLabelText("Approval target identity"), { target: { value: "identity-1" } });
 		fireEvent.change(screen.getByLabelText("Approval target lane"), { target: { value: "main" } });
 		fireEvent.click(screen.getByRole("button", { name: "Approve draft" }));
-		await waitFor(() => expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "draft-target", identityId: "identity-1", lane: "main" }));
+		await waitFor(() => expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "draft-target", expectedRevisionId: "rev-target", expectedBody: "Ready", identityId: "identity-1", lane: "main" }));
 	});
 
   it("[CONTENTD-P1-006] submits an approved draft to Channel Manager without calling it published", async () => {
@@ -248,6 +281,7 @@ describe("DashboardPage", () => {
 
   it("surfaces an operator approval refusal instead of silently publishing", async () => {
     mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-refused", status: "reviewed", campaignId: "campaign-1", body: "Ready" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-refused", body: "Ready" } });
     mocks.listReviewRuns.mockResolvedValue({ reviewRuns: [{ id: "review-refused", draftId: "draft-refused", outcome: "passed" }] });
     mocks.approveDraft.mockRejectedValue(new Error("operator approval required"));
     renderWithProviders(<DashboardPage />);
@@ -257,6 +291,17 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Approve draft" }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("operator approval required"));
+  });
+
+  it("refuses approval when the selected body no longer matches the current revision", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-stale-approval", status: "reviewed", body: "Displayed wording" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-new", body: "Changed wording" } });
+    renderWithProviders(<DashboardPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh desk" }));
+    await screen.findByText("draft-stale-approval");
+    fireEvent.click(screen.getByRole("button", { name: "Approve draft" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Draft content changed");
+    expect(mocks.approveDraft).not.toHaveBeenCalled();
   });
 
   it("retains a visible error when attaching or verifying evidence fails", async () => {

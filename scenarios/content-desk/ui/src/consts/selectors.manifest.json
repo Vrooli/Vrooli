@@ -81,6 +81,26 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
+    "pages.today": {
+      "testId": "page-today",
+      "selector": "[data-testid=\"page-today\"]"
+    },
+    "pages.create": {
+      "testId": "page-create",
+      "selector": "[data-testid=\"page-create\"]"
+    },
+    "pages.review": {
+      "testId": "page-review",
+      "selector": "[data-testid=\"page-review\"]"
+    },
+    "pages.content": {
+      "testId": "page-content",
+      "selector": "[data-testid=\"page-content\"]"
+    },
+    "pages.learn": {
+      "testId": "page-learn",
+      "selector": "[data-testid=\"page-learn\"]"
+    },
     "pages.board": {
       "testId": "page-board",
       "selector": "[data-testid=\"page-board\"]"
@@ -174,6 +194,12 @@
           "values": [
             "dashboard",
             "board",
+            "today",
+            "plan",
+            "create",
+            "review",
+            "content",
+            "learn",
             "settings"
           ]
         }
@@ -190,6 +216,12 @@
           "values": [
             "dashboard",
             "board",
+            "today",
+            "plan",
+            "create",
+            "review",
+            "content",
+            "learn",
             "settings"
           ]
         }
@@ -230,7 +262,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "41479ad1f6a66d6a38ad45b2c1e78a41267ad88c3e2215deae2e0782092e9d6c",
+    "ui/src/consts/selectors.ts": "50e6f12c73b31ce3eb7818b792fe4a725d7da042691de8d1d913986dd6e3780a",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

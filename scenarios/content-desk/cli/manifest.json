@@ -117,7 +117,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -146,7 +148,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -176,7 +180,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -188,32 +194,6 @@
       "name": "artifacts",
       "description": "Inspect draft lifecycle state",
       "commands": [
-        {
-          "name": "approve",
-          "description": "Approve a reviewed draft after all gates pass",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Draft id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ArtifactsService",
-            "method": "ApproveDraft"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
         {
           "name": "create",
           "description": "Create a requested draft",
@@ -1070,6 +1050,16 @@
   "exceptions": [],
   "omitted": [
     {
+      "service": "ProjectsService",
+      "method": "ListProjects",
+      "reason": "Project selection and scope are editorial workspace operations; the UI keeps each project beside its associated drafts."
+    },
+    {
+      "service": "ProjectsService",
+      "method": "CreateProject",
+      "reason": "Project creation belongs in the editorial workspace where its scope and associated drafts are visible."
+    },
+    {
       "service": "CapabilitiesService",
       "method": "UpsertCapability",
       "reason": "Capability records are seeded and reconciled from owner evidence by an agent/operator program; a standalone CLI mutation would let a capability be invented without its readiness dimensions."
@@ -1148,6 +1138,86 @@
       "service": "SearchService",
       "method": "Status",
       "reason": "Provider readiness is presented in the editorial workbench alongside search results and recovery guidance."
+    },
+    {
+      "service": "ReviewService",
+      "method": "CreateEditorialPackage",
+      "reason": "Editorial wording packages are created from the exact visible draft in Review; the CLI would not carry the phone-review context or operator decision."
+    },
+    {
+      "service": "ReviewService",
+      "method": "GetEditorialPackage",
+      "reason": "The Review workbench displays immutable package receipts beside their exact draft and decision context."
+    },
+    {
+      "service": "PublicationIntentService",
+      "method": "ListPublicationIntents",
+      "reason": "Editorial intentions are read in the Plan workbench beside the selected draft and its current revision."
+    },
+    {
+      "service": "PublicationIntentService",
+      "method": "SetPublicationIntent",
+      "reason": "Setting an editorial date/daypart is a revision-guarded Plan action; detached CLI use would omit the current draft wording and selected plan context."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "CreateRelation",
+      "reason": "Content relationships pin exact source and target revisions within one project; the workspace keeps both draft identities and project context visible while forming the link."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "ListRelations",
+      "reason": "Related drafts and primary family context are shown beside the selected artifact, where the scoped identities can be checked."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "CreateCollection",
+      "reason": "Saved collections are project-scoped, non-owning workspace views; CLI creation would omit the project and membership context."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "AddCollectionItem",
+      "reason": "Collection membership pins a selected draft revision and must be reviewed in its project workspace."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "ListCollectionItems",
+      "reason": "Collection entries are contextual draft projections shown beside the selected project and exact revisions."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "PreviewImpact",
+      "reason": "Detach/move/archive preview is a contextual, non-mutating workspace assessment. A detached CLI preview could be mistaken for applying the operation."
+    },
+    {
+      "service": "ArticleIntakeService",
+      "method": "Preview",
+      "reason": "Article previews may contain private external source material; intake belongs in a deliberately scoped import workspace, not shell history or detached output."
+    },
+    {
+      "service": "ArticleIntakeService",
+      "method": "Admit",
+      "reason": "Admission can retain private source text and requires reviewed, restartable import context and exact source identity; detached CLI use bypasses that context."
+    },
+    {
+      "service": "ArticleIntakeService",
+      "method": "List",
+      "reason": "Intake records can contain private source text and receipts; they belong in the scoped Content Desk workspace rather than terminal output."
+    },
+    {
+      "service": "ArticleIntakeService",
+      "method": "Reconcile",
+      "reason": "Reconciliation changes unresolved intake outcomes and must keep source revision and per-item receipts visible in the import journey."
+    },
+    {
+      "service": "ArticleIntakeService",
+      "method": "Promote",
+      "reason": "Promotion binds an exact admitted item receipt and named independent variants to draft lineage; it belongs in the Content Desk workspace where the selected item and receipts remain visible."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "ApproveDraft",
+      "reason": "Human approval is bound to the exact current body and revision in the Content Desk workbench; detached CLI approval cannot preserve the reviewed wording context."
     }
   ]
 }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Desk 0.3 — Today / first implementation slice</title>
+  <style>
+    :root { color-scheme: light; --paper:#fcfbf7; --ink:#171b2e; --muted:#5b6070; --blue:#1230cd; --line:#d6d7d9; --panel:#fff; --soft:#f4f2ed; font:16px/1.5 "Open Sans",system-ui,sans-serif; }
+    * { box-sizing:border-box } body { margin:0; background:#ecebe7; color:var(--ink); }
+    header { background:#020617; color:white; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; gap:20px }
+    header nav { display:flex; gap:20px; font-size:14px } header a { color:inherit; text-decoration:none }
+    main { max-width:1320px; margin:30px auto; padding:0 24px }
+    h1 { font:500 36px/1.16 Georgia,serif; margin:0 } h2 { font-size:17px; margin:0 0 12px }
+    .intro { display:flex; justify-content:space-between; align-items:end; margin-bottom:22px; gap:24px }
+    .muted { color:var(--muted); font-size:14px } .layout { display:grid; grid-template-columns:minmax(250px, .8fr) minmax(360px,1.4fr) minmax(245px,.8fr); gap:16px }
+    .comparison { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:20px; align-items:start }
+    section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; min-width:0 }
+    .paper { background:var(--paper); border-left:4px solid var(--blue) } .eyebrow { color:var(--blue); text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:700 }
+    .title { font:500 22px/1.25 Georgia,serif; margin:9px 0 } .chip { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:3px 9px; font-size:12px; margin:0 5px 5px 0 }
+    .button { display:inline-block; border-radius:999px; padding:10px 16px; background:var(--blue); color:#fff; font-weight:600; text-decoration:none; margin-top:12px }
+    .secondary { background:white; color:var(--blue); border:1px solid var(--line); margin-left:6px }
+    .row { border-top:1px solid var(--line); padding:12px 0 } .row strong { display:block } .why { border-left:2px solid var(--blue); padding-left:12px; margin-top:14px }
+    .phone-frame { width:360px; margin:26px auto; border:8px solid #101322; border-radius:28px; overflow:hidden; background:var(--paper); box-shadow:0 10px 30px #0002 }
+    .phone-top { background:#020617; color:#fff; padding:14px 16px; font-size:14px; display:flex; justify-content:space-between }
+    .phone-main { padding:20px 16px 12px } .phone-main h1 { font-size:30px } .phone-main section { margin:14px 0; padding:15px }
+    .phone-nav { display:flex; justify-content:space-around; border-top:1px solid var(--line); padding:12px 6px; font-size:12px; background:white }
+    .phone-nav span:first-child { color:var(--blue); font-weight:700 }
+    @media(max-width:1100px) { .comparison {grid-template-columns:1fr} .phone-frame {justify-self:center} }
+    @media(max-width:700px) { header nav {display:none} main {margin:18px auto;padding:0 14px} .layout {grid-template-columns:1fr} .desktop {display:none} .phone-frame {width:min(360px,100%)} .intro {align-items:start; flex-direction:column} }
+  </style>
+</head>
+<body>
+  <header><strong>CONTENT DESK</strong><nav><a href="#">Today</a><a href="#">Plan</a><a href="#">Create</a><a href="#">Review</a><a href="#">Learn</a></nav><span>Search&nbsp;&nbsp; Matthew</span></header>
+  <main>
+    <div class="intro"><div><div class="eyebrow">Marketing workspace</div><h1>Today</h1><p class="muted">Resume saved work. See the next decision without manufacturing activity.</p></div><span class="chip">3 open items</span></div>
+    <div class="comparison"><div class="desktop layout">
+      <section><h2>Pick up where you left off</h2><div class="row"><strong>Aster — local export receipts</strong><span class="muted">Synthetic fixture · source revision 3 · draft revision 1</span></div><a class="button" href="#">Resume exact draft</a><div class="why"><strong>Why this next?</strong><p class="muted">This synthetic draft remains available. Its suggestion is tied to the exact source and draft revisions; it makes no claim about reach or timing.</p></div></section>
+      <section class="paper"><div class="eyebrow">Operator decision · exact version</div><div class="title">Review the synthetic LinkedIn draft</div><p>This fixture is marked reviewed and still needs the operator's decision. It is not approved and has not been scheduled.</p><span class="chip">Reviewed, not approved</span><span class="chip">Nothing scheduled</span><br><a class="button" href="#">Open exact draft</a><a class="button secondary" href="#">Later</a></section>
+      <section><h2>Waiting on a decision</h2><div class="row"><strong>2 drafts need your review</strong><span class="muted">Each decision is tied to an exact version.</span></div><div class="row"><strong>No live releases</strong><span class="muted">Nothing is queued to publish.</span></div><a href="#" class="muted">Open Review →</a></section>
+    </div><div class="phone-frame"><div class="phone-top"><strong>CONTENT DESK</strong><span>Search</span></div><div class="phone-main"><div class="eyebrow">Marketing workspace</div><h1>Today</h1><p class="muted">Resume saved work. No action is taken for you.</p><section><div class="eyebrow">Resume</div><div class="title">Aster — local export receipts</div><p class="muted">Synthetic fixture · source revision 3 · draft revision 1</p><a class="button" href="#">Resume exact draft</a></section><section class="paper"><div class="eyebrow">Operator decision · exact version</div><div class="title">Review the synthetic LinkedIn draft</div><p>This fixture is marked reviewed and still needs the operator's decision.</p><span class="chip">Reviewed, not approved</span><span class="chip">Nothing scheduled</span><a class="button" href="#">Open exact draft</a><div class="why"><strong>What we know</strong><p class="muted">The native draft list returned this item first. No performance claim is implied.</p></div></section><section><h2>Waiting</h2><p class="muted">No release is scheduled.</p><a href="#">See all decisions →</a></section></div><div class="phone-nav"><span>Today</span><span>Plan</span><span>Create</span><span>Review</span><span>Learn</span></div></div></div>
+    <p class="muted">First-slice mockup from the accepted 0.3 Today contract and current experience spec. The transferred 47-state source map and selected image files are missing from their recorded location, so this is not a claim of exact screenshot fidelity.</p>
+  </main>
+</body>
+</html>

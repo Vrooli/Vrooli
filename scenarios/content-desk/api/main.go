@@ -28,8 +28,12 @@ import (
 	capabilitiesH "content-desk/handlers/capabilities"
 	claimsH "content-desk/handlers/claims"
 	healthH "content-desk/handlers/health"
+	intakeH "content-desk/handlers/intake"
+	intentsH "content-desk/handlers/intents"
 	ledgerH "content-desk/handlers/ledger"
 	posttypesH "content-desk/handlers/posttypes"
+	projectsH "content-desk/handlers/projects"
+	relationshipsH "content-desk/handlers/relationships"
 	reviewH "content-desk/handlers/review"
 	searchH "content-desk/handlers/search"
 	programruntime "content-desk/integrations/programruntime"
@@ -128,7 +132,11 @@ func main() {
 		healthH.Module(db, "content-desk-api", "1.0.0"),
 		ledgerH.Module(db),
 		posttypesH.Module(db),
+		projectsH.Module(db),
+		relationshipsH.Module(db),
 		reviewH.Module(db),
+		intentsH.Module(db),
+		intakeH.Module(db),
 		searchH.Module(db, searcher),
 	)
 

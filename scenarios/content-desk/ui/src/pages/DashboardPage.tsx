@@ -5,7 +5,7 @@ import { claimsClient } from "../api/claims";
 import { ledgerClient } from "../api/ledger";
 import { reviewClient } from "../api/review";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { selectors } from "../consts/selectors";
 
 type DeskState = "loading" | "ready" | "error";
@@ -54,7 +54,7 @@ function AttachmentEditor({ assetID, role, aspectRatio, altText, position, disab
   </section>;
 }
 
-export function DashboardPage() {
+export function DashboardPage({ initialSelectedDraftId, preserveEmptySelection = false }: { initialSelectedDraftId?: string; preserveEmptySelection?: boolean } = {}) {
   // Test harnesses render a disconnected static route; leave its explicit
   // refresh control usable while production mounts fetch immediately.
   const [state, setState] = useState<DeskState>(() => import.meta.env.MODE === "test" ? "ready" : "loading");
@@ -73,7 +73,7 @@ export function DashboardPage() {
 	const [reviews, setReviews] = useState<Awaited<ReturnType<typeof reviewClient.listReviewRuns>>["reviewRuns"]>([]);
 	const [publishRecords, setPublishRecords] = useState<Awaited<ReturnType<typeof ledgerClient.listPublishRecords>>["publishRecords"]>([]);
 	const [remediations, setRemediations] = useState<Awaited<ReturnType<typeof ledgerClient.listRemediations>>["remediations"]>([]);
-  const [selectedID, setSelectedID] = useState<string | undefined>();
+  const [selectedID, setSelectedID] = useState<string | undefined>(() => initialSelectedDraftId ?? new URLSearchParams(window.location.search).get("draft") ?? undefined);
   const [editBody, setEditBody] = useState("");
 	const [claimID, setClaimID] = useState("");
 	const [spanStart, setSpanStart] = useState("0");
@@ -106,7 +106,7 @@ export function DashboardPage() {
 		setReviews(reviewResponse.reviewRuns);
 		setPublishRecords(ledgerResponse.publishRecords);
 		setRemediations(remediationResponse.remediations);
-      setSelectedID((current) => current ?? draftResponse.drafts[0]?.id);
+      setSelectedID((current) => current ?? (preserveEmptySelection ? undefined : draftResponse.drafts[0]?.id));
       setState("ready");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load the content desk.");
@@ -117,7 +117,12 @@ export function DashboardPage() {
   async function approveSelected() {
     if (!selectedID) return;
     try {
-		await artifactsClient.approveDraft({ id: selectedID, identityId: approvalIdentity, lane: approvalLane });
+		const selectedDraft = drafts.find((draft) => draft.id === selectedID);
+		if (!selectedDraft || editBody !== selectedDraft.body) throw new Error("Save the exact current draft body before approving it.");
+		const current = await artifactsClient.getDraftCurrentRevision({ id: selectedID });
+		const revision = current.currentRevision;
+		if (!revision || revision.body !== selectedDraft.body) throw new Error("Draft content changed; refresh before approving the exact wording.");
+		await artifactsClient.approveDraft({ id: selectedID, expectedRevisionId: revision.revisionId, expectedBody: selectedDraft.body, identityId: approvalIdentity, lane: approvalLane });
       await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to approve the draft.");

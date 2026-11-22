@@ -28,8 +28,12 @@ import (
 	capabilitiesH "content-desk/handlers/capabilities"
 	claimsH "content-desk/handlers/claims"
 	healthH "content-desk/handlers/health"
+	intakeH "content-desk/handlers/intake"
+	intentsH "content-desk/handlers/intents"
 	ledgerH "content-desk/handlers/ledger"
 	posttypesH "content-desk/handlers/posttypes"
+	projectsH "content-desk/handlers/projects"
+	relationshipsH "content-desk/handlers/relationships"
 	reviewH "content-desk/handlers/review"
 	localdb "content-desk/internal/database"
 
@@ -37,8 +41,12 @@ import (
 	campaignsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns"
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/capabilities"
 	claimsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims"
+	intakev1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/intake"
+	intentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/intents"
 	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger"
 	posttypesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/posttypes"
+	projectsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/projects"
+	relationshipsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/relationships"
 	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/review"
 )
 
@@ -56,7 +64,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, claimsH.Endpoints...)
 	out = append(out, ledgerH.Endpoints...)
 	out = append(out, posttypesH.Endpoints...)
+	out = append(out, projectsH.Endpoints...)
+	out = append(out, relationshipsH.Endpoints...)
 	out = append(out, reviewH.Endpoints...)
+	out = append(out, intentsH.Endpoints...)
+	out = append(out, intakeH.Endpoints...)
 	return out
 }
 
@@ -89,7 +101,11 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "claims", File: claimsv1.File_content_desk_v1_claims_claims_proto},
 		{Module: "ledger", File: ledgerv1.File_content_desk_v1_ledger_ledger_proto},
 		{Module: "posttypes", File: posttypesv1.File_content_desk_v1_posttypes_posttypes_proto},
+		{Module: "projects", File: projectsv1.File_content_desk_v1_projects_projects_proto},
+		{Module: "relationships", File: relationshipsv1.File_content_desk_v1_relationships_relationships_proto},
 		{Module: "review", File: reviewv1.File_content_desk_v1_review_review_proto},
+		{Module: "intents", File: intentsv1.File_content_desk_v1_intents_intents_proto},
+		{Module: "intake", File: intakev1.File_content_desk_v1_intake_intake_proto},
 	}
 }
 
@@ -111,6 +127,10 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(ledgerH.Schema),
 		apidb.SchemaProviderFunc(posttypesH.Schema),
+		apidb.SchemaProviderFunc(projectsH.Schema),
+		apidb.SchemaProviderFunc(relationshipsH.Schema),
 		apidb.SchemaProviderFunc(reviewH.Schema),
+		apidb.SchemaProviderFunc(intentsH.Schema),
+		apidb.SchemaProviderFunc(intakeH.Schema),
 	}
 }

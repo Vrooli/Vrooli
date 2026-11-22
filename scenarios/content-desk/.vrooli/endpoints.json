@@ -436,6 +436,70 @@
       "category": "posttypes"
     },
     {
+      "id": "projects_list",
+      "path": "/vrooli.content_desk.v1.projects.ProjectsService/ListProjects",
+      "method": "POST",
+      "summary": "List active editorial projects",
+      "description": "",
+      "category": "projects"
+    },
+    {
+      "id": "projects_create",
+      "path": "/vrooli.content_desk.v1.projects.ProjectsService/CreateProject",
+      "method": "POST",
+      "summary": "Create an active editorial project",
+      "description": "",
+      "category": "projects"
+    },
+    {
+      "id": "relationships_create_relation",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/CreateRelation",
+      "method": "POST",
+      "summary": "Create an exact-revision same-project content relation",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_list",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/ListRelations",
+      "method": "POST",
+      "summary": "List pinned content relations",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_create_collection",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/CreateCollection",
+      "method": "POST",
+      "summary": "Create a non-owning saved collection",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_add_collection_item",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/AddCollectionItem",
+      "method": "POST",
+      "summary": "Add a pinned revision to a saved collection",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_list_collection_items",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/ListCollectionItems",
+      "method": "POST",
+      "summary": "List saved collection references",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_preview_impact",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/PreviewImpact",
+      "method": "POST",
+      "summary": "Preview detach, move, or archive impact without mutation",
+      "description": "",
+      "category": "relationships"
+    },
+    {
       "id": "review_list",
       "path": "/vrooli.content_desk.v1.review.ReviewService/ListReviewRuns",
       "method": "POST",
@@ -450,6 +514,78 @@
       "summary": "Record re-runnable craft and policy verdicts",
       "description": "",
       "category": "review"
+    },
+    {
+      "id": "review_package_create",
+      "path": "/vrooli.content_desk.v1.review.ReviewService/CreateEditorialPackage",
+      "method": "POST",
+      "summary": "Create immutable destination-unbound wording snapshot with revision guard",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "review_package_get",
+      "path": "/vrooli.content_desk.v1.review.ReviewService/GetEditorialPackage",
+      "method": "POST",
+      "summary": "Read and digest-check an immutable editorial wording package",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "intent_list",
+      "path": "/vrooli.content_desk.v1.intents.PublicationIntentService/ListPublicationIntents",
+      "method": "POST",
+      "summary": "List desired date and daypart intentions",
+      "description": "",
+      "category": "plan"
+    },
+    {
+      "id": "intent_set",
+      "path": "/vrooli.content_desk.v1.intents.PublicationIntentService/SetPublicationIntent",
+      "method": "POST",
+      "summary": "Record revision-guarded editorial timing intention",
+      "description": "",
+      "category": "plan"
+    },
+    {
+      "id": "intake_preview",
+      "path": "/vrooli.content_desk.v1.intake.ArticleIntakeService/Preview",
+      "method": "POST",
+      "summary": "Assess structured article admission without writing",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_admit",
+      "path": "/vrooli.content_desk.v1.intake.ArticleIntakeService/Admit",
+      "method": "POST",
+      "summary": "Admit exact structured source items with immutable receipts",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_list",
+      "path": "/vrooli.content_desk.v1.intake.ArticleIntakeService/List",
+      "method": "POST",
+      "summary": "Read admitted article intake and receipts",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_reconcile",
+      "path": "/vrooli.content_desk.v1.intake.ArticleIntakeService/Reconcile",
+      "method": "POST",
+      "summary": "Reconcile unresolved source items only",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_promote",
+      "path": "/vrooli.content_desk.v1.intake.ArticleIntakeService/Promote",
+      "method": "POST",
+      "summary": "Create requested drafts from an exact admitted article receipt and named variants",
+      "description": "",
+      "category": "intake"
     }
   ]
 }

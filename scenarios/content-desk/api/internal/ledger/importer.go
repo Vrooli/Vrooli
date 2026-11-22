@@ -13,16 +13,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
 // Importer is the read-only boundary over the marketing crew's JSONL store.
 // It never retains offsets: each normalized item has a content-addressed key.
 type Importer struct {
-	db  SQLExecutor
+	db  database.SQLTxExecutor
 	now func() time.Time
 }
 
-func NewImporter(db SQLExecutor) *Importer {
+func NewImporter(db database.SQLTxExecutor) *Importer {
 	return &Importer{db: db, now: func() time.Time { return time.Now().UTC() }}
 }
 

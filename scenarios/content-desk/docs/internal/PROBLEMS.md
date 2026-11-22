@@ -58,6 +58,48 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-11-21 — Project owner and assignment flows are incomplete
+
+**Symptom:** `/create` now saves a native campaign-free draft in an active named project or the explicit `unassigned` scope. Projects can be listed and created, but project/subject filters, collections, and reviewed legacy mappings remain incomplete. Legacy drafts without a project-reference row must not be guessed into a scope.
+
+**Root cause:** The 0.3 project and collection model is only partially implemented. Projects owns active project records; `draft_project_refs` remains an additive artifacts-owned soft-reference relation, validated against active projects on new draft admission. Campaign-bound slot admission remains separate from project scope.
+
+**Workaround:** New one-off drafts use the explicit `unassigned` sentinel. Do not infer a project for pre-existing drafts or fabricate a campaign. Preserve native draft identities and campaign slot behavior.
+
+**Real fix:** Finish project lifecycle operations and project/subject filters in Plan and Content, add collections, and handle legacy mapping only through an explicit review flow. Keep project references soft and additive.
+
+**Owner:** MP2 / Content Desk.
+
+**Refs:** `api/internal/artifacts/schema.sql` (`draft_project_refs`), `api/internal/artifacts/repository.go`, `ui/src/pages/CreatePage.tsx`, `requirements/04-marketing-i16/module.json` (`CONTENTD-P0-017`).
+
+### 2026-11-21 — Storage declaration misses retention receipt
+
+**Symptom:** `storage-manager validate scenario content-desk` reports `STORAGE_PATH_UNCOVERED` and `STORAGE_ACCOUNTABILITY_UNRECONCILED` for the 146-byte `~/.vrooli/state/vrooli/content-desk/retention/enforcement-receipt.json`.
+
+**Root cause:** The current storage declaration is based on canonical scenario directories and omits this runtime receipt.
+
+**Workaround:** None needed for the small Create change; no storage path was added by this work.
+
+**Real fix:** Ask the runtime-retention owner to classify the receipt and reconcile its owner declaration through the supported storage declaration workflow.
+
+**Owner:** Content Desk runtime-retention owner.
+
+**Refs:** `.vrooli/service.json`; `storage-manager validate scenario content-desk` (2026-11-21).
+
+### 2026-11-21 — Marketing 0.3 selected-state source package unavailable
+
+**Symptom:** `DESIGN.md` and `PRD.md` identify `docs/internal/goal/materials/marketing-accepted-v1/` and `docs/internal/goal/selected-state-requirement-map.json` as the source of 47 selected page states, but those paths are absent. The retirement-transfer reference to `marketing-and-presence/design-to-implementation/cases/marketing/legacy-delivery/` is absent too.
+
+**Root cause:** Unknown; the handoff was not staged into this checkout.
+
+**Workaround:** Use the approved 0.3 Google Drive design and the existing experience page contracts for bounded implementation. Do not claim pixel equivalence or treat historical transfer notes as verified.
+
+**Real fix:** Restore the exact owner-approved dossier, selected-state map and visual assets, then reconcile hashes and state-to-requirement links before full fidelity verification.
+
+**Owner:** MP2 / Content Desk.
+
+**Refs:** `DESIGN.md`, `PRD.md`, `experience/pages/today.json`, Marketing and Presence MP2 checkpoint.
+
 ### 2026-07-28 — Retired scenario reference cleanup (resolved)
 
 `campaign-content-studio` was moved out of the repo to
@@ -188,7 +230,7 @@ and replace the local replay with formal artifact replay.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

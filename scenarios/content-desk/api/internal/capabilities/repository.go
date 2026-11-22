@@ -9,16 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
-
-// SQLExecutor is the engine-independent database surface the repository needs.
-// The package owns its schema and queries; the engine stays behind this seams.
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
 
 // Repository is the capability catalog's persistence boundary.
 type Repository interface {
@@ -33,10 +25,10 @@ type Repository interface {
 	LinksForCapability(context.Context, string) ([]CapabilityLink, error)
 }
 
-type repository struct{ db SQLExecutor }
+type repository struct{ db database.SQLTxExecutor }
 
 // NewRepository builds a capability repository over the given executor.
-func NewRepository(db SQLExecutor) Repository { return &repository{db: db} }
+func NewRepository(db database.SQLTxExecutor) Repository { return &repository{db: db} }
 
 type executor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)

@@ -15,14 +15,29 @@ import (
 
 type repositoryStub struct {
 	internalartifacts.Repository
-	draft      internalartifacts.Draft
-	target     internalartifacts.ReleaseTarget
-	attachment internalartifacts.Attachment
-	current    internalartifacts.CurrentRevision
+	draft                          internalartifacts.Draft
+	target                         internalartifacts.ReleaseTarget
+	attachment                     internalartifacts.Attachment
+	current                        internalartifacts.CurrentRevision
+	approvedRevision, approvedBody string
 }
 
 func (r repositoryStub) GetCurrentRevision(context.Context, string) (internalartifacts.CurrentRevision, error) {
 	return r.current, nil
+}
+
+func (r *repositoryStub) ApproveExact(_ context.Context, _ string, revisionID, body string) (internalartifacts.Draft, error) {
+	r.approvedRevision, r.approvedBody = revisionID, body
+	r.draft.Status = internalartifacts.DraftApproved
+	return r.draft, nil
+}
+
+func (r *repositoryStub) Create(_ context.Context, draft internalartifacts.Draft) (internalartifacts.Draft, error) {
+	if draft.ProjectID == "" {
+		draft.ProjectID = "unassigned"
+	}
+	r.draft = draft
+	return draft, nil
 }
 
 func (r *repositoryStub) Attach(_ context.Context, attachment internalartifacts.Attachment) (internalartifacts.Attachment, error) {
@@ -65,6 +80,17 @@ type submitterStub struct {
 	receipt channelmanager.Receipt
 	request channelmanager.Submission
 	err     error
+}
+
+func TestCreateDraftReturnsCampaignFreeUnassignedDraft(t *testing.T) {
+	repo := &repositoryStub{}
+	h := handler{repo: repo}
+	response, err := h.CreateDraft(context.Background(), connect.NewRequest(&artifactsv1.CreateDraftRequest{PostTypeId: "dev-log", Channel: "x-twitter", Format: "post"}))
+	require.NoError(t, err)
+	require.Equal(t, "", repo.draft.CampaignID)
+	require.Equal(t, "unassigned", repo.draft.ProjectID)
+	require.Equal(t, "", response.Msg.Draft.CampaignId)
+	require.Equal(t, "unassigned", response.Msg.Draft.ProjectId)
 }
 
 type eligibilityStub struct {
@@ -147,11 +173,29 @@ func TestSubmitReleaseDraftFailsClosedWithoutUsableTarget(t *testing.T) {
 
 // [REQ:CONTENTD-P1-005]
 func TestTargetedApprovalRequiresEligibleChannelManagerIdentity(t *testing.T) {
-	repo := &repositoryStub{draft: internalartifacts.Draft{ID: "draft-1", Status: internalartifacts.DraftReviewed}}
+	repo := &repositoryStub{draft: internalartifacts.Draft{ID: "draft-1", Status: internalartifacts.DraftReviewed}, current: internalartifacts.CurrentRevision{RevisionID: "rev-1", Body: "exact text"}}
 	h := handler{repo: repo, eligibility: eligibilityStub{result: "not_eligible"}}
-	_, err := h.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: "draft-1", IdentityId: "identity-1", Lane: "main"}))
+	_, err := h.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: "draft-1", ExpectedRevisionId: "rev-1", ExpectedBody: "exact text", IdentityId: "identity-1", Lane: "main"}))
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	require.Equal(t, "not_eligible", repo.target.Eligibility)
+}
+
+func TestApproveDraftRequiresExactDisplayedRevisionAndWording(t *testing.T) {
+	repo := &repositoryStub{draft: internalartifacts.Draft{ID: "draft-1", Status: internalartifacts.DraftReviewed}, current: internalartifacts.CurrentRevision{RevisionID: "rev-current", Body: "current text"}}
+	h := handler{repo: repo}
+	_, err := h.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: "draft-1", ExpectedRevisionId: "rev-old", ExpectedBody: "old text"}))
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Empty(t, repo.approvedBody)
+	_, err = h.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: "draft-1", ExpectedRevisionId: "rev-current", ExpectedBody: "current text"}))
+	require.NoError(t, err)
+	require.Equal(t, "rev-current", repo.approvedRevision)
+	require.Equal(t, "current text", repo.approvedBody)
+}
+
+func TestApproveDraftRejectsMissingExactBasis(t *testing.T) {
+	h := handler{repo: &repositoryStub{}}
+	_, err := h.ApproveDraft(context.Background(), connect.NewRequest(&artifactsv1.ApproveDraftRequest{Id: "draft-1"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 // [REQ:CONTENTD-P1-009]

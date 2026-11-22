@@ -44,7 +44,7 @@ func (h handler) ListDrafts(ctx context.Context, _ *connect.Request[artifactsv1.
 }
 
 func (h handler) CreateDraft(ctx context.Context, request *connect.Request[artifactsv1.CreateDraftRequest]) (*connect.Response[artifactsv1.CreateDraftResponse], error) {
-	draft, err := h.repo.Create(ctx, internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku, ScenarioName: request.Msg.ScenarioName})
+	draft, err := h.repo.Create(ctx, internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku, ScenarioName: request.Msg.ScenarioName, ProjectID: request.Msg.ProjectId})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -227,6 +227,16 @@ func (h handler) TransitionDraft(ctx context.Context, request *connect.Request[a
 }
 
 func (h handler) ApproveDraft(ctx context.Context, request *connect.Request[artifactsv1.ApproveDraftRequest]) (*connect.Response[artifactsv1.ApproveDraftResponse], error) {
+	if request.Msg.ExpectedBody == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("expected body is required for exact approval"))
+	}
+	current, err := h.repo.GetCurrentRevision(ctx, request.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("read exact approval basis: %w", err))
+	}
+	if current.RevisionID != request.Msg.ExpectedRevisionId || current.Body != request.Msg.ExpectedBody {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("draft content changed; refresh the exact wording before approving"))
+	}
 	if request.Msg.IdentityId != "" || request.Msg.Lane != "" {
 		if request.Msg.IdentityId == "" || request.Msg.Lane == "" || h.eligibility == nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("targeted approval requires identity and lane eligibility"))
@@ -243,7 +253,7 @@ func (h handler) ApproveDraft(ctx context.Context, request *connect.Request[arti
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("identity is %s for lane %s", eligibility, request.Msg.Lane))
 		}
 	}
-	draft, err := h.repo.Approve(ctx, request.Msg.Id)
+	draft, err := h.repo.ApproveExact(ctx, request.Msg.Id, request.Msg.ExpectedRevisionId, request.Msg.ExpectedBody)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -263,7 +273,7 @@ func (h handler) GetDraftCurrentRevision(ctx context.Context, request *connect.R
 }
 
 func draftMessage(draft internalartifacts.Draft) *artifactsv1.Draft {
-	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU, ScenarioName: draft.ScenarioName}
+	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU, ScenarioName: draft.ScenarioName, ProjectId: draft.ProjectID}
 }
 
 func attachmentMessage(attachment internalartifacts.Attachment) *artifactsv1.DraftAttachment {

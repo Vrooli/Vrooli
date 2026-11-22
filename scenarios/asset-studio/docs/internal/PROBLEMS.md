@@ -204,7 +204,7 @@ preserve provenance and verdicts — a removed artifact must still be explicable
   (Test Genie run `20260728-212652-b99af4dd`).
 - Measured: 2026-07-28
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

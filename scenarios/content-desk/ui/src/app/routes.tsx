@@ -7,8 +7,15 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { BoardPage } from "../pages/BoardPage";
+import { CreatePage } from "../pages/CreatePage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { TodayPage } from "../pages/TodayPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { ContentPage } from "../pages/ContentPage";
+import { LearnPage } from "../pages/LearnPage";
+import { PlanPage } from "../pages/PlanPage";
+import { IntakePage } from "../pages/IntakePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -23,6 +30,13 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "board", element: <BoardPage /> },
+      { path: "today", element: <TodayPage /> },
+      { path: "plan", element: <PlanPage /> },
+      { path: "create", element: <CreatePage /> },
+      { path: "review", element: <ReviewPage /> },
+      { path: "intake", element: <IntakePage /> },
+      { path: "content", element: <ContentPage /> },
+      { path: "learn", element: <LearnPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QueuedWorktreeSelectionState, StagedMessageMode, WorktreeSelectionSource, WorktreeSuggestionQueueState } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { cancelMessageJob, finalizeQueuedSelection as finalizeQueuedSelectionApi, getMessageJob, listWorktreeSuggestionQueue, queueWorktreeSelection as queueWorktreeSelectionApi, removeWorktreeSuggestionQueueEntry, retireWorktreeSuggestionQueueHead, startQueuedSelection as startQueuedSelectionApi, updateWorktreeSuggestionQueueEntry } from "./api";
 import { stagedSuggestionHold, type StagedSuggestionHold } from "./messageSession";
-import { isStageSelectionComplete, reconcileStageQueueWithIndex, SuccessfulCommitQueueGate, withStageQueueDispatchLock, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./stageQueue";
+import { isStageSelectionComplete, reconcileStageQueueWithIndex, staleSelectionRecovery, SuccessfulCommitQueueGate, withStageQueueDispatchLock, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./stageQueue";
 import type { StageResponse } from "../../lib/api";
 import { useRepoStatus } from "../../lib/hooks";
 import type { StageBatcher } from "../../lib/stage-batcher";
 import { checkStageConfirmation, isSameQueuedSelection, removeQueueSelectionIfUnchanged } from "./stageConfirmation";
 
 export interface QueueNotice { tone: "success" | "warning" | "error"; title: string; message: string }
-export type PendingSuggestionStage = { repoId: string; hold: StagedSuggestionHold | null; paths: string[]; queuedConflicts: QueuedStageSelection[]; onSuccess: (data: StageResponse) => void } | null;
+export type PendingSuggestionStage = { repoId: string; hold: StagedSuggestionHold | null; paths: string[]; queuedConflicts: QueuedStageSelection[]; retireSelection?: QueuedStageSelection; allowQueueInstead?: boolean; onSuccess: (data: StageResponse) => void; afterStage?: (data: StageResponse) => void | Promise<void> } | null;
 
 export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendingSuggestionStage, setPendingSuggestionStage, statusQuery, refreshRepoStatus }: {
   repoId?: string;
@@ -37,6 +37,7 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
   });
   const suggestionStageQueue = useMemo(() => stageQueueQuery.data?.entries.map(toQueuedStageSelection) ?? [], [stageQueueQuery.data?.entries]);
   const successfulCommitsAwaitingQueue = useRef(new SuccessfulCommitQueueGate());
+  const [queueRecoveryPendingId, setQueueRecoveryPendingId] = useState<string | null>(null);
   const pendingCommitQueueSelectionId = useRef<QueuedCommitTarget | null>(null);
   const dispatchQueuedStageForRepo = useRef<((targetRepo: string) => void) | null>(null);
   const unresolvedQueueConflicts = useRef(new Map<string, Set<string>>());
@@ -85,7 +86,7 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
     const selection = initial.entries.map(toQueuedStageSelection).find(item => item.id === id);
     if (!selection) return true;
     if (expected && !isSameQueuedSelection(selection, expected)) return false;
-    if (selection.requestKey) {
+    if (selection.requestKey && (selection.jobId || selection.suggestionMode)) {
       try { await cancelMessageJob(targetRepo, selection.jobId ?? "", selection.requestKey); }
       catch (error) { notify({ tone: "warning", title: "Queue entry removed; suggestion may continue", message: error instanceof Error ? error.message : "The suggestion owner did not confirm cancellation." }); }
     }
@@ -115,14 +116,16 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
       if (!persisted) notify({ tone: "warning", title: "Queue change was not saved", message: "The server could not confirm the queue change. The saved queue remains visible." });
     }).catch(error => notify({ tone: "error", title: "Could not update queued selection", message: error instanceof Error ? error.message : String(error) }));
   }, [completeQueuedStageSelectionFor, notify, stageQueueRepo]);
-  const retireConfirmedQueuedSuggestions = useCallback(async (stagedPaths: readonly string[], targetRepo: string, confirmed: QueuedStageSelection[]) => {
-    if (stagedPaths.length === 0 || confirmed.length === 0) return;
+  const retireConfirmedQueuedSuggestions = useCallback(async (response: StageResponse, targetRepo: string, confirmed: QueuedStageSelection[]) => {
+    if (!response.success || confirmed.length === 0) return;
+    const stagedPaths = response.staged;
+    if (stagedPaths.length === 0) return;
     const staged = new Set(stagedPaths);
     const removed: string[] = [];
     const unresolved: string[] = [];
     const queue = await listWorktreeSuggestionQueue(targetRepo);
     for (const selection of confirmed) {
-      if (!selection.paths.some(path => staged.has(path))) continue;
+      if (!selection.paths.every(path => staged.has(path))) continue;
       const current = queue.entries.map(toQueuedStageSelection).find(item => item.id === selection.id);
       // A replaced entry can reuse its queue id. Its changed digest or paths
       // make it a new user decision, so leave it for another confirmation.
@@ -199,6 +202,14 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
     await refreshStageQueue(targetRepo);
     return finalized.state === QueuedWorktreeSelectionState.QUEUED;
   }, [refreshStageQueue, stageQueueRepo]);
+  const markQueuedSelectionStale = useCallback(async (selection: QueuedStageSelection, reason: string) => {
+    const result = await mutateQueueForRepo(stageQueueRepo, current => current.map(item =>
+      item.id === selection.id && item.snapshotDigest === selection.snapshotDigest
+        ? { ...item, state: "stale", stageError: reason }
+        : item,
+    ));
+    if (!result.persisted) throw new Error(result.error ?? "The queue could not save the stale selection state.");
+  }, [mutateQueueForRepo, stageQueueRepo]);
   const stageNextQueuedSelectionForRepo = useCallback((targetRepo: string) => {
     void withStageQueueDispatchLock(targetRepo, async () => {
       if (unresolvedQueueConflicts.current.get(targetRepo)?.size) return;
@@ -209,7 +220,14 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
         await mutateQueueForRepo(targetRepo, current => current.map(item => item.id === next.id ? { ...item, state: stale ? "stale" : "stage_failed", stageError: message } : item));
         notify({ tone: "error", title: stale ? "Queued selection is stale" : "Queued selection needs review", message });
       };
-      if (next.suggestionMode && next.requestKey) {
+      if (next.selectionId && next.snapshotDigest) {
+        try {
+          await finalizeQueuedSelection(next.selectionId, next.snapshotDigest, targetRepo);
+        } catch (error) {
+          await markFailed(error instanceof Error ? error.message : "The queued files changed after capture. Refresh or remove this selection before staging.", true);
+          return;
+        }
+      } else if (next.suggestionMode && next.requestKey) {
         try {
           const job = await getMessageJob(targetRepo, next.jobId ?? "", next.requestKey);
           if (!job.applicable) {
@@ -228,7 +246,17 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
           onSuccess: result => {
             if (isStageSelectionComplete(next, result)) {
               updateState = mutateQueueForRepo(targetRepo, current => current.map(item => item.id === next.id ? { ...item, state: "staged", stageError: undefined } : item)).then(update => {
-                notify({ tone: update.persisted ? "success" : "warning", title: update.persisted ? "Next commit selection staged" : "Selection staged; queue update failed", message: update.persisted ? `${next.paths.length} queued file${next.paths.length === 1 ? "" : "s"} are ready for review.` : "The files are staged, but the server did not confirm the queue state." });
+                const stagedEntry = update.queue.find(item => item.id === next.id);
+                const accepted = update.persisted && stagedEntry?.state === "staged";
+                notify({
+                  tone: accepted ? "success" : "warning",
+                  title: accepted ? "Next commit selection staged" : stagedEntry?.state === "stale" ? "Queued files changed" : "Selection staged; queue needs review",
+                  message: accepted
+                    ? `${next.paths.length} captured files are staged and ready for review.`
+                    : stagedEntry?.state === "stale"
+                      ? "The staged contents no longer match the saved selection. Keep these staged versions and clear the stale entry, or remove it before committing."
+                      : "Files are staged, but GCT has not confirmed that the queue selection matches the index. Review or remove the queue entry before committing.",
+                });
               });
               return;
             }
@@ -244,7 +272,7 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
         });
       });
     }).catch(error => notify({ tone: "error", title: "Could not coordinate queued staging", message: error instanceof Error ? error.message : String(error) }));
-  }, [mutateQueueForRepo, notify, stageBatcher]);
+  }, [finalizeQueuedSelection, mutateQueueForRepo, notify, stageBatcher]);
   dispatchQueuedStageForRepo.current = stageNextQueuedSelectionForRepo;
   const stageNextQueuedSelection = useCallback(() => {
     stageNextQueuedSelectionForRepo(stageQueueRepo);
@@ -348,6 +376,74 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
     },
     [notify, queryClient, repoId, setPendingSuggestionStage, stageBatcher, statusQuery.data, suggestionStageQueue],
   );
+  const stageQueuedSelectionNow = useCallback((selection: QueuedStageSelection) => {
+    if (queueRecoveryPendingId === selection.id) return;
+    const targetRepo = stageQueueRepo;
+    setQueueRecoveryPendingId(selection.id);
+    void (async () => {
+      const freshStatus = await refreshRepoStatus();
+      const freshStagedPaths = freshStatus.data?.files.staged;
+      if (!freshStatus.data || !freshStagedPaths) {
+        notify({ tone: "warning", title: "Cannot confirm staged selection", message: "Repository status is unavailable. Wait for it to load before staging." });
+        return;
+      }
+      const latest = await listWorktreeSuggestionQueue(targetRepo);
+      if (activeStageQueueRepo.current !== targetRepo) throw new Error("The repository changed before staging began.");
+      const entries = latest.entries.map(toQueuedStageSelection);
+      const current = entries.find(item => item.id === selection.id);
+      if (!current || !isSameQueuedSelection(current, selection)) {
+        notify({ tone: "warning", title: "Queued selection changed", message: "Reload the queue card and review the current selection before staging." });
+        return;
+      }
+      const staged = new Set(freshStagedPaths);
+      const alreadyStaged = selection.paths.filter(path => staged.has(path));
+      const worktreeChanged = new Set([...(freshStatus.data.files.unstaged ?? []), ...(freshStatus.data.files.untracked ?? [])]);
+      const recovery = staleSelectionRecovery(selection, freshStagedPaths, [...worktreeChanged]);
+      if (recovery.kind === "keep-staged") {
+        const removed = await completeQueuedStageSelectionFor(selection.id, targetRepo, selection);
+        if (!removed) return;
+        await refreshStageQueue(targetRepo);
+        notify({ tone: "success", title: "Staged files kept", message: `${selection.paths.length} files remain staged for this commit. The stale queue entry was cleared.` });
+        return;
+      }
+      if (recovery.kind === "remove-or-review") {
+        notify({ tone: "warning", title: "Selection cannot be staged as a whole", message: "At least one selected path is neither staged nor changed in the worktree. Remove this stale queue entry or review the files again; GCT left the index unchanged." });
+        return;
+      }
+      const pathsToStage = recovery.paths;
+      const hold = stagedSuggestionHold(queryClient, targetRepo);
+      const paths = pathsToStage;
+      const selectedPaths = new Set(paths);
+      const queuedConflicts = entries.filter(item => item.id !== selection.id && item.paths.some(path => selectedPaths.has(path)));
+      const onSuccess = (data: StageResponse) => {
+        if (data.warnings?.length) notify({ tone: "warning", title: "Some files were skipped", message: data.warnings.join("\n") });
+      };
+      const afterStage = async (data: StageResponse) => {
+        if (!data.success) {
+          notify({ tone: "error", title: "Selection remains in queue", message: (data.errors ?? data.failed ?? []).join("\n") || "GCT could not stage the remaining files. The saved selection is still in the queue." });
+          return;
+        }
+        const afterStatus = await refreshRepoStatus();
+        const afterStaged = new Set(afterStatus.data?.files.staged ?? []);
+        const complete = isStageSelectionComplete(selection, { success: true, staged: [...alreadyStaged, ...data.staged, ...afterStaged] });
+        if (!complete) {
+          notify({ tone: "error", title: "Selection remains in queue", message: "Some selected files are still unstaged. Review the file list and retry; the staged files were left untouched." });
+          return;
+        }
+        const removed = await completeQueuedStageSelectionFor(selection.id, targetRepo, selection);
+        if (!removed) notify({ tone: "error", title: "Files staged; queue still needs cleanup", message: "The files are staged, but the saved selection changed before GCT could remove it. Remove or review that queue entry before committing." });
+      };
+      if (hold || queuedConflicts.length) {
+        setPendingSuggestionStage({ repoId: targetRepo, hold: hold ?? null, paths, queuedConflicts, retireSelection: selection, allowQueueInstead: false, onSuccess, afterStage });
+        return;
+      }
+      stageBatcher.enqueue(paths, {
+        onSuccess: data => { onSuccess(data); void afterStage(data).catch(error => notify({ tone: "error", title: "Files staged; queue cleanup failed", message: error instanceof Error ? error.message : String(error) })); },
+        onError: error => notify({ tone: "error", title: "Could not stage queued files", message: error instanceof Error ? error.message : String(error) }),
+      });
+    })().catch(error => notify({ tone: "error", title: "Could not stage queued files", message: error instanceof Error ? error.message : String(error) }))
+      .finally(() => setQueueRecoveryPendingId(current => current === selection.id ? null : current));
+  }, [completeQueuedStageSelectionFor, notify, queryClient, queueRecoveryPendingId, refreshRepoStatus, refreshStageQueue, setPendingSuggestionStage, stageBatcher, stageQueueRepo]);
   const handleConfirmSuggestionStage = useCallback(() => {
     const pending = pendingSuggestionStage;
     if (!pending) return;
@@ -357,11 +453,17 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
       return;
     }
     void (async () => {
-      const current = (await listWorktreeSuggestionQueue(pending.repoId)).entries.map(toQueuedStageSelection)
-        .filter(selection => selection.paths.some(path => pending.paths.includes(path)));
+      const latestEntries = (await listWorktreeSuggestionQueue(pending.repoId)).entries.map(toQueuedStageSelection);
+      const currentOwnedSelection = pending.retireSelection && latestEntries.find(selection => selection.id === pending.retireSelection?.id);
+      const current = latestEntries.filter(selection => selection.id !== pending.retireSelection?.id && selection.paths.some(path => pending.paths.includes(path)));
       if (activeStageQueueRepo.current !== pending.repoId) {
         setPendingSuggestionStage(null);
         notify({ tone: "warning", title: "Repository changed", message: "The repository changed while checking the queue. Review the selection again before staging." });
+        return;
+      }
+      if (pending.retireSelection && (!currentOwnedSelection || !isSameQueuedSelection(currentOwnedSelection, pending.retireSelection))) {
+        setPendingSuggestionStage(null);
+        notify({ tone: "warning", title: "Queued selection changed", message: "This saved selection changed while staging was being confirmed. Reload the queue card and review it again." });
         return;
       }
       if (checkStageConfirmation(pending.repoId, repoId ?? "", pending.queuedConflicts, current) !== "confirmed") {
@@ -369,16 +471,31 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
         notify({ tone: "warning", title: "Queue changed; review again", message: "The overlapping queued selections changed while confirmation was open. Review the updated list before staging." });
         return;
       }
+      const recoveryId = pending.retireSelection?.id;
+      if (recoveryId) setQueueRecoveryPendingId(recoveryId);
       stageBatcher.enqueue(pending.paths, { onSuccess: data => {
         pending.onSuccess(data);
-        void retireConfirmedQueuedSuggestions(data.staged, pending.repoId, pending.queuedConflicts).catch(error => notify({
-          tone: "error", title: "Could not update overlapping queued selections",
-          message: error instanceof Error ? error.message : "The saved queue could not be reconciled with staged files.",
-        }));
+        void (async () => {
+          try {
+            await retireConfirmedQueuedSuggestions(data, pending.repoId, pending.queuedConflicts);
+          } catch (error) {
+            notify({ tone: "error", title: "Could not update overlapping queued selections", message: error instanceof Error ? error.message : "The saved queue could not be reconciled with staged files." });
+          }
+          try {
+            await pending.afterStage?.(data);
+          } catch (error) {
+            notify({ tone: "error", title: "Files staged; queue cleanup failed", message: error instanceof Error ? error.message : String(error) });
+          }
+        })().finally(() => {
+          if (recoveryId) setQueueRecoveryPendingId(id => id === recoveryId ? null : id);
+        });
+      }, onError: error => {
+        if (recoveryId) setQueueRecoveryPendingId(id => id === recoveryId ? null : id);
+        notify({ tone: "error", title: "Could not stage these files", message: error instanceof Error ? error.message : "The index was not changed. The saved queue entry remains available." });
       }});
       setPendingSuggestionStage(null);
     })().catch(error => notify({ tone: "error", title: "Could not verify queued selections", message: error instanceof Error ? error.message : String(error) }));
-  }, [pendingSuggestionStage, repoId, retireConfirmedQueuedSuggestions, setPendingSuggestionStage, stageBatcher, notify]);
+  }, [pendingSuggestionStage, repoId, retireConfirmedQueuedSuggestions, setPendingSuggestionStage, setQueueRecoveryPendingId, stageBatcher, notify]);
   const handleQueueSuggestionStage = useCallback(() => {
     if (!pendingSuggestionStage) return;
     if (pendingSuggestionStage.repoId !== stageQueueRepo) {
@@ -389,5 +506,5 @@ export function useWorktreeSuggestionQueue({ repoId, notify, stageBatcher, pendi
     void queueSelection(pendingSuggestionStage.paths, WorktreeSelectionSource.INDEX_TO_WORKTREE);
   }, [pendingSuggestionStage, queueSelection, setPendingSuggestionStage, stageQueueRepo, notify]);
 
-  return { stageQueueRepo, suggestionStageQueue, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, startQueuedSuggestion, requestStage, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit };
+  return { stageQueueRepo, stageQueueReady: stageQueueQuery.isSuccess, suggestionStageQueue, queueRecoveryPendingId, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, markQueuedSelectionStale, startQueuedSuggestion, requestStage, stageQueuedSelectionNow, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit };
 }

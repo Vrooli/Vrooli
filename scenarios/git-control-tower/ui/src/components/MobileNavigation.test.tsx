@@ -121,7 +121,6 @@ describe("MobileHeader", () => {
   it("routes top-level actions and exposes repository details in the menu sheet", async () => {
     const onRefresh = vi.fn();
     const onOpenSettings = vi.fn();
-    const onOpenReview = vi.fn();
     const onOpenFileSearch = vi.fn();
 
     renderWithProviders(
@@ -133,7 +132,6 @@ describe("MobileHeader", () => {
         isLoading={false}
         onRefresh={onRefresh}
         onOpenSettings={onOpenSettings}
-        onOpenReview={onOpenReview}
         onOpenFileSearch={onOpenFileSearch}
         onPush={vi.fn()}
         onPull={vi.fn()}
@@ -143,15 +141,9 @@ describe("MobileHeader", () => {
     expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
     expect(screen.getByTestId("branch-selector")).toHaveTextContent("main");
 
-    fireEvent.click(screen.getByTestId("mobile-review-button"));
-    fireEvent.click(screen.getByTestId("mobile-search-button"));
-
-    expect(onOpenReview).toHaveBeenCalledTimes(1);
-    expect(onOpenFileSearch).toHaveBeenCalledTimes(1);
-
     fireEvent.click(screen.getByTestId("mobile-menu-button"));
 
-    const dialog = screen.getByRole("dialog", { name: "Settings & Info" });
+    const dialog = screen.getByRole("dialog", { name: "Repository tools" });
     expect(within(dialog).getByText("abcdef1")).toBeInTheDocument();
     expect(within(dialog).getByText("origin/main")).toBeInTheDocument();
     expect(within(dialog).getByText("1 staged")).toBeInTheDocument();
@@ -159,9 +151,13 @@ describe("MobileHeader", () => {
     expect(within(dialog).getByText("1 untracked")).toBeInTheDocument();
     expect(within(dialog).getByText("All systems healthy")).toBeInTheDocument();
 
-    fireEvent.click(within(dialog).getByRole("button", { name: /Refresh status/i }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Repository tools" })).getByTestId("mobile-menu-search"));
+    expect(onOpenFileSearch).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId("mobile-menu-button"));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Repository tools" })).getByRole("button", { name: /Refresh status/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Settings & Info" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Repository tools" })).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("mobile-menu-button"));
     fireEvent.click(screen.getByRole("button", { name: /Settings/i }));

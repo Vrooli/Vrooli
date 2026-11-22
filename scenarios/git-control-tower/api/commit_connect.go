@@ -54,6 +54,15 @@ func (s *Server) createCommitConnect(ctx context.Context, req *repov1.CreateComm
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
+	stagedFiles, err := s.git.ListStagedFiles(writeCtx, repo.Path)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if s.stagedMessages != nil {
+		if err = s.stagedMessages.ValidateQueueCommitAdmission(writeCtx, repositoryIDFor(repo), repo.Path, stagedFiles); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	consumedIntent, err := s.intentService.Consume(writeCtx, principal, req.GetIntentId(), preview.RepositoryID, mutationOperationCommit, preview.ExpectedRevision, preview.SubjectDigest)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeAborted, err)
@@ -69,7 +78,6 @@ func (s *Server) createCommitConnect(ctx context.Context, req *repov1.CreateComm
 		AuthorEmail:          req.GetAuthorEmail(),
 		SkipPrecommitOnce:    req.GetSkipPrecommitOnce(),
 	}
-	stagedFiles, _ := s.git.ListStagedFiles(writeCtx, repo.Path)
 	candidateSecurity, fixtureSecurity, fixtureSecurityUnavailable := selectCommitCandidateSecurity(
 		writeCtx, s.candidateSecurity, s.db, s.fileRoots, s.git, repo.Path,
 	)

@@ -71,11 +71,11 @@ func (state WorktreeQueueState) CanTransitionTo(next WorktreeQueueState) bool {
 	case WorktreeQueueAwaitingUnstage:
 		return next == WorktreeQueueQueued || next == WorktreeQueueFailed || next == WorktreeQueueStale || next == WorktreeQueueRemoved
 	case WorktreeQueueStaged:
-		return next == WorktreeQueueQueued || next == WorktreeQueueCommitPending || next == WorktreeQueueRemoved
+		return next == WorktreeQueueQueued || next == WorktreeQueueFailed || next == WorktreeQueueStale || next == WorktreeQueueCommitPending || next == WorktreeQueueRemoved
 	case WorktreeQueueFailed, WorktreeQueueStale:
 		return next == WorktreeQueueQueued || next == WorktreeQueueRemoved
 	case WorktreeQueueCommitPending:
-		return next == WorktreeQueueQueued || next == WorktreeQueueStaged || next == WorktreeQueueCommitted
+		return next == WorktreeQueueQueued || next == WorktreeQueueStaged || next == WorktreeQueueStale || next == WorktreeQueueCommitted
 	default:
 		return false
 	}

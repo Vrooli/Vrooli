@@ -20,6 +20,11 @@ export interface QueuedCommitTarget {
   snapshotDigest: string;
 }
 
+export type QueueCommitBlockReason = "awaiting_unstage" | "stale" | "stage_failed" | "partial_selection" | "not_head";
+export type QueueCommitReadiness =
+  | { ready: true; target: QueuedCommitTarget | null }
+  | { ready: false; reason: QueueCommitBlockReason; selection: QueuedStageSelection };
+
 function queueViewState(state: WorktreeSuggestionQueueState): QueuedStageSelection["state"] {
   switch (state) {
     case WorktreeSuggestionQueueState.STAGED: return "staged";
@@ -95,6 +100,26 @@ export function isStageSelectionComplete(selection: QueuedStageSelection, respon
   return selection.paths.every(path => staged.has(path));
 }
 
+export type StaleSelectionRecovery =
+  | { kind: "keep-staged" }
+  | { kind: "stage-current"; paths: string[] }
+  | { kind: "remove-or-review" };
+
+/** Pick only a recovery that can finish the entire saved selection. Staging a
+ * partial subset and leaving the stale queue marker behind creates a dead end. */
+export function staleSelectionRecovery(selection: QueuedStageSelection, stagedPaths: readonly string[], worktreeChangedPaths: readonly string[]): StaleSelectionRecovery {
+  const staged = new Set(stagedPaths);
+  const changed = new Set(worktreeChangedPaths);
+  const pathsToStage = [...new Set(selection.paths.filter(path => changed.has(path) || !staged.has(path)))];
+  if (pathsToStage.length === 0 && selection.paths.length > 0 && selection.paths.every(path => staged.has(path))) {
+    return { kind: "keep-staged" };
+  }
+  if (selection.paths.length > 0 && selection.paths.every(path => staged.has(path) || changed.has(path)) && pathsToStage.length > 0) {
+    return { kind: "stage-current", paths: pathsToStage };
+  }
+  return { kind: "remove-or-review" };
+}
+
 export function reconcileStageQueueWithIndex(queue: readonly QueuedStageSelection[], stagedPaths: readonly string[]) {
   const staged = new Set(stagedPaths);
   return queue.map(selection => {
@@ -107,11 +132,39 @@ export function reconcileStageQueueWithIndex(queue: readonly QueuedStageSelectio
 }
 
 export function queuedHeadIncludedInIndex(queue: readonly QueuedStageSelection[], stagedPaths: readonly string[] | undefined): QueuedCommitTarget | null {
-  if (!stagedPaths) return null;
-  const head = queue[0];
-  return head && head.snapshotDigest && head.paths.every(path => stagedPaths.includes(path))
-    ? { entryId: head.id, snapshotDigest: head.snapshotDigest }
-    : null;
+  const result = inspectQueueCommitReadiness(queue, stagedPaths);
+  return result.ready ? result.target : null;
+}
+
+/** Only a complete, eligible queue head may be attached to a commit. Any staged
+ * overlap with an unresolved selection blocks commit until its owner resolves it. */
+export function inspectQueueCommitReadiness(queue: readonly QueuedStageSelection[], stagedPaths: readonly string[] | undefined): QueueCommitReadiness {
+  if (!stagedPaths) return { ready: true, target: null };
+  const staged = new Set(stagedPaths);
+  for (const [index, selection] of queue.entries()) {
+    const stagedCount = selection.paths.reduce((count, path) => count + Number(staged.has(path)), 0);
+    if (stagedCount === 0) continue;
+    if (selection.state === "awaiting_unstage") return { ready: false, reason: "awaiting_unstage", selection };
+    if (selection.state === "stale") return { ready: false, reason: "stale", selection };
+    if (selection.state === "stage_failed") return { ready: false, reason: "stage_failed", selection };
+    if (stagedCount !== selection.paths.length) return { ready: false, reason: "partial_selection", selection };
+    if (index !== 0) return { ready: false, reason: "not_head", selection };
+    if (!selection.snapshotDigest || !["queued", "staged", "commit_pending"].includes(selection.state)) {
+      return { ready: false, reason: "stage_failed", selection };
+    }
+    return { ready: true, target: { entryId: selection.id, snapshotDigest: selection.snapshotDigest } };
+  }
+  return { ready: true, target: null };
+}
+
+export function queueCommitBlockMessage(reason: QueueCommitBlockReason) {
+  switch (reason) {
+    case "awaiting_unstage": return "Finish queueing the saved selection before committing; some of its files are still staged."
+    case "stale": return "Staged files overlap a stale queue entry. Use its recovery action to keep the staged files and clear that entry before committing."
+    case "stage_failed": return "A queued selection with a staging error overlaps staged files. Retry staging or remove it before committing."
+    case "partial_selection": return "Only part of a queued selection is staged. Stage or unstage the whole selection, or remove it before committing."
+    case "not_head": return "A later queued selection overlaps staged files. Resolve it before committing the queue head."
+  }
 }
 
 /** An incomplete staged-to-queue handoff must never enter the current commit. */

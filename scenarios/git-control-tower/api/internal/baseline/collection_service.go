@@ -272,23 +272,7 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 			ReservationID: collectionReservationID(req.RepoID, branch, req.Name), ReservationMemberCount: len(collection.Members),
 		})
 		if err != nil {
-			if isTransientAdmissionSaturation(err) {
-				// Keep the member pending. A collection capture can fill the
-				// caller's Test Genie queue before the final member is admitted;
-				// that is durable backpressure, not a terminal baseline failure.
-				collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
-					m.Error, m.UpdatedAt = "deferred: "+err.Error(), s.now().UTC()
-					return nil
-				})
-				if err != nil {
-					return StartCollectionCaptureResult{}, err
-				}
-				continue
-			}
-			collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
-				m.Status, m.Error, m.UpdatedAt = CollectionMemberFailed, err.Error(), s.now().UTC()
-				return nil
-			})
+			collection, _, err = s.recordCollectionCaptureStartFailure(req.RepoID, branch, req.Name, member.Scenario, err)
 			if err != nil {
 				return StartCollectionCaptureResult{}, err
 			}
@@ -339,22 +323,12 @@ func (s *Service) startDeferredCollectionCapture(ctx context.Context, repoID int
 			ReservationID: collectionReservationID(repoID, collection.Branch, collection.Name), ReservationMemberCount: len(collection.Members),
 		})
 		if startErr != nil {
-			if isTransientAdmissionSaturation(startErr) {
-				_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
-					target.Error, target.UpdatedAt = "deferred: "+startErr.Error(), s.now().UTC()
-					return nil
-				})
-				if updateErr != nil {
-					return PendingCollectionCapture{}, false, updateErr
-				}
-				return PendingCollectionCapture{}, false, nil
-			}
-			_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
-				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, startErr.Error(), s.now().UTC()
-				return nil
-			})
+			_, deferred, updateErr := s.recordCollectionCaptureStartFailure(repoID, pending.Branch, pending.CollectionName, member.Scenario, startErr)
 			if updateErr != nil {
 				return PendingCollectionCapture{}, false, updateErr
+			}
+			if deferred {
+				return PendingCollectionCapture{}, false, nil
 			}
 			return PendingCollectionCapture{}, false, startErr
 		}
@@ -368,6 +342,23 @@ func (s *Service) startDeferredCollectionCapture(ctx context.Context, repoID int
 		return PendingCollectionCapture{CollectionName: pending.CollectionName, Branch: pending.Branch, Scenario: member.Scenario, Pending: started}, true, nil
 	}
 	return PendingCollectionCapture{}, false, nil
+}
+
+// recordCollectionCaptureStartFailure applies the shared durable state change
+// for capture paths that could not admit a child run. Queue saturation remains
+// pending and recoverable; other errors are terminal for that member.
+func (s *Service) recordCollectionCaptureStartFailure(repoID int64, branch, name, scenario string, startErr error) (CollectionManifest, bool, error) {
+	deferred := isTransientAdmissionSaturation(startErr)
+	collection, err := s.storage.UpdateCollectionMember(repoID, branch, name, scenario, func(member *CollectionMember) error {
+		member.UpdatedAt = s.now().UTC()
+		if deferred {
+			member.Error = "deferred: " + startErr.Error()
+			return nil
+		}
+		member.Status, member.Error = CollectionMemberFailed, startErr.Error()
+		return nil
+	})
+	return collection, deferred, err
 }
 
 func deferredCaptureRepoDir(collection CollectionManifest, pending PendingCollectionCapture) string {
@@ -465,10 +456,7 @@ func (s *Service) ExtendCollection(ctx context.Context, req ExtendCollectionRequ
 		}
 		started, startErr := s.StartCapture(ctx, CreateRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario, Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason, ReservationID: collectionReservationID(req.RepoID, branch, req.Name), ReservationMemberCount: len(collection.Members)})
 		if startErr != nil {
-			collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
-				m.Status, m.Error, m.UpdatedAt = CollectionMemberFailed, startErr.Error(), s.now().UTC()
-				return nil
-			})
+			collection, _, err = s.recordCollectionCaptureStartFailure(req.RepoID, branch, req.Name, member.Scenario, startErr)
 			if err != nil {
 				return ExtendCollectionResult{}, err
 			}

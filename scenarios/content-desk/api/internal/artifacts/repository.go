@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,8 +13,8 @@ import (
 )
 
 type Draft struct {
-	ID, CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU, ScenarioName string
-	Status                                                                     DraftStatus
+	ID, CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU, ScenarioName, ProjectID string
+	Status                                                                                DraftStatus
 }
 
 // CurrentRevision is an artifact's effective body plus the editorial authority
@@ -90,6 +91,7 @@ type Repository interface {
 	GetCurrentRevision(context.Context, string) (CurrentRevision, error)
 	Transition(context.Context, string, DraftEvent) (Draft, error)
 	Approve(context.Context, string) (Draft, error)
+	ApproveExact(context.Context, string, string, string) (Draft, error)
 	UpdateBody(context.Context, string, string) (Draft, error)
 	RecordEligibility(context.Context, string, ReleaseTarget) error
 	GetReleaseTarget(context.Context, string) (ReleaseTarget, bool, error)
@@ -315,7 +317,7 @@ func scanDraft(ctx context.Context, queryer interface {
 }, id string,
 ) (Draft, error) {
 	var draft Draft
-	err := queryer.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format)
+	err := queryer.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,''), COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format, &draft.ProjectID)
 	return draft, err
 }
 
@@ -378,7 +380,7 @@ func (r *sqliteRepository) UpdateBody(ctx context.Context, id, body string) (Dra
 	}
 	defer func() { _ = tx.Rollback() }()
 	var draft Draft
-	if err := tx.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,''), COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format, &draft.ProjectID); err != nil {
 		return Draft{}, err
 	}
 	if draft.Status == DraftPublished || draft.Status == DraftAbandoned {
@@ -421,14 +423,38 @@ func (r *sqliteRepository) UpdateBody(ctx context.Context, id, body string) (Dra
 }
 
 func (r *sqliteRepository) Approve(ctx context.Context, id string) (Draft, error) {
+	return r.approve(ctx, id, nil)
+}
+
+// ApproveExact performs the same human-only approval gate as Approve, but it
+// atomically refuses to record approval if the selected revision or wording
+// changed after the operator saw it.
+func (r *sqliteRepository) ApproveExact(ctx context.Context, id, expectedRevisionID, expectedBody string) (Draft, error) {
+	return r.approve(ctx, id, &CurrentRevision{RevisionID: expectedRevisionID, Body: expectedBody})
+}
+
+func (r *sqliteRepository) approve(ctx context.Context, id string, expected *CurrentRevision) (Draft, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Draft{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
 	var draft Draft
-	if err := tx.QueryRowContext(ctx, `SELECT id, campaign_id, post_type_id, body, status FROM drafts WHERE id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.ProjectID); err != nil {
 		return Draft{}, err
+	}
+	if expected != nil {
+		var revisionID, revisionBody string
+		err := tx.QueryRowContext(ctx, `SELECT id, body FROM draft_revisions WHERE draft_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`, id).Scan(&revisionID, &revisionBody)
+		if err != nil && err != sql.ErrNoRows {
+			return Draft{}, err
+		}
+		if err == sql.ErrNoRows || revisionBody != draft.Body {
+			revisionID = "" // Legacy/current unledgered text is guarded by its exact body.
+		}
+		if revisionID != expected.RevisionID || draft.Body != expected.Body {
+			return Draft{}, fmt.Errorf("draft content changed; refresh the exact wording before approving")
+		}
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT c.id FROM claim_citations cc JOIN claims c ON c.id = cc.claim_id WHERE cc.draft_id = ? AND c.verification_status <> 'verified' ORDER BY c.id`, id)
 	if err != nil {
@@ -499,8 +525,32 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 	if draft.Status != DraftRequested {
 		return Draft{}, fmt.Errorf("new draft must start requested")
 	}
+	if draft.ProjectID == "" {
+		draft.ProjectID = "unassigned"
+	}
+	if draft.ProjectID != "unassigned" {
+		var activeProjectExists int
+		if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM projects WHERE id = ? AND status = 'active'`, draft.ProjectID).Scan(&activeProjectExists); err != nil {
+			return Draft{}, fmt.Errorf("validate draft project: %w", err)
+		}
+		if activeProjectExists != 1 {
+			return Draft{}, fmt.Errorf("project %q is not registered", draft.ProjectID)
+		}
+	}
 	if draft.Channel == "" || draft.Format == "" {
 		return Draft{}, fmt.Errorf("new draft requires channel and format")
+	}
+	if draft.CampaignID == "" {
+		if strings.TrimSpace(draft.Body) == "" {
+			return Draft{}, fmt.Errorf("campaign-free draft requires post text")
+		}
+		var activePostTypeExists int
+		if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ? AND status = 'active'`, draft.PostTypeID).Scan(&activePostTypeExists); err != nil {
+			return Draft{}, fmt.Errorf("validate active post type: %w", err)
+		}
+		if activePostTypeExists != 1 {
+			return Draft{}, fmt.Errorf("campaign-free draft requires an active post type")
+		}
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -514,16 +564,18 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 	if postTypeExists != 1 {
 		return Draft{}, fmt.Errorf("post type %q is not registered", draft.PostTypeID)
 	}
-	reserved, err := tx.ExecContext(ctx, `UPDATE campaign_slots SET reserved = reserved + 1 WHERE campaign_id = ? AND channel = ? AND format = ? AND reserved < capacity`, draft.CampaignID, draft.Channel, draft.Format)
-	if err != nil {
-		return Draft{}, fmt.Errorf("reserve campaign slot: %w", err)
-	}
-	count, err := reserved.RowsAffected()
-	if err != nil {
-		return Draft{}, err
-	}
-	if count != 1 {
-		return Draft{}, fmt.Errorf("campaign artifact slot is unavailable")
+	if draft.CampaignID != "" {
+		reserved, err := tx.ExecContext(ctx, `UPDATE campaign_slots SET reserved = reserved + 1 WHERE campaign_id = ? AND channel = ? AND format = ? AND reserved < capacity`, draft.CampaignID, draft.Channel, draft.Format)
+		if err != nil {
+			return Draft{}, fmt.Errorf("reserve campaign slot: %w", err)
+		}
+		count, err := reserved.RowsAffected()
+		if err != nil {
+			return Draft{}, err
+		}
+		if count != 1 {
+			return Draft{}, fmt.Errorf("campaign artifact slot is unavailable")
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	_, err = tx.ExecContext(ctx, `INSERT INTO drafts (id, campaign_id, post_type_id, lane, sku, scenario_name, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, draft.ID, draft.CampaignID, draft.PostTypeID, draft.Lane, draft.SKU, draft.ScenarioName, draft.Body, draft.Status, now, now)
@@ -533,6 +585,9 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 	if _, err = tx.ExecContext(ctx, `INSERT INTO draft_slots (draft_id, campaign_id, channel, format) VALUES (?, ?, ?, ?)`, draft.ID, draft.CampaignID, draft.Channel, draft.Format); err != nil {
 		return Draft{}, fmt.Errorf("record draft slot: %w", err)
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO draft_project_refs (draft_id, project_id) VALUES (?, ?)`, draft.ID, draft.ProjectID); err != nil {
+		return Draft{}, fmt.Errorf("assign draft project: %w", err)
+	}
 	if err = tx.Commit(); err != nil {
 		return Draft{}, err
 	}
@@ -540,7 +595,7 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id ORDER BY d.updated_at DESC, d.id DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,''), COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id ORDER BY d.updated_at DESC, d.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -548,7 +603,7 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
 	var drafts []Draft
 	for rows.Next() {
 		var draft Draft
-		if err := rows.Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format); err != nil {
+		if err := rows.Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format, &draft.ProjectID); err != nil {
 			return nil, err
 		}
 		drafts = append(drafts, draft)
@@ -558,7 +613,7 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Draft, error) {
 	var draft Draft
-	err := r.db.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format)
+	err := r.db.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,''), COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format, &draft.ProjectID)
 	return draft, err
 }
 
@@ -628,7 +683,7 @@ func (r *sqliteRepository) Transition(ctx context.Context, id string, event Draf
 	}
 	defer func() { _ = tx.Rollback() }()
 	var draft Draft
-	if err := tx.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Channel, &draft.Format); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, COALESCE(s.channel,''), COALESCE(s.format,''), COALESCE(pr.project_id,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id LEFT JOIN draft_project_refs pr ON pr.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Channel, &draft.Format, &draft.ProjectID); err != nil {
 		return Draft{}, err
 	}
 	next, err := TransitionDraft(DraftState{Status: draft.Status}, event)
@@ -655,8 +710,10 @@ func (r *sqliteRepository) Transition(ctx context.Context, id string, event Draf
 		if released, err := result.RowsAffected(); err != nil {
 			return Draft{}, err
 		} else if released == 1 {
-			if _, err := tx.ExecContext(ctx, `UPDATE campaign_slots SET reserved = reserved - 1 WHERE campaign_id = ? AND channel = ? AND format = ? AND reserved > 0`, draft.CampaignID, draft.Channel, draft.Format); err != nil {
-				return Draft{}, err
+			if draft.CampaignID != "" {
+				if _, err := tx.ExecContext(ctx, `UPDATE campaign_slots SET reserved = reserved - 1 WHERE campaign_id = ? AND channel = ? AND format = ? AND reserved > 0`, draft.CampaignID, draft.Channel, draft.Format); err != nil {
+					return Draft{}, err
+				}
 			}
 		}
 	}

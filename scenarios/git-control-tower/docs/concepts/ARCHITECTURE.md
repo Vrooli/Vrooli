@@ -61,6 +61,23 @@ from moving the embedding document and keeps safe-area ownership explicit. Libra
 portal placement, focus, gestures, scroll locking, footer safe padding and page
 canvas paint while open. The resting html/body canvas matches bottom navigation.
 
+## Current commit and follow-up queue
+
+The commit editor owns the current index selection. The follow-up queue is a
+separate ordered group; its entries stay out of the index until they are
+selected after the current commit. The commit control and its blocker remain
+together so a disabled action explains the next step before the user reaches
+it.
+
+A stale queue entry can overlap files that are already staged. Recovery reads
+fresh status before acting: if the selected paths are staged and have no newer
+worktree edits, the explicit “Use staged files” action clears only the stale
+queue entry and preserves the index. If paths have worktree edits, recovery
+stages those current versions and clears the entry only after the full
+selection is staged. Large path lists stay collapsed until requested. This
+keeps queue metadata separate from Git contents and makes each recovery action
+describe exactly what it changes.
+
 ## Change review drill-in
 
 The Changes list keeps repository-level groups and bulk actions as its overview.

@@ -4,16 +4,8 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "content-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "45411f818d0f28a5b56c091515098d7dbc63f49f34af632909d58c2a02d5acf8",
+  "manifest_hash": "601445128bcfef5c8505c45ab0940a088c67db6c334a4d5194c7c59156c460d2",
   "commands": [
-    {
-      "path": "artifacts approve",
-      "group": "artifacts",
-      "command": "approve",
-      "binding": "ArtifactsService.ApproveDraft",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
-    },
     {
       "path": "artifacts create",
       "group": "artifacts",

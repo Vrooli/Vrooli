@@ -9,14 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
-
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
 
 type Repository interface {
 	Create(context.Context, Campaign, []string, []Slot) (Campaign, error)
@@ -63,9 +57,9 @@ func (r *sqliteRepository) LaunchAssets(ctx context.Context, scenarioName string
 	return result, rows.Err()
 }
 
-type sqliteRepository struct{ db SQLExecutor }
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Create(ctx context.Context, campaign Campaign, refs []string, slots []Slot) (Campaign, error) {
 	if campaign.ID == "" {
